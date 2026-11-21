@@ -119,6 +119,8 @@ export const chatKeys = {
   list: (filters: ChatsFilters, limit: number) =>
     [...observeKeys.mineAll(), "chats", filters, limit] as const,
   detail: (id: string) => [...observeKeys.mineAll(), "chat", id] as const,
+  lists: () => [...observeKeys.mineAll(), "chats"] as const,
+  details: () => [...observeKeys.mineAll(), "chat"] as const,
 }
 
 export const serviceAccountKeys = {

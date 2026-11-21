@@ -31,18 +31,16 @@ type Persisted = {
   panelWidth: number
 }
 
-type AgentKind = "revise" | "investigate"
-
 type ActivityState = Persisted & {
-  agentKind: AgentKind
   drafts: Record<string, string>
   targets: Record<string, string | null>
+  askingAgent: boolean
   setOpen: (open: boolean) => void
+  setAskingAgent: (asking: boolean) => void
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
   setChatWidth: (width: number) => void
   setPanelWidth: (width: number) => void
-  setAgentKind: (kind: AgentKind) => void
   setDraft: (dashboardId: string, text: string) => void
   setTarget: (dashboardId: string, panelId: string | null) => void
 }
@@ -90,10 +88,11 @@ export const useActivityStore = create<ActivityState>()(
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,
       panelWidth: panelWidth.initial,
-      agentKind: "revise",
       drafts: {},
       targets: {},
+      askingAgent: false,
       setOpen: (open) => set({ open }),
+      setAskingAgent: (askingAgent) => set({ askingAgent }),
       setWidth: (width) =>
         set({
           width: clampWidth(width, activityWidth, Number.POSITIVE_INFINITY),
@@ -110,7 +109,6 @@ export const useActivityStore = create<ActivityState>()(
         set({
           panelWidth: clampWidth(width, panelWidth, Number.POSITIVE_INFINITY),
         }),
-      setAgentKind: (agentKind) => set({ agentKind }),
       setDraft: (dashboardId, text) =>
         set((state) => ({ drafts: { ...state.drafts, [dashboardId]: text } })),
       setTarget: (dashboardId, panelId) =>

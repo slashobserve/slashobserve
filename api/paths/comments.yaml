@@ -29,6 +29,7 @@ dashboards-id-comments:
       When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved.
       With no LLM provider configured, no revision is queued and `revision` stays null.
       At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+      A starter takes comments but no revision, so `request_revision` on one answers 409 `provisioned` and creates nothing.
     requestBody:
       required: true
       content:
@@ -82,6 +83,12 @@ dashboards-id-comments:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         description: The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: "`request_revision` is true and the dashboard is a starter the server keeps current with each release (`provisioned`); the comment is not created."
         content:
           application/json:
             schema:

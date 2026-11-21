@@ -36,7 +36,7 @@ afterEach(() => vi.unstubAllGlobals())
 describe("AskAgainButton", () => {
   it("sends the same question as a follow-up of the chat and appends it", async () => {
     const fetch = stubCreate()
-    const { user, onSent } = render({ followsId: "r1" })
+    const { user, onSent } = render({ chatId: "c1" })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(onSent.mock.calls[0][1]).toBe("same")
@@ -46,22 +46,25 @@ describe("AskAgainButton", () => {
     >
     expect(sent).toMatchObject({
       prompt: "which logs exist",
-      follows_id: "r1",
+      kind: "ask",
+      chat_id: "c1",
     })
   })
 
   it("hands focus on once the question is sent", async () => {
     stubCreate()
     const afterSent = vi.fn()
-    const { user, onSent } = render({ followsId: "r1", afterSent })
+    const { user, onSent } = render({ chatId: "c1", afterSent })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(afterSent).toHaveBeenCalledOnce())
     expect(onSent).toHaveBeenCalledBefore(afterSent)
   })
 
-  it("sends it into the dashboard the chat is about", async () => {
+  it("asks it again about the dashboard the chat is about", async () => {
     const fetch = stubCreate()
-    const { user, onSent } = render({ dashboardId: "d1" })
+    const { user, onSent } = render({
+      subject: { kind: "dashboard", id: "d1" },
+    })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     const sent = (await fetch.mock.calls[0][0].json()) as Record<
@@ -70,6 +73,7 @@ describe("AskAgainButton", () => {
     >
     expect(sent).toMatchObject({
       prompt: "which logs exist",
+      kind: "ask",
       dashboard_id: "d1",
     })
     expect(sent).not.toHaveProperty("follows_id")

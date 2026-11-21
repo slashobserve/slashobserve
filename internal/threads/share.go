@@ -69,7 +69,7 @@ func (s *Service) ShareRun(ctx context.Context, by auth.Principal, in ShareInput
 		return Shared{}, fmt.Errorf("read agent request: %w", err)
 	case run.RequestedByKind != string(by.Kind) || run.RequestedByID.String() != by.ID:
 		return Shared{}, ErrRunNotFound
-	case !revisions.PrivateAsk(run):
+	case !revisions.AskedPrivately(run):
 		return Shared{}, ErrNotShareable
 	}
 	if run.ThreadMessageID.Valid {

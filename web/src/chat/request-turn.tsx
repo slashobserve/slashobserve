@@ -1,8 +1,28 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
+import { toast } from "sonner"
 
+import { ApiError } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
+import {
+  AnswerCard,
+  reviseFailureText,
+  type RevisionAsked,
+} from "@/conversation/answer-card"
+import {
+  defaultDelivery,
+  deliveryGate,
+  reviseBlock,
+  ungated,
+  type Place,
+} from "@/conversation/delivery"
+import {
+  planRevise,
+  threadTargetOf,
+  type Subject,
+} from "@/conversation/send-plan"
+import { useDeliver } from "@/conversation/use-composer"
 import { StatusIcon } from "@/components/status-label"
 import {
   buildStatusText,
@@ -15,13 +35,16 @@ import {
   observeRequestQuery,
   type ObserveRequest,
   stopsPolling,
+  useAgentInfo,
   usePollFailures,
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
 import { requestOrigin, type OriginFields } from "@/observe/request-origin"
+import { runWords } from "@/observe/run-words"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
+import type { Finding } from "@/findings/queries"
 
 import { AskOnDashboard } from "./ask-on-dashboard"
 import { BuildCard } from "./build-card"
@@ -49,6 +72,8 @@ const reconnectingAfterFailures = 2
 export type TurnSummary = OriginFields & {
   id: string
   prompt: string
+  redacted: boolean
+  investigation: boolean
   status: "queued" | "running" | "succeeded" | "failed"
   state: ObserveRequest["state"]
   result_kind: ObserveRequest["result_kind"]
@@ -81,6 +106,84 @@ type Props = {
   opensRunsIn?: RunOpens
   latest?: boolean
   answerActions?: ReactNode
+  about?: Subject | null
+}
+
+function ChatAnswer({
+  request,
+  finding,
+  own,
+  about,
+  onRevised,
+  actions,
+}: {
+  request: ObserveRequest
+  finding: Finding
+  own: boolean
+  about: Subject | null
+  onRevised: (next: ObserveRequest) => Promise<void>
+  actions: ReactNode
+}) {
+  const dashboardId = request.dashboard_id
+  const revised: Subject | null =
+    dashboardId === null ? null : { kind: "dashboard", id: dashboardId }
+  const subject = revised ?? about
+  const asked: Subject | null =
+    request.subject_observation_id === null
+      ? subject
+      : { kind: "observation", id: request.subject_observation_id }
+  const { deliver, pending } = useDeliver(subject)
+  const agent = useAgentInfo()
+  const mayRevise = own && !request.read_only && revised !== null
+  const place: Place = { kind: "chat", chatId: request.chat_id }
+  const gate = deliveryGate(
+    { ...ungated, agentAvailable: agent.data?.available },
+    defaultDelivery(place, "")
+  )
+
+  async function revise(): Promise<RevisionAsked> {
+    const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
+    if ("error" in plan) {
+      toast.error(plan.error)
+      return false
+    }
+    try {
+      const sent = await deliver(plan)
+      if (sent.via === "chat") await onRevised(sent.request)
+      return true
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "already_applied") {
+        return true
+      }
+      toast.error(reviseFailureText(error))
+      return false
+    }
+  }
+
+  return (
+    <AnswerCard
+      finding={finding}
+      requestId={request.id}
+      canSave={own}
+      revise={
+        mayRevise
+          ? {
+              onRevise: revise,
+              pending,
+              blocked: reviseBlock(gate, true),
+              dashboardId: revised.id,
+            }
+          : undefined
+      }
+      chatId={request.chat_id ?? undefined}
+      actions={actions}
+      menu={{
+        shareTarget: own && asked !== null ? threadTargetOf(asked) : null,
+        sharedThreadId: request.shared_thread_id,
+        subjectObservationId: request.subject_observation_id,
+      }}
+    />
+  )
 }
 
 function isActive(status: TurnSummary["status"]): boolean {
@@ -157,10 +260,10 @@ export function RequestTurn({
   opensRunsIn = "chat",
   latest = true,
   answerActions,
+  about = null,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const investigates = summary.kind === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
     enabled:
@@ -173,6 +276,9 @@ export function RequestTurn({
   const settled = !isActive(summary.status)
   const showLive = live !== undefined && !(settled && !isTerminal(live))
   const request: TurnSummary = showLive ? live : summary
+  const readsData = request.kind === "investigate"
+  const words = runWords(request)
+  const investigates = request.investigation
   const detail = showLive ? live : undefined
   const build = request.build
   const answers = mayHaveFinding(request)
@@ -219,14 +325,14 @@ export function RequestTurn({
       <div className="flex flex-col gap-1.5">
         <Sender summary={request} />
         <ContinuedFrom summary={request} />
-        <PromptBubble prompt={request.prompt} />
+        <PromptBubble prompt={words} />
       </div>
       <div className="flex gap-3">
         <AgentMark variant="tile" />
         <div className="flex min-w-0 flex-1 flex-col gap-3 pt-[3px]">
           {active ? (
             <div className="flex flex-col gap-2.5">
-              {build !== null && !investigates ? (
+              {build !== null && !readsData ? (
                 <BuildCard
                   request={detail ?? request}
                   build={build}
@@ -247,7 +353,7 @@ export function RequestTurn({
                         queuePosition: detail.queue_position,
                         canceling: detail.state === "canceling",
                       })
-                    : investigates
+                    : readsData
                       ? "Investigating"
                       : workingText(request, dashboardTitle)}
                 </span>
@@ -264,6 +370,7 @@ export function RequestTurn({
                 liveText={detail?.live_text}
                 requestId={summary.id}
                 pane={inPane}
+                withMessages={words !== null}
               />
               {request.status === "running" ? (
                 <RunningFor startedAt={request.started_at} />
@@ -297,6 +404,7 @@ export function RequestTurn({
                     reconnecting={false}
                     requestId={summary.id}
                     pane={inPane}
+                    withMessages={words !== null}
                   />
                 ) : query.isError ? (
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -330,21 +438,27 @@ export function RequestTurn({
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
               <>
-                <FindingCard
-                  finding={detail.finding}
-                  showOpenLink
-                  saveAnswerOf={
-                    request.requested_by.id === principal.id
-                      ? request.id
-                      : undefined
-                  }
-                  chatId={detail.chat_id ?? undefined}
-                  actions={answerActions}
-                />
-                {detail.finding.ask_on !== null ? (
+                {!investigates ? (
+                  <ChatAnswer
+                    request={detail}
+                    finding={detail.finding}
+                    own={request.requested_by.id === principal.id}
+                    about={about}
+                    onRevised={openNewRun}
+                    actions={answerActions}
+                  />
+                ) : (
+                  <FindingCard
+                    finding={detail.finding}
+                    showOpenLink
+                    chatId={detail.chat_id ?? undefined}
+                    actions={answerActions}
+                  />
+                )}
+                {detail.finding.ask_on !== null && words !== null ? (
                   <AskOnDashboard
                     askOn={detail.finding.ask_on}
-                    prompt={request.prompt}
+                    prompt={words}
                   />
                 ) : null}
               </>
@@ -364,7 +478,9 @@ export function RequestTurn({
               version={request.result_version}
               finishedAt={resultFinishedAt(request)}
               eager={loadSteps}
-              partial={savedBuild ? { prompt: request.prompt } : undefined}
+              partial={
+                savedBuild && words !== null ? { prompt: words } : undefined
+              }
               addMissing={latest}
             />
           ) : null}

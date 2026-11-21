@@ -24,7 +24,8 @@ const secondPanelTitle = "Log rows by service"
 const teammateComment = "Is this per pod?"
 const ownComment = "Needs a p99"
 
-const p99Prompt = fixturePrompt("followup-p99-panel.json")
+const p99Question = fixturePrompt("ask-p99.json")
+const p99Change = fixturePrompt("followup-p99-panel.json")
 
 function versionEntry(page: Page, version: number) {
   return entries(page).filter({
@@ -107,28 +108,41 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await test.step("send the thread", async () => {
         await own.getByRole("button", { name: "Reply", exact: true }).click()
-        const form = own.getByRole("form", { name: "Reply to this comment" })
+        const form = card(page).getByRole("form", {
+          name: "Add to the activity",
+        })
         await form
-          .getByRole("textbox", { name: "Reply" })
-          .fill(`@observe ${p99Prompt}`)
+          .getByRole("textbox", { name: "Comment or request" })
+          .fill(`@observe ${p99Question}`)
         await form
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()
 
-        await expect(
-          own.getByText(/Observe Agent is working on it/)
-        ).toBeVisible()
-        const running = entries(page).filter({
-          has: page.getByText("is working on it", { exact: true }),
+        const running = own.getByRole("status").filter({
+          hasText: "Observe Agent is working on it · View the run",
         })
         await expect(running).toHaveCount(1)
         await expect(
-          running.getByRole("link", { name: /Details of the running agent/ })
-        ).toBeVisible()
+          running.getByRole("link", { name: "View the run" })
+        ).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
       })
 
-      await test.step("resolved", async () => {
+      await test.step("answered", async () => {
         finish()
+        await expect(
+          own.getByText(`Suggested change: ${p99Change}`)
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(versionEntry(page, 2)).toHaveCount(0)
+        await expect(versionButton(page)).toHaveText("Live · v1")
+      })
+
+      await test.step("revised", async () => {
+        await own
+          .getByRole("button", { name: "Revise the dashboard", exact: true })
+          .click()
+        await expect(
+          own.getByText(`Revise the dashboard: ${p99Change}`)
+        ).toBeVisible()
         await expect(
           own.getByText("Saved version 2 of this dashboard.")
         ).toBeVisible({ timeout: agentTimeout })

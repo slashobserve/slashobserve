@@ -53,7 +53,6 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   The selected panel (`web/src/dashboards/selection-store.ts`) shows `PanelToolbar`, whose buttons and the panel menu call the same helpers in `web/src/dashboards/panel-actions.ts`.
 - Panel data requests go through `panelRequestLimiter` (4 concurrent): the proxy allows 8 in-flight requests per principal, and over HTTP/1.1 the browser opens 6 connections per origin, so with the page's one event stream a save or other write always finds a free connection.
   A page holds at most one long-lived stream for the same reason: a dashboard's changes, its move included, arrive on its own event stream.
-- `maxQueuedRevisions` in `web/src/revisions/queries.ts` mirrors the server's cap of 5 queued or running revisions per dashboard.
 - Panel data requests always send an explicit `var-` selection for every declared variable, resolved by `web/src/dashboards/variables.ts`, so the panel and the variable list agree on defaults.
 - `useDatasources()` returns the list a `DatasourceListProvider` holds without a request, and fetches `GET /api/v1/datasources` only outside one.
 - The browser never calls a datasource.
@@ -77,7 +76,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Id-bearing pages live at `/d/<id>[/<slug>]`, `/f/<id>`, `/c/<id>` and `/b/<id>`, and every dashboard link and address string comes from `web/src/lib/links.ts`, whose `slugOf` matches `links.Slug` in Go; the old `/dashboards/<id>`, `/folders/<id>`, `/observe/<id>` and `/builds/<id>` route files only redirect.
 - `/` is Home; with a query string other than `tab` it redirects to `/ask` with that query string (`homeRedirect` in `web/src/home/home-tab.ts`); the chat is `/ask`.
   Agents are at `/agents` and `/agents/<ref>`, and API keys at `/keys` is an Admin's item in the sidebar's Workspace group.
-- `/chats` lists the caller's chats, and an Admin's everyone's with `scope=all`; a conversation whose request has `read_only` (an Admin reading someone else's chat it sees only as an Admin) shows no composer and loads no dashboard history, and its build card reads the build without any action.
+- `/chats` lists the caller's chats, and an Admin's everyone's with `scope=all`; a conversation whose request has `read_only` (an Admin reading someone else's chat it sees only as an Admin) or `redacted` (someone else's private ask) shows no composer and loads no dashboard history, and its build card reads the build without any action.
 - `/connect/$requestId` is the OAuth consent page, under `_authed` without the shell; it navigates to the server's `redirect_to` and never stores it.
 - `/p/$token` is the public dashboard page, outside `_authed` like `/login`, and the public page makes no request outside `/api/v1/public/`.
   It renders `PublicPanel` (`web/src/public/`), never `PanelContainer`, whose menu calls the signed-in API, and wraps the page in `DatasourceListProvider` with the link's datasources.
@@ -104,7 +103,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   - the decimal count shared by values shown together: `commonDecimals`;
   - legend mode and order: `effectiveLegendMode` and `legendOrder`; tooltip rows: `tooltipRows`;
   - the panel editor draft: `draftReducer`, with `panelChanges` for the footer summary, default version summary, suggestion diff and reapply (`rebasePanel`), and `parsePanelJson` for JSON-view edits;
-  - actor text: the server's `actor.label` and `actor.client` (`internal/actor`) are the only display text for who made a change and for an MCP client name, and `web/src/lib/origin.ts` adds only the channel words Web, CLI and API, and `sendToAgentState` (`web/src/activity/agent-gate.ts`) is the only rule for when a composer may ask an agent by mention.
+  - actor text: the server's `actor.label` and `actor.client` (`internal/actor`) are the only display text for who made a change and for an MCP client name, and `web/src/lib/origin.ts` adds only the channel words Web, CLI and API, and `deliveryGate` (`web/src/conversation/delivery.ts`) is the only rule for when a composer may send to an agent;
+  - what a send does: `planSend` (`web/src/conversation/send-plan.ts`), which every composer reaches through `useComposer` and `Composer` in `web/src/conversation/`.
 - Every time a renderer draws goes through `zonedDateTime`, `zonedDateTimeMs`, `zonedTimeValue`, `timeLabel` or `timeTicks` with the `zone` prop that `PanelBody` derives once with `displayZone`.
   The zone changes only what is drawn: relative times and the data request still resolve in the dashboard's zone.
 - A display key whose absent value must keep the old look has no entry in `spec/schema/defaults.json` (for example `wideLayout` and `detailsMode`), and the Grafana importer writes Grafana's value whenever Grafana has one.

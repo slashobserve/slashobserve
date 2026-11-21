@@ -4,9 +4,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/repairs"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -78,5 +80,59 @@ func TestRepairWaitsForTheCheckOfTheLatestVersion(t *testing.T) {
 
 	if len(out.Queued) != 0 || !slices.Equal(out.Skipped, []repairs.Skipped{{DashboardID: empty.String(), Reason: repairs.ReasonNothingToRepair}}) {
 		t.Fatalf("repair = %+v, want nothing_to_repair while the problems belong to an older version", out)
+	}
+}
+
+func TestAStarterDashboardIsNotEditableForRepairAndIsSkippedAsProvisioned(t *testing.T) {
+	r := newRig(t)
+	starter := r.create(t, boardSpec("Starter", "up", "empty_series"))
+	ordinary := r.create(t, boardSpec("Ordinary", "up", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, starter.String())
+
+	items := r.list(t, r.editor, "")
+	if items[starter.String()].CanEdit || !items[ordinary.String()].CanEdit {
+		t.Errorf("can edit: starter %v, ordinary %v, want false and true", items[starter.String()].CanEdit, items[ordinary.String()].CanEdit)
+	}
+	out, err := r.repairs.Repair(reading(t.Context()), r.editor, []pgtype.UUID{starter, ordinary})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Queued) != 1 || out.Queued[0].DashboardID != ordinary.String() {
+		t.Errorf("queued = %+v, want only the ordinary dashboard", out.Queued)
+	}
+	if !slices.Equal(out.Skipped, []repairs.Skipped{{DashboardID: starter.String(), Reason: repairs.ReasonProvisioned}}) {
+		t.Errorf("skipped = %+v, want the starter as provisioned", out.Skipped)
+	}
+	var runs int
+	r.scan(t, `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, starter.String(), &runs)
+	if runs != 0 {
+		t.Errorf("%d runs queued on the starter, want none", runs)
+	}
+}
+
+func TestAStarterDashboardReportsNoRepairEvenWhenOneFailedBeforeItWasRefused(t *testing.T) {
+	r := newRig(t)
+	starter := r.create(t, boardSpec("Starter", "up", "empty_series"))
+	ordinary := r.create(t, boardSpec("Ordinary", "up", "empty_series"))
+	r.broken.Store(true)
+	if err := r.svc.Run(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, starter.String())
+	gaveUp := "this dashboard is a starter"
+	for _, id := range []pgtype.UUID{starter, ordinary} {
+		r.request(t, id, request{prompt: repairprompt.Prefix, status: "failed", failure: &gaveUp, ago: time.Hour})
+	}
+
+	items := r.list(t, r.editor, "")
+	if got := items[starter.String()].Repair; got != nil {
+		t.Errorf("the starter's repair = %+v, want none", got)
+	}
+	if got := items[ordinary.String()].Repair; got == nil || got.Outcome != "failed" {
+		t.Errorf("the ordinary dashboard's repair = %+v, want its failed repair", got)
 	}
 }

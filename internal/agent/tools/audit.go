@@ -38,7 +38,7 @@ const (
 	propAuditWindow = propAuditQuery + `,` + propAuditSince + `,` + propAuditUntil
 
 	schemaSearchAuditEvents = `{"type":"object","properties":{` + propAuditWindow + `,` +
-		`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Events per page. Default 20."},` +
+		`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"Events per page, at most 100 and at most 16 KiB of answer; follow next_cursor when truncated. Default 20."},` +
 		`"cursor":{"type":"string","maxLength":1024,"description":"next_cursor from the previous page, with the same query."}},"additionalProperties":false}`
 	schemaGetAuditEvent   = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The event id, from search_audit_events."}},"required":["id"],"additionalProperties":false}`
 	schemaListAuditFacets = `{"type":"object","properties":{` + propAuditWindow + `,` +

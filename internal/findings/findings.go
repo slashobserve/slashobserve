@@ -17,7 +17,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
-	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/usertext"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -31,6 +31,7 @@ const (
 	evidenceColumns   = 2
 	PinTag            = "finding"
 	defaultTitle      = "Finding"
+	answerTitle       = "Answer"
 )
 
 var (
@@ -88,17 +89,20 @@ func (f Finding) Saved() bool {
 }
 
 func Title(text string) string {
-	if title := revisions.ShortTitle(text); title != "" {
+	if title := usertext.ShortTitle(text); title != "" {
 		return title
 	}
 	return defaultTitle
 }
 
-func TitleFrom(given, prompt string) string {
-	if title := Title(given); title != defaultTitle {
+func TitleFrom(given string, investigation bool) string {
+	switch title := usertext.ShortTitle(given); {
+	case title != "":
 		return title
+	case investigation:
+		return defaultTitle
 	}
-	return Title(prompt)
+	return answerTitle
 }
 
 func FirstLine(markdown string) string {

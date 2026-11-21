@@ -151,7 +151,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Pa
 	}
 	page := Page{Items: make([]Item, 0, min(len(rows), p.Limit)), Job: job}
 	if cursor == nil && len(p.DashboardIDs) == 0 {
-		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID})
+		row, err := s.db.Queries().HealthSummary(ctx, dbsqlc.HealthSummaryParams{UnopenedBefore: before, Folders: visible, Folder: p.FolderID, RepairPrefix: repairprompt.Prefix})
 		if err != nil {
 			return Page{}, fmt.Errorf("summarize health: %w", err)
 		}
@@ -209,15 +209,22 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 		Title:          row.Title,
 		URL:            links.Dashboard(s.publicURL, id, row.Title),
 		Folder:         folders.Folder{ID: row.FolderID, Title: row.FolderTitle, General: row.FolderGeneral, Personal: row.FolderPersonal},
-		CanEdit:        levels.Of(row.FolderID).Edit,
+		CanEdit:        folders.DashboardAccess{Abilities: levels.Of(row.FolderID), Provisioned: row.Provisioned}.Shown().Edit,
 		State:          itemState(checkedVersion, int(row.LatestVersion), row.Skipped, checked),
 		CheckedVersion: checkedVersion,
 		CheckedAt:      timeOf(row.CheckedAt),
 		LastViewedAt:   lastView,
 		Skipped:        row.Skipped,
 		Problems:       problems,
-		Repair:         repairOf(row, checkedVersion),
+		Repair:         repairShown(row, checkedVersion),
 	}, nil
+}
+
+func repairShown(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {
+	if row.Provisioned {
+		return nil
+	}
+	return repairOf(row, checkedVersion)
 }
 
 func repairOf(row dbsqlc.ListHealthRow, checkedVersion *int) *Repair {

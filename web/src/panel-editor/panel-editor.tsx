@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import type { Selections } from "@/api/keys"
 import { ApiError } from "@/api/errors"
 import { isTransient } from "@/api/issues"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -27,7 +28,11 @@ import {
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
 import { useDeletedBy } from "@/dashboards/live/deleted-store"
-import { useLatestPermissions } from "@/dashboards/permissions"
+import {
+  contentChange,
+  useLatestPermissions,
+  useLatestProvisioned,
+} from "@/dashboards/permissions"
 import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { panelTitles } from "@/history/diff-groups"
@@ -151,7 +156,8 @@ export default function PanelEditor({
   const save = usePatchPanels(dashboardId)
   const navigate = useNavigate()
   const permissions = useLatestPermissions(dashboardId)
-  const propose = !permissions.edit && permissions.comment
+  const propose =
+    contentChange(permissions, useLatestProvisioned(dashboardId)) === "propose"
   const datasources = useDatasources()
   const [draft, dispatch] = useReducer(draftReducer, undefined, () =>
     startDraft(version, panel)
@@ -533,9 +539,9 @@ export default function PanelEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
+      <ScrollPane
         ref={bodyRef}
-        className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4 py-3.5"
+        className="flex flex-1 flex-col gap-4 px-4 py-3.5"
       >
         {backup.kept ? (
           <Alert>
@@ -671,7 +677,7 @@ export default function PanelEditor({
             onLeaveRequest={registerJsonGuard}
           />
         )}
-      </div>
+      </ScrollPane>
       {readOnly || (newer === 0 && !showsProblem(problem)) ? null : (
         <div className="flex max-h-[40%] flex-col gap-2 overflow-auto px-4 pb-3">
           {newer > 0 ? (

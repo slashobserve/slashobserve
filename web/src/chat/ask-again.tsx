@@ -8,33 +8,31 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 
-import { planSend, type Opens } from "./send-plan"
+import { planSend, type Opens, type Subject } from "@/conversation/send-plan"
 
-export function AskAgainButton({
-  prompt,
-  dashboardId,
-  followsId,
-  disabled,
-  onSent,
-  afterSent,
-}: {
-  prompt: string
-  dashboardId?: string
-  followsId?: string
-  disabled: boolean
+type AskInChat = {
+  subject?: Subject | null
+  chatId?: string
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
   afterSent?: () => void
-}) {
+}
+
+export function useAskInChat({
+  subject = null,
+  chatId,
+  onSent,
+  afterSent,
+}: AskInChat) {
   const create = useCreateObserveRequest()
 
-  async function askAgain() {
-    const plan = planSend({
-      command: null,
-      text: prompt,
-      dashboardId,
-      followsId,
-    })
-    if ("error" in plan) return
+  async function ask(prompt: string) {
+    const plan = planSend(
+      { kind: "chat", chatId: chatId ?? null },
+      subject,
+      { to: "agent", visibleTo: "me" },
+      { body: prompt, clientId: crypto.randomUUID() }
+    )
+    if ("error" in plan || plan.via !== "chat.turn") return
     try {
       const request = await create.mutateAsync(plan.input)
       await onSent(request, plan.opens)
@@ -44,14 +42,34 @@ export function AskAgainButton({
     }
   }
 
+  return { ask, pending: create.isPending }
+}
+
+export function AskAgainButton({
+  prompt,
+  subject,
+  chatId,
+  disabled,
+  onSent,
+  afterSent,
+}: {
+  prompt: string
+  subject?: Subject | null
+  chatId?: string
+  disabled: boolean
+  onSent: AskInChat["onSent"]
+  afterSent?: () => void
+}) {
+  const { ask, pending } = useAskInChat({ subject, chatId, onSent, afterSent })
+
   return (
     <Button
       variant="ghost"
       size="sm"
-      disabled={disabled || create.isPending}
+      disabled={disabled || pending}
       focusableWhenDisabled
-      aria-busy={create.isPending}
-      onClick={() => void askAgain()}
+      aria-busy={pending}
+      onClick={() => void ask(prompt)}
     >
       <RotateCcwIcon aria-hidden="true" />
       Ask again

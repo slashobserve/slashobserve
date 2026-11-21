@@ -22,21 +22,24 @@ const (
 )
 
 type agentRequest struct {
-	ID          string        `json:"id"`
-	Kind        string        `json:"kind"`
-	Intent      string        `json:"intent"`
-	Trigger     string        `json:"trigger"`
-	Title       string        `json:"title"`
-	Prompt      string        `json:"prompt"`
-	DashboardID *string       `json:"dashboard_id"`
-	Status      string        `json:"status"`
-	State       string        `json:"state"`
-	ResultVer   *int          `json:"result_version"`
-	URL         *string       `json:"url"`
-	Error       *string       `json:"error"`
-	Steps       []agentStep   `json:"steps"`
-	LiveText    *string       `json:"live_text"`
-	Usage       *requestUsage `json:"usage"`
+	ID            string        `json:"id"`
+	Kind          string        `json:"kind"`
+	Intent        string        `json:"intent"`
+	Investigation bool          `json:"investigation"`
+	Trigger       string        `json:"trigger"`
+	Title         string        `json:"title"`
+	Prompt        string        `json:"prompt"`
+	Redacted      bool          `json:"redacted"`
+	DashboardID   *string       `json:"dashboard_id"`
+	SubjectID     *string       `json:"subject_observation_id"`
+	Status        string        `json:"status"`
+	State         string        `json:"state"`
+	ResultVer     *int          `json:"result_version"`
+	URL           *string       `json:"url"`
+	Error         *string       `json:"error"`
+	Steps         []agentStep   `json:"steps"`
+	LiveText      *string       `json:"live_text"`
+	Usage         *requestUsage `json:"usage"`
 
 	QueuePosition *int            `json:"queue_position"`
 	FailureCode   *string         `json:"failure_code"`
@@ -47,6 +50,8 @@ type agentRequest struct {
 	Finding       *findingSummary `json:"finding"`
 	ObservationID *string         `json:"observation_id"`
 	SharedThread  *string         `json:"shared_thread_id"`
+	Anchor        *anchor.Anchor  `json:"anchor"`
+	BlockID       *string         `json:"block_id"`
 
 	AllowedActions []string `json:"allowed_actions"`
 }
@@ -285,6 +290,22 @@ func costText(usage *requestUsage) string {
 	}
 }
 
+const privateChatWords = "hidden, asked in a private chat"
+
+func wordsOf(req agentRequest, words string) string {
+	if req.Redacted {
+		return privateChatWords
+	}
+	return dash(words)
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
 func printRequest(out *output, req agentRequest) {
 	version := "-"
 	if req.ResultVer != nil {
@@ -295,18 +316,23 @@ func printRequest(out *output, req agentRequest) {
 		{"Status", text(req.Status)},
 		{"State", text(req.State)},
 		{"Intent", text(req.Intent)},
+		{"Investigation", yesNo(req.Investigation)},
 		{"Trigger", text(req.Trigger)},
 		{"Cost", costText(req.Usage)},
 		{"Dashboard", orDash(req.DashboardID)},
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
-		{"Title", dash(req.Title)},
-		{"Prompt", dash(req.Prompt)},
+		{"Title", wordsOf(req, req.Title)},
+		{"Prompt", wordsOf(req, req.Prompt)},
+	}
+	if req.SubjectID != nil {
+		fields = append(fields, [2]string{"About observation", text(*req.SubjectID)})
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
 	}
+	fields = append(fields, pointedFields(req)...)
 	if req.SharedThread != nil {
 		fields = append(fields, [2]string{"Shared in thread", text(*req.SharedThread)})
 	}
@@ -330,6 +356,17 @@ func printRequest(out *output, req agentRequest) {
 		}
 	}
 	printLiveText(out, req.LiveText)
+}
+
+func pointedFields(req agentRequest) [][2]string {
+	if req.Anchor == nil {
+		return nil
+	}
+	fields := [][2]string{{"Points at", anchorText(req.Anchor)}}
+	if req.BlockID != nil {
+		fields = append(fields, [2]string{"On block", text(*req.BlockID)})
+	}
+	return fields
 }
 
 func printLiveText(out *output, live *string) {

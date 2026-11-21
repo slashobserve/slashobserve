@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import type { Annotation } from "@/annotations/queries"
-import type { Comment } from "@/comments/queries"
+import type {
+  Message,
+  Thread,
+  ThreadWithMessages,
+} from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import type { ProposalSummary } from "@/proposals/queries"
@@ -31,31 +35,56 @@ function at(minutes: number, ms = 0): string {
   return new Date(Date.UTC(2026, 0, 1, 0, minutes, 0, ms)).toISOString()
 }
 
-function comment(overrides: Partial<Comment> & { id: string }): Comment {
+function message(id: string, threadId: string, createdAt: string): Message {
   return {
-    dashboard_id: "d1",
-    parent_id: null,
-    version: 1,
-    panel_id: null,
+    id,
+    thread_id: threadId,
     body: "text",
-    status: "open",
-    allowed_actions: ["reply", "resolve"],
-    unread: false,
-    author,
     actor,
-    created_at: at(0),
-    updated_at: at(0),
-    resolved_at: null,
-    resolved_by: null,
-    resolved_actor: null,
+    created_at: createdAt,
+    updated_at: createdAt,
     edited_at: null,
     mentions: [],
     can_edit: false,
     can_delete: false,
-    resolved_by_version: null,
-    panel_present: true,
-    revision: null,
-    ...overrides,
+    block_id: null,
+    reply_to: null,
+  }
+}
+
+function thread(
+  overrides: Partial<Thread> & { id: string },
+  replies = 0
+): ThreadWithMessages {
+  const createdAt = overrides.created_at ?? at(0)
+  return {
+    thread: {
+      target: { kind: "dashboard", id: "d1" },
+      dashboard_id: "d1",
+      version: 1,
+      panel_id: null,
+      panel_present: true,
+      status: "open",
+      allowed_actions: ["reply", "resolve"],
+      unread: false,
+      created_at: createdAt,
+      updated_at: createdAt,
+      resolved_at: null,
+      resolved_actor: null,
+      resolved_by_version: null,
+      revision: null,
+      anchor: null,
+      block_id: null,
+      agent: null,
+      agent_off: false,
+      ...overrides,
+    },
+    messages: [
+      message(overrides.id, overrides.id, createdAt),
+      ...Array.from({ length: replies }, (_, index) =>
+        message(`${overrides.id}-r${index}`, overrides.id, createdAt)
+      ),
+    ],
   }
 }
 
@@ -64,6 +93,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     dashboard_id: "d1",
     allowed_actions: [],
     intent: "apply",
+    investigation: false,
     comment_id: null,
     panel_id: null,
     prompt: "do it",
@@ -87,6 +117,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
     continued_by: null,
     retried_by: null,
     continue_note: null,
+    redacted: false,
     ...overrides,
   }
 }
@@ -214,12 +245,12 @@ function keys(entries: readonly TimelineEntry[]): string[] {
   return entries.map((entry) => entry.key)
 }
 
-const none = { comments: [], requests: [], versions: [] }
+const none = { threads: [], requests: [], versions: [] }
 
 describe("buildTimeline", () => {
   it("orders every kind by time, oldest first", () => {
     const entries = buildTimeline({
-      comments: [comment({ id: "c1", created_at: at(2) })],
+      threads: [thread({ id: "c1", created_at: at(2) })],
       requests: [
         request({ id: "r1", created_at: at(3) }),
         request({
@@ -241,23 +272,25 @@ describe("buildTimeline", () => {
     ])
   })
 
-  it("never turns a reply into its own entry", () => {
+  it("keeps every reply inside its thread entry", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [
-        comment({ id: "c1", created_at: at(1) }),
-        comment({ id: "c2", parent_id: "c1", created_at: at(2) }),
-      ],
+      threads: [thread({ id: "c1", created_at: at(1) }, 1)],
     })
     expect(keys(entries)).toEqual(["thread:c1"])
     const [entry] = entries
-    expect(entry?.kind === "thread" && entry.thread.replies).toHaveLength(1)
+    expect(entry?.kind === "thread" && entry.thread.messages).toHaveLength(2)
   })
 
-  it("attaches the newest thread request to its thread only", () => {
+  it("leaves out a thread with no loaded messages", () => {
+    const empty = { ...thread({ id: "c1" }), messages: [] }
+    expect(keys(buildTimeline({ ...none, threads: [empty] }))).toEqual([])
+  })
+
+  it("leaves every request of a loaded thread to that thread", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(1) })],
+      threads: [thread({ id: "c1", created_at: at(1) })],
       requests: [
         request({
           id: "old",
@@ -268,88 +301,19 @@ describe("buildTimeline", () => {
         request({
           id: "new",
           comment_id: "c1",
+          status: "running",
           created_at: at(3),
+          started_at: at(3),
         }),
       ],
     })
     expect(keys(entries)).toEqual(["thread:c1"])
-    const [entry] = entries
-    expect(entry?.kind === "thread" && entry.request?.id).toBe("new")
-  })
-
-  describe("askedAgent", () => {
-    function askedAgent(requests: Revision[]): boolean | null {
-      const [entry] = buildTimeline({
-        ...none,
-        comments: [comment({ id: "c1", created_at: at(1) })],
-        requests,
-      })
-      return entry?.kind === "thread" ? entry.askedAgent : null
-    }
-
-    function threadRequest(
-      overrides: Partial<Revision> & { id: string }
-    ): Revision {
-      return request({ comment_id: "c1", ...overrides })
-    }
-
-    it("is true for a request sent with the root comment", () => {
-      expect(askedAgent([threadRequest({ id: "r1", created_at: at(1) })])).toBe(
-        true
-      )
-      expect(
-        askedAgent([threadRequest({ id: "r1", created_at: at(1, 2000) })])
-      ).toBe(true)
-    })
-
-    it("is false without a request or for a request outside the window", () => {
-      expect(askedAgent([])).toBe(false)
-      expect(
-        askedAgent([threadRequest({ id: "r1", created_at: at(1, 2001) })])
-      ).toBe(false)
-    })
-
-    it("is false when someone else made the request", () => {
-      const other = { kind: "user", id: "u2", name: "Grace" } as const
-      expect(
-        askedAgent([
-          threadRequest({ id: "r1", created_at: at(1), requested_by: other }),
-        ])
-      ).toBe(false)
-    })
-
-    it("stays true when a reply sends a later request", () => {
-      expect(
-        askedAgent([
-          threadRequest({ id: "r1", created_at: at(1, 5) }),
-          threadRequest({ id: "r2", created_at: at(9) }),
-        ])
-      ).toBe(true)
-    })
-
-    it("stays true when the first request failed and a retry ran later", () => {
-      expect(
-        askedAgent([
-          threadRequest({ id: "r1", status: "failed", created_at: at(1, 5) }),
-          threadRequest({ id: "r2", created_at: at(4) }),
-        ])
-      ).toBe(true)
-    })
-
-    it("stays false when only later requests exist", () => {
-      expect(
-        askedAgent([
-          threadRequest({ id: "r1", created_at: at(5) }),
-          threadRequest({ id: "r2", created_at: at(9) }),
-        ])
-      ).toBe(false)
-    })
   })
 
   it("shows a request whose thread is not loaded as a request entry", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(1) })],
+      threads: [thread({ id: "c1", created_at: at(1) })],
       requests: [
         request({
           id: "r1",
@@ -359,8 +323,6 @@ describe("buildTimeline", () => {
       ],
     })
     expect(keys(entries)).toEqual(["thread:c1", "request:r1"])
-    const [entry] = entries
-    expect(entry?.kind === "thread" && entry.request).toBeNull()
   })
 
   it("leaves the observe request out and keeps its version", () => {
@@ -375,10 +337,10 @@ describe("buildTimeline", () => {
     expect(keys(entries)).toEqual(["version:1", "request:p1"])
   })
 
-  it("shows a running entry for any active request, thread requests included", () => {
+  it("shows a running entry for an active request outside a thread", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(1) })],
+      threads: [thread({ id: "c1", created_at: at(1) })],
       requests: [
         request({
           id: "t1",
@@ -396,12 +358,7 @@ describe("buildTimeline", () => {
         request({ id: "done", status: "succeeded", created_at: at(5) }),
       ],
     })
-    expect(keys(entries)).toEqual([
-      "thread:c1",
-      "running:t1",
-      "running:o1",
-      "request:done",
-    ])
+    expect(keys(entries)).toEqual(["thread:c1", "running:o1", "request:done"])
   })
 
   it("puts a running entry one millisecond after its start", () => {
@@ -439,9 +396,9 @@ describe("buildTimeline", () => {
 
   it("orders ties by kind, then key", () => {
     const entries = buildTimeline({
-      comments: [
-        comment({ id: "b", created_at: at(1) }),
-        comment({ id: "a", created_at: at(1) }),
+      threads: [
+        thread({ id: "b", created_at: at(1) }),
+        thread({ id: "a", created_at: at(1) }),
       ],
       requests: [request({ id: "r1", created_at: at(1) })],
       versions: [version(2, at(1)), version(1, at(1))],
@@ -488,26 +445,6 @@ describe("buildTimeline", () => {
     )
   })
 
-  it("picks the thread request by a parsed date, not by text", () => {
-    const [entry] = buildTimeline({
-      ...none,
-      comments: [comment({ id: "c1" })],
-      requests: [
-        request({
-          id: "later",
-          comment_id: "c1",
-          created_at: "2026-01-01T01:00:00+01:00",
-        }),
-        request({
-          id: "earlier",
-          comment_id: "c1",
-          created_at: "2026-01-01T00:30:00Z",
-        }),
-      ],
-    })
-    expect(entry?.kind === "thread" && entry.request?.id).toBe("earlier")
-  })
-
   it("puts the import after version 1 at the same time and before a later version", () => {
     const entries = buildTimeline({
       ...none,
@@ -527,7 +464,7 @@ describe("buildTimeline", () => {
 
   it("carries the panel of each entry", () => {
     const entries = buildTimeline({
-      comments: [comment({ id: "c1", panel_id: "p1" })],
+      threads: [thread({ id: "c1", panel_id: "p1" })],
       requests: [request({ id: "r1", panel_id: "p2", created_at: at(1) })],
       versions: [version(1, at(2))],
     })
@@ -555,7 +492,7 @@ describe("versions loaded across pages", () => {
   it("finds the topmost version that the last page added", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(2) })],
+      threads: [thread({ id: "c1", created_at: at(2) })],
       versions: [...firstPage, ...secondPage],
     })
     expect(firstNewVersion(entries, new Set([3, 4]))).toBe(1)
@@ -582,15 +519,15 @@ describe("versions loaded across pages", () => {
 
 describe("filterTimeline", () => {
   const entries = buildTimeline({
-    comments: [
-      comment({ id: "open-p1", panel_id: "p1", created_at: at(1) }),
-      comment({
+    threads: [
+      thread({ id: "open-p1", panel_id: "p1", created_at: at(1) }),
+      thread({
         id: "done-p2",
         panel_id: "p2",
         status: "resolved",
         created_at: at(2),
       }),
-      comment({ id: "open-all", created_at: at(3) }),
+      thread({ id: "open-all", created_at: at(3) }),
     ],
     requests: [
       request({ id: "r-p1", panel_id: "p1", created_at: at(4) }),
@@ -628,23 +565,18 @@ describe("filterTimeline", () => {
   it("keeps a thread that has an agent request, whatever its status, as a change", () => {
     const withRequests = buildTimeline({
       ...none,
-      comments: [
-        comment({ id: "asked", created_at: at(1) }),
-        comment({ id: "failed", created_at: at(2) }),
-        comment({ id: "plain", created_at: at(3) }),
-      ],
-      requests: [
-        request({
-          id: "r1",
-          comment_id: "asked",
-          created_at: at(4),
+      threads: [
+        thread({
+          id: "asked",
+          created_at: at(1),
+          revision: { id: "r1", status: "succeeded" },
         }),
-        request({
-          id: "r2",
-          comment_id: "failed",
-          status: "failed",
-          created_at: at(5),
+        thread({
+          id: "failed",
+          created_at: at(2),
+          revision: { id: "r2", status: "failed" },
         }),
+        thread({ id: "plain", created_at: at(3) }),
       ],
     })
     expect(keys(filterTimeline(withRequests, "changes", null))).toEqual([
@@ -734,7 +666,7 @@ describe("findings and investigations", () => {
   it("places each finding by when it was found, among the other entries", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(1) })],
+      threads: [thread({ id: "c1", created_at: at(1) })],
       versions: [version(1, at(3))],
       findings: [finding("f2", at(4)), finding("f1", at(2))],
     })
@@ -776,7 +708,7 @@ describe("findings and investigations", () => {
   it("keeps findings for everything, changes and a panel filter, not for open comments", () => {
     const entries = buildTimeline({
       ...none,
-      comments: [comment({ id: "c1", created_at: at(1) })],
+      threads: [thread({ id: "c1", created_at: at(1) })],
       findings: [finding("f1", at(2))],
     })
     expect(keys(filterTimeline(entries, "everything", null))).toEqual([

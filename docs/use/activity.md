@@ -108,7 +108,15 @@ The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a 
 ## Audit folder
 
 At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
-Admins change, move or delete them like any dashboard, and a restart never adds a dashboard back or changes one; a panel that had no data when the server saved it is marked unverified until a later save.
+The starters are provisioned and read-only in the app, the API, MCP and the CLI, which refuse a change with 409 `provisioned`; comments, pins, annotations and views work as on any dashboard.
+The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused before anything is queued, a comment that requests a revision included.
+To change one, an Admin duplicates it, and the copy is an ordinary dashboard in the Audit folder.
+At every start the server compares each starter with the content its release ships, and a starter that differs gets one new version with the summary `Updated to this release`; an unchanged starter gets nothing, and its threads, pins and view counts stay.
+
+A starter that someone changed before it became read-only is kept as a separate dashboard named `<title> (your copy)`, and the starter takes the shipped content.
+A starter that was moved out of the Audit folder returns to it, and its copy stays in the folder it had been moved to, or goes to the Audit folder when that folder may not hold its content.
+A dashboard of your own that happens to carry a starter's title is never taken over; the starter is added beside it.
+A starter an Admin deletes comes back at the next start.
 When a folder named Audit already exists, the server fills it only if it is Admins only and otherwise logs a warning and leaves it alone, and after an Admin deletes the Audit folder it is not created again.
 A dashboard, observation or saved search that reads the audit datasource can live only in a folder that only Admins can read.
 

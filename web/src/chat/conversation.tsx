@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
@@ -17,13 +18,22 @@ import {
   type ObserveRequest,
 } from "@/observe/queries"
 import { requestOrigin } from "@/observe/request-origin"
+import { privateChatText, runWords } from "@/observe/run-words"
 import { revisionsQuery } from "@/revisions/queries"
 
-import { AskAgainButton } from "./ask-again"
-import { ChatComposer, useOpenSent } from "./chat-composer"
+import { Composer } from "@/conversation/composer"
+import { ungated } from "@/conversation/delivery"
+import type { Opens, Subject } from "@/conversation/send-plan"
+import { useComposer } from "@/conversation/use-composer"
+
+import { ExampleChips } from "@/home/task-card"
+
+import { AskAgainButton, useAskInChat } from "./ask-again"
 import { useChat } from "./chats-queries"
+import { useOpenSent } from "./open-sent"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
+import { offersFollowUps } from "./turn-model"
 import { RetryButton } from "./turn-failure"
 
 const stickThreshold = 80
@@ -191,10 +201,56 @@ function PaneHeading({ requestId }: { requestId: string }) {
   )
 }
 
+function ConversationComposer({
+  chatId,
+  subject,
+  dashboardTitle,
+  disabled,
+  runningRequestId,
+  onSent,
+}: {
+  chatId: string | null
+  subject: Subject | null
+  dashboardTitle: string | undefined
+  disabled: boolean
+  runningRequestId: string | undefined
+  onSent: (request: ObserveRequest, opens: Opens) => Promise<void>
+}) {
+  const model = useComposer({
+    subject,
+    place: { kind: "chat", chatId },
+    gate: ungated,
+    runningRequestId,
+    onSent: (sent) =>
+      sent.via === "chat" ? onSent(sent.request, sent.opens) : undefined,
+  })
+  return (
+    <Composer
+      model={model}
+      layout="page"
+      rows={2}
+      disabled={disabled}
+      contextChips={
+        dashboardTitle === undefined
+          ? []
+          : [{ id: "dashboard", label: dashboardTitle }]
+      }
+      placeholder={
+        subject?.kind === "dashboard"
+          ? `Ask about ${dashboardTitle ?? "this dashboard"}`
+          : subject?.kind === "observation"
+            ? "Ask about this observation"
+            : "Ask a follow-up, or describe a dashboard to build"
+      }
+    />
+  )
+}
+
 type ViewProps = {
   requestId: string
   layout: ConversationLayout
-  dashboardId: string | null
+  chatId: string | null
+  subject: Subject | null
   dashboardTitle: string | undefined
   turns: Turn[]
   ready: boolean
@@ -208,7 +264,8 @@ type ViewProps = {
 function ConversationView({
   requestId,
   layout,
-  dashboardId,
+  chatId,
+  subject,
   dashboardTitle,
   turns,
   ready,
@@ -229,7 +286,9 @@ function ConversationView({
   const pinToEnd = useChatScroll(list, initialTarget)
 
   const first = turns.at(0)
-  const heading = dashboardTitle ?? first?.summary.prompt ?? ""
+  const heading =
+    dashboardTitle ??
+    (first === undefined ? "" : (runWords(first.summary) ?? privateChatText))
   const active = turns.some((turn) => isActiveStatus(turn.summary.status))
   const clipped =
     [...heading].length > titlePromptLength
@@ -255,14 +314,31 @@ function ConversationView({
     list.current?.focus({ preventScroll: true })
   }
 
+  const followUp = useAskInChat({
+    subject,
+    chatId: chatId ?? undefined,
+    onSent: openSent,
+    afterSent: focusList,
+  })
+
   const agentOff = agent.data?.available === false
-  const hasDashboard = dashboardId !== null
+  const hasDashboard = subject?.kind === "dashboard"
   const latestTurn = turns.at(-1)
   const waitingForAnswer =
     !hasDashboard &&
     latestTurn !== undefined &&
     isActiveStatus(latestTurn.summary.status)
   const loadFrom = Math.max(0, turns.length - stepsLoadedTurns)
+  const suggestsFollowUps =
+    pane &&
+    !readOnly &&
+    !agentOff &&
+    offersFollowUps({
+      turnCount: turns.length,
+      latest: latestTurn?.summary,
+      viewerId: principal.id,
+      aboutDashboard: hasDashboard,
+    })
 
   const transcript = (
     <>
@@ -312,6 +388,7 @@ function ConversationView({
                 buildOnScreen={pane && turn.id === requestId}
                 opensRunsIn={pane ? "build" : "chat"}
                 latest={index === turns.length - 1}
+                about={subject}
                 answerActions={
                   !readOnly &&
                   index === turns.length - 1 &&
@@ -319,8 +396,8 @@ function ConversationView({
                   turn.summary.requested_by.id === principal.id ? (
                     <AskAgainButton
                       prompt={turn.summary.prompt}
-                      dashboardId={dashboardId ?? undefined}
-                      followsId={hasDashboard ? undefined : turn.id}
+                      subject={subject}
+                      chatId={chatId ?? undefined}
                       disabled={active}
                       onSent={openSent}
                       afterSent={focusList}
@@ -343,9 +420,9 @@ function ConversationView({
       )}
     >
       {pane ? (
-        <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto">
+        <ScrollPane className="flex w-full flex-1 flex-col">
           {transcript}
-        </div>
+        </ScrollPane>
       ) : (
         transcript
       )}
@@ -357,24 +434,28 @@ function ConversationView({
             pane ? "flex-none" : "sticky -bottom-7 max-w-[760px]"
           )}
         >
-          <ChatComposer
-            rows={2}
-            disabled={waitingForAnswer}
-            dashboardId={dashboardId ?? undefined}
-            followsId={hasDashboard ? undefined : latestTurn?.id}
+          {suggestsFollowUps ? (
+            <div className="pb-2">
+              <ExampleChips
+                questionsOnly
+                label="Suggested follow-ups"
+                disabled={followUp.pending}
+                onChoose={(example) => void followUp.ask(example.prompt)}
+              />
+            </div>
+          ) : null}
+          <ConversationComposer
+            chatId={chatId}
+            subject={subject}
             dashboardTitle={dashboardTitle}
+            disabled={waitingForAnswer}
             runningRequestId={runningRequestId}
-            placeholder={
-              hasDashboard
-                ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
-                : "Ask a follow-up, or describe a dashboard to build"
-            }
             onSent={openSent}
           />
           {!agentOff ? (
             <p className="mt-1.5 text-center text-xs text-muted-foreground">
               {hasDashboard
-                ? "Each change is saved as a new version of the dashboard."
+                ? "The dashboard changes only when you choose Revise the dashboard on an answer."
                 : waitingForAnswer
                   ? "Wait for the answer, or cancel the run, then ask a follow-up."
                   : "The agent sees the earlier messages of this chat."}
@@ -384,6 +465,19 @@ function ConversationView({
       )}
     </div>
   )
+}
+
+function subjectOf(
+  about:
+    { dashboard_id: string | null; observation_id: string | null } | undefined
+): Subject | null {
+  if (about?.dashboard_id != null) {
+    return { kind: "dashboard", id: about.dashboard_id }
+  }
+  if (about?.observation_id != null) {
+    return { kind: "observation", id: about.observation_id }
+  }
+  return null
 }
 
 export function Conversation({
@@ -403,9 +497,14 @@ export function Conversation({
   const chatId = root.data?.chat_id ?? undefined
   const readsChat = chatId !== undefined
   const chat = useChat(chatId)
-  const dashboardId =
-    root.data?.dashboard_id ?? chat.data?.chat.dashboard_id ?? null
-  const readOnly = root.data?.read_only === true || !asks
+  const subject = subjectOf(
+    readsChat
+      ? chat.data?.chat
+      : { dashboard_id: root.data?.dashboard_id ?? null, observation_id: null }
+  )
+  const dashboardId = subject?.kind === "dashboard" ? subject.id : null
+  const readOnly =
+    root.data?.read_only === true || root.data?.redacted === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),
@@ -458,28 +557,38 @@ export function Conversation({
     return <ConversationSkeleton />
   }
 
+  if (readsChat && chat.data === undefined) {
+    return chat.isError ? (
+      <LoadError
+        message={chat.error.message}
+        busy={chat.isFetching}
+        onRetry={() => void chat.refetch()}
+      />
+    ) : (
+      <ConversationSkeleton />
+    )
+  }
+
   return (
     <ConversationView
       requestId={requestId}
       layout={layout}
-      dashboardId={dashboardId}
+      chatId={root.data.chat_id ?? null}
+      subject={subject}
       dashboardTitle={latest.data?.dashboard.title}
       turns={turns}
       readOnly={readOnly}
       ready={
-        readsChat
-          ? chat.data !== undefined || chat.isError
-          : !readsDashboard || revisions.data !== undefined || revisions.isError
+        readsChat ||
+        !readsDashboard ||
+        revisions.data !== undefined ||
+        revisions.isError
       }
       historyFailed={
-        readsChat
-          ? chat.isError && chat.data === undefined
-          : revisions.isError && revisions.data === undefined
+        !readsChat && revisions.isError && revisions.data === undefined
       }
-      retryHistory={() =>
-        void (readsChat ? chat.refetch() : revisions.refetch())
-      }
-      historyBusy={readsChat ? chat.isFetching : revisions.isFetching}
+      retryHistory={() => void revisions.refetch()}
+      historyBusy={revisions.isFetching}
       onSent={(request) => {
         setSent((previous) => [...previous, request])
         onSent?.(request)

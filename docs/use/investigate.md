@@ -12,7 +12,7 @@ Over the CLI and MCP no zone is known, so times are written in UTC with the word
 A finding starts with one plain sentence, names the window it used, and says what it did not check; when two pods or services tie it leads with the one with the most errors.
 It needs a model; see [LLM providers](../connect/llm-providers.md).
 
-A plain question sent without the command, such as "how many pods are up?", is answered in the chat without building a dashboard, and no observation is made until you choose **Save as observation** under the answer, or run `observe save-answer <request-id>`; see [Chat and follow-ups](chat.md).
+A plain question sent without the command, such as "how many pods are up?", is answered in the chat without building a dashboard, and no observation is made until you choose **Create observation** on the answer, or run `observe save-answer <request-id>`; see [Chat and follow-ups](chat.md).
 
 ## What a finding is
 
@@ -40,15 +40,12 @@ The Investigate chip shows above the box, and the send asks the question instead
 In a chat about a dashboard, the investigation is about that dashboard and its answer appears in the same conversation.
 Without a dashboard, the send opens a new chat page for it.
 
-On a dashboard, choose **Investigate** in a panel's menu.
-It opens the activity pane in investigate mode, with the panel as the target and two chips above the box: Investigate and the dashboard's current time range.
-The box reads "Ask a question about this panel", and the button reads **Investigate**.
-Remove the time range chip to send the question without a window, or remove the Investigate chip to go back to a normal follow-up.
-In the activity pane you can also type `/investigate` and a space to ask about the dashboard or the panel the box is on, and `/revise` and a space to go back.
-After the send, the box goes back to a normal follow-up.
+On a dashboard, **Ask** in a panel's menu opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel, even when the box was replying in another thread; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
+The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
+To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 
 The panel menu item shows only on data panels, when you can edit the dashboard and a model is connected.
-While you have unsaved layout changes it reads "Investigate (finish the layout first)" and cannot be chosen.
+While you have unsaved layout changes it reads "Ask (finish the layout first)" and cannot be chosen.
 
 From a terminal, `observe investigate <question...>` asks the same question and prints the finding; `--dashboard`, `--panel`, `--from` and `--to` set what it is about.
 See [CLI](cli.md).
@@ -91,8 +88,11 @@ The finding move tool, command and route are gone; only earlier `finding.moved` 
 ## Make a dashboard from it
 
 **Make a dashboard** saves the evidence panels as a new dashboard in your My Dashboards and opens it.
-From a chat, the dashboard opens with that chat in the Chat tab of its side panel.
-Until the chat is about the new dashboard, the tab shows it read only, with a link to continue it on its chat page.
+From a chat, the dashboard opens with that chat in the Chat tab of its side panel, where you can keep asking.
+The server attaches the chat to the new dashboard when it makes it, whichever way you made it: the button, the API route or the `make_dashboard` tool.
+The chat stays private to you, and Admins read it without writing; nobody else sees it on the dashboard.
+A chat that is already about another dashboard or observation stays where it is, and the new dashboard opens without it.
+A build that is still running in the same chat keeps the chat on whichever dashboard attached it first, so make the dashboard after the build finishes if you want the chat on the built one.
 The server runs every evidence query again before it saves.
 Anyone who can read the finding can do this, and a finding without evidence panels has no such button.
 
@@ -107,8 +107,7 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
 Viewers can read the observations in the folders they can view.
-The web app offers Investigate, in a panel's menu and in the activity pane, only to an Editor or Admin who has Edit on that dashboard, so a Viewer or Commenter does not see it even on a copy in their own My Dashboards.
-Where the panel toolbar and the bottom tool bar still show **Ask** to someone with Edit on that dashboard, it is disabled and reads "needs the Editor role".
+**Ask** in a panel's menu, the panel toolbar and the bottom tool bar asks a question in a thread rather than starting an investigation, so it needs only Comment on the dashboard and a connected model; a Viewer does not see it.
 Over the API, `POST /api/v1/observe` with `kind` `investigate` from a Viewer or Commenter answers `403` `forbidden_role` with `needed_role` `editor`.
 
 ## From an MCP client

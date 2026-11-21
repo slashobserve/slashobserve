@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  awaitsRecheck,
   canRepair,
+  currentProblems,
   dashboardCountText,
   dashboardProblems,
   groupProblems,
@@ -347,6 +349,14 @@ describe("repairAction", () => {
       } as never)
     ).toBe(
       "No repair queued. A revision is already queued or running on this dashboard."
+    )
+    expect(
+      repairOutcomeText({
+        queued: [],
+        skipped: [{ dashboard_id: "d1", reason: "provisioned" }],
+      } as never)
+    ).toBe(
+      "No repair queued. This is a starter dashboard that releases keep current. Duplicate it to repair a copy."
     )
   })
 })
@@ -761,7 +771,33 @@ describe("isHealthy", () => {
     [
       "checked before the latest version",
       item({ state: "outdated" } as Partial<HealthItem>),
-      true,
+      false,
+    ],
+    [
+      "checked before the latest version with a repair on record",
+      item({
+        state: "outdated",
+        repair: repair("repaired", 5),
+      } as Partial<HealthItem>),
+      false,
+    ],
+    [
+      "checked before the latest version with a failed repair on record",
+      item({
+        state: "outdated",
+        problems: [problem({ kind: "query_failed", panel_id: "1" })],
+        repair: repair("failed"),
+      } as Partial<HealthItem>),
+      false,
+    ],
+    [
+      "checked before the latest version with a still failing repair on record",
+      item({
+        state: "outdated",
+        problems: [problem({ kind: "query_failed", panel_id: "1" })],
+        repair: repair("still_failing", 5),
+      } as Partial<HealthItem>),
+      false,
     ],
     ["never checked", item({ checked_at: null, checked_version: null }), false],
     ["skipped", item({ skipped: "depends_on_viewer" }), false],
@@ -802,5 +838,51 @@ describe("isHealthy", () => {
     ],
   ])("for %s is %j", (_name, got, want) => {
     expect(isHealthy(got)).toBe(want)
+  })
+})
+
+describe("a dashboard that changed since its last check", () => {
+  const outdated = (fields: Partial<HealthItem> = {}) =>
+    item({
+      state: "outdated",
+      problems: [
+        problem({ kind: "query_failed", panel_id: "1" }),
+        problem({ kind: "no_data", panel_id: "2" }),
+        problem({ kind: "variable_failed", variable: "pod" }),
+        problem({ kind: "duplicate_title" }),
+      ],
+      ...fields,
+    } as Partial<HealthItem>)
+
+  test("keeps only the problems that do not come from the old check", () => {
+    expect(currentProblems(outdated()).map((p) => p.kind)).toEqual([
+      "duplicate_title",
+    ])
+    expect(dashboardProblems(outdated())).toHaveLength(1)
+  })
+
+  test("shows every problem when the check is of the latest version", () => {
+    expect(
+      currentProblems(outdated({ state: "failing" } as Partial<HealthItem>))
+    ).toHaveLength(4)
+  })
+
+  test("cannot be repaired from the old problems", () => {
+    expect(canRepair(outdated())).toBe(false)
+    expect(healthCellText(outdated())?.group.kind).toBe("duplicate_title")
+  })
+
+  test("always awaits a recheck, whatever repair is on record", () => {
+    expect(awaitsRecheck(outdated())).toBe(true)
+    expect(
+      awaitsRecheck(
+        outdated({
+          repair: { outcome: "failed" },
+        } as unknown as Partial<HealthItem>)
+      )
+    ).toBe(true)
+    expect(
+      awaitsRecheck(outdated({ state: "healthy" } as Partial<HealthItem>))
+    ).toBe(false)
   })
 })

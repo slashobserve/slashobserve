@@ -24,8 +24,9 @@ One server holds the export at a time, through the `audit_export` job described 
 It reads events in the order they were committed, from a position stored in the database, and posts up to 500 at a time as OTLP JSON.
 The position moves only after the receiver answers with a `2xx` status, so a failed post sends the same events again.
 A restart, or another server taking the job over, continues from the stored position.
-Delivery is at least once: the position write that follows a `2xx` answer is not cut short when the job's lease ends, but a crash, a lost database connection or a failed write between the answer and the write sends that batch again, so a receiver can see up to 500 events twice.
-`slashobserve.audit.id` identifies an event, so a receiver or a query can drop the repeats.
+Delivery is at least once: the position write that follows a `2xx` answer is not cut short when the job's lease ends, but a database timeout can still fail it, and so can a crash, a lost database connection or any other failed write between the answer and the write.
+The same batch of up to 500 events is then sent again, and again each time the write fails, until a position write succeeds, so an event can reach a receiver more than twice.
+Receivers should deduplicate on the event id: `slashobserve.audit.id` identifies an event, so a receiver or a query can drop the repeats.
 
 A receiver can answer `200` and still refuse some records in its `partialSuccess` answer, for example records that are too large or too old.
 The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the status.
@@ -94,6 +95,7 @@ Give the collector no wider an audience than the Admins who can read the trail.
 
 `slashobserve_audit_export_lag_seconds` is the time between the newest audit event in the database and the last event the export sent.
 Every server that has the export set reads it from the database every 15 seconds, whether or not it holds the job, so one scrape of any such server shows the real lag and it never reads `0` just because the job is not running.
+A server without the export set exposes the series at `0` and never updates it, so read it from a server that has the export.
 It stays above `0` when the receiver refuses events, when no server runs the `audit_export` job, and when a long-running transaction in the database hides newer events from the export until it ends.
 Alert on it staying high for several minutes.
 Before the first event is exported it is the span of the events the audit table holds.
