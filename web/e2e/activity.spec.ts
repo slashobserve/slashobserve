@@ -32,8 +32,10 @@ const logsTitle = "Log rows by service"
 const agentRpsTitle = "Requests per second"
 const you = "admin"
 
-const perRoutePrompt = fixturePrompt("comment-per-route.json")
-const p99Prompt = fixturePrompt("followup-p99-panel.json")
+const perRouteQuestion = fixturePrompt("ask-per-route.json")
+const perRouteChange = fixturePrompt("comment-per-route.json")
+const p99Question = fixturePrompt("ask-p99.json")
+const p99Change = fixturePrompt("followup-p99-panel.json")
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const threadsPostApi = /\/api\/v1\/threads$/
 const olderVersionNote =
@@ -399,10 +401,10 @@ for (const colorScheme of ["light", "dark"] as const) {
         const finish = await holdRequestsRunning(page)
 
         await pickOption(page, targetSelect(page), agentRpsTitle)
-        await composerBox(page).fill(`@observe ${perRoutePrompt}`)
+        await composerBox(page).fill(`@observe ${perRouteQuestion}`)
         await askAgentButton(page).click()
 
-        const entry = entryWith(page, perRoutePrompt).filter({
+        const entry = entryWith(page, perRouteQuestion).filter({
           has: page.getByText("on", { exact: true }),
         })
         await expect(entry).toHaveCount(1)
@@ -416,12 +418,28 @@ for (const colorScheme of ["light", "dark"] as const) {
 
         finish()
         await expect(
-          entry.getByText("Saved version 2 of this dashboard.")
+          entry.getByText(`Suggested change: ${perRouteChange}`)
         ).toBeVisible({ timeout: agentTimeout })
-        await expect(running).toHaveCount(0, { timeout: agentTimeout })
+        await expect(running).toHaveCount(0)
         const version = entries(page).filter({
           has: page.getByText("Version 2", { exact: true }),
         })
+        await expect(version).toHaveCount(0)
+        await expect(versionButton(page)).toHaveText("Live · v1")
+
+        await entry
+          .getByRole("button", { name: "Revise the dashboard", exact: true })
+          .click()
+        await expect(
+          entry.getByRole("button", { name: "Revision asked for" })
+        ).toBeDisabled()
+        await expect(
+          entry.getByText(`Revise the dashboard: ${perRouteChange}`)
+        ).toBeVisible()
+        await expect(
+          entry.getByText("Saved version 2 of this dashboard.")
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(running).toHaveCount(0, { timeout: agentTimeout })
         await expect(version).toHaveCount(1)
         await expect(
           version.getByRole("link", { name: /See changes/ })
@@ -438,11 +456,11 @@ for (const colorScheme of ["light", "dark"] as const) {
         const finish = await holdRequestsRunning(page)
 
         const thread = entryWith(page, "Can we see p99 too?")
-        const promptEntries = entryWith(page, p99Prompt).filter({
+        const promptEntries = entryWith(page, p99Change).filter({
           hasNot: page.getByText("Version 2", { exact: true }),
         })
         await thread.getByRole("button", { name: "Reply", exact: true }).click()
-        await composerBox(page).fill(`@observe ${p99Prompt}`)
+        await composerBox(page).fill(`@observe ${p99Question}`)
         await composerForm(page)
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()
@@ -452,6 +470,17 @@ for (const colorScheme of ["light", "dark"] as const) {
         ).toBeVisible()
 
         finish()
+        await expect(
+          thread.getByText(`Suggested change: ${p99Change}`)
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(versionButton(page)).toHaveText("Live · v1")
+
+        await thread
+          .getByRole("button", { name: "Revise the dashboard", exact: true })
+          .click()
+        await expect(
+          thread.getByText(`Revise the dashboard: ${p99Change}`)
+        ).toBeVisible()
         await expect(
           thread.getByText("Saved version 2 of this dashboard.")
         ).toBeVisible({ timeout: agentTimeout })
@@ -466,21 +495,18 @@ for (const colorScheme of ["light", "dark"] as const) {
       test("shows a failed agent request", async ({ page, request }) => {
         const { id } = await createAgentDashboard(request)
         await openCard(page, id)
-        const finish = await holdRequestsRunning(page)
 
         await composerBox(page).fill(`@observe ${unanswerablePrompt}`)
         await askAgentButton(page).click()
 
         const entry = entryWith(page, unanswerablePrompt)
-        const details = entry
-          .getByRole("status")
-          .getByRole("link", { name: "View the run" })
-        await expect(details).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
-
-        finish()
+        await expect(entry).toHaveCount(1)
         const failure = entry.getByText(/^The run failed: /)
         await expect(failure).toBeVisible({ timeout: agentTimeout })
         await expect(failure).toContainText("no replay fixture")
+        await expect(
+          entry.getByRole("link", { name: "View the run" })
+        ).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
       })
     })
 
