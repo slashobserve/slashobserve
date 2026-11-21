@@ -494,7 +494,9 @@ threads-threadid-apply:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`).
+        description: >-
+          The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`).
+          Or the run that wrote the answer read data only Admins can query, such as the audit trail, and the dashboard is not in a folder only Admins can read (`restricted_answer`, saying why).
         content:
           application/json:
             schema:

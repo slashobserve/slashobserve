@@ -52,6 +52,7 @@ type FindingJSON struct {
 
 	SuggestedChange *string `json:"suggested_change"`
 	ObserveWorthy   bool    `json:"observe_worthy"`
+	Restricted      bool    `json:"restricted"`
 
 	From         string            `json:"from"`
 	To           string            `json:"to"`
@@ -110,6 +111,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 
 		SuggestedChange: httpapi.OptionalString(f.SuggestedChange),
 		ObserveWorthy:   f.ObserveWorthy,
+		Restricted:      f.Restricted,
 		From:            httpapi.FormatTime(f.From),
 		To:              httpapi.FormatTime(f.To),
 		AnnotationID:    httpapi.OptionalString(f.AnnotationID),
@@ -261,6 +263,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "dashboard not found")
 	case errors.As(err, &invalid):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", invalid.Issues)
+	case folders.AbortRestricted(c, err):
 	default:
 		principal := httpapi.Caller(c)
 		attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}

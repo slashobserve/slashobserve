@@ -108,6 +108,13 @@ type store struct {
 	guard *placement.Guard
 }
 
+func (st store) place(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID, in newVersion) error {
+	if err := st.guard.Save(ctx, q, folders.ContentDashboard, folderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+		return err
+	}
+	return placement.Answer(ctx, q, in.requestID, folderID)
+}
+
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
 	return st.createWith(ctx, in, nil)
 }
@@ -120,7 +127,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 		if err != nil {
 			return fmt.Errorf("author id: %w", err)
 		}
-		if err := st.guard.Save(ctx, q, folders.ContentDashboard, in.folder.ID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+		if err := st.place(ctx, q, in.folder.ID, in); err != nil {
 			return err
 		}
 		originKind, originClient := in.origin.Columns()
@@ -286,7 +293,7 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 		if err != nil {
 			return fmt.Errorf("bump dashboard version: %w", err)
 		}
-		if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+		if err := st.place(ctx, q, row.FolderID, in); err != nil {
 			return err
 		}
 		meta, err := insertVersion(ctx, q, in, int(row.LatestVersion))

@@ -13,6 +13,12 @@ SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 -- name: ShareFolderPlacement :one
 SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
+-- name: RunReadRestricted :one
+SELECT read_restricted FROM agent_requests WHERE id = @id;
+
+-- name: FindingRun :one
+SELECT agent_request_id FROM findings WHERE id = @id;
+
 -- name: PlacementDashboardVersions :many
 SELECT v.dashboard_id AS id, v.version AS seq, d.title, d.folder_id, f.title AS folder_title, f.personal AS folder_personal, v.spec AS payload
 FROM dashboard_versions v
@@ -81,3 +87,38 @@ SELECT folder_id FROM dashboards WHERE id = @id FOR UPDATE;
 
 -- name: ShareDashboardPlacement :one
 SELECT folder_id FROM dashboards WHERE id = @id FOR SHARE;
+
+-- name: DashboardHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = @id AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE n.dashboard_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = @id AND r.read_restricted))::boolean;
+
+-- name: ObservationHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = @id AND r.read_restricted))::boolean;
+
+-- name: RestrictedAnswerHolders :many
+SELECT 'dashboard'::text AS kind, d.id, d.title FROM dashboards d
+WHERE d.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = d.id AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE n.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = d.id AND r.read_restricted))
+UNION ALL
+SELECT 'observation'::text AS kind, o.id, o.title FROM observations o
+WHERE o.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = o.id AND r.read_restricted))
+ORDER BY kind, title, id
+LIMIT @row_limit;
+
+-- name: RestrictedAnswerFolder :one
+SELECT COALESCE(
+  (SELECT f.id FROM agent_requests r
+    JOIN folders f ON f.id = COALESCE((SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id), (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))
+    WHERE r.id = @run_id AND f.admins_only),
+  (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = @audit_folder_key AND f.admins_only)
+)::uuid AS folder_id;

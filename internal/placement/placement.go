@@ -133,6 +133,9 @@ func (g *Guard) MoveDashboard(ctx context.Context, q *dbsqlc.Queries, id, to pgt
 	if err := refuseLinkedMove(ctx, q, id, to); err != nil {
 		return err
 	}
+	if err := refuseRestrictedAnswerMove(ctx, q, folders.ContentDashboard, to, func() (bool, error) { return q.DashboardHoldsRestrictedAnswer(ctx, id) }); err != nil {
+		return err
+	}
 	refs, err := dashboardRefs(ctx, q, id)
 	if err != nil {
 		return err
@@ -176,6 +179,9 @@ func (g *Guard) ObservationDatasource(ctx context.Context, q *dbsqlc.Queries, id
 
 func (g *Guard) MoveObservation(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {
 	if err := refuseLinkedObservationMove(ctx, q, id, to); err != nil {
+		return err
+	}
+	if err := refuseRestrictedAnswerMove(ctx, q, folders.ContentObservation, to, func() (bool, error) { return q.ObservationHoldsRestrictedAnswer(ctx, id) }); err != nil {
 		return err
 	}
 	refs, err := observationRefs(ctx, q, id)

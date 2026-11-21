@@ -115,6 +115,7 @@ type session struct {
 	ended    bool
 	endedBy  *endSpec
 	endedRow dbsqlc.AgentRequest
+	access   datasource.Access
 }
 
 func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx context.Context, sess *session) error) error {
@@ -127,13 +128,19 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 		return err
 	}
 	defer release()
-	ctx = origin.With(auth.WithPrincipal(datasource.WithAccess(ctx, tools.RunAccess(req)), req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
+	ctx = origin.With(auth.WithPrincipal(ctx, req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
 	var steps []revisions.Step
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		access, err := runAccess(ctx, q, req)
+		if err != nil {
+			return err
+		}
+		ctx := datasource.WithAccess(ctx, access)
 		sess, err := s.open(ctx, q, req, id)
 		if err != nil {
 			return err
 		}
+		sess.access = access
 		if err := fn(ctx, sess); err != nil {
 			return err
 		}
@@ -261,6 +268,7 @@ func (s *Service) Scope(ctx context.Context, req revisions.Request) (tools.Run, 
 	ended := false
 	err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
 		run.ParentVersion = sess.state.Guard.ParentVersion
+		run.Access = sess.access
 		if run.Mode != tools.ModeSuggest {
 			return nil
 		}

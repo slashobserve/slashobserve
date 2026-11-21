@@ -55,6 +55,67 @@ func (q *Queries) GetRunSessionForUpdate(ctx context.Context, arg GetRunSessionF
 	return state, err
 }
 
+const getRunWrites = `-- name: GetRunWrites :one
+SELECT
+  r.intent,
+  (r.thread_message_id IS NOT NULL)::boolean AS in_thread,
+  (r.observation_id IS NOT NULL)::boolean AS into_observation,
+  (r.dashboard_id IS NOT NULL)::boolean AS on_dashboard,
+  (b.agent_request_id IS NOT NULL)::boolean AS building,
+  COALESCE((
+    SELECT f.admins_only
+    FROM thread_messages m
+    JOIN threads t ON t.id = m.thread_id
+    LEFT JOIN proposals p ON p.id = t.proposal_id
+    LEFT JOIN dashboards d ON d.id = COALESCE(t.dashboard_id, p.dashboard_id)
+    LEFT JOIN observations o ON o.id = t.observation_id
+    JOIN folders f ON f.id = COALESCE(d.folder_id, o.folder_id)
+    WHERE m.id = r.thread_message_id
+  ), false)::boolean AS thread_admins_only,
+  COALESCE((
+    SELECT f.admins_only FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = r.observation_id
+  ), false)::boolean AS observation_admins_only,
+  COALESCE((
+    SELECT f.admins_only FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = r.dashboard_id
+  ), false)::boolean AS dashboard_admins_only,
+  COALESCE((
+    SELECT f.admins_only FROM folders f
+    WHERE f.id = COALESCE(b.folder_id, (SELECT d.folder_id FROM dashboards d WHERE d.id = b.dashboard_id))
+  ), false)::boolean AS build_admins_only
+FROM agent_requests r
+LEFT JOIN agent_request_builds b ON b.agent_request_id = r.id
+WHERE r.id = $1
+`
+
+type GetRunWritesRow struct {
+	Intent                string
+	InThread              bool
+	IntoObservation       bool
+	OnDashboard           bool
+	Building              bool
+	ThreadAdminsOnly      bool
+	ObservationAdminsOnly bool
+	DashboardAdminsOnly   bool
+	BuildAdminsOnly       bool
+}
+
+func (q *Queries) GetRunWrites(ctx context.Context, id pgtype.UUID) (GetRunWritesRow, error) {
+	row := q.db.QueryRow(ctx, getRunWrites, id)
+	var i GetRunWritesRow
+	err := row.Scan(
+		&i.Intent,
+		&i.InThread,
+		&i.IntoObservation,
+		&i.OnDashboard,
+		&i.Building,
+		&i.ThreadAdminsOnly,
+		&i.ObservationAdminsOnly,
+		&i.DashboardAdminsOnly,
+		&i.BuildAdminsOnly,
+	)
+	return i, err
+}
+
 const insertRunSession = `-- name: InsertRunSession :execrows
 INSERT INTO run_sessions (agent_request_id, attempt, state)
 VALUES ($1, $2, $3)
@@ -73,6 +134,29 @@ func (q *Queries) InsertRunSession(ctx context.Context, arg InsertRunSessionPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const markRunReadRestricted = `-- name: MarkRunReadRestricted :exec
+UPDATE agent_requests SET read_restricted = true WHERE id = $1 AND NOT read_restricted
+`
+
+func (q *Queries) MarkRunReadRestricted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markRunReadRestricted, id)
+	return err
+}
+
+const runInheritsReadRestricted = `-- name: RunInheritsReadRestricted :one
+SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id JOIN agent_requests a ON a.id = m.run_id WHERE asked.id = r.thread_message_id AND a.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests a ON a.id = f.agent_request_id WHERE f.id = r.applies_finding_id AND a.read_restricted)
+  OR EXISTS (SELECT 1 FROM agent_requests a WHERE a.id = r.continues_id AND a.read_restricted))::boolean
+FROM agent_requests r WHERE r.id = $1
+`
+
+func (q *Queries) RunInheritsReadRestricted(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, runInheritsReadRestricted, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const upsertRunSession = `-- name: UpsertRunSession :exec

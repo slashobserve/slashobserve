@@ -242,9 +242,13 @@ func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
 	r.instancesMu.RUnlock()
-	if !ok || !access.reads(in.Audience) {
+	if !ok {
 		return Instance{}, ErrNotVisible
 	}
+	if !access.reads(in.Audience) {
+		return Instance{}, access.refusal(in.Audience)
+	}
+	noteRestrictedRead(ctx, access, in.Audience)
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
 }

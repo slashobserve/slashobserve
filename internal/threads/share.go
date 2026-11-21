@@ -219,7 +219,10 @@ func (s *Service) placeAnswer(ctx context.Context, q *dbsqlc.Queries, sh share) 
 	if err != nil {
 		return err
 	}
-	return s.dashboards.Placement().Save(ctx, q, folders.ContentAnswer, folder, refs)
+	if err := s.dashboards.Placement().Save(ctx, q, folders.ContentAnswer, folder, refs); err != nil {
+		return err
+	}
+	return guard.Answer(ctx, q, sh.run.ID, folder)
 }
 
 func (s *Service) subjectFolder(ctx context.Context, q *dbsqlc.Queries, subject Target) (pgtype.UUID, error) {

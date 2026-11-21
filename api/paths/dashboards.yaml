@@ -292,6 +292,7 @@ dashboards-id:
         description: >-
           The request conflicts with existing state.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the content holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`).
           Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`).
         content:
           application/json:

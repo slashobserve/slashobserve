@@ -26,7 +26,7 @@ import (
 const (
 	Title     = "Audit"
 	lockName  = "audit_folder"
-	folderKey = "audit/folder"
+	FolderKey = "audit/folder"
 	summary   = "Starter dashboard added by the server to the Audit folder"
 )
 
@@ -94,7 +94,7 @@ func (s *Seeder) Seed(ctx context.Context) error {
 
 func (s *Seeder) folder(ctx context.Context) (pgtype.UUID, bool, error) {
 	q := s.db.Queries()
-	seeded, err := q.StarterContent(ctx, folderKey)
+	seeded, err := q.StarterContent(ctx, FolderKey)
 	switch {
 	case err == nil:
 		return s.seededFolder(ctx, q, seeded)
@@ -112,7 +112,7 @@ func (s *Seeder) folder(ctx context.Context) (pgtype.UUID, bool, error) {
 	if err != nil {
 		return pgtype.UUID{}, false, err
 	}
-	return id, true, q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: folderKey, Ref: id})
+	return id, true, q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: FolderKey, Ref: id})
 }
 
 func (s *Seeder) seededFolder(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (pgtype.UUID, bool, error) {
@@ -135,7 +135,7 @@ func (s *Seeder) adoptFolder(ctx context.Context, q *dbsqlc.Queries, id pgtype.U
 	if _, ok, err := s.restricted(ctx, row); err != nil || !ok {
 		return pgtype.UUID{}, false, err
 	}
-	return row.ID, true, q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: folderKey, Ref: row.ID})
+	return row.ID, true, q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: FolderKey, Ref: row.ID})
 }
 
 func (s *Seeder) restricted(ctx context.Context, row dbsqlc.Folder) (pgtype.UUID, bool, error) {

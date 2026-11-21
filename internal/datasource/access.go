@@ -3,6 +3,7 @@ package datasource
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -16,6 +17,17 @@ const (
 )
 
 var ErrNotVisible = errors.New("datasource not visible")
+
+const WithheldNote = "Audit data and other datasources only Admins can query are available in a private chat, or in a folder only Admins can read. " +
+	"What this run writes is read by people who are not Admins, so those datasources are not available to it."
+
+type withheld struct{}
+
+func (withheld) Error() string { return WithheldNote }
+
+func (withheld) Is(target error) bool { return target == ErrNotVisible }
+
+var ErrWithheld error = withheld{}
 
 var ErrNoAccess = errors.New("no datasource access in the context: the entry point did not call datasource.WithAccess")
 
@@ -48,6 +60,31 @@ func (a Access) reads(audience Audience) bool {
 		return true
 	}
 	return a.By.Role == auth.RoleAdmin && a.Audience != AudienceEveryone
+}
+
+func (a Access) refusal(audience Audience) error {
+	if audience == AudienceAdmins && a.By.Role == auth.RoleAdmin && a.Audience == AudienceEveryone {
+		return ErrWithheld
+	}
+	return ErrNotVisible
+}
+
+type restrictedReads struct{ read atomic.Bool }
+
+type restrictedReadsKey struct{}
+
+func NotingRestrictedReads(ctx context.Context) (context.Context, func() bool) {
+	n := &restrictedReads{}
+	return context.WithValue(ctx, restrictedReadsKey{}, n), n.read.Load
+}
+
+func noteRestrictedRead(ctx context.Context, a Access, audience Audience) {
+	if a.System || audience != AudienceAdmins {
+		return
+	}
+	if n, ok := ctx.Value(restrictedReadsKey{}).(*restrictedReads); ok {
+		n.read.Store(true)
+	}
 }
 
 func ReadsRestricted(ctx context.Context) bool {

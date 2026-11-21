@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 const (
@@ -135,6 +136,9 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err := q.LockAgentRequestsForDashboard(ctx, p.DashboardID); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("lock agent requests: %w", err)
 	}
+	if err := placement.AppliedAnswer(ctx, q, p.AppliesFindingID, p.DashboardID); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	active, err := q.CountActiveAgentRequests(ctx, p.DashboardID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("count active agent requests: %w", err)
@@ -178,7 +182,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -330,7 +334,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, turn.clientID, "enqueue observe request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
@@ -440,7 +444,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
 	}
-	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+	if row, err = recordEnqueued(ctx, q, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {

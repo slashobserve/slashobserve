@@ -313,6 +313,18 @@ A follow-up needs Comment on the dashboard's folder, which Commenters, Editors a
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
+### Answers that read Admin-only data
+
+A run reads a datasource only Admins can query, such as the [audit trail](../reference/audit-queries.md), only when everyone who reads what the run writes is an Admin.
+That is an Admin's private chat, or a thread, dashboard, observation or build in a folder only Admins can read; any other run, an Admin's included, is not offered those datasources, and a query on one answers `admins_only_datasource` with where the data can be read.
+An answer whose run read such a datasource is marked `restricted`, and so is a run that starts from one, because it carries that answer as context: a later turn of the same chat, an ask in a thread that holds one, an apply of one, a continuation of a restricted run, and a run about a dashboard or observation that holds one.
+
+A restricted answer stays where only Admins read it.
+Sharing it in a thread or onto a page, saving it as an observation, pinning it, making it a dashboard, applying its suggested change and saving its build are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, and the message says why.
+The same refusal reaches MCP tools and the CLI.
+Saving a restricted answer as an observation files it in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
+Withdrawing a share and the privacy of chats are unchanged.
+
 ### In the dashboard's Chat tab
 
 A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.

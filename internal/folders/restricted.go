@@ -14,13 +14,43 @@ import (
 const (
 	CodeRestrictedContent = "restricted_content"
 	CodeAdminsOnlyFolder  = "admins_only_folder"
+	CodeRestrictedAnswer  = "restricted_answer"
 )
 
 var (
 	ErrLinkedMove            = errors.New("this dashboard has public links, and a folder only Admins can read has none; revoke its public links before you move it there")
 	ErrLinkedObservationMove = errors.New("an RCA of this observation has public links, and a folder only Admins can read has none; revoke them before you move it there")
 	ErrLinkedFolder          = errors.New("a dashboard or an RCA in this folder has public links, and a folder only Admins can read has none; revoke them before you make it Admins only")
+	ErrRestrictedAnswer      = errors.New("this answer read data only Admins can query, such as the audit trail, and people who are not Admins read where it would go; " +
+		"keep it in the private chat, or show it in a folder only Admins can read")
 )
+
+type restrictedAnswerError struct{ message string }
+
+func (e restrictedAnswerError) Error() string { return e.message }
+
+func (restrictedAnswerError) Is(target error) bool { return target == ErrRestrictedAnswer }
+
+func RestrictedAnswerMove(kind ContentKind) error {
+	return restrictedAnswerError{fmt.Sprintf(
+		"this %s holds an answer that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun())}
+}
+
+func RestrictedAnswerOpening(items []ContentItem) error {
+	first := items[0]
+	message := fmt.Sprintf("the %s %q in this folder holds an answer that read data only Admins can query, such as the audit trail; move it to another folder only Admins can read before you share this one", first.Kind.Noun(), first.Title)
+	if len(items) > 1 {
+		message = fmt.Sprintf("%d items in this folder, such as the %s %q, hold answers that read data only Admins can query, such as the audit trail; move them to another folder only Admins can read before you share this one", len(items), first.Kind.Noun(), first.Title)
+	}
+	return restrictedAnswerError{message}
+}
+
+func ShowAnswer(readRestricted, adminsOnly bool) error {
+	if readRestricted && !adminsOnly {
+		return ErrRestrictedAnswer
+	}
+	return nil
+}
 
 func LinkedRefusal(err error) bool {
 	return errors.Is(err, ErrLinkedMove) || errors.Is(err, ErrLinkedObservationMove) || errors.Is(err, ErrLinkedFolder)
@@ -120,6 +150,10 @@ type contentItemJSON struct {
 }
 
 func AbortRestricted(c *gin.Context, err error) bool {
+	if errors.Is(err, ErrRestrictedAnswer) {
+		httpapi.AbortError(c, http.StatusConflict, CodeRestrictedAnswer, err.Error())
+		return true
+	}
 	if LinkedRefusal(err) {
 		httpapi.AbortError(c, http.StatusConflict, CodeAdminsOnlyFolder, err.Error())
 		return true

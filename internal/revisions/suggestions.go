@@ -66,6 +66,9 @@ func (s *Service) SubmitSuggestion(ctx context.Context, dashboardID pgtype.UUID,
 		if err != nil {
 			return fmt.Errorf("enqueue suggest request: %w", err)
 		}
+		if row, err = inheritReadRestricted(ctx, q, row); err != nil {
+			return err
+		}
 		if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 			return fmt.Errorf("notify workers: %w", err)
 		}

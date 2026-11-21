@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -138,6 +139,11 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 		return Finding{}, false, ErrRequesterOnly
 	}
 	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	if f.Restricted {
+		if conclusion.FolderID, err = s.restrictedAnswerFolder(ctx, requestID); err != nil {
+			return Finding{}, false, err
+		}
+	}
 	if f.DashboardID != "" {
 		if conclusion.DashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
 			return Finding{}, false, err
@@ -151,6 +157,17 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 	}
 	f, err = s.Get(ctx, by, id)
 	return f, !attached, err
+}
+
+func (s *Service) restrictedAnswerFolder(ctx context.Context, runID pgtype.UUID) (pgtype.UUID, error) {
+	folder, err := s.store.db.Queries().RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("read the folder only Admins read for an answer that read Admin-only data: %w", err)
+	}
+	if !folder.Valid {
+		return pgtype.UUID{}, folders.ErrRestrictedAnswer
+	}
+	return folder, nil
 }
 
 func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requestID, observationID pgtype.UUID) error {
@@ -362,6 +379,9 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
+	if err := s.showOnDashboard(ctx, by, f, dashboardID); err != nil {
+		return annotations.Annotation{}, false, err
+	}
 	at := f.CreatedAt
 	if f.RequestTo != nil {
 		at = *f.RequestTo
@@ -421,11 +441,31 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if len(f.Evidence) == 0 {
 		return dashboards.Dashboard{}, dashboards.Version{}, ErrNoEvidence
 	}
+	if f.Restricted {
+		folder, err := s.access.CreationFolder(ctx, by, pgtype.UUID{})
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, err
+		}
+		if err := folders.ShowAnswer(f.Restricted, folder.AdminsOnly); err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, err
+		}
+	}
 	raw, err := json.Marshal(f.Spec())
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
 	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+}
+
+func (s *Service) showOnDashboard(ctx context.Context, by auth.Principal, f Finding, dashboardID pgtype.UUID) error {
+	if !f.Restricted {
+		return nil
+	}
+	access, err := s.dashboardAccess(ctx, by, dashboardID)
+	if err != nil {
+		return err
+	}
+	return folders.ShowAnswer(f.Restricted, access.Folder.AdminsOnly)
 }
 
 type Placement struct {

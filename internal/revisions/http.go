@@ -290,6 +290,8 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
 	case errors.Is(err, ErrFindingApplied):
 		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: err.Error()}, true
+	case errors.Is(err, folders.ErrRestrictedAnswer):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeRestrictedAnswer, Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRequests):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
 	case errors.Is(err, ErrAgentBusy):
