@@ -160,6 +160,19 @@ func (q *Queries) CreateRCAPublicLink(ctx context.Context, arg CreateRCAPublicLi
 	return i, err
 }
 
+const dashboardHasLivePublicLinks = `-- name: DashboardHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links WHERE dashboard_id = $1 AND (expires_at IS NULL OR expires_at > now())
+)::bool
+`
+
+func (q *Queries) DashboardHasLivePublicLinks(ctx context.Context, dashboardID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, dashboardHasLivePublicLinks, dashboardID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deletePublicLink = `-- name: DeletePublicLink :execrows
 DELETE FROM public_links WHERE id = $1 AND dashboard_id = $2
 `
@@ -193,6 +206,20 @@ func (q *Queries) DeleteRCAPublicLink(ctx context.Context, arg DeleteRCAPublicLi
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const folderHasLivePublicLinks = `-- name: FolderHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
+  WHERE d.folder_id = $1 AND (p.expires_at IS NULL OR p.expires_at > now())
+)::bool
+`
+
+func (q *Queries) FolderHasLivePublicLinks(ctx context.Context, folderID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, folderHasLivePublicLinks, folderID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listPublicLinks = `-- name: ListPublicLinks :many
@@ -400,6 +427,17 @@ func (q *Queries) RCAPublicLinkByTokenHash(ctx context.Context, tokenHash []byte
 		&i.Personal,
 	)
 	return i, err
+}
+
+const shareDashboardFolderAdminsOnly = `-- name: ShareDashboardFolderAdminsOnly :one
+SELECT f.admins_only FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = $1 FOR SHARE OF f
+`
+
+func (q *Queries) ShareDashboardFolderAdminsOnly(ctx context.Context, dashboardID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, shareDashboardFolderAdminsOnly, dashboardID)
+	var admins_only bool
+	err := row.Scan(&admins_only)
+	return admins_only, err
 }
 
 const touchPublicLink = `-- name: TouchPublicLink :exec

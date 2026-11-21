@@ -8,9 +8,22 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
-const CodeRestrictedContent = "restricted_content"
+const (
+	CodeRestrictedContent = "restricted_content"
+	CodeAdminsOnlyFolder  = "admins_only_folder"
+)
+
+var (
+	ErrLinkedMove   = errors.New("this dashboard has public links, and a folder only Admins can read has none; revoke its public links before you move it there")
+	ErrLinkedFolder = errors.New("a dashboard in this folder has public links, and a folder only Admins can read has none; revoke them before you make it Admins only")
+)
+
+func LinkedRefusal(err error) bool {
+	return errors.Is(err, ErrLinkedMove) || errors.Is(err, ErrLinkedFolder)
+}
 
 func AdminsOnly(f dbsqlc.Folder) bool {
 	return f.AdminsOnly
@@ -25,7 +38,7 @@ const (
 	ContentProposal    ContentKind = "proposal"
 )
 
-func (k ContentKind) noun() string {
+func (k ContentKind) Noun() string {
 	switch k {
 	case ContentObservation:
 		return "observation"
@@ -56,17 +69,17 @@ func (e *RestrictedContentError) Error() string { return e.message }
 
 func RestrictedSave(kind ContentKind, datasource string) error {
 	return &RestrictedContentError{Datasource: datasource, message: fmt.Sprintf(
-		"this %s reads the datasource %q, which only Admins can query; save it in a folder only Admins can read", kind.noun(), datasource)}
+		"this %s reads the datasource %q, which only Admins can query; save it in a folder only Admins can read", kind.Noun(), datasource)}
 }
 
 func RestrictedMove(kind ContentKind, datasource string) error {
 	return &RestrictedContentError{Datasource: datasource, message: fmt.Sprintf(
-		"this %s reads the datasource %q, which only Admins can query, so it can only move to another folder only Admins can read", kind.noun(), datasource)}
+		"this %s reads the datasource %q, which only Admins can query, so it can only move to another folder only Admins can read", kind.Noun(), datasource)}
 }
 
 func RestrictedOpening(item ContentItem, datasource string) error {
 	return &RestrictedContentError{Datasource: datasource, Items: []ContentItem{item}, message: fmt.Sprintf(
-		"the %s %q in this folder reads the datasource %q, which only Admins can query; move it to another folder only Admins can read before you share this one", item.Kind.noun(), item.Title, datasource)}
+		"the %s %q in this folder reads the datasource %q, which only Admins can query; move it to another folder only Admins can read before you share this one", item.Kind.Noun(), item.Title, datasource)}
 }
 
 func RestrictedAudience(datasource string, items []ContentItem, hidden int) error {
@@ -86,6 +99,10 @@ type contentItemJSON struct {
 }
 
 func AbortRestricted(c *gin.Context, err error) bool {
+	if LinkedRefusal(err) {
+		httpapi.AbortError(c, http.StatusConflict, CodeAdminsOnlyFolder, err.Error())
+		return true
+	}
 	var restricted *RestrictedContentError
 	if !errors.As(err, &restricted) {
 		return false

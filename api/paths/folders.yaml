@@ -287,7 +287,7 @@ folders-id-permissions:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
         description: >-
-          The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`).
+          The folder is General (`general_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`), or `admins_only` would close a folder holding a dashboard with an unexpired public link (`admins_only_folder`).
         content:
           application/json:
             schema:

@@ -275,6 +275,16 @@ func (s *Service) insertLink(ctx context.Context, by auth.Principal, params dbsq
 		if err := q.LockDashboardForLinks(ctx, params.DashboardID); err != nil {
 			return err
 		}
+		adminsOnly, err := q.ShareDashboardFolderAdminsOnly(ctx, params.DashboardID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return folders.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if adminsOnly {
+			return ErrAdminsOnly
+		}
 		count, err := q.CountPublicLinks(ctx, dbsqlc.CountPublicLinksParams{DashboardID: params.DashboardID, Now: pgtype.Timestamptz{Time: s.now(), Valid: true}})
 		if err != nil {
 			return err

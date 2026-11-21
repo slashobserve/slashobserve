@@ -9,6 +9,9 @@ import (
 const codeRestrictedContent = folders.CodeRestrictedContent
 
 func restrictedRefusal(err error) (Result, bool) {
+	if folders.LinkedRefusal(err) {
+		return toolError(folders.CodeAdminsOnlyFolder, err.Error()), true
+	}
 	var restricted *folders.RestrictedContentError
 	if !errors.As(err, &restricted) {
 		return Result{}, false

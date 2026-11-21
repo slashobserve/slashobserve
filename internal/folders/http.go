@@ -380,6 +380,15 @@ func (h *Handler) setAdminsOnly(ctx context.Context, q *dbsqlc.Queries, folder d
 	if folder.AdminsOnly == adminsOnly {
 		return nil
 	}
+	if adminsOnly {
+		linked, err := q.FolderHasLivePublicLinks(ctx, folder.ID)
+		if err != nil {
+			return err
+		}
+		if linked {
+			return ErrLinkedFolder
+		}
+	}
 	return q.SetFolderAdminsOnly(ctx, dbsqlc.SetFolderAdminsOnlyParams{ID: folder.ID, AdminsOnly: adminsOnly})
 }
 

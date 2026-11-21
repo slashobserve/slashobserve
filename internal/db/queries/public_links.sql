@@ -62,3 +62,17 @@ JOIN observation_rcas r ON r.id = p.rca_id
 JOIN observations o ON o.id = r.observation_id
 JOIN folders f ON f.id = o.folder_id
 WHERE p.token_hash = @token_hash;
+
+-- name: DashboardHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links WHERE dashboard_id = @dashboard_id AND (expires_at IS NULL OR expires_at > now())
+)::bool;
+
+-- name: FolderHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
+  WHERE d.folder_id = @folder_id AND (p.expires_at IS NULL OR p.expires_at > now())
+)::bool;
+
+-- name: ShareDashboardFolderAdminsOnly :one
+SELECT f.admins_only FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = @dashboard_id FOR SHARE OF f;

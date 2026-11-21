@@ -33,6 +33,7 @@ A folder is open, restricted or Admins only, and the folder's settings page (**F
   Its row on the Dashboards page reads "Only Admins".
   Listing someone or opening the folder ends it.
   It is the only kind of folder that can hold a dashboard, observation or saved search that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it); while it holds one, listing someone or opening it is refused with `409 restricted_content`, which names the datasource and the content to move first.
+  It has no [public links](../use/public-links.md): choosing **Only Admins** for a folder that holds a dashboard with an unexpired public link, or moving such a dashboard into it, is refused with `409 admins_only_folder` until the links are revoked.
 
 ## My Dashboards
 

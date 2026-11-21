@@ -127,6 +127,9 @@ func (g *Guard) MoveDashboard(ctx context.Context, q *dbsqlc.Queries, id, to pgt
 	if _, err := q.LockDashboardPlacement(ctx, id); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("lock dashboard: %w", err)
 	}
+	if err := refuseLinkedMove(ctx, q, id, to); err != nil {
+		return err
+	}
 	specs, err := q.PlacementDashboardSpecs(ctx, id)
 	if err != nil {
 		return fmt.Errorf("read dashboard specs: %w", err)
@@ -179,4 +182,22 @@ func observationRefs(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) ([]
 		refs = union(refs, found)
 	}
 	return refs, nil
+}
+
+func refuseLinkedMove(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {
+	folder, err := q.ShareFolderPlacement(ctx, to)
+	if errors.Is(err, pgx.ErrNoRows) || err == nil && !folder.AdminsOnly {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("lock folder: %w", err)
+	}
+	linked, err := q.DashboardHasLivePublicLinks(ctx, id)
+	if err != nil {
+		return fmt.Errorf("read public links: %w", err)
+	}
+	if linked {
+		return folders.ErrLinkedMove
+	}
+	return nil
 }
