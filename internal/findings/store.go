@@ -141,7 +141,7 @@ func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
 		return Finding{}, fmt.Errorf("get finding: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, row.RequestTo, requester(row.RequestedByKind.String, row.RequestedByID))
-	f.SharedIn = row.RequestThreadMessageID
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.ReadRestricted
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err
 }
 
@@ -158,7 +158,7 @@ func (s *store) forRequestIn(ctx context.Context, q *dbsqlc.Queries, requestID p
 		return Finding{}, false, fmt.Errorf("get finding of agent request: %w", err)
 	}
 	f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
-	f.SharedIn = row.RequestThreadMessageID
+	f.SharedIn, f.Restricted = row.RequestThreadMessageID, row.ReadRestricted
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
 }
 
@@ -179,8 +179,8 @@ func (s *store) listByDashboard(ctx context.Context, dashboardID pgtype.UUID, vi
 	if err != nil {
 		return nil, fmt.Errorf("list findings of dashboard: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsByDashboardRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.ReadRestricted
 	})
 }
 
@@ -194,8 +194,8 @@ func (s *store) listInFolder(ctx context.Context, folderID pgtype.UUID, visible 
 	if err != nil {
 		return nil, fmt.Errorf("list findings of folder: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsInFolderRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.ReadRestricted
 	})
 }
 
@@ -213,8 +213,8 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	if err != nil {
 		return nil, fmt.Errorf("list findings of creator: %w", err)
 	}
-	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID) {
-		return r.Finding, r.ObservationFolderID
+	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID, bool) {
+		return r.Finding, r.ObservationFolderID, r.ReadRestricted
 	})
 }
 
@@ -280,14 +280,15 @@ func (s *store) annotation(ctx context.Context, id pgtype.UUID) (annotations.Ann
 	return a, nil
 }
 
-func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID)) ([]Finding, error) {
+func findingsOf[R any](rows []R, split func(R) (dbsqlc.Finding, pgtype.UUID, bool)) ([]Finding, error) {
 	out := make([]Finding, len(rows))
 	for i, r := range rows {
-		row, folder := split(r)
+		row, folder, restricted := split(r)
 		f, err := findingOf(row, folder, pgtype.Timestamptz{}, Author{})
 		if err != nil {
 			return nil, err
 		}
+		f.Restricted = restricted
 		out[i] = f
 	}
 	return out, nil

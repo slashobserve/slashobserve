@@ -216,12 +216,20 @@ func withChatTranscript(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Agent
 		return row, fmt.Errorf("read the earlier turns of the chat: %w", err)
 	}
 	turns := make([]chatTurn, 0, len(rows))
+	carriesRestricted := false
 	for i := len(rows) - 1; i >= 0; i-- {
 		turns = append(turns, chatTurn{prompt: rows[i].Prompt, answer: answerOf(rows[i])})
+		carriesRestricted = carriesRestricted || rows[i].ReadRestricted
 	}
 	transcript := chatTranscript(turns)
 	if transcript == "" {
 		return row, nil
+	}
+	if carriesRestricted {
+		if err := q.MarkRunReadRestricted(ctx, row.ID); err != nil {
+			return row, fmt.Errorf("mark a turn that carries an answer that read Admin-only data: %w", err)
+		}
+		row.ReadRestricted = true
 	}
 	stored := pgtype.Text{String: transcript, Valid: true}
 	if err := q.SetRequestThreadContext(ctx, dbsqlc.SetRequestThreadContextParams{ID: row.ID, ThreadContext: stored}); err != nil {

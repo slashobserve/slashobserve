@@ -13,6 +13,12 @@ SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 -- name: ShareFolderPlacement :one
 SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
+-- name: RunReadRestricted :one
+SELECT read_restricted FROM agent_requests WHERE id = @id;
+
+-- name: FindingRun :one
+SELECT agent_request_id FROM findings WHERE id = @id;
+
 -- name: PlacementDashboardVersions :many
 SELECT v.dashboard_id AS id, v.version AS seq, d.title, d.folder_id, f.title AS folder_title, f.personal AS folder_personal, v.spec AS payload
 FROM dashboard_versions v

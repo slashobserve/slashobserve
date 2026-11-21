@@ -72,6 +72,7 @@ type Finding struct {
 	Title, Markdown                               string
 	SuggestedChange                               string
 	ObserveWorthy                                 bool
+	Restricted                                    bool
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time

@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 const defaultRunTitle = "Investigation"
@@ -239,6 +240,9 @@ func (s *Service) writeConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, 
 	state, ok := addedState(abilities)
 	if !ok {
 		return folders.ErrForbidden
+	}
+	if err := placement.Answer(ctx, q, in.runID, parent.FolderID); err != nil {
+		return err
 	}
 	added, err := s.insertConclusionBlocks(ctx, q, parent, in, state, who)
 	if err != nil || !in.runID.Valid {

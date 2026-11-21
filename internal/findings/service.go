@@ -362,6 +362,9 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
+	if err := s.showOnDashboard(ctx, by, f, dashboardID); err != nil {
+		return annotations.Annotation{}, false, err
+	}
 	at := f.CreatedAt
 	if f.RequestTo != nil {
 		at = *f.RequestTo
@@ -421,11 +424,31 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if len(f.Evidence) == 0 {
 		return dashboards.Dashboard{}, dashboards.Version{}, ErrNoEvidence
 	}
+	if f.Restricted {
+		folder, err := s.access.CreationFolder(ctx, by, pgtype.UUID{})
+		if err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, err
+		}
+		if err := folders.ShowAnswer(f.Restricted, folder.AdminsOnly); err != nil {
+			return dashboards.Dashboard{}, dashboards.Version{}, err
+		}
+	}
 	raw, err := json.Marshal(f.Spec())
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
 	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+}
+
+func (s *Service) showOnDashboard(ctx context.Context, by auth.Principal, f Finding, dashboardID pgtype.UUID) error {
+	if !f.Restricted {
+		return nil
+	}
+	access, err := s.dashboardAccess(ctx, by, dashboardID)
+	if err != nil {
+		return err
+	}
+	return folders.ShowAnswer(f.Restricted, access.Folder.AdminsOnly)
 }
 
 type Placement struct {

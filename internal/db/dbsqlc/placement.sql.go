@@ -35,6 +35,17 @@ func (q *Queries) AdminsOnlyDatasourceUIDs(ctx context.Context) ([]string, error
 	return items, nil
 }
 
+const findingRun = `-- name: FindingRun :one
+SELECT agent_request_id FROM findings WHERE id = $1
+`
+
+func (q *Queries) FindingRun(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findingRun, id)
+	var agent_request_id pgtype.UUID
+	err := row.Scan(&agent_request_id)
+	return agent_request_id, err
+}
+
 const lockDashboardPlacement = `-- name: LockDashboardPlacement :one
 SELECT folder_id FROM dashboards WHERE id = $1 FOR UPDATE
 `
@@ -395,6 +406,17 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 		return nil, err
 	}
 	return items, nil
+}
+
+const runReadRestricted = `-- name: RunReadRestricted :one
+SELECT read_restricted FROM agent_requests WHERE id = $1
+`
+
+func (q *Queries) RunReadRestricted(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, runReadRestricted, id)
+	var read_restricted bool
+	err := row.Scan(&read_restricted)
+	return read_restricted, err
 }
 
 const shareDashboardPlacement = `-- name: ShareDashboardPlacement :one

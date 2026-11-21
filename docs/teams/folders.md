@@ -33,6 +33,7 @@ A folder is open, restricted or Admins only, and the folder's settings page (**F
   Its row on the Dashboards page reads "Only Admins".
   Listing someone or opening the folder ends it.
   It is the only kind of folder that can hold a dashboard, observation or saved search that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it); while it holds one, listing someone or opening it is refused with `409 restricted_content`, which names the datasource and the content to move first.
+  It is the only place an answer that read Admin-only data can go: an Admin's run in it may read the [audit trail](../reference/audit-queries.md), and a `restricted` answer from a private chat is shared, saved, pinned or applied only into it (see [Answers that read Admin-only data](../use/chat.md#answers-that-read-admin-only-data)); elsewhere that is refused with `409 restricted_answer`.
   It has no [public links](../use/public-links.md): choosing **Only Admins** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder` until the links are revoked.
 
 ## My Dashboards

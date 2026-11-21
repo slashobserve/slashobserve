@@ -187,7 +187,7 @@ func (q *Queries) CancelAgentRequest(ctx context.Context, arg CancelAgentRequest
 }
 
 const chatTurnsBefore = `-- name: ChatTurnsBefore :many
-SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary
+SELECT r.id, r.prompt, r.result_version, r.read_restricted, f.markdown AS answer, v.summary AS version_summary
 FROM agent_requests r
 LEFT JOIN findings f ON f.agent_request_id = r.id
 LEFT JOIN dashboard_versions v ON v.agent_request_id = r.id
@@ -207,6 +207,7 @@ type ChatTurnsBeforeRow struct {
 	ID             pgtype.UUID
 	Prompt         string
 	ResultVersion  pgtype.Int4
+	ReadRestricted bool
 	Answer         pgtype.Text
 	VersionSummary pgtype.Text
 }
@@ -224,6 +225,7 @@ func (q *Queries) ChatTurnsBefore(ctx context.Context, arg ChatTurnsBeforeParams
 			&i.ID,
 			&i.Prompt,
 			&i.ResultVersion,
+			&i.ReadRestricted,
 			&i.Answer,
 			&i.VersionSummary,
 		); err != nil {

@@ -55,6 +55,7 @@ function finding(): Finding {
     url: "",
     suggested_change: null,
     observe_worthy: false,
+    restricted: false,
   }
 }
 

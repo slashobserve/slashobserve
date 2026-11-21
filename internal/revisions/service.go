@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 const (
@@ -134,6 +135,9 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	}
 	if err := q.LockAgentRequestsForDashboard(ctx, p.DashboardID); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("lock agent requests: %w", err)
+	}
+	if err := placement.AppliedAnswer(ctx, q, p.AppliesFindingID, p.DashboardID); err != nil {
+		return dbsqlc.AgentRequest{}, err
 	}
 	active, err := q.CountActiveAgentRequests(ctx, p.DashboardID)
 	if err != nil {

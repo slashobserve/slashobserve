@@ -6922,6 +6922,8 @@ export interface components {
             suggested_change: string | null;
             /** @description True when the agent judged the answer worth keeping as an observation, because it describes a jump, a drop or an error spike; it only promotes saving the answer and saves nothing. */
             observe_worthy: boolean;
+            /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
+            restricted: boolean;
             /**
              * Format: date-time
              * @description The start of the window the evidence shows.
@@ -12415,7 +12417,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). */
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). Or the run that wrote the answer read data only Admins can query, such as the audit trail, and the dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14752,7 +14754,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Someone else's request already applies `applies_finding_id` (`already_applied`). */
+            /** @description Someone else's request already applies `applies_finding_id` (`already_applied`). Or the request that wrote that answer read data only Admins can query, such as the audit trail, and `dashboard_id` is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15187,7 +15189,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15232,7 +15234,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the observation would not be in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15295,7 +15297,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`). Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The request is not a private question (`not_shareable`) or has not finished with an answer (`no_answer`). Or the answer's evidence reads a datasource only Admins can query and the dashboard or observation is not in a folder only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the dashboard or observation is not in a folder only Admins can read (`restricted_answer`, saying why); keep such an answer in the chat, or share it where only Admins read. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15572,7 +15574,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and its dashboard is not in a folder only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15610,7 +15612,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no evidence panels (`finding_has_no_evidence`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The finding has no evidence panels (`finding_has_no_evidence`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the finding is `restricted` and your default folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;

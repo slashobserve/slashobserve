@@ -12,6 +12,9 @@ const (
 )
 
 func restrictedRefusal(err error) (Result, bool) {
+	if errors.Is(err, folders.ErrRestrictedAnswer) {
+		return toolError(folders.CodeRestrictedAnswer, err.Error()), true
+	}
 	if folders.LinkedRefusal(err) {
 		return toolError(folders.CodeAdminsOnlyFolder, err.Error()), true
 	}
