@@ -265,6 +265,17 @@ func TestStartRunPassesTheAnchorTheTurnIsAbout(t *testing.T) {
 	}
 }
 
+func TestStartRunPassesNewChat(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"a latency panel","kind":"revise","dashboard_id":"`+runID+`","new_chat":true}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	if got := runs.started; got == nil || got.NewChat == nil || !*got.NewChat {
+		t.Fatalf("start request = %+v", got)
+	}
+}
+
 func TestStartRunHasNoWayToAskForAnInvestigation(t *testing.T) {
 	runs := &fakeRuns{raw: json.RawMessage(`{}`)}
 	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why is it slow","kind":"investigate"}`)

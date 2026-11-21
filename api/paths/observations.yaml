@@ -454,7 +454,7 @@ observations-id-layout:
         format: uuid
   put:
     operationId: arrangeObservationBlocks
-    x-audit: { action: observation.update, target: { kind: observation, id: path.id } }
+    x-audit: { action: observation.arrange, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [arrange_blocks]
       cli: [observe o arrange]

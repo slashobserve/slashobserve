@@ -154,7 +154,7 @@ observe:
       A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
       Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees.
       With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`).
-      Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one.
+      Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` and `follows_id` (400 `invalid_request`).
       The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back.
       `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat.
       `follows_id` excludes `dashboard_id` and `chat_id`.
@@ -216,6 +216,9 @@ observe:
                 type: string
                 format: uuid
                 description: The chat of yours this request is the next turn of; without it a new chat starts, or a `revise` joins your latest chat on that dashboard.
+              new_chat:
+                type: boolean
+                description: Start a new chat even when a `revise` would join your latest chat on that dashboard; not with `chat_id` or `follows_id`.
               follows_id:
                 type: string
                 format: uuid

@@ -131,7 +131,7 @@ export function PanelChrome({
       data-selected={selected ? "" : undefined}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
+        "group/panel relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
         transparent ? "border-transparent bg-transparent" : "bg-card",
         emphasized &&
           "border-foreground outline outline-1 -outline-offset-1 outline-foreground",

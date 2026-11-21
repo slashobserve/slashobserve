@@ -37,6 +37,8 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 		"an ask with a version":       {StartRequest{Prompt: ptr("x"), Kind: ptr("ask"), BaseVersion: ptr(1)}, "base_version needs kind revise"},
 		"a board ask with a version":  {StartRequest{Prompt: ptr("x"), DashboardID: ptr("11111111-2222-3333-4444-555555555555"), BaseVersion: ptr(1)}, "base_version needs kind revise"},
 		"a bad observation of an ask": {StartRequest{Prompt: ptr("x"), ObservationID: ptr("o")}, "observation_id must be a UUID"},
+		"a new chat in a named chat":  {StartRequest{Prompt: ptr("x"), NewChat: ptr(true), ChatID: ptr("11111111-2222-3333-4444-555555555555")}, "new_chat and chat_id exclude each other"},
+		"a new chat after a request":  {StartRequest{Prompt: ptr("x"), NewChat: ptr(true), FollowsID: ptr("11111111-2222-3333-4444-555555555555")}, "new_chat and follows_id exclude each other"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

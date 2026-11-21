@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/egress"
@@ -148,6 +149,7 @@ func (h *Handler) test(c *gin.Context) {
 		h.fail(c, "test datasource", err)
 		return
 	}
+	audit.Conclude(c.Request.Context(), testRecord(baseUID, body.Definition, result))
 	c.JSON(http.StatusOK, testJSON(result))
 }
 
