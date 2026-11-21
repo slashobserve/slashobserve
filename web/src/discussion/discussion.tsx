@@ -11,6 +11,7 @@ import {
 } from "@/activity/timeline-list"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -373,9 +374,9 @@ export function DiscussionFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
+      <ScrollPane ref={stickRef} className="flex-1">
         {body}
-      </div>
+      </ScrollPane>
       <div className="border-t px-4 pt-3 pb-4">
         {isPending ||
         isError ||
