@@ -198,6 +198,33 @@ DROP INDEX CONCURRENTLY IF EXISTS agent_requests_suggest_active_idx;
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_listed_recent_idx;
 ALTER TABLE agent_requests DROP COLUMN IF EXISTS source;
 
+UPDATE audit_activity_actions SET keys = array_replace(keys, 'source', 'intent') WHERE type LIKE 'run.%';
+
+-- +goose StatementBegin
+DO $$
+DECLARE
+  after_seq bigint := 0;
+  last_seq bigint;
+BEGIN
+  LOOP
+    SELECT max(seq) INTO last_seq FROM (
+      SELECT seq FROM activity WHERE seq > after_seq AND type LIKE 'run.%' AND data ? 'source' ORDER BY seq LIMIT 1000) b;
+    EXIT WHEN last_seq IS NULL;
+    UPDATE activity a SET data = (a.data - 'source') || jsonb_build_object('intent', coalesce(
+      (SELECT r.intent FROM agent_requests r WHERE r.id = a.target_id),
+      CASE
+        WHEN a.data->>'source' = 'suggest' THEN 'suggest'
+        WHEN a.data->>'source' IN ('prompt', 'comment') THEN 'apply'
+        WHEN a.data->>'source' = 'observe' AND a.data->>'result_version' IS NOT NULL THEN 'apply'
+        ELSE 'ask' END))
+    WHERE a.seq > after_seq AND a.seq <= last_seq AND a.type LIKE 'run.%' AND a.data ? 'source';
+    after_seq := last_seq;
+    COMMIT;
+  END LOOP;
+END
+$$;
+-- +goose StatementEnd
+
 -- +goose Down
 ALTER TABLE agent_requests ADD COLUMN IF NOT EXISTS source TEXT;
 UPDATE agent_requests SET source = CASE
@@ -211,6 +238,12 @@ WHERE source IS NULL;
 DELETE FROM agent_requests WHERE source = 'investigate' AND continues_id IS NOT NULL;
 UPDATE agent_requests SET context_from = NULL, context_to = NULL WHERE source <> 'investigate' AND context_from IS NOT NULL;
 ALTER TABLE agent_requests ALTER COLUMN source SET NOT NULL;
+
+UPDATE audit_activity_actions SET keys = array_replace(keys, 'intent', 'source') WHERE type LIKE 'run.%';
+UPDATE activity a SET data = (a.data - 'intent') || jsonb_build_object('source', coalesce(
+  (SELECT r.source FROM agent_requests r WHERE r.id = a.target_id),
+  CASE a.data->>'intent' WHEN 'suggest' THEN 'suggest' WHEN 'apply' THEN 'prompt' ELSE 'observe' END))
+WHERE a.type LIKE 'run.%' AND a.data ? 'intent';
 
 ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_id_fkey,

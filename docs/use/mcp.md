@@ -433,6 +433,7 @@ Without `client_id` every call queues another run, so read `get_run` or `list_ac
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+A private ask about a dashboard or an observation is not an investigation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
 
 `list_chats` lists your chats, the one most recently asked in first, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats and needs an Admin.
 `get_chat` reads one chat with its turns oldest first, each the run as `get_run` returns it without steps; when they do not all fit it answers `truncated: true` and a `next_offset` to pass as `offset`.
