@@ -22,6 +22,7 @@ var everyonesList = map[string]any{"scope": string(ScopeAll)}
 
 func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) {
 	if sameActor(requesterOf(row), by) {
+		audit.Skip(ctx)
 		return
 	}
 	chat := chatRoot(row.ID, row.ChatID)
@@ -35,6 +36,7 @@ func (s *Service) recordRunView(ctx context.Context, row dbsqlc.AgentRequest, by
 
 func (s *Service) recordChatView(ctx context.Context, chat Chat) {
 	if !chat.ReadOnly {
+		audit.Skip(ctx)
 		return
 	}
 	s.recordRead(ctx, audit.Event{
