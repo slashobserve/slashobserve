@@ -209,9 +209,16 @@ func (q *Queries) DeleteRCAPublicLink(ctx context.Context, arg DeleteRCAPublicLi
 }
 
 const folderHasLivePublicLinks = `-- name: FolderHasLivePublicLinks :one
-SELECT EXISTS (
-  SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
-  WHERE d.folder_id = $1 AND (p.expires_at IS NULL OR p.expires_at > now())
+SELECT (
+  EXISTS (
+    SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
+    WHERE d.folder_id = $1 AND (p.expires_at IS NULL OR p.expires_at > now())
+  ) OR EXISTS (
+    SELECT 1 FROM public_links p
+    JOIN observation_rcas r ON r.id = p.rca_id
+    JOIN observations o ON o.id = r.observation_id
+    WHERE o.folder_id = $1 AND (p.expires_at IS NULL OR p.expires_at > now())
+  )
 )::bool
 `
 
@@ -350,10 +357,25 @@ func (q *Queries) LockObservationForLinks(ctx context.Context, id pgtype.UUID) e
 	return err
 }
 
+const observationHasLivePublicLinks = `-- name: ObservationHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links p JOIN observation_rcas r ON r.id = p.rca_id
+  WHERE r.observation_id = $1 AND (p.expires_at IS NULL OR p.expires_at > now())
+)::bool
+`
+
+func (q *Queries) ObservationHasLivePublicLinks(ctx context.Context, observationID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, observationHasLivePublicLinks, observationID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const publicLinkByTokenHash = `-- name: PublicLinkByTokenHash :one
-SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version
+SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version, f.admins_only
 FROM public_links p
 JOIN dashboards d ON d.id = p.dashboard_id
+JOIN folders f ON f.id = d.folder_id
 WHERE p.token_hash = $1
 `
 
@@ -364,6 +386,7 @@ type PublicLinkByTokenHashRow struct {
 	Selections    []byte
 	ExpiresAt     pgtype.Timestamptz
 	LatestVersion int32
+	AdminsOnly    bool
 }
 
 func (q *Queries) PublicLinkByTokenHash(ctx context.Context, tokenHash []byte) (PublicLinkByTokenHashRow, error) {
@@ -376,13 +399,14 @@ func (q *Queries) PublicLinkByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.Selections,
 		&i.ExpiresAt,
 		&i.LatestVersion,
+		&i.AdminsOnly,
 	)
 	return i, err
 }
 
 const rCAPublicLinkByTokenHash = `-- name: RCAPublicLinkByTokenHash :one
 SELECT p.id AS link_id, p.expires_at, r.id AS rca_id, r.observation_id, r.revision, r.title, r.summary, r.observation_state,
-  r.time_from, r.time_to, r.content, r.created_by_name, r.created_at, f.personal
+  r.time_from, r.time_to, r.content, r.created_by_name, r.created_at, f.personal, f.admins_only
 FROM public_links p
 JOIN observation_rcas r ON r.id = p.rca_id
 JOIN observations o ON o.id = r.observation_id
@@ -405,6 +429,7 @@ type RCAPublicLinkByTokenHashRow struct {
 	CreatedByName    string
 	CreatedAt        pgtype.Timestamptz
 	Personal         bool
+	AdminsOnly       bool
 }
 
 func (q *Queries) RCAPublicLinkByTokenHash(ctx context.Context, tokenHash []byte) (RCAPublicLinkByTokenHashRow, error) {
@@ -425,6 +450,7 @@ func (q *Queries) RCAPublicLinkByTokenHash(ctx context.Context, tokenHash []byte
 		&i.CreatedByName,
 		&i.CreatedAt,
 		&i.Personal,
+		&i.AdminsOnly,
 	)
 	return i, err
 }
@@ -435,6 +461,17 @@ SELECT f.admins_only FROM dashboards d JOIN folders f ON f.id = d.folder_id WHER
 
 func (q *Queries) ShareDashboardFolderAdminsOnly(ctx context.Context, dashboardID pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, shareDashboardFolderAdminsOnly, dashboardID)
+	var admins_only bool
+	err := row.Scan(&admins_only)
+	return admins_only, err
+}
+
+const shareObservationFolderAdminsOnly = `-- name: ShareObservationFolderAdminsOnly :one
+SELECT f.admins_only FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = $1 FOR SHARE OF f
+`
+
+func (q *Queries) ShareObservationFolderAdminsOnly(ctx context.Context, observationID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, shareObservationFolderAdminsOnly, observationID)
 	var admins_only bool
 	err := row.Scan(&admins_only)
 	return admins_only, err

@@ -21,7 +21,8 @@ Some dashboards cannot have a public link:
 - A dashboard whose queries read the viewer's identity through `${__user.*}` has nobody to read on a public link.
   Creating a link for it is refused, and an existing link stops working, and shows as not usable, once a new version starts using `${__user.*}`.
 - A dashboard in a folder only Admins can read stays inside the team, so no link can be created for it, and the same holds for an RCA revision of an observation there.
-  A dashboard with an unexpired link cannot move into such a folder, and its folder cannot be made Admins only, until the link is revoked (`409 admins_only_folder`), so a link never reaches a dashboard that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it).
+  A dashboard with an unexpired link, or an observation whose RCA has one, cannot move into such a folder, and its folder cannot be made Admins only, until the link is revoked (`409 admins_only_folder`), so a link never reaches content that reads an [Admins-only datasource](../connect/datasources-in-the-app.md#who-can-query-it).
+  A link whose dashboard or observation is in such a folder anyway answers like a link that does not exist.
   The public view and its panel data still refuse such a dashboard, as if the link did not exist.
 
 A dashboard has at most 20 unexpired links, and an expired link stops counting.

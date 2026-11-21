@@ -175,6 +175,15 @@ func (s *Service) insertRCALink(ctx context.Context, by auth.Principal, observat
 		if err := q.LockObservationForLinks(ctx, observationID); err != nil {
 			return err
 		}
+		adminsOnly, err := q.ShareObservationFolderAdminsOnly(ctx, observationID)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return observations.ErrNotFound
+		case err != nil:
+			return fmt.Errorf("lock folder: %w", err)
+		case adminsOnly:
+			return ErrRCAAdminsOnly
+		}
 		count, err := q.CountObservationPublicLinks(ctx, observationID)
 		if err != nil {
 			return err
@@ -245,7 +254,7 @@ func (s *Service) ResolveRCA(ctx context.Context, token string) (ResolvedRCA, er
 		return ResolvedRCA{}, ErrNotFound
 	case err != nil:
 		return ResolvedRCA{}, err
-	case row.Personal, expired(timeOf(row.ExpiresAt), s.now()):
+	case row.Personal, row.AdminsOnly, expired(timeOf(row.ExpiresAt), s.now()):
 		return ResolvedRCA{}, ErrNotFound
 	}
 	return ResolvedRCA{LinkID: row.LinkID, ObservationID: row.ObservationID, Revision: int(row.Revision), ExpiresAt: timeOf(row.ExpiresAt), row: row}, nil

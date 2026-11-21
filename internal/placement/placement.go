@@ -146,6 +146,9 @@ func (g *Guard) MoveDashboard(ctx context.Context, q *dbsqlc.Queries, id, to pgt
 }
 
 func (g *Guard) MoveObservation(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {
+	if err := refuseLinkedObservationMove(ctx, q, id, to); err != nil {
+		return err
+	}
 	refs, err := observationRefs(ctx, q, id)
 	if err != nil {
 		return err
@@ -185,6 +188,14 @@ func observationRefs(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) ([]
 }
 
 func refuseLinkedMove(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {
+	return refuseLinked(ctx, q, to, folders.ErrLinkedMove, func() (bool, error) { return q.DashboardHasLivePublicLinks(ctx, id) })
+}
+
+func refuseLinkedObservationMove(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {
+	return refuseLinked(ctx, q, to, folders.ErrLinkedObservationMove, func() (bool, error) { return q.ObservationHasLivePublicLinks(ctx, id) })
+}
+
+func refuseLinked(ctx context.Context, q *dbsqlc.Queries, to pgtype.UUID, refusal error, linked func() (bool, error)) error {
 	folder, err := q.ShareFolderPlacement(ctx, to)
 	if errors.Is(err, pgx.ErrNoRows) || err == nil && !folder.AdminsOnly {
 		return nil
@@ -192,12 +203,12 @@ func refuseLinkedMove(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID
 	if err != nil {
 		return fmt.Errorf("lock folder: %w", err)
 	}
-	linked, err := q.DashboardHasLivePublicLinks(ctx, id)
+	has, err := linked()
 	if err != nil {
 		return fmt.Errorf("read public links: %w", err)
 	}
-	if linked {
-		return folders.ErrLinkedMove
+	if has {
+		return refusal
 	}
 	return nil
 }

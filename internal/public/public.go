@@ -361,7 +361,7 @@ func (s *Service) Resolve(ctx context.Context, token string) (Resolved, error) {
 		return Resolved{}, err
 	}
 	r := Resolved{LinkID: row.ID, DashboardID: row.DashboardID, Version: int(row.LatestVersion), Mode: Mode(row.Variables), ExpiresAt: timeOf(row.ExpiresAt)}
-	if expired(r.ExpiresAt, s.now()) {
+	if row.AdminsOnly || expired(r.ExpiresAt, s.now()) {
 		return Resolved{}, ErrNotFound
 	}
 	if err := json.Unmarshal(row.Selections, &r.Selections); err != nil {

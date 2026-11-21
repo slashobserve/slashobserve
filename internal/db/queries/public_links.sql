@@ -24,9 +24,10 @@ WHERE dashboard_id = @dashboard_id AND (expires_at IS NULL OR expires_at > @now:
 DELETE FROM public_links WHERE id = @id AND dashboard_id = @dashboard_id;
 
 -- name: PublicLinkByTokenHash :one
-SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version
+SELECT p.id, p.dashboard_id, p.variables, p.selections, p.expires_at, d.latest_version, f.admins_only
 FROM public_links p
 JOIN dashboards d ON d.id = p.dashboard_id
+JOIN folders f ON f.id = d.folder_id
 WHERE p.token_hash = @token_hash;
 
 -- name: TouchPublicLink :exec
@@ -56,7 +57,7 @@ WHERE p.id = @link_id AND p.rca_id IN (SELECT r.id FROM observation_rcas r WHERE
 
 -- name: RCAPublicLinkByTokenHash :one
 SELECT p.id AS link_id, p.expires_at, r.id AS rca_id, r.observation_id, r.revision, r.title, r.summary, r.observation_state,
-  r.time_from, r.time_to, r.content, r.created_by_name, r.created_at, f.personal
+  r.time_from, r.time_to, r.content, r.created_by_name, r.created_at, f.personal, f.admins_only
 FROM public_links p
 JOIN observation_rcas r ON r.id = p.rca_id
 JOIN observations o ON o.id = r.observation_id
@@ -69,10 +70,26 @@ SELECT EXISTS (
 )::bool;
 
 -- name: FolderHasLivePublicLinks :one
-SELECT EXISTS (
-  SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
-  WHERE d.folder_id = @folder_id AND (p.expires_at IS NULL OR p.expires_at > now())
+SELECT (
+  EXISTS (
+    SELECT 1 FROM public_links p JOIN dashboards d ON d.id = p.dashboard_id
+    WHERE d.folder_id = @folder_id AND (p.expires_at IS NULL OR p.expires_at > now())
+  ) OR EXISTS (
+    SELECT 1 FROM public_links p
+    JOIN observation_rcas r ON r.id = p.rca_id
+    JOIN observations o ON o.id = r.observation_id
+    WHERE o.folder_id = @folder_id AND (p.expires_at IS NULL OR p.expires_at > now())
+  )
 )::bool;
+
+-- name: ObservationHasLivePublicLinks :one
+SELECT EXISTS (
+  SELECT 1 FROM public_links p JOIN observation_rcas r ON r.id = p.rca_id
+  WHERE r.observation_id = @observation_id AND (p.expires_at IS NULL OR p.expires_at > now())
+)::bool;
+
+-- name: ShareObservationFolderAdminsOnly :one
+SELECT f.admins_only FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = @observation_id FOR SHARE OF f;
 
 -- name: ShareDashboardFolderAdminsOnly :one
 SELECT f.admins_only FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = @dashboard_id FOR SHARE OF f;
