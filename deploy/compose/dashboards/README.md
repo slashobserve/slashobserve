@@ -15,5 +15,4 @@ They set the bar for how a SlashObserve dashboard looks: a headline line of stat
 A file's path is its identity, so renaming or moving one creates a new dashboard on every demo that already loaded the old path.
 A panel over a series that exists only after its first event, such as agent runs on a server without a model, adds a query that ends in `or vector(0)`, because a provisioned file whose panel returns no data is not saved.
 `Demo/shop-overview.json` also holds one panel of every type the product draws, in the last four rows, so a new panel type is added there when it lands.
-Its news panel reads the releases feed on github.com, so `make demo` starts the server with `SLASHOBSERVE_OUTBOUND_DOMAINS=github.com`, which locks the allowlist to that domain.
-A stack started without `make` keeps the allowlist empty and the panel says so until an Admin allows github.com.
+Its news panel needs github.com on the outbound allowlist and says so until an Admin allows it.
