@@ -2,6 +2,7 @@ import {
   clip,
   fit,
   inRect,
+  namesLabels,
   positionOf,
   seriesLabels,
   type Anchor,
@@ -34,4 +35,12 @@ export function hitTest(
     series: seriesLabels(target.labels, target.name),
     shown: clip(target.text),
   })
+}
+
+export function locate(layout: ValueAnchorLayout, anchor: Anchor): Rect | null {
+  if (anchor.kind !== "value") return null
+  const target = layout.targets.find(({ labels, name }) =>
+    namesLabels(anchor.series, seriesLabels(labels, name))
+  )
+  return target?.rect ?? null
 }

@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react"
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -25,12 +25,14 @@ import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
 import { ActionMenuItems } from "../actions/action-menu-items"
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { runFieldAction, useStableActionRunner } from "../actions/action-runner"
 import { fieldActions, oneClickTarget } from "../actions/field-actions"
 import { resolveColor } from "../colors"
 import { isDataLink, resolveLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import type { ValueAnchorLayout } from "../value-anchors"
 import { cssColorToRgb, readableText } from "../contrast"
 import { Sparkline } from "./sparkline"
 import { sparklineHasArea, sparklinePoints } from "./sparkline-points"
@@ -49,6 +51,7 @@ import {
   type ChangeDirection,
   type ChangeTone,
   type StatDisplay,
+  type StatTile,
 } from "./stat-tiles"
 
 const valueClass =
@@ -147,6 +150,17 @@ const StatPanel: PanelRenderer = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveColor reads the live theme tokens; panel-stat.spec "recomputes the text color when the theme flips" fails without theme here
     [tiles, display.colorMode, theme]
   )
+  const gridRef = useRef<HTMLDivElement>(null)
+  const publish = useAnchorPublisher("stat")
+  useLayoutEffect(() => {
+    const grid = gridRef.current
+    if (grid === null) return
+    const measure = () =>
+      publish(statAnchorLayout(grid, tiles, { width, height }))
+    measure()
+    grid.addEventListener("scroll", measure, { passive: true })
+    return () => grid.removeEventListener("scroll", measure)
+  }, [publish, tiles, width, height])
   const textMode = display.textMode
   const showText = textMode !== "none"
   const nameAsValue = textMode === "name"
@@ -165,6 +179,7 @@ const StatPanel: PanelRenderer = ({
   return (
     <>
       <div
+        ref={gridRef}
         className={cn("grid gap-2 overflow-auto", anyFilled && "p-2 pt-0")}
         style={{
           width,
@@ -426,6 +441,30 @@ const StatPanel: PanelRenderer = ({
       {dialog}
     </>
   )
+}
+
+function statAnchorLayout(
+  grid: HTMLElement,
+  tiles: readonly StatTile[],
+  body: { width: number; height: number }
+): ValueAnchorLayout {
+  const root = surfaceOf(grid)
+  const drawn = grid.querySelectorAll(":scope > [data-stat-tile]")
+  return {
+    body,
+    targets: tiles.flatMap((tile, index) => {
+      const element = drawn.item(index)
+      if (element === null) return []
+      return [
+        {
+          rect: rectWithin(element, root),
+          name: tile.name,
+          labels: tile.labels,
+          text: tile.text,
+        },
+      ]
+    }),
+  }
 }
 
 export default StatPanel

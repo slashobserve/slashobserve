@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type BarAnchorLayout } from "./anchors"
+import { hitTest, locate, type BarAnchorLayout } from "./anchors"
 import type { Bar, Layout } from "./barchart-model"
 
 function bar(value: number | null, start: number, end: number): Bar {
@@ -86,5 +86,50 @@ describe("barchart hitTest", () => {
   it("returns null outside the plot", () => {
     expect(hitTest(surface("none"), { x: 5, y: 40 })).toBeNull()
     expect(hitTest(surface("none"), { x: 100, y: 130 })).toBeNull()
+  })
+})
+
+describe("barchart locate", () => {
+  const pos = { x: 0, y: 0 }
+
+  it("finds the bar a series names inside its category", () => {
+    const rect = locate(surface("none"), {
+      kind: "bar",
+      pos,
+      category: "checkout",
+      series: { name: "p50" },
+    })
+    expect(rect).not.toBeNull()
+    expect(rect!.x).toBeGreaterThanOrEqual(20)
+    expect(rect!.x + rect!.width).toBeLessThanOrEqual(20 + 100)
+    expect(
+      hitTest(surface("none"), {
+        x: rect!.x + rect!.width / 2,
+        y: rect!.y + rect!.height - 1,
+      })
+    ).toMatchObject({ category: "checkout", series: { name: "p50" } })
+  })
+
+  it("finds the whole category when no series is named", () => {
+    const rect = locate(surface("none"), {
+      kind: "bar",
+      pos,
+      category: "payments",
+    })
+    expect(rect).toMatchObject({ x: 120, y: 10 })
+  })
+
+  it("returns null when the category or the series is gone", () => {
+    expect(
+      locate(surface("none"), { kind: "bar", pos, category: "search" })
+    ).toBeNull()
+    expect(
+      locate(surface("none"), {
+        kind: "bar",
+        pos,
+        category: "checkout",
+        series: { name: "p75" },
+      })
+    ).toBeNull()
   })
 })

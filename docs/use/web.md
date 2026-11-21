@@ -179,7 +179,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 `Esc` clears the selection, and with the title focused `↑`, `↓`, `Home` and `End` move it through the panels in reading order.
 The toolbar shows only what you may do:
 
-- **Comment**, when you can comment, starts a comment on the panel.
+- **Comment**, when you can comment, opens the composer on the whole panel, as `c`, the panel menu's **Comment** and the **Comment** button in the panel's header do; in the full-size view and TV mode it starts the comment in the activity pane instead.
 - **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the activity pane with the panel as the target and the "To:" chip on Observe Agent.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
@@ -189,8 +189,32 @@ The arrow keys move between the toolbar's buttons, and `Home` and `End` go to th
 While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you cannot comment, as a Viewer cannot.
-With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
+**Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
+In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
+A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
+On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
+A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
+
+The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
+A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
+While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
+In the table view of a panel that is not a table, a click or drag in Comment mode comments on the whole panel.
+The copies of a repeated panel take no canvas comments: Comment mode does nothing on a copy, **Comment** or `c` on a copy starts the comment in the activity pane, and pins show only on the first panel.
+
+### Comment pins
+
+A thread on a part of a panel shows as a pin with its author's mark at the spot it names.
+A pin follows its data: when the series, bar or row moves, the pin moves with it.
+A resolved thread's pin is grey.
+A pin on a moment, a point or a range outside the shown time range is not drawn until the range shows it again, and a range partly in view keeps its pin on the part that shows.
+A pin on a series hidden in the legend is not drawn either, and while the panel shows an error, is loading or is in its table view only pins on its title are drawn.
+When the series, row or cell is no longer on the panel while its time is in view, for example after a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
+A table row that is on the panel but scrolled out of view, or on another page of the table, points at the bottom edge of the table, and opening its pin scrolls or pages the table to that row.
+
+Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
+Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.
+Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
 
 ### Arrange panels
 

@@ -46,11 +46,14 @@ import {
   useStableActionRunner,
   type StableActionRunner,
 } from "../actions/action-runner"
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import type { Rect } from "../anchors"
 import { resolveColor } from "../colors"
 import { cssColorToRgb } from "../contrast"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { oneClickProps } from "@/dashboards/dashboard-links"
 import type { PanelRenderer } from "../types"
+import type { AnchorColumn, AnchorRow, TableAnchorLayout } from "./anchors"
 import { ActionsCell } from "./cells/actions"
 import { fillTextColor, type CellSpec } from "./cells/cell-model"
 import { GaugeCell } from "./cells/gauge"
@@ -60,6 +63,7 @@ import { LinksCell } from "./cells/links"
 import { MarkdownCell } from "./cells/markdown"
 import { PillCell } from "./cells/pill"
 import { SparklineCell } from "./cells/sparkline"
+import { useRowReveal } from "./row-reveal"
 import { TextCell } from "./cells/text"
 import {
   clearFilter,
@@ -475,7 +479,11 @@ const BodyRow = memo(function BodyRow({
   const { nested } = shared.row
   return (
     <>
-      <TableRow data-body-row="" aria-rowindex={ariaRowIndex}>
+      <TableRow
+        data-body-row=""
+        data-row-key={shared.row.key}
+        aria-rowindex={ariaRowIndex}
+      >
         {expandable ? (
           <ExpandCell row={shared.row} label={label} expansion={expansion} />
         ) : null}
@@ -841,6 +849,74 @@ const TablePanel: PanelRenderer = ({
 
   const fixed = layout !== null
 
+  const rowCells = useMemo(
+    () =>
+      new Map(
+        (paginate ? sorted : rows).map((row) => [
+          row.key,
+          views.map(({ column }) => cellOf(fields, column, row).text),
+        ])
+      ),
+    [paginate, sorted, rows, views, fields]
+  )
+  const revealRow = useRowReveal(regionRef, paginate ? sorted : rows)
+  const reveal = useCallback(
+    (key: string) => {
+      const region = regionRef.current
+      if (region === null) return
+      const index = rows.findIndex((row) => row.key === key)
+      if (index < 0) {
+        const at = sorted.findIndex((row) => row.key === key)
+        if (paginate && at >= 0) setPage(Math.floor(at / pageSize))
+      } else if (windowed) {
+        const height = measuredRowHeight ?? rowHeightPx(rowHeight)
+        region.scrollTop = Math.max(0, index * height - region.clientHeight / 2)
+      }
+      revealRow(key)
+    },
+    [
+      regionRef,
+      rows,
+      sorted,
+      paginate,
+      pageSize,
+      windowed,
+      measuredRowHeight,
+      rowHeight,
+      revealRow,
+    ]
+  )
+  const publish = useAnchorPublisher("table")
+  useLayoutEffect(() => {
+    const region = regionRef.current
+    if (region === null) return
+    const measure = () =>
+      publish(
+        tableAnchorLayout(region, {
+          body: { width, height },
+          views,
+          showHeader,
+          skipFirst: expandable,
+          rowCells,
+          reveal,
+        })
+      )
+    measure()
+    region.addEventListener("scroll", measure, { passive: true })
+    return () => region.removeEventListener("scroll", measure)
+  }, [
+    publish,
+    regionRef,
+    width,
+    height,
+    views,
+    showHeader,
+    expandable,
+    rowCells,
+    reveal,
+    shown,
+  ])
+
   return (
     <div className="flex flex-col text-xs" style={{ width, height }}>
       <div
@@ -1014,6 +1090,79 @@ const TablePanel: PanelRenderer = ({
       {dialog}
     </div>
   )
+}
+
+function visibleIn(rect: Rect, top: number, bottom: number): boolean {
+  const middle = rect.y + rect.height / 2
+  return middle >= top && middle <= bottom
+}
+
+function tableAnchorLayout(
+  region: HTMLElement,
+  {
+    body,
+    views,
+    showHeader,
+    skipFirst,
+    rowCells,
+    reveal,
+  }: {
+    body: { width: number; height: number }
+    views: readonly ColumnView[]
+    showHeader: boolean
+    skipFirst: boolean
+    rowCells: ReadonlyMap<string, readonly string[]>
+    reveal: (key: string) => void
+  }
+): TableAnchorLayout {
+  const root = surfaceOf(region)
+  const area = rectWithin(region, root)
+  const head = region.querySelector("thead")
+  const header = showHeader && head !== null ? rectWithin(head, root) : null
+  const widthsFrom = showHeader
+    ? region.querySelector("thead > tr")
+    : region.querySelector("[data-row-key]")
+  const headCells = Array.from(widthsFrom?.children ?? []).slice(
+    skipFirst ? 1 : 0
+  )
+  const columns: AnchorColumn[] = views.flatMap(({ column }, index) => {
+    const cell = headCells[index]
+    if (cell === undefined) return []
+    const rect = rectWithin(cell, root)
+    return [
+      {
+        name: column.label,
+        left: rect.x,
+        width: rect.width,
+        dimension: column.type !== "number",
+      },
+    ]
+  })
+  const top = header === null ? area.y : header.y + header.height
+  const bottom = area.y + area.height
+  const rows: AnchorRow[] = []
+  const drawn = new Set<string>()
+  for (const element of region.querySelectorAll<HTMLElement>(
+    "[data-row-key]"
+  )) {
+    const key = element.dataset.rowKey ?? ""
+    const cells = rowCells.get(key)
+    const rect = rectWithin(element, root)
+    if (cells === undefined || !visibleIn(rect, top, bottom)) continue
+    drawn.add(key)
+    rows.push({ top: rect.y, height: rect.height, cells })
+  }
+  const elsewhere = Array.from(rowCells).flatMap(([key, cells]) =>
+    drawn.has(key) ? [] : [{ key, cells }]
+  )
+  return {
+    body,
+    header: header === null ? null : { y: header.y, height: header.height },
+    columns,
+    rows,
+    elsewhere,
+    reveal,
+  }
 }
 
 export default TablePanel

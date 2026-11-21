@@ -4,6 +4,7 @@ import {
   inRect,
   msToIso,
   positionOf,
+  namesLabels,
   seriesLabels,
   type Anchor,
   type Point,
@@ -26,6 +27,7 @@ export type TimeseriesAnchorLayout = {
   xMax: number
   xs: readonly number[]
   series: readonly AnchorSeries[]
+  hidden?: readonly Record<string, string>[]
 }
 
 export const pointRadius = 12
@@ -160,4 +162,138 @@ export function rangeTest(
     from,
     to,
   }
+}
+
+function seriesIndex(layout: TimeseriesAnchorLayout, anchor: Anchor): number {
+  return layout.series.findIndex((entry) =>
+    namesLabels(anchor.series, seriesLabels(entry.labels, entry.name))
+  )
+}
+
+function sampleIndex(layout: TimeseriesAnchorLayout, seconds: number): number {
+  const { xs } = layout
+  let best = -1
+  let distance = Infinity
+  xs.forEach((x, index) => {
+    const away = Math.abs(x - seconds)
+    if (away < distance) {
+      best = index
+      distance = away
+    }
+  })
+  if (best < 0) return -1
+  const step = xs.length > 1 ? (xs[xs.length - 1] - xs[0]) / (xs.length - 1) : 0
+  return distance <= step / 2 ? best : -1
+}
+
+function inWindow(layout: TimeseriesAnchorLayout, seconds: number): boolean {
+  return seconds >= layout.xMin && seconds <= layout.xMax
+}
+
+function secondsOf(value: string | undefined): number {
+  return value === undefined ? Number.NaN : Date.parse(value) / 1000
+}
+
+function pointRect(
+  layout: TimeseriesAnchorLayout,
+  index: number,
+  y: number
+): Rect {
+  return {
+    x: layout.plot.x + pixelAt(layout, layout.xs[index]) - pointRadius,
+    y: layout.plot.y + y - pointRadius,
+    width: pointRadius * 2,
+    height: pointRadius * 2,
+  }
+}
+
+function band(layout: TimeseriesAnchorLayout, from: number, to: number): Rect {
+  const left = pixelAt(layout, Math.max(from, layout.xMin))
+  const right = pixelAt(layout, Math.min(to, layout.xMax))
+  return {
+    x: layout.plot.x + left - 1,
+    y: layout.plot.y,
+    width: Math.max(2, right - left + 2),
+    height: layout.plot.height,
+  }
+}
+
+function locatePoint(
+  layout: TimeseriesAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  const series = seriesIndex(layout, anchor)
+  const seconds = secondsOf(anchor.from)
+  if (series < 0 || !inWindow(layout, seconds)) return null
+  const index = sampleIndex(layout, seconds)
+  const y = index < 0 ? null : layout.series[series].ys[index]
+  return y === null || y === undefined ? null : pointRect(layout, index, y)
+}
+
+function locateSeries(
+  layout: TimeseriesAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  const series = seriesIndex(layout, anchor)
+  if (series < 0) return null
+  const x = anchor.pos.x * layout.body.width - layout.plot.x
+  const { ys } = layout.series[series]
+  const index = nearestIndex(layout, x)
+  const y = index < 0 ? null : ys[index]
+  if (y !== null && y !== undefined) return pointRect(layout, index, y)
+  const drawn = ys.findIndex((value) => value !== null && value !== undefined)
+  return drawn < 0 ? null : pointRect(layout, drawn, ys[drawn] as number)
+}
+
+export function locate(
+  layout: TimeseriesAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  switch (anchor.kind) {
+    case "point":
+      return locatePoint(layout, anchor)
+    case "series":
+      return locateSeries(layout, anchor)
+    case "time": {
+      const seconds = secondsOf(anchor.from)
+      return inWindow(layout, seconds) ? band(layout, seconds, seconds) : null
+    }
+    case "range": {
+      const from = secondsOf(anchor.from)
+      const to = secondsOf(anchor.to)
+      return to < layout.xMin || from > layout.xMax
+        ? null
+        : band(layout, from, to)
+    }
+    default:
+      return null
+  }
+}
+
+function namesHidden(layout: TimeseriesAnchorLayout, anchor: Anchor): boolean {
+  return (layout.hidden ?? []).some((labels) =>
+    namesLabels(anchor.series, labels)
+  )
+}
+
+function outsideShownTime(
+  layout: TimeseriesAnchorLayout,
+  anchor: Anchor
+): boolean {
+  switch (anchor.kind) {
+    case "point":
+    case "time":
+      return !inWindow(layout, secondsOf(anchor.from))
+    case "range":
+      return (
+        secondsOf(anchor.to) < layout.xMin ||
+        secondsOf(anchor.from) > layout.xMax
+      )
+    default:
+      return false
+  }
+}
+
+export function hides(layout: TimeseriesAnchorLayout, anchor: Anchor): boolean {
+  return namesHidden(layout, anchor) || outsideShownTime(layout, anchor)
 }

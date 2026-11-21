@@ -3,6 +3,7 @@ import {
   fit,
   inRect,
   labelsOf,
+  namesLabels,
   positionOf,
   type Anchor,
   type Point,
@@ -28,7 +29,11 @@ export type TableAnchorLayout = {
   header: Pick<Rect, "y" | "height"> | null
   columns: readonly AnchorColumn[]
   rows: readonly AnchorRow[]
+  elsewhere?: readonly HiddenRow[]
+  reveal?: (key: string) => void
 }
+
+export type HiddenRow = { key: string; cells: readonly string[] }
 
 function columnAt(
   layout: TableAnchorLayout,
@@ -84,4 +89,85 @@ export function hitTest(
     row: labels,
     ...(under ? { shown: clip(under) } : {}),
   })
+}
+
+export const edgeHeight = 2
+
+function rowRect(layout: TableAnchorLayout, row: AnchorRow): Rect {
+  return { x: 0, y: row.top, width: layout.body.width, height: row.height }
+}
+
+function columnRect(
+  layout: TableAnchorLayout,
+  column: AnchorColumn,
+  row: AnchorRow | null
+): Rect {
+  const header = layout.header ?? { y: 0, height: 0 }
+  return row === null
+    ? {
+        x: column.left,
+        y: header.y,
+        width: column.width,
+        height: header.height,
+      }
+    : { x: column.left, y: row.top, width: column.width, height: row.height }
+}
+
+function drawnRow(layout: TableAnchorLayout, anchor: Anchor): AnchorRow | null {
+  return (
+    layout.rows.find((row) =>
+      namesLabels(anchor.row, rowLabels(layout, row))
+    ) ?? null
+  )
+}
+
+function rowElsewhere(
+  layout: TableAnchorLayout,
+  anchor: Anchor
+): HiddenRow | null {
+  return (
+    (layout.elsewhere ?? []).find(({ cells }) =>
+      namesLabels(anchor.row, rowLabels(layout, { top: 0, height: 0, cells }))
+    ) ?? null
+  )
+}
+
+function edge(layout: TableAnchorLayout): Rect {
+  return {
+    x: 0,
+    y: layout.body.height - edgeHeight,
+    width: layout.body.width,
+    height: edgeHeight,
+  }
+}
+
+export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
+  const column = layout.columns.find(({ name }) => clip(name) === anchor.column)
+  switch (anchor.kind) {
+    case "column":
+      return column === undefined ? null : columnRect(layout, column, null)
+    case "row":
+    case "cell": {
+      if (anchor.kind === "cell" && column === undefined) return null
+      const row = drawnRow(layout, anchor)
+      if (row === null)
+        return rowElsewhere(layout, anchor) === null ? null : edge(layout)
+      return column === undefined
+        ? rowRect(layout, row)
+        : columnRect(layout, column, row)
+    }
+    default:
+      return null
+  }
+}
+
+export function reveal(layout: TableAnchorLayout, anchor: Anchor): boolean {
+  if (anchor.kind !== "row" && anchor.kind !== "cell") return false
+  if (layout.reveal === undefined || drawnRow(layout, anchor) !== null) {
+    return false
+  }
+  const hidden = rowElsewhere(layout, anchor)
+  if (hidden === null) return false
+  layout.reveal(hidden.key)
+  return true
 }
