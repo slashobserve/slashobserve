@@ -25,6 +25,7 @@ const (
 	RefusalUnsupportedTarget = "mention_target_unsupported"
 	RefusalAgentUnavailable  = "agent_unavailable"
 	RefusalForbidden         = "forbidden_role"
+	RefusalProvisioned       = folders.CodeProvisioned
 	RefusalTooManyRuns       = "too_many_runs"
 	RefusalPersonStarts      = "investigation_person_only"
 	RefusalNotYourAgent      = "agent_not_yours"
@@ -188,6 +189,10 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 		return r.denied, nil
 	}
 	err := r.asks.queue.CheckRun(r.ctx, source, dashboardID, r.by)
+	if errors.Is(err, folders.ErrProvisioned) {
+		r.denied = &RunRefusal{Code: RefusalProvisioned, Message: err.Error() + "; the message was saved without a run"}
+		return r.denied, nil
+	}
 	if errors.Is(err, revisions.ErrForbidden) || errors.Is(err, folders.ErrForbidden) {
 		r.denied = &RunRefusal{Code: RefusalForbidden, Message: err.Error()}
 		return r.denied, nil

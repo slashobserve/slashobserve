@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const latestVersionIsNotBy = `-- name: LatestVersionIsNotBy :one
+SELECT EXISTS (
+  SELECT 1 FROM dashboard_versions v JOIN dashboards d ON d.id = v.dashboard_id AND d.latest_version = v.version
+  WHERE v.dashboard_id = $1 AND NOT (v.author_kind = $2 AND v.author_id = $3)
+)::boolean
+`
+
+type LatestVersionIsNotByParams struct {
+	DashboardID pgtype.UUID
+	AuthorKind  string
+	AuthorID    pgtype.UUID
+}
+
+func (q *Queries) LatestVersionIsNotBy(ctx context.Context, arg LatestVersionIsNotByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, latestVersionIsNotBy, arg.DashboardID, arg.AuthorKind, arg.AuthorID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const recordStarterContent = `-- name: RecordStarterContent :exec
 INSERT INTO starter_content (key, ref) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING
 `
@@ -22,6 +42,21 @@ type RecordStarterContentParams struct {
 
 func (q *Queries) RecordStarterContent(ctx context.Context, arg RecordStarterContentParams) error {
 	_, err := q.db.Exec(ctx, recordStarterContent, arg.Key, arg.Ref)
+	return err
+}
+
+const replaceStarterContent = `-- name: ReplaceStarterContent :exec
+INSERT INTO starter_content (key, ref) VALUES ($1, $2)
+ON CONFLICT (key) DO UPDATE SET ref = EXCLUDED.ref, seeded_at = now()
+`
+
+type ReplaceStarterContentParams struct {
+	Key string
+	Ref pgtype.UUID
+}
+
+func (q *Queries) ReplaceStarterContent(ctx context.Context, arg ReplaceStarterContentParams) error {
+	_, err := q.db.Exec(ctx, replaceStarterContent, arg.Key, arg.Ref)
 	return err
 }
 

@@ -117,6 +117,9 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 	if err != nil {
 		return SaveResult{}, err
 	}
+	if access.Provisioned {
+		return SaveResult{}, folders.ErrProvisioned
+	}
 	if mustPropose(ctx, access.Abilities) {
 		return s.propose(ctx, by, in, access)
 	}

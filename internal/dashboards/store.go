@@ -66,6 +66,7 @@ type Dashboard struct {
 	Creator       Creator
 	Folder        folders.Folder
 	Abilities     folders.Abilities
+	Provisioned   bool
 }
 
 type VersionMeta struct {

@@ -2397,7 +2397,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
       properties:
         id:
           type: string
@@ -2425,6 +2425,9 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        provisioned:
+          type: boolean
+          description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
     HomeDashboard:
       type: object
       additionalProperties: false

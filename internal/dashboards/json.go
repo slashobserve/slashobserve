@@ -44,6 +44,7 @@ type dashboardJSON struct {
 	Creator       creatorJSON         `json:"creator"`
 	Folder        dashboardFolderJSON `json:"folder"`
 	Permissions   folders.Permissions `json:"permissions"`
+	Provisioned   bool                `json:"provisioned"`
 }
 
 type dashboardListItemJSON struct {
@@ -141,6 +142,7 @@ func newDashboardJSON(d Dashboard) dashboardJSON {
 		Creator:       newCreatorJSON(d.Creator),
 		Folder:        newDashboardFolderJSON(d.Folder),
 		Permissions:   folders.PermissionsJSON(d.Abilities),
+		Provisioned:   d.Provisioned,
 	}
 }
 

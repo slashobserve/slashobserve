@@ -218,8 +218,12 @@ func (s *Service) CreateStarter(ctx context.Context, by auth.Principal, folderID
 	return dash, nil
 }
 
+func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {
+	return s.persist(withAcceptedEmpty(ctx), by, in)
+}
+
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
-	access, err := s.need(ctx, by, id, folders.NeedEdit)
+	access, err := s.need(ctx, by, id, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}
@@ -286,6 +290,26 @@ func (s *Service) VersionSpec(ctx context.Context, id pgtype.UUID, version int) 
 		return nil, err
 	}
 	return decodeSpec(raw)
+}
+
+func (s *Service) HasContent(ctx context.Context, id pgtype.UUID, version int, raw []byte) (bool, error) {
+	parsed, err := spec.Parse(raw)
+	if err != nil {
+		return false, nil
+	}
+	stored, err := s.VersionSpec(ctx, id, version)
+	if err != nil {
+		return false, err
+	}
+	next, err := json.Marshal(parsed)
+	if err != nil {
+		return false, err
+	}
+	prev, err := json.Marshal(stored)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(next, prev), nil
 }
 
 func (s *Service) HasPanel(ctx context.Context, id pgtype.UUID, version int, panelID string) (bool, error) {
@@ -523,7 +547,7 @@ func (s *Service) Move(ctx context.Context, by auth.Principal, id, folderID pgty
 }
 
 func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID) (Dashboard, Version, error) {
-	source, err := s.need(ctx, by, id, folders.NeedEdit)
+	source, err := s.need(ctx, by, id, folders.NeedContent)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}

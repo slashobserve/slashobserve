@@ -11,6 +11,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
 )
@@ -85,6 +86,9 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 	switch err := s.checkRun(ctx, Source(row.Source), row.DashboardID, requester); {
 	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
 		s.finishLogged(ctx, row, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
+		return Request{}, settled
+	case errors.Is(err, folders.ErrProvisioned):
+		s.finishLogged(ctx, row, outcome{message: err.Error(), code: folders.CodeProvisioned, failure: FailureRequesterForbidden})
 		return Request{}, settled
 	case err != nil:
 		s.logger.ErrorContext(ctx, "check agent request requester access", logattrs.Failure("agent_requester_access_failed", err, logAttrs(row)...)...)
