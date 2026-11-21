@@ -21,13 +21,16 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
+	"github.com/slashobserve/slashobserve/internal/provision"
 )
 
 const (
-	Title     = "Audit"
-	lockName  = "audit_folder"
-	folderKey = "audit/folder"
-	summary   = "Starter dashboard added by the server to the Audit folder"
+	Title          = "Audit"
+	lockName       = "audit_folder"
+	folderKey      = "audit/folder"
+	summary        = "Starter dashboard added by the server to the Audit folder"
+	releaseSummary = "Updated to this release"
+	copySuffix     = " (your copy)"
 )
 
 //go:embed dashboards/*.json
@@ -65,14 +68,15 @@ type Seeder struct {
 	folders    *folders.Access
 	logger     *slog.Logger
 	by         auth.Principal
+	shipped    func() ([]Starter, error)
 }
 
 func New(database *db.DB, dash *dashboards.Service, access *folders.Access, by auth.Principal, logger *slog.Logger) *Seeder {
-	return &Seeder{db: database, dashboards: dash, folders: access, by: by, logger: logger}
+	return &Seeder{db: database, dashboards: dash, folders: access, by: by, logger: logger, shipped: Starters}
 }
 
 func (s *Seeder) Seed(ctx context.Context) error {
-	starters, err := Starters()
+	starters, err := s.shipped()
 	if err != nil {
 		return err
 	}
@@ -148,27 +152,93 @@ func (s *Seeder) restricted(ctx context.Context, row dbsqlc.Folder) (pgtype.UUID
 
 func (s *Seeder) dashboard(ctx context.Context, folderID pgtype.UUID, st Starter) error {
 	q := s.db.Queries()
-	if _, err := q.StarterContent(ctx, st.Key); !errors.Is(err, pgx.ErrNoRows) {
+	bound, err := q.StarterContent(ctx, st.Key)
+	switch {
+	case err == nil:
+		return s.keepCurrent(ctx, folderID, st, bound)
+	case !errors.Is(err, pgx.ErrNoRows):
 		return err
 	}
 	same, err := q.ApplyCandidates(ctx, dbsqlc.ApplyCandidatesParams{FolderID: folderID, Title: st.Title})
 	if err != nil {
 		return err
 	}
-	if len(same) > 0 {
-		return q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: st.Key, Ref: same[0]})
+	if len(same) == 0 {
+		return s.create(ctx, folderID, st)
 	}
+	if err := q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: st.Key, Ref: same[0]}); err != nil {
+		return err
+	}
+	return s.keepCurrent(ctx, folderID, st, same[0])
+}
+
+func (s *Seeder) create(ctx context.Context, folderID pgtype.UUID, st Starter) error {
 	dash, err := s.dashboards.CreateStarter(ctx, s.by, folderID, st.Spec, summary, func(q *dbsqlc.Queries, dash dashboards.Dashboard) error {
 		id, err := db.ParseUUID(dash.ID)
 		if err != nil {
 			return err
 		}
-		return q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: st.Key, Ref: id})
+		provision.RecordApplied(ctx, q, id)
+		return q.ReplaceStarterContent(ctx, dbsqlc.ReplaceStarterContentParams{Key: st.Key, Ref: id})
 	})
 	if err != nil {
 		return err
 	}
 	s.logger.InfoContext(ctx, "added a starter audit dashboard", slog.String("dashboard_id", dash.ID))
+	return nil
+}
+
+func (s *Seeder) keepCurrent(ctx context.Context, folderID pgtype.UUID, st Starter, id pgtype.UUID) error {
+	latest, err := s.dashboards.LatestVersion(ctx, id)
+	if errors.Is(err, dashboards.ErrNotFound) {
+		s.logger.InfoContext(ctx, "a starter audit dashboard was deleted, so it is added again", slog.String("key", st.Key))
+		return s.create(ctx, folderID, st)
+	}
+	if err != nil {
+		return err
+	}
+	current, err := s.dashboards.HasContent(ctx, id, latest, st.Spec)
+	if err != nil || current {
+		return err
+	}
+	if err := s.keepEditsAsCopy(ctx, folderID, id); err != nil {
+		return err
+	}
+	_, err = s.dashboards.UpdateProvisioned(ctx, s.by, dashboards.SaveInput{
+		DashboardID: id,
+		Parent:      latest,
+		Spec:        st.Spec,
+		Summary:     releaseSummary,
+		InTx: func(q *dbsqlc.Queries, _ int) error {
+			provision.RecordApplied(ctx, q, id)
+			return nil
+		},
+	})
+	if err != nil {
+		return err
+	}
+	s.logger.InfoContext(ctx, "updated a starter audit dashboard to this release", slog.String("dashboard_id", id.String()))
+	return nil
+}
+
+func (s *Seeder) keepEditsAsCopy(ctx context.Context, folderID, id pgtype.UUID) error {
+	by, err := db.ParseUUID(s.by.ID)
+	if err != nil {
+		return err
+	}
+	edited, err := s.db.Queries().LatestVersionIsNotBy(ctx, dbsqlc.LatestVersionIsNotByParams{DashboardID: id, AuthorKind: string(s.by.Kind), AuthorID: by})
+	if err != nil || !edited {
+		return err
+	}
+	stored, _, err := s.dashboards.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	copied, _, err := s.dashboards.Duplicate(ctx, s.by, id, folderID, stored.Title+copySuffix)
+	if err != nil {
+		return err
+	}
+	s.logger.InfoContext(ctx, "kept an Admin's edited starter audit dashboard as a separate dashboard before updating it", slog.String("dashboard_id", id.String()), slog.String("copy_id", copied.ID))
 	return nil
 }
 
