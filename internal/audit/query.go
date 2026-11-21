@@ -3,7 +3,6 @@ package audit
 import (
 	"context"
 	"maps"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -44,18 +43,24 @@ func Noted(ctx context.Context) []Query {
 	return slices.Clone(st.queries)
 }
 
-var urlUserinfo = regexp.MustCompile("([A-Za-z][A-Za-z0-9+.-]*://)[^\\s/'\"`]*@")
-
 func RecordedQuery(text string) string {
-	text = urlUserinfo.ReplaceAllString(text, "${1}***@")
-	if len(text) <= MaxQueryBytes {
+	truncated := false
+	if len(text) > MaxQueryBytes+maskSlackBytes {
+		text, truncated = text[:runeStartAtOrBefore(text, MaxQueryBytes+maskSlackBytes)], true
+	}
+	text = maskSecrets(text)
+	if len(text) <= MaxQueryBytes && !truncated {
 		return text
 	}
-	cut := MaxQueryBytes
-	for cut > 0 && !utf8.RuneStart(text[cut]) {
-		cut--
+	return text[:runeStartAtOrBefore(text, MaxQueryBytes)] + truncatedMark
+}
+
+func runeStartAtOrBefore(text string, at int) int {
+	at = min(at, len(text))
+	for at > 0 && at < len(text) && !utf8.RuneStart(text[at]) {
+		at--
 	}
-	return text[:cut] + truncatedMark
+	return at
 }
 
 type queryRead struct {

@@ -5,7 +5,7 @@ description: The fields of an audit event, the three query forms the audit trail
 
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
-A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (URL credentials masked, cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
+A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (known secrets masked, cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
 The counts of a field, the histogram, an aggregation and opening one event are recorded the same way, as `audit.search` with `data.view` set to `facets`, `histogram`, `aggregate` or `event`; a count of a field also holds `data.field`, and opening one event records the query `id:<event id>`.
 Every such read is recorded once per caller, view, field and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
 The same holds over the API, MCP and the CLI, because all three read through the same server code.
@@ -62,11 +62,11 @@ Events also carry `seq` and `data`, the action's own fields as the audit catalog
 A `run.finish` recorded by a server older than 0.1.4 says `success` whatever the run's result, so read `data.result` on those events, which a query cannot filter on; every later one agrees with its run.
 
 Every query a person or an agent composes is a `query.run` with the datasource uid as its target and in `datasource_uid`: the Logs, Metrics and Traces pages, the draft previews, the agent's and MCP query tools, and the CLI.
-Its `data` holds `query`, the text that ran cut at 4 KiB with ` [truncated]` appended and with the user and password of any URL in it replaced by `***`, `row_count`, how many rows, points or spans came back, and `from` and `to`, the range it read as RFC 3339 times.
+Its `data` holds `query`, the text that ran cut at 4 KiB with ` [truncated]` appended and with the secrets listed under [the exported record](../operate/audit-export.md#the-record) replaced by `***`, `row_count`, how many rows, points or spans came back, and `from` and `to`, the range it read as RFC 3339 times.
 A request or tool call that ran several queries on one datasource is one event with the distinct texts on separate lines, the rows added up and the widest range.
 The same caller's same query over the same period on the same datasource within 10 minutes is recorded once when it succeeds, where a caller is one person, service-account key or agent run, so each run and each key records its own reads, and a failed or refused query is recorded every time; a live tail is never folded.
 The period is the range's length to the minute and the start of the stretch of that length it begins in, so a page that refreshes the last 15 minutes is recorded at most once each 15 minutes, while a wider or other range is recorded on its own.
-The query text is otherwise stored as typed and is exported with the event, so a query that contains a secret puts it in the trail; see [the exported record](../operate/audit-export.md#the-record).
+Any other secret in a query text is stored as typed and exported with the event, so it reaches the trail.
 A panel on a saved dashboard version is not recorded query by query: its queries are fixed by the version, and the dashboard view carries it.
 A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
 
