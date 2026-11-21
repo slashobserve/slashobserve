@@ -300,6 +300,7 @@ type Revision struct {
 	ID            string
 	DashboardID   string
 	Intent        Intent
+	Investigation bool
 	Source        Source
 	CommentID     string
 	PanelID       string

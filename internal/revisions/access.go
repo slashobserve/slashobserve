@@ -166,6 +166,17 @@ func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UU
 	return folder.Title, abilities, nil
 }
 
+func (s *Service) mayComment(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (bool, error) {
+	_, abilities, err := s.observationAccess(ctx, observationID, by)
+	switch {
+	case errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrForbidden):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	return abilities.Comment, nil
+}
+
 func (s *Service) checkVisible(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) error {
 	if !dashboardID.Valid {
 		return nil

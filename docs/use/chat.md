@@ -377,6 +377,10 @@ An investigation reads "Answered in <title>" with the observation it was saved t
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Create observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
+
+A saved answer to a question about an observation is read by the readers of the observation it was saved in, not by the readers of the one it was about.
+Sharing it afterwards writes its text onto the page of the observation it was about and posts it in that discussion, and the answer stays in the observation it was saved in, also after a withdraw.
+
 On the Chats page, each of your chats has a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
 The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.

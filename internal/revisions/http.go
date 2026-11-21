@@ -48,6 +48,7 @@ type revisionJSON struct {
 	ID             string     `json:"id"`
 	DashboardID    string     `json:"dashboard_id"`
 	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	CommentID      *string    `json:"comment_id"`
 	PanelID        *string    `json:"panel_id"`
 	Prompt         string     `json:"prompt"`
@@ -327,6 +328,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		ID:             r.ID,
 		DashboardID:    r.DashboardID,
 		Intent:         r.Intent,
+		Investigation:  r.Investigation,
 		CommentID:      httpapi.OptionalString(r.CommentID),
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,

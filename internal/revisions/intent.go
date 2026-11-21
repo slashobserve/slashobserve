@@ -76,7 +76,15 @@ func listedShape(row dbsqlc.ListAgentRequestsByRow) RunShape {
 }
 
 func PrivateAsk(row dbsqlc.AgentRequest) bool {
-	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid && !row.ObservationID.Valid
+	return chatAsk(row) && !row.ObservationID.Valid
+}
+
+func AskedPrivately(row dbsqlc.AgentRequest) bool {
+	return PrivateAsk(row) || chatAsk(row) && row.SubjectObservationID.Valid
+}
+
+func chatAsk(row dbsqlc.AgentRequest) bool {
+	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid
 }
 
 func InvestigatesWithoutObservation(row dbsqlc.AgentRequest) bool {

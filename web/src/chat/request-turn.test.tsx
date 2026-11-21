@@ -21,6 +21,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 const failed: TurnSummary = {
   id: "a77cc709-1b2c-4d3e-8f4a-5b6c7d8e9f01",
   intent: "apply",
+  investigation: false,
   base_version: 1,
   comment_id: null,
   prompt: "Add a latency panel",

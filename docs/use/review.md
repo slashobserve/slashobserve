@@ -154,6 +154,7 @@ A question asked in an observation's discussion writes nothing on that observati
 An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
+When the asker later saves that answer as an observation, everyone who can read the thread still opens it from the thread, and someone who cannot see the new observation reads the answer without it.
 
 A discussion entry reads "asked the agent" only when the message started a run.
 A message that mentions an agent but started none, such as a comment for everyone, reads "mentioned the agent".
