@@ -109,7 +109,7 @@ The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a 
 
 At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
 The starters are provisioned and read-only in the app, the API, MCP and the CLI, which refuse a change with 409 `provisioned`; comments, pins, annotations and views work as on any dashboard.
-The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused.
+The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused before anything is queued, a comment that requests a revision included.
 To change one, an Admin duplicates it, and the copy is an ordinary dashboard in the Audit folder.
 At every start the server compares each starter with the content its release ships, and a starter that differs gets one new version with the summary `Updated to this release`; an unchanged starter gets nothing, and its threads, pins and view counts stay.
 
