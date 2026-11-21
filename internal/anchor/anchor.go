@@ -68,6 +68,7 @@ const (
 	maxLabels   = 16
 	maxText     = 200
 	maxQuote    = 280
+	maxEncoded  = 1536
 	fieldFrom   = "from"
 	fieldTo     = "to"
 	fieldSeries = "series"
@@ -150,7 +151,21 @@ func (a Anchor) Validate() error {
 	if a.Kind == Range && a.To.Before(*a.From) {
 		return errors.New("range ends before it starts")
 	}
-	return a.validateSizes()
+	if err := a.validateSizes(); err != nil {
+		return err
+	}
+	return a.validateEncoded()
+}
+
+func (a Anchor) validateEncoded() error {
+	raw, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+	if len(raw) > maxEncoded {
+		return fmt.Errorf("%d bytes once encoded, over the limit of %d bytes; send fewer or shorter labels", len(raw), maxEncoded)
+	}
+	return nil
 }
 
 var notOnABlock = []Kind{Variable}
