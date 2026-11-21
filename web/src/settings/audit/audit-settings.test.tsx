@@ -1,7 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react"
+import { useEffect, useState } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-
-import { QueryClientProvider } from "@tanstack/react-query"
 
 import { renderWithProviders } from "@/test/render"
 
@@ -120,10 +119,21 @@ function serve(routes: Routes = {}) {
 
 const defaults: AuditView = { q: "", from: "now-24h", to: "now", event: null }
 
+const outside: { setView: (view: AuditView) => void } = { setView: () => {} }
+
+function MovingView({ initial }: { initial: AuditView }) {
+  const [view, setView] = useState(initial)
+  useEffect(() => {
+    outside.setView = setView
+  }, [])
+  return <AuditSettings view={view} onView={vi.fn()} />
+}
+
 function renderPage(view: Partial<AuditView> = {}) {
   const onView = vi.fn()
   const { user } = renderWithProviders(
-    <AuditSettings view={{ ...defaults, ...view }} onView={onView} />
+    <AuditSettings view={{ ...defaults, ...view }} onView={onView} />,
+    { route: { path: "/", url: "/" } }
   )
   return { onView, user }
 }
@@ -165,6 +175,19 @@ beforeEach(() => {
 })
 
 describe("AuditSettings", () => {
+  it("opens Logs on the audit datasource with the applied query and range", async () => {
+    serve()
+    renderPage({ q: "origin:mcp", from: "now-7d" })
+    const link = await screen.findByRole("link", { name: "Open in Logs" })
+    const href = new URL(link.getAttribute("href") ?? "", "http://localhost")
+    expect(href.pathname).toBe("/logs/slashobserve-audit")
+    expect(Object.fromEntries(href.searchParams)).toEqual({
+      q: "origin:mcp",
+      from: "now-7d",
+      to: "now",
+    })
+  })
+
   it("lists events newest first and loads older ones with the cursor", async () => {
     serve({
       events: (url) =>
@@ -266,8 +289,9 @@ describe("AuditSettings", () => {
               form: "kql",
             }),
     })
-    const { queryClient, rerender, user } = renderWithProviders(
-      <AuditSettings view={{ ...defaults, q: "origin:mcp" }} onView={vi.fn()} />
+    const { user } = renderWithProviders(
+      <MovingView initial={{ ...defaults, q: "origin:mcp" }} />,
+      { route: { path: "/", url: "/" } }
     )
     const outcomes = await screen.findByRole("group", {
       name: "Outcome values",
@@ -281,14 +305,7 @@ describe("AuditSettings", () => {
         .getByRole("region", { name: "Audit events" })
         .closest(".opacity-60")
     expect(dimmed()).not.toBeNull()
-    rerender(
-      <QueryClientProvider client={queryClient}>
-        <AuditSettings
-          view={{ ...defaults, q: "origin:cli" }}
-          onView={vi.fn()}
-        />
-      </QueryClientProvider>
-    )
+    act(() => outside.setView({ ...defaults, q: "origin:cli" }))
     await waitFor(() => expect(dimmed()).toBeNull())
     expect(screen.queryByText("cannot read this query")).toBeNull()
   })
@@ -338,10 +355,10 @@ describe("AuditSettings", () => {
     expect(onView).toHaveBeenCalledWith(defaults)
   })
 
-  it("refuses a time range longer than 366 days without asking the server", () => {
+  it("refuses a time range longer than 366 days without asking the server", async () => {
     serve()
     renderPage({ from: "now-400d" })
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveTextContent(
       "The audit log searches at most 366 days at a time."
     )
     expect(
@@ -351,10 +368,13 @@ describe("AuditSettings", () => {
     ).toBe(false)
   })
 
-  it("keeps Live off for a range that does not end now", () => {
+  it("keeps Live off for a range that does not end now", async () => {
     serve()
     renderPage({ from: "now-2d", to: "now-1d" })
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-disabled", "true")
+    expect(await screen.findByRole("switch")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    )
     expect(
       screen.getByText("Live follows a time range that ends now.")
     ).toBeInTheDocument()
@@ -422,20 +442,13 @@ describe("AuditSettings", () => {
   it("reloads the list up to now when the view changes from outside", async () => {
     serve()
     const advance = shiftClock()
-    const { queryClient, rerender } = renderWithProviders(
-      <AuditSettings view={defaults} onView={vi.fn()} />
-    )
+    renderWithProviders(<MovingView initial={defaults} />, {
+      route: { path: "/", url: "/" },
+    })
     await screen.findByText("No audit events in the last 24 hours.")
     const opened = untilOf(listRequests()[0])
     advance(hour)
-    rerender(
-      <QueryClientProvider client={queryClient}>
-        <AuditSettings
-          view={{ ...defaults, q: "origin:mcp" }}
-          onView={vi.fn()}
-        />
-      </QueryClientProvider>
-    )
+    act(() => outside.setView({ ...defaults, q: "origin:mcp" }))
     await waitFor(() => expect(listRequests()).toHaveLength(2))
     const [, back] = listRequests()
     expect(back.searchParams.get("q")).toBe("origin:mcp")

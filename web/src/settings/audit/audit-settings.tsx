@@ -1,11 +1,12 @@
 import { useId, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
-import { LoaderCircleIcon } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { LoaderCircleIcon, TextSearchIcon } from "lucide-react"
 
 import type { AuditWindowKey } from "@/api/keys"
 import { EmptyState } from "@/components/empty-state"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -22,6 +23,7 @@ import { AuditFacets } from "./audit-facets"
 import { AuditFilterBar } from "./audit-filter-bar"
 import { AuditHistogram } from "./audit-histogram"
 import { AuditTable } from "./audit-table"
+import { auditInLogsLink } from "./open-in-logs"
 import { auditEventsQuery } from "./queries"
 import {
   appliedKey,
@@ -236,6 +238,13 @@ export function AuditSettings({
             }
             quickRanges={auditRanges}
           />
+          <Link
+            {...auditInLogsLink(applied)}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            <TextSearchIcon aria-hidden="true" />
+            Open in Logs
+          </Link>
           <ExportMenu
             disabled={window === null || problem !== null}
             pending={exporter.pending}
