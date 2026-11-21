@@ -264,11 +264,12 @@ func (c poolCollector) Collect(ch chan<- prometheus.Metric) {
 var auditWriteBuckets = []float64{0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
 
 type Audit struct {
-	dropped    *prometheus.CounterVec
-	writes     prometheus.Histogram
-	buffered   prometheus.Gauge
-	partitions prometheus.Gauge
-	exportLag  prometheus.Gauge
+	dropped        *prometheus.CounterVec
+	writes         prometheus.Histogram
+	buffered       prometheus.Gauge
+	partitions     prometheus.Gauge
+	exportLag      prometheus.Gauge
+	exportRejected prometheus.Counter
 }
 
 func (r *Registry) Audit() Audit {
@@ -294,8 +295,12 @@ func (r *Registry) Audit() Audit {
 			Name: "slashobserve_audit_export_lag_seconds",
 			Help: "Age of the oldest audit event waiting to be exported over OTLP at this server's last export attempt; 0 when caught up or when this server does not hold the export.",
 		}),
+		exportRejected: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "slashobserve_audit_export_rejected_total",
+			Help: "Audit events the OTLP receiver accepted the request for but refused in its partial success answer; they are not sent again.",
+		}),
 	}
-	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions, a.exportLag)
+	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions, a.exportLag, a.exportRejected)
 	return a
 }
 
@@ -310,3 +315,5 @@ func (a Audit) BufferedEvents(n int) { a.buffered.Set(float64(n)) }
 func (a Audit) PartitionsAhead(n int) { a.partitions.Set(float64(n)) }
 
 func (a Audit) ExportLag(behind time.Duration) { a.exportLag.Set(behind.Seconds()) }
+
+func (a Audit) ExportRejected(n int) { a.exportRejected.Add(float64(n)) }

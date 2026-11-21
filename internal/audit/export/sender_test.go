@@ -2,6 +2,7 @@ package export
 
 import (
 	"errors"
+	"strings"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -47,7 +48,7 @@ func mustParse(t *testing.T, raw string) *url.URL {
 func TestSendPostsOTLPJSONToTheLogsPathWithTheConfiguredHeaders(t *testing.T) {
 	srv, got := receiver(t, func(w http.ResponseWriter) { w.WriteHeader(http.StatusOK) })
 	sender := NewSender(mustParse(t, srv.URL+"/collector/"), map[string]datasource.Secret{"Authorization": datasource.NewSecret("Bearer s3cret")})
-	if err := sender.Send(t.Context(), []byte(`{"resourceLogs":[]}`)); err != nil {
+	if _, err := sender.Send(t.Context(), []byte(`{"resourceLogs":[]}`)); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 	if got.method != http.MethodPost || got.path != "/collector/v1/logs" {
@@ -63,7 +64,7 @@ func TestSendPostsOTLPJSONToTheLogsPathWithTheConfiguredHeaders(t *testing.T) {
 
 func TestSendAcceptsAnyTwoXX(t *testing.T) {
 	srv, _ := receiver(t, func(w http.ResponseWriter) { w.WriteHeader(http.StatusAccepted) })
-	if err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}")); err != nil {
+	if _, err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}")); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 }
@@ -92,7 +93,7 @@ func TestSendReportsOtherStatusesAndRetryAfter(t *testing.T) {
 				}
 				w.WriteHeader(tt.status)
 			})
-			err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}"))
+			_, err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}"))
 			var status *StatusError
 			if !errors.As(err, &status) {
 				t.Fatalf("Send error = %v, want a StatusError", err)
@@ -108,7 +109,53 @@ func TestSendFailsWhenNothingListens(t *testing.T) {
 	srv := httptest.NewServer(http.NotFoundHandler())
 	endpoint := mustParse(t, srv.URL)
 	srv.Close()
-	if err := NewSender(endpoint, nil).Send(t.Context(), []byte("{}")); err == nil {
+	if _, err := NewSender(endpoint, nil).Send(t.Context(), []byte("{}")); err == nil {
 		t.Fatal("Send to a closed server succeeded")
+	}
+}
+
+func TestSendReadsThePartialSuccessOfAnAcceptedPost(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want Receipt
+	}{
+		{"count as a string", `{"partialSuccess":{"rejectedLogRecords":"3","errorMessage":"too old"}}`, Receipt{Rejected: 3, Message: "too old"}},
+		{"count as a number", `{"partialSuccess":{"rejectedLogRecords":2}}`, Receipt{Rejected: 2}},
+		{"an empty partial success", `{"partialSuccess":{}}`, Receipt{}},
+		{"an empty object", `{}`, Receipt{}},
+		{"no body", ``, Receipt{}},
+		{"a body that is not JSON", "\x08\x01", Receipt{}},
+		{"a negative count", `{"partialSuccess":{"rejectedLogRecords":"-1"}}`, Receipt{}},
+		{"control characters and length of the message", `{"partialSuccess":{"rejectedLogRecords":"1","errorMessage":"a\nb\u0000c` + strings.Repeat("x", 500) + `"}}`, Receipt{Rejected: 1, Message: "abc" + strings.Repeat("x", maxReceiverMessage-3)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, _ := receiver(t, func(w http.ResponseWriter) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = io.WriteString(w, tt.body)
+			})
+			got, err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}"))
+			if err != nil {
+				t.Fatalf("Send: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("receipt = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSendReadsOnlyABoundedPartOfTheAnswer(t *testing.T) {
+	srv, _ := receiver(t, func(w http.ResponseWriter) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, strings.Repeat(" ", maxResponseBody+1)+`{"partialSuccess":{"rejectedLogRecords":"9"}}`)
+	})
+	got, err := NewSender(mustParse(t, srv.URL), nil).Send(t.Context(), []byte("{}"))
+	if err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	if got.Rejected != 0 {
+		t.Fatalf("read past the limit: %+v", got)
 	}
 }

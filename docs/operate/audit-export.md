@@ -26,6 +26,9 @@ The position moves only after the receiver answers with a `2xx` status, so a fai
 A restart, or another server taking the job over, continues from the stored position.
 Delivery is at least once: an event can arrive twice when the server stopped between the receiver's answer and storing the position, and `slashobserve.audit.id` identifies it.
 
+A receiver can answer `200` and still refuse some records in its `partialSuccess` answer, for example records that are too large or too old.
+The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the receiver's message, cut to 200 characters.
+
 A failed post is retried with a growing wait from 1 second to 1 minute, and a `Retry-After` header of the receiver is honoured up to that limit.
 Failures are logged with a fixed message and a code, never with the URL or the event.
 The first export starts at the oldest event the audit table still holds, so a new setting sends the existing history before the new events.

@@ -1,6 +1,7 @@
 package export
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -62,9 +63,14 @@ func (c *fakeCursor) Advance(_ context.Context, at filter.Position) error {
 	return nil
 }
 
-type lag struct{ values []time.Duration }
+type lag struct {
+	values   []time.Duration
+	rejected int
+}
 
 func (l *lag) ExportLag(d time.Duration) { l.values = append(l.values, d) }
+
+func (l *lag) ExportRejected(n int) { l.rejected += n }
 
 type rig struct {
 	source *fakeSource
@@ -73,6 +79,8 @@ type rig struct {
 	posts  []string
 	waits  []time.Duration
 	post   func(body []byte) error
+	answer Receipt
+	logs   *bytes.Buffer
 	stopAt func(r *rig) bool
 	cancel context.CancelFunc
 	x      *Exporter
@@ -81,16 +89,16 @@ type rig struct {
 func newRig(t *testing.T) (*rig, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
-	r := &rig{source: &fakeSource{}, cursor: &fakeCursor{}, lag: &lag{}, cancel: cancel}
-	r.x = New(r.source, r.cursor, func(_ context.Context, body []byte) error {
+	r := &rig{source: &fakeSource{}, cursor: &fakeCursor{}, lag: &lag{}, logs: &bytes.Buffer{}, cancel: cancel}
+	r.x = New(r.source, r.cursor, func(_ context.Context, body []byte) (Receipt, error) {
 		if r.post != nil {
 			if err := r.post(body); err != nil {
-				return err
+				return Receipt{}, err
 			}
 		}
 		r.posts = append(r.posts, string(body))
-		return nil
-	}, r.lag, slog.New(slog.DiscardHandler))
+		return r.answer, nil
+	}, r.lag, slog.New(slog.NewTextHandler(r.logs, nil)))
 	r.x.Wait = func(ctx context.Context, d time.Duration) error {
 		r.waits = append(r.waits, d)
 		if r.stopAt != nil && r.stopAt(r) {
@@ -281,5 +289,56 @@ func TestRunIgnoresAFailureCausedByItsOwnCancellation(t *testing.T) {
 	}
 	if r.cursor.advances != 0 {
 		t.Fatal("the cursor moved after an interrupted post")
+	}
+}
+
+func TestRejectedRecordsAreCountedLoggedAndPassed(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two")
+	r.answer = Receipt{Rejected: 2, Message: "records too old"}
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.cursor.at != (filter.Position{Xid: 102, Seq: 2}) {
+		t.Fatalf("cursor = %+v, want it past the rejected records", r.cursor.at)
+	}
+	if r.lag.rejected != 2 {
+		t.Fatalf("rejected counted = %d, want 2", r.lag.rejected)
+	}
+	logged := r.logs.String()
+	if !strings.Contains(logged, "rejected=2") || !strings.Contains(logged, `"records too old"`) {
+		t.Fatalf("log = %s", logged)
+	}
+}
+
+func TestNothingIsCountedWhenTheReceiverRejectsNothing(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one")
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.lag.rejected != 0 || strings.Contains(r.logs.String(), "rejected") {
+		t.Fatalf("rejected %d, log %s", r.lag.rejected, r.logs.String())
+	}
+}
+
+func TestRejectedRecordsOfABatchWhoseCursorWriteFailedAreCountedWhenItIsSentAgain(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one")
+	r.answer = Receipt{Rejected: 1}
+	r.cursor.advanceErr = errors.New("write failed")
+	r.stopAt = func(r *rig) bool {
+		if len(r.waits) == 1 {
+			r.cursor.advanceErr = nil
+		}
+		return len(r.posts) == 2
+	}
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.lag.rejected != 1 {
+		t.Fatalf("rejected counted = %d, want 1: counted only once the position moved", r.lag.rejected)
 	}
 }

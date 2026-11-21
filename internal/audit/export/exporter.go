@@ -30,10 +30,11 @@ type Position interface {
 	Advance(ctx context.Context, at filter.Position) error
 }
 
-type Post func(ctx context.Context, body []byte) error
+type Post func(ctx context.Context, body []byte) (Receipt, error)
 
 type Metrics interface {
 	ExportLag(behind time.Duration)
+	ExportRejected(n int)
 }
 
 type Exporter struct {
@@ -132,13 +133,24 @@ func (x *Exporter) step(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, stage{"audit_export_encode_failed", err}
 	}
-	if err := x.Post(ctx, body); err != nil {
+	receipt, err := x.Post(ctx, body)
+	if err != nil {
 		return false, stage{"audit_export_send_failed", err}
 	}
 	if err := x.Cursor.Advance(ctx, events[len(events)-1].At); err != nil {
 		return false, stage{"audit_export_cursor_write_failed", err}
 	}
+	x.rejected(ctx, receipt)
 	return true, nil
+}
+
+func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {
+	if receipt.Rejected == 0 {
+		return
+	}
+	x.Metrics.ExportRejected(int(receipt.Rejected))
+	x.Logger.WarnContext(ctx, "audit export records rejected by the receiver",
+		slog.Int64("rejected", receipt.Rejected), slog.String("receiver_message", receipt.Message))
 }
 
 func (x *Exporter) behind(oldest trail.Event) time.Duration {
