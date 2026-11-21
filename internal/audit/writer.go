@@ -19,11 +19,15 @@ import (
 
 const (
 	uniqueViolation       = "23505"
+	queryCanceled         = "57014"
 	lockNotAvailable      = "55P03"
+	readOnlyTransaction   = "25006"
 	connectionException   = "08"
 	insufficientResources = "53"
 	operatorIntervention  = "57"
 )
+
+var permanentCodes = []string{"08P01", "53400", "57P04"}
 
 type writerLimits struct {
 	batch   int
@@ -142,7 +146,9 @@ func (w *Writer) run(ctx context.Context) {
 				batch = w.flush(context.WithoutCancel(ctx), batch)
 			}
 		case <-ticker.C:
-			batch = append(batch, w.folds.due(time.Now())...)
+			if len(batch) < w.limits.batch {
+				batch = append(batch, w.folds.due(time.Now())...)
+			}
 			batch = w.flush(context.WithoutCancel(ctx), batch)
 		case <-ctx.Done():
 			w.stop(context.WithoutCancel(ctx), batch)
@@ -236,6 +242,10 @@ func (w *Writer) retryHeld(ctx context.Context) bool {
 			w.recorder.logger.InfoContext(ctx, "audit batch was already stored by an earlier attempt")
 		case retryable(err):
 			w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
+			if tooSlow(err) && len(rows) > 1 {
+				half := len(rows) / 2
+				w.held = append([][]dbsqlc.InsertAuditEventParams{rows[:half], rows[half:]}, w.held[1:]...)
+			}
 			return false
 		default:
 			w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
@@ -308,6 +318,11 @@ func alreadyStored(err error) bool {
 	return errors.As(err, &failure) && failure.Code == uniqueViolation
 }
 
+func tooSlow(err error) bool {
+	var failure *pgconn.PgError
+	return errors.As(err, &failure) && failure.Code == queryCanceled
+}
+
 func retryable(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || pgconn.Timeout(err) || pgconn.SafeToRetry(err) {
 		return true
@@ -316,5 +331,8 @@ func retryable(err error) bool {
 	if !errors.As(err, &failure) {
 		return false
 	}
-	return failure.Code == lockNotAvailable || strings.HasPrefix(failure.Code, connectionException) || strings.HasPrefix(failure.Code, operatorIntervention) || strings.HasPrefix(failure.Code, insufficientResources)
+	if slices.Contains(permanentCodes, failure.Code) {
+		return false
+	}
+	return failure.Code == lockNotAvailable || failure.Code == readOnlyTransaction || strings.HasPrefix(failure.Code, connectionException) || strings.HasPrefix(failure.Code, operatorIntervention) || strings.HasPrefix(failure.Code, insufficientResources)
 }

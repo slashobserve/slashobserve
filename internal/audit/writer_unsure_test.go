@@ -1,11 +1,13 @@
 package audit
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
@@ -138,5 +140,77 @@ func TestAHandOffRefusedForALackOfRoomIsNotCountedAsABufferDrop(t *testing.T) {
 	}
 	if got := s.metrics.droppedFor(DroppedBufferFull); got != 0 {
 		t.Fatalf("dropped %s = %d, want 0", DroppedBufferFull, got)
+	}
+}
+
+func TestABatchThatKeepsTimingOutIsKeptUntilTheDatabaseRecovers(t *testing.T) {
+	s := newStoreRig(t, writerLimits{batch: 2, every: 10 * time.Millisecond, timeout: 50 * time.Millisecond}, 0)
+	release := s.stallWrites(t)
+	stop := s.run(t)
+	defer stop()
+	s.enqueueViews(t, 2)
+	for range 6 {
+		s.waitForBatch(t)
+	}
+	release()
+	s.waitForEvents(t, 2)
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 0 {
+		t.Fatalf("dropped %s = %d, want 0", DroppedWriteFailed, got)
+	}
+}
+
+func TestFoldedEventsAreNotAddedToAFullBatchWhileOneIsHeld(t *testing.T) {
+	s := newStoreRig(t, writerLimits{batch: 2, buffer: 2, every: 10 * time.Millisecond, timeout: 50 * time.Millisecond, fold: time.Millisecond}, 0)
+	release := s.stallWrites(t)
+	stop := s.run(t)
+	defer stop()
+	s.enqueueViews(t, 2)
+	s.waitForBatch(t)
+	s.enqueueViews(t, 2)
+	s.waitForQueueToEmpty(t)
+	for range 2 {
+		row, err := s.recorder.row(t.Context(), Event{Action: "auth.login_failed", Reason: "invalid_token"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.recorder.writer.enqueue(row)
+	}
+	for range 5 {
+		s.waitForBatch(t)
+	}
+	if got := s.recorder.writer.folds.openCount(); got != 1 {
+		t.Fatalf("open folds = %d, want the due fold left alone while a batch is held", got)
+	}
+	release()
+	s.waitForEvents(t, 4)
+	deadline := time.Now().Add(5 * time.Second)
+	for s.count(t, "action = 'auth.login_failed'") < 1 {
+		if time.Now().After(deadline) {
+			t.Fatal("the folded events were never written")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestAHeldBatchTheServerCancelsIsSplitInHalf(t *testing.T) {
+	s := newStoreRig(t, writerLimits{timeout: 5 * time.Second}, 0)
+	s.db.Exec(t, `DO $$ BEGIN EXECUTE format('ALTER DATABASE %I SET statement_timeout = ''100ms''', current_database()); END $$`)
+	limited, err := db.Open(t.Context(), db.Config{URL: s.db.URL()}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(limited.Close)
+	s.recorder.db = limited
+	release := s.stallWrites(t)
+	defer release()
+	s.recorder.writer.held = [][]dbsqlc.InsertAuditEventParams{s.views(t, 4)}
+	if s.recorder.writer.retryHeld(t.Context()) {
+		t.Fatal("a canceled statement was reported as written")
+	}
+	if got := len(s.recorder.writer.held); got != 2 {
+		t.Fatalf("held statements = %d, want 2 halves", got)
+	}
+	if a, b := len(s.recorder.writer.held[0]), len(s.recorder.writer.held[1]); a != 2 || b != 2 {
+		t.Fatalf("halves hold %d and %d rows, want 2 and 2", a, b)
 	}
 }
