@@ -187,6 +187,20 @@ func TestInvestigatePayloadPointsAtASpotOfABlock(t *testing.T) {
 	}
 }
 
+func TestInvestigatePayloadAsksAboutAWholeBlock(t *testing.T) {
+	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, block: investigationID, private: true, timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"block_id":"` + investigationID + `","kind":"ask","observation_id":"` + observationID + `","prompt":"why"}`
+	if raw, _ := json.Marshal(got); string(raw) != want {
+		t.Errorf("payload = %s\nwant %s", raw, want)
+	}
+	if _, err := investigatePayload([]string{"why"}, investigateOptions{block: investigationID, timeout: time.Hour}); err == nil || !strings.Contains(err.Error(), "--block needs --observation") {
+		t.Errorf("a block without an observation: error = %v", err)
+	}
+}
+
 func TestPromptPayloadRevisesOnlyWithReviseAndADashboard(t *testing.T) {
 	got, err := promptOptions{dashboard: repairID, revise: true}.payload("add a latency panel")
 	if err != nil {

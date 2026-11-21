@@ -77,7 +77,7 @@ func (a *app) investigateCommand() *cobra.Command {
 	flags.StringVar(&a.investigating.panel, "panel", "", "one panel of --dashboard the question is about")
 	flags.StringVar(&a.investigating.observation, "observation", "", "the observation to write into, by id; without it a new observation is made")
 	flags.StringVar(&a.investigating.at, "at", "", "the spot the question is about, as the anchor JSON object or a short form such as pos:0.4,0.3; needs --dashboard or --observation")
-	flags.StringVar(&a.investigating.block, "block", "", "the block of --observation that --at points into, from observe o show")
+	flags.StringVar(&a.investigating.block, "block", "", "a block of --observation the question is about, from observe o show; with --at, the block --at points into")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")
 	flags.BoolVar(&a.investigating.private, "private", false, "answer privately about --dashboard or --observation, writing nothing shared until you share the answer")
@@ -114,6 +114,8 @@ func (o investigateOptions) check(question string) error {
 		return usagef("--timeout must be positive")
 	case o.panel != "" && o.dashboard == "":
 		return usagef("--panel needs --dashboard")
+	case o.block != "" && o.observation == "":
+		return usagef("--block needs --observation")
 	case (o.from == "") != (o.to == ""):
 		return usagef("--from and --to go together")
 	case o.private && (o.dashboard == "") == (o.observation == ""):

@@ -74,7 +74,7 @@ describe("askAboutThisPanel", () => {
     expect(place).toBe("canvas")
     expect(search).toEqual({ vars: {} })
     expect(useCanvasTool.getState().draft).toEqual({
-      panelId: "latency",
+      ownerId: "latency",
       tool: "ask",
       anchor: null,
       at: null,
@@ -182,7 +182,7 @@ describe("acting on a panel and focusing the composer", () => {
     expect(place).toBe("canvas")
     expect(search).toEqual({ vars: {} })
     expect(useCanvasTool.getState().draft).toEqual({
-      panelId: "latency",
+      ownerId: "latency",
       tool: "comment",
       anchor: null,
       at: null,

@@ -104,6 +104,14 @@ function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
 }
 
+const placedByContent: ReadonlySet<Anchor["kind"]> = new Set(["text"])
+
+const detachedInset = 22
+
+function detachedSpot(body: Size): Point {
+  return { x: Math.max(0, body.width - detachedInset), y: detachedInset }
+}
+
 function hiddenBy(surface: CanvasSurface, anchor: Anchor): boolean {
   const { module, published } = surface
   if (module?.hides === undefined || published === null) return false
@@ -125,7 +133,10 @@ export function placePin(
   if (locate === null) return { at: stored, gone: false }
   if (hiddenBy(surface, anchor)) return null
   const rect = locate(anchor)
-  if (rect === null) return { at: stored, gone: true }
+  if (rect === null) {
+    const at = placedByContent.has(anchor.kind) ? detachedSpot(body) : stored
+    return { at, gone: true }
+  }
   return {
     at: {
       x: clamp(stored.x, rect.x, rect.x + rect.width),

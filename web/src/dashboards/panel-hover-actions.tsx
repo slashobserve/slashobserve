@@ -33,6 +33,7 @@ const hiddenWhileToolbarShown = "group-data-[selected]/panel:hidden"
 
 type Props = {
   panel: LayoutPanel
+  ownerId?: string
   canComment: boolean
   idle: boolean
   viewing?: boolean
@@ -76,6 +77,7 @@ function HoverAction({
 
 export function PanelHoverActions({
   panel,
+  ownerId = panel.id,
   canComment,
   idle,
   viewing = false,
@@ -101,7 +103,7 @@ export function PanelHoverActions({
           label={`Ask about ${title}`}
           tooltip={`Ask (${shortcutText("ask")})${pause}`}
           disabled={!idle}
-          onClick={() => askAboutThisPanel(setSearch, panel.id, onCanvas)}
+          onClick={() => askAboutThisPanel(setSearch, ownerId, onCanvas)}
         >
           <AtSignIcon aria-hidden="true" />
         </HoverAction>
@@ -111,7 +113,7 @@ export function PanelHoverActions({
         tooltip={`Comment (${shortcutText("comment")})${pause}`}
         disabled={!idle}
         onClick={() =>
-          commentOnThisPanel(setSearch, panel.id, onCanvas, composerRef)
+          commentOnThisPanel(setSearch, ownerId, onCanvas, composerRef)
         }
       >
         <MessageSquarePlusIcon aria-hidden="true" />

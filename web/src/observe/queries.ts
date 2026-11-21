@@ -162,6 +162,7 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
+              observation_id: filters.observationId,
               chat_id: filters.chatId,
               scope: filters.scope,
               state: filters.states,
