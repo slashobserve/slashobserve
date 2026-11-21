@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -29,6 +30,8 @@ const (
 	LogFormatJSON LogFormat = "json"
 	LogFormatText LogFormat = "text"
 )
+
+const ipv4InIPv6Bits = 96
 
 const (
 	defaultActivityRetention = 4320 * time.Hour
@@ -121,6 +124,8 @@ const (
 
 	envOutboundDomains = "SLASHOBSERVE_OUTBOUND_DOMAINS"
 
+	envTrustedProxies = "SLASHOBSERVE_TRUSTED_PROXIES"
+
 	envAdminEmails    = "SLASHOBSERVE_ADMIN_EMAILS"
 	envOIDCGroupRoles = "SLASHOBSERVE_OIDC_GROUP_ROLES"
 
@@ -151,7 +156,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envDatabaseDirectURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envActivityRetention, envAuditRetention, envAuditOTLPEndpoint, envAuditOTLPHeaders, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
+	envSessionTTL, envActivityRetention, envAuditRetention, envAuditOTLPEndpoint, envAuditOTLPHeaders, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains, envTrustedProxies,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
@@ -220,6 +225,8 @@ type Config struct {
 
 	OutboundDomainsLocked bool
 	OutboundDomains       domains.List
+
+	TrustedProxies []netip.Prefix
 
 	ProvisionDir string
 	Metrics      bool
@@ -297,6 +304,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
+	errs = append(errs, loadTrustedProxies(lookup, &cfg)...)
 	errs = append(errs, loadSecretKey(lookup, &cfg)...)
 
 	cfg.ProvisionDir = get(lookup, envProvisionDir)
@@ -442,6 +450,48 @@ func loadOutboundDomains(lookup func(string) (string, bool), cfg *Config) []erro
 		errs = append(errs, fmt.Errorf("%s: at most %d entries, got %d", envOutboundDomains, MaxOutboundDomains, len(cfg.OutboundDomains)))
 	}
 	return errs
+}
+
+func loadTrustedProxies(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
+	for _, item := range strings.Split(get(lookup, envTrustedProxies), ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		prefix, err := parseProxyEntry(item)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %q: %w", envTrustedProxies, item, err))
+			continue
+		}
+		cfg.TrustedProxies = append(cfg.TrustedProxies, prefix)
+	}
+	return errs
+}
+
+func parseProxyEntry(item string) (netip.Prefix, error) {
+	errNotAddress := errors.New("not an IP address or a CIDR range")
+	if !strings.Contains(item, "/") {
+		addr, err := netip.ParseAddr(item)
+		if err != nil || addr.Zone() != "" {
+			return netip.Prefix{}, errNotAddress
+		}
+		addr = addr.Unmap()
+		return netip.PrefixFrom(addr, addr.BitLen()), nil
+	}
+	prefix, err := netip.ParsePrefix(item)
+	if err != nil || prefix.Addr().Zone() != "" {
+		return netip.Prefix{}, errNotAddress
+	}
+	bits := prefix.Bits()
+	if prefix.Addr().Is4In6() {
+		bits -= ipv4InIPv6Bits
+		prefix = netip.PrefixFrom(prefix.Addr().Unmap(), max(bits, 0))
+	}
+	if bits <= 0 {
+		return netip.Prefix{}, errors.New("a range with no network bits would trust every address")
+	}
+	return prefix.Masked(), nil
 }
 
 func loadSecretKey(lookup func(string) (string, bool), cfg *Config) []error {

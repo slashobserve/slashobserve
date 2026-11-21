@@ -272,7 +272,7 @@ A run you stopped shows "You stopped this run" instead.
 
 A code not in the table shows the server's reason alone.
 **Try again** starts a new request with the same prompt, and when the request already has a dashboard, an **Open dashboard** button is shown next to it.
-Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs.
+Anyone who can see a finished request and may start that kind of request can run it again, over the API with `POST /observe/{id}/retry` or with `observe retry`, and the new request is theirs, unless they read it `redacted`: its words stay the requester's, so it offers them no retry and the call answers 409 `invalid_transition`.
 When the person who asked retries, the new request stays in the same chat, so the chat lists keep one row for it.
 A retry points at the same panel, spot or block as the request it retries; someone else's retry of a private ask, and a retry of a thread question by someone who cannot comment in that thread, points at nothing.
 A retried investigation writes into the same observation when the person retrying may comment on it, and otherwise into a new one (see [Observations](observations.md#investigations-write-into-an-observation)).
@@ -288,6 +288,7 @@ The model comes from the server's configuration and cannot be picked in the chat
 
 An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
 Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.

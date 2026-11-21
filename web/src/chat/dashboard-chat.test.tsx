@@ -45,6 +45,7 @@ function chat(id: string, title: string, over: Partial<Chat> = {}): Chat {
       state: "succeeded",
       prompt: "x",
       investigation: false,
+      subject_observation_id: null,
     },
     owner: { kind: "user", name: "Ada" },
     read_only: false,

@@ -21,10 +21,11 @@ const (
 )
 
 type chatTurnJSON struct {
-	ID            string `json:"id"`
-	State         State  `json:"state"`
-	Prompt        string `json:"prompt"`
-	Investigation bool   `json:"investigation"`
+	ID                   string  `json:"id"`
+	State                State   `json:"state"`
+	Prompt               string  `json:"prompt"`
+	Investigation        bool    `json:"investigation"`
+	SubjectObservationID *string `json:"subject_observation_id"`
 }
 
 type chatJSON struct {
@@ -72,7 +73,7 @@ func newChatJSON(c Chat) chatJSON {
 		ReadOnly:       c.ReadOnly,
 	}
 	if c.LastTurn != nil {
-		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Investigation: c.LastTurn.Investigation}
+		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Investigation: c.LastTurn.Investigation, SubjectObservationID: optionalUUID(c.LastTurn.Subject)}
 	}
 	return out
 }
