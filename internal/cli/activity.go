@@ -225,7 +225,7 @@ func (a *app) runActivity(cmd *cobra.Command, _ []string) error {
 		pageFooter(out, len(entries), nil, &next)
 		return nil
 	}
-	follower := &activityFollower{c: c, query: filters, out: out, json: a.json, retry: defaultStreamRetry, idle: streamIdleTimeout}
+	follower := newActivityFollower(c, filters, out, a.json)
 	if len(entries) > 0 {
 		follower.last = strconv.FormatInt(entries[len(entries)-1].event.Seq, 10)
 	}
@@ -532,14 +532,19 @@ func mentionedPhrase(kind, name string) string {
 	return text(name)
 }
 
-type activityFollower struct {
-	c     *client
-	query url.Values
-	out   *output
-	json  bool
-	last  string
-	retry time.Duration
-	idle  time.Duration
+type sseFollower struct {
+	c      *client
+	name   string
+	path   string
+	query  url.Values
+	last   string
+	retry  time.Duration
+	idle   time.Duration
+	handle func(sseFrame) (string, error)
+}
+
+func newActivityFollower(c *client, query url.Values, out *output, asJSON bool) *sseFollower {
+	return &sseFollower{c: c, name: "activity", path: "activity/stream", query: query, last: "0", retry: defaultStreamRetry, idle: streamIdleTimeout, handle: activityFrames(out, asJSON)}
 }
 
 type idleReader struct {
@@ -565,7 +570,7 @@ func (r *idleReader) Read(p []byte) (int, error) {
 	return r.body.Read(p)
 }
 
-func (f *activityFollower) run(ctx context.Context) error {
+func (f *sseFollower) run(ctx context.Context) error {
 	failures := 0
 	for {
 		received, err := f.once(ctx)
@@ -576,7 +581,7 @@ func (f *activityFollower) run(ctx context.Context) error {
 			failures = 0
 		}
 		if err == nil && !received {
-			err = transportFailure{errors.New("the server closed the activity stream without sending anything")}
+			err = transportFailure{fmt.Errorf("the server closed the %s stream without sending anything", f.name)}
 		}
 		if err != nil {
 			failures++
@@ -597,8 +602,8 @@ func isTooManyStreams(err error) bool {
 	return errors.As(err, &api) && api.status == http.StatusTooManyRequests
 }
 
-func (f *activityFollower) once(ctx context.Context) (bool, error) {
-	body, err := f.c.stream(ctx, "activity/stream", f.query, cmp.Or(f.last, "0"))
+func (f *sseFollower) once(ctx context.Context) (bool, error) {
+	body, err := f.c.stream(ctx, f.path, f.query, f.last)
 	if err != nil {
 		return false, err
 	}
@@ -608,36 +613,40 @@ func (f *activityFollower) once(ctx context.Context) (bool, error) {
 	var handled error
 	err = readFrames(watched, func(fr sseFrame) error {
 		received = true
-		handled = f.handle(fr)
+		if fr.retry > 0 {
+			f.retry = fr.retry
+		}
+		var last string
+		last, handled = f.handle(fr)
+		f.last = cmp.Or(last, f.last)
 		return handled
 	})
 	switch {
 	case handled != nil:
 		return received, handled
 	case watched.fired.Load():
-		return received, transportFailure{fmt.Errorf("the activity stream sent nothing for %s", f.idle)}
+		return received, transportFailure{fmt.Errorf("the %s stream sent nothing for %s", f.name, f.idle)}
 	case err != nil:
 		return received, f.c.transportError(ctx, err)
 	}
 	return received, nil
 }
 
-func (f *activityFollower) handle(fr sseFrame) error {
-	if fr.retry > 0 {
-		f.retry = fr.retry
-	}
-	switch fr.event {
-	case "activity":
-		event, err := decode[activityEvent]([]byte(fr.data))
-		if err != nil {
-			return err
+func activityFrames(out *output, asJSON bool) func(sseFrame) (string, error) {
+	return func(fr sseFrame) (string, error) {
+		switch fr.event {
+		case "activity":
+			event, err := decode[activityEvent]([]byte(fr.data))
+			if err != nil {
+				return "", err
+			}
+			printActivity(out, asJSON, activityEntry{raw: []byte(fr.data), event: event})
+			return strconv.FormatInt(event.Seq, 10), nil
+		case "reset":
+			out.warn("Some activity may have been missed.")
 		}
-		printActivity(f.out, f.json, activityEntry{raw: []byte(fr.data), event: event})
-		f.last = strconv.FormatInt(event.Seq, 10)
-	case "reset":
-		f.out.warn("Some activity may have been missed.")
+		return "", nil
 	}
-	return nil
 }
 
 func readFrames(r io.Reader, emit func(sseFrame) error) error {

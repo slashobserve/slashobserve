@@ -812,6 +812,7 @@ If the server no longer knows that event it prints `Some activity may have been 
 
 ```sh
 bin/observe audit search --query 'outcome:denied and origin:mcp' --from now-7d
+bin/observe audit search --follow --query 'outcome:denied'
 bin/observe audit show <event-id>
 bin/observe audit facets actor_name --query 'action:dashboard.*'
 bin/observe audit histogram --query outcome:failed --buckets 48
@@ -825,6 +826,8 @@ bin/observe audit export --from now-30d --format csv --file audit.csv
 `show` prints one event and the other events of its request and its agent run, `facets` the most frequent values of a field, `histogram` the counts over time, `aggregate` the rows of a Query DSL `aggs` body and `fields` what a query can name.
 `--json` prints the API response unchanged.
 `export` streams NDJSON (the default) or CSV to standard output, or to `--file`, and warns on standard error when it stopped at the server's limit of 1,000,000 rows.
+`search --follow` reads `GET /api/v1/audit/stream` and prints each matching event recorded from then on, in the order it committed, until Ctrl-C; with `--json` it prints one event object per line.
+It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, reconnects from the last event it printed like `activity --follow`, and exits 1 when the key is no longer an Admin.
 
 ## Webhooks
 

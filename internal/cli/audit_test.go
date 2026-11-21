@@ -119,6 +119,9 @@ func TestAuditUsageErrorsExitTwo(t *testing.T) {
 		{"audit", "histogram", "--buckets", "0"},
 		{"audit", "export", "--format", "xml"},
 		{"audit", "search", "--limit", "1001"},
+		{"audit", "search", "--follow", "--all"},
+		{"audit", "search", "--follow", "--from", "now-1h"},
+		{"audit", "search", "--follow", "--limit", "5"},
 		{"audit", "show", "not-an-id"},
 	} {
 		if _, _, stderr, code := runAudit(t, http.StatusOK, nil, `{}`, args...); code != 2 {
@@ -161,5 +164,69 @@ func TestAuditExportWritesAFileAndWarnsAtTheLimit(t *testing.T) {
 	}
 	if call.accept != "text/csv" || !strings.Contains(stdout+stderr, "Wrote 2 events to "+file) || !strings.Contains(stderr, "limit of 2 rows") {
 		t.Fatalf("call %+v, stdout %q, stderr %q", call, stdout, stderr)
+	}
+}
+
+func auditStream(t *testing.T, streams ...string) (*[]auditCall, *[]string, string) {
+	t.Helper()
+	var calls []auditCall
+	var opened []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := len(calls)
+		calls = append(calls, auditCall{path: r.URL.Path, query: r.URL.Query(), accept: r.Header.Get("Accept")})
+		opened = append(opened, r.Header.Get("Last-Event-ID"))
+		if n >= len(streams) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `{"error":"stop","code":"stop_here"}`)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, streams[n])
+	}))
+	t.Cleanup(server.Close)
+	return &calls, &opened, server.URL
+}
+
+func auditFrame(id, eventID, action string) string {
+	return "id: " + id + "\nevent: audit\ndata: " + auditEventJSON(eventID, action, "denied") + "\n\n"
+}
+
+func TestAuditSearchFollowPrintsNewEventsAndResumesFromTheLastOne(t *testing.T) {
+	ready := "retry: 10\nevent: ready\ndata: {}\n\n"
+	calls, opened, url := auditStream(t,
+		ready+auditFrame("41-7", auditEventID, "dashboard.update"),
+		ready+": ping\n\n"+auditFrame("42-9", auditEventID, "audit.search"))
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"--server", url, "--token", "k", "audit", "search", "--follow", "--query", "outcome:denied"}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	if code != 1 || !strings.Contains(stderr.String(), "stop (stop_here)") {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	line := "2026-11-21T10:04:05Z  Claude for Ada  mcp:update_panels  %s  denied  dashboard Checkout  " + auditEventID + "\n"
+	if want := fmt.Sprintf(line, "dashboard.update") + fmt.Sprintf(line, "audit.search"); stdout.String() != want {
+		t.Errorf("stdout %q, want %q", stdout.String(), want)
+	}
+	if fmt.Sprint(*opened) != "[ 41-7 42-9]" {
+		t.Errorf("Last-Event-ID sent %q", *opened)
+	}
+	for _, call := range *calls {
+		if call.path != "/api/v1/audit/stream" || call.query.Get("q") != "outcome:denied" || call.accept != "text/event-stream" {
+			t.Errorf("call %+v", call)
+		}
+	}
+}
+
+func TestAuditSearchFollowPrintsJSONLinesAndStopsWhenNoLongerAnAdmin(t *testing.T) {
+	_, opened, url := auditStream(t, "event: ready\ndata: {}\n\n"+auditFrame("41-7", auditEventID, "dashboard.update")+"event: forbidden\ndata: {\"error\":\"x\",\"code\":\"forbidden_role\"}\n\n")
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"--server", url, "--token", "k", "--json", "audit", "search", "--follow"}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	if code != 1 || !strings.Contains(stderr.String(), "no longer an Admin") {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	if want := auditEventJSON(auditEventID, "dashboard.update", "denied") + "\n"; stdout.String() != want {
+		t.Errorf("stdout %q, want %q", stdout.String(), want)
+	}
+	if len(*opened) != 1 {
+		t.Errorf("opened %d streams, want 1", len(*opened))
 	}
 }

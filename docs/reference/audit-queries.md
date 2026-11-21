@@ -98,6 +98,14 @@ A search returns 100 events a page by default and at most 1,000, newest first by
 `next_cursor` pages through one search without repeating or skipping an event, even while new events are recorded, because it keeps the window of the first page; a cursor sent with another query is refused.
 An export streams up to 1,000,000 events, the value of its `X-Export-Row-Limit` header, and stops there.
 
+## Following new events
+
+`GET /api/v1/audit/stream?q=<query>` is a server-sent event stream of the events that match the query and are recorded after it opens, in the order they committed, one `audit` frame each with the event as its data.
+It takes the same query text as a search and no window: it sends events from the 10 minutes before it opened onward and never one recorded earlier.
+Each frame's `id` is its position in the trail; send it back as `Last-Event-ID` to resume after it, and an id the stream did not send answers 400 `invalid_request`.
+Opening the stream records one `audit.search` event with the query, not one per event it delivers.
+The server checks every 5 seconds that the caller is still an Admin, and ends the stream with a `forbidden` frame (`forbidden_role`) once they are not; it also ends at shutdown and after 30 minutes, and a client reconnects from its last id.
+
 ## API, MCP and the CLI
 
 | Read | API | MCP | CLI |
@@ -109,7 +117,9 @@ An export streams up to 1,000,000 events, the value of its `X-Export-Row-Limit` 
 | Aggregation | `GET /api/v1/audit/aggregate` | `aggregate_audit_events` | `observe audit aggregate` |
 | Fields | `GET /api/v1/audit/fields` | `list_audit_fields` | `observe audit fields` |
 | Export as NDJSON or CSV | `GET /api/v1/audit/export` | | `observe audit export` |
+| Follow new events | `GET /api/v1/audit/stream` | `search_audit_events` | `observe audit search --follow` |
 
 Every route answers 403 `forbidden_role` to a caller below Admin.
 An export has no MCP tool, because an MCP answer holds at most 16 KiB; an agent pages the same events with `search_audit_events`, 20 a call by default and at most 100.
+The stream has no MCP tool of its own, as the activity stream has none: an agent reads new events by calling `search_audit_events` again.
 No route or tool changes or deletes an audit event.

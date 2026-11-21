@@ -72,6 +72,8 @@ paths:
     $ref: "./paths/audit.yaml#/audit-aggregate"
   /audit/fields:
     $ref: "./paths/audit.yaml#/audit-fields"
+  /audit/stream:
+    $ref: "./paths/audit.yaml#/audit-stream"
   /audit/export:
     $ref: "./paths/audit.yaml#/audit-export"
   /search:

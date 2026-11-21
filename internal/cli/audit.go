@@ -36,6 +36,7 @@ type auditOptions struct {
 	buckets int
 	format  string
 	file    string
+	follow  bool
 }
 
 type auditEvent struct {
@@ -148,18 +149,61 @@ func (o auditOptions) window() url.Values {
 
 func (a *app) auditSearchCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "search [--query <filter>] [--from <time>] [--to <time>] [--limit N] [--cursor C | --all]",
+		Use:   "search [--query <filter>] [--from <time>] [--to <time>] [--limit N] [--cursor C | --all | --follow]",
 		Short: "List the matching audit events, newest first",
-		Long:  "search prints one line per event: when, who, through what, the action, how it ended and its target.\nPages never repeat or skip an event, even while new ones are recorded; --cursor keeps the window of the first page.",
+		Long:  "search prints one line per event: when, who, through what, the action, how it ended and its target.\nPages never repeat or skip an event, even while new ones are recorded; --cursor keeps the window of the first page.\nWith --follow it prints the matching events recorded from now on, in the order they committed, until Ctrl-C, reconnecting from the last event it printed; with --json each is one JSON line.",
 		Args:  noArgs,
 		RunE:  a.runAuditSearch,
 	}
 	a.auditWindowFlags(cmd)
 	addPageFlags(cmd, &a.audit.page, maxAuditPage)
+	cmd.Flags().BoolVar(&a.audit.follow, "follow", false, "print new matching events until Ctrl-C")
 	return cmd
 }
 
+func (a *app) followAudit(cmd *cobra.Command) error {
+	if a.audit.page.all || a.audit.page.cursor != "" || a.audit.from != "" || a.audit.to != "" || cmd.Flags().Changed("limit") {
+		return usagef("--follow prints the events recorded from now on, so it cannot be combined with --all, --cursor, --limit, --from or --to")
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	query := url.Values{}
+	if a.audit.query != "" {
+		query.Set("q", a.audit.query)
+	}
+	follower := &sseFollower{c: c, name: "audit", path: "audit/stream", query: query, retry: defaultStreamRetry, idle: streamIdleTimeout, handle: auditFrames(a.output(), a.json)}
+	return follower.run(cmd.Context())
+}
+
+var errAuditStreamForbidden = errors.New("the audit stream ended because the key is no longer an Admin")
+
+func auditFrames(out *output, asJSON bool) func(sseFrame) (string, error) {
+	return func(fr sseFrame) (string, error) {
+		switch fr.event {
+		case "audit":
+			if asJSON {
+				out.body([]byte(fr.data))
+				return fr.id, nil
+			}
+			event, err := decode[auditEvent]([]byte(fr.data))
+			if err != nil {
+				return "", err
+			}
+			out.line("%s", strings.Join(auditRows([]auditEvent{event})[0], "  "))
+			return fr.id, nil
+		case "forbidden":
+			return "", errAuditStreamForbidden
+		}
+		return "", nil
+	}
+}
+
 func (a *app) runAuditSearch(cmd *cobra.Command, _ []string) error {
+	if a.audit.follow {
+		return a.followAudit(cmd)
+	}
 	if err := a.audit.page.check(); err != nil {
 		return err
 	}

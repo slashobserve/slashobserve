@@ -530,6 +530,7 @@ func run() error {
 			agentsview.NewHandler(database, agentsview.Observe{Enabled: revisionsService.Available(), Provider: observeOpts.Provider, Model: observeOpts.Model}, logger),
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
+			stream.NewAuditHandler(broker, auditReader, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
 			threads.NewThreads(threadsService, mentionRuns),
 			revisionsService,

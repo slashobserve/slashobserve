@@ -678,6 +678,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/audit/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Follow new audit events that match a query as Server-Sent Events.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened; a reconnecting client sends the `id` of the last frame it handled and the stream continues with the next event, so nothing is skipped or repeated. A stream never sends an event that occurred more than 10 minutes before it opened, and an event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 streams and the process 100.
+         */
+        get: operations["streamAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit/export": {
         parameters: {
             query?: never;
@@ -9712,6 +9732,79 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
+        };
+    };
+    streamAuditEvents: {
+        parameters: {
+            query?: {
+                /** @description The filter, in the same three forms as `listAuditEvents`; empty follows every event. A Query DSL `size` and `aggs` are ignored. */
+                q?: string;
+            };
+            header?: {
+                /** @description The `id` of the last frame the client handled. */
+                "Last-Event-ID"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An open `text/event-stream`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description `Last-Event-ID` is not the id of a frame of this stream (`invalid_request`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not an Admin, or is a key below the Admin role (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The filter cannot be read (`query_invalid`), with the parser's message and the byte offsets `start` and `end` in `q`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditQueryError"];
+                };
+            };
+            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     exportAuditEvents: {

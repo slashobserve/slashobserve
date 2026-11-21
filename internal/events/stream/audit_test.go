@@ -1,0 +1,238 @@
+package stream
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/audit/trail"
+	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/events"
+)
+
+type auditRig struct {
+	db         *dbtest.Database
+	broker     *events.Broker
+	principals *fakePrincipals
+	handler    *AuditHandler
+	server     *httptest.Server
+	caller     atomic.Pointer[auth.Principal]
+	stopAudit  func()
+}
+
+func newAuditRig(t *testing.T, caller auth.Principal) *auditRig {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	d := dbtest.New(t)
+	n := &notifier{ready: make(chan struct{})}
+	broker := events.NewBroker(n.listen, slog.New(slog.DiscardHandler))
+	ctx, cancel := context.WithCancel(context.Background())
+	go broker.Run(ctx)
+	t.Cleanup(func() {
+		cancel()
+		broker.Close()
+	})
+	<-n.ready
+
+	recorder := audit.New(audit.Config{DB: d.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
+	audit.Install(recorder)
+	t.Cleanup(func() { audit.Install(nil) })
+	auditCtx, stopRecorder := context.WithCancel(context.Background())
+	recorded := make(chan struct{})
+	go func() {
+		defer close(recorded)
+		recorder.Run(auditCtx)
+	}()
+
+	r := &auditRig{db: d, broker: broker, principals: &fakePrincipals{}}
+	r.stopAudit = func() {
+		stopRecorder()
+		<-recorded
+	}
+	t.Cleanup(r.stopAudit)
+	r.caller.Store(&caller)
+	r.principals.becomes(caller)
+	r.handler = NewAuditHandler(broker, trail.NewReader(d.DB, slog.New(slog.DiscardHandler)), r.principals, slog.New(slog.DiscardHandler))
+	r.handler.pollInterval = 10 * time.Millisecond
+	r.handler.pingInterval = time.Hour
+	mw, err := recorder.Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	engine := gin.New()
+	api := engine.Group("/api/v1", mw, func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), *r.caller.Load()))
+	})
+	r.handler.Register(auth.NewRoutes(api))
+	r.server = httptest.NewServer(engine)
+	t.Cleanup(r.server.Close)
+	t.Cleanup(r.server.CloseClientConnections)
+	return r
+}
+
+func (r *auditRig) request(t *testing.T, q, lastEventID string) *http.Request {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.server.URL+"/api/v1/audit/stream?"+url.Values{"q": {q}}.Encode(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lastEventID != "" {
+		req.Header.Set("Last-Event-ID", lastEventID)
+	}
+	return req
+}
+
+func (r *auditRig) refused(t *testing.T, q, lastEventID string) (int, string) {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(r.request(t, q, lastEventID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var body struct{ Code string }
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	return resp.StatusCode, body.Code
+}
+
+func (r *auditRig) open(t *testing.T, q string) *activityStream {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(r.request(t, q, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	s := &activityStream{lines: make(chan string, 1024), done: make(chan struct{})}
+	go func() {
+		defer close(s.done)
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			s.lines <- scanner.Text()
+		}
+	}()
+	s.expectEvent(t, "ready")
+	return s
+}
+
+func (r *auditRig) searches(t *testing.T) []string {
+	t.Helper()
+	r.stopAudit()
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT outcome || ' ' || coalesce(data->>'view', '') || ' ' || coalesce(data->>'query', '') FROM audit_events WHERE action = 'audit.search' ORDER BY seq`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, s)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func TestAuditStreamSendsNewMatchingEventsAndRecordsOneSearch(t *testing.T) {
+	r := newAuditRig(t, admin)
+	s := r.open(t, "outcome:denied")
+	ids := trailtest.Insert(t, r.db, trailtest.Event{At: time.Now().UTC(), Outcome: "success"}, trailtest.Event{At: time.Now().UTC(), Outcome: "denied", Status: 403})
+	f := s.nextFrame(t)
+	var got struct {
+		ID      string `json:"id"`
+		Outcome string `json:"outcome"`
+	}
+	if err := json.Unmarshal([]byte(f.data), &got); err != nil || f.event != "audit" || got.ID != ids[1] || got.Outcome != "denied" || !strings.Contains(f.id, "-") {
+		t.Fatalf("frame %+v (%v)", f, err)
+	}
+	trailtest.Insert(t, r.db, trailtest.Event{At: time.Now().UTC(), Outcome: "denied", Status: 403})
+	if next := s.nextFrame(t); next.event != "audit" || next.id == "" || next.id == f.id {
+		t.Fatalf("second frame %+v", next)
+	}
+	if got := r.searches(t); len(got) != 1 || got[0] != "success stream outcome:denied" {
+		t.Fatalf("recorded searches %q", got)
+	}
+}
+
+func TestAuditStreamEndsWhenTheCallerIsNoLongerAnAdmin(t *testing.T) {
+	r := newAuditRig(t, admin)
+	r.handler.pingInterval = 10 * time.Millisecond
+	s := r.open(t, "")
+	r.principals.becomes(auth.Principal{Kind: auth.KindUser, ID: adminID, Name: "Root", Role: auth.RoleEditor})
+	f := s.nextFrame(t)
+	var body struct {
+		Code       string `json:"code"`
+		NeededRole string `json:"needed_role"`
+	}
+	if err := json.Unmarshal([]byte(f.data), &body); err != nil || f.event != "forbidden" || body.Code != "forbidden_role" || body.NeededRole != "admin" {
+		t.Fatalf("frame %+v (%v)", f, err)
+	}
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream outlived the caller's Admin role")
+	}
+}
+
+func TestAuditStreamEndsAtShutdownAfterItsSearchIsRecorded(t *testing.T) {
+	r := newAuditRig(t, admin)
+	s := r.open(t, "origin:mcp")
+	r.broker.Close()
+	if !s.closedWithin(waitTimeout) {
+		t.Fatal("the stream outlived the shutdown")
+	}
+	if got := r.searches(t); len(got) != 1 || got[0] != "success stream origin:mcp" {
+		t.Fatalf("recorded searches %q", got)
+	}
+}
+
+func TestAuditStreamRefusesNonAdminsAndBadRequests(t *testing.T) {
+	for name, p := range map[string]auth.Principal{
+		"viewer":     viewer,
+		"commenter":  {Kind: auth.KindUser, ID: viewerID, Role: auth.RoleCommenter},
+		"editor":     {Kind: auth.KindUser, ID: viewerID, Role: auth.RoleEditor},
+		"editor key": {Kind: auth.KindServiceAccount, ID: viewerID, Role: auth.RoleEditor},
+		"anonymous":  {},
+	} {
+		r := newAuditRig(t, p)
+		if status, code := r.refused(t, "", ""); status != http.StatusForbidden || code != "forbidden_role" {
+			t.Errorf("%s = %d %s", name, status, code)
+		}
+	}
+	r := newAuditRig(t, admin)
+	for _, tc := range []struct {
+		q, lastEventID string
+		status         int
+		code           string
+	}{
+		{"status:x", "", http.StatusUnprocessableEntity, trail.CodeQueryInvalid},
+		{"", "12", http.StatusBadRequest, trail.CodeInvalidRequest},
+	} {
+		if status, code := r.refused(t, tc.q, tc.lastEventID); status != tc.status || code != tc.code {
+			t.Errorf("q %q Last-Event-ID %q = %d %s", tc.q, tc.lastEventID, status, code)
+		}
+	}
+	if got := r.searches(t); len(got) != 2 || got[0] != "failed stream status:x" || got[1] != "failed stream " {
+		t.Fatalf("recorded searches %q", got)
+	}
+}

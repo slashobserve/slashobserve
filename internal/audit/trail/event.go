@@ -79,9 +79,9 @@ func (s *scannedEvent) targets() []any {
 	}
 }
 
-func scanEvent(rows pgx.Rows) (Event, error) {
+func scanEvent(rows pgx.Rows, extra ...any) (Event, error) {
 	var s scannedEvent
-	if err := rows.Scan(s.targets()...); err != nil {
+	if err := rows.Scan(append(s.targets(), extra...)...); err != nil {
 		return Event{}, err
 	}
 	e := Event{
