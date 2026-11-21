@@ -1,12 +1,15 @@
 package audit
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 func (s storeRig) dataOf(t *testing.T, request uuid.UUID, key string) string {
@@ -49,5 +52,23 @@ func TestOnlyADeniedEventCarriesTheNeededRole(t *testing.T) {
 	s.run(t)()
 	if got := s.dataOf(t, request, "needed_role"); got != "-" {
 		t.Fatalf("a failed request recorded needed_role %q", got)
+	}
+}
+
+func TestAViewerRefusedAnEditorRouteAndAnEditorRefusedAnAdminRouteRecordTheRoleTheyLacked(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	for _, role := range []string{"editor", "admin"} {
+		t.Run(role, func(t *testing.T) {
+			body, err := json.Marshal(forbidden.NeedsRole(role))
+			if err != nil {
+				t.Fatal(err)
+			}
+			engine := s.engine(t, func(ctx *gin.Context) { ctx.Data(http.StatusForbidden, "application/json", body) })
+			_, request := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
+			s.run(t)()
+			if got := s.dataOf(t, request, "needed_role"); got != role {
+				t.Fatalf("needed_role = %q, want %q", got, role)
+			}
+		})
 	}
 }
