@@ -126,7 +126,7 @@ export function ChatAnswer({
   onRevised: (next: ObserveRequest) => Promise<void>
   showToEveryone?: boolean
   reviseNote?: string
-  actions: ReactNode
+  actions?: ReactNode
 }) {
   const dashboardId = request.dashboard_id
   const revised: Subject | null =
