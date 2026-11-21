@@ -119,7 +119,7 @@ import { noNewPanels, panelsAddedSince, type SeenVersion } from "./new-panels"
 import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
-import type { PanelSource } from "./panel-source"
+import type { VariableSource } from "./panel-source"
 import { mayInvestigate, type DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
@@ -308,7 +308,7 @@ function DashboardView({
     [spec, viewZone]
   )
 
-  const source = useMemo<PanelSource>(
+  const source = useMemo<VariableSource>(
     () => ({ kind: "version", dashboardId, version }),
     [dashboardId, version]
   )

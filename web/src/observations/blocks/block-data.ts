@@ -1,10 +1,8 @@
-import { queryOptions, useQuery } from "@tanstack/react-query"
+import { queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
-import { panelRequestLimiter } from "@/dashboards/limiter"
-import { panelRetry } from "@/dashboards/use-panel-data"
 import { formatDate, zoneLabel } from "@/lib/date-format"
 import type { Block } from "@/observations/queries"
 import type { DataPanel, Panel, Variable } from "@/spec"
@@ -74,48 +72,6 @@ export function frozenCaption(from: string, to: string): string {
   const start = formatDate(Date.parse(from), frozenFormat)
   const end = formatDate(Date.parse(to), frozenFormat)
   return `Frozen, ${start} to ${end} ${zoneLabel(Date.parse(to))}`
-}
-
-export function useBlockPanelData({
-  blockId,
-  from,
-  to,
-  maxDataPoints,
-  enabled,
-}: {
-  blockId: string
-  from?: string
-  to?: string
-  maxDataPoints?: number
-  enabled: boolean
-}) {
-  return useQuery({
-    queryKey: observationKeys.blockData(blockId, {
-      from,
-      to,
-      maxDataPoints,
-      selections: {},
-    }),
-    queryFn: ({ signal }) => {
-      const query: { from?: string; to?: string; max_data_points?: number } = {}
-      if (from !== undefined) query.from = from
-      if (to !== undefined) query.to = to
-      if (maxDataPoints !== undefined) query.max_data_points = maxDataPoints
-      return panelRequestLimiter.run(
-        () =>
-          api
-            .GET("/blocks/{id}/data", {
-              params: { path: { id: blockId }, query },
-              signal,
-            })
-            .then(unwrap),
-        signal
-      )
-    },
-    enabled,
-    retry: panelRetry,
-    staleTime: 0,
-  })
 }
 
 export function snapshotQuery(snapshotId: string) {

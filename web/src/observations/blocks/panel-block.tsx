@@ -1,30 +1,26 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useMemo, useRef, useState, type ReactNode } from "react"
 import { useContainerWidth } from "react-grid-layout"
 
-import {
-  panelBodySize,
-  PanelChrome,
-  type PanelState,
-} from "@/dashboards/panel-chrome"
-import { maxDataPointsFor } from "@/dashboards/use-panel-data"
+import type { Selections } from "@/api/keys"
+import { PanelChrome } from "@/dashboards/panel-chrome"
+import { PanelContainer } from "@/dashboards/panel-container"
+import { VariablesBar } from "@/dashboards/variables-bar"
+import type { BlockMenuHost } from "@/dashboards/panel-menu"
+import type { PanelSource } from "@/dashboards/panel-source"
 import { useDatasources } from "@/datasources/queries"
-import { isRenderable, isStaticPanel } from "@/panels"
-import { createFieldResolver } from "@/panels/field-config"
-import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
-import { panelHasData } from "@/panels/panel-has-data"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import type { Block } from "@/observations/queries"
-import { isDataPanel, isRowPanel, type LayoutPanel } from "@/spec"
+import { isDataPanel, isRowPanel, panelTitle, type LayoutPanel } from "@/spec"
 
-import { bakedSelections, variableCaption } from "../panel-input"
+import { blockVariableStates, variableCaption } from "../panel-input"
 import { BlockByline } from "./block-byline"
 import {
   blockPanelId,
   datasourceUidOf,
   panelBlockBody,
-  useBlockPanelData,
   type PanelBlockBody,
 } from "./block-data"
+import { useBlockInspect } from "./block-inspect"
 
 const defaultFrom = "now-1h"
 
@@ -37,7 +33,11 @@ const unreadablePanel = {
   content: "",
 } as unknown as LayoutPanel
 
-function ignoreRangeSelect() {}
+const noAnnotations: never[] = []
+
+const noUnverified = new Map<string, string>()
+
+function ignore() {}
 
 type Props = { block: Block; height: number }
 
@@ -93,34 +93,39 @@ function ReadablePanelBlock({
   height: number
 }) {
   const { panel, from, to } = body
-  const vars = useMemo(() => bakedSelections(body.variables), [body.variables])
+  const variables = useMemo(() => body.variables ?? [], [body.variables])
+  const [chosen, setChosen] = useState<Selections>({})
+  const { states, selections } = useMemo(
+    () => blockVariableStates(variables, chosen),
+    [variables, chosen]
+  )
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })
   const [cursor] = useState(createSharedCursor)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const datasources = useDatasources()
+  const inspect = useBlockInspect()
+  const source = useMemo<PanelSource>(
+    () => ({
+      kind: "block",
+      observationId: block.observation_id,
+      blockId: block.id,
+      version: block.version,
+    }),
+    [block.observation_id, block.id, block.version]
+  )
+  const open = inspect?.open
+  const blockId = block.id
+  const blockMenu = useMemo<BlockMenuHost>(
+    () => ({
+      onInspect: open === undefined ? undefined : () => open(blockId),
+      range: { from, to },
+      vars: selections,
+    }),
+    [open, blockId, from, to, selections]
+  )
   const dataPanel = isDataPanel(panel) ? panel : undefined
-  const supported = !isRowPanel(panel) && isRenderable(panel.type)
-  const size = panelBodySize(Math.floor(width), Math.floor(height))
-  const query = useBlockPanelData({
-    blockId: block.id,
-    from,
-    to,
-    maxDataPoints: maxDataPointsFor(panel, size.width),
-    enabled: dataPanel !== undefined && supported && mounted,
-  })
-  const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel, vars) : undefined),
-    [dataPanel, vars]
-  )
-  const populated = useMemo(
-    () =>
-      dataPanel !== undefined &&
-      fields !== undefined &&
-      query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames, fields),
-    [dataPanel, fields, query.data]
-  )
   const datasourceUid = dataPanel ? datasourceUidOf(dataPanel) : undefined
   const datasourceName =
     datasourceUid === undefined
@@ -129,12 +134,7 @@ function ReadablePanelBlock({
         datasourceUid)
 
   if (isRowPanel(panel)) return null
-
-  let state: PanelState = "loading"
-  if (!supported) state = "unsupported"
-  else if (!dataPanel) state = "ready"
-  else if (query.data) state = populated ? "ready" : "empty"
-  else if (query.isError) state = "error"
+  const layoutPanel = panel as LayoutPanel
 
   return (
     <BlockFrame
@@ -142,45 +142,56 @@ function ReadablePanelBlock({
       caption={
         <LiveCaption
           datasource={datasourceName}
-          variables={variableCaption(vars)}
+          variables={variableCaption(selections)}
         />
       }
     >
+      <VariablesBar
+        states={states}
+        unverified={noUnverified}
+        onSelect={(name, values) =>
+          setChosen((current) => ({ ...current, [name]: values }))
+        }
+      />
       <div ref={containerRef} style={{ height }} className="w-full">
         {mounted ? (
-          <PanelChrome
-            panel={panel}
-            state={state}
-            error={query.error}
-            refreshing={query.isFetching && query.data !== undefined}
-            onRetry={() => void query.refetch()}
-          >
-            {dataPanel && query.data ? (
-              <PanelBody
-                panel={dataPanel}
-                data={query.data}
-                width={size.width}
-                height={size.height}
-                stateScope={`block:${block.id}`}
-                cursor={cursor}
-                onTimeRangeSelect={ignoreRangeSelect}
-                vars={vars}
-                timezone={undefined}
-                from={from}
-                to={to}
-              />
-            ) : null}
-            {isStaticPanel(panel) && supported ? (
-              <StaticPanelBody
-                panel={panel}
-                width={size.width}
-                height={size.height}
-                vars={vars}
-                from={from ?? defaultFrom}
-                to={to ?? defaultTo}
-              />
-            ) : null}
-          </PanelChrome>
+          <PanelContainer
+            source={source}
+            cursor={cursor}
+            panel={layoutPanel}
+            reused={undefined}
+            variables={variables}
+            title={panelTitle(layoutPanel)}
+            repeatOf={undefined}
+            width={width}
+            height={height}
+            from={from}
+            to={to}
+            timezone={undefined}
+            rangeFrom={from ?? defaultFrom}
+            rangeTo={to ?? defaultTo}
+            selections={selections}
+            selectionsReady
+            blockedBy={undefined}
+            onRetryBlocked={ignore}
+            refreshMs={null}
+            mixedDatasources={false}
+            editable={false}
+            layoutSession={false}
+            openComments={0}
+            unverifiedReason={undefined}
+            highlighted={false}
+            editingPanel={false}
+            canComment={false}
+            canEdit={false}
+            focusOnRender={false}
+            onFocused={ignore}
+            composerRef={composerRef}
+            annotations={noAnnotations}
+            inspected={inspect?.inspectedId === block.id}
+            onInspectTarget={inspect?.publish}
+            blockMenu={blockMenu}
+          />
         ) : null}
       </div>
     </BlockFrame>

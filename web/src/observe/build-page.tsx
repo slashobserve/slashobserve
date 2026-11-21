@@ -13,7 +13,7 @@ import { pageClass } from "@/dashboards/dashboard-page-skeleton"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
 import { PanelContainer } from "@/dashboards/panel-container"
 import { mixesDatasources } from "@/dashboards/panel-datasources"
-import type { PanelSource } from "@/dashboards/panel-source"
+import type { VariableSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -56,7 +56,7 @@ function BuildGrid({
   spec: Dashboard
   fresh: ReadonlySet<string>
 }) {
-  const source = useMemo<PanelSource>(
+  const source = useMemo<VariableSource>(
     () => ({ kind: "build", requestId, saves }),
     [requestId, saves]
   )

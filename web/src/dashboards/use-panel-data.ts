@@ -128,6 +128,11 @@ export function usePanelData({
               },
               signal,
             })
+          case "block":
+            return api.GET("/blocks/{id}/data", {
+              params: { path: { id: source.blockId }, query: params },
+              signal,
+            })
         }
       }
       const read = () =>

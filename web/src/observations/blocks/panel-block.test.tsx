@@ -1,10 +1,11 @@
-import { screen } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { cleanup, screen, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys } from "@/api/keys"
 import type { Block } from "@/observations/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
+import { BlockInspectContext, type BlockInspect } from "./block-inspect"
 import { PanelBlock } from "./panel-block"
 
 const person = {
@@ -44,15 +45,26 @@ function json(body: unknown, status: number): Response {
   })
 }
 
+const blockData = "/api/v1/blocks/b1/data"
+
 function stubData(response: () => Response) {
-  const fetch = vi.fn<(request: Request) => Promise<Response>>(async () =>
-    response()
+  const fetch = vi.fn<(request: Request) => Promise<Response>>(
+    async (request) =>
+      new URL(request.url).pathname === blockData
+        ? response()
+        : json({ available: false }, 200)
   )
   vi.stubGlobal("fetch", fetch)
   return fetch
 }
 
-function renderBlock(block: Block) {
+function dataRequests(fetch: ReturnType<typeof stubData>): URL[] {
+  return fetch.mock.calls
+    .map(([request]) => new URL(request.url))
+    .filter((url) => url.pathname === blockData)
+}
+
+function renderBlock(block: Block, inspect: BlockInspect | null = null) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(datasourceKeys.list(), {
     datasources: [
@@ -66,12 +78,38 @@ function renderBlock(block: Block) {
       },
     ],
   })
-  return renderWithProviders(<PanelBlock block={block} height={240} />, {
-    queryClient,
-  })
+  return renderWithProviders(
+    <BlockInspectContext value={inspect}>
+      <PanelBlock block={block} height={240} />
+    </BlockInspectContext>,
+    {
+      queryClient,
+      route: { path: "/o/$observationId", url: "/o/o1" },
+    }
+  )
 }
 
+class SeenAtOnce {
+  private readonly callback: IntersectionObserverCallback
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback
+  }
+  observe() {
+    this.callback(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver
+    )
+  }
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeEach(() => {
+  vi.stubGlobal("IntersectionObserver", SeenAtOnce)
+})
+
 afterEach(() => {
+  cleanup()
   vi.unstubAllGlobals()
 })
 
@@ -81,8 +119,7 @@ describe("PanelBlock", () => {
     renderBlock(readable)
 
     expect(await screen.findByText("No data")).toBeTruthy()
-    const url = new URL(fetch.mock.calls[0][0].url)
-    expect(url.pathname).toBe("/api/v1/blocks/b1/data")
+    const [url] = dataRequests(fetch)
     expect(url.searchParams.get("from")).toBe("2026-11-06T10:00:00Z")
     expect(url.searchParams.get("to")).toBe("2026-11-06T11:00:00Z")
   })
@@ -140,14 +177,96 @@ describe("PanelBlock", () => {
     expect(
       await screen.findByText("Panel data needs a signed-in user.")
     ).toBeTruthy()
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(dataRequests(fetch)).toHaveLength(1)
   })
 
-  it("says the block could not be read and asks for no data when its body is malformed", () => {
+  it("says the block could not be read and asks for no data when its body is malformed", async () => {
     const fetch = stubData(() => json({ frames: [], meta: {} }, 200))
     renderBlock(panelBlock({ panel: "not a panel" }))
 
-    expect(screen.getByText("This block could not be read.")).toBeTruthy()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(
+      await screen.findByText("This block could not be read.")
+    ).toBeTruthy()
+    expect(dataRequests(fetch)).toHaveLength(0)
+  })
+
+  it("offers the dashboard panel's own tools and none of the dashboard's actions", async () => {
+    stubData(() => json({ frames: [], meta: {} }, 200))
+    const inspect = { inspectedId: null, open: vi.fn(), publish: vi.fn() }
+    const { user } = renderBlock(readable, inspect)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Panel menu: Error rate" })
+    )
+    const items = await screen.findAllByRole("menuitem")
+    expect(items).toHaveLength(4)
+    for (const name of [
+      "View as table",
+      "Inspect",
+      "Download CSV",
+      "Save as PNG",
+    ]) {
+      expect(screen.getByRole("menuitem", { name })).toBeTruthy()
+    }
+
+    await user.click(screen.getByRole("menuitem", { name: "Inspect" }))
+    expect(inspect.open).toHaveBeenCalledWith("b1")
+  })
+
+  it("opens a logs block in Logs over the block's range", async () => {
+    stubData(() => json({ frames: [], meta: {} }, 200))
+    const { user } = renderBlock(
+      panelBlock({
+        panel: {
+          type: "logs",
+          title: "Checkout logs",
+          datasource: "loki-prod",
+          queries: [{ query: '{service="checkout"}' }],
+        },
+        from: "2026-11-06T10:00:00Z",
+        to: "2026-11-06T11:00:00Z",
+      })
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: "Panel menu: Checkout logs" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: /^Open in Logs/ })
+    ).toBeTruthy()
+  })
+
+  it("runs the panel with a value picked from the block's own options", async () => {
+    const fetch = stubData(() => json({ frames: [], meta: {} }, 200))
+    const { user } = renderBlock(
+      panelBlock({
+        panel: {
+          type: "timeseries",
+          title: "Errors",
+          datasource: "prom-prod",
+          queries: [{ query: 'up{env="$env"}' }],
+        },
+        variables: [
+          {
+            name: "env",
+            type: "custom",
+            options: ["prod", "staging"],
+            default: "prod",
+          },
+        ],
+      })
+    )
+
+    await user.click(await screen.findByRole("combobox", { name: "env" }))
+    await user.click(await screen.findByRole("option", { name: "staging" }))
+
+    await waitFor(() =>
+      expect(
+        dataRequests(fetch).at(-1)?.searchParams.getAll("var-env")
+      ).toEqual(["staging"])
+    )
+    expect(dataRequests(fetch)[0].searchParams.getAll("var-env")).toEqual([
+      "prod",
+    ])
   })
 })
