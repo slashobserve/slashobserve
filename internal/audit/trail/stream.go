@@ -15,6 +15,7 @@ import (
 
 const (
 	FollowSlack   = 10 * time.Minute
+	MaxResumeAge  = 24 * time.Hour
 	followAhead   = time.Minute
 	FollowBatch   = 100
 	headStatement = "SELECT xid::text, seq FROM audit_events WHERE occurred_at >= $1 AND xid < pg_snapshot_xmin(pg_current_snapshot()) ORDER BY xid DESC, seq DESC LIMIT 1"
@@ -59,11 +60,14 @@ func (r *Reader) follow(ctx context.Context, text, lastEventID string) (*Follow,
 		f.at, err = r.head(ctx, f.from)
 		return f, err
 	}
-	at, ok := parseEventID(lastEventID)
-	if !ok {
+	at, when, ok := parseEventID(lastEventID)
+	if !ok || when.After(r.now().Add(followAhead)) {
 		return nil, invalidf("the Last-Event-ID header must be the id of a frame of this stream")
 	}
-	f.at = at
+	if when.Before(r.now().Add(-MaxResumeAge)) {
+		return nil, invalidf("the stream resumes only within 24 hours of the last event it sent, and that event is from %s; read the events since then with a search", when.UTC().Format(time.RFC3339))
+	}
+	f.from, f.at = when.UTC().Add(-FollowSlack), at
 	return f, nil
 }
 
@@ -111,7 +115,7 @@ func (f *Follow) Next(ctx context.Context) ([]Followed, error) {
 			if at.Xid, err = strconv.ParseUint(xid, 10, 64); err != nil {
 				return fmt.Errorf("read audit position: %w", err)
 			}
-			out = append(out, Followed{ID: eventID(at), Event: e})
+			out = append(out, Followed{ID: eventID(at, e.at), Event: e})
 			f.at = at
 		}
 		return rows.Err()
@@ -122,22 +126,25 @@ func (f *Follow) Next(ctx context.Context) ([]Followed, error) {
 	return out, nil
 }
 
-func eventID(at filter.Position) string {
-	return strconv.FormatUint(at.Xid, 10) + "-" + strconv.FormatInt(at.Seq, 10)
+func eventID(at filter.Position, when time.Time) string {
+	return strconv.FormatUint(at.Xid, 10) + "-" + strconv.FormatInt(at.Seq, 10) + "-" + strconv.FormatInt(when.UnixMicro(), 10)
 }
 
-func parseEventID(raw string) (filter.Position, bool) {
-	xid, seq, ok := strings.Cut(raw, "-")
-	if !ok {
-		return filter.Position{}, false
+func parseEventID(raw string) (filter.Position, time.Time, bool) {
+	parts := strings.Split(raw, "-")
+	if len(parts) != 3 {
+		return filter.Position{}, time.Time{}, false
 	}
 	var at filter.Position
 	var err error
-	if at.Xid, err = strconv.ParseUint(xid, 10, 64); err != nil {
-		return filter.Position{}, false
+	if at.Xid, err = strconv.ParseUint(parts[0], 10, 64); err != nil {
+		return filter.Position{}, time.Time{}, false
 	}
-	if at.Seq, err = strconv.ParseInt(seq, 10, 64); err != nil || at.Seq < 0 {
-		return filter.Position{}, false
+	seq, seqErr := strconv.ParseUint(parts[1], 10, 63)
+	micros, microsErr := strconv.ParseUint(parts[2], 10, 63)
+	if seqErr != nil || microsErr != nil {
+		return filter.Position{}, time.Time{}, false
 	}
-	return at, true
+	at.Seq = int64(seq)
+	return at, time.UnixMicro(int64(micros)).UTC(), true
 }

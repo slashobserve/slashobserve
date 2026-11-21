@@ -825,10 +825,13 @@ bin/observe audit export --from now-30d --format csv --file audit.csv
 `search` prints one line per event, newest first, with the time, who, through what, the action, the outcome and the target, 50 a page by default and at most 1,000, and pages with `--cursor` or `--all`.
 `show` prints one event and the other events of its request and its agent run, `facets` the most frequent values of a field, `histogram` the counts over time, `aggregate` the rows of a Query DSL `aggs` body and `fields` what a query can name.
 `--json` prints the API response unchanged.
+
 `export` streams NDJSON (the default) or CSV to standard output, or to `--file`, and warns on standard error when it stopped at the server's limit of 1,000,000 rows and more events matched.
 With `--file` it writes to `<file>.partial` and renames it to the name you gave once the export is complete; if the server or the connection ends the export early, it exits 1, says how many events arrived and leaves them in `<file>.partial`.
+
 `search --follow` reads `GET /api/v1/audit/stream` and prints each matching event recorded from then on, in the order it committed, until Ctrl-C; with `--json` it prints one event object per line.
-It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, reconnects from the last event it printed like `activity --follow`, and exits 1 when the key is no longer an Admin.
+It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, and exits 1 when the key is no longer an Admin.
+When the connection drops it reconnects from the last event it printed and prints every matching event committed since, down to 10 minutes before that event's time; when that event is more than 24 hours old it exits 1 and asks you to read the gap with `search --from`.
 
 ## Webhooks
 

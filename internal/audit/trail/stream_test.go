@@ -3,9 +3,11 @@ package trail
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 )
@@ -79,7 +81,7 @@ func TestTheStreamRecordsOneSearchWhenItOpensAndEachRefusal(t *testing.T) {
 	}{
 		{"outcome:denied and status:x", "", http.StatusUnprocessableEntity, CodeQueryInvalid},
 		{"outcome:denied", "12", http.StatusBadRequest, "invalid_request"},
-		{"outcome:denied", "x-1", http.StatusBadRequest, "invalid_request"},
+		{"outcome:denied", "x-1-2", http.StatusBadRequest, "invalid_request"},
 	} {
 		_, err := r.reader.Follow(ctx, tc.text, tc.lastEventID)
 		problem, ok := ProblemOf(err)
@@ -101,15 +103,62 @@ func TestTheStreamRecordsOneSearchWhenItOpensAndEachRefusal(t *testing.T) {
 	}
 }
 
-func TestAStreamEventIDRoundTrips(t *testing.T) {
-	for _, raw := range []string{"0-0", "18446744073709551615-9223372036854775807", "812-4"} {
-		at, ok := parseEventID(raw)
-		if !ok || eventID(at) != raw {
-			t.Errorf("%q parsed to %+v %v", raw, at, ok)
+func TestAResumedStreamReadsBackFromItsLastEventNotFromNow(t *testing.T) {
+	r := newHTTPRig(t)
+	now := time.Now().UTC()
+	r.reader.now = func() time.Time { return now.Add(-30 * time.Minute) }
+	f := r.follow(t, "", "")
+	first := trailtest.Insert(t, r.db, trailtest.Event{At: now.Add(-30 * time.Minute)})
+	page := next(t, f)
+	if got := followedIDs(page); len(got) != 1 || got[0] != first[0] {
+		t.Fatalf("sent %v, want %v", got, first)
+	}
+
+	r.reader.now = time.Now
+	later := trailtest.Insert(t, r.db,
+		trailtest.Event{At: now.Add(-25 * time.Minute)},
+		trailtest.Event{At: now.Add(-30*time.Minute - 2*FollowSlack)},
+		trailtest.Event{At: now},
+	)
+	resumed := r.follow(t, "", page[0].ID)
+	if got := followedIDs(next(t, resumed)); len(got) != 2 || got[0] != later[0] || got[1] != later[2] {
+		t.Fatalf("resumed and sent %v, want %v", got, []string{later[0], later[2]})
+	}
+}
+
+func TestAStreamResumesOnlyWithinADayOfItsLastEvent(t *testing.T) {
+	r := newHTTPRig(t)
+	now := time.Now().UTC()
+	ctx := auth.WithPrincipal(context.Background(), admin)
+	for _, at := range []time.Time{now.Add(-MaxResumeAge - time.Minute), now.Add(time.Hour)} {
+		_, err := r.reader.Follow(ctx, "", eventID(filter.Position{Xid: 5, Seq: 9}, at))
+		problem, ok := ProblemOf(err)
+		if !ok || problem.Status != http.StatusBadRequest || problem.Code != CodeInvalidRequest {
+			t.Errorf("resume from %s = %v", at, err)
 		}
 	}
-	for _, raw := range []string{"", "12", "-1", "1-", "1--2", "x-1", "1-x", "18446744073709551616-1"} {
-		if _, ok := parseEventID(raw); ok {
+	_, err := r.reader.Follow(ctx, "", eventID(filter.Position{Xid: 5, Seq: 9}, now.Add(-MaxResumeAge-time.Minute)))
+	if problem, _ := ProblemOf(err); !strings.Contains(problem.Message, "search") {
+		t.Errorf("a resume past a day says %q, want it to point at a search", problem.Message)
+	}
+	if _, err := r.reader.Follow(ctx, "", eventID(filter.Position{Xid: 5, Seq: 9}, now.Add(-MaxResumeAge+time.Minute))); err != nil {
+		t.Errorf("a resume within a day = %v", err)
+	}
+}
+
+func TestAStreamEventIDRoundTrips(t *testing.T) {
+	at := time.Date(2026, 11, 21, 10, 4, 5, 123456000, time.UTC)
+	for _, raw := range []string{"0-0-0", "18446744073709551615-9223372036854775807-1795255445123456", "812-4-1795255445123456"} {
+		pos, when, ok := parseEventID(raw)
+		if !ok || eventID(pos, when) != raw {
+			t.Errorf("%q parsed to %+v %s %v", raw, pos, when, ok)
+		}
+	}
+	if pos, when, ok := parseEventID(eventID(filter.Position{Xid: 3, Seq: 4}, at)); !ok || !when.Equal(at) || pos.Xid != 3 || pos.Seq != 4 {
+		t.Errorf("an id for %s parsed to %+v %s %v", at, pos, when, ok)
+	}
+	for _, raw := range []string{"", "12", "1-2", "-1-2", "1--2-3", "x-1-2", "1-x-2", "1-2-x", "1-2--3", "18446744073709551616-1-2", "1-2-3-4"} {
+		if _, _, ok := parseEventID(raw); ok {
 			t.Errorf("%q parsed", raw)
 		}
 	}

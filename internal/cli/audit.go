@@ -153,7 +153,7 @@ func (a *app) auditSearchCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search [--query <filter>] [--from <time>] [--to <time>] [--limit N] [--cursor C | --all | --follow]",
 		Short: "List the matching audit events, newest first",
-		Long:  "search prints one line per event: when, who, through what, the action, how it ended and its target.\nPages never repeat or skip an event, even while new ones are recorded; --cursor keeps the window of the first page.\nWith --follow it prints the matching events recorded from now on, in the order they committed, until Ctrl-C, reconnecting from the last event it printed; with --json each is one JSON line.",
+		Long:  "search prints one line per event: when, who, through what, the action, how it ended and its target.\nPages never repeat or skip an event, even while new ones are recorded; --cursor keeps the window of the first page.\nWith --follow it prints the matching events recorded from now on, in the order they committed, until Ctrl-C; with --json each is one JSON line.\nWhen the connection drops it reconnects from the last event it printed and prints every matching event committed since then whose time is at most 10 minutes before that event; it stops with an error when that event is more than 24 hours old, so read the gap with search --from.",
 		Args:  noArgs,
 		RunE:  a.runAuditSearch,
 	}
