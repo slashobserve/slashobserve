@@ -17,6 +17,7 @@ export type AnchorsModule = {
   locate?: (layout: never, anchor: Anchor) => Rect | null
   rangeTest?: (layout: never, start: Point, end: Point) => Anchor | null
   reveal?: (layout: never, anchor: Anchor) => boolean
+  hides?: (layout: never, anchor: Anchor) => boolean
 }
 
 function clampedShare(value: number, length: number): number {

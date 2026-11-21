@@ -7,6 +7,7 @@ import {
   type Rect,
   type Size,
 } from "@/panels/anchors"
+import type { PanelState } from "@/dashboards/panel-chrome"
 import type { PublishedLayout } from "@/panels/anchor-layout"
 
 export type CanvasSurface = {
@@ -15,6 +16,14 @@ export type CanvasSurface = {
 }
 
 export type PinPlacement = { at: Point; gone: boolean }
+
+export type PinView = "data" | "empty" | "hidden"
+
+export function pinView(state: PanelState, tableView: boolean): PinView {
+  if (tableView) return "hidden"
+  if (state === "ready") return "data"
+  return state === "empty" ? "empty" : "hidden"
+}
 
 const placedByPosition: ReadonlySet<Anchor["kind"]> = new Set([
   "position",
@@ -95,17 +104,26 @@ function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
 }
 
+function hiddenBy(surface: CanvasSurface, anchor: Anchor): boolean {
+  const { module, published } = surface
+  if (module?.hides === undefined || published === null) return false
+  return module.hides(published.layout as never, anchor)
+}
+
 export function placePin(
   anchor: Anchor,
   body: Size,
   surface: CanvasSurface,
-  dataShown: boolean
-): PinPlacement {
+  view: PinView
+): PinPlacement | null {
   const stored = storedPoint(anchor, body)
+  if (anchor.kind === "title") return { at: stored, gone: false }
+  if (view === "hidden") return null
   if (placedByPosition.has(anchor.kind)) return { at: stored, gone: false }
-  if (!dataShown) return { at: stored, gone: true }
+  if (view === "empty") return { at: stored, gone: true }
   const locate = locatorOf(surface)
   if (locate === null) return { at: stored, gone: false }
+  if (hiddenBy(surface, anchor)) return null
   const rect = locate(anchor)
   if (rect === null) return { at: stored, gone: true }
   return {
