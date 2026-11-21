@@ -55,7 +55,9 @@ import {
 } from "./list-filter-menus"
 import {
   clampQuery,
+  foldersToBrowse,
   hasFilters,
+  leavesOutAudit,
   pageSearch,
   toFilters,
   withoutPage,
@@ -87,8 +89,12 @@ const flatColumns = [
 ]
 const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
 
-function useDashboardList(search: ListSearch, page: number) {
-  const filters = toFilters(search)
+function useDashboardList(
+  search: ListSearch,
+  page: number,
+  excludeAudit: boolean
+) {
+  const filters = { ...toFilters(search), excludeAudit }
   const offset = listOffset(page)
   return useQuery({
     queryKey: dashboardKeys.filtered(filters, page),
@@ -105,6 +111,7 @@ function useDashboardList(search: ListSearch, page: number) {
               tag: filters.tags,
               folder: filters.folder,
               problem: filters.problem,
+              exclude_audit: filters.excludeAudit ? true : undefined,
               order: filters.order ?? "folder",
             },
           },
@@ -342,9 +349,11 @@ export function DashboardList({
   useDashboardListLive()
   const folderLocked = folderId !== undefined
   const page = search.page ?? 1
+  const hideAudit = leavesOutAudit(search, folderLocked)
   const query = useDashboardList(
     folderLocked ? { ...search, folder: folderId } : search,
-    page
+    page,
+    hideAudit
   )
   const folderResult = useQuery(foldersQuery())
   const dashboards = query.data?.dashboards ?? emptyList
@@ -364,6 +373,13 @@ export function DashboardList({
         : allFolders,
     [allFolders, folderLocked, folderId]
   )
+  const listedFolders = useMemo(
+    () =>
+      hideAudit && folders !== undefined
+        ? foldersToBrowse(folders, undefined)
+        : folders,
+    [hideAudit, folders]
+  )
   const readOnlyFolder = folders?.find(
     (folder) => folderLocked && !folder.permissions.edit
   )
@@ -373,17 +389,26 @@ export function DashboardList({
   const clampTo = settled ? pageOutOfRange(page, total) : null
   const sections = useMemo(
     () =>
-      !flat && loaded && folders !== undefined && clampTo === null
-        ? groupPage(folders, dashboards, {
+      !flat && loaded && listedFolders !== undefined && clampTo === null
+        ? groupPage(listedFolders, dashboards, {
             offset: dataOffset,
             total,
             filtered,
           })
         : null,
-    [flat, loaded, folders, clampTo, dashboards, dataOffset, total, filtered]
+    [
+      flat,
+      loaded,
+      listedFolders,
+      clampTo,
+      dashboards,
+      dataOffset,
+      total,
+      filtered,
+    ]
   )
   const ready = flat
-    ? loaded && folders !== undefined && clampTo === null
+    ? loaded && listedFolders !== undefined && clampTo === null
     : sections !== null
   const rowCount = flat ? dashboards.length : (sections?.length ?? 0)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
@@ -434,13 +459,13 @@ export function DashboardList({
     selected.has(dashboard.id)
   )
   const noDashboards =
-    folders !== undefined &&
+    listedFolders !== undefined &&
     loaded &&
     dashboards.length === 0 &&
     !query.isPlaceholderData &&
     !filtered &&
     clampTo === null &&
-    (folderLocked || !hasPeopleFolders(folders))
+    (folderLocked || !hasPeopleFolders(listedFolders))
   const empty = ready && (noDashboards || rowCount === 0)
   const [resetKey, setResetKey] = useState(0)
   const pending = query.isPending || folderResult.isPending

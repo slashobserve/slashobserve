@@ -25,6 +25,7 @@ export type DashboardListFilters = {
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
   order?: "updated" | "name" | "views"
+  excludeAudit?: boolean
 }
 
 export const dashboardKeys = {

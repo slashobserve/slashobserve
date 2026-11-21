@@ -145,6 +145,7 @@ describe("AuditDashboards", () => {
       await screen.findByRole("heading", { level: 1, name: "Records" })
     ).toBeInTheDocument()
     expect(lists.map((params) => params.get("folder"))).toEqual([auditId])
+    expect(lists.map((params) => params.get("exclude_audit"))).toEqual([null])
   })
 
   it("says the Audit folder was deleted and is not recreated when no folder is flagged", async () => {

@@ -144,6 +144,20 @@ export function toFilters(search: ListSearch): DashboardListFilters {
   }
 }
 
+export function leavesOutAudit(
+  search: ListSearch,
+  folderLocked: boolean
+): boolean {
+  return !folderLocked && search.folder === undefined
+}
+
+export function foldersToBrowse<T extends { id: string; audit: boolean }>(
+  folders: readonly T[],
+  chosen: string | undefined
+): T[] {
+  return folders.filter((folder) => !folder.audit || folder.id === chosen)
+}
+
 export function hasFilters(search: ListSearch): boolean {
   return (
     search.q !== undefined ||

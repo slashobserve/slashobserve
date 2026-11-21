@@ -1,9 +1,12 @@
-import { waitFor } from "@testing-library/react"
+import { screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { MadeByMenu } from "./list-filter-menus"
+import type { Folder } from "@/folders/queries"
+
+import { FolderMenu, MadeByMenu } from "./list-filter-menus"
 
 const session = vi.hoisted(() => ({ role: "admin" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -46,4 +49,58 @@ describe("MadeByMenu", () => {
       expect(fetch).not.toHaveBeenCalled()
     }
   )
+})
+
+function folder(id: string, title: string, audit: boolean): Folder {
+  return {
+    id,
+    title,
+    general: false,
+    personal: false,
+    restricted: false,
+    admins_only: audit,
+    audit,
+    dashboard_count: 0,
+    grantees: [],
+    grantee_count: 0,
+    created_by: null,
+    permissions: { comment: true, edit: true, manage: true, create: true },
+    level: "admin",
+  }
+}
+
+describe("FolderMenu", () => {
+  const folders = [folder("f1", "Shop", false), folder("f2", "Trail", true)]
+
+  async function open(value: string | undefined) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ folders }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+      )
+    )
+    renderWithProviders(<FolderMenu value={value} onChange={() => {}} />)
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Folder:/ })
+    )
+  }
+
+  it("does not offer the Audit folder to browse", async () => {
+    await open(undefined)
+    expect(
+      await screen.findByRole("menuitemradio", { name: "Shop" })
+    ).toBeDefined()
+    expect(screen.queryByRole("menuitemradio", { name: "Trail" })).toBeNull()
+  })
+
+  it("keeps it when a link already chose it", async () => {
+    await open("f2")
+    expect(
+      await screen.findByRole("menuitemradio", { name: "Trail" })
+    ).toBeDefined()
+  })
 })

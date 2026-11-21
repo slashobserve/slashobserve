@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 import {
   clampQuery,
   folderText,
+  foldersToBrowse,
   hasFilters,
+  leavesOutAudit,
   madeByText,
   maxQueryLength,
   maxTags,
@@ -391,5 +393,31 @@ describe("folderText", () => {
 
   it("names a folder it cannot find generically", () => {
     expect(folderText(id, [])).toBe("a folder")
+  })
+})
+
+describe("leavesOutAudit", () => {
+  it("leaves the Audit folder out only when no folder is chosen or locked", () => {
+    expect(leavesOutAudit({}, false)).toBe(true)
+    expect(leavesOutAudit({ q: "a", kind: "any" }, false)).toBe(true)
+    expect(leavesOutAudit({}, true)).toBe(false)
+    expect(leavesOutAudit({ folder: id }, false)).toBe(false)
+  })
+})
+
+describe("foldersToBrowse", () => {
+  const folders = [
+    { id: "a", audit: false },
+    { id: "b", audit: true },
+  ]
+
+  it("drops the Audit folder", () => {
+    expect(foldersToBrowse(folders, undefined)).toEqual([
+      { id: "a", audit: false },
+    ])
+  })
+
+  it("keeps it when it is the chosen folder", () => {
+    expect(foldersToBrowse(folders, "b")).toEqual(folders)
   })
 })

@@ -29,7 +29,12 @@ import {
 import { roleAtLeast } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
-import { folderText, madeByText, tagsText } from "./list-filters"
+import {
+  folderText,
+  foldersToBrowse,
+  madeByText,
+  tagsText,
+} from "./list-filters"
 
 type MenuProps = {
   value: string | undefined
@@ -131,7 +136,7 @@ export function DatasourceMenu({ value, onChange }: MenuProps) {
 }
 
 export function FolderMenu({ value, onChange }: MenuProps) {
-  const folders = useQuery(foldersQuery()).data ?? []
+  const folders = foldersToBrowse(useQuery(foldersQuery()).data ?? [], value)
   return (
     <DropdownMenu>
       <Trigger>{`Folder: ${folderText(value, folders)}`}</Trigger>
