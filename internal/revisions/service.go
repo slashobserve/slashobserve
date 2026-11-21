@@ -436,6 +436,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ClientID:         p.clientID,
 
 		SubjectObservationID: p.subject(),
+		Investigation:        p.opensObservation(),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
@@ -1137,22 +1138,23 @@ func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsq
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Intent:       Intent(row.Intent),
-		Source:       SourceOf(row),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempts:     int(row.Attempts),
-		Error:        row.Error.String,
-		RequestedBy:  requesterOf(row),
-		CreatedAt:    row.CreatedAt.Time.UTC(),
-		Origin:       row.Origin.String,
-		OriginClient: row.OriginClient.String,
-		AssignedKind: AssigneeKind(row.AssignedKind),
-		AssignedID:   row.AssignedID.String(),
+		ID:            row.ID.String(),
+		DashboardID:   row.DashboardID.String(),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Source:        SourceOf(row),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempts:      int(row.Attempts),
+		Error:         row.Error.String,
+		RequestedBy:   requesterOf(row),
+		CreatedAt:     row.CreatedAt.Time.UTC(),
+		Origin:        row.Origin.String,
+		OriginClient:  row.OriginClient.String,
+		AssignedKind:  AssigneeKind(row.AssignedKind),
+		AssignedID:    row.AssignedID.String(),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

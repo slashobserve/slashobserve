@@ -76,6 +76,7 @@ type agentRequestJSON struct {
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind"`
 	Intent         Intent             `json:"intent"`
+	Investigation  bool               `json:"investigation"`
 	Trigger        string             `json:"trigger"`
 	Title          string             `json:"title"`
 	Prompt         string             `json:"prompt"`
@@ -140,6 +141,7 @@ type requestSummaryJSON struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
 	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	Trigger        string     `json:"trigger"`
 	Title          string     `json:"title"`
 	PinnedAt       *string    `json:"pinned_at"`

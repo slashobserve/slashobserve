@@ -102,6 +102,8 @@ An Admin can show anyone's request with `observe status`, read only.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
+
+`observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).

@@ -999,7 +999,7 @@ components:
     AgentRun:
       type: object
       additionalProperties: false
-      required: [id, intent, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
+      required: [id, intent, investigation, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
       properties:
         id:
           type: string
@@ -1008,6 +1008,9 @@ components:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         title:
           type: string
           description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word.
@@ -1098,7 +1101,7 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, intent, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
+            required: [id, intent, investigation, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
             properties:
               id:
                 type: string
@@ -1106,6 +1109,9 @@ components:
               intent:
                 type: string
                 enum: [ask, apply]
+              investigation:
+                type: boolean
+                description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
               state:
                 type: string
                 enum: [queued, running, canceling]
@@ -4132,6 +4138,7 @@ components:
         - id
         - dashboard_id
         - intent
+        - investigation
         - comment_id
         - panel_id
         - prompt
@@ -4167,6 +4174,9 @@ components:
           type: string
           enum: [apply]
           description: "Always `apply`; the new-dashboard request that created the dashboard is the one with a null `base_version`, and it appears once it has succeeded."
+        investigation:
+          type: boolean
+          description: Always false; a version is saved by an apply run, never by an investigation.
         comment_id:
           type: string
           format: uuid
@@ -4648,6 +4658,7 @@ components:
         - kind
         - title
         - intent
+        - investigation
         - trigger
         - prompt
         - dashboard_id
@@ -4708,6 +4719,9 @@ components:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
@@ -4930,7 +4944,7 @@ components:
     ChatTurnSummary:
       type: object
       additionalProperties: false
-      required: [id, state, prompt]
+      required: [id, state, prompt, investigation]
       properties:
         id:
           type: string
@@ -4940,6 +4954,9 @@ components:
           enum: [queued, running, canceling, succeeded, failed, canceled]
         prompt:
           type: string
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
     Chat:
       type: object
       additionalProperties: false
@@ -5028,6 +5045,7 @@ components:
         - title
         - pinned_at
         - intent
+        - investigation
         - trigger
         - prompt
         - status
@@ -5068,6 +5086,9 @@ components:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]

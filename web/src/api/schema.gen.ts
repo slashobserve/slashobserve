@@ -4624,6 +4624,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
             /** @enum {string} */
@@ -4670,6 +4672,8 @@ export interface components {
                 id: string;
                 /** @enum {string} */
                 intent: "ask" | "apply";
+                /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+                investigation: boolean;
                 /** @enum {string} */
                 state: "queued" | "running" | "canceling";
                 /** Format: date-time */
@@ -6293,6 +6297,8 @@ export interface components {
              * @enum {string}
              */
             intent: "apply";
+            /** @description Always false; a version is saved by an apply run, never by an investigation. */
+            investigation: boolean;
             /**
              * Format: uuid
              * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
@@ -6555,6 +6561,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
@@ -6712,6 +6720,8 @@ export interface components {
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             prompt: string;
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
         };
         Chat: {
             /**
@@ -6766,6 +6776,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}

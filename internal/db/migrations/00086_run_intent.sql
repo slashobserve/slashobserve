@@ -4,7 +4,8 @@ ALTER TABLE agent_requests
   ADD COLUMN IF NOT EXISTS intent TEXT,
   ADD COLUMN IF NOT EXISTS kind TEXT,
   ADD COLUMN IF NOT EXISTS applies_finding_id UUID,
-  ADD COLUMN IF NOT EXISTS subject_observation_id UUID;
+  ADD COLUMN IF NOT EXISTS subject_observation_id UUID,
+  ADD COLUMN IF NOT EXISTS investigation BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE findings
   ADD COLUMN IF NOT EXISTS suggested_change TEXT,
@@ -29,6 +30,9 @@ BEGIN
             WHEN NEW.source = 'investigate' THEN 'investigate'
             WHEN NEW.intent = 'ask' AND (NEW.dashboard_id IS NOT NULL OR NEW.subject_observation_id IS NOT NULL) THEN 'investigate'
             ELSE 'build' END;
+        END IF;
+        IF NEW.source = 'investigate' AND NEW.thread_message_id IS NULL THEN
+          NEW.investigation := true;
         END IF;
         RETURN NEW;
       END
@@ -132,7 +136,7 @@ CREATE INDEX CONCURRENTLY agent_requests_create_active_idx ON agent_requests (re
   WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running');
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_investigation_active_idx;
 CREATE INDEX CONCURRENTLY agent_requests_investigation_active_idx ON agent_requests (requested_by_id)
-  WHERE kind = 'investigate' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
+  WHERE investigation AND status IN ('queued', 'running');
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_suggest_intent_active_idx;
 CREATE INDEX CONCURRENTLY agent_requests_suggest_intent_active_idx ON agent_requests (requested_by_id)
   WHERE intent = 'suggest' AND status IN ('queued', 'running');
@@ -404,4 +408,4 @@ FOR EACH ROW EXECUTE FUNCTION agent_requests_old_server_chat();
 
 ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_suggested_change_check, DROP COLUMN IF EXISTS observe_worthy, DROP COLUMN IF EXISTS suggested_change;
 DROP INDEX IF EXISTS agent_requests_subject_observation_idx;
-ALTER TABLE agent_requests DROP COLUMN IF EXISTS subject_observation_id, DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS kind, DROP COLUMN IF EXISTS intent;
+ALTER TABLE agent_requests DROP COLUMN IF EXISTS investigation, DROP COLUMN IF EXISTS subject_observation_id, DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS kind, DROP COLUMN IF EXISTS intent;
