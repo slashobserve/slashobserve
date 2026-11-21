@@ -13,17 +13,13 @@ func refuseSharedHolders(ctx context.Context, q *dbsqlc.Queries, before datasour
 	if def.Audience != datasource.AudienceAdmins || before == datasource.AudienceAdmins {
 		return nil
 	}
-	holders, err := placement.SharedHolders(ctx, q, def.UID)
-	if err != nil || len(holders) == 0 {
+	c, err := placement.SharedCensus(ctx, q, def.UID)
+	if err != nil || !c.Held() {
 		return err
 	}
-	items, hidden := []folders.ContentItem{}, 0
-	for _, h := range holders {
-		if h.Personal {
-			hidden++
-			continue
-		}
-		items = append(items, h.ContentItem)
+	items := make([]folders.ContentItem, len(c.Listed))
+	for i, h := range c.Listed {
+		items[i] = h.ContentItem
 	}
-	return folders.RestrictedAudience(def.UID, items, hidden)
+	return folders.RestrictedAudience(def.UID, items, c.Unlisted(), c.Personal)
 }

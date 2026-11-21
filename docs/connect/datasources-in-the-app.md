@@ -40,7 +40,7 @@ Content in any other folder is read as everyone reads it, by Admins too: a panel
 Only content in a folder only Admins can read, the explore query, panel drafts and agent builds read with the Admin's own role.
 
 Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
-`items` lists up to 20 of them with their kind, id, title and folder, so an Admin can move them first, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
+`items` lists up to 20 of them outside people's My Dashboards with their kind, id, title and folder, so an Admin can move them first, the message says how many more are not listed, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
 `observe datasources edit` prints the same list.
 
 ## Credentials are write-only

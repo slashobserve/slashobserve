@@ -62,7 +62,8 @@ There is no per-team or per-folder datasource access; a restricted folder hides 
 
 A dashboard, proposal, observation or saved search that reads an `admins` entry lives only in a [folder only Admins can read](../teams/folders.md), as for a [datasource added in the app](../connect/datasources-in-the-app.md#who-can-query-it).
 The server reads the file only when it starts, and it refuses to start while content in any other folder reads an entry the file marks `admins`.
-The startup error `datasource_audience_refused` names the datasource and how many items read it, lists up to 20 of them with their kind, id, title and folder, and says the two ways out: move them into a folder only Admins can read while the entry is still `everyone`, or keep `audience: everyone` in the file.
+The startup error `datasource_audience_refused` names the datasource and how many items read it, lists up to 20 of the ones outside people's My Dashboards with their kind, id, title and folder, counts the rest, and says the two ways out: move them into a folder only Admins can read while the entry is still `everyone`, or keep `audience: everyone` in the file.
+Items in someone's My Dashboards are only counted, never named, because nobody but their owner may see them.
 
 To make an entry `admins`:
 

@@ -202,21 +202,24 @@ func (q *Queries) PlacementObservationSnapshots(ctx context.Context, id pgtype.U
 	return items, nil
 }
 
-const placementPanelBlocks = `-- name: PlacementPanelBlocks :many
-SELECT o.id, b.id AS block_id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal, b.body AS payload
-FROM observation_blocks b
-JOIN observations o ON o.id = b.observation_id
+const placementObservations = `-- name: PlacementObservations :many
+SELECT o.id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal
+FROM observations o
 JOIN folders f ON f.id = o.folder_id
-WHERE b.kind = 'panel'
-  AND ($1::uuid IS NULL OR o.folder_id = $1::uuid)
+WHERE ($1::uuid IS NULL OR o.folder_id = $1::uuid)
   AND (NOT $2::boolean OR NOT f.admins_only)
-  AND b.id > $3::uuid
-  AND EXISTS (SELECT 1 FROM unnest($4::text[]) AS u(uid) WHERE position('"' || u.uid || '"' IN b.body::text) > 0)
-ORDER BY b.id
+  AND o.id > $3::uuid
+  AND (EXISTS (SELECT 1 FROM observation_blocks b, unnest($4::text[]) AS u(uid)
+      WHERE b.observation_id = o.id AND b.kind = 'panel' AND position('"' || u.uid || '"' IN b.body::text) > 0)
+    OR EXISTS (SELECT 1 FROM snapshots s WHERE s.observation_id = o.id
+      AND (s.datasource_uids && $4::text[]
+        OR EXISTS (SELECT 1 FROM unnest($4::text[]) AS u(uid)
+          WHERE position('"' || u.uid || '"' IN s.panel::text) > 0 OR position('"' || u.uid || '"' IN s.query::text) > 0))))
+ORDER BY o.id
 LIMIT $5
 `
 
-type PlacementPanelBlocksParams struct {
+type PlacementObservationsParams struct {
 	FolderID   pgtype.UUID
 	SharedOnly bool
 	AfterID    pgtype.UUID
@@ -224,18 +227,16 @@ type PlacementPanelBlocksParams struct {
 	PageSize   int32
 }
 
-type PlacementPanelBlocksRow struct {
+type PlacementObservationsRow struct {
 	ID             pgtype.UUID
-	BlockID        pgtype.UUID
 	Title          string
 	FolderID       pgtype.UUID
 	FolderTitle    string
 	FolderPersonal bool
-	Payload        []byte
 }
 
-func (q *Queries) PlacementPanelBlocks(ctx context.Context, arg PlacementPanelBlocksParams) ([]PlacementPanelBlocksRow, error) {
-	rows, err := q.db.Query(ctx, placementPanelBlocks,
+func (q *Queries) PlacementObservations(ctx context.Context, arg PlacementObservationsParams) ([]PlacementObservationsRow, error) {
+	rows, err := q.db.Query(ctx, placementObservations,
 		arg.FolderID,
 		arg.SharedOnly,
 		arg.AfterID,
@@ -246,17 +247,15 @@ func (q *Queries) PlacementPanelBlocks(ctx context.Context, arg PlacementPanelBl
 		return nil, err
 	}
 	defer rows.Close()
-	var items []PlacementPanelBlocksRow
+	var items []PlacementObservationsRow
 	for rows.Next() {
-		var i PlacementPanelBlocksRow
+		var i PlacementObservationsRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.BlockID,
 			&i.Title,
 			&i.FolderID,
 			&i.FolderTitle,
 			&i.FolderPersonal,
-			&i.Payload,
 		); err != nil {
 			return nil, err
 		}
@@ -343,14 +342,16 @@ JOIN folders f ON f.id = s.folder_id
 WHERE s.datasource_uid = ANY($1::text[])
   AND ($2::uuid IS NULL OR s.folder_id = $2::uuid)
   AND (NOT $3::boolean OR NOT f.admins_only)
-ORDER BY s.title, s.id
-LIMIT $4
+  AND s.id > $4::uuid
+ORDER BY s.id
+LIMIT $5
 `
 
 type PlacementSavedSearchesParams struct {
 	Uids       []string
 	FolderID   pgtype.UUID
 	SharedOnly bool
+	AfterID    pgtype.UUID
 	PageSize   int32
 }
 
@@ -368,6 +369,7 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 		arg.Uids,
 		arg.FolderID,
 		arg.SharedOnly,
+		arg.AfterID,
 		arg.PageSize,
 	)
 	if err != nil {
@@ -384,77 +386,6 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 			&i.FolderTitle,
 			&i.FolderPersonal,
 			&i.DatasourceUid,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const placementSnapshots = `-- name: PlacementSnapshots :many
-SELECT o.id, s.id AS snapshot_id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal, s.panel, s.query, s.datasource_uids
-FROM snapshots s
-JOIN observations o ON o.id = s.observation_id
-JOIN folders f ON f.id = o.folder_id
-WHERE ($1::uuid IS NULL OR o.folder_id = $1::uuid)
-  AND (NOT $2::boolean OR NOT f.admins_only)
-  AND s.id > $3::uuid
-  AND (s.datasource_uids && $4::text[]
-    OR EXISTS (SELECT 1 FROM unnest($4::text[]) AS u(uid)
-      WHERE position('"' || u.uid || '"' IN s.panel::text) > 0 OR position('"' || u.uid || '"' IN s.query::text) > 0))
-ORDER BY s.id
-LIMIT $5
-`
-
-type PlacementSnapshotsParams struct {
-	FolderID   pgtype.UUID
-	SharedOnly bool
-	AfterID    pgtype.UUID
-	Uids       []string
-	PageSize   int32
-}
-
-type PlacementSnapshotsRow struct {
-	ID             pgtype.UUID
-	SnapshotID     pgtype.UUID
-	Title          string
-	FolderID       pgtype.UUID
-	FolderTitle    string
-	FolderPersonal bool
-	Panel          []byte
-	Query          []byte
-	DatasourceUids []string
-}
-
-func (q *Queries) PlacementSnapshots(ctx context.Context, arg PlacementSnapshotsParams) ([]PlacementSnapshotsRow, error) {
-	rows, err := q.db.Query(ctx, placementSnapshots,
-		arg.FolderID,
-		arg.SharedOnly,
-		arg.AfterID,
-		arg.Uids,
-		arg.PageSize,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []PlacementSnapshotsRow
-	for rows.Next() {
-		var i PlacementSnapshotsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.SnapshotID,
-			&i.Title,
-			&i.FolderID,
-			&i.FolderTitle,
-			&i.FolderPersonal,
-			&i.Panel,
-			&i.Query,
-			&i.DatasourceUids,
 		); err != nil {
 			return nil, err
 		}

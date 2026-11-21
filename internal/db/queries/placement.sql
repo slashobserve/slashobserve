@@ -38,31 +38,20 @@ WHERE (sqlc.narg('folder_id')::uuid IS NULL OR d.folder_id = sqlc.narg('folder_i
 ORDER BY r.proposal_id, r.revision
 LIMIT @page_size;
 
--- name: PlacementPanelBlocks :many
-SELECT o.id, b.id AS block_id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal, b.body AS payload
-FROM observation_blocks b
-JOIN observations o ON o.id = b.observation_id
-JOIN folders f ON f.id = o.folder_id
-WHERE b.kind = 'panel'
-  AND (sqlc.narg('folder_id')::uuid IS NULL OR o.folder_id = sqlc.narg('folder_id')::uuid)
-  AND (NOT @shared_only::boolean OR NOT f.admins_only)
-  AND b.id > @after_id::uuid
-  AND EXISTS (SELECT 1 FROM unnest(@uids::text[]) AS u(uid) WHERE position('"' || u.uid || '"' IN b.body::text) > 0)
-ORDER BY b.id
-LIMIT @page_size;
-
--- name: PlacementSnapshots :many
-SELECT o.id, s.id AS snapshot_id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal, s.panel, s.query, s.datasource_uids
-FROM snapshots s
-JOIN observations o ON o.id = s.observation_id
+-- name: PlacementObservations :many
+SELECT o.id, o.title, o.folder_id, f.title AS folder_title, f.personal AS folder_personal
+FROM observations o
 JOIN folders f ON f.id = o.folder_id
 WHERE (sqlc.narg('folder_id')::uuid IS NULL OR o.folder_id = sqlc.narg('folder_id')::uuid)
   AND (NOT @shared_only::boolean OR NOT f.admins_only)
-  AND s.id > @after_id::uuid
-  AND (s.datasource_uids && @uids::text[]
-    OR EXISTS (SELECT 1 FROM unnest(@uids::text[]) AS u(uid)
-      WHERE position('"' || u.uid || '"' IN s.panel::text) > 0 OR position('"' || u.uid || '"' IN s.query::text) > 0))
-ORDER BY s.id
+  AND o.id > @after_id::uuid
+  AND (EXISTS (SELECT 1 FROM observation_blocks b, unnest(@uids::text[]) AS u(uid)
+      WHERE b.observation_id = o.id AND b.kind = 'panel' AND position('"' || u.uid || '"' IN b.body::text) > 0)
+    OR EXISTS (SELECT 1 FROM snapshots s WHERE s.observation_id = o.id
+      AND (s.datasource_uids && @uids::text[]
+        OR EXISTS (SELECT 1 FROM unnest(@uids::text[]) AS u(uid)
+          WHERE position('"' || u.uid || '"' IN s.panel::text) > 0 OR position('"' || u.uid || '"' IN s.query::text) > 0))))
+ORDER BY o.id
 LIMIT @page_size;
 
 -- name: PlacementSavedSearches :many
@@ -72,7 +61,8 @@ JOIN folders f ON f.id = s.folder_id
 WHERE s.datasource_uid = ANY(@uids::text[])
   AND (sqlc.narg('folder_id')::uuid IS NULL OR s.folder_id = sqlc.narg('folder_id')::uuid)
   AND (NOT @shared_only::boolean OR NOT f.admins_only)
-ORDER BY s.title, s.id
+  AND s.id > @after_id::uuid
+ORDER BY s.id
 LIMIT @page_size;
 
 -- name: PlacementDashboardSpecs :many

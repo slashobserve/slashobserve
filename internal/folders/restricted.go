@@ -83,8 +83,11 @@ func RestrictedOpening(item ContentItem, datasource string) error {
 		"the %s %q in this folder reads the datasource %q, which only Admins can query; move it to another folder only Admins can read before you share this one", item.Kind.Noun(), item.Title, datasource)}
 }
 
-func RestrictedAudience(datasource string, items []ContentItem, hidden int) error {
+func RestrictedAudience(datasource string, items []ContentItem, unlisted, hidden int) error {
 	message := fmt.Sprintf("dashboards, observations or saved searches outside folders only Admins can read use the datasource %q; move them to a folder only Admins can read before you make it Admins only", datasource)
+	if unlisted > 0 {
+		message += fmt.Sprintf("; %d more are not listed", unlisted)
+	}
 	if hidden > 0 {
 		message += fmt.Sprintf("; %d of them are in people's My Dashboards, which only their owners can open", hidden)
 	}

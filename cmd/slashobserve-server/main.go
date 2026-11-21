@@ -175,21 +175,25 @@ func datasourcesExit(err error) error {
 	return exit
 }
 
-func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
-	var adminsOnly []string
+func fileAdminsOnly(sources []config.Datasource) []string {
+	var uids []string
 	for _, ds := range sources {
 		if ds.Audience == datasource.AudienceAdmins {
-			adminsOnly = append(adminsOnly, ds.UID)
+			uids = append(uids, ds.UID)
 		}
 	}
-	err := placement.CheckFileAudiences(ctx, q, adminsOnly)
+	return uids
+}
+
+func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
+	err := placement.CheckFileAudiences(ctx, q, fileAdminsOnly(sources))
 	var misplaced *placement.MisplacedError
 	switch {
 	case err == nil:
 		return nil
 	case errors.As(err, &misplaced):
 		return &exitError{code: "datasource_audience_refused", detail: misplaced.Error(), cause: err,
-			attrs: []any{slog.String("datasource_uid", misplaced.Datasource), slog.Int("count", misplaced.Count)}}
+			attrs: []any{slog.String("datasource_uid", misplaced.Datasource), slog.Int("count", misplaced.Shared+misplaced.Personal)}}
 	}
 	return withheld("datasource_audience_check_failed", err)
 }

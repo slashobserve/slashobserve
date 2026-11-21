@@ -1,7 +1,10 @@
 package placement
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -40,6 +43,29 @@ func (r holdersRig) dashboard(t *testing.T, folder pgtype.UUID, specs ...string)
 func (r holdersRig) observation(t *testing.T, folder pgtype.UUID) string {
 	t.Helper()
 	return r.scalar(t, `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name) VALUES ($1, 'Payroll drift', 'user', gen_random_uuid(), 'Ada') RETURNING id::text`, folder)
+}
+
+func (r holdersRig) personalFolder(t *testing.T) pgtype.UUID {
+	t.Helper()
+	var id pgtype.UUID
+	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `WITH u AS (INSERT INTO users (oidc_issuer, oidc_subject, email, name) VALUES ('https://idp', gen_random_uuid()::text, gen_random_uuid()::text || '@example.com', 'Ada') RETURNING id)
+SELECT f.id FROM folders f, u WHERE f.personal AND f.owner_id = u.id`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func (r holdersRig) savedSearch(t *testing.T, folder pgtype.UUID, title string) {
+	t.Helper()
+	r.d.Exec(t, `INSERT INTO saved_searches (kind, title, datasource_uid, query, time_from, time_to, folder_id, created_by_kind, created_by_id, created_by_name) VALUES ('metrics', $2, 'audit', 'up', 'now-1h', 'now', $1, 'user', gen_random_uuid(), 'Ada')`, folder, title)
+}
+
+func (r holdersRig) heldTwice(t *testing.T, folder pgtype.UUID) {
+	t.Helper()
+	id := r.observation(t, folder)
+	r.d.Exec(t, `INSERT INTO observation_blocks (observation_id, kind, position, body, created_by_kind, created_by_id, created_by_name) VALUES ($1::uuid, 'panel', 0, '{"panel":{"type":"stat","datasource":"audit","queries":[{"query":"up"}]}}', 'user', gen_random_uuid(), 'Ada')`, id)
+	r.d.Exec(t, `INSERT INTO snapshots (observation_id, panel, query, frames, user_scoped, time_from, time_to, created_by_kind, created_by_id, created_by_name, datasource_uids)
+VALUES ($1::uuid, '{"type":"stat","datasource":"${ds}"}', '[]', '{"frames":[]}', false, now() - interval '1 hour', now(), 'user', gen_random_uuid(), 'Ada', '{audit}')`, id)
 }
 
 const (
@@ -91,7 +117,7 @@ VALUES ($1::uuid, '{"type":"stat","datasource":"${ds}"}', '[]', '{"frames":[]}',
 			if err != nil || !held || h.Kind != want || h.Datasource != "audit" || h.FolderID != folder.String() {
 				t.Fatalf("holder = %+v %v %v", h, held, err)
 			}
-			if shared, err := SharedHolders(t.Context(), r.d.Queries(), "audit"); err != nil || len(shared) != 0 {
+			if shared, err := SharedCensus(t.Context(), r.d.Queries(), "audit"); err != nil || shared.Held() {
 				t.Fatalf("shared holders of content in an admins only folder = %+v %v", shared, err)
 			}
 		})
@@ -106,8 +132,60 @@ func TestAFolderHoldsNothingWhenTheTextOnlyNamesTheDatasource(t *testing.T) {
 		t.Fatalf("holder = %+v %v %v", h, held, err)
 	}
 	r.dashboard(t, folder, readsAudit)
-	shared, err := SharedHolders(t.Context(), r.d.Queries(), "audit")
-	if err != nil || len(shared) != 1 || shared[0].FolderTitle != "Team" || shared[0].Personal {
+	shared, err := SharedCensus(t.Context(), r.d.Queries(), "audit")
+	if err != nil || shared.Shared != 1 || shared.Personal != 0 || len(shared.Listed) != 1 || shared.Listed[0].FolderTitle != "Team" {
 		t.Fatalf("shared = %+v %v", shared, err)
+	}
+}
+
+func TestTheSharedCensusListsOnlySharedItemsAndCountsEachItemOnce(t *testing.T) {
+	r := newHoldersRig(t)
+	mine := r.personalFolder(t)
+	for i := range 3 {
+		r.savedSearch(t, mine, fmt.Sprintf("Mine %d", i))
+	}
+	r.dashboard(t, mine, readsAudit)
+	team := foldertest.Open(t, r.d, "Team")
+	for range MaxListed + 2 {
+		r.dashboard(t, team, readsAudit, readsProm, readsAudit)
+	}
+	r.dashboard(t, team, namesAudit)
+	r.heldTwice(t, team)
+	r.heldTwice(t, team)
+	r.dashboard(t, foldertest.AdminsOnly(t, r.d, "Payroll"), readsAudit)
+
+	c, err := SharedCensus(t.Context(), r.d.Queries(), "audit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Shared != MaxListed+4 || c.Personal != 4 || len(c.Listed) != MaxListed || c.Unlisted() != 4 {
+		t.Fatalf("census = %d shared, %d personal, %d listed, %d unlisted; want %d, 4, %d, 4", c.Shared, c.Personal, len(c.Listed), c.Unlisted(), MaxListed+4, MaxListed)
+	}
+	for _, h := range c.Listed {
+		if h.FolderID != team.String() {
+			t.Fatalf("listed %+v, want only items in the shared folder", h)
+		}
+	}
+}
+
+func TestTheBootRefusalNamesNoItemInAPersonalFolder(t *testing.T) {
+	r := newHoldersRig(t)
+	mine := r.personalFolder(t)
+	r.savedSearch(t, mine, "My payroll search")
+	r.savedSearch(t, foldertest.Open(t, r.d, "Team"), "Team payroll search")
+
+	err := CheckFileAudiences(t.Context(), r.d.Queries(), []string{"audit"})
+	var misplaced *MisplacedError
+	if !errors.As(err, &misplaced) {
+		t.Fatalf("check = %v, want a refusal", err)
+	}
+	text := err.Error()
+	for _, want := range []string{`but 2 dashboards`, `"Team payroll search" in folder "Team"`, "1 in people's My Dashboards"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("refusal lacks %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "My payroll search") || strings.Contains(text, mine.String()) {
+		t.Fatalf("refusal names the personal item:\n%s", text)
 	}
 }
