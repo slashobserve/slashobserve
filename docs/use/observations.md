@@ -210,6 +210,7 @@ The page has the same tool bar at the bottom of the screen as a dashboard, with 
 On a live panel block, Comment mode and Ask mode work as on a dashboard panel: a click names the spot under the pointer, a drag across a time series names the range, and pins mark the threads and your own questions, as described in [Comment pins](web.md#comment-pins) and [Ask mode](web.md#ask-mode).
 `c` or `a` with the pointer over a panel block, the block's panel menu and the **Comment** and **Ask** buttons in its header open the composer or the ask box on the whole block.
 A comment on the whole block goes into the discussion as a message on that block.
+A panel block that shows no data, such as a text panel, takes comments but no questions, as on a dashboard.
 
 Selecting text in a text block shows **Comment** and **Ask** under the selection, and in Comment or Ask mode selecting text opens the composer or the ask box at once.
 The thread or the question points at the text you selected, up to its first 200 characters, and its pin sits on that text wherever it moves in the block.

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { keyBlockOf, takesBlockComments } from "./observation-canvas"
+import {
+  blockAskable,
+  keyBlockOf,
+  takesBlockComments,
+} from "./observation-canvas"
+import type { Block } from "./queries"
 
 const place = { canComment: true, arranging: false, editingBlock: null }
 const panel = { id: "b1", kind: "panel", state: "live" } as const
@@ -46,5 +51,27 @@ describe("keyBlockOf", () => {
     expect(
       keyBlockOf(blocks, ["b1"], { ...place, editingBlock: "b1" })
     ).toBeUndefined()
+  })
+})
+
+describe("blockAskable", () => {
+  function panelBlock(type: string): Block {
+    return {
+      id: "b1",
+      kind: "panel",
+      state: "live",
+      body: { panel: { type, title: "Errors" } },
+    } as unknown as Block
+  }
+
+  it("asks about a data panel block only", () => {
+    expect(blockAskable(panelBlock("timeseries"), true, true)).toBe(true)
+    expect(blockAskable(panelBlock("text"), true, true)).toBe(false)
+  })
+
+  it("asks nothing without Comment, a model or a panel", () => {
+    expect(blockAskable(panelBlock("timeseries"), false, true)).toBe(false)
+    expect(blockAskable(panelBlock("timeseries"), true, false)).toBe(false)
+    expect(blockAskable(undefined, true, true)).toBe(false)
   })
 })

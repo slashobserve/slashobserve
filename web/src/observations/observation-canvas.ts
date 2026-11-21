@@ -9,10 +9,13 @@ import {
   type ModeTexts,
 } from "@/dashboards/canvas-tools"
 import { commentKeyAction } from "@/dashboards/comment-key"
+import { conversationActionsFor } from "@/dashboards/panel-actions"
 import { useAgentInfo } from "@/observe/queries"
 import { useHoveredPanel } from "@/shortcuts/hovered-panel"
 import { useDashboardShortcuts } from "@/shortcuts/use-dashboard-shortcuts"
+import { isRowPanel } from "@/spec"
 
+import { panelBlockBody } from "./blocks/block-data"
 import type { Block } from "./queries"
 
 export const observationModeTexts: ModeTexts = {
@@ -48,6 +51,16 @@ export function keyBlockOf(
     }
   }
   return undefined
+}
+
+export function blockAskable(
+  block: Block | undefined,
+  canComment: boolean,
+  agentAvailable: boolean
+): boolean {
+  const panel = block === undefined ? undefined : panelBlockBody(block)?.panel
+  if (panel === undefined || isRowPanel(panel)) return false
+  return conversationActionsFor(panel, canComment, agentAvailable).ask
 }
 
 function focusedBlockId(): string | undefined {
@@ -111,11 +124,17 @@ export function useObservationCanvas({
       if (action.kind === "panel") openKeyDraft(action.panelId, "comment")
     },
     ask: () => {
+      const blockId = keyBlock()
+      const mayAsk = canComment && agentAvailable === true
       const action = askKeyAction({
         asking: tool === "ask",
-        panelId: keyBlock(),
-        panelAskable: true,
-        mayAsk: canComment && agentAvailable === true,
+        panelId: blockId,
+        panelAskable: blockAskable(
+          blocks.find((each) => each.id === blockId),
+          canComment,
+          agentAvailable === true
+        ),
+        mayAsk,
         editing: arranging,
         onCanvas: true,
       })
