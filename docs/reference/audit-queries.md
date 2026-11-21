@@ -13,7 +13,7 @@ A query that is refused is recorded every time, as a `failed` event with its rea
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.
-A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
+A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike, and the query lint of the audit datasource accepts either; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
 
 | Field | Alias | Type | What it holds |
 | ----- | ----- | ---- | ------------- |

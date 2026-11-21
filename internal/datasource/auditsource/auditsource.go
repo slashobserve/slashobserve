@@ -49,6 +49,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 		Fields:          elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
 		Limits:          datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
 		MaxAggregations: maxAggregations,
+		FieldAliases:    fieldAliases(),
 		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
 	})
 	if err != nil {

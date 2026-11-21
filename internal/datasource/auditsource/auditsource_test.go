@@ -456,3 +456,25 @@ func TestTheMessageLineNamesTheActorAgentAndTarget(t *testing.T) {
 		t.Errorf("line = %q, want %q", got, want)
 	}
 }
+
+func TestTheLintAcceptsEveryAliasTheQueryAccepts(t *testing.T) {
+	ds := open(t, &fakeStore{})
+	for _, f := range filter.Fields() {
+		for _, alias := range f.Aliases {
+			diags, err := ds.Lint(t.Context(), alias+":x*")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(diags) != 0 {
+				t.Errorf("lint of the alias %s = %+v, want no diagnostics", alias, diags)
+			}
+		}
+	}
+	diags, err := ds.Lint(t.Context(), "actor.nmae:admin*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 1 || !strings.Contains(diags[0].Message, `unknown field "actor.nmae"`) {
+		t.Errorf("lint of an unknown field = %+v, want one unknown field warning", diags)
+	}
+}

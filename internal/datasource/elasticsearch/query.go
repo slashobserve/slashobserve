@@ -213,15 +213,23 @@ var kqlKinds = map[FieldKind]kql.FieldKind{
 }
 
 func kqlFields(m *Mapping) kql.Fields {
-	fields := make(kql.Fields, len(m.Fields))
+	fields := make(kql.Fields, len(m.Fields)+len(m.Aliases))
 	for name, f := range m.Fields {
-		kind, ok := kqlKinds[f.Kind]
-		if !ok {
-			kind = kql.Other
+		fields[name] = kqlKindOf(f)
+	}
+	for alias, name := range m.Aliases {
+		if f, ok := m.Fields[name]; ok {
+			fields[alias] = kqlKindOf(f)
 		}
-		fields[name] = kind
 	}
 	return fields
+}
+
+func kqlKindOf(f Field) kql.FieldKind {
+	if kind, ok := kqlKinds[f.Kind]; ok {
+		return kind
+	}
+	return kql.Other
 }
 
 type dslProblem struct {

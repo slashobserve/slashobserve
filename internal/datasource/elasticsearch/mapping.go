@@ -78,6 +78,7 @@ type Field struct {
 
 type Mapping struct {
 	Fields    map[string]Field
+	Aliases   map[string]string
 	Truncated bool
 	Window    int
 }
@@ -199,6 +200,7 @@ func (d *Datasource) fetchMapping(ctx context.Context) (*Mapping, error) {
 		return nil, err
 	}
 	m.Window = d.resultWindow(ctx)
+	m.Aliases = d.opts.FieldAliases
 	return m, nil
 }
 

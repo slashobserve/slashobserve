@@ -57,6 +57,7 @@ type Options struct {
 	HTTPClient        *http.Client
 	MaxResponseBytes  int64
 	MaxAggregations   int
+	FieldAliases      map[string]string
 }
 
 type Datasource struct {
