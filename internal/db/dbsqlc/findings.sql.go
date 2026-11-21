@@ -460,3 +460,17 @@ func (q *Queries) SetFindingObservation(ctx context.Context, arg SetFindingObser
 	}
 	return result.RowsAffected(), nil
 }
+
+const unsetFindingObservation = `-- name: UnsetFindingObservation :exec
+UPDATE findings SET observation_id = NULL WHERE agent_request_id = $1 AND observation_id = $2
+`
+
+type UnsetFindingObservationParams struct {
+	AgentRequestID pgtype.UUID
+	ObservationID  pgtype.UUID
+}
+
+func (q *Queries) UnsetFindingObservation(ctx context.Context, arg UnsetFindingObservationParams) error {
+	_, err := q.db.Exec(ctx, unsetFindingObservation, arg.AgentRequestID, arg.ObservationID)
+	return err
+}

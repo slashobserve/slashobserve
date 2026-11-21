@@ -334,7 +334,8 @@ The run then names that thread as `shared_thread_id`, which only you see.
 A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
 
 While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
-On an observation the answer already written onto the page stays, and no MCP tool withdraws, because none deletes.
+On an observation the run and its answer leave the observation's lists, but the answer's text that was written onto the page stays there as page content until an editor removes it.
+No MCP tool withdraws, because none deletes.
 
 ### When the requester cannot edit
 

@@ -23,7 +23,7 @@ var otherEditor = auth.Principal{Kind: auth.KindUser, ID: "66666666-6666-4666-86
 func newShareRig(t *testing.T) *rig {
 	t.Helper()
 	r := newAgentRig(t, true)
-	r.service.ShowAnswersWith(r.findings.ShowIn)
+	r.service.ShowAnswersWith(r.findings.ShowIn, r.findings.HideFrom)
 	r.findings.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
 		_, err := r.service.ReadMessage(ctx, by, messageID)
 		return err

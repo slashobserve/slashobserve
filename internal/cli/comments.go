@@ -604,7 +604,7 @@ func (a *app) commentsWithdrawCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "withdraw <comment-id>",
 		Short: "Withdraw an answer you shared, back to only you",
-		Long:  "withdraw undoes observe share-answer: it deletes the thread your shared question and its answer opened, and the answer is read again only by you and Admins.\nIt takes the id of the thread or of any of its comments, and only the person who asked can withdraw, while nobody else has written in the thread.\nOn an observation the answer already written onto the page stays.\nYou can share the answer again later with observe share-answer.",
+		Long:  "withdraw undoes observe share-answer: it deletes your shared question and its answer, or the whole thread when the share opened it, and the run and its answer are read again only by you and Admins.\nIt takes the id of the thread or of any of its comments, and only the person who asked can withdraw, while nobody else has written in the thread.\nOn an observation the answer's text that was written onto the page stays there as page content, while the run and its answer leave the observation's lists.\nYou can share the answer again later with observe share-answer.",
 		Args:  exactArgs(1, "one comment id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
