@@ -284,7 +284,18 @@ It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1
 For a chat about a dashboard these are the earlier requests you sent on that dashboard; for a chat with no dashboard they are the earlier turns of that chat.
 Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
 
-Over the API, `POST /observe` takes `follows_id`, an earlier request of yours without a dashboard, to continue its chat, and every request carries a `chat_id`, the id of the chat's first request, which `GET /observe?chat_id=` lists.
+Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
+A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
+They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
+An Admin reads another person's chat read only, and a read of someone else's chat or request, over MCP too, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`; your reads of your own are not.
+An Admin's list of every person's chats or requests (`scope=all`) is recorded as `chat.list` or `run.list` with `scope` in its data.
+Each is recorded once per reader and chat, request or list in 10 minutes, so a page that polls adds no events, and a refused read is recorded every time.
+
+Turns of one chat run one at a time in the order they were sent, and the earlier turns are read when a turn starts running, so a follow-up sent while the last one still runs sees its answer.
+Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of your chats, and every request carries its `chat_id`, the id of the chat's first request.
+Without `chat_id` a new chat starts, except a follow-up on a dashboard, which joins your latest chat on that dashboard; `follows_id`, an earlier request of yours without a dashboard, is the older way to name a chat.
+`client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
+`GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats`, and MCP `list_chats` and `get_chat`.
 
 The agent revises the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.

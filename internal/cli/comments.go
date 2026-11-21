@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/slashobserve/slashobserve/internal/anchor"
 )
 
 const commentPreviewRunes = 80
@@ -26,19 +28,41 @@ type commentAddOptions struct {
 	on        string
 	panel     string
 	block     string
+	at        string
 	version   int
+	to        string
 	startRuns bool
 }
 
 type commentReplyOptions struct {
 	block     string
 	replyTo   string
+	to        string
 	startRuns bool
 }
 
+const (
+	toAgent    = "agent"
+	toEveryone = "everyone"
+)
+
+func deliveryOf(to string, startRuns bool) (string, error) {
+	switch {
+	case startRuns && to != "" && to != toAgent:
+		return "", usagef("--start-runs is the old spelling of --to agent; drop it or --to")
+	case startRuns:
+		return toAgent, nil
+	case to == "":
+		return toEveryone, nil
+	case to == toAgent || to == toEveryone:
+		return to, nil
+	}
+	return "", usagef("--to must be agent or everyone, not %q", to)
+}
+
 func (o commentReplyOptions) checkDashboardForm() error {
-	if o.startRuns {
-		return usagef("--start-runs needs a reply by comment id alone, without a dashboard id")
+	if o.startRuns || o.to != "" {
+		return usagef("--to needs a reply by comment id alone, without a dashboard id")
 	}
 	if o.block != "" || o.replyTo != "" {
 		return usagef("--block and --reply-to need a reply by comment id alone, without a dashboard id")
@@ -47,9 +71,11 @@ func (o commentReplyOptions) checkDashboardForm() error {
 }
 
 func (o commentReplyOptions) addTo(payload map[string]any) error {
-	if o.startRuns {
-		payload["start_runs"] = true
+	to, err := deliveryOf(o.to, o.startRuns)
+	if err != nil {
+		return err
 	}
+	payload["to"] = to
 	if err := setID(payload, "block_id", o.block); err != nil {
 		return err
 	}
@@ -141,7 +167,7 @@ func (a *app) commentsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "comments",
 		Short: "Comment on dashboards, observations, annotations and proposals",
-		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>), the built-in agent as @observe, one of your connected agents as @[Name](grant:<id>) and a service account that takes runs as @[Name](service_account:<id>).\nA mention is recorded in the activity log and starts no run unless add or reply is given --start-runs.",
+		Long:  "comments works the comment threads on a dashboard, an observation, an annotation or a proposal.\nA target is written <kind>:<id> with kind dashboard, annotation, observation or proposal, for example observation:0a1b2c3d-0000-4000-8000-000000000001.\nMention a person in a comment as @[Name](user:<id>), the built-in agent as @observe, one of your connected agents as @[Name](grant:<id>) and a service account that takes runs as @[Name](service_account:<id>).\nA mention is recorded in the activity log, and add and reply ask no agent unless given --to agent.",
 		Args:  groupArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
@@ -321,7 +347,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --version, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--start-runs starts a run for the one agent the text mentions: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and the reason is printed: a text that mentions no agent says so, and a refused run names its code.\nAn observation has one discussion, so a second add on it is refused with the thread to reply to; use comments reply.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --at, --version, --to, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--at points the thread at one spot, as the anchor JSON object, for example {\"kind\":\"position\",\"pos\":{\"x\":0.4,\"y\":0.3}}; with --block it points into that block, and an observation then gets a thread of its own beside its discussion.\nThe comment is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and a refused run prints its code.\nAn observation has one discussion, so a second add on it without --at adds the comment to that discussion.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -330,7 +356,10 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&a.commentAdd.panel, "panel", "", "the panel of the dashboard to comment on")
 	cmd.Flags().StringVar(&a.commentAdd.block, "block", "", "the block of the observation to comment on; the whole observation by default")
 	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
-	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
+	cmd.Flags().StringVar(&a.commentAdd.at, "at", "", "the spot the thread points at, as the anchor JSON object")
+	cmd.Flags().StringVar(&a.commentAdd.to, "to", "", "agent to ask an agent, or everyone (the default) for a plain comment")
+	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "the same as --to agent")
+	_ = cmd.Flags().MarkDeprecated("start-runs", "use --to agent")
 	return cmd
 }
 
@@ -355,9 +384,18 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		}
 		payload["version"] = a.commentAdd.version
 	}
-	if a.commentAdd.startRuns {
-		payload["start_runs"] = true
+	if a.commentAdd.at != "" {
+		at, err := anchor.Parse(a.commentAdd.at)
+		if err != nil {
+			return usagef("--at: %v", err)
+		}
+		payload["anchor"] = at
 	}
+	to, err := deliveryOf(a.commentAdd.to, a.commentAdd.startRuns)
+	if err != nil {
+		return err
+	}
+	payload["to"] = to
 	c, err := a.newClient()
 	if err != nil {
 		return err
@@ -376,7 +414,7 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Started thread %s on %s:%s", text(created.Thread.ID), text(created.Thread.Target.Kind), text(created.Thread.Target.ID))
-	reportRun(out, created.Message, a.commentAdd.startRuns)
+	reportRun(out, created.Message)
 	return nil
 }
 
@@ -392,14 +430,12 @@ func setID(payload map[string]any, key, value string) error {
 	return nil
 }
 
-func reportRun(out *output, message threadMessage, startRuns bool) {
+func reportRun(out *output, message threadMessage) {
 	switch {
 	case message.Run != nil:
 		out.confirm("Started run %s, taken by %s", text(message.Run.ID), text(message.Run.AssignedKind))
 	case message.RunRefusal != nil:
 		out.warn("No run started (%s): %s", text(message.RunRefusal.Code), text(message.RunRefusal.Message))
-	case startRuns:
-		out.warn("No run started: the text mentions no agent. Mention @observe, @[Name](grant:<id>) or @[Name](service_account:<id>) to ask one.")
 	}
 }
 
@@ -407,14 +443,16 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reply [flags] [<dashboard-id>] <comment-id> <text...>",
 		Short: "Reply to a comment thread",
-		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q, --block, --reply-to or --start-runs must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\n--start-runs starts a run for the one agent the text mentions, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.\n--block anchors the reply to one block of an observation and --reply-to names the comment of the thread the reply answers, which the web app shows quoted; both need the thread form too.",
+		Long:  "Everything after the ids is the reply text, flag-like words included, so flags such as --json, -q, --block, --reply-to or --to must come before the ids.\nThe comment id can be any comment of the thread, on a dashboard, an observation, an annotation or a proposal.\nWhen the first two arguments are both ids, the first is read as a dashboard id.\nThe reply is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe, with the earlier messages of the thread as its context; it needs the thread form, with no dashboard id.\n--block anchors the reply to one block of an observation and --reply-to names the comment of the thread the reply answers, which the web app shows quoted; both need the thread form too.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsReply,
 	}
 	cmd.Flags().SetInterspersed(false)
 	cmd.Flags().StringVar(&a.commentReply.block, "block", "", "the block of the observation the reply is about")
 	cmd.Flags().StringVar(&a.commentReply.replyTo, "reply-to", "", "the comment of this thread the reply answers")
-	cmd.Flags().BoolVar(&a.commentReply.startRuns, "start-runs", false, "start a run for the one agent the text mentions")
+	cmd.Flags().StringVar(&a.commentReply.to, "to", "", "agent to ask an agent, or everyone (the default) for a plain reply")
+	cmd.Flags().BoolVar(&a.commentReply.startRuns, "start-runs", false, "the same as --to agent")
+	_ = cmd.Flags().MarkDeprecated("start-runs", "use --to agent")
 	return cmd
 }
 
@@ -449,8 +487,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		path, payload = "dashboards/"+dashboardID+"/comments", map[string]any{"parent_id": commentID, "body": body}
-	}
-	if err := a.commentReply.addTo(payload); err != nil {
+	} else if err := a.commentReply.addTo(payload); err != nil {
 		return err
 	}
 	if body == "" {
@@ -474,7 +511,7 @@ func (a *app) runCommentsReply(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	out.line("Replied to thread %s as %s", text(thread), text(message.ID))
-	reportRun(out, message, a.commentReply.startRuns)
+	reportRun(out, message)
 	return nil
 }
 

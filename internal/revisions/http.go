@@ -260,12 +260,14 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		return
 	}
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound), errors.Is(err, ErrChatNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
 	case errors.Is(err, ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
 	case errors.Is(err, ErrUnknownPanel):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
+	case errors.Is(err, ErrClientIDReused):
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "client_id_reused", err.Error())
 	case errors.Is(err, ErrTooManyRevisions):
 		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
 	case errors.Is(err, ErrTooManyRequests):

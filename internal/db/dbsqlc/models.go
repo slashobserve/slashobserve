@@ -100,6 +100,9 @@ type AgentRequest struct {
 	RetriesID         pgtype.UUID
 	TimeZone          pgtype.Text
 	ThreadRepliedAt   pgtype.Timestamptz
+	Anchor            []byte
+	BlockID           pgtype.UUID
+	ClientID          pgtype.UUID
 }
 
 type AgentRequestBuild struct {
@@ -205,6 +208,19 @@ type AuditEvent struct {
 	Search        interface{}
 	ServerID      string
 	ServerVersion string
+}
+
+type Chat struct {
+	ID            pgtype.UUID
+	OwnerKind     string
+	OwnerID       pgtype.UUID
+	Title         pgtype.Text
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	PinnedAt      pgtype.Timestamptz
+	ArchivedAt    pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	LastTurnAt    pgtype.Timestamptz
 }
 
 type Dashboard struct {
@@ -823,6 +839,11 @@ type Thread struct {
 	UpdatedAt            pgtype.Timestamptz
 	ObservationID        pgtype.UUID
 	ProposalID           pgtype.UUID
+	AgentKind            pgtype.Text
+	AgentID              pgtype.UUID
+	AgentOff             bool
+	Anchor               []byte
+	BlockID              pgtype.UUID
 }
 
 type ThreadMention struct {
@@ -851,6 +872,7 @@ type ThreadMessage struct {
 	RunAssignedKind    pgtype.Text
 	ReplyToID          pgtype.UUID
 	ObservationBlockID pgtype.UUID
+	ClientID           pgtype.UUID
 }
 
 type ThreadRead struct {

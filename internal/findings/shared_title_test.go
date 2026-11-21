@@ -15,8 +15,12 @@ import (
 func (r rig) chat(t *testing.T, by auth.Principal, follows pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	var raw string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
-VALUES ('observe', 'slowest routes in the last hour', $1, $2::uuid, $3, $4) RETURNING id::text`,
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `WITH chat AS (
+  INSERT INTO chats (id, owner_kind, owner_id) VALUES (coalesce($4::uuid, gen_random_uuid()), $1, $2::uuid)
+  ON CONFLICT (id) DO UPDATE SET last_turn_at = now() RETURNING id)
+INSERT INTO agent_requests (id, source, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
+SELECT CASE WHEN $4::uuid IS NULL THEN chat.id ELSE gen_random_uuid() END, 'observe', 'slowest routes in the last hour', $1, $2::uuid, $3, chat.id FROM chat
+RETURNING id::text`,
 		string(by.Kind), by.ID, by.Name, follows).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}

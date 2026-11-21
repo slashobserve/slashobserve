@@ -3,7 +3,9 @@ package revisions
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -81,6 +83,21 @@ func (s *Service) checkVisible(ctx context.Context, dashboardID pgtype.UUID, by 
 		return nil
 	}
 	_, err := s.access.Dashboard(ctx, by, dashboardID)
+	if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) || errors.Is(err, folders.ErrForbidden) {
+		return ErrRequestNotFound
+	}
+	return err
+}
+
+func (s *Service) checkObservationVisible(ctx context.Context, observationID pgtype.UUID, by auth.Principal) error {
+	observation, err := s.db.Queries().ObservationByID(ctx, observationID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrRequestNotFound
+	case err != nil:
+		return fmt.Errorf("read the run's observation: %w", err)
+	}
+	_, _, err = s.access.Folder(ctx, by, observation.FolderID)
 	if errors.Is(err, folders.ErrNotFound) || errors.Is(err, folders.ErrNoAccess) || errors.Is(err, folders.ErrForbidden) {
 		return ErrRequestNotFound
 	}

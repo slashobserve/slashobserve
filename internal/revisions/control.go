@@ -272,7 +272,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 			return err
 		}
 		var err error
-		threadMessage, threadContext := continuedContext(row)
+		threadMessage, threadContext := threadOf(row)
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
@@ -288,9 +288,11 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				Assignee:        assignee,
 				ThreadMessageID: threadMessage,
 				ThreadContext:   threadContext,
+
+				chat: againChat(row, by),
 			})
 		} else {
-			next, err = s.enqueueObserve(ctx, q, by, row.Prompt, row.ID, note, observeChat{id: chatRoot(row.ID, row.ChatID), context: row.ThreadContext.String})
+			next, err = s.enqueueObserve(ctx, q, by, row.Prompt, row.ID, note, observeTurn{chat: againChat(row, by)})
 		}
 		if err != nil {
 			return err
@@ -379,11 +381,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
 	switch Source(row.Source) {
 	case SourceObserve:
-		chat := observeChat{retries: retries}
-		if sameActor(requesterOf(row), by) {
-			chat = observeChat{id: chatRoot(row.ID, row.ChatID), context: row.ThreadContext.String, retries: retries}
-		}
-		return s.submitObserve(ctx, by, row.Prompt, chat)
+		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:
 		return s.SubmitInvestigate(ctx, InvestigateParams{
 			Prompt:      row.Prompt,
@@ -400,6 +398,8 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+
+			chat: againChat(row, by),
 		})
 	default:
 		return s.submitFollowUp(ctx, EnqueueParams{
@@ -410,15 +410,10 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			RetriesID:       retries,
+
+			chat: againChat(row, by),
 		}, nil)
 	}
-}
-
-func continuedContext(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
-	if row.ThreadMessageID.Valid || Source(row.Source) != SourcePrompt {
-		return threadOf(row)
-	}
-	return pgtype.UUID{}, row.ThreadContext.String
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {

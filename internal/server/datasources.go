@@ -15,7 +15,18 @@ import (
 
 type datasourceJSON struct {
 	datasource.Status
-	DashboardCount int `json:"dashboard_count"`
+	DashboardCount int                 `json:"dashboard_count"`
+	Audience       datasource.Audience `json:"audience,omitempty"`
+}
+
+func audienceForAdmin(c *gin.Context, registry *datasource.Registry, uid string) datasource.Audience {
+	if !datasource.ReadsRestricted(c.Request.Context()) {
+		return ""
+	}
+	if registry.AdminsOnly(uid) {
+		return datasource.AudienceAdmins
+	}
+	return datasource.AudienceEveryone
 }
 
 type datasourcesResponse struct {
@@ -50,7 +61,7 @@ func registerDatasourceRoutes(api auth.Routes, registry *datasource.Registry, us
 		}
 		out := make([]datasourceJSON, len(statuses))
 		for i, s := range statuses {
-			out[i] = datasourceJSON{Status: s, DashboardCount: counts[s.UID]}
+			out[i] = datasourceJSON{Status: s, DashboardCount: counts[s.UID], Audience: audienceForAdmin(c, registry, s.UID)}
 		}
 		c.JSON(http.StatusOK, datasourcesResponse{Datasources: out})
 	})
@@ -68,6 +79,6 @@ func registerDatasourceRoutes(api auth.Routes, registry *datasource.Registry, us
 		if !ok {
 			return
 		}
-		c.JSON(http.StatusOK, datasourceJSON{Status: status, DashboardCount: counts[status.UID]})
+		c.JSON(http.StatusOK, datasourceJSON{Status: status, DashboardCount: counts[status.UID], Audience: audienceForAdmin(c, registry, status.UID)})
 	})
 }

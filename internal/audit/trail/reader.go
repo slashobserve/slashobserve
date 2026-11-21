@@ -35,13 +35,11 @@ type Reader struct {
 	now           func() time.Time
 	timeout       time.Duration
 	followTimeout time.Duration
-	searches      *Repeats
+	searches      *audit.Repeats
 }
 
 func NewReader(d *db.DB, logger *slog.Logger) *Reader {
-	r := &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout, followTimeout: FollowTimeout}
-	r.searches = NewRepeats(func() time.Time { return r.now() })
-	return r
+	return &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout, followTimeout: FollowTimeout, searches: audit.NewRepeats()}
 }
 
 func (r *Reader) Now() time.Time {
@@ -115,7 +113,7 @@ func (r *Reader) Search(ctx context.Context, p Prepared, limit int) (Page, error
 	if err != nil {
 		return Page{}, r.searchFailed(ctx, p, err)
 	}
-	if r.searches.Repeated(ctx, p.Text) {
+	if r.searches.SeenRecently(ctx, p.Text, r.now()) {
 		audit.Skip(ctx)
 		return page, nil
 	}

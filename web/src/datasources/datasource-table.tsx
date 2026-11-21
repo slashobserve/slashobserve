@@ -13,6 +13,7 @@ import { logsLink, metricsLink, tracesLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
+import { AudienceBadge } from "./audience-badge"
 import { RemoveDatasourceButton } from "./remove-datasource"
 
 import { exploreTargets, statusOf, typeLabel, usageLabel } from "./format"
@@ -191,14 +192,20 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
 function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
   if (datasource.name === datasource.uid) {
     return (
-      <span className="font-mono text-xs font-medium whitespace-nowrap">
-        {datasource.uid}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-xs font-medium whitespace-nowrap">
+          {datasource.uid}
+        </span>
+        <AudienceBadge datasource={datasource} />
+      </div>
     )
   }
   return (
     <div className="flex flex-col">
-      <span className="font-medium">{datasource.name}</span>
+      <div className="flex items-center gap-2">
+        <span className="font-medium">{datasource.name}</span>
+        <AudienceBadge datasource={datasource} />
+      </div>
       <span className="font-mono text-xs font-normal whitespace-nowrap text-muted-foreground">
         {datasource.uid}
       </span>

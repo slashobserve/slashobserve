@@ -76,6 +76,8 @@ const (
 	CodeTooManyAgents   = "too_many_agents"
 	CodeInvalidBlock    = "invalid_block"
 	CodeInvalidReplyTo  = "invalid_reply_to"
-
-	CodeObservationThreadExists = "observation_thread_exists"
+	CodeInvalidAnchor   = "invalid_anchor"
+	CodeClientIDReused  = "client_id_reused"
+	CodeInvalidTo       = "invalid_to"
+	CodeInvalidClientID = "invalid_client_id"
 )

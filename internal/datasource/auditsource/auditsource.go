@@ -48,7 +48,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 		QueryLanguage: elasticsearch.QueryLanguageKQL,
 		Fields:        elasticsearch.FieldRoles{Message: MessageField, Level: LevelField, TraceID: "trace_id"},
 		Limits:        datasource.Limits{Timeout: trail.StatementTimeout, MaxRows: filter.MaxRows},
-		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger, repeats: trail.NewRepeats(time.Now)}},
+		HTTPClient:    &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
 	})
 	if err != nil {
 		return datasource.Instance{}, err
@@ -59,7 +59,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 type emulator struct {
 	store   Store
 	logger  *slog.Logger
-	repeats *trail.Repeats
+	repeats *audit.Repeats
 }
 
 func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -100,7 +100,7 @@ func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
 func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
 	scope, _ := audit.ScopeOf(ctx)
 	key, err := json.Marshal([]any{scope.Method, scope.Route, req.clause, req.aggs, req.size, req.from, req.ascending})
-	if err == nil && e.repeats.Repeated(ctx, string(key)) {
+	if err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now()) {
 		audit.RepeatedRead(ctx)
 	}
 }

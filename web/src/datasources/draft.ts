@@ -3,6 +3,16 @@ import type { components } from "@/api/schema.gen"
 export type DatasourceDraft = components["schemas"]["DatasourceDraft"]
 export type DatasourceConfig = components["schemas"]["DatasourceConfig"]
 export type DatasourceType = NonNullable<DatasourceDraft["type"]>
+export type Audience = NonNullable<DatasourceDraft["audience"]>
+
+export const audienceChoices: { value: Audience; label: string }[] = [
+  { value: "everyone", label: "Everyone" },
+  { value: "admins", label: "Only Admins" },
+]
+
+export function isAudience(value: unknown): value is Audience {
+  return audienceChoices.some((choice) => choice.value === value)
+}
 
 export const datasourceTypes: { value: DatasourceType; label: string }[] = [
   { value: "prometheus", label: "Prometheus" },
@@ -65,6 +75,7 @@ export type FormValues = {
   type: DatasourceType | ""
   uid: string
   name: string
+  audience: Audience
   address: string
   username: string
   database: string
@@ -96,6 +107,7 @@ export const emptyForm: FormValues = {
   type: "",
   uid: "",
   name: "",
+  audience: "everyone",
   address: "",
   username: "",
   database: "",
@@ -133,6 +145,7 @@ export function formOf(config: DatasourceConfig): FormValues {
     type: isDatasourceType(config.type) ? config.type : "",
     uid: config.uid,
     name: config.name === config.uid ? "" : config.name,
+    audience: config.audience,
     address: config.address,
     username: config.username ?? "",
     database: config.database ?? "",
@@ -313,6 +326,7 @@ export function draftOf(
   const fields = fieldsOf(values.type)
   const draft: DatasourceDraft = {
     name: values.name.trim(),
+    audience: values.audience,
     address: values.address.trim(),
     username: values.username.trim(),
     grafana_uids: grafanaUidList(values.grafanaUids),

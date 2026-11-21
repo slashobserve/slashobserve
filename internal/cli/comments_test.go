@@ -351,7 +351,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"looks wrong","target":"` + on + `"}`,
+			wantBody:   `{"body":"looks wrong","target":"` + on + `","to":"everyone"}`,
 			wantOut:    []string{"Started thread " + testThread + " on observation:" + testFinding},
 		},
 		{
@@ -361,7 +361,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"check this","panel_id":"p1","target":"dashboard:` + testDashboard + `","version":3}`,
+			wantBody:   `{"body":"check this","panel_id":"p1","target":"dashboard:` + testDashboard + `","to":"everyone","version":3}`,
 		},
 		{
 			name:       "add keeps flag-like words and mentions in the text",
@@ -370,7 +370,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"@observe rerun with --json","target":"` + on + `"}`,
+			wantBody:   `{"body":"@observe rerun with --json","target":"` + on + `","to":"everyone"}`,
 			wantNotOut: []string{`"thread"`},
 		},
 		{
@@ -380,7 +380,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"ok","target":"` + on + `"}`,
+			wantBody:   `{"body":"ok","target":"` + on + `","to":"everyone"}`,
 			wantOut:    []string{`"thread"`},
 		},
 		{
@@ -408,7 +408,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/messages",
-			wantBody:   `{"body":"looks good"}`,
+			wantBody:   `{"body":"looks good","to":"everyone"}`,
 			wantOut:    []string{"Replied to thread " + testThread + " as " + testReply},
 		},
 		{
@@ -418,7 +418,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/messages",
-			wantBody:   `{"body":"ok"}`,
+			wantBody:   `{"body":"ok","to":"everyone"}`,
 			wantOut:    []string{`"message"`},
 		},
 		{
@@ -440,7 +440,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"block_id":"` + testPanel + `","body":"slow here","target":"` + on + `"}`,
+			wantBody:   `{"block_id":"` + testPanel + `","body":"slow here","target":"` + on + `","to":"everyone"}`,
 		},
 		{
 			name:     "add rejects a block that is not an id",
@@ -455,7 +455,7 @@ func TestCommentsCommands(t *testing.T) {
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/messages",
-			wantBody:   `{"block_id":"` + testPanel + `","body":"agreed","reply_to_id":"` + testReply + `"}`,
+			wantBody:   `{"block_id":"` + testPanel + `","body":"agreed","reply_to_id":"` + testReply + `","to":"everyone"}`,
 		},
 		{
 			name:     "reply rejects a quoted comment that is not an id",
@@ -470,62 +470,89 @@ func TestCommentsCommands(t *testing.T) {
 			wantErr:  "--block and --reply-to need a reply by comment id alone, without a dashboard id",
 		},
 		{
-			name:       "add with --start-runs sends the opt-in and prints the run",
-			args:       []string{"comments", "add", "--start-runs", "--on", "dashboard:" + testDashboard, "@observe", "why", "is", "it", "slow"},
+			name:       "add with --to agent asks and prints the run",
+			args:       []string{"comments", "add", "--to", "agent", "--on", "dashboard:" + testDashboard, "@observe", "why", "is", "it", "slow"},
 			status:     http.StatusCreated,
 			response:   startedMessageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"@observe why is it slow","start_runs":true,"target":"dashboard:` + testDashboard + `"}`,
+			wantBody:   `{"body":"@observe why is it slow","target":"dashboard:` + testDashboard + `","to":"agent"}`,
 			wantOut:    []string{"Started thread " + testThread, "Started run " + testRun + ", taken by builtin"},
 		},
 		{
-			name:       "add with --start-runs prints a refusal and still succeeds",
+			name:       "add with the deprecated --start-runs asks, prints a refusal and still succeeds",
 			args:       []string{"comments", "add", "--start-runs", "--on", on, "@observe", "hi"},
 			status:     http.StatusCreated,
 			response:   refusedMessageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"@observe hi","start_runs":true,"target":"` + on + `"}`,
+			wantBody:   `{"body":"@observe hi","target":"` + on + `","to":"agent"}`,
 			wantOut:    []string{"Started thread " + testThread},
 			wantNotOut: []string{"Started run"},
 			wantErr:    "No run started (too_many_runs): the dashboard already has its limit of runs",
 		},
 		{
-			name:       "add without --start-runs sends no opt-in",
+			name:       "add without --to sends a plain comment",
 			args:       []string{"comments", "add", "--on", on, "@observe", "hi"},
 			status:     http.StatusCreated,
 			response:   messageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads",
-			wantBody:   `{"body":"@observe hi","target":"` + on + `"}`,
+			wantBody:   `{"body":"@observe hi","target":"` + on + `","to":"everyone"}`,
 		},
 		{
-			name:       "reply with --start-runs uses the thread endpoint and prints the run",
-			args:       []string{"comments", "reply", "--start-runs", testThread, "@observe", "go"},
+			name:       "reply with --to agent uses the thread endpoint and prints the run",
+			args:       []string{"comments", "reply", "--to", "agent", testThread, "@observe", "go"},
 			status:     http.StatusCreated,
 			response:   startedMessageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/messages",
-			wantBody:   `{"body":"@observe go","start_runs":true}`,
+			wantBody:   `{"body":"@observe go","to":"agent"}`,
 			wantOut:    []string{"Replied to thread " + testThread + " as " + testReply, "Started run " + testRun + ", taken by builtin"},
 		},
 		{
-			name:       "reply with --start-runs and --json prints the body",
-			args:       []string{"comments", "reply", "--json", "--start-runs", testThread, "@observe", "go"},
+			name:       "reply with --to agent and --json prints the body",
+			args:       []string{"comments", "reply", "--json", "--to", "agent", testThread, "@observe", "go"},
 			status:     http.StatusCreated,
 			response:   startedMessageEnvelope,
 			wantMethod: http.MethodPost,
 			wantPath:   "/api/v1/threads/" + testThread + "/messages",
-			wantBody:   `{"body":"@observe go","start_runs":true}`,
+			wantBody:   `{"body":"@observe go","to":"agent"}`,
 			wantOut:    []string{`"run"`},
 			wantNotOut: []string{"Started run"},
 		},
 		{
-			name:     "reply with --start-runs refuses the legacy dashboard form",
-			args:     []string{"comments", "reply", "--start-runs", testDashboard, testThread, "@observe", "go"},
+			name:     "reply with --to refuses the legacy dashboard form",
+			args:     []string{"comments", "reply", "--to", "agent", testDashboard, testThread, "@observe", "go"},
 			wantCode: 2,
-			wantErr:  "--start-runs needs a reply by comment id alone, without a dashboard id",
+			wantErr:  "--to needs a reply by comment id alone, without a dashboard id",
+		},
+		{
+			name:     "add refuses an unknown --to",
+			args:     []string{"comments", "add", "--to", "nobody", "--on", on, "hi"},
+			wantCode: 2,
+			wantErr:  `--to must be agent or everyone, not "nobody"`,
+		},
+		{
+			name:     "add refuses --start-runs with --to everyone",
+			args:     []string{"comments", "add", "--start-runs", "--to", "everyone", "--on", on, "hi"},
+			wantCode: 2,
+			wantErr:  "--start-runs is the old spelling of --to agent",
+		},
+		{
+			name:       "add with --at sends the anchor",
+			args:       []string{"comments", "add", "--at", `{"kind":"position","pos":{"x":0.4,"y":0.3}}`, "--on", on, "here"},
+			status:     http.StatusCreated,
+			response:   messageEnvelope,
+			wantMethod: http.MethodPost,
+			wantPath:   "/api/v1/threads",
+			wantBody:   `{"anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}},"body":"here","target":"` + on + `","to":"everyone"}`,
+		},
+		{
+			name:     "add refuses an --at that is not an anchor",
+			args:     []string{"comments", "add", "--at", `{"kind":"range","pos":{"x":0.4,"y":0.3}}`, "--on", on, "here"},
+			wantCode: 2,
+			wantErr:  "--at: anchor:",
 		},
 		{
 			name:     "reply needs an id",
@@ -726,26 +753,15 @@ func TestCommentsCommands(t *testing.T) {
 	}
 }
 
-func TestStartRunsWithoutAMentionSaysNoRunStarted(t *testing.T) {
-	reply := `{"thread":{"id":"` + testAnnotation + `","target":{"kind":"dashboard","id":"` + testDashboard + `"}},"message":{"id":"` + testAnnotation + `","run":null,"run_refusal":null}}`
-	cases := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"add", []string{"comments", "add", "--on", "dashboard:" + testDashboard, "--start-runs", "no mention here"}, "No run started: the text mentions no agent"},
-		{"reply", []string{"comments", "reply", "--start-runs", testAnnotation, "nobody mentioned"}, "No run started: the text mentions no agent"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, _, stderr, code := runAgainst(t, 200, reply, tc.args...)
-			if code != 0 || !strings.Contains(stderr, tc.want) {
-				t.Fatalf("exit %d, stderr %q", code, stderr)
-			}
-		})
-	}
-	_, _, stderr, _ := runAgainst(t, 200, reply, "comments", "add", "--on", "dashboard:"+testDashboard, "plain comment")
-	if strings.Contains(stderr, "No run started") {
-		t.Fatalf("a comment without --start-runs warned: %q", stderr)
+func TestAPlainCommentPrintsNoRunLine(t *testing.T) {
+	reply := `{"thread":{"id":"` + testAnnotation + `","target":{"kind":"dashboard","id":"` + testDashboard + `"}},"message":{"id":"` + testAnnotation + `","run":null,"run_refusal":null},"to":"everyone","replayed":false}`
+	for _, args := range [][]string{
+		{"comments", "add", "--on", "dashboard:" + testDashboard, "plain comment"},
+		{"comments", "reply", testAnnotation, "plain reply"},
+	} {
+		_, _, stderr, code := runAgainst(t, 200, reply, args...)
+		if code != 0 || strings.Contains(stderr, "No run started") {
+			t.Fatalf("%v: exit %d, stderr %q", args, code, stderr)
+		}
 	}
 }
