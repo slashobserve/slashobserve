@@ -252,6 +252,86 @@ func TestInboxListsRepliesInThreadsTheCallerWroteInAndRunAnswersForTheirRuns(t *
 	wantReasons(t, "with a run answer for Ola's run", r.inbox(t, mia, ViewForYou), ReasonReply, ReasonReply)
 }
 
+func (r rig) answeredQuestion(t *testing.T, body string) (o, thread, question pgtype.UUID, page func() InboxPage) {
+	t.Helper()
+	o = r.observation(t, ola)
+	thread = r.thread(t, o)
+	question = r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, $2, 'user', $3::uuid, $4) RETURNING id::text`, thread.String(), body, mia.ID, mia.Name))
+	run := r.run(t, miaActor, "succeeded")
+	r.db.Exec(t, `UPDATE agent_requests SET thread_message_id = $1::uuid WHERE id = $2::uuid`, question.String(), run.String())
+	answer := miaActor
+	answer.RunID = run.String()
+	reply := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1::uuid, 'the deploy at 10:02 did', 'user', $2::uuid, $3, $4::uuid, 'builtin') RETURNING id::text`, thread.String(), mia.ID, mia.Name, run.String()))
+	r.append(t, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: OnObservation(o), Actor: answer, Data: map[string]any{"object": map[string]any{"kind": "observation", "id": o.String()}, "message_id": reply.String()}})
+	return o, thread, question, func() InboxPage { return r.inbox(t, mia, ViewForYou) }
+}
+
+func TestInboxQuotesTheMessageARunAnsweredAsAShortTitleOnItsReplyOnly(t *testing.T) {
+	r := newRig(t)
+	o, thread, _, inbox := r.answeredQuestion(t, "@observe why did checkout slow down after the deploy at 10:02, and did the cart service follow it?\nsecond line")
+	r.reply(t, o, thread, ola)
+
+	page := inbox()
+	got := map[string]string{}
+	for _, item := range page.Items {
+		got[item.Actor.Name] = item.Question
+	}
+	want := "why did checkout slow down after the deploy at 10:02, and..."
+	if got["Mia"] != want || got["Ola"] != "" {
+		t.Fatalf("questions by author = %v, want the run answer to carry %q and a person's reply nothing", got, want)
+	}
+}
+
+func TestInboxDropsTheQuestionOnceItsMessageIsGone(t *testing.T) {
+	r := newRig(t)
+	_, _, question, inbox := r.answeredQuestion(t, "why did checkout slow down?")
+	if got := inbox().Items[0].Question; got != "why did checkout slow down?" {
+		t.Fatalf("question before the delete = %q", got)
+	}
+	r.db.Exec(t, `DELETE FROM thread_messages WHERE id = $1::uuid`, question.String())
+	page := inbox()
+	if len(page.Items) != 1 || page.Items[0].Question != "" {
+		t.Fatalf("items after the question was deleted = %d, question %q, want the reply with no question", len(page.Items), page.Items[0].Question)
+	}
+}
+
+func TestInboxQuotesNothingFromAThreadTheReaderCanNoLongerRead(t *testing.T) {
+	r := newRig(t)
+	o, _, _, inbox := r.answeredQuestion(t, "why did checkout slow down?")
+	before := inbox().Items[0]
+	if before.Question != "why did checkout slow down?" || before.Excerpt != "the deploy at 10:02 did" || before.TargetTitle != "Checkout latency" {
+		t.Fatalf("before the move: question %q, excerpt %q, title %q", before.Question, before.Excerpt, before.TargetTitle)
+	}
+	secret := foldertest.Restricted(t, r.db, "Secret", "secret-team")
+	r.db.Exec(t, `UPDATE observations SET folder_id = $1::uuid WHERE id = $2::uuid`, secret.String(), o.String())
+	page := inbox()
+	if len(page.Items) != 1 {
+		t.Fatalf("items = %d, want the reply still listed from its own folder", len(page.Items))
+	}
+	item := page.Items[0]
+	if item.Question != "" || item.Excerpt != "" || item.TargetTitle != "" {
+		t.Fatalf("question %q, excerpt %q, title %q, want none from a thread in a folder the reader holds no grant on", item.Question, item.Excerpt, item.TargetTitle)
+	}
+}
+
+func TestInboxQuotesTheQuestionOnAWorkspaceWideAnnotationThreadToAnyoneWhoCanReadIt(t *testing.T) {
+	r := newRig(t)
+	annotation := r.uuid(t, r.scalar(t, `INSERT INTO annotations (time_from, text) VALUES (now(), 'deploy') RETURNING id::text`))
+	thread := r.uuid(t, r.scalar(t, `INSERT INTO threads (annotation_id) VALUES ($1::uuid) RETURNING id::text`, annotation.String()))
+	question := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, 'was this the deploy?', 'user', $2::uuid, $3) RETURNING id::text`, thread.String(), mia.ID, mia.Name))
+	run := r.run(t, miaActor, "succeeded")
+	r.db.Exec(t, `UPDATE agent_requests SET thread_message_id = $1::uuid WHERE id = $2::uuid`, question.String(), run.String())
+	answer := miaActor
+	answer.RunID = run.String()
+	reply := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1::uuid, 'yes', 'user', $2::uuid, $3, $4::uuid, 'builtin') RETURNING id::text`, thread.String(), mia.ID, mia.Name, run.String()))
+	r.append(t, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: General(), Actor: answer, Data: map[string]any{"message_id": reply.String()}})
+
+	page := r.inbox(t, mia, ViewForYou)
+	if len(page.Items) != 1 || page.Items[0].Question != "was this the deploy?" {
+		t.Fatalf("items = %d, question %q, want the question of the workspace-wide annotation thread", len(page.Items), page.Items[0].Question)
+	}
+}
+
 func TestInboxListsAFailedRunUntilItIsContinued(t *testing.T) {
 	r := newRig(t)
 	run, _ := r.failedRun(t, miaActor)

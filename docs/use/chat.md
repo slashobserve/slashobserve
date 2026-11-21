@@ -352,6 +352,10 @@ The select at its top lists your chats on this dashboard, newest first, each wit
 The first message after **New chat** is a question about the dashboard and starts a new chat, which the tab then shows; the note under the box says "Only you and Admins can see this chat."
 A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
 
+While the chat has one turn, yours and finished, above the box the tab offers up to two suggested follow-ups, the questions Home suggests for your datasources, such as "Which routes are slowest right now?".
+Choosing one asks it about the dashboard in the same chat, without leaving the dashboard, and the suggestions go once the chat has a second turn.
+They show when you can ask the agent and are not shown on the chat page.
+
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.

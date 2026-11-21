@@ -182,6 +182,7 @@ Once it is pinned the item reads **Pinned to dashboard**, and pinning again over
 The dashboard keeps the variables each block carries and uses the observation's range, or the first panel's when it has none, and every query is run again first.
 Making it again from the same observation or block opens the one you made first, unless you can no longer see that dashboard, and then a new one is made.
 Over the API `new: true` makes another.
+When the observation came from your own chat and that chat is about nothing else, the chat becomes about the new dashboard and opens in its Chat tab.
 Suggested blocks, text blocks and snapshots are left out.
 
 ### Discuss beside the blocks

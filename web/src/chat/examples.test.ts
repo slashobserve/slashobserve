@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest"
 
-import { examplePrompts, type ExampleDashboard } from "./examples"
+import {
+  examplePrompts,
+  questionPrompts,
+  type ExampleDashboard,
+} from "./examples"
 
 const errorsQuestion = "Which services had the most errors in the last hour?"
 const slowestQuestion = "Which routes are slowest right now?"
@@ -160,5 +164,26 @@ describe("examplePrompts", () => {
       errorsQuestion,
       slowestQuestion,
     ])
+  })
+})
+
+describe("questionPrompts", () => {
+  test.each([
+    ["prometheus", ["prometheus"], [errorsQuestion, slowestQuestion]],
+    ["loki", ["loki"], [errorsQuestion]],
+    ["tempo", ["tempo"], [slowestQuestion]],
+    ["no datasources", [], []],
+  ])("keeps only the questions for %s", (_name, types, expected) => {
+    expect(questionPrompts({ types }).map((example) => example.label)).toEqual(
+      expected
+    )
+  })
+
+  test("never names a dashboard to revise", () => {
+    expect(
+      questionPrompts({ types: ["prometheus", "loki", "tempo"] }).every(
+        (example) => example.dashboardId === undefined
+      )
+    ).toBe(true)
   })
 })

@@ -711,3 +711,53 @@ func TestArrangeBlocksOrdersAndSizesThePageWithoutVersions(t *testing.T) {
 		}
 	}
 }
+
+func TestMakingADashboardFromAnObservationAttachesTheRunsChatForItsOwnerOnly(t *testing.T) {
+	r := newObservationRig(t)
+	id := r.start(t, editorCaller)
+	r.written(t, editorCaller, nameAddBlock, panelBlockInput(id, evidencePanel("Errors", "up")))
+	var chat string
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `WITH chat AS (
+  INSERT INTO chats (owner_kind, owner_id) VALUES ('user', $1::uuid) RETURNING id),
+run AS (
+  INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, chat_id)
+  SELECT 'ask', 'why', 'user', $1::uuid, 'Eve', chat.id FROM chat RETURNING id, chat_id),
+linked AS (
+  UPDATE observations SET run_id = run.id FROM run WHERE observations.id = $2::uuid RETURNING 1)
+SELECT chat_id::text FROM run`, editorCaller.ID, id).Scan(&chat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attached := func() string {
+		t.Helper()
+		var dashboard *string
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT dashboard_id::text FROM chats WHERE id = $1::uuid`, chat).Scan(&dashboard); err != nil {
+			t.Fatal(err)
+		}
+		if dashboard == nil {
+			return ""
+		}
+		return *dashboard
+	}
+	madeBy := func(by auth.Principal) string {
+		t.Helper()
+		res := r.call(t, by, nameMakeDashboard, fmt.Sprintf(`{"observation_id":%q}`, id))
+		out, ok := res.Content.(savedOut)
+		if res.IsError || !ok {
+			t.Fatalf("make_dashboard: %#v", res.Content)
+		}
+		return out.DashboardID
+	}
+
+	madeBy(adminCaller)
+	if got := attached(); got != "" {
+		t.Fatalf("an Admin making a dashboard took the owner's chat onto %s", got)
+	}
+	made := madeBy(editorCaller)
+	if got := attached(); got != made {
+		t.Fatalf("the chat is about %q after its owner made the dashboard %s", got, made)
+	}
+	if again := madeBy(editorCaller); again != made || attached() != made {
+		t.Errorf("making it again moved the chat: dashboard %s, chat on %s", again, attached())
+	}
+}

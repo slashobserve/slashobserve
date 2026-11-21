@@ -77,6 +77,7 @@ type InboxItem struct {
 	Unread      bool
 	TargetTitle string
 	Excerpt     string
+	Question    string
 }
 
 type InboxPage struct {
@@ -180,7 +181,7 @@ func (s *Store) Inbox(ctx context.Context, by auth.Principal, view View, triage 
 			Unread: r.Unread,
 		})
 	}
-	if err := s.describeInbox(ctx, page.Items); err != nil {
+	if err := s.describeInbox(ctx, a, page.Items); err != nil {
 		return InboxPage{}, err
 	}
 	count, err := q.InboxUnreadCount(ctx, dbsqlc.InboxUnreadCountParams{
