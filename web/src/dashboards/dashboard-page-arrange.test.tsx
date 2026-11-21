@@ -5,6 +5,7 @@ import {
   createRouter,
 } from "@tanstack/react-router"
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -227,5 +228,29 @@ describe("arranging panels on the dashboard grid", () => {
     )
     expect(gridItemOf("Note")).not.toHaveClass("react-draggable-dragging")
     fireEvent.mouseUp(document, { clientX: 760, clientY: 60 })
+  })
+
+  it("offers no move or resize on the selected panel while a press comments", async () => {
+    renderDashboard()
+    const title = await screen.findByRole("button", {
+      name: "Select panel: Runbook",
+    })
+    fireEvent.pointerDown(title, { button: 0 })
+    await waitFor(() =>
+      expect(
+        articleOf("Runbook").querySelector("button.panel-drag-handle")
+      ).not.toBeNull()
+    )
+    expect(gridItemOf("Runbook")).not.toHaveClass("react-resizable-hide")
+
+    act(() => useCanvasTool.getState().setTool("comment"))
+
+    expect(gridItemOf("Runbook")).toHaveClass("react-resizable-hide")
+    expect(
+      articleOf("Runbook").querySelector("button.panel-drag-handle")
+    ).toBeNull()
+    expect(articleOf("Runbook").querySelector("header")).not.toHaveClass(
+      "touch-none"
+    )
   })
 })

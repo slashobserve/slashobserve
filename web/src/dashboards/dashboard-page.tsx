@@ -444,6 +444,7 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const pressArranges = arranging && !(commentTool && !editing)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
@@ -844,7 +845,7 @@ function DashboardView({
       refreshMs={refreshMs}
       mixedDatasources={mixedDatasources}
       editable={
-        arranging &&
+        pressArranges &&
         layout !== undefined &&
         item.first &&
         item.panel.id === selectedId
@@ -1024,7 +1025,7 @@ function DashboardView({
                         spec={spec}
                         selections={selections}
                         values={values}
-                        editable={arranging && layout !== undefined}
+                        editable={pressArranges && layout !== undefined}
                         layout={layout}
                         onLayoutChange={layout ? setLayout : undefined}
                         selectedId={selectedId}
