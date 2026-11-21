@@ -215,12 +215,12 @@ func TestAPointedTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 		t.Fatalf("stored point %q on %q, want position on %s (%v)", kind, stored, block, err)
 	}
 
-	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"and this one?","kind":"investigate",`+observation+`,"block_id":"`+otherBlock+`"}`); rec.Code != http.StatusNotFound {
+	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"and this one?","kind":"ask",`+observation+`,"block_id":"`+otherBlock+`"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("whole block of another observation: %d %s", rec.Code, rec.Body)
 	}
-	rec = call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"what is this block about?","kind":"investigate",`+observation+`,"block_id":"`+block+`"}`)
+	rec = call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"what is this block about?","kind":"ask",`+observation+`,"block_id":"`+block+`"}`)
 	if rec.Code != http.StatusAccepted || json.Unmarshal(rec.Body.Bytes(), &created) != nil {
-		t.Fatalf("whole block turn: %d %s", rec.Code, rec.Body)
+		t.Fatalf("whole block ask: %d %s", rec.Code, rec.Body)
 	}
 	var noAnchor bool
 	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT anchor IS NULL, block_id::text FROM agent_requests WHERE id = $1::uuid`, created.Request.ID).Scan(&noAnchor, &stored); err != nil || !noAnchor || stored != block {
