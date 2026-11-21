@@ -33,6 +33,13 @@ var variants = []variant{
 			"{panels_dashboard}": mcpPanelsDashboard,
 		},
 		agent: map[string]string{"{panels_dashboard}": agentPanelsDashboard}},
+	{name: "restricted titles", tools: []string{nameListDashboards, nameListFolders, nameListObservations},
+		mcp: map[string]string{"{dashboards_restricted_prop}": "", "{folders_restricted_prop}": "", "{observations_restricted_prop}": ""},
+		agent: map[string]string{
+			"{dashboards_restricted_prop}":   agentDashboardsRestrictedProp + ",",
+			"{folders_restricted_prop}":      agentFoldersRestrictedProp,
+			"{observations_restricted_prop}": agentObservationsRestrictedProp + ",",
+		}},
 	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},
 		mcp: map[string]string{"{upsert_max}": strconv.Itoa(dashboards.MaxUpsertPanels), "{layout_gridpos}": mcpLayoutGridPos},
 		agent: map[string]string{
@@ -71,6 +78,10 @@ var (
 )
 
 const (
+	agentDashboardsRestrictedProp   = `"include_restricted":{"type":"boolean","description":"In an Admin's run, dashboards in folders only Admins can read are left out, except the built-in Audit dashboards, what this run is about and what is in the folders it writes to, and left_out says how many. True lists them too, and your answer then stays where only Admins read it. Refused when people who are not Admins read what this run writes."}`
+	agentFoldersRestrictedProp      = `"include_restricted":{"type":"boolean","description":"In an Admin's run, folders only Admins can read are left out, except the built-in Audit folder and the folders this run writes to, and left_out says how many. True lists them too, and your answer then stays where only Admins read it. Refused when people who are not Admins read what this run writes."}`
+	agentObservationsRestrictedProp = `"include_restricted":{"type":"boolean","description":"In an Admin's run, observations in folders only Admins can read are left out, except what this run is about and what is in the folders it writes to, and left_out says how many. True lists them too, and your answer then stays where only Admins read it. Refused when people who are not Admins read what this run writes."}`
+
 	mcpGuideFirst = " Read get_spec_guide before your first save."
 
 	mcpSpecGuideDesc = "Get the ObserveSpec authoring guide, JSON Schema and an example, in one result of up to 64 KiB. Read it once before your first create_dashboard or update_dashboard; every save is checked against them."

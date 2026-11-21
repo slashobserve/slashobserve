@@ -103,6 +103,11 @@ func (r *Registry) listAnnotations(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
+	if q.DashboardID.Valid {
+		if res, ok, err := r.viewableDashboard(ctx, q.DashboardID, "dashboard not found"); err != nil || !ok {
+			return res, err
+		}
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		page, err := r.deps.Annotations.List(ctx, principal, q)

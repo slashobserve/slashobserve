@@ -143,7 +143,7 @@ func TestInvestigationsNeverHoldTheDashboard(t *testing.T) {
 	if !found || claimed.ID.String() != rev.ID {
 		t.Fatalf("claimed %+v, want the revision beside the running investigation", claimed)
 	}
-	if _, err := svc.Get(reading(context.Background()), dash, investigation.ID); !errors.Is(err, revisions.ErrNotFound) {
+	if _, err := svc.Get(reading(context.Background()), user, dash, investigation.ID); !errors.Is(err, revisions.ErrNotFound) {
 		t.Errorf("the investigation in the revision history: %v", err)
 	}
 }
