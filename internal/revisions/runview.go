@@ -200,9 +200,11 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
-	if viewOf(row, caller) == viewNone {
+	view := viewOf(row, caller)
+	if view == viewNone {
 		return agentRequestJSON{}, ErrRequestNotFound
 	}
+	readOnly = readOnly || view == viewRedacted
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -221,14 +223,8 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	}
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
 	out.ReadOnly = readOnly
-	if out.ObservationID != nil && r.opts.ObservationVisible != nil {
-		visible, err := r.opts.ObservationVisible(ctx, caller, row.ObservationID)
-		if err != nil {
-			return agentRequestJSON{}, fmt.Errorf("check the observation a run made: %w", err)
-		}
-		if !visible {
-			out.ObservationID = nil
-		}
+	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, row.ObservationID); err != nil {
+		return agentRequestJSON{}, err
 	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
@@ -286,6 +282,20 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 	url := r.opts.ObservationURL(row.ObservationID.String())
 	out.URL = &url
 	return nil
+}
+
+func (r *RunDesk) shownObservation(ctx context.Context, caller auth.Principal, shown *string, id pgtype.UUID) (*string, error) {
+	if shown == nil || r.opts.ObservationVisible == nil {
+		return shown, nil
+	}
+	visible, err := r.opts.ObservationVisible(ctx, caller, id)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("check the observation a run names: %w", err)
+	case !visible:
+		return nil, nil
+	}
+	return shown, nil
 }
 
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {

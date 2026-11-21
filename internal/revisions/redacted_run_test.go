@@ -25,6 +25,7 @@ type runRead struct {
 	status   string
 	asker    string
 	actions  []string
+	readOnly bool
 }
 
 var chatRunOptions = revisions.ObserveOptions{LiveText: func(string, int) (string, bool) { return "still reading " + privateWord, true }}
@@ -51,9 +52,10 @@ func readsOfAChatRun(t *testing.T, svc *revisions.Service, dash, run string, who
 		Status         string                `json:"status"`
 		RequestedBy    struct{ Name string } `json:"requested_by"`
 		AllowedActions []string              `json:"allowed_actions"`
+		ReadOnly       bool                  `json:"read_only"`
 	}
 	add := func(path, body string, view shown) {
-		reads = append(reads, runRead{path: path, body: body, redacted: view.Redacted, version: view.ResultVersion, status: view.Status, asker: view.RequestedBy.Name, actions: view.AllowedActions})
+		reads = append(reads, runRead{path: path, body: body, redacted: view.Redacted, version: view.ResultVersion, status: view.Status, asker: view.RequestedBy.Name, actions: view.AllowedActions, readOnly: view.ReadOnly})
 	}
 	get := func(path string) string {
 		rec := call(engine, http.MethodGet, path, "")
@@ -165,5 +167,37 @@ func TestAReaderWhoSeesARunRedactedCannotRetryItsWordsIntoARunOfTheirOwn(t *test
 	}
 	if rec := call(chatRunEngine(svc, user), http.MethodPost, "/api/v1/observe/"+run+"/retry", ""); rec.Code != http.StatusAccepted {
 		t.Fatalf("the requester's retry answered %d: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestARedactedReaderReadsTheRunReadOnlyAndCannotFollowUpInItsChat(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{}, errors.New("unused")
+	}))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	dash := seedDashboard(t, d, 1)
+	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a panel for " + privateWord), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())})
+	chat := chatOfTurn(t, d, run)
+	setState(t, d, run.String(), "failed")
+
+	for _, who := range []auth.Principal{user, eve} {
+		readOnly := who.ID == eve.ID
+		for _, read := range readsOfAChatRun(t, svc, dash.String(), run.String(), who)[:2] {
+			if read.readOnly != readOnly {
+				t.Errorf("%s: %s is read_only %v, want %v", who.Name, read.path, read.readOnly, readOnly)
+			}
+		}
+	}
+	rec := call(chatRunEngine(svc, eve), http.MethodPost, "/api/v1/observe", `{"prompt":"and one more","chat_id":"`+chat+`"}`)
+	t.Logf("a redacted reader's follow-up in the chat answered %d: %s", rec.Code, rec.Body)
+	if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), privateWord) {
+		t.Fatalf("a redacted reader's follow-up in the chat answered %d: %s", rec.Code, rec.Body)
+	}
+	var turns int
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests WHERE chat_id = $1::uuid`, chat).Scan(&turns); err != nil {
+		t.Fatal(err)
+	}
+	if turns != 1 {
+		t.Fatalf("the chat has %d turns after the refused follow-up, want 1", turns)
 	}
 }

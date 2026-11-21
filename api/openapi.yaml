@@ -4847,7 +4847,7 @@ components:
           description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
         read_only:
           type: boolean
-          description: True when the caller sees this request only because it is an Admin; nothing may be done with it.
+          description: True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it.
         redacted:
           type: boolean
           description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted."
