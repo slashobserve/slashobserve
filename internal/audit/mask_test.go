@@ -45,7 +45,7 @@ var maskCases = []maskCase{
 	{"short value", "pwd=ab", "pwd=**"},
 	{"each key", "passwd=aaaa secret=bbbb apikey=cccc access_key=dddd secret_key=eeee", "passwd=*** secret=*** apikey=*** access_key=*** secret_key=***"},
 	{"authorization header", `curl -H "Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123"`, `curl -H "Authorization: Bearer ***"`},
-	{"quoted authorization", `authorization="Bearer sometoken123"`, `authorization="***"`},
+	{"quoted authorization", `authorization="Bearer sometoken123"`, `authorization="Bearer ***"`},
 	{"bearer in a log search", `{app="a"} |= "Bearer abcdefghijklmnop1234"`, `{app="a"} |= "Bearer ***"`},
 
 	{"aws access key id", "key AKIAABCDEFGHIJKLMNOP used", "key *** used"},
@@ -53,6 +53,41 @@ var maskCases = []maskCase{
 	{"jwt", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl", "***"},
 	{"jwt in a search", `|= "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl"`, `|= "***"`},
 	{"pem block", "x -----BEGIN RSA PRIVATE KEY-----\nMIIB\nabc\n-----END RSA PRIVATE KEY----- y", "x *** y"},
+	{"a prefixed key with an underscore", "access_token=SECRETVALUE", "access_token=***"},
+	{"a refresh token in json", `{"refresh_token":"SECRETVALUE"}`, `{"refresh_token":"***"}`},
+	{"a client secret", "client_secret=SECRETVALUE", "client_secret=***"},
+	{"a prefixed password with a quoted value", "db_password = 'SECRETVALUE'", "db_password = '***'"},
+	{"the aws secret environment name", "AWS_SECRET_ACCESS_KEY=SECRETVALUE", "AWS_SECRET_ACCESS_KEY=***"},
+	{"a hyphenated header name", "X-Api-Key: SECRETVALUE", "X-Api-Key: ***"},
+	{"a hyphenated key", "api-key=SECRETVALUE", "api-key=***"},
+	{"basic authorization", `|= "Authorization: Basic dXNlcjpwYXNzd29yZA=="`, `|= "Authorization: Basic ***"`},
+	{"token authorization", "Authorization: Token SECRETVALUE", "Authorization: Token ***"},
+	{"authorization without a scheme", "Authorization: SECRETVALUE", "Authorization: ***"},
+	{"quoted authorization with a scheme", `authorization="Basic dXNlcjpwYXNz"`, `authorization="Basic ***"`},
+	{"a line comment between arguments", "s3('https://b/x',\n 'AKIAABCDEFGHIJKLMNOP', -- key\n 'SECRETVALUE', 'CSV')", "s3('https://b/x',\n '***', -- key\n '***', 'CSV')"},
+	{"a block comment before an argument", "mysql('h','db','t','u', /* pw */ 'SECRETVALUE')", "mysql('h','db','t','u', /* pw */ '***')"},
+	{"an apostrophe in a comment", "s3('u', -- don't\n 'AK', 'SECRETVALUE')", "s3('u', -- don't\n '**', '***')"},
+	{"a comma and paren in a block comment", "s3('u', /* a, b) */ 'ak12', 'sk12')", "s3('u', /* a, b) */ '***', '***')"},
+	{"deltaLake", "deltaLake('https://b/x', 'ak12', 'SECRETVALUE')", "deltaLake('https://b/x', '***', '***')"},
+	{"iceberg", "iceberg('https://b/x', 'ak12', 'SECRETVALUE')", "iceberg('https://b/x', '***', '***')"},
+	{"icebergS3", "icebergS3('https://b/x', 'ak12', 'SECRETVALUE')", "icebergS3('https://b/x', '***', '***')"},
+	{"hudi", "hudi('https://b/x', 'ak12', 'SECRETVALUE')", "hudi('https://b/x', '***', '***')"},
+	{"s3Queue", "S3Queue('https://b/x/*', 'ak12', 'SECRETVALUE', 'CSV')", "S3Queue('https://b/x/*', '***', '***', 'CSV')"},
+	{"azureBlobStorageCluster account key", "azureBlobStorageCluster('c', 'https://a.blob.core.windows.net', 'cont', 'blob', 'acct', 'SECRETVALUE', 'CSV')", "azureBlobStorageCluster('c', 'https://a.blob.core.windows.net', 'cont', 'blob', 'acct', '***', 'CSV')"},
+	{"azureBlobStorageCluster connection string", "azureBlobStorageCluster('c', 'AccountName=a;AccountKey=SECRETVALUE', 'cont', 'blob')", "azureBlobStorageCluster('c', '***', 'cont', 'blob')"},
+	{"MaterializedPostgreSQL", "CREATE DATABASE d ENGINE = MaterializedPostgreSQL('h:5432', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MaterializedPostgreSQL('h:5432', 'db', 'u', '***')"},
+	{"MaterializedMySQL", "CREATE DATABASE d ENGINE = MaterializedMySQL('h:3306', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MaterializedMySQL('h:3306', 'db', 'u', '***')"},
+	{"MySQL database engine", "CREATE DATABASE d ENGINE = MySQL('h:3306', 'db', 'root', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = MySQL('h:3306', 'db', 'root', '***')"},
+	{"PostgreSQL database engine", "CREATE DATABASE d ENGINE = PostgreSQL('h:5432', 'db', 'u', 'SECRETVALUE')", "CREATE DATABASE d ENGINE = PostgreSQL('h:5432', 'db', 'u', '***')"},
+	{"an unterminated quoted value", "password='SECRETVALUE", "password='***"},
+	{"an unterminated double quoted value", `{"password": "SECRETVALUE`, `{"password": "***`},
+	{"a value starting with a bang", "password=!SECRETVALUE", "password=***"},
+	{"a value after a regex operator", "password=~SECRETVALUE", "password=~***"},
+	{"a value after a double equals", "password==SECRETVALUE", "password=***"},
+	{"a negative matcher", `{password!="SECRETVALUE"}`, `{password!="***"}`},
+	{"a regex matcher on a secret name", `{token=~"a.*"}`, `{token=~"***"}`},
+	{"an escaped quote inside a value", `{"password":"ab\"SECRETVALUE"}`, `{"password":"***"}`},
+	{"a literal with doubled quotes", "password = 'ab''SECRETVALUE'", "password = '***'"},
 	{"pem block that never ends", "-----BEGIN PRIVATE KEY-----\nMIIBabc", "***"},
 }
 
@@ -62,8 +97,6 @@ var untouchedQueries = []string{
 	`traces | where duration > 1s and token_count == 5 | summarize count() by name`,
 	`SELECT user, count() FROM logs WHERE ts > now() - INTERVAL 1 HOUR AND level = 'error' GROUP BY user`,
 	`{token_count="5"}`,
-	`{token=~"a.*"}`,
-	`a == b and token != "x"`,
 	`rate(secret_rotations_total[5m]) + password_changes_total`,
 	`sum by (token_type) (tokens)`,
 	`https://host/path?a=b&c=d`,
@@ -107,7 +140,7 @@ func TestMaskSecretsNeverLengthensAndNeverPanicsOnAnyPrefixOrGarbage(t *testing.
 		state = state*6364136223846793005 + 1442695040888963407
 		return int(state>>33) % n
 	}
-	pieces := []string{"s3(", "mysql(", "url(", "headers(", "remote(", "'", `"`, "`", "\\", ",", ")", "(", "=", ":", "@", "://", "password", "token", "Bearer ", "AKIA", "eyJ", ".", "-----BEGIN PRIVATE KEY-----", " ", "\n", "é", "a", "9"}
+	pieces := []string{"s3(", "--", "/*", "*/", "mysql(", "url(", "headers(", "remote(", "'", `"`, "`", "\\", ",", ")", "(", "=", ":", "@", "://", "password", "token", "Bearer ", "AKIA", "eyJ", ".", "-----BEGIN PRIVATE KEY-----", " ", "\n", "é", "a", "9"}
 	for range 400 {
 		var b strings.Builder
 		for range next(60) {
@@ -150,5 +183,25 @@ func TestASecretThatStraddlesTheCapDoesNotSurvive(t *testing.T) {
 		if got := RecordedQuery(pad + tail); strings.Contains(got, "SECRET") || strings.Contains(got, "pw1234") || strings.Contains(got, "1234567890") {
 			t.Errorf("%s survived the cap: %q", name, got[MaxQueryBytes-30:])
 		}
+	}
+}
+
+func TestACredentialArgumentAfterALongEarlierArgumentIsStillMasked(t *testing.T) {
+	long := "s3('https://b/" + strings.Repeat("p", 2100) + "', 'ak12', 'SECRETVALUE')"
+	if got := RecordedQuery(long); strings.Contains(got, "SECRETVALUE") || !strings.HasSuffix(got, "'***', '***')") {
+		t.Errorf("the credentials after a 2 KiB path survived: %q", got[len(got)-40:])
+	}
+	cut := "mysql('h', 'db', '" + strings.Repeat("t", 3000) + "', 'u', 'SECRETVALUE"
+	if got := RecordedQuery(cut); strings.Contains(got, "SECRETVALUE") {
+		t.Errorf("an unterminated credential after a long argument survived: %q", got[len(got)-30:])
+	}
+}
+
+func TestAnUnterminatedValueCutBySlackLimitDoesNotSurvive(t *testing.T) {
+	pem := "-----BEGIN PRIVATE KEY-----\n" + strings.Repeat("A", 5000) + "\n-----END PRIVATE KEY-----"
+	text := pem + " password='SECRETVALUE" + strings.Repeat("x", 6000)
+	got := RecordedQuery(text)
+	if strings.Contains(got, "SECRET") || !strings.HasSuffix(got, truncatedMark) {
+		t.Errorf("recorded %d bytes ending %q", len(got), got[len(got)-30:])
 	}
 }

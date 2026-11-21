@@ -9,9 +9,17 @@ import (
 const (
 	maskedSecret   = "***"
 	maskSlackBytes = 4096
-	maxCallBytes   = 2048
-	maxCallArgs    = 16
 )
+
+const (
+	assignment = `["']?\s*(?:!=|=~|!~|[:=])\s*`
+	scheme     = `(?:(?:bearer|basic|token|digest|negotiate|ntlm|apikey|jwt|oauth|hmac|mac)\s+)?`
+	secretName = `(?:password|passwd|pwd|secret[_-]?access[_-]?key|secret[_-]?key|secret|token|api[_-]?key|access[_-]?key)`
+)
+
+func valueOf(prefix, bare string) string {
+	return `(?:"` + prefix + `((?:[^"\\]|\\.)*)"|'` + prefix + `((?:[^'\\]|\\.|'')*)'|"` + prefix + `((?:[^"\\]|\\.)*)\\?$|'` + prefix + `((?:[^'\\]|\\.|'')*)\\?$|` + prefix + bare + `)`
+}
 
 type secretPattern struct {
 	re   *regexp.Regexp
@@ -20,33 +28,53 @@ type secretPattern struct {
 
 var secretPatterns = []secretPattern{
 	{regexp.MustCompile("([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/'\"`]*)@"), 2},
-	{regexp.MustCompile(`(?i)\b(?:password|passwd|pwd|secret|token|api_key|apikey|access_key|secret_key|authorization)["']?\s*[:=]\s*(?:bearer\s+)?(?:"([^"]*)"|'([^']*)'|([^\s,;&)}\]"'~=!][^\s,;&)}\]"']*))`), 1},
+	{regexp.MustCompile(`(?i)` + secretName + assignment + `(?:bearer\s+)?` + valueOf("", `([^\s,;&)}\]"']+)`)), 1},
+	{regexp.MustCompile(`(?i)authorization` + assignment + valueOf(scheme, `([^\r\n"']+)`)), 1},
 	{regexp.MustCompile(`(?i)\b(bearer\s+)([A-Za-z0-9._~+/=-]{16,})`), 2},
 	{regexp.MustCompile(`\b((?:AKIA|ASIA)[0-9A-Z]{16})\b`), 1},
 	{regexp.MustCompile(`\b(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)`), 1},
 	{regexp.MustCompile(`(?s)(-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$))`), 1},
 }
 
-var credentialFunction = regexp.MustCompile(`(?i)\b(s3cluster|s3|gcs|azureblobstorage|hdfs|url|mysql|postgresql|mongodb|redis|remotesecure|remote|jdbc|odbc)\s*\(`)
+var credentialFunction = regexp.MustCompile(`(?i)\b(materializedpostgresql|materializedmysql|azureblobstoragecluster|azureblobstorage|s3cluster|s3queue|s3|gcs|deltalake|iceberg[a-z0-9]*|hudi|hdfs|url|mysql|postgresql|mongodb|redis|remotesecure|remote|jdbc|odbc)\s*\(`)
 
 type argumentRule struct {
-	positions []int
-	whole     bool
+	positions  []int
+	whole      bool
+	connection []int
+	shortLen   int
+	whenShort  []int
 }
 
+var objectStore = argumentRule{positions: []int{1, 2, 3}}
+
 var credentialArguments = map[string]argumentRule{
-	"s3":               {positions: []int{1, 2, 3}},
-	"s3cluster":        {positions: []int{2, 3, 4}},
-	"gcs":              {positions: []int{1, 2}},
-	"azureblobstorage": {positions: []int{4}},
-	"mysql":            {positions: []int{4}},
-	"postgresql":       {positions: []int{4}},
-	"mongodb":          {positions: []int{4}},
-	"redis":            {positions: []int{4}},
-	"remote":           {positions: []int{3, 4}},
-	"remotesecure":     {positions: []int{3, 4}},
-	"jdbc":             {positions: []int{0}, whole: true},
-	"odbc":             {positions: []int{0}, whole: true},
+	"s3":                      objectStore,
+	"s3queue":                 objectStore,
+	"deltalake":               objectStore,
+	"iceberg":                 objectStore,
+	"hudi":                    objectStore,
+	"s3cluster":               {positions: []int{2, 3, 4}},
+	"gcs":                     {positions: []int{1, 2}},
+	"azureblobstorage":        {positions: []int{4}, connection: []int{0}},
+	"azureblobstoragecluster": {positions: []int{5}, connection: []int{1}},
+	"mysql":                   {positions: []int{4}, shortLen: 4, whenShort: []int{3}},
+	"postgresql":              {positions: []int{4}, shortLen: 4, whenShort: []int{3}},
+	"mongodb":                 {positions: []int{4}},
+	"redis":                   {positions: []int{4}},
+	"remote":                  {positions: []int{3, 4}},
+	"remotesecure":            {positions: []int{3, 4}},
+	"materializedpostgresql":  {positions: []int{3}},
+	"materializedmysql":       {positions: []int{3}},
+	"jdbc":                    {positions: []int{0}, whole: true},
+	"odbc":                    {positions: []int{0}, whole: true},
+}
+
+func ruleFor(name string) argumentRule {
+	if strings.HasPrefix(name, "iceberg") {
+		name = "iceberg"
+	}
+	return credentialArguments[name]
 }
 
 var namedCredentials = []string{
@@ -111,13 +139,13 @@ type span struct{ start, end int }
 func tableFunctionEdits(text string) []edit {
 	var edits []edit
 	for _, m := range credentialFunction.FindAllStringSubmatchIndex(text, -1) {
-		name := strings.ToLower(text[m[2]:m[3]])
-		rule := credentialArguments[name]
-		for i, arg := range callArguments(text, m[1]) {
+		rule := ruleFor(strings.ToLower(text[m[2]:m[3]]))
+		args := callArguments(text, m[1])
+		for i, arg := range args {
 			switch {
-			case slices.Contains(rule.positions, i):
+			case slices.Contains(rule.positions, i) || (len(args) <= rule.shortLen && slices.Contains(rule.whenShort, i)):
 				edits = append(edits, literalEdit(text, arg, !rule.whole)...)
-			case name == "azureblobstorage" && i == 0 && connectionString(text[arg.start:arg.end]):
+			case slices.Contains(rule.connection, i) && connectionString(text[arg.start:arg.end]):
 				edits = append(edits, literalEdit(text, arg, false)...)
 			}
 			edits = append(edits, namedCredentialEdit(text, arg)...)
@@ -185,41 +213,115 @@ func headerEdits(text string, arg span) []edit {
 	return edits
 }
 
+type argScanner struct {
+	args        []span
+	first, last int
+}
+
+func (s *argScanner) see(i int) {
+	if s.first < 0 {
+		s.first = i
+	}
+	s.last = i + 1
+}
+
+func (s *argScanner) push() {
+	if s.first < 0 {
+		s.args = append(s.args, span{})
+	} else {
+		s.args = append(s.args, span{s.first, s.last})
+	}
+	s.first, s.last = -1, -1
+}
+
 func callArguments(text string, open int) []span {
-	limit := min(len(text), open+maxCallBytes)
-	var args []span
-	push := func(start, end int) { args = append(args, trimmed(text, start, end)) }
-	start, depth := open, 0
+	s := &argScanner{first: -1, last: -1}
+	depth := 0
 	var quote byte
-	for i := open; i < limit && len(args) < maxCallArgs; i++ {
+	for i := open; i < len(text); i++ {
 		c := text[i]
 		if quote != 0 {
-			i, quote = inQuote(text, i, limit, quote)
+			i, quote = inQuote(text, i, len(text), quote)
+			s.see(min(i, len(text)-1))
 			continue
 		}
-		switch c {
-		case '\'', '"', '`':
+		if end := commentEnd(text, i); end > i {
+			i = end - 1
+			continue
+		}
+		switch tokenOf(c, depth) {
+		case tokSpace:
+			continue
+		case tokEnd:
+			s.push()
+			return s.args
+		case tokComma:
+			s.push()
+			continue
+		case tokQuote:
 			quote = c
-		case '(', '[', '{':
+		case tokOpen:
 			depth++
-		case ')', ']', '}':
-			if depth > 0 {
-				depth--
-			} else if c == ')' {
-				push(start, i)
-				return args
-			}
-		case ',':
-			if depth == 0 {
-				push(start, i)
-				start = i + 1
-			}
+		case tokClose:
+			depth--
+		}
+		s.see(i)
+	}
+	s.push()
+	return s.args
+}
+
+type token int
+
+const (
+	tokOther token = iota
+	tokSpace
+	tokEnd
+	tokComma
+	tokQuote
+	tokOpen
+	tokClose
+)
+
+func tokenOf(c byte, depth int) token {
+	switch c {
+	case ' ', '\t', '\r', '\n':
+		return tokSpace
+	case '\'', '"', '`':
+		return tokQuote
+	case '(', '[', '{':
+		return tokOpen
+	case ')':
+		if depth == 0 {
+			return tokEnd
+		}
+		return tokClose
+	case ']', '}':
+		if depth > 0 {
+			return tokClose
+		}
+	case ',':
+		if depth == 0 {
+			return tokComma
 		}
 	}
-	if len(args) < maxCallArgs {
-		push(start, limit)
+	return tokOther
+}
+
+func commentEnd(text string, i int) int {
+	switch {
+	case strings.HasPrefix(text[i:], "--"):
+		if nl := strings.IndexByte(text[i:], '\n'); nl >= 0 {
+			return i + nl
+		}
+		return len(text)
+	case strings.HasPrefix(text[i:], "/*"):
+		if end := strings.Index(text[i+2:], "*/"); end >= 0 {
+			return i + 2 + end + 2
+		}
+		return len(text)
 	}
-	return args
+	return i
 }
 
 func inQuote(text string, i, limit int, quote byte) (int, byte) {
@@ -232,14 +334,4 @@ func inQuote(text string, i, limit int, quote byte) (int, byte) {
 		return i + 1, quote
 	}
 	return i, 0
-}
-
-func trimmed(text string, start, end int) span {
-	for start < end && strings.ContainsRune(" \t\r\n", rune(text[start])) {
-		start++
-	}
-	for end > start && strings.ContainsRune(" \t\r\n", rune(text[end-1])) {
-		end--
-	}
-	return span{start, end}
 }

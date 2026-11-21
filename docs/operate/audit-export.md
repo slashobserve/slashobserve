@@ -82,8 +82,9 @@ The data of a `query.run` and of an `audit.search` event carries the query text,
 Before the text is cut at 4 KiB and stored, these secrets in it are replaced by `***`:
 
 - The user and password of a URL, as in `scheme://user:pass@host`.
-- The credential arguments of the ClickHouse functions and engines `s3`, `s3Cluster`, `gcs`, `azureBlobStorage`, `hdfs`, `url`, `mysql`, `postgresql`, `mongodb`, `redis`, `remote`, `remoteSecure`, `jdbc` and `odbc`: access keys, secrets, passwords, connection strings and the values of `headers(...)`.
-- The value after `password`, `passwd`, `pwd`, `secret`, `token`, `api_key`, `apikey`, `access_key`, `secret_key` or `authorization`, written as `key=value` or `key: value` in any case, and a `Bearer` token.
+- The credential arguments of the ClickHouse functions and engines `s3`, `s3Cluster`, `gcs`, `azureBlobStorage`, `hdfs`, `url`, `mysql`, `postgresql`, `mongodb`, `redis`, `remote`, `remoteSecure`, `jdbc` and `odbc`, and the same arguments of `deltaLake`, `iceberg`, `hudi`, `s3Queue`, `azureBlobStorageCluster`, `MaterializedPostgreSQL` and `MaterializedMySQL`: access keys, secrets, passwords, connection strings and the values of `headers(...)`.
+- The value after `password`, `passwd`, `pwd`, `secret`, `token`, `api_key`, `access_key` or `secret_key`, also when the name has a prefix such as `access_token`, `client_secret` or `X-Api-Key`, written as `key=value`, `key: value`, `key!=value` or `key=~value` in any case, with quoted, unquoted, unterminated or escaped values.
+- The credential after `authorization` with any scheme (the scheme word stays), and a `Bearer` token.
 - AWS access key ids, JSON web tokens and PEM private key blocks, wherever they appear.
 
 Everything else is stored as typed and travels through the export, so a secret in a form this list does not name, such as a password in a free-text log search, is in the trail and in the collector, with the retention and readers of each.
