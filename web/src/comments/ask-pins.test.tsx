@@ -22,6 +22,7 @@ const onRow: Anchor = {
 
 function summary(fields: Record<string, unknown>) {
   return {
+    prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",
     anchor: onRow,
@@ -34,10 +35,15 @@ function summary(fields: Record<string, unknown>) {
 }
 
 function stubRequests(requests: Record<string, unknown>[]) {
+  const listed: URL[] = []
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => Response.json({ requests, next_cursor: null }))
+    vi.fn(async (request: Request) => {
+      listed.push(new URL(request.url))
+      return Response.json({ requests, next_cursor: null })
+    })
   )
+  return listed
 }
 
 function renderPins() {
@@ -69,7 +75,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe("AskPins", () => {
   it("draws the viewer's own question as a named pin and opens its turn on click", async () => {
-    stubRequests([
+    const listed = stubRequests([
       summary({ id: "r1" }),
       summary({ id: "r2", requested_by: { kind: "user", id: "u2" } }),
       summary({ id: "r3", read_only: true }),
@@ -89,5 +95,32 @@ describe("AskPins", () => {
       surface: "s1",
     })
     expect(pin).toHaveAttribute("aria-expanded", "true")
+    expect(listed[0].pathname).toBe("/api/v1/observe")
+    expect(Object.fromEntries(listed[0].searchParams)).toMatchObject({
+      dashboard_id: "d1",
+      anchored: "true",
+    })
+    expect(listed[0].searchParams.has("scope")).toBe(false)
+  })
+
+  it("stacks questions at one spot into a counted marker that lists them", async () => {
+    stubRequests([
+      summary({ id: "r1" }),
+      summary({ id: "r2", chat_id: "c2", prompt: "And yesterday?" }),
+    ])
+    const { user } = renderPins()
+    await user.click(
+      await screen.findByRole("button", { name: "2 of your questions here" })
+    )
+    const asked = await screen.findAllByRole("button", {
+      name: "Your question on Slow services, The row payments, 440",
+    })
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toHaveTextContent("And yesterday?")
+    await user.click(asked[1])
+    expect(useCanvasTool.getState().openTurn).toMatchObject({
+      requestId: "r2",
+      chatId: "c2",
+    })
   })
 })

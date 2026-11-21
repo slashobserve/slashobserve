@@ -165,6 +165,7 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
               chat_id: filters.chatId,
               scope: filters.scope,
               state: filters.states,
+              anchored: filters.anchored,
               limit,
               cursor: pageParam,
             },

@@ -180,7 +180,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, opens the composer on the whole panel, as `c`, the panel menu's **Comment** and the **Comment** button in the panel's header do; in the full-size view and TV mode it starts the comment in the activity pane instead.
-- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the activity pane with the panel as the target and the "To:" chip on Observe Agent.
+- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the [ask box](#ask-mode) on the whole panel, as `a`, the panel menu's **Ask** and the **Ask** button in the panel's header do; in the full-size view and TV mode it opens the dashboard's Chat tab instead.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
@@ -195,7 +195,6 @@ A click opens a small composer at that spot, with chips naming the panel and the
 On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
-**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Comment pins
 
@@ -215,6 +214,7 @@ Pins show only the threads you can read, and they are not drawn in print, in a p
 Ask mode is off while you have unsaved layout changes.
 It points like Comment mode: a crosshair, a line above the tool bar that says what a click does, and an outline on the part of the panel under the pointer.
 A click opens a small box at that spot with chips naming the panel, the part you clicked, the value under the pointer and the time window, and sends your question to the agent with all of them.
+Dragging across the time axis of a panel that takes a range, as in Comment mode, asks about the range you dragged over.
 
 The question is a turn of the chat open in the dashboard's Chat tab, or of a new chat that the Chat tab then opens when none is.
 The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
@@ -224,6 +224,7 @@ When no model is connected the box says so and cannot send, and while you view a
 The box closes on its **Close** button, `Esc` or a click outside it, and the focus goes back to where it was.
 
 Each spot you asked about shows a teal pin that only you see, named "Your question on" and the spot; choose it, or Tab to it and press Enter, to open the box on that chat again.
+Your pins that would overlap stack into one teal marker with their count, "N of your questions here", which lists them; choose one to open its box.
 An Admin reading your chat does not see your pins, and an answer you share into a thread also shows that thread's pin for everyone.
 
 ### Arrange panels

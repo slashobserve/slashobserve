@@ -38,6 +38,7 @@ const point: Anchor = {
 
 function turn(fields: Partial<SpotTurn> & { id: string }): SpotTurn {
   return {
+    prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",
     anchor: row,

@@ -4,6 +4,7 @@ import type { Anchor } from "@/panels/anchors"
 
 export type SpotTurn = {
   id: string
+  prompt: string
   chat_id: string | null
   panel_id: string | null
   anchor?: Anchor | null
@@ -17,6 +18,7 @@ export type PrivatePin = {
   requestId: string
   chatId: string
   anchor: Anchor
+  prompt: string
   turns: number
 }
 
@@ -52,7 +54,14 @@ export function privatePins(
     const key = `${chatId}:${spotKey(anchor)}`
     const pin = pins.get(key)
     if (pin === undefined) {
-      pins.set(key, { key, requestId: turn.id, chatId, anchor, turns: 1 })
+      pins.set(key, {
+        key,
+        requestId: turn.id,
+        chatId,
+        anchor,
+        prompt: turn.prompt,
+        turns: 1,
+      })
     } else {
       pin.turns += 1
     }
