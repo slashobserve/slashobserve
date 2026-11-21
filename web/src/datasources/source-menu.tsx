@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { railFlyoutItemClass, railFlyoutLabelClass } from "@/shell/rail-flyout"
 
+import { AudienceBadge } from "./audience-badge"
 import type { DatasourceStatus } from "./queries"
 import { usePublishedLanguage } from "./source-language-store"
 import {
@@ -41,7 +42,10 @@ function SourceRowContent({
 }) {
   return (
     <>
-      <span className="min-w-0 truncate">{source.name}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate">{source.name}</span>
+        <AudienceBadge datasource={source} />
+      </span>
       <span className="flex flex-none items-center gap-1 text-xs text-muted-foreground">
         {source.healthy ? null : (
           <>

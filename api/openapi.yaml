@@ -1609,6 +1609,10 @@ components:
         time_field:
           type: string
           description: The time field of an Elasticsearch or OpenSearch datasource; absent on other types.
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who can query the datasource, for an Admin caller only; absent for everyone else.
         healthy:
           type: boolean
         message:
@@ -1876,6 +1880,10 @@ components:
                 type: string
               folder_title:
                 type: string
+        unlisted:
+          type: integer
+          minimum: 0
+          description: How many more items that block a datasource change are in folders other people can read and are not in `items`; 0 when the list is complete, absent when `items` is.
         hidden:
           type: integer
           minimum: 1

@@ -211,7 +211,7 @@ func TestDatasourcesEditSendsTheAudienceAndGetPrintsIt(t *testing.T) {
 func TestDatasourcesEditPrintsTheContentThatBlocksMakingItAdminsOnly(t *testing.T) {
 	f := newDatasourceAdminFake(t)
 	f.status = http.StatusConflict
-	f.reply = `{"error":"move them first","code":"restricted_content","datasource":"metrics","hidden":2,"items":[` +
+	f.reply = `{"error":"move them first","code":"restricted_content","datasource":"metrics","unlisted":7,"hidden":2,"items":[` +
 		`{"kind":"saved_search","id":"s1","title":"Errors","folder_id":"f1","folder_title":"Team"},` +
 		`{"kind":"dashboard","id":"d1","title":"Checkout","folder_id":"f2","folder_title":"General"}]}`
 
@@ -220,6 +220,7 @@ func TestDatasourcesEditPrintsTheContentThatBlocksMakingItAdminsOnly(t *testing.
 		"move them first (restricted_content)",
 		`saved search s1 "Errors" in folder "Team"`,
 		`dashboard d1 "Checkout" in folder "General"`,
+		"and 7 more in folders other people can read",
 		"and 2 in people's My Dashboards",
 	} {
 		if code != 1 || !strings.Contains(stderr, want) {
