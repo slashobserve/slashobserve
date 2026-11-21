@@ -25,7 +25,6 @@ var deniedCodes = []string{"forbidden_role", "forbidden", "user_session_required
 func openMCPScope(ctx context.Context) {
 	audit.Update(ctx, func(s *audit.Scope) {
 		s.Origin.Kind = string(origin.MCP)
-		s.Initiator = audit.InitiatorAgent
 	})
 }
 

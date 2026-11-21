@@ -120,13 +120,10 @@ func answering(res tools.Result, err error) func(context.Context, string, json.R
 func TestAToolCallWithAnOAuthGrantIsRecordedForThePersonAndTheirClient(t *testing.T) {
 	f := newFixture(t)
 	a := mountAudited(t, f.handler)
-	a.call(t, oauthTakes, "get_spec_guide", map[string]any{"note": "secret-argument-value"})
-	want := mcpEvent{action: "agent.tool_call", outcome: "success", actorKind: "user", actorName: "Ada", initiator: "agent", authMethod: "oauth", credentialID: "grant-1", origin: "mcp", originClient: "Claude Code", tool: "get_spec_guide", targetKind: "tool", targetID: "get_spec_guide", data: "{}"}
+	a.call(t, oauthTakes, "get_spec_guide", nil)
+	want := mcpEvent{action: "agent.tool_call", outcome: "success", actorKind: "user", actorName: "Ada", initiator: "person", authMethod: "oauth", credentialID: "grant-1", origin: "mcp", originClient: "Claude Code", tool: "get_spec_guide", targetKind: "tool", targetID: "get_spec_guide", data: "{}"}
 	if got := a.only(t, "agent.tool_call"); got != want {
 		t.Fatalf("event = %+v, want %+v", got, want)
-	}
-	if n := a.mentions(t, "secret-argument-value"); n != 0 {
-		t.Fatalf("%d audit rows carry a tool argument", n)
 	}
 }
 
@@ -147,7 +144,7 @@ func TestAToolCallWithAKeyIsRecordedForTheServiceAccount(t *testing.T) {
 	a := mountAudited(t, f.handler)
 	a.call(t, goodKey, "get_spec_guide", nil)
 	got := a.only(t, "agent.tool_call")
-	if got.actorKind != "service_account" || got.actorName != "ci" || got.authMethod != "api_key" || got.credentialID != "key-1" || got.origin != "mcp" || got.initiator != "agent" || got.outcome != "success" {
+	if got.actorKind != "service_account" || got.actorName != "ci" || got.authMethod != "api_key" || got.credentialID != "key-1" || got.origin != "mcp" || got.initiator != "person" || got.outcome != "success" {
 		t.Fatalf("event = %+v", got)
 	}
 }
@@ -180,12 +177,15 @@ func TestAToolErrorAndAToolFailureAreRecordedAsFailed(t *testing.T) {
 	f := newFixture(t)
 	a := mountAudited(t, f.handler)
 	f.handler.(*handler).call = answering(tools.Result{IsError: true, Content: map[string]string{"code": "not_found"}}, nil)
-	a.call(t, goodKey, "get_spec_guide", nil)
+	a.call(t, goodKey, "get_spec_guide", map[string]any{"note": "secret-argument-value"})
 	f.handler.(*handler).call = answering(tools.Result{}, errors.New("database exploded with secret-detail"))
 	a.call(t, goodKey, "get_spec_guide", nil)
 	events := a.events(t, "agent.tool_call")
 	if len(events) != 2 || events[0].outcome != "failed" || events[0].reason != "not_found" || events[1].outcome != "failed" || events[1].reason == "" {
 		t.Fatalf("events = %+v", events)
+	}
+	if n := a.mentions(t, "secret-argument-value"); n != 0 {
+		t.Fatalf("%d audit rows carry a tool argument", n)
 	}
 	if n := a.mentions(t, "secret-detail"); n != 0 {
 		t.Fatalf("%d audit rows carry the failure text", n)
@@ -217,7 +217,7 @@ func TestARejectedMCPCredentialIsRecordedWithTheMCPOriginAndItsKind(t *testing.T
 		t.Fatalf("status = %d", rec.Code)
 	}
 	got := a.only(t, "auth.credential_rejected")
-	want := mcpEvent{action: "auth.credential_rejected", outcome: "denied", reason: "unknown_credential", actorKind: "anonymous", initiator: "agent", authMethod: "api_key", origin: "mcp", targetKind: "credential", targetID: "", data: `{"count": 1}`, status: 401}
+	want := mcpEvent{action: "auth.credential_rejected", outcome: "denied", reason: "unknown_credential", actorKind: "anonymous", initiator: "person", authMethod: "api_key", origin: "mcp", targetKind: "credential", targetID: "", data: `{"count": 1}`, status: 401}
 	if got != want {
 		t.Fatalf("event = %+v, want %+v", got, want)
 	}
