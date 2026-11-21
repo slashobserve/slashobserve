@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	threadAgentVersion = 76
-	chatsVersion       = 77
+	threadAgentVersion = 81
+	chatsVersion       = 82
 
 	convDashboard = "00000000-0000-4000-8000-0000000009a1"
 )
@@ -364,7 +364,7 @@ func chatsSchemaState(t *testing.T, sqlDB *sql.DB) string {
   || ',' || coalesce((SELECT indisvalid::text FROM pg_index WHERE indexrelid = 'agent_requests_chat_order_idx'::regclass), 'missing')`)
 }
 
-const chatsMigrationFile = "migrations/00077_chats.sql"
+const chatsMigrationFile = "migrations/00082_chats.sql"
 
 func runChatsMigrationHalf(t *testing.T, sqlDB *sql.DB, half string) {
 	t.Helper()

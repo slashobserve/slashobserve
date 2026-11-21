@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const firstLockCheckedMigration = 76
+const firstLockCheckedMigration = 81
 
 var (
 	alterClause      = regexp.MustCompile(`,\s*\n\s*`)
