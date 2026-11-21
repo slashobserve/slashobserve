@@ -62,6 +62,7 @@ They do nothing on a dashboard that hides the time picker.
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
 `v`, `e`, `i`, `a` and `c` also act on no panel while you have unsaved layout changes; `c` then only opens the activity pane.
 In the full-size view and in TV mode, `c` comments on the panel in the activity pane instead, and with no panel it opens the activity pane.
+On a copy of a repeated panel, `c` also comments in the activity pane.
 
 ## Logs page keys
 

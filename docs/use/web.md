@@ -194,7 +194,10 @@ In Comment mode the pointer becomes a crosshair, a line above the tool bar says 
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
 On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
-The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
+The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
+A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
+While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
+The copies of a repeated panel take no canvas comments: Comment mode does nothing on a copy, **Comment** or `c` on a copy starts the comment in the activity pane, and pins show only on the first panel.
 
 ### Comment pins
 
@@ -223,7 +226,10 @@ The answer arrives in the same box, first as "Looking into it" and then as the a
 The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard.
 The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.
 When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
-The box closes on its **Close** button, `Esc` or a click outside it, and the focus goes back to where it was.
+The box closes on its **Close** button or `Esc`, and the focus goes back to where it was.
+A click outside closes it only while it is empty: once you have typed a question, it stays open with your text, and a click on another spot or on a pin leaves it as it is.
+While the layout has unsaved moves the box is hidden, and it comes back with your text once the moves are saved or discarded.
+The copies of a repeated panel take no canvas questions: Ask mode does nothing on a copy, and **Ask** or `a` on a copy opens the dashboard's Chat tab.
 
 Each spot you asked about shows a teal pin that only you see, named "Your question on" and the spot; choose it, or Tab to it and press Enter, to open the box on that chat again.
 Your pins that would overlap stack into one teal marker with their count, "N of your questions here", which lists them; choose one to open its box.

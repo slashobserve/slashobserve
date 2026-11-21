@@ -57,6 +57,7 @@ import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
 import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
+  shortcutTarget,
   useDashboardShortcuts,
 } from "@/shortcuts/use-dashboard-shortcuts"
 import {
@@ -86,7 +87,7 @@ import {
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { askKeyAction } from "./ask-key"
-import { commentKeyAction } from "./comment-key"
+import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -594,6 +595,18 @@ function DashboardView({
   const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
+  const shortcutPlace = () => {
+    const target = shortcutTarget()
+    const panel = layoutPanelOf(spec, target?.id ?? undefined)
+    const onCanvas = takesCanvasComments({
+      canComment: permissions.comment,
+      onTv: kiosk,
+      viewing: viewed !== undefined,
+      editingPanel: editingPanel && panel?.id === search.panel,
+      copy: target?.copy === true,
+    })
+    return { panel, onCanvas }
+  }
   useDashboardShortcuts({
     view: () => {
       if (viewed !== undefined) return closeView()
@@ -612,10 +625,10 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
-      const onCanvas = !kiosk && viewed === undefined
+      const { panel, onCanvas } = shortcutPlace()
       const action = commentKeyAction({
         commenting: tool === "comment",
-        panelId: shortcutPanel()?.id,
+        panelId: panel?.id,
         canComment: permissions.comment,
         editing,
         onCanvas,
@@ -633,8 +646,7 @@ function DashboardView({
       }
     },
     ask: () => {
-      const onCanvas = !kiosk && viewed === undefined
-      const panel = shortcutPanel()
+      const { panel, onCanvas } = shortcutPlace()
       const action = askKeyAction({
         asking: tool === "ask",
         panelId: panel?.id,
@@ -912,6 +924,13 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      onCanvas={takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing,
+        editingPanel: editingPanel && item.panel.id === search.panel,
+        copy: item.key !== item.panel.id,
+      })}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }

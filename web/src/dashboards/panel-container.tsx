@@ -18,7 +18,6 @@ import {
   CanvasComposer,
   CanvasLayer,
   useCanvasGate,
-  useOnTv,
 } from "@/comments/canvas-composer"
 import { AskPins } from "@/comments/ask-pins"
 import { AskPopover, useOpenChat } from "@/comments/ask-popover"
@@ -183,6 +182,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  onCanvas?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
   focusOnRender: boolean
@@ -228,6 +228,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  onCanvas = false,
   onToggleResponsive,
   layoutActions,
   focusOnRender,
@@ -433,8 +434,8 @@ export const PanelContainer = memo(function PanelContainer({
 
   const panelId = panel.id
   const onPointerEnter = useCallback(
-    () => useHoveredPanel.getState().enter(panelId),
-    [panelId]
+    () => useHoveredPanel.getState().enter(panelId, repeatOf !== undefined),
+    [panelId, repeatOf]
   )
   const onPointerLeave = useCallback(
     () => useHoveredPanel.getState().leave(panelId),
@@ -453,14 +454,6 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
-  const onTv = useOnTv()
-  const onCanvas =
-    dashboardId !== undefined &&
-    sourceKind === "version" &&
-    canComment &&
-    !onTv &&
-    !viewing &&
-    !editingPanel
   const pointing = onCanvas
     ? activeTool(canvasTool, {
         comment: true,
@@ -478,7 +471,7 @@ export const PanelContainer = memo(function PanelContainer({
   )
   const openChat = useOpenChat()
   const askSpot = openTurn ?? (draft?.tool === "ask" ? draft : null)
-  const gateInput = useCanvasGate(canComment)
+  const gateInput = useCanvasGate(canComment, layoutSession)
   const shownWindow = useMemo(
     () => ({ from: rangeFrom, to: rangeTo }),
     [rangeFrom, rangeTo]
@@ -663,7 +656,10 @@ export const PanelContainer = memo(function PanelContainer({
           shownRange={shownWindow}
         />
       ) : null}
-      {askSpot !== null && onCanvas && dashboardId !== undefined ? (
+      {askSpot !== null &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
         <AskPopover
           key={spotKeyOf(askSpot)}
           dashboardId={dashboardId}
@@ -676,7 +672,10 @@ export const PanelContainer = memo(function PanelContainer({
           onChatStarted={openChat.select}
         />
       ) : null}
-      {draft?.tool === "comment" && onCanvas && dashboardId !== undefined ? (
+      {draft?.tool === "comment" &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
         <CanvasComposer
           key={spotKeyOf(draft)}
           dashboardId={dashboardId}

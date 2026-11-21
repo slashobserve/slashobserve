@@ -49,6 +49,7 @@ type CanvasToolState = {
   openThreadId: string | null
   openTurn: OpenTurn | null
   postedThreadId: string | null
+  text: string
   setTool: (tool: CanvasTool) => void
   openDraft: (draft: CanvasDraft) => void
   openThread: (threadId: string) => void
@@ -56,6 +57,12 @@ type CanvasToolState = {
   close: () => void
   posted: (threadId: string) => void
   settled: (threadId: string) => void
+  setText: (text: string) => void
+}
+
+function holdsText(state: CanvasToolState): boolean {
+  const composing = state.draft !== null || state.openTurn !== null
+  return composing && state.text.trim() !== ""
 }
 
 export const useCanvasTool = create<CanvasToolState>()((set) => ({
@@ -64,18 +71,36 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   openThreadId: null,
   openTurn: null,
   postedThreadId: null,
+  text: "",
   setTool: (tool) =>
-    set({ tool, draft: null, openThreadId: null, openTurn: null }),
-  openDraft: (draft) => set({ draft, openThreadId: null, openTurn: null }),
+    set({ tool, draft: null, openThreadId: null, openTurn: null, text: "" }),
+  openDraft: (draft) =>
+    set((state) =>
+      holdsText(state)
+        ? state
+        : { draft, openThreadId: null, openTurn: null, text: "" }
+    ),
   openThread: (threadId) =>
-    set({ openThreadId: threadId, draft: null, openTurn: null }),
-  showTurn: (turn) => set({ openTurn: turn, draft: null, openThreadId: null }),
-  close: () => set({ draft: null, openThreadId: null, openTurn: null }),
-  posted: (threadId) => set({ draft: null, postedThreadId: threadId }),
+    set((state) =>
+      holdsText(state)
+        ? state
+        : { openThreadId: threadId, draft: null, openTurn: null, text: "" }
+    ),
+  showTurn: (turn) =>
+    set((state) =>
+      holdsText(state)
+        ? state
+        : { openTurn: turn, draft: null, openThreadId: null, text: "" }
+    ),
+  close: () =>
+    set({ draft: null, openThreadId: null, openTurn: null, text: "" }),
+  posted: (threadId) =>
+    set({ draft: null, postedThreadId: threadId, text: "" }),
   settled: (threadId) =>
     set((state) =>
       state.postedThreadId === threadId ? { postedThreadId: null } : {}
     ),
+  setText: (text) => set({ text }),
 }))
 
 export function openKeyDraft(panelId: string, tool: DraftTool) {
