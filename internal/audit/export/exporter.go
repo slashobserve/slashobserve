@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
@@ -19,6 +20,9 @@ const (
 	PollEvery  = 5 * time.Second
 	MinBackoff = time.Second
 	MaxBackoff = time.Minute
+
+	DroppedRefused   = "refused"
+	DroppedRetention = "retention"
 )
 
 type Source interface {
@@ -35,6 +39,7 @@ type Post func(ctx context.Context, body []byte) (Receipt, error)
 type Metrics interface {
 	ExportLag(behind time.Duration)
 	ExportRejected(n int)
+	ExportDropped(reason string, n int)
 }
 
 type Exporter struct {
@@ -80,12 +85,19 @@ func (s stage) Error() string { return s.code }
 
 func (s stage) Unwrap() error { return s.err }
 
+type progress struct {
+	moved    bool
+	skipped  bool
+	shrinkTo int
+}
+
 func (x *Exporter) Run(ctx context.Context) error {
 	defer x.Metrics.ExportLag(0)
+	size := x.BatchSize
 	var failures int
 	var backoff time.Duration
 	for {
-		moved, err := x.step(ctx)
+		p, err := x.step(ctx, size)
 		if ctx.Err() != nil {
 			return nil
 		}
@@ -96,9 +108,15 @@ func (x *Exporter) Run(ctx context.Context) error {
 			backoff = x.nextBackoff(backoff, err)
 			x.logFailure(ctx, err, failures, backoff)
 			delay = backoff
-		case moved:
+		case p.shrinkTo > 0:
+			size = p.shrinkTo
+			continue
+		case p.moved:
 			x.recovered(ctx, failures)
 			failures, backoff = 0, 0
+			if p.skipped {
+				size = x.BatchSize
+			}
 			continue
 		default:
 			x.recovered(ctx, failures)
@@ -111,18 +129,18 @@ func (x *Exporter) Run(ctx context.Context) error {
 	}
 }
 
-func (x *Exporter) step(ctx context.Context) (bool, error) {
+func (x *Exporter) step(ctx context.Context, size int) (progress, error) {
 	at, err := x.Cursor.Load(ctx)
 	if err != nil {
-		return false, stage{"audit_export_cursor_read_failed", err}
+		return progress{}, stage{"audit_export_cursor_read_failed", err}
 	}
-	events, err := x.Source.Since(ctx, at, x.BatchSize)
+	events, err := x.Source.Since(ctx, at, size)
 	if err != nil {
-		return false, stage{"audit_export_read_failed", err}
+		return progress{}, stage{"audit_export_read_failed", err}
 	}
 	if len(events) == 0 {
 		x.Metrics.ExportLag(0)
-		return false, nil
+		return progress{}, nil
 	}
 	x.Metrics.ExportLag(x.behind(events[0].Event))
 	batch := make([]trail.Event, len(events))
@@ -131,17 +149,38 @@ func (x *Exporter) step(ctx context.Context) (bool, error) {
 	}
 	body, err := Encode(batch)
 	if err != nil {
-		return false, stage{"audit_export_encode_failed", err}
+		return progress{}, stage{"audit_export_encode_failed", err}
 	}
 	receipt, err := x.Post(ctx, body)
 	if err != nil {
-		return false, stage{"audit_export_send_failed", err}
+		return x.refused(ctx, events, err)
 	}
 	if err := x.Cursor.Advance(ctx, events[len(events)-1].At); err != nil {
-		return false, stage{"audit_export_cursor_write_failed", err}
+		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
 	x.rejected(ctx, receipt)
-	return true, nil
+	return progress{moved: true}, nil
+}
+
+func (x *Exporter) refused(ctx context.Context, events []trail.Positioned, sendErr error) (progress, error) {
+	var status *StatusError
+	if !errors.As(sendErr, &status) || !refusesThePayload(status.Status) {
+		return progress{}, stage{"audit_export_send_failed", sendErr}
+	}
+	if len(events) > 1 {
+		return progress{shrinkTo: len(events) / 2}, nil
+	}
+	if err := x.Cursor.Advance(ctx, events[0].At); err != nil {
+		return progress{}, stage{"audit_export_cursor_write_failed", err}
+	}
+	x.Metrics.ExportDropped(DroppedRefused, 1)
+	x.Logger.WarnContext(ctx, "audit export skipped an event the receiver refuses",
+		slog.Int64("seq", events[0].At.Seq), slog.Int("status", status.Status))
+	return progress{moved: true, skipped: true}, nil
+}
+
+func refusesThePayload(status int) bool {
+	return status == http.StatusBadRequest || status == http.StatusRequestEntityTooLarge || status == http.StatusUnprocessableEntity
 }
 
 func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {

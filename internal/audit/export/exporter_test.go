@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -18,11 +21,13 @@ type fakeSource struct {
 	mu     sync.Mutex
 	events []trail.Positioned
 	err    error
+	limits []int
 }
 
 func (s *fakeSource) Since(_ context.Context, after filter.Position, limit int) ([]trail.Positioned, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.limits = append(s.limits, limit)
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -66,11 +71,19 @@ func (c *fakeCursor) Advance(_ context.Context, at filter.Position) error {
 type lag struct {
 	values   []time.Duration
 	rejected int
+	dropped  map[string]int
 }
 
 func (l *lag) ExportLag(d time.Duration) { l.values = append(l.values, d) }
 
 func (l *lag) ExportRejected(n int) { l.rejected += n }
+
+func (l *lag) ExportDropped(reason string, n int) {
+	if l.dropped == nil {
+		l.dropped = map[string]int{}
+	}
+	l.dropped[reason] += n
+}
 
 type rig struct {
 	source *fakeSource
@@ -340,5 +353,114 @@ func TestRejectedRecordsOfABatchWhoseCursorWriteFailedAreCountedWhenItIsSentAgai
 	}
 	if r.lag.rejected != 1 {
 		t.Fatalf("rejected counted = %d, want 1: counted only once the position moved", r.lag.rejected)
+	}
+}
+
+func (r *rig) refuseWhen(status int, bad func(body string) bool) {
+	r.post = func(body []byte) error {
+		if bad(string(body)) {
+			return &StatusError{Status: status}
+		}
+		return nil
+	}
+}
+
+func (r *rig) delivered() string {
+	var seen []string
+	for _, p := range r.posts {
+		seen = append(seen, order(p)...)
+	}
+	return strings.Join(seen, ",")
+}
+
+func TestABatchTheReceiverCallsTooLargeIsHalvedUntilItIsAccepted(t *testing.T) {
+	r, ctx := newRig(t)
+	r.x.BatchSize = 8
+	r.source.add("a.one", "b.two", "c.three", "d.four", "e.five")
+	r.refuseWhen(http.StatusRequestEntityTooLarge, func(body string) bool { return len(order(body)) > 2 })
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.delivered(); got != "a.one,b.two,c.three,d.four,e.five" {
+		t.Fatalf("delivered %s", got)
+	}
+	if want := []int{8, 2, 2, 2, 2}; !slices.Equal(r.source.limits[:5], want) {
+		t.Fatalf("batch sizes read = %v", r.source.limits)
+	}
+	if len(r.lag.dropped) != 0 || len(r.waits) != 1 || r.waits[0] != PollEvery {
+		t.Fatalf("dropped %v waits %v: halving is no failure", r.lag.dropped, r.waits)
+	}
+}
+
+func TestAnEventTheReceiverRefusesAloneIsSkippedAndCounted(t *testing.T) {
+	for _, status := range []int{http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			r, ctx := newRig(t)
+			r.x.BatchSize = 5
+			r.source.add("a.one", "b.two", "c.three", "d.four", "e.five")
+			r.refuseWhen(status, func(body string) bool { return strings.Contains(body, `"c.three"`) })
+			r.stopAt = func(*rig) bool { return true }
+			if err := r.x.Run(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if got := r.delivered(); got != "a.one,b.two,d.four,e.five" {
+				t.Fatalf("delivered %s", got)
+			}
+			if r.cursor.at != (filter.Position{Xid: 105, Seq: 5}) {
+				t.Fatalf("cursor = %+v", r.cursor.at)
+			}
+			if r.lag.dropped[DroppedRefused] != 1 || len(r.lag.dropped) != 1 {
+				t.Fatalf("dropped = %v", r.lag.dropped)
+			}
+			logged := r.logs.String()
+			if !strings.Contains(logged, "seq=3") || !strings.Contains(logged, "status="+strconv.Itoa(status)) {
+				t.Fatalf("log = %s", logged)
+			}
+			if len(r.waits) != 1 {
+				t.Fatalf("waits = %v: a skip waits for nothing", r.waits)
+			}
+		})
+	}
+}
+
+func TestTheBatchSizeComesBackAfterAnEventIsSkipped(t *testing.T) {
+	r, ctx := newRig(t)
+	r.x.BatchSize = 4
+	r.source.add("a.one", "b.two", "c.three", "d.four", "e.five", "f.six")
+	r.refuseWhen(http.StatusBadRequest, func(body string) bool { return strings.Contains(body, `"a.one"`) })
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if want := []int{4, 2, 1, 4}; !slices.Equal(r.source.limits[:4], want) {
+		t.Fatalf("batch sizes read = %v, want %v first", r.source.limits, want)
+	}
+}
+
+func TestOtherStatusesAreRetriedWithTheSameBatchAndNeverSkipped(t *testing.T) {
+	for _, status := range []int{401, 403, 404, 408, 429, 500, 502, 503, 504} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			r, ctx := newRig(t)
+			r.x.BatchSize = 4
+			r.source.add("a.one", "b.two", "c.three")
+			r.refuseWhen(status, func(string) bool { return true })
+			r.stopAt = func(r *rig) bool { return len(r.waits) == 3 }
+			if err := r.x.Run(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if r.cursor.advances != 0 || len(r.lag.dropped) != 0 {
+				t.Fatalf("advances %d dropped %v", r.cursor.advances, r.lag.dropped)
+			}
+			for _, l := range r.source.limits {
+				if l != 4 {
+					t.Fatalf("batch sizes read = %v", r.source.limits)
+				}
+			}
+			want := []time.Duration{time.Second, 2 * time.Second, 4 * time.Second}
+			if !slices.Equal(r.waits, want) {
+				t.Fatalf("waits = %v, want %v", r.waits, want)
+			}
+		})
 	}
 }

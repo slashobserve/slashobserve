@@ -2,11 +2,11 @@ package export
 
 import (
 	"errors"
-	"strings"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"

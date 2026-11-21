@@ -29,7 +29,13 @@ Delivery is at least once: an event can arrive twice when the server stopped bet
 A receiver can answer `200` and still refuse some records in its `partialSuccess` answer, for example records that are too large or too old.
 The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the receiver's message, cut to 200 characters.
 
-A failed post is retried with a growing wait from 1 second to 1 minute, and a `Retry-After` header of the receiver is honoured up to that limit.
+A failed post is retried with the same events and a growing wait from 1 second to 1 minute, and a `Retry-After` header of the receiver is honoured up to that limit.
+This holds for a network error, a timeout and every status except the three below, including `401`, `403` and `404`, which mean the endpoint or the headers are wrong: the export keeps trying and skips nothing until you fix the setting.
+
+When the receiver answers `400`, `413` or `422`, it has refused the request itself.
+The server halves the batch and tries again, down to one event.
+An event the receiver still refuses alone is skipped: the position moves past it, `slashobserve_audit_export_dropped_total{reason="refused"}` counts it, and the log names its sequence number and the status.
+A receiver that answers one of these statuses to every request, such as the wrong service behind the endpoint, makes the server skip every event, so watch that counter.
 Failures are logged with a fixed message and a code, never with the URL or the event.
 The first export starts at the oldest event the audit table still holds, so a new setting sends the existing history before the new events.
 
