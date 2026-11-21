@@ -2,6 +2,7 @@ package revisions_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"testing"
@@ -146,5 +147,19 @@ func TestARefusedStartOverMCPLeavesTheSameRunQueueEventAsOverHTTP(t *testing.T) 
 	overHTTP, overMCP := queueEvents(t, d, false), queueEvents(t, d, true)
 	if len(overHTTP) != 6 || !slices.Equal(overHTTP, overMCP) {
 		t.Fatalf("run.queue events over HTTP = %+v, over MCP = %+v; want the same six", overHTTP, overMCP)
+	}
+}
+
+func TestAPromptWithNoVisibleTextIsRefusedWithItsReasonOverHTTP(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger())
+
+	rec := call(newObserveRouter(svc), http.MethodPost, "/api/v1/observe", `{"prompt":"\u200b"}`)
+	var body struct {
+		Code   string `json:"code"`
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusBadRequest || body.Code != "invalid_request" || body.Reason != "text_invisible_only" {
+		t.Fatalf("POST answered %d %s, want 400 invalid_request with reason text_invisible_only", rec.Code, rec.Body)
 	}
 }

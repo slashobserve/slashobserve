@@ -222,6 +222,11 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 		return
 	}
 	started, err := h.service.Start(c.Request.Context(), httpapi.Caller(c), req)
+	var invalid *StartError
+	if errors.As(err, &invalid) {
+		httpapi.AbortText(c, http.StatusBadRequest, "invalid_request", invalid)
+		return
+	}
 	if err != nil {
 		h.service.fail(c, "enqueue agent request", err, principalAttrs(c)...)
 		return
