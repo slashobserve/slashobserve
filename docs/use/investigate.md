@@ -40,7 +40,7 @@ In a chat about a dashboard, the investigation is about that dashboard and its a
 Without a dashboard, the send opens a new chat page for it.
 
 On a dashboard, choose **Investigate** in a panel's menu.
-It opens the activity pane with the panel as the target.
+It opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel.
 The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
 To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 

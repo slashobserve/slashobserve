@@ -84,6 +84,7 @@ export type ComposerInput = {
   revises?: boolean
   timeZone?: string
   runningRequestId?: string
+  addressAgent?: boolean
 }
 
 type Failure = { text: string; invalid: boolean }
@@ -285,6 +286,12 @@ export function useComposer(input: ComposerInput): ComposerModel {
   if (seenKey !== key) {
     setSeenKey(key)
     setChosen({})
+  }
+  const addressAgent = input.addressAgent ?? false
+  const [addressed, setAddressed] = useState(false)
+  if (addressed !== addressAgent) {
+    setAddressed(addressAgent)
+    if (addressAgent) setChosen((current) => ({ ...current, to: "agent" }))
   }
   const field = useRef<HTMLTextAreaElement | null>(null)
   const mention = useInlineMention()

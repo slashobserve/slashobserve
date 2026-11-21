@@ -25,8 +25,14 @@ export function commentOnPanel(setSearch: SetSearch, panelId: string) {
   setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
 }
 
+function askTheAgent() {
+  const activity = useActivityStore.getState()
+  activity.setOpen(true)
+  activity.setAskingAgent(true)
+}
+
 export function askAboutPanel(setSearch: SetSearch, panelId: string) {
-  useActivityStore.getState().setOpen(true)
+  askTheAgent()
   setSearch((state) => ({ ...state, panel: panelId, edit: undefined }))
 }
 
@@ -36,6 +42,6 @@ export function editPanelQuery(setSearch: SetSearch, panelId: string) {
 }
 
 export function askAboutDashboard(setSearch: SetSearch) {
-  useActivityStore.getState().setOpen(true)
+  askTheAgent()
   setSearch((state) => ({ ...state, panel: undefined, edit: undefined }))
 }

@@ -74,10 +74,12 @@ describe("askAboutPanel", () => {
     )
   }
 
-  it("opens the activity on the panel and asks about that panel", () => {
+  it("opens the activity on the panel, addressed to the agent, and asks about that panel", () => {
     useActivityStore.getState().setOpen(false)
+    useActivityStore.getState().setAskingAgent(false)
     const state = asking({ vars: {}, edit: "query" }, "latency")
     expect(useActivityStore.getState().open).toBe(true)
+    expect(useActivityStore.getState().askingAgent).toBe(true)
     expect(state).toMatchObject({ panel: "latency", edit: undefined })
     expect(sendFor(state)).toMatchObject({
       via: "thread.open",

@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { pinnedText, ungated, type GateInput } from "@/conversation/delivery"
 import { renderWithProviders } from "@/test/render"
 
+import { useActivityStore } from "./activity-store"
+
 import {
   ActivityComposer,
   type Replying,
@@ -206,6 +208,22 @@ describe("ActivityComposer", () => {
     )
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toMatchObject({ to: "agent" })
+  })
+
+  it("opens addressed to the agent when the agent is asked from a panel, and lets the person turn it back", async () => {
+    stubServer()
+    useActivityStore.getState().setAskingAgent(true)
+    const { user } = renderComposer()
+    expect(
+      await within(await form()).findByText("To: Observe Agent")
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(useActivityStore.getState().askingAgent).toBe(false)
+    )
+    await user.click(
+      within(await form()).getByRole("button", { name: /To: Observe Agent/ })
+    )
+    expect(within(await form()).getByText("To: everyone here")).toBeVisible()
   })
 
   it("asks the mentioned agent and shows the run line", async () => {

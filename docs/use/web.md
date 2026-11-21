@@ -180,7 +180,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, starts a comment on the panel.
-- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane with the panel as the target; it is disabled and reads "needs the Editor role" when your role is below Editor.
+- **Ask @observe**, when you can edit the dashboard and a model is connected, opens the activity pane with the panel as the target and the "To:" chip on Observe Agent; it is disabled and reads "needs the Editor role" when your role is below Editor.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
