@@ -36,8 +36,11 @@ const point: Anchor = {
   from: "2026-11-21T14:02:00Z",
 }
 
-function turn(fields: Partial<PinTurn> & { id: string }): PinTurn {
+function turn(
+  fields: Partial<PinTurn & { retried_by: string | null }> & { id: string }
+): PinTurn & { retried_by: string | null } {
   return {
+    retried_by: null,
     prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",
@@ -121,16 +124,46 @@ describe("spotTurnIds", () => {
           turn({ id: "r1" }),
           turn({ id: "r2", anchor: point }),
         ],
-        { requestId: "r1", anchor: sameRowOtherOrder },
+        { requestId: "r1", panelId: "p1", anchor: sameRowOtherOrder },
         ["r4", "r3"]
       )
     ).toEqual(["r1", "r3", "r4"])
   })
 
   it("shows the opened turn before the chat has loaded it", () => {
-    expect(spotTurnIds([], { requestId: "r9", anchor: row }, [])).toEqual([
-      "r9",
-    ])
+    expect(
+      spotTurnIds([], { requestId: "r9", panelId: "p1", anchor: row }, [])
+    ).toEqual(["r9"])
+  })
+
+  it("leaves out a turn at the same spot of another panel", () => {
+    expect(
+      spotTurnIds(
+        [turn({ id: "r1" }), turn({ id: "r2", panel_id: "p2" })],
+        { requestId: "r1", panelId: "p1", anchor: row },
+        []
+      )
+    ).toEqual(["r1"])
+  })
+
+  it("keeps a retry with the spot of the turn it retried, whatever its own anchor", () => {
+    expect(
+      spotTurnIds(
+        [
+          turn({ id: "r1", retried_by: "r2" }),
+          turn({
+            id: "r2",
+            anchor: null,
+            retried_by: "r3",
+            created_at: "2026-11-21T14:32:00Z",
+          }),
+          turn({ id: "r3", anchor: null, created_at: "2026-11-21T14:33:00Z" }),
+          turn({ id: "r4", anchor: null, created_at: "2026-11-21T14:34:00Z" }),
+        ],
+        { requestId: "r1", panelId: "p1", anchor: row },
+        []
+      )
+    ).toEqual(["r1", "r2", "r3"])
   })
 })
 

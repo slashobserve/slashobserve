@@ -14,7 +14,16 @@ export type PinTurn = Pick<
   | "created_at"
 >
 
-type ChatTurn = Pick<ObserveRequest, "id" | "anchor" | "created_at">
+type ChatTurn = Pick<
+  ObserveRequest,
+  "id" | "panel_id" | "anchor" | "retried_by" | "created_at"
+>
+
+type OpenedSpot = { requestId: string; panelId: string; anchor: Anchor | null }
+
+function byTime(a: { created_at: string }, b: { created_at: string }): number {
+  return Date.parse(a.created_at) - Date.parse(b.created_at)
+}
 
 export type PrivatePin = {
   key: string
@@ -37,10 +46,6 @@ function canonical(value: unknown): unknown {
 
 export function spotKey(anchor: Anchor): string {
   return JSON.stringify(canonical(anchor))
-}
-
-function byTime(a: ChatTurn, b: ChatTurn): number {
-  return Date.parse(a.created_at) - Date.parse(b.created_at)
 }
 
 export function privatePins(
@@ -73,18 +78,24 @@ export function privatePins(
 
 export function spotTurnIds(
   turns: readonly ChatTurn[],
-  opened: { requestId: string; anchor: Anchor | null },
+  opened: OpenedSpot,
   askedHere: readonly string[]
 ): string[] {
   const key = opened.anchor === null ? null : spotKey(opened.anchor)
-  const atSpot = [...turns]
-    .sort(byTime)
-    .filter(
-      (turn) =>
-        turn.id === opened.requestId ||
-        (key !== null && turn.anchor !== null && spotKey(turn.anchor) === key)
-    )
-    .map((turn) => turn.id)
+  const atSpot: string[] = []
+  const retries = new Set<string>()
+  for (const turn of [...turns].sort(byTime)) {
+    const here =
+      turn.id === opened.requestId ||
+      retries.has(turn.id) ||
+      (key !== null &&
+        turn.panel_id === opened.panelId &&
+        turn.anchor !== null &&
+        spotKey(turn.anchor) === key)
+    if (!here) continue
+    atSpot.push(turn.id)
+    if (turn.retried_by !== null) retries.add(turn.retried_by)
+  }
   const ids = [...atSpot]
   for (const id of [opened.requestId, ...askedHere]) {
     if (!ids.includes(id)) ids.push(id)

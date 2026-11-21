@@ -273,7 +273,7 @@ function AskThread({
   const [askedHere, setAskedHere] = useState<string[]>([])
   const ids = spotTurnIds(
     chat.data?.turns ?? [],
-    { requestId: turn.requestId, anchor: spot.anchor },
+    { requestId: turn.requestId, panelId: spot.panelId, anchor: spot.anchor },
     askedHere
   )
   function asked(request: ObserveRequest) {
