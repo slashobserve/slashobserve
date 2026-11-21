@@ -144,6 +144,7 @@ proposals-id-merge:
           the proposal has a newer revision than the one named (`proposal_changed`),
           or the proposal is no longer open (`invalid_transition`).
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard is a starter the server keeps current with each release (`provisioned`), which a proposal cannot change.
         content:
           application/json:
             schema:

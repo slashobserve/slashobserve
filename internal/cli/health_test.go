@@ -35,6 +35,28 @@ func TestHealthRowsListOneRowPerProblem(t *testing.T) {
 	}
 }
 
+func TestHealthRowsKeepAListedDashboardWithNoProblems(t *testing.T) {
+	seven := 7
+	rows := healthRows([]healthDashboard{
+		{ID: "d1", Title: "Repaired", Folder: healthFolder{Title: "Shop"}, State: "outdated", CheckedAt: strPtr("2026-11-06T03:00:12Z"), Problems: []healthProblem{}, Repair: &healthRepair{Outcome: "repaired", Version: &seven}},
+	})
+	want := [][]string{{"d1", "Repaired", "Shop", "outdated", "-", "-", "2026-11-06T03:00Z", "repaired in version 7"}}
+	if !slices.EqualFunc(rows, want, slices.Equal[[]string]) {
+		t.Errorf("rows = %q\nwant %q", rows, want)
+	}
+}
+
+func TestRecheckNoteAppearsOnlyWhenAListedDashboardIsOutdated(t *testing.T) {
+	current := []healthDashboard{{State: "failing"}, {State: "healthy"}}
+	if got := recheckNote(current); got != "" {
+		t.Errorf("note for current dashboards = %q, want none", got)
+	}
+	got := recheckNote(append(current, healthDashboard{State: "outdated"}))
+	if !strings.Contains(got, "outdated") || !strings.Contains(got, "recheck is pending") || !strings.Contains(got, "earlier version") {
+		t.Errorf("note = %q, want it to say outdated rows wait for a recheck and show an earlier version's problems", got)
+	}
+}
+
 func TestRepairStateSaysWhereTheLatestRepairIs(t *testing.T) {
 	seven := 7
 	cases := []struct {

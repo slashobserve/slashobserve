@@ -24,6 +24,7 @@ import {
   readerNote,
   useLatestFolderTitle,
   useLatestPermissions,
+  useLatestProvisioned,
 } from "@/dashboards/permissions"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
@@ -267,7 +268,8 @@ export function ActivityFeed({
 
   const permissions = useLatestPermissions(dashboardId)
   const folderTitle = useLatestFolderTitle(dashboardId)
-  const mode = composerMode(permissions)
+  const provisioned = useLatestProvisioned(dashboardId)
+  const mode = composerMode(permissions, provisioned)
   const note = readerNote(mode, folderTitle ?? "this folder")
   const gateInput: GateInput = {
     canComment: permissions.comment,
@@ -479,7 +481,7 @@ export function ActivityFeed({
           textareaRef={composerRef}
           runningRequestId={runningRequestId}
           notice={
-            mode === "comment-only" ? (
+            mode === "comment-only" || mode === "provisioned" ? (
               <RoleNote>{note}</RoleNote>
             ) : noModel && madeBy !== null ? (
               <ExternalAgentNote

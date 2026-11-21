@@ -31,6 +31,7 @@ const (
 	evidenceColumns   = 2
 	PinTag            = "finding"
 	defaultTitle      = "Finding"
+	answerTitle       = "Answer"
 )
 
 var (
@@ -94,11 +95,14 @@ func Title(text string) string {
 	return defaultTitle
 }
 
-func TitleFrom(given, prompt string) string {
-	if title := Title(given); title != defaultTitle {
+func TitleFrom(given string, investigation bool) string {
+	switch title := revisions.ShortTitle(given); {
+	case title != "":
 		return title
+	case investigation:
+		return defaultTitle
 	}
-	return Title(prompt)
+	return answerTitle
 }
 
 func FirstLine(markdown string) string {

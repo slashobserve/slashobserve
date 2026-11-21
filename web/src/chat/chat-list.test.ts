@@ -9,6 +9,7 @@ function summary(
 ): RequestSummary {
   return {
     intent: "apply",
+    investigation: false,
     base_version: null,
     comment_id: null,
     trigger: "person",

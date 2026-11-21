@@ -121,7 +121,11 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { VariableSource } from "./panel-source"
-import type { DashboardAccess } from "./permissions"
+import {
+  contentChange,
+  mayEditBesidesContent,
+  type DashboardAccess,
+} from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -257,8 +261,10 @@ function DashboardView({
 }) {
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
-  const { permissions } = access
+  const { permissions, provisioned } = access
   const { principal } = useRouteContext({ from: "/_authed" })
+  const content = contentChange(permissions, provisioned)
+  const besidesContent = mayEditBesidesContent(permissions, provisioned)
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -409,7 +415,7 @@ function DashboardView({
   const viewed = layoutPanelOf(spec, search.viewPanel)
   const inspectPanel = inspectablePanelOf(spec, search.inspect)
   const panelInUrl = search.edit !== undefined && search.panel !== undefined
-  const mayOpenEditor = permissions.edit || permissions.comment
+  const mayOpenEditor = content !== "none"
   const editingPanel = mayOpenEditor && panelInUrl
   const arranging =
     permissions.edit &&
@@ -785,6 +791,7 @@ function DashboardView({
       key="more"
       dashboardId={dashboardId}
       mayEdit={permissions.edit}
+      mayDelete={besidesContent}
       detailsBlockedBy={detailsBlockReason({
         pinned,
         editingLayout: editing,
@@ -883,6 +890,7 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      canPropose={content === "propose"}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }
@@ -904,7 +912,7 @@ function DashboardView({
     dashboardId,
     zone: displayZone(undefined, viewZone),
     panelTitle: annotationPanelTitle,
-    canEdit: permissions.edit && !kiosk,
+    canEdit: besidesContent && !kiosk,
     principal,
   }
 

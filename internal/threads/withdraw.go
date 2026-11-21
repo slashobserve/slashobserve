@@ -70,9 +70,28 @@ func (s *Service) Withdraw(ctx context.Context, by auth.Principal, threadID pgty
 		if err := s.deleteShares(ctx, q, by, sc, row, ids, asked); err != nil {
 			return err
 		}
+		if err := s.hideAnswers(ctx, q, row, ids); err != nil {
+			return err
+		}
 		return s.recordWithdraws(ctx, q, by, row, runs)
 	})
 	return threadGone(err)
+}
+
+func (s *Service) hideAnswers(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread, runs []pgtype.UUID) error {
+	subject := targetOf(thread)
+	if subject.Kind != KindObservation {
+		return nil
+	}
+	if s.hideAnswer == nil {
+		return errors.New("threads cannot take an answer back from an observation: no answer writer configured")
+	}
+	for _, run := range runs {
+		if err := s.hideAnswer(ctx, q, run, subject.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) deleteShares(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, sc scope, thread dbsqlc.Thread, runs, asked []pgtype.UUID) error {
@@ -114,6 +133,7 @@ func (s *Service) recordWithdraws(ctx context.Context, q *dbsqlc.Queries, by aut
 			Target: target,
 			Thread: uuid.NullUUID{UUID: thread.ID.Bytes, Valid: true},
 			Chat:   uuid.NullUUID{UUID: run.ChatID.Bytes, Valid: run.ChatID.Valid},
+			Data:   map[string]any{"finding_id": run.FindingID.String()},
 			By:     cols.AuditBy(),
 		})
 		if err != nil {

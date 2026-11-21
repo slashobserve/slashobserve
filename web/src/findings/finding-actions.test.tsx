@@ -6,9 +6,11 @@ import { renderWithProviders } from "@/test/render"
 import { MakeDashboardAction, PinAction } from "./finding-actions"
 import type { Finding } from "./queries"
 
-const permissions = vi.hoisted(() => ({ edit: false }))
+const permissions = vi.hoisted(() => ({ edit: false, provisioned: false }))
 
-vi.mock("@/dashboards/permissions", () => ({
+vi.mock("@/dashboards/permissions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/dashboards/permissions")>()),
+  useLatestProvisioned: () => permissions.provisioned,
   useLatestPermissions: () => ({
     comment: true,
     edit: permissions.edit,
@@ -99,6 +101,22 @@ describe("PinAction", () => {
     expect(
       await screen.findByRole("button", { name: "Pin to dashboard" })
     ).toBeVisible()
+  })
+
+  it("offers Pin to dashboard on a starter dashboard, where Edit is never shown", async () => {
+    permissions.edit = false
+    permissions.provisioned = true
+    try {
+      renderWithProviders(
+        <PinAction finding={finding({ dashboard_id: "d1" })} />,
+        route
+      )
+      expect(
+        await screen.findByRole("button", { name: "Pin to dashboard" })
+      ).toBeVisible()
+    } finally {
+      permissions.provisioned = false
+    }
   })
 
   it("still shows a pinned finding to someone who cannot pin", async () => {

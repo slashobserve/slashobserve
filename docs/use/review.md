@@ -29,6 +29,7 @@ They come in six kinds:
 - **Agent requests** sent from a comment show inside their thread, as one status line per run under the message that asked: "Observe Agent is working on it · View the run" while it works, "`<name>` was asked" for a connected agent, and the agent's reply once it ends.
   **View the run** opens the run's conversation at `/c/<id>`, and the agent's reply carries the same link for whoever can open that run; anyone else sees the reply's text alone.
 - **Agent requests** that no loaded thread holds show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A request from someone else's private chat reads "Asked in a private chat" in place of its message.
   A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
@@ -60,7 +61,7 @@ Above the box, a "To:" chip says who reads the message and a "Visible to:" chip 
 A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
 A mention of an agent turns the chip to that agent's name.
 Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
-A comment is 1 to 4000 characters; a counter appears from 3500.
+A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
 To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, or open its menu ("Panel menu: `<title>`") and choose **Comment**.
 The card opens scoped to that panel with the cursor in the box.
@@ -147,15 +148,18 @@ When the answer suggests a change to the dashboard, every reader sees "Suggested
 It posts "Revise the dashboard: `<change>`" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for** and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, posts nothing more.
 A refusal, such as five revisions already waiting on the dashboard, shows the server's reason and leaves the button as it was.
+On a [starter dashboard](activity.md#audit-folder), and for anyone who can no longer comment on the dashboard, the answer keeps its suggested change without **Revise the dashboard**; a starter adds "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it to get a copy you can change." with **Duplicate**, which opens the same dialog as the dashboard menu, and a revision the server still refuses as `provisioned` shows "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
 
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
+When the asker later saves that answer as an observation, everyone who can read the thread still opens it from the thread, and someone who cannot see the new observation reads the answer without it.
 
 A discussion entry reads "asked the agent" only when the message started a run.
-A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
+A message that mentions an agent but started none, such as a comment for everyone, reads "mentioned the agent".
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 

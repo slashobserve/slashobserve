@@ -93,9 +93,9 @@ threads:
       The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`.
       More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says.
       The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context.
-      A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role and has no per-person cap.
+      A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page.
       An annotation or a proposal thread starts no run.
-      A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation).
+      A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
       A started run is in `message.run`, and `to` in the answer says how the message was delivered.
       `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`.
       The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`.
@@ -410,7 +410,7 @@ threads-threadid-share:
       Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread and makes each of those runs a private question again, read only by its requester and Admins.
       When a share opened the thread, the whole thread is deleted; otherwise only the shared questions and the answers posted under them are, and the thread keeps its other messages.
       It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`).
-      On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block.
+      On an observation the run's answer leaves the observation, so it is no longer read or listed through it, but the answer's text that the share wrote onto the page stays there as page content; the observation's editors remove those blocks like any other block.
       The run can be shared again afterwards, which opens a new thread.
       Each withdrawn run is recorded as `run.withdraw`, and each deletion, of the thread or of a message, as a `thread.deleted` activity event.
       Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404.
@@ -494,7 +494,7 @@ threads-threadid-apply:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`).
+        description: The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`).
         content:
           application/json:
             schema:

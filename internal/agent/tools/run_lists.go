@@ -23,7 +23,7 @@ const (
 	defaultListRuns = 20
 	maxListRuns     = 50
 
-	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, kind, intent (ask, apply or suggest), state, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
+	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, kind, intent (ask, apply or suggest), investigation (true when the run was started as an investigation that writes into an observation, false for an ask, and it never changes), state, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
 	descRenameRun  = "Give one of your runs a title, 1 to 120 characters on one line, as the Rename action of a chat does; null takes the title back to the start of the prompt. Only the person or key that started the run can rename it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Renaming the first run of a chat with no dashboard also renames the one observation made from that chat; observation_rename in the result is renamed, or kept when you may not edit that observation. Safe to repeat."
 	descPinRun     = "Pin one of your runs to the top of list_runs. Only the person or key that started the run can pin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
 	descUnpinRun   = "Unpin one of your runs so list_runs puts it back by date. Only the person or key that started the run can unpin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
@@ -111,6 +111,7 @@ type runListItemOut struct {
 	Title            string           `json:"title"`
 	Kind             string           `json:"kind"`
 	Intent           string           `json:"intent"`
+	Investigation    bool             `json:"investigation"`
 	State            string           `json:"state"`
 	ResultKind       string           `json:"result_kind"`
 	DashboardID      *string          `json:"dashboard_id"`

@@ -43,7 +43,9 @@ const flipBelowWithin = 48
 
 type Props = {
   panel: LayoutPanel
-  permissions: Pick<DashboardPermissions, "comment" | "edit">
+  permissions: Pick<DashboardPermissions, "comment" | "edit"> & {
+    propose: boolean
+  }
   composerRef: RefObject<HTMLTextAreaElement | null>
   from: string | undefined
   to: string | undefined
@@ -139,7 +141,6 @@ export function PanelToolbar({
   const below = useFlipBelow(root)
   const title = panelTitle(panel)
   const data = isDataPanel(panel)
-  const canPropose = permissions.comment && !permissions.edit
 
   useLayoutEffect(() => {
     if (!root.current) return
@@ -223,7 +224,7 @@ export function PanelToolbar({
           <AtSignIcon aria-hidden="true" />
         </ToolbarButton>
       ) : null}
-      {(permissions.edit || canPropose) && isEditablePanel(panel) ? (
+      {(permissions.edit || permissions.propose) && isEditablePanel(panel) ? (
         <ToolbarButton
           label={permissions.edit ? "Edit query" : "Suggest an edit"}
           tooltip={finishFirst(

@@ -26,7 +26,7 @@ const (
 	maxListHealth       = 50
 	maxProblemTextBytes = 500
 
-	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its state and its latest repair with its outcome. Fix failing panels with get_panels and update_panels. Page with next_cursor. dashboard_id reads one dashboard whether or not it has a problem: a checked dashboard with no problem comes back with empty problems, one never checked has state unchecked, and kind still narrows it to dashboards with that kind of problem."
+	descListDashboardHealth = "List dashboards with health problems in folders you can see: panels whose queries failed or returned no data over the last 7 days at the last daily check, variables that failed, duplicate titles in a folder, and dashboards nobody opened in 90 days. Failing queries or variables come first, then no data, duplicate titles and unopened dashboards; within each, the most recently opened first. The first page carries summary, the count of dashboards per problem in the folders asked for whatever the kind, and each dashboard carries its state, can_edit (false on a starter, which no repair can change), a note on an outdated row, and its latest repair with its outcome. A row with state outdated lists the problems of checked_version, an earlier version, and a recheck is pending (its note says so): they may already be fixed, so wait for the next check or run_dashboard_health before acting on them; such rows come last and count only in dashboards. Fix failing panels with get_panels and update_panels. Page with next_cursor. dashboard_id reads one dashboard whether or not it has a problem: a checked dashboard with no problem comes back with empty problems, one never checked has state unchecked, and kind still narrows it to dashboards with that kind of problem."
 )
 
 var schemaListDashboardHealth = `{"type":"object","properties":{` +
@@ -35,6 +35,8 @@ var schemaListDashboardHealth = `{"type":"object","properties":{` +
 	`"kind":{"type":"string","enum":` + healthKindsJSON() + `,"description":"Only this kind of problem."},` +
 	`"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Dashboards per page. Default 20."},` +
 	`"cursor":{"type":"string","description":"next_cursor from the previous page."}},"additionalProperties":false}`
+
+const outdatedNote = "the dashboard changed since checked_version and a recheck is pending: its query, variable and no_data problems belong to that earlier version and may be fixed"
 
 var errHealthNotConfigured = errors.New("dashboard health is not configured")
 
@@ -78,7 +80,9 @@ type healthItemOut struct {
 	URL               string             `json:"url"`
 	FolderID          string             `json:"folder_id"`
 	FolderTitle       string             `json:"folder_title"`
+	CanEdit           bool               `json:"can_edit"`
 	State             string             `json:"state"`
+	Note              string             `json:"note,omitempty"`
 	CheckedAt         string             `json:"checked_at,omitempty"`
 	CheckedVersion    *int               `json:"checked_version,omitempty"`
 	Skipped           string             `json:"skipped,omitempty"`
@@ -233,11 +237,15 @@ func healthItemOf(it health.Item) healthItemOut {
 		URL:            it.URL,
 		FolderID:       it.Folder.ID.String(),
 		FolderTitle:    it.Folder.Title,
+		CanEdit:        it.CanEdit,
 		State:          it.State,
 		CheckedAt:      rfc3339(it.CheckedAt),
 		CheckedVersion: it.CheckedVersion,
 		Skipped:        it.Skipped,
 		Problems:       make([]healthProblemOut, 0, len(it.Problems)),
+	}
+	if it.State == health.StateOutdated {
+		out.Note = outdatedNote
 	}
 	for _, p := range it.Problems {
 		out.Problems = append(out.Problems, healthProblemOut{

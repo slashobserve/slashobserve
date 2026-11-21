@@ -26,12 +26,16 @@ func (s *Service) need(ctx context.Context, by auth.Principal, id pgtype.UUID, n
 	if !found.Abilities.Has(n) {
 		return folders.DashboardAccess{}, folders.ErrForbidden
 	}
+	if found.Refuses(n) {
+		return folders.DashboardAccess{}, folders.ErrProvisioned
+	}
 	return found, nil
 }
 
 func withAccess(d Dashboard, a folders.DashboardAccess) Dashboard {
 	d.Folder = a.Folder
-	d.Abilities = a.Abilities
+	d.Abilities = a.Shown()
+	d.Provisioned = a.Provisioned
 	return d
 }
 

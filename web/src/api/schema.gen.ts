@@ -1309,7 +1309,7 @@ export interface paths {
         put?: never;
         /**
          * Comment on a panel or the whole dashboard, or reply to a thread.
-         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created.
+         * @description A comment starts a thread or replies to one. A thread's first comment is anchored to a version and to a panel id, or to the whole dashboard when `panel_id` is absent or null, and never moves; `panel_present` on responses says whether the latest version still has that panel and is always true for a whole-dashboard comment. A reply names its thread's comment in `parent_id` and omits `version` and `panel_id`; it takes both from its thread. Replies are one level deep: replying to a reply attaches the new reply to that reply's thread. A thread's status lives on its first comment and a reply's `status` mirrors it. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Each comment's `actor` is who wrote it, with the `label` to show, such as `Ada (via Claude Code)`; `resolved_actor` is who resolved the thread, `Observe Agent for Ada` when an agent run did. `mentions` lists the people and `@observe` the body mentions, `edited_at` is set once the body was edited, and `can_edit` says whether the caller may edit it. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). A `comment.created` event with `type`, `dashboard_id`, `comment_id`, `status` and `author`, plus `panel_id` for a comment on a panel and `parent_id` for a reply, goes to the dashboard's event stream. A comment queues a revision only when `request_revision` is true and an LLM provider is configured; a reply never requests a revision. The comment and the revision are created in one transaction, and the comment's `revision` holds the queued revision. When the revision succeeds, the server resolves the thread with `resolved_by_version` set to the saved version, unless it is already resolved. With no LLM provider configured, no revision is queued and `revision` stays null. At most 5 revisions may be queued or running per dashboard; beyond that the comment is not created. A starter takes comments but no revision, so `request_revision` on one answers 409 `provisioned` and creates nothing.
          */
         post: operations["createDashboardComment"];
         delete?: never;
@@ -1356,7 +1356,7 @@ export interface paths {
         put?: never;
         /**
          * Start a thread on a dashboard, an annotation, an observation or a proposal.
-         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role and has no per-person cap. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation). A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
+         * @description The first message of a thread has the id of the thread, so either id names it. A dashboard thread is anchored to a version, the latest when `version` is absent, and to a panel of that version, or to the whole dashboard when `panel_id` is absent; the anchor never moves. `version` and `panel_id` are refused on an annotation or an observation. `block_id` anchors the first message to one block of an observation; absent or null means the whole observation. It is refused on a dashboard, an annotation or a proposal, and must name a block of this observation, with 422 `invalid_block` otherwise. Deleting the block keeps the message, now about the whole observation. `anchor` points the thread at one spot of a dashboard panel or, with `block_id`, of an observation block, and is refused on an annotation or a proposal (422 `invalid_target`) or when its kind lacks a field it needs (422 `invalid_anchor`). `block_id` with an anchor sets the thread's block; without an anchor it keeps its message meaning, the block the first message is about. `block_id` with an anchor of a kind that cannot sit on a block, `variable`, answers 422 `invalid_anchor` naming both fields. An observation has one page thread, its discussion, and any number of anchored threads; starting a second page thread adds the message to the first. The body is trimmed first, and the limit of 1 to 4000 characters applies to the trimmed text. Control characters other than newline, carriage return and tab, and the bidirectional override and isolate characters (U+202A to U+202E and U+2066 to U+2069), are refused, and so is text with no visible character, such as only zero-width characters (400 or 422 with a `reason`, see `docs/reference/text-rules.md`). Mention a person with `@[Name](user:<id>)`, the built-in agent with `@observe`, one of your own connected agents with `@[Name](grant:<grant id>)` and a service account that takes runs with `@[Name](service_account:<id>)`, at most 20 mentions in a message, a repeated mention counting each time (422 `too_many_mentions`). A grant that is not yours, revoked or expired, a service account that takes no runs, and a person who does not exist or cannot see the target all answer 422 `invalid_mention`; a service-account key may mention `@observe` and service accounts, never a grant. A mention is recorded, shows in the activity log, and a mentioned person gets it in their Inbox. `to` decides who the message is for. Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off. `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off. The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`. More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says. The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context. A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page. An annotation or a proposal thread starts no run. A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`. A started run is in `message.run`, and `to` in the answer says how the message was delivered. `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`. The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`. A comment sent to a dashboard with `request_revision` has its own path. Writing needs Comment on the target; a caller who can see it but not comment gets 403.
          */
         post: operations["openThread"];
         delete?: never;
@@ -1492,7 +1492,7 @@ export interface paths {
         post?: never;
         /**
          * Withdraw a shared answer back to only you.
-         * @description Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread and makes each of those runs a private question again, read only by its requester and Admins. When a share opened the thread, the whole thread is deleted; otherwise only the shared questions and the answers posted under them are, and the thread keeps its other messages. It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`). On an observation the blocks the share already wrote onto the page stay; the observation's editors remove them like any other block. The run can be shared again afterwards, which opens a new thread. Each withdrawn run is recorded as `run.withdraw`, and each deletion, of the thread or of a message, as a `thread.deleted` activity event. Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404. It is a delete, so no MCP tool reaches it.
+         * @description Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread and makes each of those runs a private question again, read only by its requester and Admins. When a share opened the thread, the whole thread is deleted; otherwise only the shared questions and the answers posted under them are, and the thread keeps its other messages. It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`). On an observation the run's answer leaves the observation, so it is no longer read or listed through it, but the answer's text that the share wrote onto the page stays there as page content; the observation's editors remove those blocks like any other block. The run can be shared again afterwards, which opens a new thread. Each withdrawn run is recorded as `run.withdraw`, and each deletion, of the thread or of a message, as a `thread.deleted` activity event. Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404. It is a delete, so no MCP tool reaches it.
          */
         delete: operations["withdrawSharedAnswer"];
         options?: never;
@@ -2401,7 +2401,7 @@ export interface paths {
         put?: never;
         /**
          * Start a finished agent request again as a new request.
-         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
+         * @description Anyone who can see the request and may start that kind of request can call it, not only the requester; being someone else is never a reason to refuse, except that a caller who reads the request `redacted` may not start its words again. The new request is the caller's: its `requested_by` is the caller, not the original requester, and it counts against the caller's caps like `POST /observe`. The original request is left as it was. An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version. A comment or suggestion request cannot be retried, and neither can a request that something continues. An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it. A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable. A request that is not finished, one of those, or one the caller reads `redacted`, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has. A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`. A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`. The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing. Retrying a request that succeeded queues a new request on every call. Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
          */
         post: operations["retryObserveRequest"];
         delete?: never;
@@ -3700,7 +3700,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels of dashboards.
-         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestRepairs"];
         delete?: never;
@@ -3981,7 +3981,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -4624,6 +4624,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /** @description The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word. */
             title: string;
             /** @enum {string} */
@@ -4670,6 +4672,8 @@ export interface components {
                 id: string;
                 /** @enum {string} */
                 intent: "ask" | "apply";
+                /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+                investigation: boolean;
                 /** @enum {string} */
                 state: "queued" | "running" | "canceling";
                 /** Format: date-time */
@@ -5381,6 +5385,8 @@ export interface components {
             creator: components["schemas"]["Creator"];
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard. */
+            provisioned: boolean;
         };
         HomeDashboard: {
             /**
@@ -5425,6 +5431,8 @@ export interface components {
             view_count: number;
             folder: components["schemas"]["DashboardFolder"];
             permissions: components["schemas"]["Permissions"];
+            /** @description True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it. */
+            provisioned: boolean;
         };
         VersionMeta: {
             version: number;
@@ -5485,7 +5493,7 @@ export interface components {
             };
             unverified: components["schemas"]["Unverified"];
         };
-        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). */
+        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard. */
         Unverified: {
             panels: components["schemas"]["UnverifiedPanel"][];
             variables: components["schemas"]["UnverifiedVariable"][];
@@ -5906,10 +5914,10 @@ export interface components {
             /** @description Why a write sent with `start_runs` stored the message and started no run; null otherwise. */
             run_refusal?: {
                 /**
-                 * @description `investigation_person_only` when an MCP client or key asks the agent on an observation, which only a person starts from the web app or the CLI, `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full.
+                 * @description `mention_target_unsupported` on an annotation or proposal thread, `agent_unavailable` when `@observe` is mentioned and the server has no model provider, `forbidden_role` when the caller may comment but not start that run, and `too_many_runs` when the dashboard's queue or the caller's limit is full.
                  * @enum {string}
                  */
-                code: "mention_target_unsupported" | "agent_unavailable" | "forbidden_role" | "too_many_runs" | "investigation_person_only";
+                code: "mention_target_unsupported" | "agent_unavailable" | "forbidden_role" | "too_many_runs";
                 message: string;
             } | null;
         };
@@ -6293,6 +6301,8 @@ export interface components {
              * @enum {string}
              */
             intent: "apply";
+            /** @description Always false; a version is saved by an apply run, never by an investigation. */
+            investigation: boolean;
             /**
              * Format: uuid
              * @description The comment that requested the revision; null for a prompt, or after the comment was deleted.
@@ -6300,7 +6310,7 @@ export interface components {
             comment_id: string | null;
             /** @description The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard. */
             panel_id: string | null;
-            /** @description The follow-up text, or the comment body. */
+            /** @description The follow-up text, or the comment body; empty when `redacted`. */
             prompt: string;
             /** @description The version the requester was looking at; null for the `observe` request that created the dashboard. The agent revises the latest version. */
             base_version: number | null;
@@ -6349,6 +6359,8 @@ export interface components {
             retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` and `error` null, while the status, times, requester, kind, `failure_code` and saved version stay. */
+            redacted: boolean;
             requested_by: components["schemas"]["Author"];
             /**
              * @description Where the request came from; `web` is a signed-in browser, `cli` the observe CLI, `mcp` an MCP client, `api` any other bearer-key caller. Null for requests made before origins were recorded. A label only, never used for access decisions.
@@ -6548,18 +6560,21 @@ export interface components {
              * @enum {string}
              */
             kind: "build" | "investigate";
-            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
+            /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none; empty when `redacted`. */
             title: string;
             /**
              * @description What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`.
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
              */
             trigger: "person" | "mention" | "schedule" | "webhook" | "slack";
+            /** @description The requester's text; empty when `redacted`. */
             prompt: string;
             /**
              * Format: uuid
@@ -6619,8 +6634,10 @@ export interface components {
             canceled_by: components["schemas"]["Author"] | null;
             /** @description Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion. */
             can_cancel: boolean;
-            /** @description True when the caller sees this request only because it is an Admin; nothing may be done with it. */
+            /** @description True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it. */
             read_only: boolean;
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation is never redacted, and an answer shared into a thread is not redacted for a caller who can read that thread; anyone else who reaches it, through its observation for example, reads it redacted. */
+            redacted: boolean;
             /**
              * Format: uuid
              * @description The stopped request this one continues.
@@ -6693,6 +6710,11 @@ export interface components {
             observation_id: string | null;
             /**
              * Format: uuid
+             * @description The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, when `redacted`, and when the caller cannot open that observation, as for `observation_id`.
+             */
+            subject_observation_id: string | null;
+            /**
+             * Format: uuid
              * @description The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
              */
             shared_thread_id: string | null;
@@ -6712,6 +6734,13 @@ export interface components {
             /** @enum {string} */
             state: "queued" | "running" | "canceling" | "succeeded" | "failed" | "canceled";
             prompt: string;
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
+            /**
+             * Format: uuid
+             * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation.
+             */
+            subject_observation_id: string | null;
         };
         Chat: {
             /**
@@ -6729,7 +6758,7 @@ export interface components {
             dashboard_title: string | null;
             /**
              * Format: uuid
-             * @description The observation the chat is about.
+             * @description The observation the chat is about, null when the caller cannot open it.
              */
             observation_id: string | null;
             /** Format: date-time */
@@ -6766,6 +6795,8 @@ export interface components {
              * @enum {string}
              */
             intent: "ask" | "apply";
+            /** @description True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it. */
+            investigation: boolean;
             /**
              * @description What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know.
              * @enum {string}
@@ -7591,7 +7622,7 @@ export interface components {
                 /** Format: uuid */
                 dashboard_id: string;
                 /** @enum {string} */
-                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "queue_full";
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned" | "queue_full";
             }[];
         };
         GrafanaResolved: {
@@ -7709,7 +7740,7 @@ export interface components {
             /** @description The dashboard's address in the web app. */
             url: string;
             folder: components["schemas"]["DashboardFolder"];
-            /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
+            /** @description Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release. */
             can_edit: boolean;
             /**
              * @description The dashboard's health computed from the last check, whatever the `kind` filter. See `docs/reference/states.md`.
@@ -10839,7 +10870,7 @@ export interface operations {
                 order?: "updated" | "folder" | "views" | "name";
                 /** @description Only dashboards with every given tag. */
                 tag?: string[];
-                /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them. The same rules as `GET /health`. */
+                /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them, and also a dashboard waiting for a recheck of an earlier problem, or with a health repair on record. The same rules as `GET /health`. */
                 problem?: "any" | "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
             };
             header?: never;
@@ -11041,7 +11072,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11152,7 +11183,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11230,7 +11261,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11336,7 +11367,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11366,7 +11397,7 @@ export interface operations {
                     title: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the source dashboard's folder when the caller can create there, else the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };
@@ -11526,7 +11557,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["ProposalForbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard is a starter the server keeps current with each release (`provisioned`), which a proposal cannot change. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11948,6 +11979,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description The dashboard or the comment named by `parent_id` does not exist, or the dashboard has no such `version` (`version_not_found`, with `latest_version`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `request_revision` is true and the dashboard is a starter the server keeps current with each release (`provisioned`); the comment is not created. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12415,7 +12455,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`). */
+            /** @description The connected agent or service account that answered cannot take the run (`assignee_unavailable`), the change is being applied by a run that could not be read back (`already_applied`), or the dashboard is a starter the server keeps current with each release (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14433,6 +14473,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The panel does not exist in the latest version (`unknown_panel`). */
             422: {
@@ -14531,6 +14580,15 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             /** @description The dashboard or the version does not exist. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17172,7 +17230,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or `update_dashboard` names a starter the server keeps current with each release (`provisioned`). */
             409: {
                 headers: {
                     [name: string]: unknown;
