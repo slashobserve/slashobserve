@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,6 +143,27 @@ func TestAParseErrorAnswersWithItsOffsets(t *testing.T) {
 		if rec.Code != http.StatusUnprocessableEntity || body["code"] != CodeQueryInvalid || body["start"] != 19.0 || body["end"] != 27.0 || !strings.Contains(body["error"].(string), `"x"`) {
 			t.Errorf("%s = %d %v", route, rec.Code, body)
 		}
+	}
+}
+
+func TestEveryAnswerListsTheWarningsOfItsQuery(t *testing.T) {
+	r := newHTTPRig(t)
+	engine := r.engine(t, &admin)
+	warning := `"andd" is searched as text; did you mean "and"?`
+	for _, route := range []string{"/audit/events", "/audit/facets", "/audit/histogram"} {
+		for q, want := range map[string][]any{"outcome:denied andd origin:mcp": {warning}, "outcome:denied and origin:mcp": {}} {
+			rec := r.get(t, engine, route, r.hourWindow(url.Values{"q": {q}, "field": {"actor_name"}}))
+			var body struct {
+				Warnings []any `json:"warnings"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK || body.Warnings == nil || !slices.Equal(body.Warnings, want) {
+				t.Errorf("%s q=%q = %d %s, want warnings %v", route, q, rec.Code, rec.Body, want)
+			}
+		}
+	}
+	rec := r.get(t, engine, "/audit/aggregate", r.hourWindow(url.Values{"q": {`{"aggs":{"o":{"terms":{"field":"origin"}}}}`}}))
+	if !strings.Contains(rec.Body.String(), `"warnings":[]`) {
+		t.Errorf("aggregate = %d %s, want an empty warnings list", rec.Code, rec.Body)
 	}
 }
 

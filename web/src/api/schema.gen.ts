@@ -7922,6 +7922,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditEventDetail: {
             event: components["schemas"]["AuditEvent"];
@@ -7950,6 +7952,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditHistogram: {
             /**
@@ -7986,6 +7990,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditAggregation: {
             levels: {
@@ -8023,6 +8029,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditFieldList: {
             fields: {

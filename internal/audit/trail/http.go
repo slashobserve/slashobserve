@@ -46,13 +46,14 @@ func (h *Handler) Register(api auth.Routes) {
 }
 
 type windowJSON struct {
-	Form  string `json:"form"`
-	Since string `json:"since"`
-	Until string `json:"until"`
+	Form     string   `json:"form"`
+	Since    string   `json:"since"`
+	Until    string   `json:"until"`
+	Warnings []string `json:"warnings"`
 }
 
 func windowOf(p Prepared) windowJSON {
-	return windowJSON{Form: string(p.Query.Form), Since: httpapi.FormatTime(p.Window.From), Until: httpapi.FormatTime(p.Window.To)}
+	return windowJSON{Form: string(p.Query.Form), Since: httpapi.FormatTime(p.Window.From), Until: httpapi.FormatTime(p.Window.To), Warnings: append([]string{}, p.Query.Warnings...)}
 }
 
 type SearchJSON struct {

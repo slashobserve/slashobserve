@@ -111,6 +111,9 @@ func appendPage(base, more []byte) ([]byte, error) {
 		return nil, err
 	}
 	for key, raw := range moreFields {
+		if key == "warnings" {
+			continue
+		}
 		var rows []json.RawMessage
 		if json.Unmarshal(raw, &rows) != nil {
 			continue

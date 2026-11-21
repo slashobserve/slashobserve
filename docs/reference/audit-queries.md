@@ -87,6 +87,10 @@ An aggregation whose buckets would make more than 100,000 rows is refused with t
 
 A query that cannot be read answers 422 `query_invalid` with the parser's message and `start` and `end`, the byte offsets in the query to underline; over MCP the message names the same offsets, and the CLI prints the query with a caret line under the span and keeps `start` and `end` in the `--json` error.
 
+A word between two terms that is one edit away from `and`, `or` or `not` (`outcome:denied andd origin:mcp`) is still searched as text, so the query keeps its meaning, but the search, facets, histogram and aggregate answers list it in `warnings`, such as `"andd" is searched as text; did you mean "and"?`.
+In a Lucene query a lowercase `and` gets the same warning, since only `AND`, `OR` and `NOT` are operators there.
+`warnings` is an empty list when there is nothing to warn about; the CLI prints each on standard error as `warning: ...`.
+
 ## Window and limits
 
 Every read covers a window from `since`, inclusive, to `until`, exclusive.

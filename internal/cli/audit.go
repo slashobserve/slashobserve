@@ -66,6 +66,7 @@ type auditEvent struct {
 type auditEventList struct {
 	Events     []auditEvent `json:"events"`
 	NextCursor *string      `json:"next_cursor"`
+	Warnings   []string     `json:"warnings"`
 }
 
 type auditEventDetail struct {
@@ -80,6 +81,7 @@ type auditFacets struct {
 		Value string `json:"value"`
 		Count int64  `json:"count"`
 	} `json:"values"`
+	Warnings []string `json:"warnings"`
 }
 
 type auditHistogram struct {
@@ -89,6 +91,7 @@ type auditHistogram struct {
 		Time  string `json:"time"`
 		Count int64  `json:"count"`
 	} `json:"buckets"`
+	Warnings []string `json:"warnings"`
 }
 
 type auditAggregation struct {
@@ -104,7 +107,8 @@ type auditAggregation struct {
 		DocCount int64      `json:"doc_count"`
 		Values   []*float64 `json:"values"`
 	} `json:"rows"`
-	Truncated bool `json:"truncated"`
+	Truncated bool     `json:"truncated"`
+	Warnings  []string `json:"warnings"`
 }
 
 type auditFieldList struct {
@@ -239,6 +243,7 @@ func (a *app) runAuditSearch(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	out.queryWarnings(page.Warnings)
 	if len(page.Events) == 0 {
 		out.notice("No audit events match in the window.")
 		return nil
@@ -401,6 +406,7 @@ func (a *app) runAuditFacets(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	out.queryWarnings(facets.Warnings)
 	if len(facets.Values) == 0 {
 		out.notice("No audit events with %s match in the window.", text(facets.Field))
 		return nil
@@ -449,6 +455,7 @@ func (a *app) runAuditHistogram(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	out.queryWarnings(h.Warnings)
 	rows := make([][]string, 0, len(h.Buckets))
 	for _, b := range h.Buckets {
 		rows = append(rows, []string{auditWhen(b.Time), strconv.FormatInt(b.Count, 10)})
@@ -492,6 +499,7 @@ func (a *app) runAuditAggregate(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	out.queryWarnings(agg.Warnings)
 	headers := make([]string, 0, len(agg.Levels)+1+len(agg.Metrics))
 	for _, l := range agg.Levels {
 		headers = append(headers, strings.ToUpper(text(l.Name)))
@@ -662,5 +670,11 @@ func copyExport(dst io.Writer, src io.Reader, format string) (int, error) {
 			return rows, err
 		}
 		rows++
+	}
+}
+
+func (o *output) queryWarnings(warnings []string) {
+	for _, w := range warnings {
+		o.warn("warning: %s", text(w))
 	}
 }

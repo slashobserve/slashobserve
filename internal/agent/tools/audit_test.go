@@ -145,6 +145,26 @@ func TestAuditToolsNameTheBytesOfAParseError(t *testing.T) {
 	}
 }
 
+func TestAuditToolsWarnAboutAMisspelledOperator(t *testing.T) {
+	r := newAuditToolRig(t)
+	warning := `"andd" is searched as text; did you mean "and"?`
+	for _, name := range []string{nameSearchAuditEvents, nameListAuditFacets, nameGetAuditHistogram} {
+		input := r.window()
+		input["q"] = "outcome:denied andd origin:mcp"
+		if name == nameListAuditFacets {
+			input["field"] = "actor_name"
+		}
+		res := r.call(t, name, input)
+		raw, err := json.Marshal(res.Content)
+		var body struct {
+			Warnings []string `json:"warnings"`
+		}
+		if err != nil || json.Unmarshal(raw, &body) != nil || res.IsError || len(body.Warnings) != 1 || body.Warnings[0] != warning {
+			t.Errorf("%s = %s", name, raw)
+		}
+	}
+}
+
 func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	r := newAuditToolRig(t)
 	request := "0b3c9a52-4f0e-4c8a-9a1b-2d3e4f5a6b7c"
