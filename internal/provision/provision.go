@@ -113,15 +113,21 @@ func (p *Provisioner) Report(ctx context.Context) (Report, error) {
 }
 
 func (p *Provisioner) Run(ctx context.Context) error {
+	return p.run(ctx, true)
+}
+
+func (p *Provisioner) run(ctx context.Context, requested bool) error {
 	if p.dir == "" {
 		return ErrOff
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.store.db.WithSessionLock(ctx, sessionLockName, p.provisionAll)
+	return p.store.db.WithSessionLock(ctx, sessionLockName, func(ctx context.Context) error {
+		return p.provisionAll(ctx, requested)
+	})
 }
 
-func (p *Provisioner) provisionAll(ctx context.Context) error {
+func (p *Provisioner) provisionAll(ctx context.Context, requested bool) error {
 	files, err := specfiles.Scan(p.dir)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrDirUnreadable, err)
@@ -158,7 +164,7 @@ func (p *Provisioner) provisionAll(ctx context.Context) error {
 		}
 	}
 	p.failing = failing
-	if p.saves == 0 && !failing {
+	if requested && p.saves == 0 && !failing {
 		return p.store.unchanged(ctx)
 	}
 	return nil
@@ -183,7 +189,7 @@ func (p *Provisioner) Watch(ctx context.Context) {
 			unreadable = true
 		case stamp != seen || p.retrying():
 			unreadable = false
-			if err := p.Run(ctx); err != nil {
+			if err := p.run(ctx, false); err != nil {
 				if ctx.Err() == nil {
 					p.logger.ErrorContext(ctx, "provisioning run failed", logattrs.Failure("provision_failed", err, slog.String("dir", p.dir))...)
 				}
