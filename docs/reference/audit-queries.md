@@ -13,7 +13,7 @@ A query that is refused is recorded every time, as a `failed` event with its rea
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.
-A field with an alias takes either name in a query.
+A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
 
 | Field | Alias | Type | What it holds |
 | ----- | ----- | ---- | ------------- |
@@ -25,10 +25,11 @@ A field with an alias takes either name in a query.
 | `reason` | | text | The API error code of a refusal or failure, such as `forbidden_role` |
 | `status` | | int | HTTP status of the request |
 | `duration_ms` | `duration` | int | How long the action took, in milliseconds |
-| `actor_kind` | | enum | Whose permissions were used: `user`, `service_account`, `anonymous` or `system` |
-| `actor_id` | | uuid | The user or service account |
-| `actor_name` | `actor` | text | The actor's name when the event happened |
-| `actor_role` | | text | The actor's role when the event happened |
+| `actor_kind` | `actor.kind` | enum | Whose permissions were used: `user`, `service_account`, `anonymous` or `system` |
+| `actor_id` | `actor.id` | uuid | The user or service account |
+| `actor_name` | `actor`, `actor.name` | text | The actor's name when the event happened; `actor` alone also matches the actor's current email address |
+| `actor_email` | `actor.email` | text | The current email address of the user who acted, read from the user and not stored in the event; a service account has none; a query can match it but not count it |
+| `actor_role` | `actor.role` | text | The actor's role when the event happened |
 | `initiator` | | enum | Who started it: `person`, `agent` or `system` |
 | `agent_id`, `agent_name` | | uuid, text | The agent that acted |
 | `run_id` | `run` | uuid | The agent run that made the event |
@@ -43,7 +44,7 @@ A field with an alias takes either name in a query.
 | `trace_id` | | text | The request's trace id, when one was sent |
 | `http_method`, `route` | | text | The request's method and route template |
 | `target` | | target | What the event was about as `kind/id`, such as `dashboard/8f3c...`; `dashboard` alone and `dashboard/8f*` work too |
-| `target_kind`, `target_id`, `target_name` | | text | The parts of the target, and its name when the event happened |
+| `target_kind`, `target_id`, `target_name` | `target.kind`, `target.id`, `target.name` | text | The parts of the target, and its name when the event happened |
 | `folder_id`, `dashboard_id`, `observation_id`, `thread_id`, `chat_id` | | uuid | The objects the event touched |
 | `datasource_uid` | `datasource` | text | The datasource a query ran on |
 | `server_id`, `server_version` | | text | The server replica and build that recorded the event |

@@ -114,7 +114,7 @@ type auditAggregation struct {
 type auditFieldList struct {
 	Fields []struct {
 		Name        string   `json:"name"`
-		Alias       *string  `json:"alias"`
+		Aliases     []string `json:"aliases"`
 		Type        string   `json:"type"`
 		Description string   `json:"description"`
 		Values      []string `json:"values"`
@@ -566,9 +566,10 @@ func (a *app) runAuditFields(cmd *cobra.Command, _ []string) error {
 	}
 	rows := make([][]string, 0, len(list.Fields))
 	for _, f := range list.Fields {
-		rows = append(rows, []string{text(f.Name), orDash(f.Alias), text(f.Type), text(f.Description)})
+		aliases := strings.Join(f.Aliases, ", ")
+		rows = append(rows, []string{text(f.Name), orDash(&aliases), text(f.Type), text(f.Description)})
 	}
-	out.table([]string{"FIELD", "ALIAS", "TYPE", "DESCRIPTION"}, rows)
+	out.table([]string{"FIELD", "ALIASES", "TYPE", "DESCRIPTION"}, rows)
 	return nil
 }
 

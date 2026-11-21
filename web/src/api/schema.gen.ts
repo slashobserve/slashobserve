@@ -7922,7 +7922,7 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
-            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
             warnings: string[];
         };
         AuditEventDetail: {
@@ -7952,7 +7952,7 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
-            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
             warnings: string[];
         };
         AuditHistogram: {
@@ -7990,7 +7990,7 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
-            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
             warnings: string[];
         };
         AuditAggregation: {
@@ -8029,13 +8029,16 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
-            /** @description Things that make the query probably not mean what it says, such as a word one letter away from `and`, `or` or `not` that is searched as text; empty when there are none. */
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
             warnings: string[];
         };
         AuditFieldList: {
             fields: {
                 name: string;
+                /** @description The first of `aliases`, kept for older clients. */
                 alias: string | null;
+                /** @description The other names a query can use for the field, such as `actor` and `actor.name` for `actor_name`. */
+                aliases: string[];
                 /** @enum {string} */
                 type: "text" | "enum" | "int" | "uuid" | "ip" | "date" | "target";
                 description: string;

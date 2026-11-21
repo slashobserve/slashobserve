@@ -313,7 +313,15 @@ func (c *compiler) likeSQL(f *Field, pattern string, insensitive bool) string {
 	if insensitive {
 		op = " ILIKE "
 	}
-	return leaf(f.textExpr() + op + c.b.add(pattern) + likeEscape)
+	arg := c.b.add(pattern)
+	byEmail := "actor_id IN (SELECT id FROM users WHERE email ILIKE " + arg + likeEscape + ")"
+	switch f.email {
+	case emailOnly:
+		return leaf(byEmail)
+	case emailOrName:
+		return leaf("(" + f.textExpr() + op + arg + likeEscape + " OR " + byEmail + ")")
+	}
+	return leaf(f.textExpr() + op + arg + likeEscape)
 }
 
 func (c *compiler) exists(body any) (string, error) {
