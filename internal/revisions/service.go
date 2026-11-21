@@ -370,10 +370,13 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		row, err = s.enqueueInvestigate(ctx, q, p)
 		return err
 	})
-	if db.IsForeignKeyViolation(err) {
-		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	switch db.ViolatedForeignKey(err) {
+	case "":
+		return row, err
+	case anchoredBlockForeignKey:
+		return dbsqlc.AgentRequest{}, ErrObservationNotFound
 	}
-	return row, err
+	return dbsqlc.AgentRequest{}, ErrDashboardNotFound
 }
 
 func (s *Service) EnqueueAssignedInvestigate(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -485,6 +488,8 @@ func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row db
 	}
 	return linked, nil
 }
+
+const anchoredBlockForeignKey = "agent_requests_block_id_fkey"
 
 func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) error {
 	if !p.Point.BlockID.Valid {
