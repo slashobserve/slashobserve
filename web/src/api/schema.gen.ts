@@ -6359,7 +6359,7 @@ export interface components {
             retried_by: string | null;
             /** @description The note given when continuing a stopped request, null when none was given or this request continues nothing. */
             continue_note: string | null;
-            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` null, while the status, times, requester, kind and saved version stay. */
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` and `error` null, while the status, times, requester, kind, `failure_code` and saved version stay. */
             redacted: boolean;
             requested_by: components["schemas"]["Author"];
             /**
@@ -6636,7 +6636,7 @@ export interface components {
             can_cancel: boolean;
             /** @description True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it. */
             read_only: boolean;
-            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted. */
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted. */
             redacted: boolean;
             /**
              * Format: uuid

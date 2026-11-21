@@ -361,7 +361,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 	}
 	if r.audience.viewFor(caller) != viewFull {
 		out.Redacted = true
-		out.Prompt, out.ContinueNote = "", nil
+		out.Prompt, out.ContinueNote, out.Error = "", nil, nil
 	}
 	return out
 }
