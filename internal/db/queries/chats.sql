@@ -4,11 +4,12 @@ VALUES (@id, @owner_kind, @owner_id, sqlc.narg('title')::text, sqlc.narg('dashbo
 RETURNING *;
 
 -- name: GetChat :one
-SELECT c.*, coalesce(owner.requested_by_name, '')::text AS owner_name
+SELECT c.*, coalesce(owner.requested_by_name, '')::text AS owner_name, d.title AS dashboard_title
 FROM chats c
 LEFT JOIN LATERAL (
   SELECT t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) owner ON true
+LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 WHERE c.id = @id
   AND (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_kind')::text AND c.owner_id = sqlc.narg('owner_id')::uuid));
 
@@ -45,8 +46,10 @@ WHERE id = @id AND dashboard_id IS NULL AND observation_id IS NULL;
 
 -- name: ListChats :many
 SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
-  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt
+  last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
+  d.title AS dashboard_title
 FROM chats c
+LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
 LEFT JOIN LATERAL (
   SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
@@ -62,8 +65,10 @@ WHERE (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_k
   AND (sqlc.narg('pattern')::text IS NULL OR c.title ILIKE sqlc.narg('pattern')::text OR EXISTS (
     SELECT 1 FROM agent_requests t WHERE t.chat_id = c.id AND t.prompt ILIKE sqlc.narg('pattern')::text))
   AND (sqlc.narg('cursor_at')::timestamptz IS NULL
-    OR (c.last_turn_at, c.id) < (sqlc.narg('cursor_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
-ORDER BY c.last_turn_at DESC, c.id DESC
+    OR ((@pinned_first::boolean AND c.pinned_at IS NOT NULL) = @cursor_pinned::boolean
+      AND (c.last_turn_at, c.id) < (sqlc.narg('cursor_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
+    OR (@cursor_pinned::boolean AND NOT (@pinned_first::boolean AND c.pinned_at IS NOT NULL)))
+ORDER BY (@pinned_first::boolean AND c.pinned_at IS NOT NULL) DESC, c.last_turn_at DESC, c.id DESC
 LIMIT @row_limit;
 
 -- name: ListChatRequests :many

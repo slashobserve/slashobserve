@@ -110,6 +110,18 @@ export const observeKeys = {
   ) => ["observe-build", id, "variables", name, fingerprint, params] as const,
 }
 
+export type ChatsFilters = {
+  q?: string
+  dashboardId?: string
+  scope?: "all"
+}
+
+export const chatKeys = {
+  list: (filters: ChatsFilters, limit: number) =>
+    [...observeKeys.mineAll(), "chats", filters, limit] as const,
+  detail: (id: string) => [...observeKeys.mineAll(), "chat", id] as const,
+}
+
 export const serviceAccountKeys = {
   all: ["service-accounts"] as const,
   list: () => ["service-accounts", "list"] as const,
