@@ -176,7 +176,7 @@ func (a *app) followAudit(cmd *cobra.Command) error {
 		query.Set("q", a.audit.query)
 	}
 	follower := &sseFollower{c: c, name: "audit", path: "audit/stream", query: query, retry: defaultStreamRetry, idle: streamIdleTimeout, handle: auditFrames(a.output(), a.json)}
-	return follower.run(cmd.Context())
+	return a.underlined(follower.run(cmd.Context()))
 }
 
 var errAuditStreamForbidden = errors.New("the audit stream ended because the key is no longer an Admin")
@@ -228,7 +228,7 @@ func (a *app) runAuditSearch(cmd *cobra.Command, _ []string) error {
 	}
 	data, err := c.getPages(cmd.Context(), "audit/events", query, a.audit.page.all)
 	if err != nil {
-		return err
+		return a.underlined(err)
 	}
 	out := a.output()
 	if a.json {
@@ -390,7 +390,7 @@ func (a *app) runAuditFacets(cmd *cobra.Command, args []string) error {
 	}
 	data, err := c.get(cmd.Context(), "audit/facets", query)
 	if err != nil {
-		return err
+		return a.underlined(err)
 	}
 	out := a.output()
 	if a.json {
@@ -438,7 +438,7 @@ func (a *app) runAuditHistogram(cmd *cobra.Command, _ []string) error {
 	}
 	data, err := c.get(cmd.Context(), "audit/histogram", query)
 	if err != nil {
-		return err
+		return a.underlined(err)
 	}
 	out := a.output()
 	if a.json {
@@ -481,7 +481,7 @@ func (a *app) runAuditAggregate(cmd *cobra.Command, _ []string) error {
 	}
 	data, err := c.get(cmd.Context(), "audit/aggregate", a.audit.window())
 	if err != nil {
-		return err
+		return a.underlined(err)
 	}
 	out := a.output()
 	if a.json {
@@ -589,7 +589,7 @@ func (a *app) runAuditExport(cmd *cobra.Command, _ []string) (err error) {
 	}
 	resp, err := c.download(cmd.Context(), "audit/export", query, accept)
 	if err != nil {
-		return err
+		return a.underlined(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if a.audit.file == "" {

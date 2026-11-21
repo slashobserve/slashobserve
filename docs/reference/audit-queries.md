@@ -85,7 +85,7 @@ An aggregation whose buckets would make more than 100,000 rows is refused with t
 {"aggs": {"by_origin": {"terms": {"field": "origin"}, "aggs": {"people": {"cardinality": {"field": "actor_id"}}}}}}
 ```
 
-A query that cannot be read answers 422 `query_invalid` with the parser's message and `start` and `end`, the byte offsets in the query to underline; over MCP the message names the same offsets.
+A query that cannot be read answers 422 `query_invalid` with the parser's message and `start` and `end`, the byte offsets in the query to underline; over MCP the message names the same offsets, and the CLI prints the query with a caret line under the span and keeps `start` and `end` in the `--json` error.
 
 ## Window and limits
 
