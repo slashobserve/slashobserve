@@ -185,6 +185,12 @@ func TestObservationRoutesMatchTheDocument(t *testing.T) {
 		t.Fatalf("changed %+v", changed)
 	}
 
+	arranged := decode[struct {
+		Blocks []observations.BlockJSON `json:"blocks"`
+	}](t, d.send(t, editor, http.MethodPut, base+"/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"width":"third"},{"id":%q,"width":"two_thirds","height":300},{"id":%q,"height":null}]}`, text.ID, panel.ID, snapshot.ID), http.StatusOK)).Blocks
+	if len(arranged) != 4 || arranged[0].ID != text.ID || arranged[0].Width != "third" || arranged[0].Height != nil || arranged[1].Width != "two_thirds" || arranged[1].Height == nil || *arranged[1].Height != 300 || arranged[2].Height != nil || arranged[0].Version != changed.Version {
+		t.Fatalf("arranged %+v", arranged)
+	}
 	asked := decode[blockEnvelope](t, d.send(t, commenter, http.MethodPost, base+"/blocks", `{"kind":"text","body":{"markdown":"Was the cache cold?"}}`, http.StatusCreated)).Block
 	if asked.State != "requested" {
 		t.Fatalf("requested block %+v", asked)
@@ -240,6 +246,16 @@ func TestObservationRoutesAnswerEveryDocumentedError(t *testing.T) {
 		{"a cursor that is not valid", viewer, http.MethodGet, "/api/v1/observations?cursor=%25", "", 400, "invalid_request"},
 		{"an update that changes nothing", editor, http.MethodPatch, base, `{}`, 400, "invalid_request"},
 		{"a range cleared on one side", editor, http.MethodPatch, base, `{"from":null,"to":"2026-11-01T09:00:00Z"}`, 422, "invalid_range"},
+		{"a layout with a repeated block", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q},{"id":%q}]}`, text.ID, text.ID), 422, "invalid_block"},
+		{"a layout with a height for a text block", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"height":300}]}`, text.ID), 422, "invalid_block"},
+		{"a block update with a height for a text block", editor, http.MethodPatch, d.blockPath(text.ID), `{"version":1,"height":300}`, 422, "invalid_block"},
+		{"a text block added with a height", editor, http.MethodPost, base + "/blocks", `{"kind":"text","body":{"markdown":"x"},"height":300}`, 422, "invalid_block"},
+		{"a layout with a height out of range", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"height":50}]}`, text.ID), 422, "invalid_block"},
+		{"a layout with a width that is unknown", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"width":"quarter"}]}`, text.ID), 422, "invalid_block"},
+		{"a layout naming a block that is not on the observation", editor, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q},{"id":%q}]}`, text.ID, missing), 422, "invalid_block"},
+		{"a layout with an id that is not one", editor, http.MethodPut, base + "/layout", `{"blocks":[{"id":"nope"}]}`, 400, "invalid_request"},
+		{"a commenter arranging", commenter, http.MethodPut, base + "/layout", fmt.Sprintf(`{"blocks":[{"id":%q}]}`, text.ID), 403, "forbidden_role"},
+		{"an observation nobody sees arranged", editor, http.MethodPut, "/api/v1/observations/" + missing + "/layout", `{"blocks":[]}`, 404, "not_found"},
 		{"a block update with no version", editor, http.MethodPatch, d.blockPath(text.ID), `{"width":"half"}`, 400, "invalid_request"},
 		{"a block removal with no version", editor, http.MethodDelete, d.blockPath(text.ID), "", 400, "invalid_request"},
 		{"a keep with no version", editor, http.MethodPost, d.blockPath(asked.ID) + "/keep", `{}`, 400, "invalid_request"},

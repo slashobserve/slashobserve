@@ -29,6 +29,7 @@ function block(kind: "text" | "panel", state: "live" | "requested"): Block {
     state,
     position: 0,
     width: "full",
+    height: null,
     version: 1,
     body: {},
     snapshot_id: null,

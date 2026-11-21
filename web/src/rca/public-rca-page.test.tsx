@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "@/test/render"
 
 import { PublicRcaPage } from "./public-rca-page"
-import { publicRows } from "./rca-document"
+import { packRows } from "@/observations/block-rows"
 import type { RcaBlock } from "./queries"
 
 const token = `pub_${"a".repeat(43)}`
@@ -61,7 +61,7 @@ function json(body: unknown): Response {
   })
 }
 
-function mockServer(newest: number | null = null) {
+function mockServer(newest: number | null = null, height?: number) {
   const paths: string[] = []
   vi.stubGlobal(
     "fetch",
@@ -69,7 +69,13 @@ function mockServer(newest: number | null = null) {
       const path = new URL(request.url).pathname
       paths.push(path)
       if (path === `/api/v1/public/${token}/rca`) {
-        return Promise.resolve(json({ ...view, superseded_by: newest }))
+        const blocks =
+          height === undefined
+            ? view.blocks
+            : view.blocks.map((block) =>
+                block.kind === "snapshot" ? { ...block, height } : block
+              )
+        return Promise.resolve(json({ ...view, blocks, superseded_by: newest }))
       }
       if (path === `/api/v1/public/${token}/rca/snapshots/${snapshotId}`) {
         return Promise.resolve(json(frames))
@@ -118,6 +124,33 @@ describe("PublicRcaPage", () => {
   })
 })
 
+describe("PublicRcaPage panel heights", () => {
+  it("draws a panel at the height it was published with and at the default for its width without one", async () => {
+    mockServer(null, 600)
+    const set = renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await set.findByText("Error rate")
+    expect(
+      set.container.querySelector('[style*="height: 600px"]')
+    ).not.toBeNull()
+    set.unmount()
+
+    mockServer()
+    const unset = renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await unset.findByText("Error rate")
+    expect(
+      unset.container.querySelector('[style*="height: 280px"]')
+    ).not.toBeNull()
+  })
+})
+
 describe("PublicRcaPage superseded revisions", () => {
   it("tells a reader of an old link that a newer revision exists", async () => {
     mockServer(3)
@@ -145,15 +178,18 @@ describe("PublicRcaPage superseded revisions", () => {
   })
 })
 
-describe("publicRows", () => {
-  function block(kind: "text" | "snapshot", width: "full" | "half"): RcaBlock {
+describe("packRows on an RCA", () => {
+  function block(
+    kind: "text" | "snapshot",
+    width: RcaBlock["width"]
+  ): RcaBlock {
     return kind === "text"
       ? { kind, markdown: "text", width }
       : { kind, snapshot_id: snapshotId, title: "Panel", panel: {}, width }
   }
 
   it("pairs consecutive half blocks and leaves a lone half block on its own", () => {
-    const rows = publicRows([
+    const rows = packRows([
       block("text", "full"),
       block("snapshot", "half"),
       block("snapshot", "half"),
@@ -161,5 +197,14 @@ describe("publicRows", () => {
       block("text", "full"),
     ])
     expect(rows.map((row) => row.length)).toEqual([1, 2, 1, 1])
+  })
+
+  it("packs a third beside two thirds", () => {
+    const rows = packRows([
+      block("snapshot", "third"),
+      block("snapshot", "two_thirds"),
+      block("text", "full"),
+    ])
+    expect(rows.map((row) => row.length)).toEqual([2, 1])
   })
 })

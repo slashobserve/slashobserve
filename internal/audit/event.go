@@ -104,6 +104,7 @@ type By struct {
 	Actor  Actor
 	Origin Origin
 	RunID  uuid.NullUUID
+	Agent  Agent
 }
 
 type Result struct {

@@ -72,6 +72,7 @@ type BlockJSON struct {
 	State          string          `json:"state"`
 	Position       int             `json:"position"`
 	Width          string          `json:"width"`
+	Height         *int            `json:"height"`
 	Version        int             `json:"version"`
 	Body           json.RawMessage `json:"body"`
 	SnapshotID     *string         `json:"snapshot_id"`
@@ -180,6 +181,7 @@ func BlockOf(b Block) BlockJSON {
 		State:          string(b.State),
 		Position:       b.Position,
 		Width:          string(b.Width),
+		Height:         b.Height,
 		Version:        b.Version,
 		Body:           b.Body,
 		SnapshotID:     httpapi.OptionalString(b.SnapshotID),
@@ -266,6 +268,7 @@ func (h *Handler) Register(api auth.Routes) {
 	api.POST("/observations/:id/dashboard", auth.RoleViewer, h.makeObservationDashboard)
 	api.POST("/blocks/:id/dashboard", auth.RoleViewer, h.makeBlockDashboard)
 	api.POST("/observations/:id/blocks", auth.RoleViewer, h.addBlock)
+	api.PUT("/observations/:id/layout", auth.RoleViewer, h.arrange)
 	api.PATCH("/blocks/:id", auth.RoleViewer, h.updateBlock)
 	api.DELETE("/blocks/:id", auth.RoleViewer, h.removeBlock)
 	api.POST("/blocks/:id/keep", auth.RoleViewer, h.keepBlock)
@@ -289,6 +292,7 @@ type blockRequest struct {
 	Kind        string          `json:"kind"`
 	Body        json.RawMessage `json:"body"`
 	Width       string          `json:"width"`
+	Height      *int            `json:"height"`
 	Position    *int            `json:"position"`
 	FromBlockID *string         `json:"from_block_id"`
 }
@@ -675,7 +679,7 @@ func (h *Handler) addBlock(c *gin.Context) {
 		return
 	}
 	b, err := h.service.AddBlock(c.Request.Context(), httpapi.Caller(c), id, BlockInput{
-		Kind: Kind(req.Kind), Body: req.Body, Width: Width(req.Width), Position: req.Position, FromBlockID: from,
+		Kind: Kind(req.Kind), Body: req.Body, Width: Width(req.Width), Height: req.Height, Position: req.Position, FromBlockID: from,
 	})
 	if err != nil {
 		h.fail(c, "add observation block", err)
@@ -688,6 +692,7 @@ type updateBlockRequest struct {
 	Version    *int            `json:"version"`
 	Body       json.RawMessage `json:"body"`
 	Width      *string         `json:"width"`
+	Height     HeightChange    `json:"height"`
 	Position   *int            `json:"position"`
 	FollowPage bool            `json:"follow_page"`
 }
@@ -711,7 +716,7 @@ func (h *Handler) updateBlock(c *gin.Context) {
 	}) {
 		return
 	}
-	change := BlockChange{Version: *req.Version, Body: req.Body, Position: req.Position, FollowPage: req.FollowPage}
+	change := BlockChange{Version: *req.Version, Body: req.Body, Height: req.Height, Position: req.Position, FollowPage: req.FollowPage}
 	if req.Width != nil {
 		width := Width(*req.Width)
 		change.Width = &width
@@ -722,6 +727,53 @@ func (h *Handler) updateBlock(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, blockEnvelopeJSON{Block: BlockOf(b)})
+}
+
+type layoutItemRequest struct {
+	ID     string       `json:"id"`
+	Width  *string      `json:"width"`
+	Height HeightChange `json:"height"`
+}
+
+type layoutRequest struct {
+	Blocks []layoutItemRequest `json:"blocks"`
+}
+
+type layoutJSON struct {
+	Blocks []BlockJSON `json:"blocks"`
+}
+
+func (h *Handler) arrange(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req layoutRequest
+	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
+		return
+	}
+	items := make([]BlockLayout, len(req.Blocks))
+	for i, item := range req.Blocks {
+		blockID, ok := optionalUUID(c, "blocks.id", &item.ID)
+		if !ok {
+			return
+		}
+		items[i] = BlockLayout{ID: blockID, Height: item.Height}
+		if item.Width != nil {
+			width := Width(*item.Width)
+			items[i].Width = &width
+		}
+	}
+	blocks, err := h.service.Arrange(c.Request.Context(), httpapi.Caller(c), id, items, pgtype.UUID{})
+	if err != nil {
+		h.fail(c, "arrange observation blocks", err)
+		return
+	}
+	body := layoutJSON{Blocks: make([]BlockJSON, len(blocks))}
+	for i, b := range blocks {
+		body.Blocks[i] = BlockOf(b)
+	}
+	c.JSON(http.StatusOK, body)
 }
 
 func versionParam(c *gin.Context) (int, bool) {

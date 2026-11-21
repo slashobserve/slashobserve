@@ -61,6 +61,7 @@ No tool queues an investigation on the server; you do the work with your own mod
 
 get_observation shows each block's kind, state and version, and list_observations lists the open or resolved ones.
 Send a block's version to update_block or keep_block, and a stale one answers version_conflict.
+arrange_blocks sets the order, width (a third, half, two thirds or the full page) and height of the blocks in one call without versions, and a person who can only comment cannot use it.
 A person who can only comment gets a requested block, which an editor keeps with keep_block or discards with discard_block; it is not live until kept.
 resolve_observation closes an observation with a one-line summary of what was found.
 publish_rca freezes it as an RCA revision without query text; it never makes a public link, because a person does that in the web app.

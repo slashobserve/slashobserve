@@ -73,3 +73,8 @@ LIMIT @row_limit;
 
 -- name: ListChatRequests :many
 SELECT * FROM agent_requests WHERE chat_id = @chat_id ORDER BY created_at, id;
+
+-- name: DeleteChatsEmptiedByDashboardDelete :execrows
+DELETE FROM chats c
+WHERE c.dashboard_id = @dashboard_id
+  AND NOT EXISTS (SELECT 1 FROM agent_requests r WHERE r.chat_id = c.id AND r.dashboard_id IS DISTINCT FROM @dashboard_id);

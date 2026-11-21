@@ -100,6 +100,20 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (Chat, e
 	return i, err
 }
 
+const deleteChatsEmptiedByDashboardDelete = `-- name: DeleteChatsEmptiedByDashboardDelete :execrows
+DELETE FROM chats c
+WHERE c.dashboard_id = $1
+  AND NOT EXISTS (SELECT 1 FROM agent_requests r WHERE r.chat_id = c.id AND r.dashboard_id IS DISTINCT FROM $1)
+`
+
+func (q *Queries) DeleteChatsEmptiedByDashboardDelete(ctx context.Context, dashboardID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteChatsEmptiedByDashboardDelete, dashboardID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getChat = `-- name: GetChat :one
 SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, coalesce(owner.requested_by_name, '')::text AS owner_name, d.title AS dashboard_title
 FROM chats c

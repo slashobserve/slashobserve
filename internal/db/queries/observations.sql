@@ -85,9 +85,9 @@ FROM observation_blocks
 WHERE observation_id = @observation_id;
 
 -- name: InsertBlock :one
-INSERT INTO observation_blocks (observation_id, kind, state, position, width, body, snapshot_id, run_id,
+INSERT INTO observation_blocks (observation_id, kind, state, position, width, height, body, snapshot_id, run_id,
   created_by_kind, created_by_id, created_by_name, origin, origin_client)
-VALUES (@observation_id, @kind, @state, @position, @width, @body::jsonb, sqlc.narg('snapshot_id')::uuid, sqlc.narg('run_id')::uuid,
+VALUES (@observation_id, @kind, @state, @position, @width, sqlc.narg('height')::integer, @body::jsonb, sqlc.narg('snapshot_id')::uuid, sqlc.narg('run_id')::uuid,
   @created_by_kind, @created_by_id, @created_by_name, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
 RETURNING *;
 
@@ -100,9 +100,19 @@ WHERE observation_id = @observation_id
 
 -- name: UpdateBlock :one
 UPDATE observation_blocks
-SET body = @body::jsonb, width = @width, position = @position, version = version + 1, updated_at = clock_timestamp()
+SET body = @body::jsonb, width = @width, height = sqlc.narg('height')::integer, position = @position, version = version + 1, updated_at = clock_timestamp()
 WHERE id = @id AND version = @version AND state = ANY(@from_states::text[])
 RETURNING *;
+
+-- name: ArrangeBlocks :exec
+WITH arranged AS (
+  SELECT unnest(@ids::uuid[]) AS id, unnest(@positions::integer[]) AS position,
+    unnest(@widths::text[]) AS width, unnest(@heights::integer[]) AS height
+)
+UPDATE observation_blocks AS b
+SET position = arranged.position, width = arranged.width, height = NULLIF(arranged.height, 0)
+FROM arranged
+WHERE b.id = arranged.id AND b.observation_id = @observation_id;
 
 -- name: KeepBlock :one
 UPDATE observation_blocks
