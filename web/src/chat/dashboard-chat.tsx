@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { PlusIcon } from "lucide-react"
 
+import { LoadProblem } from "@/components/load-problem"
 import { useNow } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { truncatingTriggerClass } from "@/activity/show-filter"
 import type { ObserveRequest } from "@/observe/queries"
+import { loadProblemText } from "@/service-accounts/queries"
 
 import { ChatComposer } from "./chat-composer"
 import { chatOptionMeta } from "./chat-rows"
@@ -85,7 +87,8 @@ export function DashboardChat({
     }
   }
 
-  const waiting = query.data === undefined && chatId === undefined
+  const unlisted = query.data === undefined && chatId === undefined
+  const failed = unlisted && query.isError
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -131,7 +134,14 @@ export function DashboardChat({
         </Button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col px-4 pt-3">
-        {waiting ? (
+        {failed ? (
+          <LoadProblem
+            title="Could not load your chats"
+            detail={loadProblemText(query.error)}
+            retrying={query.isFetching}
+            onRetry={() => void query.refetch()}
+          />
+        ) : unlisted ? (
           <Skeleton className="h-24 rounded-card" />
         ) : openId === undefined ? (
           <NewChat

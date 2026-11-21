@@ -187,6 +187,26 @@ describe("DashboardChat", () => {
     expect(screen.queryByTestId("composer")).not.toBeInTheDocument()
   })
 
+  it("says the chats did not load and loads them again on Retry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ error: "boom", code: "internal_error" }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          )
+      )
+    )
+    const { user } = render(undefined)
+    expect(
+      await screen.findByText("Could not load your chats")
+    ).toBeInTheDocument()
+    stub([chat("c1", "Why did checkout errors rise")])
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+    expect(await screen.findByTestId("conversation")).toBeInTheDocument()
+  })
+
   it("shows a composer when this dashboard has no chats", async () => {
     stub([])
     render(undefined)
