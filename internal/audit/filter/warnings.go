@@ -2,12 +2,11 @@ package filter
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/kql"
 )
-
-const minOperatorTypoLength = 3
 
 type operatorStyle int
 
@@ -23,55 +22,25 @@ func (s operatorStyle) spelled(operator string) string {
 	return operator
 }
 
+var misspelledOperators = map[string]string{
+	"andd": "and", "adn": "and", "nad": "and", "annd": "and",
+	"orr": "or",
+	"nto": "not", "nott": "not",
+}
+
+var operatorWords = []string{"and", "or", "not"}
+
 func operatorTypo(word string, style operatorStyle) (string, bool) {
-	if len(word) < minOperatorTypoLength {
-		return "", false
-	}
 	lower := strings.ToLower(word)
-	for _, operator := range []string{"and", "or", "not"} {
-		if withinOneEdit(lower, operator) {
-			return fmt.Sprintf("%q is searched as text; did you mean %q?", word, style.spelled(operator)), true
+	operator, misspelled := misspelledOperators[lower]
+	if !misspelled {
+		wrongCase := style == luceneOperators && slices.Contains(operatorWords, lower) && word != style.spelled(lower)
+		if !wrongCase {
+			return "", false
 		}
+		operator = lower
 	}
-	return "", false
-}
-
-func withinOneEdit(a, b string) bool {
-	if a == b {
-		return true
-	}
-	if len(a) < len(b) {
-		a, b = b, a
-	}
-	switch len(a) - len(b) {
-	case 0:
-		return oneSubstitutionOrSwap(a, b)
-	case 1:
-		return oneInsertion(a, b)
-	}
-	return false
-}
-
-func oneSubstitutionOrSwap(a, b string) bool {
-	i := 0
-	for i < len(a) && a[i] == b[i] {
-		i++
-	}
-	if i == len(a) {
-		return true
-	}
-	if a[i+1:] == b[i+1:] {
-		return true
-	}
-	return i+1 < len(a) && a[i] == b[i+1] && a[i+1] == b[i] && a[i+2:] == b[i+2:]
-}
-
-func oneInsertion(longer, shorter string) bool {
-	i := 0
-	for i < len(shorter) && longer[i] == shorter[i] {
-		i++
-	}
-	return longer[i+1:] == shorter[i:]
+	return fmt.Sprintf("%q is searched as text; did you mean %q?", word, style.spelled(operator)), true
 }
 
 func kqlWarnings(body string) []string {
