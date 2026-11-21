@@ -442,7 +442,6 @@ func run() error {
 		return err
 	})
 	findingURL := savedFindingURL(cfg.PublicURL)
-	threadsService.ReadAnswersWith(threadAnswers{findings: findingsService, url: findingURL})
 	liveText := livetext.New(database, database.Listen, logger)
 	baseObserveOpts := revisions.ObserveOptions{
 		DashboardURL:       func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
@@ -467,6 +466,7 @@ func run() error {
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
+	threadsService.ReadAnswersWith(revisionsService, threadAnswers{findings: findingsService, url: findingURL})
 	revisionsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err
@@ -692,31 +692,26 @@ type threadAnswers struct {
 	url      func(f findings.Finding) string
 }
 
-func (a threadAnswers) ForRuns(ctx context.Context, by auth.Principal, repliedIn map[pgtype.UUID]pgtype.UUID) (map[pgtype.UUID]threads.Answer, error) {
-	found, err := a.findings.ForThreadRuns(ctx, by, repliedIn)
+func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgtype.UUID) (threads.Answer, bool, error) {
+	f, found, err := a.findings.ForRequest(ctx, by, run)
+	if err != nil || !found {
+		return threads.Answer{}, false, err
+	}
+	raw, err := json.Marshal(findings.JSONOf(f, a.url(f)))
 	if err != nil {
-		return nil, err
+		return threads.Answer{}, false, err
 	}
-	out := make(map[pgtype.UUID]threads.Answer, len(found))
-	for run, answer := range found {
-		f := answer.Finding
-		raw, err := json.Marshal(findings.JSONOf(f, a.url(f)))
-		if err != nil {
-			return nil, err
-		}
-		out[run] = threads.Answer{
-			RunID:           run.String(),
-			FindingID:       f.ID,
-			Title:           f.Title,
-			Markdown:        f.Markdown,
-			EvidencePanels:  len(f.Evidence),
-			SuggestedChange: f.SuggestedChange,
-			ObservationID:   f.ObservationID,
-			CanSave:         answer.Savable,
-			Finding:         raw,
-		}
-	}
-	return out, nil
+	return threads.Answer{
+		RunID:           run.String(),
+		FindingID:       f.ID,
+		Title:           f.Title,
+		Markdown:        f.Markdown,
+		EvidencePanels:  len(f.Evidence),
+		SuggestedChange: f.SuggestedChange,
+		ObservationID:   f.ObservationID,
+		CanSave:         f.SavableBy(by),
+		Finding:         raw,
+	}, true, nil
 }
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {

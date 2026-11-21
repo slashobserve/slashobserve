@@ -22,25 +22,52 @@ type Answer struct {
 	Finding         json.RawMessage
 }
 
-type Answers interface {
-	ForRuns(ctx context.Context, by auth.Principal, repliedIn map[pgtype.UUID]pgtype.UUID) (map[pgtype.UUID]Answer, error)
+type RunGate interface {
+	ShowsRunAnswer(ctx context.Context, run pgtype.UUID, by auth.Principal) (bool, error)
 }
 
-func (s *Service) ReadAnswersWith(answers Answers) {
-	s.answers = answers
+type AnswerReader interface {
+	RunAnswer(ctx context.Context, by auth.Principal, run pgtype.UUID) (Answer, bool, error)
+}
+
+type answerReads struct {
+	runs    RunGate
+	answers AnswerReader
+}
+
+func (s *Service) ReadAnswersWith(runs RunGate, answers AnswerReader) {
+	s.answers = &answerReads{runs: runs, answers: answers}
 }
 
 func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]Answer, error) {
-	repliedIn := map[pgtype.UUID]pgtype.UUID{}
-	for _, r := range rows {
-		if r.ThreadMessage.RunID.Valid {
-			repliedIn[r.ThreadMessage.RunID] = r.ThreadMessage.ThreadID
-		}
-	}
-	if s.answers == nil || len(repliedIn) == 0 {
+	if s.answers == nil {
 		return nil, nil
 	}
-	return s.answers.ForRuns(ctx, by, repliedIn)
+	out := map[pgtype.UUID]Answer{}
+	seen := map[pgtype.UUID]bool{}
+	for _, r := range rows {
+		run := r.ThreadMessage.RunID
+		if !run.Valid || seen[run] {
+			continue
+		}
+		seen[run] = true
+		a, found, err := s.answers.read(ctx, by, run)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			out[run] = a
+		}
+	}
+	return out, nil
+}
+
+func (r *answerReads) read(ctx context.Context, by auth.Principal, run pgtype.UUID) (Answer, bool, error) {
+	shown, err := r.runs.ShowsRunAnswer(ctx, run, by)
+	if err != nil || !shown {
+		return Answer{}, false, err
+	}
+	return r.answers.RunAnswer(ctx, by, run)
 }
 
 func answerOf(answers map[pgtype.UUID]Answer, row dbsqlc.ThreadMessage) *Answer {

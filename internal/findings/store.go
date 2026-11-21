@@ -167,29 +167,6 @@ func (s *store) forRequestIn(ctx context.Context, q *dbsqlc.Queries, requestID p
 	return withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), err == nil, err
 }
 
-type askedFinding struct {
-	finding  Finding
-	askedIn  pgtype.UUID
-	answered pgtype.UUID
-}
-
-func (s *store) forRequests(ctx context.Context, requestIDs []pgtype.UUID) ([]askedFinding, error) {
-	rows, err := s.db.Queries().ListFindingsByAgentRequests(ctx, requestIDs)
-	if err != nil {
-		return nil, fmt.Errorf("list findings of agent requests: %w", err)
-	}
-	out := make([]askedFinding, len(rows))
-	for i, row := range rows {
-		f, err := findingOf(row.Finding, row.ObservationFolderID, pgtype.Timestamptz{}, requester(row.RequestedByKind, row.RequestedByID))
-		if err != nil {
-			return nil, err
-		}
-		f.SharedIn = row.RequestThreadMessageID
-		out[i] = askedFinding{finding: withAskOn(f, row.Finding.AskDashboardID, row.AskDashboardTitle), askedIn: row.RequestThreadID, answered: row.Finding.AgentRequestID}
-	}
-	return out, nil
-}
-
 func withAskOn(f Finding, id pgtype.UUID, title pgtype.Text) Finding {
 	if id.Valid && title.Valid {
 		f.AskOnID, f.AskOnTitle = id.String(), title.String
