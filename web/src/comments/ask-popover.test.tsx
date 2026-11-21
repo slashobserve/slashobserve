@@ -93,6 +93,7 @@ const finding: Finding = {
   url: null,
   suggested_change: "Add a card network latency panel",
   observe_worthy: false,
+  restricted: false,
 }
 
 const answered = {
