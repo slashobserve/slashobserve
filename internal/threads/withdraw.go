@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -42,6 +43,9 @@ func (s *Service) Withdraw(ctx context.Context, by auth.Principal, threadID pgty
 		if err := lockTarget(ctx, q, sc, false); err != nil {
 			return err
 		}
+		if _, err := q.LockThreadForWrite(ctx, row.ID); err != nil {
+			return threadLookup(err)
+		}
 		runs, err := q.LockSharedRunsInThread(ctx, dbsqlc.LockSharedRunsInThreadParams{ThreadID: row.ID, RequestedByKind: string(by.Kind), RequestedByID: requester})
 		if err != nil {
 			return fmt.Errorf("lock the runs shared in the thread: %w", err)
@@ -56,22 +60,39 @@ func (s *Service) Withdraw(ctx context.Context, by auth.Principal, threadID pgty
 		if others[row.ID] {
 			return ErrOthersWroteHere
 		}
-		ids := make([]pgtype.UUID, len(runs))
+		ids, asked := make([]pgtype.UUID, len(runs)), make([]pgtype.UUID, len(runs))
 		for i, r := range runs {
-			ids[i] = r.ID
+			ids[i], asked[i] = r.ID, r.ThreadMessageID
 		}
 		if err := q.WithdrawRunShares(ctx, ids); err != nil {
 			return fmt.Errorf("withdraw the shared runs: %w", err)
 		}
-		if err := q.DeleteThread(ctx, row.ID); err != nil {
-			return fmt.Errorf("delete the thread: %w", err)
-		}
-		if err := (emitter{scope: sc, thread: row, actor: actorOf(ctx, by)}).deleted(ctx, q, row.ID); err != nil {
+		if err := s.deleteShares(ctx, q, by, sc, row, ids, asked); err != nil {
 			return err
 		}
 		return s.recordWithdraws(ctx, q, by, row, runs)
 	})
 	return threadGone(err)
+}
+
+func (s *Service) deleteShares(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, sc scope, thread dbsqlc.Thread, runs, asked []pgtype.UUID) error {
+	emit := emitter{scope: sc, thread: thread, actor: actorOf(ctx, by)}
+	if slices.Contains(asked, thread.ID) {
+		if err := q.DeleteThread(ctx, thread.ID); err != nil {
+			return fmt.Errorf("delete the thread: %w", err)
+		}
+		return emit.deleted(ctx, q, thread.ID)
+	}
+	deleted, err := q.DeleteSharedMessages(ctx, dbsqlc.DeleteSharedMessagesParams{ThreadID: thread.ID, MessageIds: asked, RunIds: runs})
+	if err != nil {
+		return fmt.Errorf("delete the shared messages: %w", err)
+	}
+	for _, id := range deleted {
+		if err := emit.deleted(ctx, q, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) recordWithdraws(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, thread dbsqlc.Thread, runs []dbsqlc.LockSharedRunsInThreadRow) error {

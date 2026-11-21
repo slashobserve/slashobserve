@@ -96,9 +96,15 @@ func (s *Service) suggestedChange(ctx context.Context, by auth.Principal, req St
 	if err != nil {
 		return pgtype.UUID{}, "", err
 	}
+	inChat, err := uuidField("chat_id", req.ChatID)
+	if err != nil {
+		return pgtype.UUID{}, "", err
+	}
 	switch {
 	case answered.DashboardID != dashboardID:
 		return pgtype.UUID{}, "", refused("applies_finding_id must be an answer about dashboard_id")
+	case inChat.Valid && answered.ChatID != inChat:
+		return pgtype.UUID{}, "", refused("applies_finding_id must be an answer in chat_id")
 	case !change.Valid:
 		return pgtype.UUID{}, "", refused("the answer applies_finding_id names suggests no change to the dashboard")
 	}

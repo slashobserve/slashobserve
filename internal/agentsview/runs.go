@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -30,6 +32,8 @@ const (
 	maxRunLimit     = 50
 	maxTitleRunes   = 120
 )
+
+const actionRunList audit.Action = "run.list"
 
 var errAssigneeNotFound = errors.New("agent not found")
 
@@ -159,6 +163,7 @@ func (h *Handler) runPage(ctx context.Context, caller auth.Principal, query runQ
 	if err != nil {
 		return runPageJSON{}, fmt.Errorf("list agent runs: %w", err)
 	}
+	h.recordList(ctx, query, scope)
 	page := runPageJSON{Scope: scope, Items: make([]runJSON, 0, min(len(rows), query.limit))}
 	if len(rows) > query.limit {
 		rows = rows[:query.limit]
@@ -253,4 +258,18 @@ func optionalTime(t pgtype.Timestamptz) *string {
 	}
 	s := httpapi.FormatTime(t.Time)
 	return &s
+}
+
+func (h *Handler) recordList(ctx context.Context, query runQuery, scope string) {
+	e := audit.Event{Action: actionRunList, Data: map[string]any{"scope": scope}}
+	if query.kind != kindBuiltin {
+		e.Target = audit.Target{Kind: query.kind, ID: query.id.String()}
+	}
+	if h.reads.SeenRecently(ctx, string(e.Action)+":agent:"+query.kind+":"+e.Target.ID+":"+scope, time.Now()) {
+		audit.Skip(ctx)
+		return
+	}
+	if err := audit.RecordNow(ctx, e); err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		h.logger.WarnContext(ctx, "read not recorded", logattrs.Failure("audit_record_failed", err, slog.String("action", string(e.Action)))...)
+	}
 }

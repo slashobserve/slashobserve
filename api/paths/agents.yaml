@@ -37,7 +37,7 @@ agents:
 agent-runs:
   get:
     operationId: listAgentRuns
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; recorded as run.list with its scope and the agent by the service, once per caller, agent and scope in 10 minutes" }
     summary: List the recent runs of one agent.
     description: >-
       Lists the runs assigned to one agent, newest first, so the Agents page can show the work behind its seven day numbers.

@@ -270,11 +270,12 @@ func TestASharedAnswerIsReadByTheThreadsReadersUntilItIsWithdrawn(t *testing.T) 
 	r := newShareRig(t)
 	_, run, shared := r.sharedDashboardAnswer(t)
 	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	robot := auth.Principal{Kind: auth.KindServiceAccount, ID: "66666666-6666-4666-8666-666666666666", Name: "ci", Role: auth.RoleViewer}
 
 	if shown := r.runAsReadBy(t, testUser, run); shown.ReadOnly || shown.SharedThread == nil || len(shown.AllowedActions) == 0 {
 		t.Fatalf("the asker reads the run as %+v", shown)
 	}
-	for _, reader := range []auth.Principal{otherEditor, viewer, admin} {
+	for _, reader := range []auth.Principal{otherEditor, commenter, viewer, robot, admin} {
 		if shown := r.runAsReadBy(t, reader, run); !shown.ReadOnly || len(shown.AllowedActions) != 0 || shown.SharedThread != nil || shown.ChatID != nil && reader.ID != adminID {
 			t.Errorf("%s reads the shared run as %+v, want read only", reader.Name, shown)
 		}
@@ -289,7 +290,7 @@ func TestASharedAnswerIsReadByTheThreadsReadersUntilItIsWithdrawn(t *testing.T) 
 	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
 		t.Fatal(err)
 	}
-	for _, former := range []auth.Principal{otherEditor, viewer} {
+	for _, former := range []auth.Principal{otherEditor, commenter, viewer, robot} {
 		if _, err := desk.Run(reading(t.Context()), run, former, 0); !errors.Is(err, revisions.ErrRequestNotFound) {
 			t.Errorf("%s reads the withdrawn run: %v", former.Name, err)
 		}
