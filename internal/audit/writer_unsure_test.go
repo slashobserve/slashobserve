@@ -101,20 +101,20 @@ func TestARefusedHeldBatchDoesNotTakeHandedOffEventsWithIt(t *testing.T) {
 }
 
 func TestShutdownCountsHeldAndHandedOffEventsStillUnwritten(t *testing.T) {
-	s := newStoreRig(t, writerLimits{every: time.Hour, timeout: 100 * time.Millisecond, settle: 50 * time.Millisecond}, 0)
+	s := newStoreRig(t, writerLimits{batch: 2, every: time.Hour, timeout: 100 * time.Millisecond, settle: 50 * time.Millisecond}, 0)
 	release := s.stallWrites(t)
 	defer release()
 	stop := s.run(t)
-	s.enqueueViews(t, 3)
+	s.enqueueViews(t, 5)
 	if err := s.recorder.RecordNow(t.Context(), Event{Action: "migration.apply", Target: Target{Kind: "migration", ID: "80"}}); err != nil {
 		t.Fatal(err)
 	}
 	stop()
-	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 4 {
-		t.Fatalf("dropped %s = %d, want the 3 views and the handed off event", DroppedWriteFailed, got)
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 6 {
+		t.Fatalf("dropped %s = %d, want the 5 views and the handed off event", DroppedWriteFailed, got)
 	}
-	if got := s.recorder.writer.lost.Load(); got != 4 {
-		t.Fatalf("lost = %d, want 4 for the gap row", got)
+	if got := s.recorder.writer.lost.Load(); got != 6 {
+		t.Fatalf("lost = %d, want 6 for the gap row", got)
 	}
 }
 
