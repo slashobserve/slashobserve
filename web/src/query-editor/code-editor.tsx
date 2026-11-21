@@ -19,10 +19,10 @@ export type CodeEditorHandle = {
 type Props = {
   value: string
   onChange: (value: string) => void
-  datasource: { type?: string; uid: string }
+  datasource: { type?: string; uid?: string }
   readOnly: boolean
   ariaLabel: string
-  onLint: (result: LintResult) => void
+  onLint?: (result: LintResult) => void
   editorRef?: Ref<CodeEditorHandle>
   autoFocus?: boolean
   onFocus?: () => void
@@ -95,10 +95,14 @@ export function CodeEditor({
         doc: current.value,
         extensions: [
           languageFor(datasource.type),
-          serverLinter(datasource.uid, (result) =>
-            latest.current.onLint(result)
-          ),
-          lintLines(),
+          datasource.uid === undefined
+            ? []
+            : [
+                serverLinter(datasource.uid, (result) =>
+                  latest.current.onLint?.(result)
+                ),
+                lintLines(),
+              ],
           appearance,
           access.current.of(accessMode(current.readOnly)),
           label.current.of(labelAttributes(current.ariaLabel)),

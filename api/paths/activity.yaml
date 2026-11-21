@@ -84,12 +84,6 @@ activity:
         schema:
           type: string
           format: uuid
-      - name: scope
-        in: query
-        description: "`admin` returns only the audit events, the administrative events, the public link events and the comment access requests, and answers 403 `forbidden_role` to a caller who is not an Admin."
-        schema:
-          type: string
-          enum: [admin]
       - name: cursor
         in: query
         description: The `next_cursor` of the previous page.

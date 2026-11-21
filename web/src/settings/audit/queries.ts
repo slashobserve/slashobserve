@@ -1,39 +1,102 @@
-import { infiniteQueryOptions } from "@tanstack/react-query"
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
-import { auditKeys } from "@/api/keys"
+import { isRetryable } from "@/api/errors"
+import { auditKeys, type AuditWindowKey } from "@/api/keys"
 
-import { rangeSince, type ActivityType, type AuditRange } from "./audit-events"
+import { unwrapAudit } from "./query-problem"
 
-const pageSize = 50
+const pageSize = 100
+const histogramBuckets = 60
+const facetValues = 8
 
-export type AuditFilters = {
-  actor: string | null
-  type: ActivityType | null
-  range: AuditRange
+const retryOnce = (count: number, error: unknown) =>
+  count < 1 && isRetryable(error)
+
+function windowQuery(window: AuditWindowKey) {
+  return {
+    q: window.q === "" ? undefined : window.q,
+    since: window.since,
+    until: window.until,
+  }
 }
 
-export function auditInfiniteQuery(filters: AuditFilters) {
+export function auditEventsQuery(window: AuditWindowKey) {
   return infiniteQueryOptions({
-    queryKey: auditKeys.list(filters.actor, filters.type, filters.range),
+    queryKey: auditKeys.events(window),
     queryFn: ({ pageParam, signal }) =>
       api
-        .GET("/activity", {
+        .GET("/audit/events", {
           params: {
-            query: {
-              scope: "admin",
-              actor_id: filters.actor ?? undefined,
-              type: filters.type === null ? undefined : [filters.type],
-              since: rangeSince(filters.range, Date.now()),
-              cursor: pageParam,
-              limit: pageSize,
-            },
+            query:
+              pageParam === undefined
+                ? { ...windowQuery(window), limit: pageSize }
+                : {
+                    q: windowQuery(window).q,
+                    cursor: pageParam,
+                    limit: pageSize,
+                  },
           },
           signal,
         })
-        .then(unwrap),
+        .then(unwrapAudit),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
+    retry: retryOnce,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function auditFacetsQuery(window: AuditWindowKey, field: string) {
+  return queryOptions({
+    queryKey: auditKeys.facets(window, field),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/audit/facets", {
+          params: {
+            query: { ...windowQuery(window), field, limit: facetValues },
+          },
+          signal,
+        })
+        .then(unwrapAudit),
+    retry: retryOnce,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function auditHistogramQuery(window: AuditWindowKey) {
+  return queryOptions({
+    queryKey: auditKeys.histogram(window),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/audit/histogram", {
+          params: {
+            query: { ...windowQuery(window), buckets: histogramBuckets },
+          },
+          signal,
+        })
+        .then(unwrapAudit),
+    retry: retryOnce,
+    refetchOnWindowFocus: false,
+  })
+}
+
+export function auditFieldsQuery() {
+  return queryOptions({
+    queryKey: auditKeys.fields(),
+    queryFn: ({ signal }) =>
+      api.GET("/audit/fields", { signal }).then(unwrapAudit),
+    staleTime: Infinity,
+  })
+}
+
+export function auditEventQuery(id: string) {
+  return queryOptions({
+    queryKey: auditKeys.event(id),
+    queryFn: ({ signal }) =>
+      api
+        .GET("/audit/events/{id}", { params: { path: { id } }, signal })
+        .then(unwrapAudit),
+    retry: retryOnce,
   })
 }

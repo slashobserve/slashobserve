@@ -463,8 +463,15 @@ export const agentKeys = {
   list: () => ["agents", "list"] as const,
 }
 
+export type AuditWindowKey = { q: string; since: string; until: string }
+
 export const auditKeys = {
   all: ["audit"] as const,
-  list: (actor: string | null, type: string | null, range: string) =>
-    ["audit", "list", actor, type, range] as const,
+  events: (window: AuditWindowKey) => ["audit", "events", window] as const,
+  facets: (window: AuditWindowKey, field: string) =>
+    ["audit", "facets", window, field] as const,
+  histogram: (window: AuditWindowKey) =>
+    ["audit", "histogram", window] as const,
+  fields: () => ["audit", "fields"] as const,
+  event: (id: string) => ["audit", "event", id] as const,
 }
