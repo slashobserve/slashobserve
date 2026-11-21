@@ -133,18 +133,19 @@ type AgentWorker struct {
 }
 
 type Annotation struct {
-	ID            pgtype.UUID
-	DashboardID   pgtype.UUID
-	PanelID       string
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	Text          string
-	Tags          []string
-	CreatedBy     pgtype.UUID
-	CreatedAt     pgtype.Timestamptz
-	CreatedByKind pgtype.Text
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
+	ID                     pgtype.UUID
+	DashboardID            pgtype.UUID
+	PanelID                string
+	TimeFrom               pgtype.Timestamptz
+	TimeTo                 pgtype.Timestamptz
+	Text                   string
+	Tags                   []string
+	CreatedBy              pgtype.UUID
+	CreatedAt              pgtype.Timestamptz
+	CreatedByKind          pgtype.Text
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	CopiedRestrictedAnswer bool
 }
 
 type AppliedDashboard struct {
@@ -236,21 +237,22 @@ type Chat struct {
 }
 
 type Dashboard struct {
-	ID                  pgtype.UUID
-	Title               string
-	Tags                []string
-	LatestVersion       int32
-	CreatedAt           pgtype.Timestamptz
-	UpdatedAt           pgtype.Timestamptz
-	CreatedByKind       string
-	CreatedByID         pgtype.UUID
-	CreatedByName       string
-	CreatedByEmail      pgtype.Text
-	CreatedOrigin       pgtype.Text
-	CreatedOriginClient pgtype.Text
-	CreatedVia          string
-	FolderID            pgtype.UUID
-	CreatedRunID        pgtype.UUID
+	ID                     pgtype.UUID
+	Title                  string
+	Tags                   []string
+	LatestVersion          int32
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	CreatedByKind          string
+	CreatedByID            pgtype.UUID
+	CreatedByName          string
+	CreatedByEmail         pgtype.Text
+	CreatedOrigin          pgtype.Text
+	CreatedOriginClient    pgtype.Text
+	CreatedVia             string
+	FolderID               pgtype.UUID
+	CreatedRunID           pgtype.UUID
+	CopiedRestrictedAnswer bool
 }
 
 type DashboardComment struct {

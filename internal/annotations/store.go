@@ -32,17 +32,22 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 		if err := placement.AnswerOnDashboard(ctx, q, in.AnswerOf, in.DashboardID); err != nil {
 			return err
 		}
+		copied, err := placement.CopyOnDashboard(ctx, q, in.CopyOf, in.DashboardID)
+		if err != nil {
+			return err
+		}
 		row, err := q.InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
-			DashboardID:   in.DashboardID,
-			PanelID:       in.PanelID,
-			TimeFrom:      timestamp(&in.From),
-			TimeTo:        timestamp(in.To),
-			Text:          in.Text,
-			Tags:          in.Tags,
-			CreatedBy:     cols.ID,
-			CreatedByKind: pgtype.Text{String: cols.Kind, Valid: true},
-			Origin:        cols.Origin,
-			OriginClient:  cols.Client,
+			DashboardID:            in.DashboardID,
+			PanelID:                in.PanelID,
+			TimeFrom:               timestamp(&in.From),
+			TimeTo:                 timestamp(in.To),
+			Text:                   in.Text,
+			Tags:                   in.Tags,
+			CreatedBy:              cols.ID,
+			CreatedByKind:          pgtype.Text{String: cols.Kind, Valid: true},
+			Origin:                 cols.Origin,
+			CopiedRestrictedAnswer: copied,
+			OriginClient:           cols.Client,
 		})
 		if err != nil {
 			return err

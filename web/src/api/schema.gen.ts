@@ -1058,7 +1058,7 @@ export interface paths {
         put?: never;
         /**
          * Save the latest version as version 1 of a new dashboard.
-         * @description Needs View on the dashboard and Create in the target folder. The copy keeps every Spec field except `title`, and the source version's `unverified` list. Its datasource references are checked but its queries are not run, as for a restore, so duplicating does not fail because an upstream is briefly down. Versions, comments, agent requests and the import record stay with the original.
+         * @description Needs View on the dashboard and Create in the target folder. The copy keeps every Spec field except `title`, and the source version's `unverified` list. Its datasource references are checked but its queries are not run, as for a restore, so duplicating does not fail because an upstream is briefly down. Versions, comments, agent requests and the import record stay with the original. A copy of a dashboard that holds an answer that read Admin-only data goes only into a folder only Admins can read, and then holds that answer itself.
          */
         post: operations["duplicateDashboard"];
         delete?: never;
@@ -2839,7 +2839,7 @@ export interface paths {
         put?: never;
         /**
          * Pin an observation to a dashboard as an annotation.
-         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation.
+         * @description Anyone who can read the observation may call it, and the caller needs Edit on the dashboard. The annotation's text is the observation's title and a link to it, tagged `finding`, at the end of the observation's range, or now when it has none. Without `dashboard_id` it pins to the dashboard the observation's run was about (`dashboard_id` on the observation); an observation with none answers 409 `observation_has_no_dashboard`. Pinning an observation to a dashboard it is already pinned to answers 200 with the same annotation. An observation that holds an answer that read Admin-only data is pinned only onto a dashboard in a folder only Admins can read, and the annotation then holds that answer.
          */
         post: operations["pinObservation"];
         delete?: never;
@@ -11389,13 +11389,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the dashboard holds an answer that read Admin-only data and the folder is not one only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -16204,7 +16204,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data and the dashboard is not in a folder only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16254,7 +16254,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation has no live panel block (`observation_has_no_panels`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The observation has no live panel block (`observation_has_no_panels`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16305,13 +16305,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the observation holds an answer that read Admin-only data, which a dashboard in My Dashboards would carry out of folders only Admins can read (`restricted_answer`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["InvalidSpec"];

@@ -52,6 +52,26 @@ var answerHolders = map[string]answerHolder{
 			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
 		},
 	},
+	"a copy of content holding a run's answer": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			r.d.Exec(t, `UPDATE dashboards SET copied_restricted_answer = (SELECT read_restricted FROM agent_requests WHERE id = $2::uuid) WHERE id = $1::uuid`, id, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
+	"an annotation copied from content holding a run's answer": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			r.d.Exec(t, `INSERT INTO annotations (dashboard_id, time_from, text, copied_restricted_answer) SELECT $1::uuid, now(), 'Sign-ins by Root', read_restricted FROM agent_requests WHERE id = $2::uuid`, id, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
 	"a dashboard version a run saved": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
 			id := r.dashboard(t, folder, readsProm)

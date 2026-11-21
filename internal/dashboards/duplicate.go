@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -56,7 +57,7 @@ func (s *Service) Duplicate(ctx context.Context, by auth.Principal, id, folderID
 	if len(issues) > 0 {
 		return Dashboard{}, Version{}, &InvalidSpecError{Issues: issues}
 	}
-	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: source.Unverified, folder: target.folder})
+	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: source.Unverified, folder: target.folder, copyOf: placement.Copied{Kind: folders.ContentDashboard, ID: id}})
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}

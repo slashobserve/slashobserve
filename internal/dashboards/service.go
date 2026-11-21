@@ -98,6 +98,10 @@ func (s *Service) CreateFromAnswer(ctx context.Context, by auth.Principal, rawSp
 	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{answerOf: run})
 }
 
+func (s *Service) CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{copyOf: from})
+}
+
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
 	res, err := s.Save(ctx, by, SaveInput{DashboardID: id, Parent: parent, Spec: rawSpec, Summary: summary})
 	return res.Dashboard, res.Version, res.Replayed, err

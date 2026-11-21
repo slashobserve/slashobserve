@@ -36,6 +36,11 @@ func RestrictedAnswerMove(kind ContentKind) error {
 		"this %s holds an answer that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun())}
 }
 
+func RestrictedAnswerCopy(kind ContentKind) error {
+	return restrictedAnswerError{fmt.Sprintf(
+		"this %s holds an answer that read data only Admins can query, such as the audit trail, so a copy of it can only go in a folder only Admins can read", kind.Noun())}
+}
+
 func RestrictedAnswerOpening(items []ContentItem) error {
 	first := items[0]
 	message := fmt.Sprintf("the %s %q in this folder holds an answer that read data only Admins can query, such as the audit trail; move it to another folder only Admins can read before you share this one", first.Kind.Noun(), first.Title)

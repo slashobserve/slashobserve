@@ -36,7 +36,7 @@ var (
 )
 
 type Dashboards interface {
-	Create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string) (dashboards.Dashboard, dashboards.Version, error)
+	CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (dashboards.Dashboard, dashboards.Version, error)
 	Get(ctx context.Context, id pgtype.UUID) (dashboards.Dashboard, dashboards.Version, error)
 }
 
@@ -144,6 +144,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id, dashboardID pg
 		}
 		a, err := s.annotations.Create(ctx, by, annotations.CreateInput{
 			DashboardID: dashboardID, From: at, Text: row.Title + " " + links.Observation(nil, id.String()), Tags: []string{findings.PinTag},
+			CopyOf: placement.Copied{Kind: folders.ContentObservation, ID: id},
 		})
 		switch {
 		case errors.Is(err, annotations.ErrNotFound):
@@ -318,7 +319,7 @@ func (s *Service) makeOrReadDashboard(ctx context.Context, q *dbsqlc.Queries, by
 	if err := q.DeleteObservationDashboard(ctx, dbsqlc.DeleteObservationDashboardParams{ObservationID: key.Observation, BlockID: key.Block, CreatedByKind: key.Kind, CreatedByID: key.Principal}); err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, fmt.Errorf("replace made dashboard: %w", err)
 	}
-	d, v, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, madeDashboardSummary)
+	d, v, err := s.dashboards.CreateCopy(ctx, by, raw, madeDashboardSummary, placement.Copied{Kind: folders.ContentObservation, ID: key.Observation})
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, false, err
 	}

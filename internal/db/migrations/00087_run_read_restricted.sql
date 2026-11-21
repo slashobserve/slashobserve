@@ -1,5 +1,7 @@
 -- +goose Up
 ALTER TABLE agent_requests ADD COLUMN read_restricted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE dashboards ADD COLUMN copied_restricted_answer BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE annotations ADD COLUMN copied_restricted_answer BOOLEAN NOT NULL DEFAULT false;
 
 UPDATE agent_requests r SET read_restricted = true
 WHERE EXISTS (SELECT 1 FROM audit_events e
@@ -9,6 +11,8 @@ WHERE EXISTS (SELECT 1 FROM audit_events e
 CREATE FUNCTION dashboard_holds_restricted_answer(dashboard UUID) RETURNS BOOLEAN
 LANGUAGE sql STABLE AS $$
   SELECT EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = dashboard AND r.read_restricted)
+    OR EXISTS (SELECT 1 FROM dashboards d WHERE d.id = dashboard AND d.copied_restricted_answer)
+    OR EXISTS (SELECT 1 FROM annotations n WHERE n.dashboard_id = dashboard AND n.copied_restricted_answer)
     OR EXISTS (SELECT 1 FROM dashboards d JOIN agent_requests r ON r.id = d.created_run_id WHERE d.id = dashboard AND r.read_restricted)
     OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = dashboard AND f.annotation_id IS NOT NULL AND r.read_restricted)
     OR EXISTS (SELECT 1 FROM proposals p JOIN agent_requests r ON r.id = p.run_id WHERE p.dashboard_id = dashboard AND r.read_restricted)
@@ -62,4 +66,6 @@ DROP FUNCTION observation_holds_restricted_run(UUID);
 DROP FUNCTION dashboard_holds_restricted_run(UUID);
 DROP FUNCTION observation_holds_restricted_answer(UUID);
 DROP FUNCTION dashboard_holds_restricted_answer(UUID);
+ALTER TABLE annotations DROP COLUMN copied_restricted_answer;
+ALTER TABLE dashboards DROP COLUMN copied_restricted_answer;
 ALTER TABLE agent_requests DROP COLUMN read_restricted;

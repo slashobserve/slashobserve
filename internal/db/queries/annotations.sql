@@ -1,7 +1,7 @@
 -- name: InsertAnnotation :one
-INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client)
+INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client, copied_restricted_answer)
 VALUES (sqlc.narg('dashboard_id')::uuid, @panel_id, @time_from, sqlc.narg('time_to')::timestamptz, @text, @tags::text[], @created_by,
-  @created_by_kind, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text)
+  @created_by_kind, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @copied_restricted_answer)
 RETURNING *;
 
 -- name: GetAnnotation :one

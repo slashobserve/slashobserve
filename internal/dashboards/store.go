@@ -98,6 +98,7 @@ type newVersion struct {
 	author         Author
 	requestID      pgtype.UUID
 	answerOf       pgtype.UUID
+	copyOf         placement.Copied
 	origin         origin.Origin
 	unverified     Unverified
 	folder         folders.Folder
@@ -138,23 +139,28 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 		if err := st.place(ctx, q, in.folder.ID, in); err != nil {
 			return err
 		}
+		copied, err := placement.Copy(ctx, q, in.copyOf, in.folder.ID)
+		if err != nil {
+			return err
+		}
 		originKind, originClient := in.origin.Columns()
 		via := viaDirect
 		if in.requestID.Valid {
 			via = viaAgent
 		}
 		row, err := q.CreateDashboard(ctx, dbsqlc.CreateDashboardParams{
-			Title:               in.spec.Title,
-			Tags:                tagsOf(in.spec),
-			CreatedByKind:       in.author.Kind,
-			CreatedByID:         authorID,
-			CreatedByName:       in.author.Name,
-			CreatedByEmail:      pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
-			CreatedOrigin:       originKind,
-			CreatedOriginClient: originClient,
-			CreatedVia:          via,
-			CreatedRunID:        in.contentRun(),
-			FolderID:            in.folder.ID,
+			Title:                  in.spec.Title,
+			Tags:                   tagsOf(in.spec),
+			CreatedByKind:          in.author.Kind,
+			CreatedByID:            authorID,
+			CreatedByName:          in.author.Name,
+			CreatedByEmail:         pgtype.Text{String: in.author.Email, Valid: in.author.Email != ""},
+			CreatedOrigin:          originKind,
+			CreatedOriginClient:    originClient,
+			CreatedVia:             via,
+			CreatedRunID:           in.contentRun(),
+			FolderID:               in.folder.ID,
+			CopiedRestrictedAnswer: copied,
 		})
 		if err != nil {
 			return fmt.Errorf("create dashboard: %w", err)
