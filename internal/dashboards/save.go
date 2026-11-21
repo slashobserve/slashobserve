@@ -33,6 +33,8 @@ type SaveInput struct {
 	Choices         []spec.Choice
 	MergedProposal  pgtype.UUID
 	InTx            func(q *dbsqlc.Queries, version int) error
+	before          func(ctx context.Context, q *dbsqlc.Queries) (stayedPut bool, err error)
+	keepLayout      bool
 }
 
 type MergedFrom struct {
@@ -116,6 +118,9 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Sa
 	access, err := s.need(ctx, by, in.DashboardID, folders.NeedView)
 	if err != nil {
 		return SaveResult{}, err
+	}
+	if access.Provisioned {
+		return SaveResult{}, folders.ErrProvisioned
 	}
 	if mustPropose(ctx, access.Abilities) {
 		return s.propose(ctx, by, in, access)
@@ -217,7 +222,7 @@ func (s *Service) persist(ctx context.Context, by auth.Principal, in SaveInput) 
 		return SaveResult{}, err
 	}
 	if prev != nil {
-		if freezeResized(prev, parsed) {
+		if !in.keepLayout && freezeResized(prev, parsed) {
 			if canonical, err = json.Marshal(parsed); err != nil {
 				return SaveResult{}, fmt.Errorf("marshal spec: %w", err)
 			}
@@ -263,6 +268,7 @@ func (s *Service) commit(ctx context.Context, by auth.Principal, in SaveInput, d
 		origin:         origin.From(ctx),
 		unverified:     carried,
 		mergedProposal: in.MergedProposal,
+		before:         in.before,
 	}, inTx)
 }
 

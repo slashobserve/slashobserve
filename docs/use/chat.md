@@ -19,6 +19,7 @@ When it has none to write into, because no folder can take a new one or the one 
 On an answer about a dashboard in a chat, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for**, in the chat and in any thread the answer is in, and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, starts nothing more.
 While no model is connected to the server, the button is off with "No model is connected to this server, so the agent cannot make this change."
+On a [starter dashboard](activity.md#audit-folder) the answer keeps its suggested change without the button and offers **Duplicate**, as in a [comment thread](review.md#ask-the-agent-from-a-comment).
 
 The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
 Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
@@ -30,7 +31,7 @@ In a chat about an observation the same menu shares into that observation's thre
 
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
-The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; without one the server uses the first line of your message with `@observe` removed, cut at a word to 60 characters.
+The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; an answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
 A chat is titled the same way, from your message.
 
 ## Start a chat
@@ -314,8 +315,9 @@ Say what you want in the message itself all the same, for example "only 5xx" or 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
-Unless it is an investigation or an answer you shared into a thread, they also read it without your words: its `title`, `prompt`, step messages, `live_text` and `continue_note` are empty and `redacted` is true, while its state, times, your name, its kind and the version it saved stay, and the dashboard's revision list shows its `prompt` empty the same way.
-In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and it offers nothing to copy, retry or ask again.
+Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
+In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.
+Its page is read only: it offers nothing to copy, retry or ask again, and has no message box.
 An Admin reads another person's chat read only.
 
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.

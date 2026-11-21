@@ -38,6 +38,7 @@ import { moreMenuButtonId } from "./edit/layout-store"
 
 export function moreLabel(menu: {
   mayEdit: boolean
+  mayDelete: boolean
   canAddPanel: boolean
   canDuplicate: boolean
   folderTv: boolean
@@ -55,7 +56,7 @@ export function moreLabel(menu: {
     "TV mode",
     menu.folderTv ? "TV mode for this folder" : null,
     "chart hover",
-    menu.mayEdit ? "delete" : null,
+    menu.mayDelete ? "delete" : null,
   ]
   return `More: ${items.filter((item) => item !== null).join(", ")}`
 }
@@ -63,6 +64,7 @@ export function moreLabel(menu: {
 type Props = {
   dashboardId: string
   mayEdit: boolean
+  mayDelete: boolean
   detailsBlockedBy: string | null
   onAddPanel: (() => void) | null
   onEditJson: () => void
@@ -82,6 +84,7 @@ type Props = {
 export function MoreMenu({
   dashboardId,
   mayEdit,
+  mayDelete,
   detailsBlockedBy,
   onAddPanel,
   onEditJson,
@@ -107,6 +110,7 @@ export function MoreMenu({
             type="button"
             aria-label={moreLabel({
               mayEdit,
+              mayDelete,
               canAddPanel: onAddPanel !== null,
               canDuplicate: onDuplicate !== null,
               folderTv: onTvModeFolder !== null,
@@ -231,7 +235,7 @@ export function MoreMenu({
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
-        {mayEdit ? (
+        {mayDelete ? (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem

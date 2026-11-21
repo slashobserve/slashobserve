@@ -6,6 +6,7 @@ import { datasourceKeys, observeKeys } from "@/api/keys"
 import { noModelReviseText } from "@/conversation/delivery"
 import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
+import { redactedRun } from "@/test/agent-request"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { Conversation } from "./conversation"
@@ -303,9 +304,10 @@ describe("Conversation", () => {
   })
 
   it("offers sharing into the observation an answer was about after it was saved into another", async () => {
-    stubServer(chatAbout({ observation_id: observationId }))
+    stubServer(null)
     const { user } = renderConversation(
       answered({
+        chat_id: null,
         dashboard_id: null,
         subject_observation_id: observationId,
         observation_id: "o9",
@@ -333,6 +335,16 @@ describe("Conversation", () => {
         subject_observation_id: observationId,
         observation_id: observationId,
         finding: { ...finding, observation_id: observationId },
+      },
+      chatAbout({ observation_id: observationId }),
+    ],
+    [
+      "about an observation the asker can no longer read",
+      {
+        dashboard_id: null,
+        subject_observation_id: null,
+        observation_id: "o9",
+        finding: { ...finding, observation_id: "o9" },
       },
       chatAbout({ observation_id: observationId }),
     ],
@@ -540,31 +552,35 @@ describe("Conversation", () => {
 
   it("shows a run from someone else's private chat without its words or actions", async () => {
     stubServer(null)
-    renderConversation({
-      ...root,
-      chat_id: null,
-      prompt: "",
-      redacted: true,
-      status: "failed",
-      state: "failed",
-      allowed_actions: [],
-      requested_by: { kind: "user", id: "u2", name: "Grace" },
-      steps: [
-        {
-          at: "2026-11-21T10:00:30Z",
-          attempt: 0,
-          phase: "discover",
-          tool: "list_metrics",
-          status: "ok",
-          message: "",
-          duration_ms: 10,
-        },
-      ],
-    } as ObserveRequest)
-    expect(await screen.findByText("Asked in a private chat")).toBeVisible()
+    const { user } = renderConversation(
+      redactedRun({
+        id: rootId,
+        status: "failed",
+        state: "failed",
+        finished_at: "2026-11-21T10:01:00Z",
+        error: "the agent stopped",
+        failure_code: "no_progress",
+        steps: [
+          {
+            at: "2026-11-21T10:00:30Z",
+            attempt: 0,
+            phase: "discover",
+            tool: "list_metrics",
+            status: "ok",
+            message: "",
+            duration_ms: 10,
+          },
+        ],
+      })
+    )
+    expect(
+      await screen.findByText("Asked in a private chat", { selector: "div" })
+    ).toBeVisible()
     await waitFor(() =>
       expect(document.title).toBe("Asked in a private chat - SlashObserve")
     )
+    await user.click(await screen.findByText(/^Ran 1 step/))
+    expect(screen.getByText("list_metrics")).toBeVisible()
     expect(screen.queryByRole("button", { name: "Copy message" })).toBeNull()
     expect(screen.queryByRole("button", { name: /Try again/ })).toBeNull()
     expect(screen.queryByRole("textbox")).toBeNull()

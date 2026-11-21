@@ -200,9 +200,11 @@ func (r *RunDesk) answer(ctx context.Context, row dbsqlc.AgentRequest, caller au
 }
 
 func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, readOnly bool) (agentRequestJSON, error) {
-	if viewOf(row, caller) == viewNone {
+	view := r.service.viewOf(ctx, row, caller)
+	if view == viewNone {
 		return agentRequestJSON{}, ErrRequestNotFound
 	}
+	readOnly = readOnly || view == viewRedacted
 	states, err := r.service.buildStates(ctx, []pgtype.UUID{row.ID})
 	if err != nil {
 		return agentRequestJSON{}, err
@@ -220,15 +222,15 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 		allowed = allowedActions(facts)
 	}
 	out := r.view(ctx, row, caller, states[row.ID], allowed, position)
+	if view == viewRedacted {
+		out.redact()
+	}
 	out.ReadOnly = readOnly
-	if out.ObservationID != nil && r.opts.ObservationVisible != nil {
-		visible, err := r.opts.ObservationVisible(ctx, caller, row.ObservationID)
-		if err != nil {
-			return agentRequestJSON{}, fmt.Errorf("check the observation a run made: %w", err)
-		}
-		if !visible {
-			out.ObservationID = nil
-		}
+	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, row.ObservationID); err != nil {
+		return agentRequestJSON{}, err
+	}
+	if out.SubjectID, err = r.shownObservation(ctx, caller, out.SubjectID, row.SubjectObservationID); err != nil {
+		return agentRequestJSON{}, err
 	}
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
@@ -286,6 +288,20 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 	url := r.opts.ObservationURL(row.ObservationID.String())
 	out.URL = &url
 	return nil
+}
+
+func (r *RunDesk) shownObservation(ctx context.Context, caller auth.Principal, shown *string, id pgtype.UUID) (*string, error) {
+	if shown == nil || r.opts.ObservationVisible == nil {
+		return shown, nil
+	}
+	visible, err := r.opts.ObservationVisible(ctx, caller, id)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("check the observation a run names: %w", err)
+	case !visible:
+		return nil, nil
+	}
+	return shown, nil
 }
 
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
@@ -368,15 +384,12 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	}
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
-	if viewOf(row, caller) == viewRedacted {
-		out.redact()
-	}
 	return out
 }
 
 func (out *agentRequestJSON) redact() {
 	out.Redacted = true
-	out.Title, out.Prompt, out.LiveText, out.ContinueNote, out.SubjectID = "", "", nil, nil, nil
+	out.Title, out.Prompt, out.LiveText, out.ContinueNote, out.SubjectID, out.Error = "", "", nil, nil, nil, nil
 	for i := range out.Steps {
 		out.Steps[i].Message = ""
 	}
@@ -394,7 +407,7 @@ type runAudience struct {
 	requester     auth.Principal
 	chat          bool
 	privateAsk    bool
-	shared        bool
+	thread        pgtype.UUID
 	investigation bool
 }
 
@@ -403,22 +416,30 @@ func audienceOf(row dbsqlc.AgentRequest) runAudience {
 		requester:     requesterOf(row),
 		chat:          row.ChatID.Valid,
 		privateAsk:    PrivateAsk(row),
-		shared:        row.ThreadMessageID.Valid,
+		thread:        row.ThreadMessageID,
 		investigation: row.Investigation,
 	}
 }
 
-func viewOf(row dbsqlc.AgentRequest, caller auth.Principal) runView {
-	return audienceOf(row).viewFor(caller)
+func (s *Service) viewOf(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal) runView {
+	return s.viewFor(ctx, audienceOf(row), caller)
+}
+
+func (s *Service) viewFor(ctx context.Context, a runAudience, caller auth.Principal) runView {
+	return a.viewFor(caller, func() bool {
+		return s.threadReads != nil && s.threadReads(ctx, caller, a.thread) == nil
+	})
 }
 
 func (a runAudience) readsTheChat(caller auth.Principal) bool {
 	return sameActor(a.requester, caller) || caller.Role.AtLeast(auth.RoleAdmin)
 }
 
-func (a runAudience) viewFor(caller auth.Principal) runView {
+func (a runAudience) viewFor(caller auth.Principal, readsThread func() bool) runView {
 	switch {
-	case a.readsTheChat(caller), !a.chat, a.investigation, a.shared:
+	case a.readsTheChat(caller), !a.chat, a.investigation:
+		return viewFull
+	case a.thread.Valid && readsThread():
 		return viewFull
 	case a.privateAsk:
 		return viewNone

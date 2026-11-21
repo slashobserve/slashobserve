@@ -89,6 +89,11 @@ func (cm *Comments) Create(ctx context.Context, by auth.Principal, dashboardID p
 }
 
 func (cm *Comments) open(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID, in NewComment) (Comment, error) {
+	if in.RequestRevision && cm.revisions.Available() {
+		if err := cm.revisions.CheckRun(ctx, revisions.RunTarget{Intent: revisions.IntentApply, DashboardID: dashboardID}, by); err != nil {
+			return Comment{}, legacyError(err)
+		}
+	}
 	var requested *CommentRevision
 	hook := func(q *dbsqlc.Queries, thread Thread, message Message) error {
 		if !in.RequestRevision || !cm.revisions.Available() {

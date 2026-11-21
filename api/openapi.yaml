@@ -2410,7 +2410,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
       properties:
         id:
           type: string
@@ -2438,6 +2438,9 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        provisioned:
+          type: boolean
+          description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
     HomeDashboard:
       type: object
       additionalProperties: false
@@ -2472,7 +2475,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
       properties:
         id:
           type: string
@@ -2517,6 +2520,9 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        provisioned:
+          type: boolean
+          description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
     VersionMeta:
       type: object
       additionalProperties: false
@@ -2621,6 +2627,7 @@ components:
         Panels and variables of this version whose queries failed when it was saved but were kept:
         a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged
         (see `POST /dashboards/{id}/versions`).
+        A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard.
       properties:
         panels:
           type: array
@@ -4262,7 +4269,7 @@ components:
           description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
         redacted:
           type: boolean
-          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` null, while the status, times, requester, kind and saved version stay."
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` and `error` null, while the status, times, requester, kind, `failure_code` and saved version stay."
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -4841,10 +4848,10 @@ components:
           description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
         read_only:
           type: boolean
-          description: True when the caller sees this request only because it is an Admin; nothing may be done with it.
+          description: True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it.
         redacted:
           type: boolean
-          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text` and `continue_note` null; the status, times, requester, kind, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted."
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation is never redacted, and an answer shared into a thread is not redacted for a caller who can read that thread; anyone else who reaches it, through its observation for example, reads it redacted."
         continues_id:
           type: string
           format: uuid
@@ -4938,7 +4945,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: "The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, and when `redacted`."
+          description: "The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, when `redacted`, and when the caller cannot open that observation, as for `observation_id`."
         shared_thread_id:
           type: string
           format: uuid
@@ -4976,7 +4983,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise."
+          description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation."
     Chat:
       type: object
       additionalProperties: false
@@ -5001,7 +5008,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The observation the chat is about.
+          description: The observation the chat is about, null when the caller cannot open it.
         pinned_at:
           type: string
           format: date-time
@@ -6713,7 +6720,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
     GrafanaResolved:
       type: object
       additionalProperties: false
@@ -6926,7 +6933,7 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         can_edit:
           type: boolean
-          description: Whether the caller may edit the dashboard, and so ask for a repair.
+          description: Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release.
         state:
           type: string
           enum: [unchecked, outdated, skipped, failing, healthy]

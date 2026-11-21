@@ -96,7 +96,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart && viewOf(row, by) == viewFull, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
 }
 
 type startChecks struct {
@@ -120,8 +120,9 @@ func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgty
 	access, err := c.service.access.Dashboard(ctx, c.by, dashboardID)
 	switch {
 	case err == nil:
-		c.edits[dashboardID] = access.Abilities.Edit
-		return access.Abilities.Edit, nil
+		may := access.Shown().Edit
+		c.edits[dashboardID] = may
+		return may, nil
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.edits[dashboardID] = false
 		return false, nil
@@ -141,7 +142,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, ran R
 	may := err == nil
 	switch {
 	case err == nil,
-		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound),
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, folders.ErrProvisioned),
 		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.seen[key] = may
 		return may, nil
@@ -159,7 +160,7 @@ func (s *Service) factsFor(ctx context.Context, row dbsqlc.AgentRequest, build b
 	if err != nil {
 		return runFacts{}, err
 	}
-	return factsOf(row, build, by, mayStart, mayEdit), nil
+	return factsOf(row, build, by, mayStart && s.viewOf(ctx, row, by) == viewFull, mayEdit), nil
 }
 
 func (s *Service) continueBlocker(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal) error {
@@ -333,7 +334,7 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 		return dbsqlc.AgentRequest{}, err
 	}
 	build := states[row.ID]
-	if !slices.Contains(allowedActions(factsOf(row, build, by, true, true)), ActionRetry) {
+	if !slices.Contains(allowedActions(factsOf(row, build, by, s.viewOf(ctx, row, by) == viewFull, true)), ActionRetry) {
 		return dbsqlc.AgentRequest{}, s.retryRefusal(ctx, row, build, by)
 	}
 	if err := checkAssignee(ctx, s.db.Queries(), assignee, by); err != nil {

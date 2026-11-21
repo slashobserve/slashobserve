@@ -251,9 +251,12 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
-		mayStart = mayStart && rev.audience.viewFor(caller) == viewFull
-		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart, mayEdit)
+		view := s.viewFor(ctx, rev.audience, caller)
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
+		if view != viewFull {
+			views[i].redact()
+		}
 	}
 	return views, nil
 }
@@ -281,6 +284,8 @@ func failureReplyFor(err error) (Reply, bool) {
 	switch {
 	case slices.ContainsFunc(missingForFail, func(target error) bool { return errors.Is(err, target) }):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
+	case errors.Is(err, folders.ErrProvisioned):
+		return Reply{Status: http.StatusConflict, Code: folders.CodeProvisioned, Message: err.Error()}, true
 	case errors.Is(err, ErrChatReadOnly):
 		return Reply{Status: http.StatusForbidden, Code: CodeChatReadOnly, Message: err.Error()}, true
 	case errors.Is(err, ErrForbidden):
@@ -357,11 +362,12 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		RetriedBy:    state.retriedBy,
 		ContinueNote: httpapi.OptionalString(r.ContinueNote),
 	}
-	if r.audience.viewFor(caller) != viewFull {
-		out.Redacted = true
-		out.Prompt, out.ContinueNote = "", nil
-	}
 	return out
+}
+
+func (out *revisionJSON) redact() {
+	out.Redacted = true
+	out.Prompt, out.ContinueNote, out.Error = "", nil, nil
 }
 
 func formatOptionalTime(t *time.Time) *string {

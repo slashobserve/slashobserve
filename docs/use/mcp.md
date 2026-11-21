@@ -263,7 +263,7 @@ Both answer `folder_exists` for a taken title and `rename_folder` answers `gener
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A retry is safe: when the same caller already saved a dashboard with that title and an identical spec in that folder, `create_dashboard` returns it with `replayed` true instead of making a second one.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
-`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it.
+`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it into `folder_id`, by default the dashboard's own folder when you may create there, else your My Dashboards or General, as the web dialog does.
 No tool deletes a dashboard: people do that in the web app, through the HTTP API or with `observe dashboards delete`.
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
@@ -307,7 +307,7 @@ A run started this way is checked like one the same person starts in the web app
 
 An answer on a dashboard may carry `suggested_change`, one sentence on a change that would help, and `apply_suggested_change` (`comment_id` and the answer's `finding_id` from `get_run`) posts "Revise the dashboard: <suggested change>" in that thread as you and starts a run that makes the change: it saves a version when you can edit the dashboard and opens a proposal when you can only comment.
 The run is yours and goes to the agent that answered; a repeat call while it is queued or running, or after it succeeded, posts nothing and returns that run with `replayed` true.
-An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable` and `assignee_unavailable`.
+An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable`, `assignee_unavailable` and `provisioned` on a starter dashboard.
 Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
 The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
@@ -411,6 +411,7 @@ It lists only the events of folders the key may see, plus the [admin changes](ac
 
 The six audit tools read the [audit trail](../reference/audit-queries.md) and need an Admin: `search_audit_events` (20 events a call by default, at most 100, paged with `next_cursor`), `get_audit_event` (one event with the events of its request and agent run), `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
 They take `query` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 366 days.
+An answer is at most 16 KiB, so a page can hold fewer events than `limit`; it then says `truncated: true` with a note, and `next_cursor` continues it, so an agent that counts events must follow the cursor until it is null.
 A `search_audit_events` call is recorded in the trail as `audit.search` (once per key and query text in 10 minutes, see [Audit queries](../reference/audit-queries.md)), the other audit tools record nothing, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
@@ -429,8 +430,8 @@ Both are over MCP only, so the built-in agent does not have them, and a service-
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
-A run from someone else's private chat, other than an investigation or an answer shared into a thread, has `redacted: true` and its `title`, `prompt`, step messages and `live_text` empty.
-`subject_observation_id` names the observation an ask is about, such as one asked from an observation's chat, and stays set after its answer is saved into another observation; it is null when `redacted`.
+A run from someone else's private chat, other than an investigation or an answer shared into a thread you can read, has `redacted: true`, `read_only: true`, no allowed actions, and its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` empty, while `failure_code` stays.
+`subject_observation_id` names the observation an ask is about, such as one asked from an observation's chat, and stays set after its answer is saved into another observation; it is null when `redacted` or when you cannot open that observation.
 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.
@@ -454,7 +455,7 @@ A private ask about a dashboard or an observation is not an investigation, also 
 The run's `investigation` field says which one a run is.
 
 `list_chats` lists your chats, pinned ones first and then the one most recently asked in, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats by their last turn only and needs an Admin.
-Each chat carries `dashboard_title`, null when you cannot see its dashboard.
+Each chat carries `dashboard_title`, null when you cannot see its dashboard, and its `observation_id` and its last turn's `subject_observation_id` are null when you cannot open that observation.
 `get_chat` reads one chat with its turns oldest first, each the run as `get_run` returns it without steps; when they do not all fit it answers `truncated: true` and a `next_offset` to pass as `offset`.
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 

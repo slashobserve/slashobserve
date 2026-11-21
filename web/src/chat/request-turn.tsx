@@ -5,7 +5,11 @@ import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
-import { AnswerCard, type RevisionAsked } from "@/conversation/answer-card"
+import {
+  AnswerCard,
+  reviseFailureText,
+  type RevisionAsked,
+} from "@/conversation/answer-card"
 import {
   defaultDelivery,
   deliveryGate,
@@ -29,7 +33,6 @@ import { costText, shortRequestId, stepSummary } from "@/observe/conversation"
 import {
   isTerminal,
   observeRequestQuery,
-  sentence,
   type ObserveRequest,
   stopsPolling,
   useAgentInfo,
@@ -150,11 +153,7 @@ function ChatAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(
-        error instanceof Error && error.message !== ""
-          ? sentence(error.message)
-          : "The change could not be asked for. Try again."
-      )
+      toast.error(reviseFailureText(error))
       return false
     }
   }
@@ -166,7 +165,12 @@ function ChatAnswer({
       canSave={own}
       revise={
         mayRevise
-          ? { onRevise: revise, pending, blocked: reviseBlock(gate, true) }
+          ? {
+              onRevise: revise,
+              pending,
+              blocked: reviseBlock(gate, true),
+              dashboardId: revised.id,
+            }
           : undefined
       }
       chatId={request.chat_id ?? undefined}

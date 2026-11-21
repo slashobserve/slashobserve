@@ -65,6 +65,7 @@ type Props = {
   downloadsReady?: boolean
   canComment: boolean
   canEdit: boolean
+  canPropose: boolean
   onToggleResponsive?: () => void
   layoutActions?: PanelLayoutActions
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -118,6 +119,7 @@ export function PanelMenu({
   downloadsReady = true,
   canComment,
   canEdit,
+  canPropose,
   onToggleResponsive,
   layoutActions,
   composerRef,
@@ -178,7 +180,6 @@ export function PanelMenu({
       },
     })
   }
-  const canPropose = canComment && !canEdit
   if (onDashboard && (canEdit || canPropose) && isEditablePanel(panel)) {
     const name = canEdit ? "Edit" : "Suggest an edit"
     items.push({
