@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
@@ -16,8 +17,10 @@ import { cn } from "@/lib/utils"
 
 import {
   addressHint,
+  audienceChoices,
   datasourceTypes,
   fieldsOf,
+  isAudience,
   isDatasourceType,
   toggleClear,
   type FormValues,
@@ -353,6 +356,31 @@ export function DatasourceForm({
           />
         </>
       ) : null}
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-[13px] font-semibold">Audience</legend>
+        <RadioGroup
+          value={values.audience}
+          onValueChange={(pick) => {
+            if (isAudience(pick)) onChange({ audience: pick })
+          }}
+        >
+          {audienceChoices.map((choice) => (
+            <label
+              key={choice.value}
+              className="flex min-h-7 items-center gap-2 text-[13px] narrow:min-h-11"
+            >
+              <RadioGroupItem value={choice.value} />
+              {choice.label}
+            </label>
+          ))}
+        </RadioGroup>
+        <p className="text-xs text-muted-foreground">
+          Only Admins means only Admins can query it, and dashboards, searches
+          and observations that read it must live in a folder set to Only
+          Admins.
+        </p>
+      </fieldset>
 
       <fieldset className="flex flex-col gap-4">
         <legend className="mb-2 text-[13px] font-semibold">Credentials</legend>

@@ -111,6 +111,13 @@ describe("draftOf", () => {
     expect(draft).not.toHaveProperty("index")
   })
 
+  test("sends the audience on a create and on an edit", () => {
+    expect(draftOf(form(), "create").audience).toBe("everyone")
+    expect(draftOf(form({ audience: "admins" }), "edit").audience).toBe(
+      "admins"
+    )
+  })
+
   test("an edit leaves the uid and type out", () => {
     const draft = draftOf(form(), "edit")
     expect(draft).not.toHaveProperty("uid")
@@ -202,6 +209,7 @@ describe("formOf and savedCredentials", () => {
       created_at: "2026-11-19T10:00:00Z",
       updated_at: "2026-11-19T10:00:00Z",
     })
+    expect(values.audience).toBe("everyone")
     expect(values.name).toBe("")
     expect(values.timeout).toBe("20s")
     expect(values.maxRows).toBe("")

@@ -31,6 +31,7 @@ import {
   type SavedCredentials,
 } from "./draft"
 import { saveProblemText } from "./problems"
+import { RestrictedHolders } from "./restricted-holders"
 
 type Target = { mode: "create" } | { mode: "edit"; uid: string }
 
@@ -137,6 +138,7 @@ function Editor({
   function change(next: Partial<FormValues>) {
     setValues((current) => ({ ...current, ...next }))
     setOutcome(null)
+    if (next.audience !== undefined) save.reset()
   }
 
   function showServerProblem(error: unknown, type: FormValues["type"]) {
@@ -205,7 +207,13 @@ function Editor({
     )
   }
 
-  const saveError = save.isError ? saveProblemText(save.error) : null
+  const refusal =
+    save.error instanceof DatasourceError &&
+    save.error.code === "restricted_content"
+      ? save.error
+      : null
+  const saveError =
+    save.isError && refusal === null ? saveProblemText(save.error) : null
 
   return (
     <SidePanel
@@ -271,6 +279,7 @@ function Editor({
         />
         <div aria-live="polite" className="flex flex-col gap-2">
           {outcome === null ? null : <TestResult outcome={outcome} />}
+          {refusal === null ? null : <RestrictedHolders error={refusal} />}
           {saveError === null ? null : (
             <Alert variant="destructive">
               <AlertDescription>{saveError}</AlertDescription>
