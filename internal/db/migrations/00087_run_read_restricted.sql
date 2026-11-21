@@ -9,6 +9,7 @@ WHERE EXISTS (SELECT 1 FROM audit_events e
 CREATE FUNCTION dashboard_holds_restricted_answer(dashboard UUID) RETURNS BOOLEAN
 LANGUAGE sql STABLE AS $$
   SELECT EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = dashboard AND r.read_restricted)
+    OR EXISTS (SELECT 1 FROM dashboards d JOIN agent_requests r ON r.id = d.created_run_id WHERE d.id = dashboard AND r.read_restricted)
     OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = dashboard AND f.annotation_id IS NOT NULL AND r.read_restricted)
     OR EXISTS (SELECT 1 FROM proposals p JOIN agent_requests r ON r.id = p.run_id WHERE p.dashboard_id = dashboard AND r.read_restricted)
     OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = dashboard AND r.read_restricted)

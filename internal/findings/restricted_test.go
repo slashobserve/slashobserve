@@ -101,3 +101,22 @@ func TestAPinOfAFindingThatReadAdminOnlyDataChecksTheFolderInTheAnnotationsTrans
 		t.Fatalf("annotations on the dashboard = %d, want none", annotations)
 	}
 }
+
+func TestADashboardMadeFromAnAnswerRecordsTheRunItsPanelsCameFrom(t *testing.T) {
+	r := newRig(t)
+	request := r.investigation(t, admin, r.open)
+	notes := panelOf(t, `{"id":"evidence-1","type":"text","title":"Notes","gridPos":{"x":0,"y":0,"w":12,"h":8},"content":"Root changed it"}`)
+	f := r.save(t, admin, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Evidence: []spec.Panel{notes}})
+
+	dash, _, err := r.service.SaveAsDashboard(reading(t.Context()), admin, mustUUID(t, f.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var run, via string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT coalesce(created_run_id::text, ''), created_via FROM dashboards WHERE id = $1`, dash.ID).Scan(&run, &via); err != nil {
+		t.Fatal(err)
+	}
+	if run != request.String() || via != "direct" {
+		t.Fatalf("created_run_id %q via %q, want the answer's run %s made directly", run, via, request.String())
+	}
+}

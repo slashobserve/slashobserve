@@ -438,10 +438,7 @@ func pinOf(f Finding, dashboardID pgtype.UUID) (annotations.CreateInput, error) 
 	if f.RequestTo != nil {
 		pin.From = *f.RequestTo
 	}
-	if f.AgentRequestID == "" {
-		return pin, nil
-	}
-	run, err := db.ParseUUID(f.AgentRequestID)
+	run, err := runOf(f)
 	pin.AnswerOf = run
 	return pin, err
 }
@@ -468,20 +465,22 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if len(f.Evidence) == 0 {
 		return dashboards.Dashboard{}, dashboards.Version{}, ErrNoEvidence
 	}
-	if f.Restricted {
-		folder, err := s.access.CreationFolder(ctx, by, pgtype.UUID{})
-		if err != nil {
-			return dashboards.Dashboard{}, dashboards.Version{}, err
-		}
-		if err := folders.ShowAnswer(f.Restricted, folder.AdminsOnly); err != nil {
-			return dashboards.Dashboard{}, dashboards.Version{}, err
-		}
+	run, err := runOf(f)
+	if err != nil {
+		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
 	raw, err := json.Marshal(f.Spec())
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
-	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
+	return s.dashboards.CreateFromAnswer(ctx, by, raw, savedDashboardSummary, run)
+}
+
+func runOf(f Finding) (pgtype.UUID, error) {
+	if f.AgentRequestID == "" {
+		return pgtype.UUID{}, nil
+	}
+	return db.ParseUUID(f.AgentRequestID)
 }
 
 type Placement struct {

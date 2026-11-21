@@ -97,6 +97,7 @@ type newVersion struct {
 	summary        string
 	author         Author
 	requestID      pgtype.UUID
+	answerOf       pgtype.UUID
 	origin         origin.Origin
 	unverified     Unverified
 	folder         folders.Folder
@@ -112,7 +113,14 @@ func (st store) place(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UU
 	if err := st.guard.Save(ctx, q, folders.ContentDashboard, folderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
 		return err
 	}
-	return placement.Answer(ctx, q, in.requestID, folderID)
+	return placement.Answer(ctx, q, in.contentRun(), folderID)
+}
+
+func (in newVersion) contentRun() pgtype.UUID {
+	if in.requestID.Valid {
+		return in.requestID
+	}
+	return in.answerOf
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
@@ -145,7 +153,7 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 			CreatedOrigin:       originKind,
 			CreatedOriginClient: originClient,
 			CreatedVia:          via,
-			CreatedRunID:        in.requestID,
+			CreatedRunID:        in.contentRun(),
 			FolderID:            in.folder.ID,
 		})
 		if err != nil {

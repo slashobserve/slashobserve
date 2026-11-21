@@ -42,6 +42,16 @@ type answerHolder struct {
 }
 
 var answerHolders = map[string]answerHolder{
+	"a dashboard made from a run's answer": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			r.d.Exec(t, `UPDATE dashboards SET created_run_id = $2::uuid WHERE id = $1::uuid`, id, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
 	"a dashboard version a run saved": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
 			id := r.dashboard(t, folder, readsProm)
