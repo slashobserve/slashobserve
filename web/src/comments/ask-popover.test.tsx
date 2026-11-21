@@ -456,6 +456,42 @@ describe("AskPopover", () => {
     expect(field).toHaveValue("and yesterday")
   })
 
+  it("leaves the box closed and a newer draft alone when a slow send returns after it closed", async () => {
+    const posts = stubServer()
+    const served = globalThis.fetch
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        if (request.method === "POST") await held
+        return served(request)
+      })
+    )
+    const onChatStarted = vi.fn()
+    const { user } = renderAsk({ onChatStarted })
+    act(() => openDraft())
+    await user.type(
+      await screen.findByRole("textbox", { name: "Ask about this" }),
+      "why the spike{Enter}"
+    )
+    const comment = { ...spot, tool: "comment" as const, at: { x: 9, y: 9 } }
+    act(() => {
+      useCanvasTool.getState().close()
+      useCanvasTool.getState().openDraft(comment)
+    })
+    release()
+    await waitFor(() => expect(posts).toHaveLength(1))
+    await act(async () => {})
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft: comment,
+      openTurn: null,
+    })
+    expect(onChatStarted).not.toHaveBeenCalled()
+  })
+
   it("says why it cannot ask when no model is connected", async () => {
     const posts = stubServer()
     openDraft()

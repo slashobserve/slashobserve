@@ -135,6 +135,7 @@ function AskDraft({
   openChatId,
   onChatStarted,
 }: Omit<Props, "turn" | "surfaceRef">) {
+  const [ownDraft] = useState(() => useCanvasTool.getState().draft)
   const model = useComposer({
     draft: useAskText(),
     subject: { kind: "dashboard", id: dashboardId },
@@ -146,6 +147,7 @@ function AskDraft({
     gate,
     onSent: (sent) => {
       if (sent.via !== "chat") return
+      if (useCanvasTool.getState().draft !== ownDraft) return
       const chatId = sent.request.chat_id ?? sent.request.id
       if (chatId !== openChatId) onChatStarted(chatId)
       useCanvasTool.getState().showTurn({
