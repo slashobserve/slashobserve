@@ -485,7 +485,6 @@ A dashboard thread starts a read-only ask, which a Commenter may start and which
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.
-Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only people who can see the target, your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider, or a thread agent that was disconnected), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.

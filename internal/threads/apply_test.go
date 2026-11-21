@@ -69,6 +69,9 @@ func TestApplyingASuggestedChangePostsTheRequestAndStartsARevisionAsTheClicker(t
 	if len(events) != 1 || events[0].TargetID != finding.String() {
 		t.Fatalf("finding.apply events = %+v", events)
 	}
+	if links := r.auditLinksOf(t, "finding.apply"); len(links) != 1 || links[0] != (auditLinks{thread: thread, run: run.ID.String(), finding: finding.String()}) {
+		t.Fatalf("finding.apply links = %+v, want the thread, the run and the finding", links)
+	}
 }
 
 func TestTwoApplyCallsForOneAnswerReturnTheSameRun(t *testing.T) {

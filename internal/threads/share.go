@@ -55,6 +55,7 @@ type share struct {
 	by        auth.Principal
 	run       dbsqlc.AgentRequest
 	subject   Target
+	finding   pgtype.UUID
 	evidence  []byte
 	onThePage bool
 }
@@ -112,7 +113,7 @@ func (s *Service) shareOf(ctx context.Context, by auth.Principal, run dbsqlc.Age
 	case err != nil:
 		return share{}, fmt.Errorf("read finding of run: %w", err)
 	}
-	sh.evidence = found.Finding.Evidence
+	sh.finding, sh.evidence = found.Finding.ID, found.Finding.Evidence
 	return sh, nil
 }
 
@@ -261,7 +262,7 @@ func (s *Service) recordShare(ctx context.Context, q *dbsqlc.Queries, sh share, 
 		Target: target,
 		Thread: uuid.NullUUID{UUID: threadID, Valid: true},
 		Chat:   uuid.NullUUID{UUID: sh.run.ChatID.Bytes, Valid: sh.run.ChatID.Valid},
-		Data:   map[string]any{"on_the_page": sh.onThePage},
+		Data:   map[string]any{"finding_id": sh.finding.String(), "on_the_page": sh.onThePage},
 		By:     cols.AuditBy(),
 	})
 }

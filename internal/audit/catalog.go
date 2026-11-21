@@ -167,9 +167,9 @@ var catalog = map[Action]Spec{
 	"chat.create":                 change(CategoryConversation),
 	"chat.turn":                   change(CategoryConversation),
 	"chat.archive":                change(CategoryConversation),
-	"run.share":                   change(CategoryConversation),
-	"run.withdraw":                change(CategoryConversation),
-	"finding.apply":               change(CategoryConversation),
+	"run.share":                   change(CategoryConversation, []string{"finding_id", "on_the_page"}),
+	"run.withdraw":                change(CategoryConversation, []string{"finding_id"}),
+	"finding.apply":               change(CategoryConversation, []string{"run_id"}),
 	"finding.save_as_observation": change(CategoryConversation),
 
 	"run.queue":       change(CategoryAgent, runKeys),
