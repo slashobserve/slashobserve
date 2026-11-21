@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/audit"
 )
 
 const (
@@ -148,4 +150,55 @@ func readMigrationUp(t *testing.T, file string) string {
 	}
 	up, _, _ = strings.Cut(up, "-- +goose Down\n")
 	return up
+}
+
+func TestRunEventsKeepTheirIntentInTheAuditCatchUp(t *testing.T) {
+	ctx := context.Background()
+	d := newMigratedTo(t, runIntentVersion-1)
+	sqlDB := d.SQLDB(t)
+	ada := convUser(t, sqlDB, "Ada")
+	seedDashboard(t, d, intentDashboard, 1)
+	seedVersion(t, d, intentDashboard, 1, "{}")
+	saved := foScalar(t, sqlDB, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, source, dashboard_id, result_version, status, state)
+VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', $2::uuid, 1, 'succeeded', 'succeeded') RETURNING id::text`, ada, intentDashboard)
+	event := func(target, data string) string {
+		return foScalar(t, sqlDB, `INSERT INTO activity (type, target_kind, target_id, actor_kind, actor_id, actor_name, origin, data)
+VALUES ('run.queued', 'run', $1::uuid, 'user', $2::uuid, 'Ada', 'web', $3::jsonb) RETURNING seq::text`, target, ada, data)
+	}
+	cases := []struct{ name, seq, intent, sourceAfterDown string }{
+		{"a build that later saved", event(saved, `{"source": "observe", "attempt": 1}`), "apply", "observe"},
+		{"a deleted revision", event("00000000-0000-4000-8000-0000000084e1", `{"source": "comment", "attempt": 1}`), "apply", "prompt"},
+		{"a deleted investigation", event("00000000-0000-4000-8000-0000000084e2", `{"source": "investigate", "attempt": 1}`), "ask", "observe"},
+		{"a deleted suggestion", event("00000000-0000-4000-8000-0000000084e3", `{"source": "suggest", "attempt": 1}`), "suggest", "suggest"},
+	}
+	if err := d.MigrateUpTo(ctx, runIntentVersion); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+	if got := foScalar(t, sqlDB, `SELECT array_to_string(keys, ',') FROM audit_activity_actions WHERE type = 'run.queued'`); !strings.HasPrefix(got, "intent,") {
+		t.Errorf("run.queued backfills keys %s, want intent in place of source", got)
+	}
+	job := audit.New(audit.Config{DB: d.DB}).PartitionJob()
+	for range 2 {
+		if err := job(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := func(intent string) string { return `{"intent": "` + intent + `", "attempt": 1}` }
+	for _, c := range cases {
+		if got := foScalar(t, sqlDB, `SELECT data::text FROM activity WHERE seq = $1::bigint`, c.seq); got != want(c.intent) {
+			t.Errorf("%s: activity data = %s, want %s", c.name, got, want(c.intent))
+		}
+		if got := foScalar(t, sqlDB, `SELECT data::text FROM audit_events WHERE activity_seq = $1::bigint`, c.seq); got != want(c.intent) {
+			t.Errorf("%s: audit data = %s, want %s", c.name, got, want(c.intent))
+		}
+	}
+
+	if err := d.MigrateDownTo(ctx, runIntentVersion-1); err != nil {
+		t.Fatalf("down: %v", err)
+	}
+	for _, c := range cases {
+		if got := foScalar(t, sqlDB, `SELECT data->>'source' FROM activity WHERE seq = $1::bigint`, c.seq); got != c.sourceAfterDown {
+			t.Errorf("after down, %s: source = %q, want %q", c.name, got, c.sourceAfterDown)
+		}
+	}
 }
