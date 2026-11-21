@@ -136,8 +136,10 @@ func TestAdminsOnlyIsRefusedWithEntriesForNonAdminsAndOnPersonalFolders(t *testi
 		t.Fatalf("non-Admin manager = %d %s, want 403", got.Code, got.Body)
 	}
 
-	personal := personalFolderIDs(t, d, alice)[0].String()
-	if got := call(t, admin, http.MethodPut, "/api/v1/folders/"+personal+"/permissions", `{"entries":[],"admins_only":true}`); got.Code != http.StatusConflict ||
+	ada := addUser(t, d, "ada")
+	owner := engineAs(t, d, userAs(ada, auth.RoleAdmin), nil)
+	personal := personalFolderIDs(t, d, ada)[0].String()
+	if got := call(t, owner, http.MethodPut, "/api/v1/folders/"+personal+"/permissions", `{"entries":[],"admins_only":true}`); got.Code != http.StatusConflict ||
 		!strings.Contains(got.Body.String(), `"personal_folder"`) {
 		t.Fatalf("personal = %d %s, want 409 personal_folder", got.Code, got.Body)
 	}
