@@ -25,7 +25,7 @@ func (r *rig) folder(adminsOnly bool) pgtype.UUID {
 func (r *rig) askInThread(req revisions.Request) {
 	r.t.Helper()
 	var thread, message pgtype.UUID
-	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO threads (dashboard_id) VALUES ($1) RETURNING id`, r.dash).Scan(&thread); err != nil {
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO threads (dashboard_id, dashboard_version) VALUES ($1, 1) RETURNING id`, r.dash).Scan(&thread); err != nil {
 		r.t.Fatal(err)
 	}
 	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1, 'q', 'user', $2, 'Ada') RETURNING id`,
@@ -35,38 +35,59 @@ func (r *rig) askInThread(req revisions.Request) {
 	r.d.Exec(r.t, "UPDATE agent_requests SET thread_message_id = $2 WHERE id = $1", mustUUID(r.t, req.ID), message)
 }
 
+func (r *rig) fileInto(req revisions.Request, folder pgtype.UUID) {
+	r.t.Helper()
+	var observation pgtype.UUID
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name) VALUES ($1, 'Checkout latency', 'user', $2, 'Ada') RETURNING id`,
+		folder, mustUUID(r.t, userID)).Scan(&observation); err != nil {
+		r.t.Fatal(err)
+	}
+	r.d.Exec(r.t, "UPDATE agent_requests SET observation_id = $2 WHERE id = $1", mustUUID(r.t, req.ID), observation)
+}
+
+func (r *rig) moveDashboard(adminsOnly bool) pgtype.UUID {
+	r.t.Helper()
+	folder := r.folder(adminsOnly)
+	r.d.Exec(r.t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, folder)
+	return folder
+}
+
 func asRole(req revisions.Request, role auth.Role) revisions.Request {
 	req.RequestedBy.Role = role
 	return req
 }
 
 func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing.T) {
+	inThread := func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }
 	cases := []struct {
 		name       string
 		start      func(r *rig) revisions.Request
+		files      bool
 		adminsOnly bool
 		role       auth.Role
 		want       datasource.Audience
 		reads      bool
 	}{
-		{"an Admin's revision of a dashboard in a shared folder", (*rig).revise, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
-		{"an Admin's revision of a dashboard only Admins read", (*rig).revise, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
-		{"an Editor's revision of a dashboard only Admins read", (*rig).revise, true, auth.RoleEditor, datasource.AudienceAdmins, false},
-		{"an Admin's investigation into an observation in a shared folder", (*rig).investigate, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
-		{"an Admin's investigation into an observation only Admins read", (*rig).investigate, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
-		{"an Editor's investigation into an observation only Admins read", (*rig).investigate, true, auth.RoleEditor, datasource.AudienceAdmins, false},
-		{"an Admin's suggestion on a dashboard in a shared folder", (*rig).suggest, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
-		{"an Admin's suggestion on a dashboard only Admins read", (*rig).suggest, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
-		{"an Admin's thread apply on a dashboard in a shared folder", func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
-		{"an Admin's thread apply on a dashboard only Admins read", func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Admin's revision of a dashboard in a shared folder", (*rig).revise, false, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's revision of a dashboard only Admins read", (*rig).revise, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Editor's revision of a dashboard only Admins read", (*rig).revise, false, true, auth.RoleEditor, datasource.AudienceAdmins, false},
+		{"an Admin's investigation with no observation yet", (*rig).investigate, false, false, auth.RoleAdmin, datasource.AudienceCaller, true},
+		{"an Admin's investigation into an observation in a shared folder", (*rig).investigate, true, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's investigation into an observation only Admins read", (*rig).investigate, true, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Editor's investigation into an observation only Admins read", (*rig).investigate, true, true, auth.RoleEditor, datasource.AudienceAdmins, false},
+		{"an Admin's suggestion on a dashboard in a shared folder", (*rig).suggest, false, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's suggestion on a dashboard only Admins read", (*rig).suggest, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Admin's thread apply on a dashboard in a shared folder", inThread, false, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's thread apply on a dashboard only Admins read", inThread, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newRig(t)
-			folder := r.folder(tc.adminsOnly)
-			r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, folder)
 			req := asRole(tc.start(r), tc.role)
-			r.d.Exec(t, "UPDATE observations SET folder_id = $2 WHERE id = (SELECT observation_id FROM agent_requests WHERE id = $1)", mustUUID(t, req.ID), folder)
+			folder := r.moveDashboard(tc.adminsOnly)
+			if tc.files {
+				r.fileInto(req, folder)
+			}
 			run, err := r.svc.Scope(context.Background(), req)
 			if err != nil {
 				t.Fatal(err)
@@ -83,9 +104,8 @@ func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing
 
 func TestARunThatAsksPrivatelyKeepsTheRequestersAccess(t *testing.T) {
 	r := newRig(t)
-	r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, r.folder(false))
 	req := asRole(r.investigate(), auth.RoleAdmin)
-	r.d.Exec(t, "UPDATE agent_requests SET observation_id = NULL WHERE id = $1", mustUUID(t, req.ID))
+	r.moveDashboard(false)
 	run, err := r.svc.Scope(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
@@ -98,8 +118,8 @@ func TestARunThatAsksPrivatelyKeepsTheRequestersAccess(t *testing.T) {
 func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead(t *testing.T) {
 	for _, adminsOnly := range []bool{false, true} {
 		r := newRig(t)
-		r.d.Exec(t, "UPDATE dashboards SET folder_id = $2 WHERE id = $1", r.dash, r.folder(adminsOnly))
 		req := asRole(r.revise(), auth.RoleAdmin)
+		r.moveDashboard(adminsOnly)
 		brief, err := r.svc.Brief(context.Background(), req, "")
 		if err != nil {
 			t.Fatal(err)
