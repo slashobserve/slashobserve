@@ -286,14 +286,12 @@ func (a *Applier) bind(ctx context.Context, by auth.Principal, path string, id p
 	if err != nil {
 		return fmt.Errorf("applier id: %w", err)
 	}
-	err = a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+	event := audit.Event{Action: provisionAction, Reason: reason, Target: dashboardTarget(id), By: &audit.By{Actor: auth.AuditActor(by)}}
+	err = inTxWithEvent(ctx, a.db, event, func(q *dbsqlc.Queries) error {
 		if err := q.DeleteAppliedDashboardElsewhere(ctx, dbsqlc.DeleteAppliedDashboardElsewhereParams{DashboardID: id, Path: path}); err != nil {
 			return err
 		}
-		if err := q.UpsertAppliedDashboard(ctx, dbsqlc.UpsertAppliedDashboardParams{Path: path, DashboardID: id, ContentSha256: sum, AppliedByID: appliedBy}); err != nil {
-			return err
-		}
-		return audit.Record(ctx, q, audit.Event{Action: provisionAction, Reason: reason, Target: dashboardTarget(id), By: &audit.By{Actor: auth.AuditActor(by)}})
+		return q.UpsertAppliedDashboard(ctx, dbsqlc.UpsertAppliedDashboardParams{Path: path, DashboardID: id, ContentSha256: sum, AppliedByID: appliedBy})
 	})
 	if db.IsForeignKeyViolation(err) {
 		return nil
