@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -242,6 +243,9 @@ type Request struct {
 	ContinueNote string
 
 	ThreadContext string
+
+	Anchor  *anchor.Anchor
+	BlockID string
 
 	From, To *time.Time
 

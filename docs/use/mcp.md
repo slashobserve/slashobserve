@@ -687,6 +687,8 @@ The loop of an agent that takes runs:
 2. A claimed run holds its `id`, `attempt`, `kind` (`build` or `investigate`), its `intent` (`ask`, `apply` or `suggest`), its `prompt`, its target (`dashboard_id`, `base_version`, `panel_id`, `from` and `to`, null when the run has none), `continue_note`, and `requested_by`, the person it acts for.
    The answer also has `lease_seconds` (60), a `session` with a `url`, a `token` (starting `sot_`) and `expires_at`, and `system_prompt`, the `observe` prompt to read with the run's `kind`.
    When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
+   When the question points at a spot on a panel or an observation block, `anchor` holds it, shaped as `start_run` takes it, and `block_id` the observation block it sits on; both are `null` for a run that points at nothing.
+   `get_run_brief` names the same spot in one sentence, so an agent that reads only the claim can use `anchor`, and one that reads the brief gets the sentence.
    The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
