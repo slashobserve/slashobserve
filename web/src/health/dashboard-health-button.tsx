@@ -14,6 +14,7 @@ import {
   healthyLabel,
   isHealthy,
   problemCountText,
+  recheckPendingLabel,
   repairAction,
   repairLabel,
   repairStatus,
@@ -22,7 +23,7 @@ import {
   type SummaryLabel,
 } from "./health-labels"
 import { ProblemGroups } from "./problem-groups"
-import { RecheckPending } from "./recheck-pending"
+import { RecheckNote, RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 import { useDashboardHealth } from "./use-dashboard-health"
 
@@ -55,20 +56,21 @@ export function DashboardHealthButton({
   const { item, agentAvailable, repair, pending } =
     useDashboardHealth(dashboardId)
   if (item === null) return null
-  if (awaitsRecheck(item)) {
+  const awaiting = awaitsRecheck(item)
+  const problems = dashboardProblems(item)
+  const status = repairStatus(repairAction(item, agentAvailable))
+  if (awaiting && problems.length === 0 && status === null) {
     return <RecheckPending item={item} variant="ghost" size="sm" align="end" />
   }
   if (isHealthy(item)) return <HealthyButton item={item} />
-  const problems = dashboardProblems(item)
   if (problems.length === 0 && item.repair === null) return null
-  const status = repairStatus(repairAction(item, agentAvailable))
-  const label: SummaryLabel = (status?.tone === "running" ||
-  problems.length === 0
-    ? status
-    : null) ?? {
-    tone: worstTone(problems),
-    label: problemCountText(problems.length),
-  }
+  const summary: SummaryLabel =
+    awaiting && problems.length === 0
+      ? { tone: "none", label: recheckPendingLabel }
+      : { tone: worstTone(problems), label: problemCountText(problems.length) }
+  const label: SummaryLabel =
+    (status?.tone === "running" || problems.length === 0 ? status : null) ??
+    summary
   return (
     <Popover>
       <PopoverTrigger
@@ -78,9 +80,13 @@ export function DashboardHealthButton({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
         <PopoverTitle>Health</PopoverTitle>
-        <p className="text-xs text-muted-foreground">
-          <CheckLine item={item} />
-        </p>
+        {awaiting ? (
+          <RecheckNote item={item} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            <CheckLine item={item} />
+          </p>
+        )}
         <ProblemGroups problems={problems} />
         <div>
           <RepairControl

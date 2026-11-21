@@ -14,6 +14,17 @@ import {
   type HealthItem,
 } from "./health-labels"
 
+export function RecheckNote({ item }: { item: HealthItem }) {
+  return (
+    <>
+      <p>{recheckPendingText}</p>
+      <p className="text-xs text-muted-foreground">
+        <CheckLine item={item} />
+      </p>
+    </>
+  )
+}
+
 export function RecheckPending({
   item,
   title,
@@ -50,10 +61,7 @@ export function RecheckPending({
       </PopoverTrigger>
       <PopoverContent align={align} className="w-80">
         <PopoverTitle>Health</PopoverTitle>
-        <p>{recheckPendingText}</p>
-        <p className="text-xs text-muted-foreground">
-          <CheckLine item={item} />
-        </p>
+        <RecheckNote item={item} />
       </PopoverContent>
     </Popover>
   )

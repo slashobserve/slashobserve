@@ -779,7 +779,25 @@ describe("isHealthy", () => {
         state: "outdated",
         repair: repair("repaired", 5),
       } as Partial<HealthItem>),
-      true,
+      false,
+    ],
+    [
+      "checked before the latest version with a failed repair on record",
+      item({
+        state: "outdated",
+        problems: [problem({ kind: "query_failed", panel_id: "1" })],
+        repair: repair("failed"),
+      } as Partial<HealthItem>),
+      false,
+    ],
+    [
+      "checked before the latest version with a still failing repair on record",
+      item({
+        state: "outdated",
+        problems: [problem({ kind: "query_failed", panel_id: "1" })],
+        repair: repair("still_failing", 5),
+      } as Partial<HealthItem>),
+      false,
     ],
     ["never checked", item({ checked_at: null, checked_version: null }), false],
     ["skipped", item({ skipped: "depends_on_viewer" }), false],
@@ -854,7 +872,7 @@ describe("a dashboard that changed since its last check", () => {
     expect(healthCellText(outdated())?.group.kind).toBe("duplicate_title")
   })
 
-  test("awaits a recheck unless a repair is on record", () => {
+  test("always awaits a recheck, whatever repair is on record", () => {
     expect(awaitsRecheck(outdated())).toBe(true)
     expect(
       awaitsRecheck(
@@ -862,7 +880,7 @@ describe("a dashboard that changed since its last check", () => {
           repair: { outcome: "failed" },
         } as unknown as Partial<HealthItem>)
       )
-    ).toBe(false)
+    ).toBe(true)
     expect(
       awaitsRecheck(outdated({ state: "healthy" } as Partial<HealthItem>))
     ).toBe(false)

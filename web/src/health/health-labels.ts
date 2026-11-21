@@ -99,7 +99,7 @@ export const recheckPendingText =
   "This dashboard changed since the last check and is waiting for a recheck."
 
 export function awaitsRecheck(item: HealthItem): boolean {
-  return item.state === "outdated" && item.repair === null
+  return item.state === "outdated"
 }
 
 export function currentProblems(item: HealthItem): HealthProblem[] {

@@ -17,6 +17,7 @@ import {
   isHealthy,
   kindLabels,
   moreProblemsText,
+  recheckPendingLabel,
   repairAction,
   repairStatus,
   type HealthItem,
@@ -24,17 +25,11 @@ import {
 import { useListHealth, useListHealthRepair } from "./list-health"
 import { KindSummary } from "./kind-summary"
 import { ProblemGroups } from "./problem-groups"
-import { RecheckPending } from "./recheck-pending"
+import { RecheckNote, RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 
-function ariaLabel(
-  title: string,
-  kind: string,
-  more: number,
-  repair: string | undefined
-): string {
-  const others = more === 0 ? "" : ` and ${moreProblemsText(more)}`
-  return `Health of ${title}: ${kind}${others}${repair === undefined ? "" : `, ${repair}`}`
+function ariaLabel(title: string, parts: readonly (string | undefined)[]) {
+  return `Health of ${title}: ${parts.filter((part) => part !== undefined).join(", ")}`
 }
 
 function HealthyCell({ item, title }: { item: HealthItem; title: string }) {
@@ -75,7 +70,13 @@ export function HealthCell({
   const { agentAvailable, pendingId, requestRepair } = useListHealthRepair()
   if (pending) return <Skeleton className="h-4 w-20" />
   if (item === null) return null
-  if (awaitsRecheck(item)) {
+  const awaiting = awaitsRecheck(item)
+  const cell = healthCellText(item)
+  const status = repairStatus(repairAction(item, agentAvailable))
+  if (cell === null && !awaiting) {
+    return isHealthy(item) ? <HealthyCell item={item} title={title} /> : null
+  }
+  if (cell === null && status === null) {
     return (
       <RecheckPending
         item={item}
@@ -87,12 +88,6 @@ export function HealthCell({
       />
     )
   }
-  const cell = healthCellText(item)
-  if (cell === null) {
-    return isHealthy(item) ? <HealthyCell item={item} title={title} /> : null
-  }
-  const { group, more } = cell
-  const status = repairStatus(repairAction(item, agentAvailable))
   return (
     <Popover>
       <PopoverTrigger
@@ -101,33 +96,43 @@ export function HealthCell({
             variant="ghost"
             size="xs"
             aria-haspopup="dialog"
-            aria-label={ariaLabel(
-              title,
-              kindLabels[group.kind],
-              more,
-              status?.label
-            )}
+            aria-label={ariaLabel(title, [
+              cell === null
+                ? undefined
+                : `${kindLabels[cell.group.kind]}${cell.more === 0 ? "" : ` and ${moreProblemsText(cell.more)}`}`,
+              awaiting ? recheckPendingLabel : undefined,
+              status?.label,
+            ])}
             className="-ml-2 h-auto max-w-full flex-col items-start gap-0.5 py-1 text-left font-normal whitespace-normal"
           />
         }
       >
-        <span className="flex flex-wrap items-center gap-x-1.5">
-          <KindSummary group={group} />
-          {more === 0 ? null : (
-            <span className="text-muted-foreground">
-              +{moreProblemsText(more)}
-            </span>
-          )}
-        </span>
+        {cell === null ? null : (
+          <span className="flex flex-wrap items-center gap-x-1.5">
+            <KindSummary group={cell.group} />
+            {cell.more === 0 ? null : (
+              <span className="text-muted-foreground">
+                +{moreProblemsText(cell.more)}
+              </span>
+            )}
+          </span>
+        )}
+        {awaiting ? (
+          <StatusLabel tone="none">{recheckPendingLabel}</StatusLabel>
+        ) : null}
         {status === null ? null : (
           <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
         )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80">
         <PopoverTitle>Health</PopoverTitle>
-        <p className="text-xs text-muted-foreground">
-          <CheckLine item={item} />
-        </p>
+        {awaiting ? (
+          <RecheckNote item={item} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            <CheckLine item={item} />
+          </p>
+        )}
         <ProblemGroups problems={currentProblems(item)} />
         <div>
           <RepairControl
