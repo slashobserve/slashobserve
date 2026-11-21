@@ -81,14 +81,15 @@ func (s *Service) Register(api auth.Routes) {
 	g.GET("/tags", auth.RoleViewer, s.listTags)
 	view := s.access.RequireDashboard(folders.NeedView)
 	edit := s.access.RequireDashboard(folders.NeedEdit)
+	content := s.access.RequireDashboard(folders.NeedContent)
 	g.GET("/:id", auth.RoleViewer, view, s.getDashboard)
-	g.PATCH("/:id", auth.RoleViewer, edit, s.moveDashboard)
+	g.PATCH("/:id", auth.RoleViewer, content, s.moveDashboard)
 	g.DELETE("/:id", auth.RoleViewer, edit, s.deleteDashboard)
 	g.GET("/:id/versions", auth.RoleViewer, view, s.listVersions)
 	g.GET("/:id/versions/:version", auth.RoleViewer, view, s.getVersion)
 	g.POST("/:id/versions", auth.RoleViewer, view, s.addVersion)
 	g.POST("/:id/panels", auth.RoleViewer, view, s.patchPanels)
-	g.POST("/:id/versions/:version/restore", auth.RoleViewer, edit, s.restoreVersion)
+	g.POST("/:id/versions/:version/restore", auth.RoleViewer, content, s.restoreVersion)
 	g.POST("/:id/duplicate", auth.RoleViewer, view, s.duplicateDashboard)
 	g.GET("/:id/diff", auth.RoleViewer, view, s.diff)
 }
@@ -284,7 +285,8 @@ func (s *Service) getDashboard(c *gin.Context) {
 		s.fail(c, "get dashboard", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Abilities
+	dash.Abilities = folders.DashboardFrom(c).Shown()
+	dash.Provisioned = folders.DashboardFrom(c).Provisioned
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 
@@ -360,7 +362,8 @@ func (s *Service) getVersion(c *gin.Context) {
 		s.fail(c, "get dashboard version", err)
 		return
 	}
-	dash.Abilities = folders.DashboardFrom(c).Abilities
+	dash.Abilities = folders.DashboardFrom(c).Shown()
+	dash.Provisioned = folders.DashboardFrom(c).Provisioned
 	httpapi.RevalidatedJSON(c, NewDashboardVersionJSON(dash, ver))
 }
 

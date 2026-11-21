@@ -130,6 +130,7 @@ const (
 	NeedView Need = iota
 	NeedComment
 	NeedEdit
+	NeedContent
 	NeedManage
 	NeedCreate
 )
@@ -152,7 +153,7 @@ func (a Abilities) Has(n Need) bool {
 		return a.View
 	case NeedComment:
 		return a.Comment
-	case NeedEdit:
+	case NeedEdit, NeedContent:
 		return a.Edit
 	case NeedManage:
 		return a.Manage

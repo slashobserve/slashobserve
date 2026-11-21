@@ -292,6 +292,7 @@ dashboards-id:
         description: >-
           The request conflicts with existing state.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy.
           Or the dashboard has an unexpired public link and the folder is one only Admins can read (`admins_only_folder`).
         content:
           application/json:
@@ -476,6 +477,7 @@ dashboards-id-versions:
         description: >-
           The parent version is no longer the latest; `latest_version` names the current one.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy.
         content:
           application/json:
             schema:
@@ -603,6 +605,7 @@ dashboards-id-versions-version-restore:
         description: >-
           The parent version is no longer the latest; `latest_version` names the current one.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy.
         content:
           application/json:
             schema:
@@ -761,6 +764,7 @@ dashboards-id-panels:
         description: >-
           The parent version is no longer the latest; `latest_version` names the current one.
           Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+          Or the dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to change a copy.
         content:
           application/json:
             schema:
@@ -811,7 +815,7 @@ dashboards-id-duplicate:
                 format: uuid
                 description: >-
                   The folder to create the dashboard in.
-                  Missing means the caller's default folder: a person's My Dashboards, a service-account key's General.
+                  Missing means the source dashboard's folder when the caller can create there, else the caller's default folder: a person's My Dashboards, a service-account key's General.
                   404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
     responses:
       "201":

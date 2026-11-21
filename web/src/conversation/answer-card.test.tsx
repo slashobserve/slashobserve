@@ -14,7 +14,9 @@ vi.mock("@/findings/evidence-panel", () => ({
   ),
 }))
 
-vi.mock("@/dashboards/permissions", () => ({
+vi.mock("@/dashboards/permissions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/dashboards/permissions")>()),
+  useLatestProvisioned: () => false,
   useLatestPermissions: () => ({
     comment: true,
     edit: true,

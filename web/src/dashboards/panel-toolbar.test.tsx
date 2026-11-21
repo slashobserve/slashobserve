@@ -16,9 +16,10 @@ const panel: LayoutPanel = {
   queries: [{ query: "up" }],
 }
 
-const viewer = { comment: false, edit: false }
-const commenter = { comment: true, edit: false }
-const editor = { comment: true, edit: true }
+const viewer = { comment: false, edit: false, propose: false }
+const commenter = { comment: true, edit: false, propose: true }
+const editor = { comment: true, edit: true, propose: false }
+const starter = { comment: true, edit: false, propose: false }
 
 function serveAgent(available: boolean) {
   vi.stubGlobal(
@@ -33,7 +34,7 @@ function serveAgent(available: boolean) {
 }
 
 function renderToolbar(
-  permissions: { comment: boolean; edit: boolean },
+  permissions: { comment: boolean; edit: boolean; propose: boolean },
   over: { idle?: boolean; panel?: LayoutPanel } = {}
 ) {
   return renderWithProviders(
@@ -99,6 +100,18 @@ describe("PanelToolbar", () => {
     expect(buttonNames()).toEqual([
       "Comment",
       "Suggest an edit",
+      "Add to observation",
+      "More actions for Checkout latency",
+    ])
+  })
+
+  it("lets a starter dashboard be commented on and asked about but never edited or suggested to", async () => {
+    serveAgent(true)
+    renderToolbar(starter)
+    await screen.findByRole("button", { name: "Ask @observe" })
+    expect(buttonNames()).toEqual([
+      "Comment",
+      "Ask @observe",
       "Add to observation",
       "More actions for Checkout latency",
     ])

@@ -162,6 +162,8 @@ Every server has the built-in datasource `slashobserve-audit`, named Audit trail
 It is listed with type `opensearch` and source `builtin`, only Admins and Admin keys see or query it, and nobody can edit or remove it; see [Datasources in the app](../connect/datasources-in-the-app.md).
 A datasources file entry with the uid `slashobserve-audit` stops the server at start with `audit_datasource_failed`.
 
+The four starter dashboards in the Audit folder are read-only and the server brings each up to date with its release at every start; see [Audit folder](../use/activity.md#audit-folder).
+
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.
 The Logs page histogram counts `failed` as error, `denied` as warning, `success` as info and `unknown` as other.

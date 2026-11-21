@@ -97,12 +97,14 @@ func (s *Service) CheckRun(ctx context.Context, target RunTarget, by auth.Princi
 
 func (s *Service) checkRun(ctx context.Context, target RunTarget, by auth.Principal) error {
 	rule := runRule{target: target, role: by.Role}
-	title := ""
+	title, starter := "", false
 	if target.DashboardID.Valid {
-		var err error
-		if rule.dashboard, title, err = s.dashboardAccess(ctx, target.DashboardID, by); err != nil {
+		access, err := s.dashboardAccess(ctx, target.DashboardID, by)
+		if err != nil {
 			return err
 		}
+		rule.dashboard, title = access.Abilities, access.Folder.Title
+		starter = access.Provisioned && target.Intent != IntentAsk
 	}
 	if target.Intent == IntentAsk && target.ObservationID.Valid && !target.Files {
 		folder, abilities, err := s.observationAccess(ctx, target.ObservationID, by)
@@ -121,25 +123,28 @@ func (s *Service) checkRun(ctx context.Context, target RunTarget, by auth.Princi
 		}
 		rule.canCreate = levels.CanCreate()
 	}
-	if !runAllowed(rule) {
+	switch {
+	case !runAllowed(rule):
 		return refusal(rule, title)
+	case starter:
+		return folders.ErrProvisioned
 	}
 	return nil
 }
 
-func (s *Service) dashboardAccess(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) (folders.Abilities, string, error) {
+func (s *Service) dashboardAccess(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) (folders.DashboardAccess, error) {
 	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
-		return folders.Abilities{}, "", ErrDashboardNotFound
+		return folders.DashboardAccess{}, ErrDashboardNotFound
 	case errors.Is(err, folders.ErrForbidden):
-		return folders.Abilities{}, "", ErrForbidden
+		return folders.DashboardAccess{}, ErrForbidden
 	case err != nil:
-		return folders.Abilities{}, "", err
+		return folders.DashboardAccess{}, err
 	case !access.Abilities.View:
-		return folders.Abilities{}, "", ErrForbidden
+		return folders.DashboardAccess{}, ErrForbidden
 	}
-	return access.Abilities, access.Folder.Title, nil
+	return access, nil
 }
 
 func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (string, folders.Abilities, error) {

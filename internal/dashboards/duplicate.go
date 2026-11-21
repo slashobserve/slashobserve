@@ -34,8 +34,12 @@ func duplicateDraft(source Version, title string) (string, *spec.Dashboard, []by
 }
 
 func (s *Service) Duplicate(ctx context.Context, by auth.Principal, id, folderID pgtype.UUID, title string) (Dashboard, Version, error) {
-	if _, err := s.need(ctx, by, id, folders.NeedView); err != nil {
+	access, err := s.need(ctx, by, id, folders.NeedView)
+	if err != nil {
 		return Dashboard{}, Version{}, err
+	}
+	if !folderID.Valid && access.Abilities.Create {
+		folderID = access.Folder.ID
 	}
 	target, err := s.creationTarget(ctx, by, folderID)
 	if err != nil {
