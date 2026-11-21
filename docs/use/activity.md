@@ -74,7 +74,7 @@ A thread event's `target` is the thread, and its `data` has `object`, the dashbo
 `thread.opened` also carries the `title` of the dashboard or observation, copied when the thread opens so the row still names it after the object is deleted.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 
-A run event adds the run's `source`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
+A run event adds the run's `intent`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
 The `run.succeeded` of a [health repair](dashboard-health.md) that saved a version also adds `dashboard_title` and `panels_repaired`, the number of panels the repair named that the saved version changed and no longer lists as unverified; panels that were deleted, left unchanged or still fail are not counted.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 
@@ -109,7 +109,7 @@ The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a 
 
 At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
 The starters are provisioned and read-only in the app, the API, MCP and the CLI, which refuse a change with 409 `provisioned`; comments, pins, annotations and views work as on any dashboard.
-The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused.
+The web shows why a starter is read-only and offers Duplicate in the dashboard menu; Ask, annotations and deleting a starter work as on any dashboard, and the agent's changes are refused before anything is queued, a comment that requests a revision included.
 To change one, an Admin duplicates it, and the copy is an ordinary dashboard in the Audit folder.
 At every start the server compares each starter with the content its release ships, and a starter that differs gets one new version with the summary `Updated to this release`; an unchanged starter gets nothing, and its threads, pins and view counts stay.
 

@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from "react"
 import type { QueryKey } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { PencilIcon } from "lucide-react"
+import { EllipsisIcon, PencilIcon, Trash2Icon } from "lucide-react"
 
-import { EntryAction, EntryBody } from "@/activity/entry-frame"
+import { EntryBody } from "@/activity/entry-frame"
 import type { components } from "@/api/schema.gen"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 import { chatAnswerLink } from "./chat-answer-link"
-import { DeleteMessageButton } from "./delete-message-button"
+import { DeleteMessageDialog } from "./delete-message-dialog"
 import { EditMessageForm } from "./edit-message-form"
 import { MessageBody } from "./message-body"
 import type { MentionPerson } from "./mentions"
@@ -44,13 +51,14 @@ export function MessageText({
   folded?: boolean
 }) {
   const [editing, setEditing] = useState(false)
-  const editButton = useRef<HTMLButtonElement>(null)
+  const [deleting, setDeleting] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
   const refocus = useRef(false)
 
   useEffect(() => {
     if (editing || !refocus.current) return
     refocus.current = false
-    editButton.current?.focus()
+    menuButton.current?.focus()
   }, [editing])
 
   if (editing && !folded) {
@@ -72,10 +80,12 @@ export function MessageText({
   const chat = folded
     ? null
     : chatAnswerLink(message.body, message.actor.run_id)
+  const menu = (message.can_edit || message.can_delete) && !folded
   return (
-    <>
+    <div className="flex items-start gap-1">
       <EntryBody
         className={cn(
+          "min-w-0 flex-1",
           markdown && "whitespace-normal",
           folded && "line-clamp-1 text-muted-foreground"
         )}
@@ -96,26 +106,51 @@ export function MessageText({
           </Link>
         )}
       </EntryBody>
-      {(message.can_edit || message.can_delete) && !folded ? (
-        <div className="flex items-center">
-          {message.can_edit ? (
-            <EntryAction
-              ref={editButton}
-              icon={<PencilIcon aria-hidden="true" />}
-              onClick={() => setEditing(true)}
+      {menu ? (
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              ref={menuButton}
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={root ? "Thread actions" : "Comment actions"}
+                  className="-mt-0.5 flex-none text-muted-foreground opacity-0 group-focus-within/entry:opacity-100 group-hover/entry:opacity-100 hover:text-foreground focus-visible:opacity-100 data-popup-open:opacity-100 motion-safe:transition-opacity motion-safe:duration-100 [@media(hover:none)]:opacity-100"
+                />
+              }
             >
-              Edit
-            </EntryAction>
-          ) : null}
-          {message.can_delete ? (
-            <DeleteMessageButton
-              messageId={message.id}
-              wholeThread={root}
-              queryKey={queryKey}
-            />
-          ) : null}
-        </div>
+              <EllipsisIcon aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {message.can_edit ? (
+                <DropdownMenuItem onClick={() => setEditing(true)}>
+                  <PencilIcon aria-hidden="true" />
+                  Edit
+                </DropdownMenuItem>
+              ) : null}
+              {message.can_delete ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleting(true)}
+                >
+                  <Trash2Icon aria-hidden="true" />
+                  Delete
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DeleteMessageDialog
+            open={deleting}
+            onOpenChange={setDeleting}
+            messageId={message.id}
+            wholeThread={root}
+            queryKey={queryKey}
+            finalFocus={menuButton}
+          />
+        </>
       ) : null}
-    </>
+    </div>
   )
 }

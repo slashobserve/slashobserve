@@ -43,6 +43,16 @@ func TestInvestigatePayloadNamesTheObservationOnlyWhenGiven(t *testing.T) {
 	}
 }
 
+func TestInvestigatePrivateSendsKindAsk(t *testing.T) {
+	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, private: true, timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"kind":"ask","observation_id":"`+observationID+`","prompt":"why"}` {
+		t.Errorf("payload = %s", raw)
+	}
+}
+
 func TestInvestigateSendsTheObservationFlag(t *testing.T) {
 	server, requests := investigationServer(t, findingJSON)
 	_, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "investigate", "--observation", observationID, "why", "did", "errors", "rise")
@@ -64,6 +74,8 @@ func TestInvestigateFlagRulesAreUsageErrors(t *testing.T) {
 		"bad dashboard id":        {"investigate", "why", "--dashboard", "checkout"},
 		"bad observation id":      {"investigate", "why", "--observation", "weekly-review"},
 		"zero timeout":            {"investigate", "why", "--timeout", "0s"},
+		"private with no subject": {"investigate", "why", "--private"},
+		"private with both":       {"investigate", "why", "--private", "--dashboard", repairID, "--observation", observationID},
 	}
 	for name, args := range cases {
 		server, requests := healthServer(t, `{}`)
@@ -96,6 +108,15 @@ func TestPrintFindingOffersToSaveAnAnswerThatIsNotAnObservation(t *testing.T) {
 	}
 }
 
+func TestPrintFindingShowsTheSuggestedChangeAsARevision(t *testing.T) {
+	var stdout bytes.Buffer
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{Title: "Errors", Markdown: "One pod.", URL: "https://o.example/o/1", SuggestedChange: "Split errors by pod.", DashboardID: repairID}, investigationID)
+	want := "Errors\n\nOne pod.\n\nSuggested change: Split errors by pod.\n  observe --revise --dashboard " + repairID + " 'Split errors by pod.'\n\nhttps://o.example/o/1\n"
+	if stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+}
+
 const findingJSON = `{"id":"f1","title":"Checkout errors rose after the deploy","markdown":"Errors rose at 10:02.\nThe deploy at 10:00 added a retry.","url":"https://observe.example.com/findings/f1"}`
 
 func investigationServer(t *testing.T, finding string) (*httptest.Server, *[]recordedRequest) {
@@ -107,10 +128,10 @@ func investigationServer(t *testing.T, finding string) (*httptest.Server, *[]rec
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","source":"investigate","status":"queued","steps":[]}}`)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","investigation":true,"status":"queued","steps":[]}}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","source":"investigate","status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","investigation":true,"status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
 	}))
 	t.Cleanup(server.Close)
 	return server, &requests
@@ -142,7 +163,7 @@ func TestInvestigateWithoutAFindingFailsNamingTheRequest(t *testing.T) {
 func TestStatusOfAnInvestigationPrintsItsFinding(t *testing.T) {
 	server, _ := investigationServer(t, findingJSON)
 	stdout, stderr, code := runCLI("--server", server.URL, "--token", "k", "status", investigationID)
-	if code != 0 || !strings.Contains(stdout, "Finding      Checkout errors rose after the deploy") || !strings.Contains(stdout, "Finding URL  https://observe.example.com/findings/f1") {
+	if code != 0 || !strings.Contains(stdout, "Investigation  yes") || !strings.Contains(stdout, "Finding        Checkout errors rose after the deploy") || !strings.Contains(stdout, "Finding URL    https://observe.example.com/findings/f1") {
 		t.Errorf("code %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	stdout, stderr, code = runCLI("--server", server.URL, "--token", "k", "-q", "status", investigationID, "--wait")
@@ -163,6 +184,19 @@ func TestInvestigatePayloadPointsAtASpotOfABlock(t *testing.T) {
 	}
 	if _, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, at: `{"kind":"position"`, timeout: time.Hour}); err == nil || !strings.Contains(err.Error(), "--at") {
 		t.Errorf("a broken anchor: error = %v, want one naming --at", err)
+	}
+}
+
+func TestPromptPayloadRevisesOnlyWithReviseAndADashboard(t *testing.T) {
+	got, err := promptOptions{dashboard: repairID, revise: true}.payload("add a latency panel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"dashboard_id":"`+repairID+`","kind":"revise","prompt":"add a latency panel"}` {
+		t.Errorf("payload = %s", raw)
+	}
+	if _, err := (promptOptions{revise: true}).payload("add a latency panel"); err == nil || !strings.Contains(err.Error(), "--revise needs --dashboard") {
+		t.Errorf("--revise alone: error = %v", err)
 	}
 }
 

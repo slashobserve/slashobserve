@@ -38,8 +38,8 @@ func TestRepairQueuesOneRevisionNamingTheFailingPanels(t *testing.T) {
 		t.Errorf("skipped = %+v, want %+v", out.Skipped, wantSkipped)
 	}
 	var prompt, source string
-	r.scan(t, `SELECT prompt, source FROM agent_requests WHERE id = $1`, out.Queued[0].RequestID, &prompt, &source)
-	if source != string(revisions.SourcePrompt) || !strings.HasPrefix(prompt, "Repair the panels and variables the health check found failing") || !strings.Contains(prompt, `- panel p1 ("Panel 1") returns no data`) {
+	r.scan(t, `SELECT prompt, intent FROM agent_requests WHERE id = $1`, out.Queued[0].RequestID, &prompt, &source)
+	if source != string(revisions.IntentApply) || !strings.HasPrefix(prompt, "Repair the panels and variables the health check found failing") || !strings.Contains(prompt, `- panel p1 ("Panel 1") returns no data`) {
 		t.Errorf("source %q prompt %q", source, prompt)
 	}
 

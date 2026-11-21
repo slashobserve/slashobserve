@@ -31,6 +31,7 @@ const (
 	evidenceColumns   = 2
 	PinTag            = "finding"
 	defaultTitle      = "Finding"
+	answerTitle       = "Answer"
 )
 
 var (
@@ -48,6 +49,7 @@ var (
 
 type Conclusion struct {
 	RunID, DashboardID, FolderID pgtype.UUID
+	Into                         pgtype.UUID
 	Title, Markdown              string
 	Evidence                     []spec.Panel
 	From, To                     time.Time
@@ -58,6 +60,10 @@ type Observations interface {
 	Placement(ctx context.Context, by auth.Principal, observationID pgtype.UUID) (folders.Folder, folders.Abilities, error)
 }
 
+type ThreadReader func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error
+
+type AnswerReadRecorder func(ctx context.Context, runID pgtype.UUID)
+
 type Author struct{ Kind, ID, Name string }
 
 type Finding struct {
@@ -65,9 +71,12 @@ type Finding struct {
 	ObservationID, FolderID                       string
 	AskOnID, AskOnTitle                           string
 	Title, Markdown                               string
+	SuggestedChange                               string
+	ObserveWorthy                                 bool
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
 	RequestTo                                     *time.Time
+	SharedIn                                      pgtype.UUID
 	CreatedBy                                     Author
 	RequestedBy                                   Author
 	Actor                                         actor.Actor
@@ -86,11 +95,14 @@ func Title(text string) string {
 	return defaultTitle
 }
 
-func TitleFrom(given, prompt string) string {
-	if title := Title(given); title != defaultTitle {
+func TitleFrom(given string, investigation bool) string {
+	switch title := revisions.ShortTitle(given); {
+	case title != "":
 		return title
+	case investigation:
+		return defaultTitle
 	}
-	return Title(prompt)
+	return answerTitle
 }
 
 func FirstLine(markdown string) string {

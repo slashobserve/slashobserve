@@ -64,6 +64,7 @@ UPDATE agent_requests
 SET result_version = @result_version::integer,
   dashboard_id = @dashboard_id::uuid,
   build_saved_at = clock_timestamp(),
+  intent = 'apply',
   result_kind = 'partial_version'
 WHERE id = @id AND state = ANY(@from_states::text[]) AND build_saved_at IS NULL
 RETURNING *;

@@ -26,7 +26,7 @@ func (o repairOutcome) data() map[string]any {
 }
 
 func isHealthRepair(row dbsqlc.AgentRequest) bool {
-	return row.Source == string(SourcePrompt) && repairprompt.Is(row.Prompt) && row.DashboardID.Valid && row.ResultVersion.Valid
+	return SourceOf(row) == SourcePrompt && repairprompt.Is(row.Prompt) && row.DashboardID.Valid && row.ResultVersion.Valid
 }
 
 func readRepairOutcome(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (repairOutcome, bool, error) {

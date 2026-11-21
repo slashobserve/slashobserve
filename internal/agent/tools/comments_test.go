@@ -68,7 +68,7 @@ func TestMCPOnlyTools(t *testing.T) {
 			got = append(got, tool.Name)
 		}
 	}
-	if strings.Join(got, ",") != "add_block,aggregate_audit_events,archive_run,arrange_blocks,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_audit_event,get_audit_histogram,get_chat,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_access_requests,list_activity,list_audit_facets,list_audit_fields,list_chats,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_runs,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,pin_run,publish_rca,recheck_datasource,rename_folder,rename_run,reopen_comment,reopen_observation,reply_to_comment,report_run,request_comment_access,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_audit_events,search_workspace,set_home_dashboard,set_inbox_item_done,start_run,unpin_dashboard,unpin_run,update_annotation,update_block,update_observation,update_saved_search" {
+	if strings.Join(got, ",") != "add_block,aggregate_audit_events,apply_suggested_change,archive_run,arrange_blocks,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_audit_event,get_audit_histogram,get_chat,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_access_requests,list_activity,list_audit_facets,list_audit_fields,list_chats,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_runs,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,pin_run,publish_rca,recheck_datasource,rename_folder,rename_run,reopen_comment,reopen_observation,reply_to_comment,report_run,request_comment_access,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_audit_events,search_workspace,set_home_dashboard,set_inbox_item_done,share_answer,start_run,unpin_dashboard,unpin_run,update_annotation,update_block,update_observation,update_saved_search" {
 		t.Fatalf("mcp-only tools = %v", got)
 	}
 }
@@ -621,29 +621,38 @@ func TestStartRunsNeedsTheMentionRuns(t *testing.T) {
 	}
 }
 
-func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
+func TestCommentToolsAskAnAgentOnAnObservationThreadWithoutWritingOnThePage(t *testing.T) {
 	r := newAccessRig(t)
 	var account string
 	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
 		t.Fatal(err)
 	}
 	token := "@[runner](service_account:" + account + ")"
-
-	for _, mention := range []string{"@observe", token} {
-		target := `"target":"observation:` + r.privateFinding(t, adminCaller).ObservationID + `"`
-		created := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+mention+` what changed?","start_runs":true}`)
-		out, ok := created.Content.(commentResultOut)
-		if !ok || out.Run != nil || out.RunRefusal == nil || out.RunRefusal.Code != threads.RefusalPersonStarts || !strings.Contains(out.RunRefusal.Message, "web app or the CLI") || created.Step != "Opened a comment" {
-			t.Fatalf("create with %s = %s, step %q", mention, textOf(t, created), created.Step)
+	observation := r.privateFinding(t, adminCaller).ObservationID
+	blocks := func() int {
+		var n int
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1`, observation).Scan(&n); err != nil {
+			t.Fatal(err)
 		}
-		replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+mention+` and before?","start_runs":true}`)
-		if again, ok := replied.Content.(commentResultOut); !ok || again.Run != nil || again.RunRefusal == nil || again.RunRefusal.Code != threads.RefusalPersonStarts || again.Comment.Body == "" {
-			t.Fatalf("reply with %s = %s", mention, textOf(t, replied))
-		}
+		return n
 	}
-	var queued int
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests`).Scan(&queued); err != nil || queued != 0 {
-		t.Fatalf("%d runs queued, err %v", queued, err)
+	before := blocks()
+
+	created := r.call(t, adminCaller, nameCreateComment, `{"target":"observation:`+observation+`","body":"`+token+` what changed?","to":"agent"}`)
+	out, ok := created.Content.(commentResultOut)
+	if !ok || out.Run == nil || out.RunRefusal != nil {
+		t.Fatalf("create = %s", textOf(t, created))
+	}
+	replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+token+` and before?","to":"agent"}`)
+	if again, ok := replied.Content.(commentResultOut); !ok || again.Run == nil || again.RunRefusal != nil {
+		t.Fatalf("reply = %s", textOf(t, replied))
+	}
+	var asks int
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND observation_id IS NULL AND subject_observation_id = $1 AND thread_message_id IS NOT NULL`, observation).Scan(&asks); err != nil || asks != 2 {
+		t.Fatalf("%d read-only asks about the observation, err %v, want 2", asks, err)
+	}
+	if after := blocks(); after != before {
+		t.Fatalf("the observation has %d blocks after the asks, want %d", after, before)
 	}
 }
 

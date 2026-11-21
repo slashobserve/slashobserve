@@ -6,12 +6,15 @@ import {
   UploadIcon,
 } from "lucide-react"
 
-import { ChatComposer, useOpenSent } from "@/chat/chat-composer"
+import { useOpenSentTurn } from "@/chat/open-sent"
 import { composerPlaceholder } from "@/chat/prompt-length"
 import { useChooseExample } from "@/chat/use-choose-example"
 import { useExamples } from "@/chat/use-examples"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Composer } from "@/conversation/composer"
+import { ungated } from "@/conversation/delivery"
+import { useComposer } from "@/conversation/use-composer"
 import { NewObservationForm } from "@/observations/new-observation-form"
 import { useCreateObservation } from "@/observations/queries"
 
@@ -66,8 +69,28 @@ function NewObservationTab({ autoFocus }: { autoFocus: boolean }) {
   )
 }
 
+function AskTab({ autoFocus }: { autoFocus: boolean }) {
+  const model = useComposer({
+    subject: null,
+    place: { kind: "chat", chatId: null },
+    gate: ungated,
+    onSent: useOpenSentTurn(),
+  })
+  return (
+    <Composer
+      model={model}
+      layout="page"
+      framed={false}
+      importLink={false}
+      rows={3}
+      placeholder={composerPlaceholder}
+      autoFocus={autoFocus}
+      promptPicker
+    />
+  )
+}
+
 export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
-  const openSent = useOpenSent()
   return (
     <div className="rounded-card border bg-card focus-within:border-foreground">
       <Tabs
@@ -94,15 +117,7 @@ export function TaskCard({ tab, onTabChange, autoFocusTab }: Props) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="ask">
-          <ChatComposer
-            framed={false}
-            importLink={false}
-            rows={3}
-            placeholder={composerPlaceholder}
-            autoFocus={autoFocusTab === "ask"}
-            promptPicker
-            onSent={openSent}
-          />
+          <AskTab autoFocus={autoFocusTab === "ask"} />
         </TabsContent>
         <TabsContent value="observe">
           <NewObservationTab autoFocus={autoFocusTab === "observe"} />

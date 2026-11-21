@@ -479,8 +479,8 @@ func TestListFiltersByProblemKeepsADashboardWaitingForARecheckOfAProblemOrARepai
 	for _, id := range []string{repaired, cleanOutdated} {
 		r.db.Exec(t, `INSERT INTO dashboard_health (dashboard_id, version, checked_at, issues) VALUES ($1, 1, now(), '[]'::jsonb)`, id)
 	}
-	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
-		VALUES ($1, 'prompt', $2, 1, 'user', $3, 'Ada')`, repaired, repairprompt.Prefix, testUserID)
+	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
+		VALUES ($1, 'apply', $2, 1, 'user', $3, 'Ada')`, repaired, repairprompt.Prefix, testUserID)
 	edit(hadProblem, "Had a problem")
 	edit(repaired, "Repaired")
 	edit(cleanOutdated, "Clean outdated")

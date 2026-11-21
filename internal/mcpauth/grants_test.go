@@ -161,8 +161,8 @@ func holdRun(t *testing.T, r *rig, grantID, claimedBy string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, status, state, lease_until, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, claimed_by)
-		VALUES ($1, 'prompt', 'p', 1, 'running', 'running', now() + interval '1 minute', 'user', $2, 'Ada', 'grant', $3::uuid, $4)`, dash.ID, ada.ID, grantID, claimedBy)
+	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, status, state, lease_until, requested_by_kind, requested_by_id, requested_by_name, assigned_kind, assigned_id, claimed_by)
+		VALUES ($1, 'apply', 'p', 1, 'running', 'running', now() + interval '1 minute', 'user', $2, 'Ada', 'grant', $3::uuid, $4)`, dash.ID, ada.ID, grantID, claimedBy)
 }
 
 func TestGrantClaimKeyInSQLMatchesTheClaimantKey(t *testing.T) {

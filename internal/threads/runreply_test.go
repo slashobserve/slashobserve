@@ -187,17 +187,17 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultProposal)
 			return run, "Opened a proposal: " + title + "."
 		}},
-		{"chat-only answer from a dashboard thread carries its text and a link to the chat", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"answer in a dashboard thread carries its title and text", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Answered in the chat of the person who asked.\n\nthe 5xx rate rose\n\nFull answer (only the person who asked and Admins can open it): [the chat](/c/" + run.ID.String() + ")"
+			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
-		{"finding in an observation thread", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"answer in an observation thread carries its title and text", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Wrote the answer into this observation: Checkout is slow.\n\nthe 5xx rate rose"
+			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
 		}},
 	}
 	for _, tt := range tests {

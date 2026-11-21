@@ -68,8 +68,8 @@ func (r rig) dashboard(t *testing.T) pgtype.UUID {
 func (r rig) runOn(t *testing.T, o observations.Observation, dashboardID pgtype.UUID) {
 	t.Helper()
 	var run string
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
-VALUES ('investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::timestamptz - interval '1 hour', $3::timestamptz) RETURNING id::text`, editor.ID, dashboardID, windowTo).Scan(&run); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, context_from, context_to)
+VALUES ('ask', 'investigate', 'why', 'user', $1::uuid, 'Eve', $2, $3::timestamptz - interval '1 hour', $3::timestamptz) RETURNING id::text`, editor.ID, dashboardID, windowTo).Scan(&run); err != nil {
 		t.Fatal(err)
 	}
 	r.db.Exec(t, `UPDATE observations SET run_id = $1::uuid, time_from = $2::timestamptz - interval '1 hour', time_to = $2::timestamptz WHERE id = $3::uuid`, run, windowTo, o.ID)

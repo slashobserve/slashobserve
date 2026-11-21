@@ -4,7 +4,6 @@ import {
   composerMode,
   contentChange,
   mayEditBesidesContent,
-  mayInvestigate,
   readerNote,
   type DashboardPermissions,
 } from "./permissions"
@@ -63,29 +62,6 @@ describe("readerNote", () => {
     expect(readerNote("read-only", "Payments")).toBe(
       "You can view dashboards in Payments. To comment, ask the people who manage this folder for Comment access."
     )
-  })
-})
-
-describe("mayInvestigate", () => {
-  it("needs Edit on the dashboard and the Editor role", () => {
-    const edit = permissions({ comment: true, edit: true })
-    expect(mayInvestigate(edit, "editor", false)).toBe(true)
-    expect(mayInvestigate(edit, "admin", false)).toBe(true)
-    expect(mayInvestigate(edit, "viewer", false)).toBe(false)
-    expect(mayInvestigate(edit, "commenter", false)).toBe(false)
-    expect(
-      mayInvestigate(permissions({ comment: true }), "editor", false)
-    ).toBe(false)
-  })
-})
-
-describe("mayInvestigate on a starter dashboard", () => {
-  it("needs only the Editor role, not Edit, which a starter never shows", () => {
-    const starter = permissions({ comment: true })
-    expect(mayInvestigate(starter, "editor", true)).toBe(true)
-    expect(mayInvestigate(starter, "admin", true)).toBe(true)
-    expect(mayInvestigate(starter, "commenter", true)).toBe(false)
-    expect(mayInvestigate(starter, "editor", false)).toBe(false)
   })
 })
 

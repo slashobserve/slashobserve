@@ -72,7 +72,7 @@ When standard output is not a terminal, as in `url=$(bin/observe "checkout p99 l
 `--json` prints the finished request object of `GET /api/v1/observe/{id}` instead, and the steps and panel lines still go to standard error.
 A prompt that only asks a question ends with an answer that stays in the chat, which the CLI prints as `observe investigate` does, followed by the hint `observe save-answer <request-id>`.
 `bin/observe save-answer <request-id>` files that answer as an [observation](observations.md) and prints its address; only the person who asked can, and saving twice prints the same address.
-When the prompt asked to change one existing dashboard, the answer ends with that dashboard's title and the `observe --dashboard <id> '<prompt>'` command that asks for the change there.
+When the prompt asked to change one existing dashboard, the answer ends with that dashboard's title and the `observe --revise --dashboard <id> '<prompt>'` command that asks for the change there.
 Colour is used only in a terminal, and setting `NO_COLOR` to any value turns it off.
 
 The CLI sends no time zone, so the agent writes the times in its answer in UTC, where the web app uses the zone of your browser.
@@ -83,10 +83,11 @@ It opens only `http` and `https` addresses.
 
 ### Follow-ups and waiting
 
-A prompt whose first word is a command name (`access`, `activity`, `annotate`, `annotations`, `cancel`, `chats`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `folders`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `save-answer`, `saved-searches`, `search`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
+A prompt whose first word is a command name (`access`, `activity`, `annotate`, `annotations`, `cancel`, `chats`, `comments`, `completion`, `continue`, `dashboards`, `datasources`, `doctor`, `folders`, `grafana`, `health`, `help`, `import`, `investigate`, `login`, `logout`, `logs`, `metrics`, `o`, `observations`, `open`, `people`, `proposals`, `requests`, `retry`, `run`, `save-answer`, `saved-searches`, `search`, `share-answer`, `skill`, `status`, `teams`, `traces`, `version` or `webhooks`) must be quoted as one argument.
 A prompt of one bare word, or of words whose first word is one letter or two away from a command name, such as `observe dashbords list`, is refused with exit code 2 before anything is sent, because it is almost always a mistyped command and a run costs money; quote the words as one argument to send them anyway.
 A prompt sent with `--dashboard <dashboard-id>` is never refused, since a command name does not take that flag, so `observe --dashboard <id> faster` works.
-`--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
+`--dashboard <dashboard-id>` asks about that dashboard privately, as `observe investigate --private` does, and with `--revise` it sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md); `--revise` without `--dashboard` exits 2.
+`--apply <finding-id>` with `--revise` and `--dashboard`, and no prompt, revises the dashboard with the suggested change of that answer instead of a prompt you write.
 `--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
 `--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
 `--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at pos:0.4,0.3`.
@@ -101,17 +102,20 @@ An Admin can show anyone's request with `observe status`, read only.
 `--timeout` (2 hours by default, so a large build can finish while you wait) stops the waiting and not the request, which keeps running on the server; `bin/observe status <request-id> --wait` waits again.
 While a request waits for a worker, `observe status` prints `Queued, position N`, its place among the queued requests.
 The order can shift, because a request is skipped while another revision of its dashboard is running.
+
+`observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
-It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser.
+It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
+An ask about an observation adds `About observation <id>`, also after its answer is saved into another observation.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
 While a request is running, `observe status` also prints a `Live text` section with what the agent is writing, the same text the Working row shows in the browser; it is not kept, so it is gone once the run ends, and `--json` carries it as `live_text`.
 
 ### Your requests
 
-`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, source, dashboard and title.
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard and title.
 The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
-`--state` (repeatable, or comma-separated), `--source` (`observe`, `prompt`, `comment` or `investigate`), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
 `--scope all` lists every principal's requests and needs the Admin role.
 It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
 Archived requests are left out.
@@ -133,7 +137,9 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
-An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`, each once per reader in 10 minutes.
+An Admin may show anyone's chat, read only.
+
+Every show is recorded in the audit trail as `chat.view` with the owner's id and every list as `chat.list` with its scope, each once per reader in 10 minutes.
 
 `chats pin <chat-id>` and `chats unpin <chat-id>` pin a chat of yours to the top of the list and take it back, as Pin and Unpin do on the Chats page; pinning a pinned chat changes nothing, and only the chat's owner can do it.
 The id must be a chat id from `chats list`; the id of a later turn or of any other request is refused with `is not one of your chats`.
@@ -324,7 +330,13 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--observation` names an existing observation to write into, by its id.
 `--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at series:service=checkout`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks.
-`--panel` without `--dashboard`, or one of `--from` and `--to` alone, or an `--observation` that is not an id, exits 2.
+`--panel` without `--dashboard`, one of `--from` and `--to` alone, an `--observation` that is not an id, or `--private` without exactly one of `--dashboard` and `--observation`, exits 2.
+
+`--private` asks privately about one of `--dashboard` or `--observation`: it needs only Comment on it, writes nothing into it and opens no observation, and the answer is read only by you and, read only, by Admins (see [Private asks](../concepts/agent.md#private-asks)).
+`bin/observe share-answer <request-id>` then shows that answer to everyone who can read what it was about: it opens a comment thread there with your question and the answer, and on an observation it also writes the answer onto the page; `--thread <thread-id>` adds both to that thread instead.
+Only the person who asked can share, a run is shared once, and sharing again prints the same thread.
+`bin/observe status <request-id>` and `bin/observe chats show <chat-id>` then name the thread, and `bin/observe comments withdraw <thread-id>` takes it back to only you while nobody else has written in that thread.
+
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
 Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
 With `--observation` the run and the conclusion go into that observation.
@@ -449,6 +461,11 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
 - `bin/observe comments delete <comment-id>` deletes one comment: its author may while they can still comment, unless an agent run wrote it, and anyone who manages the target's folder may delete any comment, including an agent's reply.
   Deleting the first comment of a thread deletes the whole thread, which its author may do only while nobody else has written in it; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
+- `bin/observe comments withdraw <comment-id>` withdraws an answer you shared with `share-answer` back to only you: it deletes the thread when the share opened it and otherwise only the shared question and its answer, takes the id of the thread or of any of its comments, and works only for the person who asked while every comment in the thread is theirs or their run's reply.
+  On an observation the answer's text that was written onto the page stays there, while the run and its answer leave the observation's lists, the answer can be shared again later, and `-q` hides its confirmation.
+- `bin/observe comments apply <comment-id> <finding-id>` makes the change an answer in a dashboard thread suggests: the finding id is the answer's, from `bin/observe status <request-id> --json`, and the answer must have been given in that thread.
+  It posts "Revise the dashboard: <suggested change>" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
+  Applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints `Already applied by run <id>`; an answer without a suggested change is refused with `no_suggested_change`.
 - `bin/observe comments people --on <kind>:<id>` lists up to 20 people, other than you, who can see the target, with the mention to paste into a comment.
   `--search <text>` keeps those whose name or email contains the text, and a notice says when more people match.
   A person who cannot see the target is not listed, and mentioning one is refused with `invalid_mention`.
@@ -467,20 +484,20 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 `--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
-A dashboard thread starts a comment run, which a Commenter may start and which ends in a proposal when you cannot edit; an observation thread starts an investigation, which needs the Editor role; an annotation or a proposal thread starts none.
+A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts a read-only ask, which needs Comment on the observation and answers in the thread without writing on the page; an annotation or a proposal thread starts none.
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.
-Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only people who can see the target, your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider, or a thread agent that was disconnected), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
 
 When the run ends, it posts one reply in the same thread and never resolves the thread or reopens a resolved one.
 The reply reads "Observe Agent for <your name>" when the built-in agent took the run, "<your name> (via <client>)" when one of your connected agents did, and the service account's own name when a service account did.
-The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered in the chat of the person who asked.` followed by the first paragraph of the answer and a link to the chat (the web app shows it as a link; the text ends with `[the chat](/c/<run id>)`, and the message's `actor.run_id` in `--json` is the same run id) for an answer kept in its asker's chat, which only they and an Admin can open, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, the last two followed by the first paragraph of the finding as plain text, cut at a word with `...` when it is long, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was stopped before it finished.`
+The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered: <title>.` for an answer not filed in an observation, which everyone who can read the thread can open, `Saved a finding: <title>.` or, in an observation thread whose page shows the answer, `Wrote the answer into this observation: <title>.`, the three followed by the first paragraph of the finding as plain text, cut at a word with `...` when it is long, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was stopped before it finished.`
 The run's own page has the detail.
 A retry or a continuation of the run answers in the same thread and goes to the same agent; when that connected agent was revoked, has expired or is not yours, or the service account no longer takes runs, the command fails with `assignee_unavailable` and starts nothing.
+Someone who cannot comment on the observation of an observation thread, and retries an answer from it that was saved as an observation, gets a private ask of their own about the saved observation, and nothing is posted in the thread.
 
 Add `--json` to any of them to print the API response unchanged.
 

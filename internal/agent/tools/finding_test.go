@@ -5,12 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/annotations"
@@ -26,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logtest"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 var findingWindowTo = time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
@@ -75,7 +80,7 @@ func newFindingRig(t *testing.T) *findingRig {
 }
 
 func investigateRun(from, to time.Time) Run {
-	return Run{Mode: ModeInvestigate, Prompt: "why are checkout errors up\nsince the deploy", From: from, To: to}
+	return Run{Mode: ModeInvestigate, Prompt: "why are checkout errors up\nsince the deploy", From: from, To: to, Investigation: true}
 }
 
 func (r *findingRig) callIn(t *testing.T, run *Run, by auth.Principal, tool, input string) Result {
@@ -232,7 +237,7 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	if len(f.Evidence) != 2 || f.Evidence[0].ID != "evidence-1" || f.Evidence[1].ID != "evidence-2" {
 		t.Errorf("evidence = %+v", f.Evidence)
 	}
-	if !f.From.Equal(from) || !f.To.Equal(findingWindowTo) || f.Title != "why are checkout errors up" || f.DashboardID != "" {
+	if !f.From.Equal(from) || !f.To.Equal(findingWindowTo) || f.Title != "Finding" || f.DashboardID != "" {
 		t.Errorf("finding = %s to %s %q dashboard %q", f.From, f.To, f.Title, f.DashboardID)
 	}
 }
@@ -258,24 +263,83 @@ func TestSaveFindingUsesTheShortTitleTheAgentGave(t *testing.T) {
 	}
 }
 
-func TestSaveFindingShortensThePromptWhenTheAgentGaveNoTitle(t *testing.T) {
+func TestSaveFindingNamesAnUntitledAnswerWithoutThePrompt(t *testing.T) {
 	r := newFindingRig(t)
-	run := Run{Mode: ModeCreate, Prompt: "@observe why are server errors elevated, and which pod is responsible for them right now?"}
-	res := r.callIn(t, &run, editorCaller, nameSaveFinding, `{"markdown":"checkout-0 throws 5xx"}`)
-	saved, ok := res.Content.(findingSavedOut)
-	if res.IsError || !ok {
+	for name, c := range map[string]struct {
+		investigation bool
+		want          string
+	}{
+		"an ask":           {false, "Answer"},
+		"an investigation": {true, "Finding"},
+	} {
+		run := Run{Mode: ModeCreate, Prompt: "@observe why are server errors elevated, and which pod is responsible for them right now?", Investigation: c.investigation}
+		res := r.callIn(t, &run, editorCaller, nameSaveFinding, `{"markdown":"checkout-0 throws 5xx"}`)
+		saved, ok := res.Content.(findingSavedOut)
+		if res.IsError || !ok {
+			t.Fatalf("%s: save: %#v", name, res.Content)
+		}
+		id, err := db.ParseUUID(saved.FindingID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Title != c.want {
+			t.Errorf("%s: title = %q, want %q", name, f.Title, c.want)
+		}
+	}
+}
+
+func TestAnUntitledPrivateAnswerSavedAsAnObservationShowsNoWordOfItsQuestion(t *testing.T) {
+	const secret = "quasarbudget"
+	r := newFindingRig(t)
+	queue := revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithBuiltInAgent(), revisions.WithAccess(folders.NewAccess(r.db.DB)))
+	board, _, err := r.dashboards.Create(reading(t.Context()), adminCaller, pgtype.UUID{}, []byte(boardSpec("Checkout")), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prompt := "is the " + secret + " plan why checkout fails"
+	started, err := queue.Start(reading(t.Context()), editorCaller, revisions.StartRequest{Prompt: &prompt, DashboardID: &board.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !revisions.PrivateAsk(started.AgentRequest) {
+		t.Fatalf("run %+v is not a private ask", started.AgentRequest)
+	}
+	run, err := RunFor(revisions.RequestOf(started.AgentRequest))
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.From, run.To = findingWindowTo.Add(-time.Hour), findingWindowTo
+	if res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx")); res.IsError {
 		t.Fatalf("save: %#v", res.Content)
 	}
-	id, err := db.ParseUUID(saved.FindingID)
+	res := r.callIn(t, nil, editorCaller, nameSaveRunAnswer, `{"run_id":"`+started.ID.String()+`"}`)
+	filed, ok := res.Content.(runAnswerSavedOut)
+	if res.IsError || !ok {
+		t.Fatalf("save answer: %#v", res.Content)
+	}
+
+	reader := auth.Principal{Kind: auth.KindUser, ID: "44444444-4444-4444-8444-444444444444", Name: "Bea", Role: auth.RoleEditor}
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	observations.NewHandler(r.observations, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(engine.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), reader))
+	})))
+	rec := httptest.NewRecorder()
+	engine.ServeHTTP(rec, httptest.NewRequestWithContext(reading(t.Context()), http.MethodGet, "/api/v1/observations/"+filed.ObservationID, nil))
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), secret) || !strings.Contains(rec.Body.String(), `"title":"Answer"`) {
+		t.Errorf("REST read of the saved answer: %d %s", rec.Code, rec.Body)
+	}
+	read := r.callIn(t, nil, reader, nameGetObservation, `{"observation_id":"`+filed.ObservationID+`"}`)
+	raw, err := json.Marshal(read.Content)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.Title != "why are server errors elevated, and which pod is responsible..." {
-		t.Errorf("title = %q", f.Title)
+	if read.IsError || strings.Contains(string(raw), secret) || !strings.Contains(string(raw), `"title":"Answer"`) {
+		t.Errorf("get_observation of the saved answer: %s", raw)
 	}
 }
 
@@ -329,7 +393,7 @@ func TestSaveFindingWritesTheConclusionIntoTheRunsObservation(t *testing.T) {
 		t.Fatalf("kinds %v, want %v", kinds, want)
 	}
 	var text observations.TextBody
-	if err := json.Unmarshal(o.Blocks[1].Body, &text); err != nil || text.Markdown != "## why are checkout errors up\n\ncheckout-0 throws 5xx since 09:12" {
+	if err := json.Unmarshal(o.Blocks[1].Body, &text); err != nil || text.Markdown != "## Finding\n\ncheckout-0 throws 5xx since 09:12" {
 		t.Errorf("text %q, %v", text.Markdown, err)
 	}
 	var panel observations.PanelBody
@@ -366,7 +430,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 		t.Fatal(err)
 	}
 	row, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
-		DashboardID: dashboard, Source: "prompt", Prompt: "why is this panel flat", BaseVersion: 1,
+		DashboardID: dashboard, Intent: "apply", Prompt: "why is this panel flat", BaseVersion: 1,
 		RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
 	if err != nil {
@@ -461,6 +525,31 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	after, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), row.ID)
 	if err != nil || after.ObservationID.Valid || saved.URL != "/c/"+row.ID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
+	}
+}
+
+func TestSuggestedChangeIsOneSentenceOnADashboardAskOnly(t *testing.T) {
+	onDashboard := Run{Mode: ModeInvestigate, DashboardID: "00000000-0000-4000-8000-000000000001"}
+	cases := []struct {
+		name string
+		raw  string
+		run  Run
+		want string
+		ok   bool
+	}{
+		{"none anywhere", "", Run{Mode: ModeCreate}, "", true},
+		{"a sentence on a dashboard ask", "  Split the error panel by pod. ", onDashboard, "Split the error panel by pod.", true},
+		{"on Home", "Add a panel.", Run{Mode: ModeCreate}, "", false},
+		{"on an observation ask", "Add a panel.", Run{Mode: ModeInvestigate}, "", false},
+		{"in a revision", "Add a panel.", Run{Mode: ModeRevise, DashboardID: onDashboard.DashboardID}, "", false},
+		{"two lines", "Add a panel.\nThen another.", onDashboard, "", false},
+		{"too long", strings.Repeat("a", maxSuggestedChangeRunes+1), onDashboard, "", false},
+	}
+	for _, c := range cases {
+		got, res, ok := suggestedChange(c.raw, c.run)
+		if ok != c.ok || got != c.want || ok == res.IsError {
+			t.Errorf("%s: got %q ok %v res %#v", c.name, got, ok, res.Content)
+		}
 	}
 }
 

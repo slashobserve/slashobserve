@@ -74,7 +74,7 @@ WITH target AS (
   LEFT JOIN dashboard_versions saved ON saved.agent_request_id = r.id AND (r.dashboard_id IS NULL OR saved.dashboard_id = r.dashboard_id)
   LEFT JOIN findings f ON f.agent_request_id = r.id
   LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = r.id LIMIT 1) pr ON true
-  WHERE r.id = $5 AND r.state = ANY($6::text[]) AND r.source <> 'suggest'
+  WHERE r.id = $5 AND r.state = ANY($6::text[]) AND r.intent <> 'suggest'
   FOR UPDATE OF r
 )
 UPDATE agent_requests
@@ -86,6 +86,7 @@ SET cancel_requested_at = coalesce(agent_requests.cancel_requested_at, clock_tim
   status = CASE WHEN NOT t.finishes THEN 'running' WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
   result_kind = CASE WHEN NOT t.finishes THEN agent_requests.result_kind WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
   result_version = CASE WHEN t.finishes THEN t.saved_version ELSE agent_requests.result_version END,
+  intent = CASE WHEN t.finishes AND t.saved_version IS NOT NULL THEN 'apply' ELSE agent_requests.intent END,
   dashboard_id = CASE WHEN t.finishes THEN coalesce(agent_requests.dashboard_id, t.saved_dashboard_id) ELSE agent_requests.dashboard_id END,
   error = CASE WHEN NOT t.finishes THEN agent_requests.error WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN $4::text END,
   failure_code = CASE WHEN NOT t.finishes THEN agent_requests.failure_code WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
@@ -93,7 +94,7 @@ SET cancel_requested_at = coalesce(agent_requests.cancel_requested_at, clock_tim
   finished_at = CASE WHEN t.finishes THEN clock_timestamp() ELSE agent_requests.finished_at END
 FROM target t
 WHERE agent_requests.id = t.id
-RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id, t.prior_state::text AS prior_state
+RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id, agent_requests.intent, agent_requests.kind, agent_requests.applies_finding_id, agent_requests.subject_observation_id, agent_requests.investigation, t.prior_state::text AS prior_state
 `
 
 type CancelAgentRequestParams struct {
@@ -123,7 +124,6 @@ func (q *Queries) CancelAgentRequest(ctx context.Context, arg CancelAgentRequest
 	err := row.Scan(
 		&i.AgentRequest.ID,
 		&i.AgentRequest.DashboardID,
-		&i.AgentRequest.Source,
 		&i.AgentRequest.CommentID,
 		&i.AgentRequest.Prompt,
 		&i.AgentRequest.PanelID,
@@ -176,6 +176,11 @@ func (q *Queries) CancelAgentRequest(ctx context.Context, arg CancelAgentRequest
 		&i.AgentRequest.Anchor,
 		&i.AgentRequest.BlockID,
 		&i.AgentRequest.ClientID,
+		&i.AgentRequest.Intent,
+		&i.AgentRequest.Kind,
+		&i.AgentRequest.AppliesFindingID,
+		&i.AgentRequest.SubjectObservationID,
+		&i.AgentRequest.Investigation,
 		&i.PriorState,
 	)
 	return i, err
@@ -247,9 +252,9 @@ WITH running AS (
     AND r.attempts < $4::integer
     AND r.assigned_kind = $5::text
     AND r.assigned_id IS NOT DISTINCT FROM $6::uuid
-    AND (r.dashboard_id IS NULL OR r.source IN ('suggest', 'investigate') OR NOT EXISTS (
+    AND (r.dashboard_id IS NULL OR r.intent <> 'apply' OR NOT EXISTS (
       SELECT 1 FROM agent_requests o
-      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.source NOT IN ('suggest', 'investigate') AND o.id <> r.id
+      WHERE o.dashboard_id = r.dashboard_id AND o.status = 'running' AND o.intent = 'apply' AND o.id <> r.id
     ))
     AND (r.chat_id IS NULL OR NOT EXISTS (
       SELECT 1 FROM agent_requests e
@@ -269,7 +274,7 @@ SET state = 'running',
   claimed_by = $2::text
 FROM picked
 WHERE agent_requests.id = picked.id
-RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id, picked.first_claim::boolean AS first_claim
+RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id, agent_requests.intent, agent_requests.kind, agent_requests.applies_finding_id, agent_requests.subject_observation_id, agent_requests.investigation, picked.first_claim::boolean AS first_claim
 `
 
 type ClaimAgentRequestParams struct {
@@ -299,7 +304,6 @@ func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestPa
 	err := row.Scan(
 		&i.AgentRequest.ID,
 		&i.AgentRequest.DashboardID,
-		&i.AgentRequest.Source,
 		&i.AgentRequest.CommentID,
 		&i.AgentRequest.Prompt,
 		&i.AgentRequest.PanelID,
@@ -352,6 +356,11 @@ func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestPa
 		&i.AgentRequest.Anchor,
 		&i.AgentRequest.BlockID,
 		&i.AgentRequest.ClientID,
+		&i.AgentRequest.Intent,
+		&i.AgentRequest.Kind,
+		&i.AgentRequest.AppliesFindingID,
+		&i.AgentRequest.SubjectObservationID,
+		&i.AgentRequest.Investigation,
 		&i.FirstClaim,
 	)
 	return i, err
@@ -359,7 +368,7 @@ func (q *Queries) ClaimAgentRequest(ctx context.Context, arg ClaimAgentRequestPa
 
 const countActiveAgentRequests = `-- name: CountActiveAgentRequests :one
 SELECT count(*) FROM agent_requests
-WHERE dashboard_id = $1 AND source NOT IN ('suggest', 'investigate') AND status IN ('queued', 'running')
+WHERE dashboard_id = $1 AND intent = 'apply' AND status IN ('queued', 'running')
 `
 
 func (q *Queries) CountActiveAgentRequests(ctx context.Context, dashboardID pgtype.UUID) (int64, error) {
@@ -370,7 +379,7 @@ func (q *Queries) CountActiveAgentRequests(ctx context.Context, dashboardID pgty
 }
 
 const countActiveInvestigateRequests = `-- name: CountActiveInvestigateRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'investigate' AND status IN ('queued', 'running')
+SELECT count(*) FROM agent_requests WHERE investigation AND status IN ('queued', 'running')
 `
 
 func (q *Queries) CountActiveInvestigateRequests(ctx context.Context) (int64, error) {
@@ -382,7 +391,7 @@ func (q *Queries) CountActiveInvestigateRequests(ctx context.Context) (int64, er
 
 const countActiveInvestigateRequestsBy = `-- name: CountActiveInvestigateRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'investigate' AND status IN ('queued', 'running') AND requested_by_id = $1
+WHERE investigation AND status IN ('queued', 'running') AND requested_by_id = $1
 `
 
 func (q *Queries) CountActiveInvestigateRequestsBy(ctx context.Context, requestedByID pgtype.UUID) (int64, error) {
@@ -393,7 +402,8 @@ func (q *Queries) CountActiveInvestigateRequestsBy(ctx context.Context, requeste
 }
 
 const countActiveObserveRequests = `-- name: CountActiveObserveRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'observe' AND status IN ('queued', 'running')
+SELECT count(*) FROM agent_requests WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running')
+  AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL))
 `
 
 func (q *Queries) CountActiveObserveRequests(ctx context.Context) (int64, error) {
@@ -405,7 +415,8 @@ func (q *Queries) CountActiveObserveRequests(ctx context.Context) (int64, error)
 
 const countActiveObserveRequestsBy = `-- name: CountActiveObserveRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'observe' AND status IN ('queued', 'running') AND requested_by_id = $1
+WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running') AND requested_by_id = $1
+  AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL))
 `
 
 func (q *Queries) CountActiveObserveRequestsBy(ctx context.Context, requestedByID pgtype.UUID) (int64, error) {
@@ -416,7 +427,7 @@ func (q *Queries) CountActiveObserveRequestsBy(ctx context.Context, requestedByI
 }
 
 const countActiveSuggestRequests = `-- name: CountActiveSuggestRequests :one
-SELECT count(*) FROM agent_requests WHERE source = 'suggest' AND status IN ('queued', 'running')
+SELECT count(*) FROM agent_requests WHERE intent = 'suggest' AND status IN ('queued', 'running')
 `
 
 func (q *Queries) CountActiveSuggestRequests(ctx context.Context) (int64, error) {
@@ -428,7 +439,7 @@ func (q *Queries) CountActiveSuggestRequests(ctx context.Context) (int64, error)
 
 const countActiveSuggestRequestsBy = `-- name: CountActiveSuggestRequestsBy :one
 SELECT count(*) FROM agent_requests
-WHERE source = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = $1
+WHERE intent = 'suggest' AND status IN ('queued', 'running') AND requested_by_id = $1
 `
 
 func (q *Queries) CountActiveSuggestRequestsBy(ctx context.Context, requestedByID pgtype.UUID) (int64, error) {
@@ -441,24 +452,22 @@ func (q *Queries) CountActiveSuggestRequestsBy(ctx context.Context, requestedByI
 const countAgentRequestsAll = `-- name: CountAgentRequestsAll :one
 SELECT count(*) AS total, count(DISTINCT (r.requested_by_kind, r.requested_by_id)) AS people
 FROM agent_requests r
-WHERE r.source <> 'suggest'
+WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($1::text IS NULL OR r.source = $1::text)
-  AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
-  AND ($3::uuid IS NULL OR r.chat_id = $3::uuid OR r.id = $3::uuid)
-  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
-  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text OR EXISTS (
+  AND ($1::uuid IS NULL OR r.dashboard_id = $1::uuid)
+  AND ($2::uuid IS NULL OR r.chat_id = $2::uuid OR r.id = $2::uuid)
+  AND ($3::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $3::boolean)
+  AND ($4::text IS NULL OR r.title ILIKE $4::text OR r.prompt ILIKE $4::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $5::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $4::text
       AND CASE WHEN sf.observation_id IS NULL
-        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($6::uuid[]))
-        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($6::uuid[]))
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($5::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($5::uuid[]))
       END))
-  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
+  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
 `
 
 type CountAgentRequestsAllParams struct {
-	Source      pgtype.Text
 	DashboardID pgtype.UUID
 	ChatID      pgtype.UUID
 	Pinned      pgtype.Bool
@@ -474,7 +483,6 @@ type CountAgentRequestsAllRow struct {
 
 func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentRequestsAllParams) (CountAgentRequestsAllRow, error) {
 	row := q.db.QueryRow(ctx, countAgentRequestsAll,
-		arg.Source,
 		arg.DashboardID,
 		arg.ChatID,
 		arg.Pinned,
@@ -490,26 +498,24 @@ func (q *Queries) CountAgentRequestsAll(ctx context.Context, arg CountAgentReque
 const countAgentRequestsBy = `-- name: CountAgentRequestsBy :one
 SELECT count(*) AS total
 FROM agent_requests r
-WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.source <> 'suggest'
+WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($3::text IS NULL OR r.source = $3::text)
-  AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
-  AND ($5::uuid IS NULL OR r.chat_id = $5::uuid OR r.id = $5::uuid)
-  AND ($6::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $6::boolean)
-  AND ($7::text IS NULL OR r.title ILIKE $7::text OR r.prompt ILIKE $7::text OR EXISTS (
+  AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
+  AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
+  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
+  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $7::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $6::text
       AND CASE WHEN sf.observation_id IS NULL
-        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($8::uuid[]))
-        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($8::uuid[]))
+        THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($7::uuid[]))
+        ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($7::uuid[]))
       END))
-  AND ($9::text[] IS NULL OR r.state = ANY($9::text[]))
+  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
 `
 
 type CountAgentRequestsByParams struct {
 	RequestedByKind string
 	RequestedByID   pgtype.UUID
-	Source          pgtype.Text
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
 	Pinned          pgtype.Bool
@@ -522,7 +528,6 @@ func (q *Queries) CountAgentRequestsBy(ctx context.Context, arg CountAgentReques
 	row := q.db.QueryRow(ctx, countAgentRequestsBy,
 		arg.RequestedByKind,
 		arg.RequestedByID,
-		arg.Source,
 		arg.DashboardID,
 		arg.ChatID,
 		arg.Pinned,
@@ -554,28 +559,29 @@ func (q *Queries) CountQueuedAgentRequestsBefore(ctx context.Context, arg CountQ
 
 const enqueueAgentRequest = `-- name: EnqueueAgentRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, source, comment_id, prompt, panel_id, base_version,
+  id, dashboard_id, intent, kind, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
   assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
-  chat_id, anchor, block_id, client_id
+  chat_id, anchor, block_id, client_id, applies_finding_id
 ) VALUES (
-  coalesce($1::uuid, gen_random_uuid()), $2, $3, $4, $5, $6, $7::integer,
+  coalesce($1::uuid, gen_random_uuid()), $2, $3, 'build', $4, $5, $6, $7::integer,
   $8, $9, $10, $11,
   $12::text, $13::text,
   $14::uuid, $15::text, $16::uuid,
   coalesce($17::text, 'builtin'), $18::uuid, coalesce($19::text, 'person'),
   $20::uuid, $21::text, $22::text,
-  $23::uuid, $24::jsonb, $25::uuid, $26::uuid
+  $23::uuid, $24::jsonb, $25::uuid, $26::uuid,
+  $27::uuid
 )
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type EnqueueAgentRequestParams struct {
 	ID               pgtype.UUID
 	DashboardID      pgtype.UUID
-	Source           string
+	Intent           string
 	CommentID        pgtype.UUID
 	Prompt           string
 	PanelID          pgtype.Text
@@ -599,13 +605,14 @@ type EnqueueAgentRequestParams struct {
 	Anchor           []byte
 	BlockID          pgtype.UUID
 	ClientID         pgtype.UUID
+	AppliesFindingID pgtype.UUID
 }
 
 func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentRequestParams) (AgentRequest, error) {
 	row := q.db.QueryRow(ctx, enqueueAgentRequest,
 		arg.ID,
 		arg.DashboardID,
-		arg.Source,
+		arg.Intent,
 		arg.CommentID,
 		arg.Prompt,
 		arg.PanelID,
@@ -629,12 +636,12 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		arg.Anchor,
 		arg.BlockID,
 		arg.ClientID,
+		arg.AppliesFindingID,
 	)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -687,53 +694,61 @@ func (q *Queries) EnqueueAgentRequest(ctx context.Context, arg EnqueueAgentReque
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
 
 const enqueueInvestigateRequest = `-- name: EnqueueInvestigateRequest :one
 INSERT INTO agent_requests (
-  id, dashboard_id, source, prompt, panel_id, context_from, context_to,
+  id, dashboard_id, intent, kind, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
-  chat_id, anchor, block_id, client_id
+  chat_id, anchor, block_id, client_id, subject_observation_id, investigation
 ) VALUES (
-  coalesce($1::uuid, gen_random_uuid()), $2::uuid, 'investigate', $3, $4::text,
+  coalesce($1::uuid, gen_random_uuid()), $2::uuid, 'ask', 'investigate', $3, $4::text,
   $5::timestamptz, $6::timestamptz,
   $7, $8, $9, $10,
   $11::text, $12::text,
   $13::uuid, coalesce($14::text, 'builtin'), $15::uuid, coalesce($16::text, 'person'),
   $17::uuid, $18::text, $19::text,
-  $20::uuid, $21::jsonb, $22::uuid, $23::uuid
+  $20::uuid, $21::jsonb, $22::uuid, $23::uuid,
+  $24::uuid, $25::boolean
 )
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type EnqueueInvestigateRequestParams struct {
-	ID               pgtype.UUID
-	DashboardID      pgtype.UUID
-	Prompt           string
-	PanelID          pgtype.Text
-	ContextFrom      pgtype.Timestamptz
-	ContextTo        pgtype.Timestamptz
-	RequestedByKind  string
-	RequestedByID    pgtype.UUID
-	RequestedByName  string
-	RequestedByEmail pgtype.Text
-	Origin           pgtype.Text
-	OriginClient     pgtype.Text
-	RetriesID        pgtype.UUID
-	AssignedKind     pgtype.Text
-	AssignedID       pgtype.UUID
-	Trigger          pgtype.Text
-	ThreadMessageID  pgtype.UUID
-	ThreadContext    pgtype.Text
-	TimeZone         pgtype.Text
-	ChatID           pgtype.UUID
-	Anchor           []byte
-	BlockID          pgtype.UUID
-	ClientID         pgtype.UUID
+	ID                   pgtype.UUID
+	DashboardID          pgtype.UUID
+	Prompt               string
+	PanelID              pgtype.Text
+	ContextFrom          pgtype.Timestamptz
+	ContextTo            pgtype.Timestamptz
+	RequestedByKind      string
+	RequestedByID        pgtype.UUID
+	RequestedByName      string
+	RequestedByEmail     pgtype.Text
+	Origin               pgtype.Text
+	OriginClient         pgtype.Text
+	RetriesID            pgtype.UUID
+	AssignedKind         pgtype.Text
+	AssignedID           pgtype.UUID
+	Trigger              pgtype.Text
+	ThreadMessageID      pgtype.UUID
+	ThreadContext        pgtype.Text
+	TimeZone             pgtype.Text
+	ChatID               pgtype.UUID
+	Anchor               []byte
+	BlockID              pgtype.UUID
+	ClientID             pgtype.UUID
+	SubjectObservationID pgtype.UUID
+	Investigation        bool
 }
 
 func (q *Queries) EnqueueInvestigateRequest(ctx context.Context, arg EnqueueInvestigateRequestParams) (AgentRequest, error) {
@@ -761,12 +776,13 @@ func (q *Queries) EnqueueInvestigateRequest(ctx context.Context, arg EnqueueInve
 		arg.Anchor,
 		arg.BlockID,
 		arg.ClientID,
+		arg.SubjectObservationID,
+		arg.Investigation,
 	)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -819,17 +835,22 @@ func (q *Queries) EnqueueInvestigateRequest(ctx context.Context, arg EnqueueInve
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
 
 const enqueueObserveRequest = `-- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (id, source, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
-VALUES (coalesce($1::uuid, gen_random_uuid()), 'observe', $2, $3, $4, $5, $6,
+INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
+VALUES (coalesce($1::uuid, gen_random_uuid()), 'ask', 'build', $2, $3, $4, $5, $6,
   $7::text, $8::text, $9::uuid, $10::text, $11::uuid,
   $12::uuid, $13::text, $14::text, $15::uuid)
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type EnqueueObserveRequestParams struct {
@@ -872,7 +893,6 @@ func (q *Queries) EnqueueObserveRequest(ctx context.Context, arg EnqueueObserveR
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -925,20 +945,25 @@ func (q *Queries) EnqueueObserveRequest(ctx context.Context, arg EnqueueObserveR
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
 
 const enqueueSuggestRequest = `-- name: EnqueueSuggestRequest :one
 INSERT INTO agent_requests (
-  dashboard_id, source, prompt, panel_id, base_version, draft,
+  dashboard_id, intent, kind, prompt, panel_id, base_version, draft,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client
 ) VALUES (
-  $1, 'suggest', $2, $3, $4::integer, $5::jsonb,
+  $1, 'suggest', 'build', $2, $3, $4::integer, $5::jsonb,
   $6, $7, $8, $9,
   $10::text, $11::text
 )
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type EnqueueSuggestRequestParams struct {
@@ -973,7 +998,6 @@ func (q *Queries) EnqueueSuggestRequest(ctx context.Context, arg EnqueueSuggestR
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1026,6 +1050,11 @@ func (q *Queries) EnqueueSuggestRequest(ctx context.Context, arg EnqueueSuggestR
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -1036,6 +1065,7 @@ SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL)
   status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
   result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
+  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
   error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE $1::text END,
   failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent_unavailable' END,
@@ -1052,7 +1082,7 @@ WHERE r.id = e.id
   AND r.cancel_requested_at IS NULL
   AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
   AND greatest(r.created_at, coalesce(r.lease_until, r.created_at)) < clock_timestamp() - make_interval(secs => $3::double precision)
-RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id
+RETURNING r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation
 `
 
 type ExpireUnclaimedAgentRequestsParams struct {
@@ -1073,7 +1103,6 @@ func (q *Queries) ExpireUnclaimedAgentRequests(ctx context.Context, arg ExpireUn
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
-			&i.Source,
 			&i.CommentID,
 			&i.Prompt,
 			&i.PanelID,
@@ -1126,6 +1155,11 @@ func (q *Queries) ExpireUnclaimedAgentRequests(ctx context.Context, arg ExpireUn
 			&i.Anchor,
 			&i.BlockID,
 			&i.ClientID,
+			&i.Intent,
+			&i.Kind,
+			&i.AppliesFindingID,
+			&i.SubjectObservationID,
+			&i.Investigation,
 		); err != nil {
 			return nil, err
 		}
@@ -1147,7 +1181,7 @@ SET state = 'failed',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $4 AND state = ANY($5::text[]) AND attempts = $6
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type FailAgentRequestParams struct {
@@ -1172,7 +1206,6 @@ func (q *Queries) FailAgentRequest(ctx context.Context, arg FailAgentRequestPara
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1225,6 +1258,11 @@ func (q *Queries) FailAgentRequest(ctx context.Context, arg FailAgentRequestPara
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -1235,6 +1273,7 @@ SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL)
   status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
   result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
+  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
   error = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'agent run did not finish' END,
   failure_code = CASE WHEN (saved.version IS NOT NULL OR f.id IS NOT NULL OR pr.id IS NOT NULL) THEN NULL ELSE 'lease_expired' END,
@@ -1246,7 +1285,7 @@ LEFT JOIN findings f ON f.agent_request_id = e.id
 LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) pr ON true
 WHERE r.id = e.id AND r.status = 'running' AND r.state = ANY($1::text[])
   AND r.lease_until < clock_timestamp() AND r.attempts >= $2::integer
-RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id
+RETURNING r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation
 `
 
 type FailExhaustedAgentRequestsParams struct {
@@ -1266,7 +1305,6 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, arg FailExhaus
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
-			&i.Source,
 			&i.CommentID,
 			&i.Prompt,
 			&i.PanelID,
@@ -1319,6 +1357,11 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, arg FailExhaus
 			&i.Anchor,
 			&i.BlockID,
 			&i.ClientID,
+			&i.Intent,
+			&i.Kind,
+			&i.AppliesFindingID,
+			&i.SubjectObservationID,
+			&i.Investigation,
 		); err != nil {
 			return nil, err
 		}
@@ -1331,7 +1374,7 @@ func (q *Queries) FailExhaustedAgentRequests(ctx context.Context, arg FailExhaus
 }
 
 const getAgentRequest = `-- name: GetAgentRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND source NOT IN ('suggest', 'investigate')
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND intent = 'apply'
 `
 
 type GetAgentRequestParams struct {
@@ -1345,7 +1388,6 @@ func (q *Queries) GetAgentRequest(ctx context.Context, arg GetAgentRequestParams
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1398,12 +1440,17 @@ func (q *Queries) GetAgentRequest(ctx context.Context, arg GetAgentRequestParams
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
 
 const getAgentRequestByClient = `-- name: GetAgentRequestByClient :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id FROM agent_requests
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests
 WHERE requested_by_kind = $1 AND requested_by_id = $2 AND client_id = $3
 `
 
@@ -1419,7 +1466,6 @@ func (q *Queries) GetAgentRequestByClient(ctx context.Context, arg GetAgentReque
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1472,12 +1518,17 @@ func (q *Queries) GetAgentRequestByClient(ctx context.Context, arg GetAgentReque
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
 
 const getAgentRequestByID = `-- name: GetAgentRequestByID :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id FROM agent_requests WHERE id = $1
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests WHERE id = $1
 `
 
 func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (AgentRequest, error) {
@@ -1486,7 +1537,6 @@ func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (Agen
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1539,6 +1589,11 @@ func (q *Queries) GetAgentRequestByID(ctx context.Context, id pgtype.UUID) (Agen
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -1586,22 +1641,17 @@ func (q *Queries) GetAssigneeName(ctx context.Context, arg GetAssigneeNameParams
 	return name, err
 }
 
-const getSuggestRequest = `-- name: GetSuggestRequest :one
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND source = 'suggest'
+const getRunApplyingFinding = `-- name: GetRunApplyingFinding :one
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests
+WHERE applies_finding_id = $1 AND status IN ('queued', 'running', 'succeeded')
 `
 
-type GetSuggestRequestParams struct {
-	ID          pgtype.UUID
-	DashboardID pgtype.UUID
-}
-
-func (q *Queries) GetSuggestRequest(ctx context.Context, arg GetSuggestRequestParams) (AgentRequest, error) {
-	row := q.db.QueryRow(ctx, getSuggestRequest, arg.ID, arg.DashboardID)
+func (q *Queries) GetRunApplyingFinding(ctx context.Context, findingID pgtype.UUID) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, getRunApplyingFinding, findingID)
 	var i AgentRequest
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -1654,6 +1704,87 @@ func (q *Queries) GetSuggestRequest(ctx context.Context, arg GetSuggestRequestPa
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
+	)
+	return i, err
+}
+
+const getSuggestRequest = `-- name: GetSuggestRequest :one
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests WHERE id = $1 AND dashboard_id = $2 AND intent = 'suggest'
+`
+
+type GetSuggestRequestParams struct {
+	ID          pgtype.UUID
+	DashboardID pgtype.UUID
+}
+
+func (q *Queries) GetSuggestRequest(ctx context.Context, arg GetSuggestRequestParams) (AgentRequest, error) {
+	row := q.db.QueryRow(ctx, getSuggestRequest, arg.ID, arg.DashboardID)
+	var i AgentRequest
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.CommentID,
+		&i.Prompt,
+		&i.PanelID,
+		&i.BaseVersion,
+		&i.Status,
+		&i.Attempts,
+		&i.CheckFailures,
+		&i.LeaseUntil,
+		&i.ResultVersion,
+		&i.Error,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+		&i.RequestedByName,
+		&i.RequestedByEmail,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Steps,
+		&i.RunUsage,
+		&i.Origin,
+		&i.OriginClient,
+		&i.Draft,
+		&i.Suggestion,
+		&i.FailureCode,
+		&i.BuildSavedAt,
+		&i.CancelRequestedAt,
+		&i.CanceledByKind,
+		&i.CanceledByID,
+		&i.CanceledByName,
+		&i.ContinuesID,
+		&i.ContinueNote,
+		&i.ContextFrom,
+		&i.ContextTo,
+		&i.Title,
+		&i.PinnedAt,
+		&i.ArchivedAt,
+		&i.Trigger,
+		&i.State,
+		&i.ResultKind,
+		&i.AssignedKind,
+		&i.AssignedID,
+		&i.ClaimedBy,
+		&i.ObservationID,
+		&i.ThreadMessageID,
+		&i.ThreadContext,
+		&i.ChatID,
+		&i.RetriesID,
+		&i.TimeZone,
+		&i.ThreadRepliedAt,
+		&i.Anchor,
+		&i.BlockID,
+		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -1692,8 +1823,8 @@ func (q *Queries) LatestAgentRequestsForComments(ctx context.Context, commentIds
 }
 
 const listAgentRequests = `-- name: ListAgentRequests :many
-SELECT id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id FROM agent_requests
-WHERE dashboard_id = $1 AND source NOT IN ('suggest', 'investigate')
+SELECT id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation FROM agent_requests
+WHERE dashboard_id = $1 AND intent = 'apply'
   AND ($2::timestamptz IS NULL
     OR (created_at, id) < ($2::timestamptz, $3::uuid))
 ORDER BY created_at DESC, id DESC
@@ -1724,7 +1855,6 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
-			&i.Source,
 			&i.CommentID,
 			&i.Prompt,
 			&i.PanelID,
@@ -1777,6 +1907,11 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 			&i.Anchor,
 			&i.BlockID,
 			&i.ClientID,
+			&i.Intent,
+			&i.Kind,
+			&i.AppliesFindingID,
+			&i.SubjectObservationID,
+			&i.Investigation,
 		); err != nil {
 			return nil, err
 		}
@@ -1789,41 +1924,42 @@ func (q *Queries) ListAgentRequests(ctx context.Context, arg ListAgentRequestsPa
 }
 
 const listAgentRequestsAll = `-- name: ListAgentRequestsAll :many
-SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
+  r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
+LEFT JOIN chats ch ON ch.id = r.chat_id
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
-WHERE r.source <> 'suggest'
+WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($2::text IS NULL OR r.source = $2::text)
-  AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
-  AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
-  AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
-  AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR EXISTS (
+  AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
+  AND ($3::uuid IS NULL OR r.chat_id = $3::uuid OR r.id = $3::uuid)
+  AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
+  AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $6::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $5::text
       AND CASE WHEN sf.observation_id IS NULL
         THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($1::uuid[]))
         ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($1::uuid[]))
       END))
-  AND ($7::text[] IS NULL OR r.state = ANY($7::text[]))
-  AND ($8::timestamptz IS NULL
-    OR (r.created_at, r.id) < ($8::timestamptz, $9::uuid))
+  AND ($6::text[] IS NULL OR r.state = ANY($6::text[]))
+  AND ($7::timestamptz IS NULL
+    OR (r.created_at, r.id) < ($7::timestamptz, $8::uuid))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $10
+LIMIT $9
 `
 
 type ListAgentRequestsAllParams struct {
 	Folders         []pgtype.UUID
-	Source          pgtype.Text
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
 	Pinned          pgtype.Bool
@@ -1835,43 +1971,49 @@ type ListAgentRequestsAllParams struct {
 }
 
 type ListAgentRequestsAllRow struct {
-	ID               pgtype.UUID
-	Source           string
-	Trigger          string
-	Prompt           string
-	DashboardID      pgtype.UUID
-	PanelID          pgtype.Text
-	Status           string
-	State            string
-	ResultKind       string
-	Attempts         int32
-	ResultVersion    pgtype.Int4
-	Error            pgtype.Text
-	Origin           pgtype.Text
-	OriginClient     pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	StartedAt        pgtype.Timestamptz
-	FinishedAt       pgtype.Timestamptz
-	FailureCode      pgtype.Text
-	BuildSavedAt     pgtype.Timestamptz
-	ContinuesID      pgtype.UUID
-	ContinueNote     pgtype.Text
-	Title            pgtype.Text
-	PinnedAt         pgtype.Timestamptz
-	ObservationID    pgtype.UUID
-	ChatID           pgtype.UUID
-	RequestedByKind  string
-	RequestedByID    pgtype.UUID
-	RequestedByName  string
-	DashboardTitle   pgtype.Text
-	ObservationTitle pgtype.Text
-	FindingID        pgtype.UUID
+	ID                   pgtype.UUID
+	Intent               string
+	Kind                 string
+	Investigation        bool
+	Trigger              string
+	Prompt               string
+	DashboardID          pgtype.UUID
+	PanelID              pgtype.Text
+	Status               string
+	State                string
+	ResultKind           string
+	Attempts             int32
+	ResultVersion        pgtype.Int4
+	Error                pgtype.Text
+	Origin               pgtype.Text
+	OriginClient         pgtype.Text
+	CreatedAt            pgtype.Timestamptz
+	StartedAt            pgtype.Timestamptz
+	FinishedAt           pgtype.Timestamptz
+	FailureCode          pgtype.Text
+	BuildSavedAt         pgtype.Timestamptz
+	ContinuesID          pgtype.UUID
+	ContinueNote         pgtype.Text
+	Title                pgtype.Text
+	PinnedAt             pgtype.Timestamptz
+	ObservationID        pgtype.UUID
+	ChatID               pgtype.UUID
+	BaseVersion          pgtype.Int4
+	CommentID            pgtype.UUID
+	ThreadMessageID      pgtype.UUID
+	SubjectObservationID pgtype.UUID
+	RequestedByKind      string
+	RequestedByID        pgtype.UUID
+	RequestedByName      string
+	ChatObservationID    pgtype.UUID
+	DashboardTitle       pgtype.Text
+	ObservationTitle     pgtype.Text
+	FindingID            pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequestsAllParams) ([]ListAgentRequestsAllRow, error) {
 	rows, err := q.db.Query(ctx, listAgentRequestsAll,
 		arg.Folders,
-		arg.Source,
 		arg.DashboardID,
 		arg.ChatID,
 		arg.Pinned,
@@ -1890,7 +2032,9 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 		var i ListAgentRequestsAllRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Source,
+			&i.Intent,
+			&i.Kind,
+			&i.Investigation,
 			&i.Trigger,
 			&i.Prompt,
 			&i.DashboardID,
@@ -1914,9 +2058,14 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 			&i.PinnedAt,
 			&i.ObservationID,
 			&i.ChatID,
+			&i.BaseVersion,
+			&i.CommentID,
+			&i.ThreadMessageID,
+			&i.SubjectObservationID,
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,
+			&i.ChatObservationID,
 			&i.DashboardTitle,
 			&i.ObservationTitle,
 			&i.FindingID,
@@ -1932,45 +2081,46 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 }
 
 const listAgentRequestsBy = `-- name: ListAgentRequestsBy :many
-SELECT r.id, r.source, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
+SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status, r.state, r.result_kind, r.attempts, r.result_version, r.error,
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
+  r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
+  ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
   o.title AS observation_title,
   f.id AS finding_id
 FROM agent_requests r
+LEFT JOIN chats ch ON ch.id = r.chat_id
 LEFT JOIN dashboards d ON d.id = r.dashboard_id AND d.folder_id = ANY($1::uuid[])
 LEFT JOIN observations o ON o.id = r.observation_id AND o.folder_id = ANY($1::uuid[])
 LEFT JOIN findings f ON f.agent_request_id = r.id AND o.id IS NOT NULL
-WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.source <> 'suggest'
+WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.intent <> 'suggest'
   AND r.archived_at IS NULL
-  AND ($4::text IS NULL OR r.source = $4::text)
-  AND ($5::uuid IS NULL OR r.dashboard_id = $5::uuid)
-  AND ($6::uuid IS NULL OR r.chat_id = $6::uuid OR r.id = $6::uuid)
-  AND ($7::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $7::boolean)
-  AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text OR EXISTS (
+  AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
+  AND ($5::uuid IS NULL OR r.chat_id = $5::uuid OR r.id = $5::uuid)
+  AND ($6::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $6::boolean)
+  AND ($7::text IS NULL OR r.title ILIKE $7::text OR r.prompt ILIKE $7::text OR EXISTS (
     SELECT 1 FROM findings sf
-    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $8::text
+    WHERE sf.agent_request_id = r.id AND sf.markdown ILIKE $7::text
       AND CASE WHEN sf.observation_id IS NULL
         THEN sf.dashboard_id IS NULL OR EXISTS (SELECT 1 FROM dashboards sd WHERE sd.id = sf.dashboard_id AND sd.folder_id = ANY($1::uuid[]))
         ELSE EXISTS (SELECT 1 FROM observations so WHERE so.id = sf.observation_id AND so.folder_id = ANY($1::uuid[]))
       END))
-  AND ($9::text[] IS NULL OR r.state = ANY($9::text[]))
-  AND ($10::timestamptz IS NULL
-    OR ((r.pinned_at IS NOT NULL) = $11::boolean
-      AND (r.created_at, r.id) < ($10::timestamptz, $12::uuid))
-    OR ($11::boolean AND r.pinned_at IS NULL))
+  AND ($8::text[] IS NULL OR r.state = ANY($8::text[]))
+  AND ($9::timestamptz IS NULL
+    OR ((r.pinned_at IS NOT NULL) = $10::boolean
+      AND (r.created_at, r.id) < ($9::timestamptz, $11::uuid))
+    OR ($10::boolean AND r.pinned_at IS NULL))
 ORDER BY (r.pinned_at IS NOT NULL) DESC, r.created_at DESC, r.id DESC
-LIMIT $13
+LIMIT $12
 `
 
 type ListAgentRequestsByParams struct {
 	Folders         []pgtype.UUID
 	RequestedByKind string
 	RequestedByID   pgtype.UUID
-	Source          pgtype.Text
 	DashboardID     pgtype.UUID
 	ChatID          pgtype.UUID
 	Pinned          pgtype.Bool
@@ -1983,37 +2133,44 @@ type ListAgentRequestsByParams struct {
 }
 
 type ListAgentRequestsByRow struct {
-	ID               pgtype.UUID
-	Source           string
-	Trigger          string
-	Prompt           string
-	DashboardID      pgtype.UUID
-	PanelID          pgtype.Text
-	Status           string
-	State            string
-	ResultKind       string
-	Attempts         int32
-	ResultVersion    pgtype.Int4
-	Error            pgtype.Text
-	Origin           pgtype.Text
-	OriginClient     pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	StartedAt        pgtype.Timestamptz
-	FinishedAt       pgtype.Timestamptz
-	FailureCode      pgtype.Text
-	BuildSavedAt     pgtype.Timestamptz
-	ContinuesID      pgtype.UUID
-	ContinueNote     pgtype.Text
-	Title            pgtype.Text
-	PinnedAt         pgtype.Timestamptz
-	ObservationID    pgtype.UUID
-	ChatID           pgtype.UUID
-	RequestedByKind  string
-	RequestedByID    pgtype.UUID
-	RequestedByName  string
-	DashboardTitle   pgtype.Text
-	ObservationTitle pgtype.Text
-	FindingID        pgtype.UUID
+	ID                   pgtype.UUID
+	Intent               string
+	Kind                 string
+	Investigation        bool
+	Trigger              string
+	Prompt               string
+	DashboardID          pgtype.UUID
+	PanelID              pgtype.Text
+	Status               string
+	State                string
+	ResultKind           string
+	Attempts             int32
+	ResultVersion        pgtype.Int4
+	Error                pgtype.Text
+	Origin               pgtype.Text
+	OriginClient         pgtype.Text
+	CreatedAt            pgtype.Timestamptz
+	StartedAt            pgtype.Timestamptz
+	FinishedAt           pgtype.Timestamptz
+	FailureCode          pgtype.Text
+	BuildSavedAt         pgtype.Timestamptz
+	ContinuesID          pgtype.UUID
+	ContinueNote         pgtype.Text
+	Title                pgtype.Text
+	PinnedAt             pgtype.Timestamptz
+	ObservationID        pgtype.UUID
+	ChatID               pgtype.UUID
+	BaseVersion          pgtype.Int4
+	CommentID            pgtype.UUID
+	ThreadMessageID      pgtype.UUID
+	SubjectObservationID pgtype.UUID
+	RequestedByKind      string
+	RequestedByID        pgtype.UUID
+	RequestedByName      string
+	ChatObservationID    pgtype.UUID
+	DashboardTitle       pgtype.Text
+	ObservationTitle     pgtype.Text
+	FindingID            pgtype.UUID
 }
 
 func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequestsByParams) ([]ListAgentRequestsByRow, error) {
@@ -2021,7 +2178,6 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 		arg.Folders,
 		arg.RequestedByKind,
 		arg.RequestedByID,
-		arg.Source,
 		arg.DashboardID,
 		arg.ChatID,
 		arg.Pinned,
@@ -2041,7 +2197,9 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 		var i ListAgentRequestsByRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.Source,
+			&i.Intent,
+			&i.Kind,
+			&i.Investigation,
 			&i.Trigger,
 			&i.Prompt,
 			&i.DashboardID,
@@ -2065,9 +2223,14 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.PinnedAt,
 			&i.ObservationID,
 			&i.ChatID,
+			&i.BaseVersion,
+			&i.CommentID,
+			&i.ThreadMessageID,
+			&i.SubjectObservationID,
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,
+			&i.ChatObservationID,
 			&i.DashboardTitle,
 			&i.ObservationTitle,
 			&i.FindingID,
@@ -2083,7 +2246,7 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 }
 
 const listRunsAwaitingReply = `-- name: ListRunsAwaitingReply :many
-SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id FROM agent_requests r
+SELECT r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation FROM agent_requests r
 WHERE r.state = ANY($1::text[])
   AND r.thread_message_id IS NOT NULL
   AND r.finished_at > clock_timestamp() - make_interval(secs => $2::float8)
@@ -2110,7 +2273,6 @@ func (q *Queries) ListRunsAwaitingReply(ctx context.Context, arg ListRunsAwaitin
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
-			&i.Source,
 			&i.CommentID,
 			&i.Prompt,
 			&i.PanelID,
@@ -2163,6 +2325,11 @@ func (q *Queries) ListRunsAwaitingReply(ctx context.Context, arg ListRunsAwaitin
 			&i.Anchor,
 			&i.BlockID,
 			&i.ClientID,
+			&i.Intent,
+			&i.Kind,
+			&i.AppliesFindingID,
+			&i.SubjectObservationID,
+			&i.Investigation,
 		); err != nil {
 			return nil, err
 		}
@@ -2215,7 +2382,7 @@ UPDATE agent_requests
 SET state = 'queued', status = 'queued', attempts = attempts - 1, lease_until = NULL,
   check_failures = check_failures + CASE WHEN $1::boolean THEN 1 ELSE 0 END
 WHERE id = $2 AND state = ANY($3::text[]) AND attempts = $4
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type ReleaseAgentRequestParams struct {
@@ -2236,7 +2403,6 @@ func (q *Queries) ReleaseAgentRequest(ctx context.Context, arg ReleaseAgentReque
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2289,6 +2455,11 @@ func (q *Queries) ReleaseAgentRequest(ctx context.Context, arg ReleaseAgentReque
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2324,9 +2495,28 @@ func (q *Queries) RunHasProposal(ctx context.Context, id pgtype.UUID) (bool, err
 	return exists, err
 }
 
+const seedAgentRequestStep = `-- name: SeedAgentRequestStep :execrows
+UPDATE agent_requests
+SET steps = steps || jsonb_build_array($1::jsonb)
+WHERE id = $2 AND status = 'queued'
+`
+
+type SeedAgentRequestStepParams struct {
+	Step []byte
+	ID   pgtype.UUID
+}
+
+func (q *Queries) SeedAgentRequestStep(ctx context.Context, arg SeedAgentRequestStepParams) (int64, error) {
+	result, err := q.db.Exec(ctx, seedAgentRequestStep, arg.Step, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setRequestObservation = `-- name: SetRequestObservation :one
 UPDATE agent_requests SET observation_id = $1 WHERE id = $2
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type SetRequestObservationParams struct {
@@ -2340,7 +2530,6 @@ func (q *Queries) SetRequestObservation(ctx context.Context, arg SetRequestObser
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2393,6 +2582,11 @@ func (q *Queries) SetRequestObservation(ctx context.Context, arg SetRequestObser
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2427,6 +2621,7 @@ SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.pr
   status = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'failed' ELSE 'succeeded' END,
   result_kind = CASE WHEN t.finding_id IS NOT NULL THEN 'observation' WHEN t.saved_version IS NOT NULL THEN 'version' WHEN t.proposal_id IS NOT NULL THEN 'proposal' ELSE agent_requests.result_kind END,
   result_version = t.saved_version,
+  intent = CASE WHEN t.saved_version IS NOT NULL THEN 'apply' ELSE agent_requests.intent END,
   dashboard_id = coalesce(agent_requests.dashboard_id, t.saved_dashboard_id),
   error = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN $1::text END,
   failure_code = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.proposal_id IS NULL) THEN 'canceled' END,
@@ -2435,7 +2630,7 @@ SET state = CASE WHEN (t.saved_version IS NULL AND t.finding_id IS NULL AND t.pr
   finished_at = clock_timestamp()
 FROM target t
 WHERE agent_requests.id = t.id
-RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.source, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id
+RETURNING agent_requests.id, agent_requests.dashboard_id, agent_requests.comment_id, agent_requests.prompt, agent_requests.panel_id, agent_requests.base_version, agent_requests.status, agent_requests.attempts, agent_requests.check_failures, agent_requests.lease_until, agent_requests.result_version, agent_requests.error, agent_requests.requested_by_kind, agent_requests.requested_by_id, agent_requests.requested_by_name, agent_requests.requested_by_email, agent_requests.created_at, agent_requests.started_at, agent_requests.finished_at, agent_requests.steps, agent_requests.run_usage, agent_requests.origin, agent_requests.origin_client, agent_requests.draft, agent_requests.suggestion, agent_requests.failure_code, agent_requests.build_saved_at, agent_requests.cancel_requested_at, agent_requests.canceled_by_kind, agent_requests.canceled_by_id, agent_requests.canceled_by_name, agent_requests.continues_id, agent_requests.continue_note, agent_requests.context_from, agent_requests.context_to, agent_requests.title, agent_requests.pinned_at, agent_requests.archived_at, agent_requests.trigger, agent_requests.state, agent_requests.result_kind, agent_requests.assigned_kind, agent_requests.assigned_id, agent_requests.claimed_by, agent_requests.observation_id, agent_requests.thread_message_id, agent_requests.thread_context, agent_requests.chat_id, agent_requests.retries_id, agent_requests.time_zone, agent_requests.thread_replied_at, agent_requests.anchor, agent_requests.block_id, agent_requests.client_id, agent_requests.intent, agent_requests.kind, agent_requests.applies_finding_id, agent_requests.subject_observation_id, agent_requests.investigation
 `
 
 type SettleAgentRequestParams struct {
@@ -2458,7 +2653,6 @@ func (q *Queries) SettleAgentRequest(ctx context.Context, arg SettleAgentRequest
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2511,6 +2705,11 @@ func (q *Queries) SettleAgentRequest(ctx context.Context, arg SettleAgentRequest
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2521,6 +2720,7 @@ SET state = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL)
   status = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'failed' ELSE 'succeeded' END,
   result_kind = CASE WHEN f.id IS NOT NULL THEN 'observation' WHEN saved.version IS NOT NULL THEN 'version' WHEN pr.id IS NOT NULL THEN 'proposal' ELSE r.result_kind END,
   result_version = saved.version,
+  intent = CASE WHEN saved.version IS NOT NULL THEN 'apply' ELSE r.intent END,
   dashboard_id = coalesce(r.dashboard_id, saved.dashboard_id),
   error = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN $1::text END,
   failure_code = CASE WHEN (saved.version IS NULL AND f.id IS NULL AND pr.id IS NULL) THEN 'canceled' END,
@@ -2533,7 +2733,7 @@ LEFT JOIN LATERAL (SELECT p.id FROM proposals p WHERE p.run_id = e.id LIMIT 1) p
 WHERE r.id = e.id AND r.status IN ('queued', 'running') AND r.state = ANY($2::text[])
   AND r.cancel_requested_at IS NOT NULL
   AND (r.state = 'queued' OR r.lease_until IS NULL OR r.lease_until < clock_timestamp())
-RETURNING r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id
+RETURNING r.id, r.dashboard_id, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, r.intent, r.kind, r.applies_finding_id, r.subject_observation_id, r.investigation
 `
 
 type SettleCanceledAgentRequestsParams struct {
@@ -2553,7 +2753,6 @@ func (q *Queries) SettleCanceledAgentRequests(ctx context.Context, arg SettleCan
 		if err := rows.Scan(
 			&i.ID,
 			&i.DashboardID,
-			&i.Source,
 			&i.CommentID,
 			&i.Prompt,
 			&i.PanelID,
@@ -2606,6 +2805,11 @@ func (q *Queries) SettleCanceledAgentRequests(ctx context.Context, arg SettleCan
 			&i.Anchor,
 			&i.BlockID,
 			&i.ClientID,
+			&i.Intent,
+			&i.Kind,
+			&i.AppliesFindingID,
+			&i.SubjectObservationID,
+			&i.Investigation,
 		); err != nil {
 			return nil, err
 		}
@@ -2623,12 +2827,13 @@ SET state = 'succeeded',
   status = 'succeeded',
   result_kind = CASE WHEN EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = $1) THEN 'observation' ELSE 'version' END,
   result_version = $2::integer,
+  intent = 'apply',
   run_usage = $3::jsonb,
   dashboard_id = coalesce(dashboard_id, (SELECT v.dashboard_id FROM dashboard_versions v WHERE v.agent_request_id = $1)),
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $1 AND state = ANY($4::text[]) AND attempts = $5
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type SucceedAgentRequestParams struct {
@@ -2651,7 +2856,6 @@ func (q *Queries) SucceedAgentRequest(ctx context.Context, arg SucceedAgentReque
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2704,6 +2908,11 @@ func (q *Queries) SucceedAgentRequest(ctx context.Context, arg SucceedAgentReque
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2717,11 +2926,9 @@ SET state = 'succeeded',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE agent_requests.id = $2 AND agent_requests.state = ANY($3::text[]) AND agent_requests.attempts = $4
-  AND (agent_requests.source = 'investigate'
-    OR (agent_requests.source = 'observe' AND agent_requests.dashboard_id IS NULL)
-    OR (agent_requests.source IN ('prompt', 'comment') AND agent_requests.dashboard_id IS NOT NULL))
+  AND agent_requests.intent <> 'suggest'
   AND EXISTS (SELECT 1 FROM findings f WHERE f.agent_request_id = agent_requests.id)
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type SucceedFindingRequestParams struct {
@@ -2742,7 +2949,6 @@ func (q *Queries) SucceedFindingRequest(ctx context.Context, arg SucceedFindingR
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2795,6 +3001,11 @@ func (q *Queries) SucceedFindingRequest(ctx context.Context, arg SucceedFindingR
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2809,7 +3020,7 @@ SET state = 'succeeded',
   finished_at = clock_timestamp()
 WHERE agent_requests.id = $2 AND agent_requests.state = ANY($3::text[]) AND agent_requests.attempts = $4
   AND EXISTS (SELECT 1 FROM proposals p WHERE p.run_id = agent_requests.id)
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type SucceedProposalRequestParams struct {
@@ -2830,7 +3041,6 @@ func (q *Queries) SucceedProposalRequest(ctx context.Context, arg SucceedProposa
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2883,6 +3093,11 @@ func (q *Queries) SucceedProposalRequest(ctx context.Context, arg SucceedProposa
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2897,7 +3112,7 @@ SET state = 'succeeded',
   lease_until = NULL,
   finished_at = clock_timestamp()
 WHERE id = $3 AND state = ANY($4::text[]) AND attempts = $5
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type SucceedSuggestRequestParams struct {
@@ -2920,7 +3135,6 @@ func (q *Queries) SucceedSuggestRequest(ctx context.Context, arg SucceedSuggestR
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -2973,6 +3187,11 @@ func (q *Queries) SucceedSuggestRequest(ctx context.Context, arg SucceedSuggestR
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }
@@ -2992,7 +3211,7 @@ SET title = CASE WHEN $1::boolean THEN $2::text ELSE title END,
     WHEN $3::boolean THEN coalesce(pinned_at, clock_timestamp())
     ELSE NULL END
 WHERE agent_requests.id = $4
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id, investigation
 `
 
 type UpdateAgentRequestListFieldsParams struct {
@@ -3013,7 +3232,6 @@ func (q *Queries) UpdateAgentRequestListFields(ctx context.Context, arg UpdateAg
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -3066,6 +3284,11 @@ func (q *Queries) UpdateAgentRequestListFields(ctx context.Context, arg UpdateAg
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
+		&i.Investigation,
 	)
 	return i, err
 }

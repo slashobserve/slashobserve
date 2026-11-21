@@ -24,17 +24,16 @@ var (
 )
 
 func runRow(status Status, source Source) dbsqlc.AgentRequest {
-	return dbsqlc.AgentRequest{
+	return shapedAs(dbsqlc.AgentRequest{
 		ID:              runRequestID,
 		DashboardID:     runDashboardID,
-		Source:          string(source),
 		Status:          string(status),
 		State:           string(status),
 		RequestedByKind: string(auth.KindUser),
 		RequestedByID:   runRequesterID,
 		RequestedByName: "Ada",
 		Origin:          pgtype.Text{String: string(origin.Web), Valid: true},
-	}
+	}, source)
 }
 
 func dataOf(t *testing.T, e activity.Entry) map[string]any {
@@ -257,27 +256,27 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 		typ  string
 		want map[string]any
 	}{
-		{"succeeded with a cost", withUsage(succeeded, priced), activity.TypeRunSucceeded, map[string]any{"source": "prompt", "result_version": float64(7), "cost_usd": 0.125}},
-		{"failed with a cost", withUsage(failed, priced), activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress", "cost_usd": 0.125}},
-		{"canceled with a cost", withUsage(canceled, priced), activity.TypeRunCanceled, map[string]any{"source": "prompt", "cost_usd": 0.125}},
-		{"free run", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"cost_usd":0}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt", "cost_usd": float64(0)}},
-		{"succeeded with an unpriced model", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","cost_usd":null}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
-		{"succeeded with usage from before costs", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","model_calls":3}`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
-		{"failed with no usage", failed, activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
-		{"succeeded with unreadable usage", withUsage(runRow(StatusSucceeded, SourcePrompt), `[1`), activity.TypeRunSucceeded, map[string]any{"source": "prompt"}},
-		{"started keeps no cost", withUsage(running, priced), activity.TypeRunStarted, map[string]any{"source": "prompt", "attempt": float64(2)}},
-		{"queued", runRow(StatusQueued, SourceComment), activity.TypeRunQueued, map[string]any{"source": "comment"}},
-		{"queued continuation", queuedContinuation, activity.TypeRunQueued, map[string]any{"source": "observe", "continues_id": runContinuesID.String()}},
-		{"started", running, activity.TypeRunStarted, map[string]any{"source": "prompt", "attempt": float64(2)}},
-		{"succeeded without a version", runRow(StatusSucceeded, SourceInvestigate), activity.TypeRunSucceeded, map[string]any{"source": "investigate"}},
-		{"succeeded", succeeded, activity.TypeRunSucceeded, map[string]any{"source": "prompt", "result_version": float64(7)}},
-		{"failed without a code", runRow(StatusFailed, SourcePrompt), activity.TypeRunFailed, map[string]any{"source": "prompt"}},
-		{"failed", failed, activity.TypeRunFailed, map[string]any{"source": "prompt", "failure_code": "no_progress"}},
-		{"canceled", canceled, activity.TypeRunCanceled, map[string]any{"source": "prompt"}},
-		{"canceling", inState(running, StateCanceling), activity.TypeRunCanceling, map[string]any{"source": "prompt"}},
-		{"released names the attempt handed back", released, activity.TypeRunReleased, map[string]any{"source": "prompt", "attempt": float64(2)}},
-		{"kept names the saved version", kept, activity.TypeRunKept, map[string]any{"source": "prompt", "result_version": float64(4)}},
-		{"kept without a version", runRow(StatusFailed, SourcePrompt), activity.TypeRunKept, map[string]any{"source": "prompt"}},
+		{"succeeded with a cost", withUsage(succeeded, priced), activity.TypeRunSucceeded, map[string]any{"intent": "apply", "result_version": float64(7), "cost_usd": 0.125}},
+		{"failed with a cost", withUsage(failed, priced), activity.TypeRunFailed, map[string]any{"intent": "apply", "failure_code": "no_progress", "cost_usd": 0.125}},
+		{"canceled with a cost", withUsage(canceled, priced), activity.TypeRunCanceled, map[string]any{"intent": "apply", "cost_usd": 0.125}},
+		{"free run", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"cost_usd":0}`), activity.TypeRunSucceeded, map[string]any{"intent": "apply", "cost_usd": float64(0)}},
+		{"succeeded with an unpriced model", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","cost_usd":null}`), activity.TypeRunSucceeded, map[string]any{"intent": "apply"}},
+		{"succeeded with usage from before costs", withUsage(runRow(StatusSucceeded, SourcePrompt), `{"model":"m","model_calls":3}`), activity.TypeRunSucceeded, map[string]any{"intent": "apply"}},
+		{"failed with no usage", failed, activity.TypeRunFailed, map[string]any{"intent": "apply", "failure_code": "no_progress"}},
+		{"succeeded with unreadable usage", withUsage(runRow(StatusSucceeded, SourcePrompt), `[1`), activity.TypeRunSucceeded, map[string]any{"intent": "apply"}},
+		{"started keeps no cost", withUsage(running, priced), activity.TypeRunStarted, map[string]any{"intent": "apply", "attempt": float64(2)}},
+		{"queued", runRow(StatusQueued, SourceComment), activity.TypeRunQueued, map[string]any{"intent": "apply"}},
+		{"queued continuation", queuedContinuation, activity.TypeRunQueued, map[string]any{"intent": "apply", "continues_id": runContinuesID.String()}},
+		{"started", running, activity.TypeRunStarted, map[string]any{"intent": "apply", "attempt": float64(2)}},
+		{"succeeded without a version", runRow(StatusSucceeded, SourceInvestigate), activity.TypeRunSucceeded, map[string]any{"intent": "ask"}},
+		{"succeeded", succeeded, activity.TypeRunSucceeded, map[string]any{"intent": "apply", "result_version": float64(7)}},
+		{"failed without a code", runRow(StatusFailed, SourcePrompt), activity.TypeRunFailed, map[string]any{"intent": "apply"}},
+		{"failed", failed, activity.TypeRunFailed, map[string]any{"intent": "apply", "failure_code": "no_progress"}},
+		{"canceled", canceled, activity.TypeRunCanceled, map[string]any{"intent": "apply"}},
+		{"canceling", inState(running, StateCanceling), activity.TypeRunCanceling, map[string]any{"intent": "apply"}},
+		{"released names the attempt handed back", released, activity.TypeRunReleased, map[string]any{"intent": "apply", "attempt": float64(2)}},
+		{"kept names the saved version", kept, activity.TypeRunKept, map[string]any{"intent": "apply", "result_version": float64(4)}},
+		{"kept without a version", runRow(StatusFailed, SourcePrompt), activity.TypeRunKept, map[string]any{"intent": "apply"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -294,12 +293,16 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	}
 }
 
-func TestRevisionEventIsSentOnlyForDashboardRequestsThatAreNotSuggestionsOrInvestigations(t *testing.T) {
+func TestRevisionEventIsSentOnlyForRunsThatChangeADashboard(t *testing.T) {
 	withComment := runRow(StatusSucceeded, SourceComment)
 	withComment.CommentID = pgtype.UUID{Bytes: [16]byte{4}, Valid: true}
 	withComment.ResultVersion = pgtype.Int4{Int32: 3, Valid: true}
 	noDashboard := runRow(StatusQueued, SourceObserve)
 	noDashboard.DashboardID = pgtype.UUID{}
+	privateAsk := runRow(StatusRunning, SourceObserve)
+	privateAsk.Intent, privateAsk.ChatID = string(IntentAsk), pgtype.UUID{Bytes: [16]byte{5}, Valid: true}
+	threadAsk := runRow(StatusRunning, SourceObserve)
+	threadAsk.Intent, threadAsk.ThreadMessageID = string(IntentAsk), pgtype.UUID{Bytes: [16]byte{6}, Valid: true}
 
 	ev, ok := revisionEvent(withComment)
 	want := events.Event{
@@ -317,6 +320,8 @@ func TestRevisionEventIsSentOnlyForDashboardRequestsThatAreNotSuggestionsOrInves
 		"a request with no dashboard yet": noDashboard,
 		"a suggestion":                    runRow(StatusQueued, SourceSuggest),
 		"an investigation":                runRow(StatusQueued, SourceInvestigate),
+		"a private ask on the dashboard":  privateAsk,
+		"an ask in a dashboard thread":    threadAsk,
 	} {
 		if ev, ok := revisionEvent(row); ok {
 			t.Errorf("%s sent %+v", name, ev)

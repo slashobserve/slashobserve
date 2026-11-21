@@ -39,6 +39,7 @@ type Service struct {
 	specs        SpecReader
 	builds       Builds
 	threads      Threads
+	threadReads  ThreadReader
 
 	observations RunObservations
 	principals   Principals
@@ -61,7 +62,6 @@ func (s *Service) Available() bool {
 
 type EnqueueParams struct {
 	DashboardID pgtype.UUID
-	Source      Source
 	CommentID   pgtype.UUID
 	Prompt      string
 	PanelID     string
@@ -78,6 +78,8 @@ type EnqueueParams struct {
 	ThreadContext   string
 	Point           Point
 
+	AppliesFindingID pgtype.UUID
+
 	chat     chatChoice
 	clientID pgtype.UUID
 }
@@ -88,7 +90,7 @@ type Point struct {
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, p.Source, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentApply, DashboardID: p.DashboardID}, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	return s.submit(ctx, p)
@@ -145,7 +147,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		ID:               slot.turn,
 		ChatID:           slot.chat,
 		DashboardID:      p.DashboardID,
-		Source:           string(p.Source),
+		Intent:           string(IntentApply),
 		CommentID:        p.CommentID,
 		Prompt:           p.Prompt,
 		PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
@@ -168,7 +170,11 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
+		AppliesFindingID: p.AppliesFindingID,
 	})
+	if db.ViolatedUnique(err) == appliesFindingIndex {
+		return dbsqlc.AgentRequest{}, ErrFindingApplied
+	}
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
@@ -214,7 +220,7 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentApply, DashboardID: p.DashboardID}, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	latest, base, err := s.baseVersionFor(ctx, p.DashboardID, baseVersion)
@@ -226,7 +232,7 @@ func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersi
 			return dbsqlc.AgentRequest{}, err
 		}
 	}
-	p.Source, p.BaseVersion = SourcePrompt, base
+	p.BaseVersion = base
 	return s.submit(ctx, p)
 }
 
@@ -244,7 +250,6 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 	}
 	return s.Submit(ctx, EnqueueParams{
 		DashboardID: dashboardID,
-		Source:      SourceComment,
 		CommentID:   threadID,
 		Prompt:      prompt,
 		PanelID:     panelID,
@@ -267,7 +272,7 @@ func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt s
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
-	if err := s.checkRun(ctx, SourceObserve, pgtype.UUID{}, by); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentAsk}, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	var row dbsqlc.AgentRequest
@@ -354,6 +359,7 @@ type InvestigateParams struct {
 	ThreadContext   string
 	Point           Point
 	Ask             bool
+	Private         bool
 
 	chat     chatChoice
 	clientID pgtype.UUID
@@ -398,7 +404,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !p.Ask {
+	if !p.Ask && !p.Private {
 		if err := checkInvestigateCaps(ctx, q, requesterID); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
@@ -428,6 +434,9 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
+
+		SubjectObservationID: p.subject(),
+		Investigation:        p.opensObservation(),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
@@ -438,8 +447,13 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if row, err = s.openObservation(ctx, q, row, p); err != nil {
-		return dbsqlc.AgentRequest{}, err
+	if p.opensObservation() {
+		if row, err = s.openObservation(ctx, q, row, p); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
+		if err := seedNoObservationStep(ctx, q, row); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
 	}
 	if err := lockAnchoredBlock(ctx, q, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -507,8 +521,23 @@ func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigatePara
 	return nil
 }
 
+func (p InvestigateParams) opensObservation() bool {
+	return !p.Private && !p.ThreadMessageID.Valid
+}
+
+func (p InvestigateParams) subject() pgtype.UUID {
+	if p.opensObservation() {
+		return pgtype.UUID{}
+	}
+	return p.ObservationID
+}
+
+func (p InvestigateParams) target() RunTarget {
+	return RunTarget{Intent: IntentAsk, DashboardID: p.DashboardID, ObservationID: p.ObservationID, Files: !p.Ask && !p.Private}
+}
+
 func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {
-	if err := s.checkRun(ctx, SourceInvestigate, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, p.target(), p.By); err != nil {
 		return err
 	}
 	if p.PanelID == "" {
@@ -558,14 +587,26 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if row.Source == string(SourceSuggest) {
+	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
 	switch {
-	case sameActor(requesterOf(row), by), row.DashboardID.Valid:
+	case sameActor(requesterOf(row), by):
+		return row, nil
+	case PrivateAsk(row):
+		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	case AskedPrivately(row):
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:
-		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+		err := s.checkObservationVisible(ctx, row.ObservationID, by)
+		if errors.Is(err, ErrRequestNotFound) && row.SubjectObservationID.Valid {
+			err = s.checkObservationVisible(ctx, row.SubjectObservationID, by)
+		}
+		return row, err
+	case row.SubjectObservationID.Valid:
+		return row, s.checkObservationVisible(ctx, row.SubjectObservationID, by)
 	}
 	return dbsqlc.AgentRequest{}, ErrRequestNotFound
 }
@@ -576,20 +617,29 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err == nil {
-		s.recordRunView(ctx, row, by)
+		s.recordRunView(ctx, row)
 		return row, false, nil
 	}
-	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
+	if !errors.Is(err, ErrRequestNotFound) {
+		return dbsqlc.AgentRequest{}, false, err
+	}
+	if shared, ok, sharedErr := s.sharedWith(ctx, id, by); sharedErr != nil || ok {
+		if ok {
+			s.recordRunView(ctx, shared)
+		}
+		return shared, ok, sharedErr
+	}
+	if !by.Role.AtLeast(auth.RoleAdmin) {
 		return dbsqlc.AgentRequest{}, false, err
 	}
 	row, err = s.GetByID(ctx, id)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, false, err
 	}
-	if row.Source == string(SourceSuggest) {
+	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
-	s.recordRunView(ctx, row, by)
+	s.recordRunView(ctx, row)
 	return row, true, nil
 }
 
@@ -601,6 +651,7 @@ func (s *Service) Get(ctx context.Context, dashboardID, id pgtype.UUID) (Revisio
 	if err != nil {
 		return Revision{}, fmt.Errorf("get agent request: %w", err)
 	}
+	s.recordRunView(ctx, row)
 	return revisionFromRow(row), nil
 }
 
@@ -627,6 +678,7 @@ func (s *Service) List(ctx context.Context, dashboardID pgtype.UUID, limit int, 
 	for i, r := range rows {
 		items[i] = revisionFromRow(r)
 	}
+	s.recordDashboardRunList(ctx, dashboardID)
 	return items, next, nil
 }
 
@@ -639,7 +691,6 @@ const (
 
 type ListFilter struct {
 	Scope       ListScope
-	Source      string
 	DashboardID pgtype.UUID
 	ChatID      pgtype.UUID
 	Pinned      *bool
@@ -659,7 +710,6 @@ func (f ListFilter) stateNames() []string {
 }
 
 type listMatch struct {
-	source  pgtype.Text
 	pattern pgtype.Text
 	pinned  pgtype.Bool
 	states  []string
@@ -667,7 +717,6 @@ type listMatch struct {
 
 func (f ListFilter) match() listMatch {
 	m := listMatch{
-		source:  pgtype.Text{String: f.Source, Valid: f.Source != ""},
 		pattern: pgtype.Text{String: "%" + escapeLike(f.Query) + "%", Valid: f.Query != ""},
 		states:  f.stateNames(),
 	}
@@ -701,7 +750,6 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
 			Folders:     levels.Visible(),
-			Source:      match.source,
 			DashboardID: filter.DashboardID,
 			ChatID:      filter.ChatID,
 			Pinned:      match.pinned,
@@ -717,7 +765,6 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByKind: string(by.Kind),
 		RequestedByID:   requesterID,
 		Folders:         levels.Visible(),
-		Source:          match.source,
 		DashboardID:     filter.DashboardID,
 		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
@@ -759,7 +806,6 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 	if filter.Scope == ScopeAll {
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
-			Source:          match.source,
 			DashboardID:     filter.DashboardID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
@@ -776,13 +822,12 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		for i, row := range all {
 			rows[i] = dbsqlc.ListAgentRequestsByRow(row)
 		}
-		s.recordEveryonesList(ctx, actionRunList)
+		s.recordList(ctx, actionRunList, ScopeAll)
 	} else {
 		rows, err = s.db.Queries().ListAgentRequestsBy(ctx, dbsqlc.ListAgentRequestsByParams{
 			RequestedByKind: string(by.Kind),
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
-			Source:          match.source,
 			DashboardID:     filter.DashboardID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
@@ -796,6 +841,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		if err != nil {
 			return nil, "", fmt.Errorf("list agent requests: %w", err)
 		}
+		s.recordList(ctx, actionRunList, ScopeMine)
 	}
 	next := ""
 	if len(rows) > limit {
@@ -992,9 +1038,9 @@ func (s *Service) finish(ctx context.Context, claimed dbsqlc.AgentRequest, o out
 
 func runKind(row dbsqlc.AgentRequest) string {
 	switch {
-	case Source(row.Source) == SourceInvestigate:
+	case SourceOf(row) == SourceInvestigate:
 		return "investigate"
-	case Source(row.Source) == SourceSuggest:
+	case SourceOf(row) == SourceSuggest:
 		return "suggest"
 	case !row.DashboardID.Valid:
 		return "create"
@@ -1092,21 +1138,24 @@ func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsq
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Source:       Source(row.Source),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempts:     int(row.Attempts),
-		Error:        row.Error.String,
-		RequestedBy:  requesterOf(row),
-		CreatedAt:    row.CreatedAt.Time.UTC(),
-		Origin:       row.Origin.String,
-		OriginClient: row.OriginClient.String,
-		AssignedKind: AssigneeKind(row.AssignedKind),
-		AssignedID:   row.AssignedID.String(),
+		ID:            row.ID.String(),
+		DashboardID:   row.DashboardID.String(),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Source:        SourceOf(row),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempts:      int(row.Attempts),
+		Error:         row.Error.String,
+		RequestedBy:   requesterOf(row),
+		CreatedAt:     row.CreatedAt.Time.UTC(),
+		Origin:        row.Origin.String,
+		OriginClient:  row.OriginClient.String,
+		AssignedKind:  AssigneeKind(row.AssignedKind),
+		AssignedID:    row.AssignedID.String(),
+		audience:      audienceOf(row),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

@@ -12,12 +12,18 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, maxRetryDelayMs, unwrap } from "@/api/errors"
+import {
+  ApiError,
+  maxRetryDelayMs,
+  resendOnceOffline,
+  unwrap,
+} from "@/api/errors"
 import {
   type ChatListFilters,
   dashboardKeys,
   observationKeys,
   observeKeys,
+  threadKeys,
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
@@ -153,7 +159,6 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
         .GET("/observe", {
           params: {
             query: {
-              source: filters.source,
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
@@ -248,17 +253,31 @@ export function usePollFailures(id: string): number {
   return query === undefined ? 0 : pollFailures(query)
 }
 
-export type ObserveInput = {
-  prompt: string
+type ObserveKind = NonNullable<
+  paths["/observe"]["post"]["requestBody"]["content"]["application/json"]["kind"]
+>
+
+export type ObserveTurn = {
+  kind: ObserveKind
+  chatId?: string
+  clientId?: string
   dashboardId?: string
-  followsId?: string
-  kind?: "build" | "investigate"
+  observationId?: string
   panelId?: string
+  anchor?: components["schemas"]["Anchor"]
+  blockId?: string
   from?: string
   to?: string
-  observationId?: string
   timeZone?: string
 }
+
+type AppliedChange = {
+  kind: "revise"
+  appliesFindingId: string
+  dashboardId: string
+}
+
+export type ObserveInput = ObserveTurn & ({ prompt: string } | AppliedChange)
 
 function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
   queryClient.setQueryData(observeKeys.request(request.id), request)
@@ -276,24 +295,32 @@ export function useCreateObserveRequest() {
     mutationKey: observeKeys.create(),
     networkMode: "always",
     mutationFn: ({
-      prompt,
-      dashboardId,
-      followsId,
       kind,
+      chatId,
+      clientId,
+      dashboardId,
+      observationId,
       panelId,
+      anchor,
+      blockId,
       from,
       to,
-      observationId,
       timeZone,
+      ...asked
     }: ObserveInput) =>
-      api
-        .POST("/observe", {
+      resendOnceOffline(clientId, () =>
+        api.POST("/observe", {
           body: {
-            prompt,
-            dashboard_id: dashboardId,
-            ...(followsId === undefined ? {} : { follows_id: followsId }),
-            ...(kind === undefined ? {} : { kind }),
+            ...("prompt" in asked
+              ? { prompt: asked.prompt }
+              : { applies_finding_id: asked.appliesFindingId }),
+            kind,
+            ...(dashboardId === undefined ? {} : { dashboard_id: dashboardId }),
+            ...(chatId === undefined ? {} : { chat_id: chatId }),
+            ...(clientId === undefined ? {} : { client_id: clientId }),
             ...(panelId === undefined ? {} : { panel_id: panelId }),
+            ...(anchor === undefined ? {} : { anchor }),
+            ...(blockId === undefined ? {} : { block_id: blockId }),
             ...(from === undefined ? {} : { from }),
             ...(to === undefined ? {} : { to }),
             ...(observationId === undefined
@@ -302,6 +329,7 @@ export function useCreateObserveRequest() {
             time_zone: timeZone ?? agentZone(undefined),
           },
         })
+      )
         .then(unwrap)
         .then((body) => body.request),
     onSuccess: (request) => recordRequest(queryClient, request),
@@ -396,6 +424,39 @@ export function useSaveAnswer(id: string) {
       void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
       void queryClient.invalidateQueries({ queryKey: observeKeys.mineAll() })
       void queryClient.invalidateQueries({ queryKey: observationKeys.lists() })
+    },
+  })
+}
+
+export function useShareAnswer(id: string, target: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId?: string) =>
+      api
+        .POST("/observe/{id}/share", {
+          params: { path: { id } },
+          body: threadId === undefined ? {} : { thread_id: threadId },
+        })
+        .then(unwrap),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
+    },
+  })
+}
+
+export function useWithdrawShare(id: string, target: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (threadId: string) =>
+      api
+        .DELETE("/threads/{thread_id}/share", {
+          params: { path: { thread_id: threadId } },
+        })
+        .then(unwrap),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: threadKeys.list(target) })
+      void queryClient.invalidateQueries({ queryKey: observeKeys.request(id) })
     },
   })
 }

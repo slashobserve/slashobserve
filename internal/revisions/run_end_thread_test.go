@@ -43,7 +43,7 @@ func mentionRun(t *testing.T, svc *revisions.Service, d *dbtest.Database, dash p
 	t.Helper()
 	thread := openThread(t, d, dash)
 	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-		DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "why", BaseVersion: 1, By: user,
+		DashboardID: dash, Prompt: "why", BaseVersion: 1, By: user,
 		ThreadMessageID: thread.ID, ThreadContext: "Ada: earlier",
 	})
 	if err != nil {
@@ -178,12 +178,18 @@ func TestARetryOfAMentionRunAnswersInTheSameThread(t *testing.T) {
 		return revisions.Result{}, errors.New("model call failed")
 	}))
 	dash := seedDashboard(t, d, 1)
-	rev, thread := mentionRun(t, svc, d, dash, "")
-	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
+	thread := openThread(t, d, dash).ID
+	asked, err := svc.EnqueueAssignedInvestigate(reading(context.Background()), d.Queries(), revisions.InvestigateParams{
+		Prompt: "why", By: user, DashboardID: dash, Ask: true, ThreadMessageID: thread, ThreadContext: "Ada: earlier",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Cancel(reading(context.Background()), asked.ID, user); err != nil {
 		t.Fatal(err)
 	}
 
-	retried, err := svc.Retry(reading(context.Background()), mustUUID(t, rev.ID), user)
+	retried, err := svc.Retry(reading(context.Background()), asked.ID, user)
 	if err != nil {
 		t.Fatal(err)
 	}

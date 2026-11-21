@@ -31,7 +31,13 @@ function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
     created_at: "2026-11-21T09:00:00Z",
     last_turn_at: "2026-11-21T10:00:00Z",
     turns: 1,
-    last_turn: { id, state: "succeeded", prompt: title },
+    last_turn: {
+      id,
+      state: "succeeded",
+      prompt: title,
+      investigation: false,
+      subject_observation_id: null,
+    },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
     ...overrides,
@@ -44,7 +50,9 @@ function turn(id: string, title: string) {
     kind: "build",
     title,
     pinned_at: null,
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     trigger: "person",
     prompt: title,
     status: "succeeded",
@@ -159,6 +167,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ChatsPage rows", () => {
+  it("says who can see your chats", async () => {
+    stub([chat("c1", "Why did checkout errors rise")])
+    render()
+    expect(
+      await screen.findByText("Only you and Admins can see your chats.")
+    ).toBeVisible()
+  })
+
   it("lists one row per chat with its dashboard, turns and link", async () => {
     stub([
       chat("c1", "Why did checkout errors rise", {

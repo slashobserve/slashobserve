@@ -12,17 +12,23 @@ export function resultFinishedAt(
 }
 
 export function mayHaveFinding(
-  request: Pick<ObserveRequest, "source" | "result_kind">
+  request: { kind?: ObserveRequest["kind"] } & Pick<
+    ObserveRequest,
+    "result_kind"
+  >
 ): boolean {
   return (
-    request.source === "investigate" ||
+    request.kind === "investigate" ||
     request.result_kind === "observation" ||
     request.result_kind === "answer"
   )
 }
 
 export function noFindingText(
-  request: Pick<ObserveRequest, "source" | "result_kind">
+  request: { kind?: ObserveRequest["kind"] } & Pick<
+    ObserveRequest,
+    "result_kind"
+  >
 ): string {
   if (request.result_kind === "answer") {
     return "The answer is about a dashboard you cannot open."
@@ -30,7 +36,7 @@ export function noFindingText(
   if (request.result_kind === "observation") {
     return "The answer is saved in an observation in a folder you cannot see."
   }
-  return request.source === "investigate"
+  return request.kind === "investigate"
     ? "The run finished without a finding."
     : "The request finished without a dashboard."
 }

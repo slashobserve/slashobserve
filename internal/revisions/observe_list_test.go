@@ -51,7 +51,9 @@ func observeRouterAs(svc *revisions.Service, who auth.Principal) *gin.Engine {
 type listedPage struct {
 	Requests []struct {
 		ID             string  `json:"id"`
-		Source         string  `json:"source"`
+		Intent         string  `json:"intent"`
+		BaseVersion    *int    `json:"base_version"`
+		CommentID      *string `json:"comment_id"`
 		DashboardID    *string `json:"dashboard_id"`
 		DashboardTitle *string `json:"dashboard_title"`
 	} `json:"requests"`
@@ -134,7 +136,7 @@ func TestListObservePagesWithoutOverlapAndEndsWithANullCursor(t *testing.T) {
 	for _, prompt := range []string{"a", "b", "c"} {
 		created = append(created, observeFor(t, svc, user, prompt))
 	}
-	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "d", BaseVersion: 1, By: user})
+	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "d", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,31 +170,40 @@ func TestListObservePagesWithoutOverlapAndEndsWithANullCursor(t *testing.T) {
 	}
 }
 
-func TestListObserveFiltersBySourceAndRefusesBadQueries(t *testing.T) {
+func TestListObserveTellsANewRequestAFollowUpAndACommentApartAndRefusesBadQueries(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
 	observe := observeFor(t, svc, user, "new dashboard")
-	prompt, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "follow-up", BaseVersion: 1, By: user})
+	prompt, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "follow-up", BaseVersion: 1, By: user})
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourceComment, Prompt: "comment", BaseVersion: 1, By: user})
+	comment, err := svc.SubmitForThread(reading(context.Background()), dash, openThread(t, d, dash).ID, nil, "comment", user)
 	if err != nil {
 		t.Fatal(err)
 	}
 	r := observeRouterFor(svc, user)
 
-	for source, want := range map[string]string{"observe": observe, "prompt": prompt.ID.String(), "comment": comment.ID.String()} {
-		page := listObserve(t, r, "?source="+source)
-		if got := page.ids(); !slices.Equal(got, []string{want}) || page.Requests[0].Source != source {
-			t.Errorf("source=%s: got %+v, want %s", source, page.Requests, want)
+	page := listObserve(t, r, "")
+	if got := page.ids(); len(got) != 3 {
+		t.Fatalf("no filter: got %v", got)
+	}
+	for _, row := range page.Requests {
+		var ok bool
+		switch row.ID {
+		case observe:
+			ok = row.Intent == "ask" && row.BaseVersion == nil && row.CommentID == nil
+		case prompt.ID.String():
+			ok = row.Intent == "apply" && row.BaseVersion != nil && *row.BaseVersion == 1 && row.CommentID == nil
+		case comment.ID.String():
+			ok = row.Intent == "apply" && row.CommentID != nil && *row.CommentID == comment.CommentID.String()
+		}
+		if !ok {
+			t.Errorf("listed %+v", row)
 		}
 	}
-	if got := listObserve(t, r, "").ids(); len(got) != 3 {
-		t.Errorf("no filter: got %v", got)
-	}
 
-	for _, query := range []string{"?source=", "?source=bogus", "?cursor=!!!", "?limit=0", "?limit=101"} {
+	for _, query := range []string{"?cursor=!!!", "?limit=0", "?limit=101"} {
 		rec := call(r, http.MethodGet, "/api/v1/observe"+query, "")
 		if rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
 			t.Errorf("%s: %d %s", query, rec.Code, rec.Body)
@@ -205,7 +216,7 @@ func TestListObserveNamesTheDashboardOfASucceededRequest(t *testing.T) {
 	dash := seedDashboard(t, d, 2)
 	done := observeFor(t, svc, user, "done")
 	failed := observeFor(t, svc, user, "failed")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
 	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'nope' WHERE id = $1", mustUUID(t, failed))
 
 	for _, row := range listObserve(t, observeRouterFor(svc, user), "").Requests {
@@ -229,8 +240,8 @@ func TestListObserveHidesTheTitleOfADashboardInAFolderTheCallerCannotSee(t *test
 	foldertest.Move(t, d, hidden, foldertest.Restricted(t, d, "Private", "platform"))
 	onVisible := observeFor(t, svc, account, "visible")
 	onHidden := observeFor(t, svc, account, "hidden")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onVisible), visible)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, onHidden), hidden)
 
 	rows := listObserve(t, observeRouterAs(svc, account), "").Requests
 	if len(rows) != 2 {
@@ -254,7 +265,7 @@ func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 2)
 	id := observeFor(t, svc, user, "build it")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, id), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, id), dash)
 
 	rev := get(t, svc, dash, id)
 	if rev.Source != revisions.SourceObserve || rev.BaseVersion != nil || rev.ResultVersion == nil || *rev.ResultVersion != 2 {
@@ -268,7 +279,7 @@ func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	r := newRouter(svc)
 	for _, path := range []string{revisionsPath(dash) + "/" + id, revisionsPath(dash)} {
 		rec := call(r, http.MethodGet, path, "")
-		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"base_version":null`) || !strings.Contains(rec.Body.String(), `"source":"observe"`) {
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"base_version":null`) || !strings.Contains(rec.Body.String(), `"intent":"apply"`) {
 			t.Errorf("GET %s: %d %s", path, rec.Code, rec.Body)
 		}
 	}
@@ -386,7 +397,7 @@ func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.
 	dash := seedDashboard(t, d, 2)
 	private := observeFor(t, svc, user, "private prompt")
 	shared := observeFor(t, svc, user, "shared prompt")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, intent = 'apply', dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
 
 	for name, c := range map[string]struct {
 		id   string
@@ -496,7 +507,7 @@ func TestListObserveSearchesTitlesAndPromptsLiterally(t *testing.T) {
 			t.Errorf("%s: %v, want %v", c.query, got, c.want)
 		}
 	}
-	for _, bad := range []string{"?q=", "?q=" + strings.Repeat("a", 201), "?pinned=yes", "?dashboard_id=nope", "?source=suggest"} {
+	for _, bad := range []string{"?q=", "?q=" + strings.Repeat("a", 201), "?pinned=yes", "?dashboard_id=nope"} {
 		if rec := call(r, http.MethodGet, "/api/v1/observe"+bad, ""); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", bad, rec.Code, rec.Body)
 		}
@@ -587,10 +598,11 @@ func TestCreateObserveChecksTheInvestigateFields(t *testing.T) {
 	cases := []struct {
 		name, body, message string
 	}{
-		{"panel without investigate", `{"prompt":"p","panel_id":"a"}`, "panel_id, from and to need kind investigate"},
-		{"window without investigate", `{"prompt":"p","kind":"build","from":"now-1h","to":"now"}`, "panel_id, from and to need kind investigate"},
-		{"unknown kind", `{"prompt":"p","kind":"explain"}`, "kind must be build or investigate"},
-		{"base version", `{"prompt":"p","kind":"investigate",` + dashboard + `,"base_version":1}`, "base_version is not allowed for kind investigate"},
+		{"panel about nothing", `{"prompt":"p","panel_id":"a"}`, "panel_id needs dashboard_id"},
+		{"window about nothing", `{"prompt":"p","from":"now-1h","to":"now"}`, "from and to need dashboard_id, observation_id or kind investigate"},
+		{"window on a revise", `{"prompt":"p","kind":"revise",` + dashboard + `,"from":"now-1h","to":"now"}`, "panel_id, from and to are not allowed for kind revise"},
+		{"unknown kind", `{"prompt":"p","kind":"explain"}`, "kind must be ask, revise or investigate"},
+		{"base version", `{"prompt":"p","kind":"investigate",` + dashboard + `,"base_version":1}`, "base_version needs kind revise"},
 		{"panel without dashboard", `{"prompt":"p","kind":"investigate","panel_id":"a"}`, "panel_id needs dashboard_id"},
 		{"empty panel", `{"prompt":"p","kind":"investigate",` + dashboard + `,"panel_id":""}`, "panel_id must be 1 to 64 characters without NUL"},
 		{"half a window", `{"prompt":"p","kind":"investigate","from":"now-1h"}`, "from and to go together"},

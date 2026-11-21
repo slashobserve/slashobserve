@@ -177,6 +177,8 @@ func (a *app) commentsCommand() *cobra.Command {
 		a.commentsReplyCommand(),
 		a.commentsEditCommand(),
 		a.commentsDeleteCommand(),
+		a.commentsWithdrawCommand(),
+		a.commentsApplyCommand(),
 		a.commentsPeopleCommand(),
 		a.commentsResolveCommand(),
 		a.commentsReopenCommand(),
@@ -347,7 +349,7 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [flags] --on <kind>:<id> <text...>",
 		Short: "Start a comment thread on a dashboard, observation, annotation or proposal",
-		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --at, --version, --to, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--at points the thread at one spot, as the anchor JSON object, for example {\"kind\":\"position\",\"pos\":{\"x\":0.4,\"y\":0.3}}, or as a short form: row:service=payments,span=authorize_card, time:2026-11-20T23:56Z, range:23:50Z..23:58Z, series:service=checkout or pos:0.4,0.3; with --block it points into that block, and an observation then gets a thread of its own beside its discussion.\nThe comment is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe: a dashboard thread starts a comment run, an observation thread starts an investigation, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and a refused run prints its code.\nAn observation has one discussion, so a second add on it without --at adds the comment to that discussion.\nAn investigation is a person's to start: the CLI and the web app start one, and an agent connected over MCP cannot, which answers investigation_person_only.",
+		Long:  "Everything after the flags is the comment text, flag-like words included, so --on, --panel, --block, --at, --version, --to, --json and -q must come before it.\n--panel and --version anchor a dashboard comment to a panel and to a version, and the server refuses them on an observation, an annotation or a proposal.\n--block anchors an observation comment to one of its blocks, from observe o show, and the server refuses it on any other target; without it the comment is about the whole observation.\n--at points the thread at one spot, as the anchor JSON object, for example {\"kind\":\"position\",\"pos\":{\"x\":0.4,\"y\":0.3}}, or as a short form: row:service=payments,span=authorize_card, time:2026-11-20T23:56Z, range:23:50Z..23:58Z, series:service=checkout or pos:0.4,0.3; with --block it points into that block, and an observation then gets a thread of its own beside its discussion.\nThe comment is for everyone and asks no agent; --to agent asks the agent the text mentions, else the thread's agent, else @observe: a dashboard thread starts a comment run, an observation thread starts a read-only ask that writes nothing on the page, and an annotation or a proposal thread starts none.\nThe comment is stored even when no run starts, and a refused run prints its code.\nAn observation has one discussion, so a second add on it without --at adds the comment to that discussion.",
 		Args:  cobra.ArbitraryArgs,
 		RunE:  a.runCommentsAdd,
 	}
@@ -596,6 +598,62 @@ func (a *app) commentsDeleteCommand() *cobra.Command {
 			})
 		},
 	}
+}
+
+func (a *app) commentsWithdrawCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "withdraw <comment-id>",
+		Short: "Withdraw an answer you shared, back to only you",
+		Long:  "withdraw undoes observe share-answer: it deletes your shared question and its answer, or the whole thread when the share opened it, and the run and its answer are read again only by you and Admins.\nIt takes the id of the thread or of any of its comments, and only the person who asked can withdraw, while nobody else has written in the thread.\nOn an observation the answer's text that was written onto the page stays there as page content, while the run and its answer leave the observation's lists.\nYou can share the answer again later with observe share-answer.",
+		Args:  exactArgs(1, "one comment id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodDelete, "threads/"+id+"/share", nil, func(out *output, _ []byte) error {
+				out.confirm("Withdrew the answer shared in thread %s", text(id))
+				return nil
+			})
+		},
+	}
+}
+
+func (a *app) commentsApplyCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "apply <comment-id> <finding-id>",
+		Short: "Ask the agent to make the change an answer in a dashboard thread suggests",
+		Long:  "apply takes a dashboard comment thread (its id or the id of any of its comments) and the id of an answer given in it, the id of the finding of the run that answered, which observe status <request-id> --json prints.\nIt posts \"Revise the dashboard: <suggested change>\" in the thread as you and starts a run that makes the change: a new version when you can edit the dashboard, a proposal when you can only comment.\nThe run is yours and goes to the agent that answered; applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints the first run.",
+		Args:  exactArgs(2, "a comment id and a finding id"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			threadID, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			findingID, err := parseID(args[1])
+			if err != nil {
+				return err
+			}
+			return a.observationCall(cmd, http.MethodPost, "threads/"+threadID+"/apply", map[string]any{"finding_id": findingID}, func(out *output, data []byte) error {
+				applied, err := decode[appliedChange](data)
+				if err != nil {
+					return err
+				}
+				if applied.Replayed && applied.Message.Run != nil {
+					out.line("Already applied by run %s", text(applied.Message.Run.ID))
+					return nil
+				}
+				out.line("Asked to revise the dashboard in thread %s", text(applied.Thread.ID))
+				reportRun(out, applied.Message)
+				return nil
+			})
+		},
+	}
+}
+
+type appliedChange struct {
+	threadMessageEnvelope
+	Replayed bool `json:"replayed"`
 }
 
 type mentionablePeople struct {

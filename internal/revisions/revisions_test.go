@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -75,7 +76,8 @@ func quietLogger() *slog.Logger {
 func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *dbtest.Database) {
 	t.Helper()
 	d := dbtest.New(t)
-	return newTestService(d.DB, reviser, quietLogger()), d
+	opened := runObservations{observations.New(d.DB, folders.NewAccess(d.DB), nil, nil, quietLogger())}
+	return newTestService(d.DB, reviser, quietLogger(), revisions.WithObservations(opened)), d
 }
 
 func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
@@ -112,7 +114,7 @@ func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {
 func submit(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, prompt string) revisions.Revision {
 	t.Helper()
 	row, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-		DashboardID: dashboard, Source: revisions.SourcePrompt, Prompt: prompt, BaseVersion: 1, By: user,
+		DashboardID: dashboard, Prompt: prompt, BaseVersion: 1, By: user,
 	})
 	if err != nil {
 		t.Fatalf("submit %q: %v", prompt, err)
@@ -1013,7 +1015,7 @@ func TestActiveRequestsPerDashboardAreCapped(t *testing.T) {
 			first = rev
 		}
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth submit: %v", err)
 	}
@@ -1033,7 +1035,7 @@ func TestConcurrentSubmitsNeverExceedTheCap(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-				DashboardID: dash, Source: revisions.SourcePrompt, Prompt: fmt.Sprintf("p%d", i), BaseVersion: 1, By: user,
+				DashboardID: dash, Prompt: fmt.Sprintf("p%d", i), BaseVersion: 1, By: user,
 			})
 			switch {
 			case err == nil:
@@ -1061,7 +1063,7 @@ func TestSubmitWithoutAnAgentIsRefused(t *testing.T) {
 	if svc.Available() {
 		t.Fatal("a service without a reviser reports itself available")
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "x", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "x", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
@@ -1224,7 +1226,7 @@ func TestRequestsNeedCommentOnTheDashboardOrEditorForANewOne(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{
-				DashboardID: tc.dashboard, Source: revisions.SourcePrompt, Prompt: "go", BaseVersion: 1, By: tc.by,
+				DashboardID: tc.dashboard, Prompt: "go", BaseVersion: 1, By: tc.by,
 			})
 			if !errors.Is(err, tc.want) || (tc.want == nil && err != nil) {
 				t.Fatalf("err = %v, want %v", err, tc.want)
@@ -1296,7 +1298,7 @@ func TestObserveResponseCarriesTheFailureCodeAndTheExtendedUsage(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 2)
 	okID := observeFor(t, svc, user, "fine")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, okID), dash)
 	failedID := observeFor(t, svc, user, "limited")
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 	waitFor(t, "the limited observe request to fail", func() bool {

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -40,6 +41,7 @@ type Handler struct {
 	db      *db.DB
 	observe Observe
 	logger  *slog.Logger
+	reads   *audit.Repeats
 }
 
 type statsJSON struct {
@@ -86,7 +88,7 @@ type overviewJSON struct {
 }
 
 func NewHandler(database *db.DB, observe Observe, logger *slog.Logger) *Handler {
-	return &Handler{db: database, observe: observe, logger: logger}
+	return &Handler{db: database, observe: observe, logger: logger, reads: audit.NewRepeats()}
 }
 
 func (h *Handler) Register(api auth.Routes) {

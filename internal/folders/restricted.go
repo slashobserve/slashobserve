@@ -38,6 +38,7 @@ const (
 	ContentObservation ContentKind = "observation"
 	ContentSavedSearch ContentKind = "saved_search"
 	ContentProposal    ContentKind = "proposal"
+	ContentAnswer      ContentKind = "answer"
 )
 
 func (k ContentKind) Noun() string {
@@ -48,6 +49,8 @@ func (k ContentKind) Noun() string {
 		return "saved search"
 	case ContentProposal:
 		return "proposal"
+	case ContentAnswer:
+		return "answer"
 	}
 	return "dashboard"
 }

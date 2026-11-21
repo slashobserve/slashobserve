@@ -45,7 +45,7 @@ FROM (
   CROSS JOIN LATERAL (
     SELECT s.outdated AND (s.old_check_problems OR EXISTS (
       SELECT 1 FROM agent_requests a
-      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text)
+      WHERE a.dashboard_id = s.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)
     )) AS awaits_recheck
   ) w
   WHERE s.folder_id = ANY(@folders::uuid[])
@@ -60,7 +60,7 @@ LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.state, a.result_version, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
-  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text)
+  WHERE a.dashboard_id = r.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) rep ON true
@@ -79,7 +79,7 @@ SELECT
     s.last_viewed_at, s.created_at, @unopened_before::timestamptz)
     OR (s.outdated AND (s.old_check_problems OR EXISTS (
       SELECT 1 FROM agent_requests a
-      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, @repair_prefix::text))))) AS dashboards,
+      WHERE a.dashboard_id = s.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, @repair_prefix::text))))) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
@@ -117,5 +117,5 @@ WHERE d.id = @dashboard_id;
 
 -- name: CountActiveHealthRepairsBy :one
 SELECT count(*) FROM agent_requests
-WHERE requested_by_id = @requester_id AND source = 'prompt' AND starts_with(prompt, @prompt_prefix::text)
+WHERE requested_by_id = @requester_id AND intent = 'apply' AND base_version IS NOT NULL AND starts_with(prompt, @prompt_prefix::text)
   AND status IN ('queued', 'running');

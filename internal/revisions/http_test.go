@@ -16,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -92,7 +94,7 @@ func TestPostQueuesARevisionUntilTheDashboardIsFull(t *testing.T) {
 			t.Fatal(err)
 		}
 		rev := body.Revision
-		if rev["status"] != "queued" || rev["source"] != "prompt" || rev["base_version"] != float64(2) || rev["comment_id"] != nil ||
+		if rev["status"] != "queued" || rev["intent"] != "apply" || rev["base_version"] != float64(2) || rev["comment_id"] != nil ||
 			rev["panel_id"] != nil || rev["result_version"] != nil || rev["error"] != nil || rev["attempts"] != float64(0) {
 			t.Fatalf("revision = %v", rev)
 		}
@@ -257,10 +259,10 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutComment(t *testing.T) {
 		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
 		"Commenter sends a prompt":                 {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
 		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
-		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
 		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
 		"Viewer may not start a new dashboard":     {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
-		"Commenter follows up through observe":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusAccepted},
+		"Commenter follows up through observe":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`, http.StatusAccepted},
 		"Commenter may not ask for a suggestion":   {auth.RoleCommenter, http.MethodPost, "/api/v1/dashboards/" + dash.String() + "/suggestions", `{"prompt":"go","base_version":1,"panel_id":"p1"}`, http.StatusForbidden},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -393,4 +395,44 @@ func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
 	if want := []string{"cancel", "pin", "archive"}; !slices.Equal(body.Revision.AllowedActions, want) {
 		t.Errorf("allowed_actions = %v, want %v", body.Revision.AllowedActions, want)
 	}
+}
+
+func TestEveryRouteThatStartsAChangeOfAStarterAnswersProvisioned(t *testing.T) {
+	svc, d := newSuggestService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	failed := submit(t, svc, dash, "made before it became a starter")
+	setState(t, d, failed.ID, "failed")
+	d.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, dash.String())
+	editor := asRole(auth.RoleEditor)
+	r := gin.New()
+	api := auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), editor))
+	}))
+	svc.Register(api)
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(api)
+	before := runsOn(t, d, dash)
+
+	for name, tc := range map[string]struct{ path, body string }{
+		"a change through observe": {"/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`},
+		"a revision":               {revisionsPath(dash), `{"prompt":"go","base_version":1}`},
+		"a suggestion":             {"/api/v1/dashboards/" + dash.String() + "/suggestions", `{"version":1,"panel_id":"p1","prompt":"go"}`},
+		"a retry":                  {"/api/v1/observe/" + failed.ID + "/retry", ""},
+	} {
+		rec := call(r, http.MethodPost, tc.path, tc.body)
+		if rec.Code != http.StatusConflict || errorCode(t, rec) != folders.CodeProvisioned {
+			t.Errorf("%s answered %d %s, want 409 provisioned", name, rec.Code, rec.Body)
+		}
+	}
+	if after := runsOn(t, d, dash); after != before {
+		t.Fatalf("the starter has %d runs after the refusals, want %d", after, before)
+	}
+}
+
+func runsOn(t *testing.T, d *dbtest.Database, dash pgtype.UUID) int {
+	t.Helper()
+	var n int
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, dash).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

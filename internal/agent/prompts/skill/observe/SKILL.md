@@ -40,7 +40,7 @@ While your connection is in propose mode, a save that removes panels or variable
 In direct mode update_panels with delete, or a spec without a panel, removes it as a new version, so delete only what the person asked you to, and restore_dashboard_version brings the old version back.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
-A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending ask_on.dashboard_id as dashboard_id and the run's prompt.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending kind revise, ask_on.dashboard_id as dashboard_id and the run's prompt.
 
 ## Review proposals
 
@@ -89,7 +89,7 @@ create_comment opens a thread on any of them, edit_comment changes a comment you
 A comment that mentions @observe addresses SlashObserve's own agent, and the mention is recorded in the activity log; a comment is for everyone and by default starts no run.
 Set to: agent on create_comment or reply_to_comment to ask the one agent the text mentions, else the thread's agent, else @observe: one of your own connected agents or a service account that takes runs, written as the token the person gave you.
 Give each comment a client_id you make, so a retry after a timeout returns the comment already posted instead of a second one.
-A thread on a dashboard starts a comment run; a thread on an observation stores the message and starts nothing, because a person starts investigations in the web app or the CLI; the result's run_refusal says why none started.
+A thread on a dashboard or an observation starts a read-only ask that answers in the thread and changes nothing; the result's run_refusal says why none started.
 A run you claim that a message started carries thread_context, the earlier messages of that thread, oldest first: read it before you answer.
 The server posts the run's status in the thread when it ends, so do not reply there to say you are done.
 

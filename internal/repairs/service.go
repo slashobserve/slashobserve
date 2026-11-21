@@ -192,7 +192,6 @@ func (s *Service) handle(ctx context.Context, by auth.Principal, requester pgtyp
 		}
 		queued, err = s.revisions.Enqueue(ctx, q, revisions.EnqueueParams{
 			DashboardID: id,
-			Source:      revisions.SourcePrompt,
 			Prompt:      Prompt,
 			BaseVersion: latest,
 			By:          by,

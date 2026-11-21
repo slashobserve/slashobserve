@@ -128,7 +128,7 @@ func (r *rig) createDashboard(t *testing.T, panelIDs ...string) pgtype.UUID {
 func (r *rig) queueRevision(t *testing.T, dash pgtype.UUID) pgtype.UUID {
 	t.Helper()
 	rev, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{
-		DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: testUser,
+		DashboardID: dash, Prompt: "revise", BaseVersion: 1, By: testUser,
 	})
 	if err != nil {
 		t.Fatal(err)

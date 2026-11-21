@@ -78,7 +78,8 @@ describe("pickUp", () => {
 function working(overrides: Partial<WorkingRun> = {}): WorkingRun {
   return {
     id: "run1",
-    source: "prompt",
+    intent: "apply",
+    investigation: false,
     state: "running",
     created_at: "2026-11-15T10:00:00Z",
     started_at: "2026-11-15T10:00:00Z",

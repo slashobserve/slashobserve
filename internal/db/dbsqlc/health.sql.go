@@ -13,7 +13,7 @@ import (
 
 const countActiveHealthRepairsBy = `-- name: CountActiveHealthRepairsBy :one
 SELECT count(*) FROM agent_requests
-WHERE requested_by_id = $1 AND source = 'prompt' AND starts_with(prompt, $2::text)
+WHERE requested_by_id = $1 AND intent = 'apply' AND base_version IS NOT NULL AND starts_with(prompt, $2::text)
   AND status IN ('queued', 'running')
 `
 
@@ -131,7 +131,7 @@ SELECT
     s.last_viewed_at, s.created_at, $1::timestamptz)
     OR (s.outdated AND (s.old_check_problems OR EXISTS (
       SELECT 1 FROM agent_requests a
-      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text))))) AS dashboards,
+      WHERE a.dashboard_id = s.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, $2::text))))) AS dashboards,
   count(*) FILTER (WHERE s.query_failed OR s.variable_failed) AS failing,
   count(*) FILTER (WHERE s.query_failed) AS query_failed,
   count(*) FILTER (WHERE s.variable_failed) AS variable_failed,
@@ -201,7 +201,7 @@ FROM (
   CROSS JOIN LATERAL (
     SELECT s.outdated AND (s.old_check_problems OR EXISTS (
       SELECT 1 FROM agent_requests a
-      WHERE a.dashboard_id = s.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text)
+      WHERE a.dashboard_id = s.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, $2::text)
     )) AS awaits_recheck
   ) w
   WHERE s.folder_id = ANY($3::uuid[])
@@ -216,7 +216,7 @@ LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.state, a.result_version, a.error,
     coalesce(a.finished_at, a.started_at, a.created_at) AS updated_at
   FROM agent_requests a
-  WHERE a.dashboard_id = r.id AND a.source = 'prompt' AND starts_with(a.prompt, $2::text)
+  WHERE a.dashboard_id = r.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND starts_with(a.prompt, $2::text)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) rep ON true

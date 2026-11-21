@@ -115,7 +115,7 @@ func TestListShowsTheLatestRepair(t *testing.T) {
 		t.Fatalf("outcome %+v", out)
 	}
 	r.db.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', finished_at = now() WHERE id = $1", out.Queued[0].RequestID)
-	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: id, Source: revisions.SourcePrompt, Prompt: "add a panel", BaseVersion: 1, By: r.editor}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: id, Prompt: "add a panel", BaseVersion: 1, By: r.editor}); err != nil {
 		t.Fatal(err)
 	}
 	it := byID(r.list(t, r.editor, repairs.ListParams{}).Items)[id.String()]
@@ -158,10 +158,10 @@ func TestRequestSkipsADashboardWithAQueuedOrRunningRevision(t *testing.T) {
 	r := newRig(t)
 	queued := r.failing(t, r.shared, "Queued")
 	running := r.failing(t, r.shared, "Running")
-	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: queued, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: queued, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
 		t.Fatal(err)
 	}
-	rev, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: running, Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other})
+	rev, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: running, Prompt: "revise", BaseVersion: 1, By: r.other})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestRequestAllQueuesEveryListedDashboardOnce(t *testing.T) {
 	r := newRig(t)
 	ids := []pgtype.UUID{r.failing(t, r.shared, "A"), r.failing(t, r.shared, "B"), r.failing(t, r.shared, "C"), r.failing(t, r.shared, "D")}
 	r.dashboard(t, r.shared, "Clean")
-	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: ids[0], Source: revisions.SourcePrompt, Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
+	if _, err := r.revisions.Submit(reading(t.Context()), revisions.EnqueueParams{DashboardID: ids[0], Prompt: "revise", BaseVersion: 1, By: r.other}); err != nil {
 		t.Fatal(err)
 	}
 	first := r.request(t, repairs.Target{All: true})
@@ -276,12 +276,12 @@ func TestRequestQueuesWithTheFixedPromptAndLatestVersion(t *testing.T) {
 	}
 	var source, prompt, requester, status string
 	var base int
-	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT source, prompt, base_version, requested_by_id::text, status FROM agent_requests WHERE id = $1", out.Queued[0].RequestID).
+	err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT intent, prompt, base_version, requested_by_id::text, status FROM agent_requests WHERE id = $1", out.Queued[0].RequestID).
 		Scan(&source, &prompt, &base, &requester, &status)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if source != "prompt" || prompt != repairs.Prompt || base != 2 || requester != r.editor.ID || status != "queued" {
+	if source != "apply" || prompt != repairs.Prompt || base != 2 || requester != r.editor.ID || status != "queued" {
 		t.Errorf("stored request %s %q %d %s %s", source, prompt, base, requester, status)
 	}
 }
@@ -289,8 +289,8 @@ func TestRequestQueuesWithTheFixedPromptAndLatestVersion(t *testing.T) {
 func TestRequestStopsAtTheRequesterCap(t *testing.T) {
 	r := newRig(t)
 	busy := r.dashboard(t, r.shared, "Busy")
-	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
-		SELECT $1, 'prompt', $2, 1, 'user', $3, 'eda' FROM generate_series(1, $4::integer)`, busy, repairs.Prompt, r.editor.ID, repairs.MaxActivePerRequester)
+	r.db.Exec(t, `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
+		SELECT $1, 'apply', $2, 1, 'user', $3, 'eda' FROM generate_series(1, $4::integer)`, busy, repairs.Prompt, r.editor.ID, repairs.MaxActivePerRequester)
 	id := r.failing(t, r.shared, "Board")
 	out := r.request(t, repairs.Target{DashboardIDs: []pgtype.UUID{id}})
 	if len(out.Queued) != 0 || reasons(out)[id.String()] != repairs.ReasonQueueFull {

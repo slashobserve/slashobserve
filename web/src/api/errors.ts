@@ -194,3 +194,15 @@ export function isRetryable(error: unknown): boolean {
     error.retryAfterMs === undefined || error.retryAfterMs <= maxRetryDelayMs
   )
 }
+
+export async function resendOnceOffline<T>(
+  clientId: string | undefined,
+  send: () => Promise<T>
+): Promise<T> {
+  try {
+    return await send()
+  } catch (error) {
+    if (clientId === undefined || !(error instanceof NetworkError)) throw error
+    return send()
+  }
+}

@@ -205,6 +205,38 @@ func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteSharedMessages = `-- name: DeleteSharedMessages :many
+DELETE FROM thread_messages
+WHERE thread_id = $1 AND (id = ANY($2::uuid[]) OR run_id = ANY($3::uuid[]))
+RETURNING id
+`
+
+type DeleteSharedMessagesParams struct {
+	ThreadID   pgtype.UUID
+	MessageIds []pgtype.UUID
+	RunIds     []pgtype.UUID
+}
+
+func (q *Queries) DeleteSharedMessages(ctx context.Context, arg DeleteSharedMessagesParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteSharedMessages, arg.ThreadID, arg.MessageIds, arg.RunIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteThread = `-- name: DeleteThread :exec
 DELETE FROM threads WHERE id = $1
 `
@@ -431,7 +463,7 @@ const insertRunReply = `-- name: InsertRunReply :one
 INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
 SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
   $6::text, $7::text, $8::uuid, $9::text
-WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid AND thread_id = $1::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = $8::uuid AND thread_replied_at IS NULL)
 RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
@@ -809,6 +841,54 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const lockSharedRunsInThread = `-- name: LockSharedRunsInThread :many
+SELECT r.id, r.chat_id, r.thread_message_id, f.id AS finding_id FROM agent_requests r
+JOIN thread_messages m ON m.id = r.thread_message_id
+LEFT JOIN findings f ON f.agent_request_id = r.id
+WHERE m.thread_id = $1 AND r.chat_id IS NOT NULL
+  AND r.requested_by_kind = $2 AND r.requested_by_id = $3
+ORDER BY r.id
+FOR UPDATE OF r
+`
+
+type LockSharedRunsInThreadParams struct {
+	ThreadID        pgtype.UUID
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+}
+
+type LockSharedRunsInThreadRow struct {
+	ID              pgtype.UUID
+	ChatID          pgtype.UUID
+	ThreadMessageID pgtype.UUID
+	FindingID       pgtype.UUID
+}
+
+func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRunsInThreadParams) ([]LockSharedRunsInThreadRow, error) {
+	rows, err := q.db.Query(ctx, lockSharedRunsInThread, arg.ThreadID, arg.RequestedByKind, arg.RequestedByID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockSharedRunsInThreadRow
+	for rows.Next() {
+		var i LockSharedRunsInThreadRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChatID,
+			&i.ThreadMessageID,
+			&i.FindingID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const lockThreadForWrite = `-- name: LockThreadForWrite :one
@@ -1190,6 +1270,23 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 	return i, err
 }
 
+const shareRunInThread = `-- name: ShareRunInThread :execrows
+UPDATE agent_requests SET thread_message_id = $1, thread_replied_at = NULL WHERE id = $2 AND thread_message_id IS NULL
+`
+
+type ShareRunInThreadParams struct {
+	ThreadMessageID pgtype.UUID
+	ID              pgtype.UUID
+}
+
+func (q *Queries) ShareRunInThread(ctx context.Context, arg ShareRunInThreadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, shareRunInThread, arg.ThreadMessageID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const threadTranscript = `-- name: ThreadTranscript :many
 SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, m.client_id
 FROM thread_messages m
@@ -1352,4 +1449,13 @@ func (q *Queries) UserMentionNames(ctx context.Context, ids []pgtype.UUID) ([]Us
 		return nil, err
 	}
 	return items, nil
+}
+
+const withdrawRunShares = `-- name: WithdrawRunShares :exec
+UPDATE agent_requests SET thread_message_id = NULL, thread_replied_at = NULL WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) WithdrawRunShares(ctx context.Context, ids []pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, withdrawRunShares, ids)
+	return err
 }

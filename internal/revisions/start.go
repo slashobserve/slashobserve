@@ -32,6 +32,8 @@ type StartRequest struct {
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
 	TimeZone      *string        `json:"time_zone"`
+
+	AppliesFindingID *string `json:"applies_finding_id"`
 }
 
 type Started struct {
@@ -60,26 +62,23 @@ var (
 type turnInput struct {
 	clientID pgtype.UUID
 	point    Point
+	applies  pgtype.UUID
 }
 
 func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest) (Started, error) {
-	ctx, prompt, err := checkStartText(ctx, req)
+	ctx, prompt, turn, err := s.turnOf(ctx, by, req)
 	if err != nil {
 		return Started{}, err
 	}
-	var turn turnInput
-	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
-		return Started{}, err
+	if replay, found, err := s.startedBefore(ctx, by, turn, req, prompt); err != nil || found {
+		return replay, err
 	}
-	if turn.point, err = pointOf(req); err != nil {
-		return Started{}, err
-	}
-	if turn.clientID.Valid {
-		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
+	row, err := s.startKind(ctx, by, req, prompt, turn)
+	if errors.Is(err, ErrFindingApplied) {
+		if replay, found, err := s.applyingRun(ctx, by, turn.applies); err != nil || found {
 			return replay, err
 		}
 	}
-	row, err := s.startKind(ctx, by, req, prompt, turn)
 	if errors.Is(err, errClientIDTaken) {
 		replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt)
 		if err == nil && !found {
@@ -90,13 +89,51 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 	return Started{AgentRequest: row}, err
 }
 
-func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
-	if req.Prompt == nil {
-		return ctx, "", refused("prompt is required")
-	}
-	prompt, err := CheckPrompt("prompt", *req.Prompt)
+func (s *Service) turnOf(ctx context.Context, by auth.Principal, req StartRequest) (context.Context, string, turnInput, error) {
+	ctx, prompt, err := checkStartText(ctx, req)
 	if err != nil {
-		return ctx, "", &StartError{Message: err.Error(), Cause: err}
+		return ctx, "", turnInput{}, err
+	}
+	var turn turnInput
+	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
+		return ctx, "", turnInput{}, err
+	}
+	if turn.point, err = pointOf(req); err != nil {
+		return ctx, "", turnInput{}, err
+	}
+	if req.AppliesFindingID != nil {
+		if turn.applies, prompt, err = s.suggestedChange(ctx, by, req); err != nil {
+			return ctx, "", turnInput{}, err
+		}
+	}
+	return ctx, prompt, turn, nil
+}
+
+func (s *Service) startedBefore(ctx context.Context, by auth.Principal, turn turnInput, req StartRequest, prompt string) (Started, bool, error) {
+	if turn.clientID.Valid {
+		if replay, found, err := s.replayTurn(ctx, by, turn.clientID, req, prompt); err != nil || found {
+			return replay, found, err
+		}
+	}
+	if turn.applies.Valid {
+		return s.applyingRun(ctx, by, turn.applies)
+	}
+	return Started{}, false, nil
+}
+
+func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
+	var prompt string
+	switch {
+	case req.AppliesFindingID != nil && req.Prompt != nil:
+		return ctx, "", refused("applies_finding_id and prompt exclude each other: the prompt is the answer's suggested change")
+	case req.AppliesFindingID == nil && req.Prompt == nil:
+		return ctx, "", refused("prompt is required")
+	case req.Prompt != nil:
+		checked, err := CheckPrompt("prompt", *req.Prompt)
+		if err != nil {
+			return ctx, "", &StartError{Message: err.Error(), Cause: err}
+		}
+		prompt = checked
 	}
 	if req.TimeZone != nil {
 		zone, err := CheckTimeZone(*req.TimeZone)
@@ -109,13 +146,21 @@ func checkStartText(ctx context.Context, req StartRequest) (context.Context, str
 }
 
 func (s *Service) startKind(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
-	switch {
-	case req.Kind == nil || *req.Kind == KindBuild:
-		return s.startBuild(ctx, by, req, prompt, turn)
-	case *req.Kind == KindInvestigate:
-		return s.startInvestigation(ctx, by, req, prompt, turn)
+	kind := KindAsk
+	if req.Kind != nil {
+		kind = *req.Kind
 	}
-	return dbsqlc.AgentRequest{}, refused("kind must be build or investigate")
+	switch {
+	case kind == KindAsk && req.DashboardID == nil && req.ObservationID == nil:
+		return s.startBuild(ctx, by, req, prompt, turn)
+	case kind == KindAsk:
+		return s.startInvestigation(ctx, by, req, prompt, turn, true)
+	case kind == KindRevise:
+		return s.startBuild(ctx, by, req, prompt, turn)
+	case kind == KindInvestigate:
+		return s.startInvestigation(ctx, by, req, prompt, turn, false)
+	}
+	return dbsqlc.AgentRequest{}, refused("kind must be ask, revise or investigate")
 }
 
 func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pgtype.UUID, req StartRequest, prompt string) (Started, bool, error) {
@@ -192,7 +237,7 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
 	if dashboardID.Valid {
-		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, Point: turn.point, chat: chat, clientID: turn.clientID}, req.BaseVersion)
+		return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, Prompt: prompt, By: by, Point: turn.point, AppliesFindingID: turn.applies, chat: chat, clientID: turn.clientID}, req.BaseVersion)
 	}
 	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chat, clientID: turn.clientID})
 }
@@ -222,17 +267,41 @@ func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartReq
 }
 
 func buildFieldConflict(req StartRequest) string {
+	if msg := buildShapeConflict(req); msg != "" {
+		return msg
+	}
 	switch {
-	case req.PanelID != nil || req.From != nil || req.To != nil:
-		return "panel_id, from and to need kind investigate"
-	case req.ObservationID != nil:
-		return "observation_id goes with kind investigate"
-	case req.DashboardID == nil && req.BaseVersion != nil:
-		return "base_version needs dashboard_id"
 	case req.DashboardID != nil && req.FollowsID != nil:
 		return "follows_id and dashboard_id exclude each other"
 	case req.ChatID != nil && req.FollowsID != nil:
 		return "follows_id and chat_id exclude each other"
+	}
+	return ""
+}
+
+func buildShapeConflict(req StartRequest) string {
+	if req.Kind == nil || *req.Kind != KindRevise {
+		return createFieldConflict(req)
+	}
+	switch {
+	case req.DashboardID == nil:
+		return "kind revise needs dashboard_id"
+	case req.PanelID != nil || req.From != nil || req.To != nil:
+		return "panel_id, from and to are not allowed for kind revise"
+	case req.ObservationID != nil:
+		return "observation_id is not allowed for kind revise"
+	}
+	return ""
+}
+
+func createFieldConflict(req StartRequest) string {
+	switch {
+	case req.PanelID != nil:
+		return "panel_id needs dashboard_id"
+	case req.From != nil || req.To != nil:
+		return "from and to need dashboard_id, observation_id or kind investigate"
+	case req.BaseVersion != nil:
+		return "base_version needs kind revise"
 	}
 	return ""
 }
@@ -248,14 +317,23 @@ func uuidField(name string, raw *string) (pgtype.UUID, error) {
 	return id, nil
 }
 
-func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
-	if req.BaseVersion != nil {
-		return dbsqlc.AgentRequest{}, refused("base_version is not allowed for kind investigate")
+func askFieldConflict(req StartRequest, private bool) string {
+	switch {
+	case req.BaseVersion != nil:
+		return "base_version needs kind revise"
+	case private && req.DashboardID != nil && req.ObservationID != nil:
+		return "kind ask takes dashboard_id or observation_id, not both"
+	case req.ChatID != nil && req.FollowsID != nil:
+		return "follows_id and chat_id exclude each other"
 	}
-	if req.ChatID != nil && req.FollowsID != nil {
-		return dbsqlc.AgentRequest{}, refused("follows_id and chat_id exclude each other")
+	return ""
+}
+
+func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput, private bool) (dbsqlc.AgentRequest, error) {
+	if msg := askFieldConflict(req, private); msg != "" {
+		return dbsqlc.AgentRequest{}, refused("%s", msg)
 	}
-	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, clientID: turn.clientID}
+	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, Private: private, clientID: turn.clientID}
 	var err error
 	if params.chat, err = s.investigationChat(ctx, by, req); err != nil {
 		return dbsqlc.AgentRequest{}, err

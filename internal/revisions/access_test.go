@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -17,70 +18,74 @@ import (
 func TestRunAllowed(t *testing.T) {
 	withEdit := folders.Abilities{View: true, Comment: true, Edit: true}
 	withoutEdit := folders.Abilities{View: true, Comment: true}
+	viewOnly := folders.Abilities{View: true}
+	dash := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	obs := pgtype.UUID{Bytes: [16]byte{2}, Valid: true}
+	apply := RunTarget{Intent: IntentApply, DashboardID: dash}
+	suggest := RunTarget{Intent: IntentSuggest, DashboardID: dash}
+	create := RunTarget{Intent: IntentAsk}
+	files := RunTarget{Intent: IntentAsk, Files: true}
+	filesOnDashboard := RunTarget{Intent: IntentAsk, DashboardID: dash, Files: true}
+	onObservation := RunTarget{Intent: IntentAsk, ObservationID: obs}
+	onDashboard := RunTarget{Intent: IntentAsk, DashboardID: dash}
 
 	cases := []struct {
-		name         string
-		source       Source
-		hasDashboard bool
-		canCreate    bool
-		role         auth.Role
-		abilities    folders.Abilities
-		want         bool
+		name string
+		rule runRule
+		want bool
 	}{
-		{"prompt on a dashboard with Edit", SourcePrompt, true, false, auth.RoleEditor, withEdit, true},
-		{"prompt on a dashboard with Comment only", SourcePrompt, true, true, auth.RoleEditor, withoutEdit, true},
-		{"prompt on a dashboard with View only", SourcePrompt, true, true, auth.RoleEditor, folders.Abilities{View: true}, false},
-		{"comment request with Edit", SourceComment, true, false, auth.RoleEditor, withEdit, true},
-		{"comment request with Comment only", SourceComment, true, true, auth.RoleEditor, withoutEdit, true},
-		{"comment request with View only", SourceComment, true, true, auth.RoleEditor, folders.Abilities{View: true}, false},
-		{"suggest with Edit", SourceSuggest, true, false, auth.RoleEditor, withEdit, true},
-		{"suggest without Edit", SourceSuggest, true, true, auth.RoleEditor, withoutEdit, false},
-		{"observe follow-up with Edit", SourceObserve, true, false, auth.RoleEditor, withEdit, true},
-		{"observe follow-up with Comment only", SourceObserve, true, true, auth.RoleEditor, withoutEdit, true},
-		{"observe follow-up with View only", SourceObserve, true, true, auth.RoleEditor, folders.Abilities{View: true}, false},
-		{"observe without a dashboard when the requester can create", SourceObserve, false, true, auth.RoleEditor, folders.Abilities{}, true},
-		{"observe without a dashboard when the requester cannot create", SourceObserve, false, false, auth.RoleEditor, folders.Abilities{}, false},
-		{"Edit abilities do not help an observe without a dashboard", SourceObserve, false, false, auth.RoleEditor, withEdit, false},
-		{"prompt without a dashboard even when the requester can create", SourcePrompt, false, true, auth.RoleEditor, folders.Abilities{}, false},
-		{"investigate by a Viewer", SourceInvestigate, false, true, auth.RoleViewer, folders.Abilities{}, false},
-		{"investigate by a Viewer of the dashboard", SourceInvestigate, true, false, auth.RoleViewer, withoutEdit, false},
-		{"investigate without a dashboard by an Editor", SourceInvestigate, false, false, auth.RoleEditor, folders.Abilities{}, true},
-		{"investigate by an Editor who can view the dashboard", SourceInvestigate, true, false, auth.RoleEditor, folders.Abilities{View: true}, true},
-		{"investigate by an Editor with no access to the dashboard", SourceInvestigate, true, false, auth.RoleEditor, folders.Abilities{}, false},
+		{"apply with Edit", runRule{target: apply, role: auth.RoleEditor, dashboard: withEdit}, true},
+		{"apply with Comment only", runRule{target: apply, role: auth.RoleCommenter, dashboard: withoutEdit}, true},
+		{"apply with View only", runRule{target: apply, role: auth.RoleEditor, dashboard: viewOnly}, false},
+		{"apply without a dashboard", runRule{target: RunTarget{Intent: IntentApply}, role: auth.RoleEditor, canCreate: true}, false},
+		{"suggest with Edit", runRule{target: suggest, role: auth.RoleEditor, dashboard: withEdit}, true},
+		{"suggest without Edit", runRule{target: suggest, role: auth.RoleEditor, dashboard: withoutEdit}, false},
+		{"a new-dashboard ask when the requester can create", runRule{target: create, role: auth.RoleEditor, canCreate: true}, true},
+		{"a new-dashboard ask when the requester cannot create", runRule{target: create, role: auth.RoleEditor}, false},
+		{"Edit abilities do not help a new-dashboard ask", runRule{target: create, role: auth.RoleEditor, dashboard: withEdit}, false},
+		{"an investigation by a Viewer", runRule{target: files, role: auth.RoleViewer, canCreate: true}, false},
+		{"an investigation by an Editor", runRule{target: files, role: auth.RoleEditor}, true},
+		{"an investigation by a Commenter of the dashboard", runRule{target: filesOnDashboard, role: auth.RoleCommenter, dashboard: withoutEdit}, false},
+		{"an investigation by an Editor who can view the dashboard", runRule{target: filesOnDashboard, role: auth.RoleEditor, dashboard: viewOnly}, true},
+		{"an investigation by an Editor with no access to the dashboard", runRule{target: filesOnDashboard, role: auth.RoleEditor}, false},
+		{"an ask on an observation by a Commenter", runRule{target: onObservation, role: auth.RoleCommenter, observation: withoutEdit}, true},
+		{"an ask on an observation by an Editor who may only view it", runRule{target: onObservation, role: auth.RoleEditor, observation: viewOnly}, false},
+		{"an ask on a dashboard by a Commenter", runRule{target: onDashboard, role: auth.RoleCommenter, dashboard: withoutEdit}, true},
+		{"an ask on a dashboard with View only", runRule{target: onDashboard, role: auth.RoleEditor, dashboard: viewOnly}, false},
+		{"a run with no intent", runRule{target: RunTarget{DashboardID: dash}, role: auth.RoleAdmin, dashboard: withEdit, canCreate: true}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := runAllowed(tc.source, tc.hasDashboard, tc.canCreate, tc.role, tc.abilities); got != tc.want {
-				t.Fatalf("runAllowed(%s, dashboard=%v, canCreate=%v, %+v) = %v, want %v", tc.source, tc.hasDashboard, tc.canCreate, tc.abilities, got, tc.want)
+			if got := runAllowed(tc.rule); got != tc.want {
+				t.Fatalf("runAllowed(%+v) = %v, want %v", tc.rule, got, tc.want)
 			}
 		})
 	}
 }
 
 func TestRefusalNamesWhatWouldLetTheRequestThrough(t *testing.T) {
+	dash := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	obs := pgtype.UUID{Bytes: [16]byte{2}, Valid: true}
 	cases := []struct {
-		name         string
-		source       Source
-		hasDashboard bool
-		role         auth.Role
-		want         forbidden.Body
+		name string
+		rule runRule
+		want forbidden.Body
 	}{
-		{"investigate by a Viewer", SourceInvestigate, false, auth.RoleViewer, forbidden.NeedsRole("editor")},
-		{"investigate by a Commenter on a dashboard", SourceInvestigate, true, auth.RoleCommenter, forbidden.NeedsRole("editor")},
-		{"suggest without Edit", SourceSuggest, true, auth.RoleCommenter, forbidden.NeedsAccess("edit", "Payments")},
-		{"prompt with View only", SourcePrompt, true, auth.RoleViewer, forbidden.NeedsAccess("comment", "Payments")},
-		{"observe without a folder to create in", SourceObserve, false, auth.RoleViewer, forbidden.NeedsAccess("edit", "")},
+		{"an investigation by a Viewer", runRule{target: RunTarget{Intent: IntentAsk, Files: true}, role: auth.RoleViewer}, forbidden.NeedsRole("editor")},
+		{"an investigation by a Commenter on a dashboard", runRule{target: RunTarget{Intent: IntentAsk, DashboardID: dash, Files: true}, role: auth.RoleCommenter}, forbidden.NeedsRole("editor")},
+		{"an ask on an observation with View only", runRule{target: RunTarget{Intent: IntentAsk, ObservationID: obs}, role: auth.RoleViewer}, forbidden.NeedsAccess("comment", "Payments")},
+		{"an ask on a dashboard with View only", runRule{target: RunTarget{Intent: IntentAsk, DashboardID: dash}, role: auth.RoleViewer}, forbidden.NeedsAccess("comment", "Payments")},
+		{"suggest without Edit", runRule{target: RunTarget{Intent: IntentSuggest, DashboardID: dash}, role: auth.RoleCommenter}, forbidden.NeedsAccess("edit", "Payments")},
+		{"apply with View only", runRule{target: RunTarget{Intent: IntentApply, DashboardID: dash}, role: auth.RoleViewer}, forbidden.NeedsAccess("comment", "Payments")},
+		{"a new-dashboard ask without a folder to create in", runRule{target: RunTarget{Intent: IntentAsk}, role: auth.RoleViewer}, forbidden.NeedsAccess("edit", "")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := refusal(tc.source, tc.hasDashboard, tc.role, "Payments")
+			err := refusal(tc.rule, "Payments")
 			if !errors.Is(err, ErrForbidden) || forbidden.BodyOf(err) != tc.want {
 				t.Fatalf("refusal = %#v, want a forbidden error with %+v", err, tc.want)
 			}
 		})
-	}
-	if err := refusal(SourceInvestigate, true, auth.RoleEditor, "Payments"); !errors.Is(err, ErrForbidden) {
-		t.Fatalf("an Editor refused an investigation gets the plain error, got %#v", err)
 	}
 }
 
@@ -89,7 +94,7 @@ func TestFailAnswersAForbiddenRunWithItsNeed(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
-	(&Service{logger: slog.New(slog.DiscardHandler)}).fail(c, "enqueue", refusal(SourceInvestigate, false, auth.RoleViewer, ""))
+	(&Service{logger: slog.New(slog.DiscardHandler)}).fail(c, "enqueue", refusal(runRule{target: RunTarget{Intent: IntentAsk, Files: true}, role: auth.RoleViewer}, ""))
 	want := `{"error":"your role does not allow this","code":"forbidden_role","needed_role":"editor"}`
 	if rec.Code != http.StatusForbidden || rec.Body.String() != want {
 		t.Fatalf("got %d %s, want 403 %s", rec.Code, rec.Body.String(), want)

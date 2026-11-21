@@ -147,14 +147,14 @@ func (w *Worker) process(ctx context.Context, claim Claimed) bool {
 		return false
 	}
 	if err == nil {
-		w.service.finishLogged(ctx, claimed, successOutcome(Source(claimed.Source), result))
+		w.service.finishLogged(ctx, claimed, successOutcome(SourceOf(claimed), result))
 		return true
 	}
 	return w.settleFailure(ctx, claimed, result, err)
 }
 
 func (w *Worker) settleFailure(ctx context.Context, claimed dbsqlc.AgentRequest, result Result, err error) bool {
-	if claimed.Source != string(SourceSuggest) {
+	if SourceOf(claimed) != SourceSuggest {
 		if settled, progressed := w.service.settleSaved(ctx, claimed, result.Usage); settled {
 			return progressed
 		}

@@ -152,13 +152,18 @@ func TestAStarterDashboardTakesNoAgentRunThatChangesIt(t *testing.T) {
 	r := newRig(t, true)
 	id := r.starterDashboard(t)
 	ctx := reading(t.Context())
-	for _, source := range []revisions.Source{revisions.SourceObserve, revisions.SourceSuggest, revisions.SourceComment, revisions.SourcePrompt} {
-		if err := r.revisions.CheckRun(ctx, source, id, adminUser); !errors.Is(err, folders.ErrProvisioned) {
-			t.Errorf("%s: err = %v, want the provisioned refusal", source, err)
+	for _, intent := range []revisions.Intent{revisions.IntentApply, revisions.IntentSuggest} {
+		if err := r.revisions.CheckRun(ctx, revisions.RunTarget{Intent: intent, DashboardID: id}, adminUser); !errors.Is(err, folders.ErrProvisioned) {
+			t.Errorf("%s: err = %v, want the provisioned refusal", intent, err)
 		}
 	}
-	if err := r.revisions.CheckRun(ctx, revisions.SourceInvestigate, id, adminUser); err != nil {
-		t.Errorf("investigate: %v, want an investigation of a starter to be allowed", err)
+	for name, ask := range map[string]revisions.RunTarget{
+		"an ask":           {Intent: revisions.IntentAsk, DashboardID: id},
+		"an investigation": {Intent: revisions.IntentAsk, DashboardID: id, Files: true},
+	} {
+		if err := r.revisions.CheckRun(ctx, ask, adminUser); err != nil {
+			t.Errorf("%s: %v, want a run that only reads a starter to be allowed", name, err)
+		}
 	}
 }
 

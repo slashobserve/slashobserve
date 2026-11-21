@@ -54,7 +54,7 @@ var (
 	blockKeys    = []string{"title", "block_id", "block_kind", "state"}
 	proposalKeys = []string{"title", "revision", "base_version", "version"}
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
-	runKeys      = []string{"source", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
+	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
 	accountKeys  = []string{"name", "role", "takes_runs", "key_id", "key_name", "expires_at"}
@@ -166,9 +166,9 @@ var catalog = map[Action]Spec{
 	"chat.create":                 change(CategoryConversation),
 	"chat.turn":                   change(CategoryConversation),
 	"chat.archive":                change(CategoryConversation),
-	"run.share":                   change(CategoryConversation),
-	"run.withdraw":                change(CategoryConversation),
-	"finding.apply":               change(CategoryConversation),
+	"run.share":                   change(CategoryConversation, []string{"finding_id", "on_the_page"}),
+	"run.withdraw":                change(CategoryConversation, []string{"finding_id"}),
+	"finding.apply":               change(CategoryConversation, []string{"run_id"}),
 	"finding.save_as_observation": change(CategoryConversation),
 
 	"run.queue":       change(CategoryAgent, runKeys),

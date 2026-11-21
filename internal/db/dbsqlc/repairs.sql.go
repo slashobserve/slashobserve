@@ -13,7 +13,7 @@ import (
 
 const countActiveRepairsBy = `-- name: CountActiveRepairsBy :one
 SELECT count(*) FROM agent_requests
-WHERE requested_by_id = $1 AND source = 'prompt' AND prompt = $2::text
+WHERE requested_by_id = $1 AND intent = 'apply' AND base_version IS NOT NULL AND prompt = $2::text
   AND status IN ('queued', 'running')
 `
 
@@ -51,7 +51,7 @@ LEFT JOIN imports i ON i.dashboard_id = d.id
 LEFT JOIN dashboard_versions iv ON iv.dashboard_id = i.dashboard_id AND iv.version = i.version
 LEFT JOIN LATERAL (
   SELECT a.id, a.status, a.finished_at FROM agent_requests a
-  WHERE a.dashboard_id = d.id AND a.source = 'prompt' AND a.prompt = $1::text
+  WHERE a.dashboard_id = d.id AND a.intent = 'apply' AND a.base_version IS NOT NULL AND a.prompt = $1::text
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT 1
 ) r ON true

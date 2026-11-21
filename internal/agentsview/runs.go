@@ -7,10 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -31,6 +33,8 @@ const (
 	maxTitleRunes   = 120
 )
 
+const actionRunList audit.Action = "run.list"
+
 var errAssigneeNotFound = errors.New("agent not found")
 
 type linkJSON struct {
@@ -44,20 +48,21 @@ type requesterJSON struct {
 }
 
 type runJSON struct {
-	ID          string        `json:"id"`
-	Source      string        `json:"source"`
-	Title       string        `json:"title"`
-	State       string        `json:"state"`
-	ResultKind  string        `json:"result_kind"`
-	FailureCode *string       `json:"failure_code"`
-	CreatedAt   string        `json:"created_at"`
-	StartedAt   *string       `json:"started_at"`
-	FinishedAt  *string       `json:"finished_at"`
-	CostUSD     *float64      `json:"cost_usd"`
-	RequestedBy requesterJSON `json:"requested_by"`
-	Openable    bool          `json:"openable"`
-	Dashboard   *linkJSON     `json:"dashboard"`
-	Observation *linkJSON     `json:"observation"`
+	ID            string        `json:"id"`
+	Intent        string        `json:"intent"`
+	Investigation bool          `json:"investigation"`
+	Title         string        `json:"title"`
+	State         string        `json:"state"`
+	ResultKind    string        `json:"result_kind"`
+	FailureCode   *string       `json:"failure_code"`
+	CreatedAt     string        `json:"created_at"`
+	StartedAt     *string       `json:"started_at"`
+	FinishedAt    *string       `json:"finished_at"`
+	CostUSD       *float64      `json:"cost_usd"`
+	RequestedBy   requesterJSON `json:"requested_by"`
+	Openable      bool          `json:"openable"`
+	Dashboard     *linkJSON     `json:"dashboard"`
+	Observation   *linkJSON     `json:"observation"`
 }
 
 type runPageJSON struct {
@@ -159,6 +164,7 @@ func (h *Handler) runPage(ctx context.Context, caller auth.Principal, query runQ
 	if err != nil {
 		return runPageJSON{}, fmt.Errorf("list agent runs: %w", err)
 	}
+	h.recordList(ctx, query, scope)
 	page := runPageJSON{Scope: scope, Items: make([]runJSON, 0, min(len(rows), query.limit))}
 	if len(rows) > query.limit {
 		rows = rows[:query.limit]
@@ -201,18 +207,19 @@ func (h *Handler) runScope(ctx context.Context, caller auth.Principal, callerID 
 
 func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	out := runJSON{
-		ID:          row.ID.String(),
-		Source:      row.Source,
-		Title:       runTitle(row.Title.String, row.Prompt, row.Source),
-		State:       row.State,
-		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
-		FailureCode: optionalText(row.FailureCode),
-		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:   optionalTime(row.StartedAt),
-		FinishedAt:  optionalTime(row.FinishedAt),
-		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
-		Openable:    row.RequestedByKind == "user" && row.RequestedByID == callerID,
+		ID:            row.ID.String(),
+		Intent:        row.Intent,
+		Investigation: row.Investigation,
+		State:         row.State,
+		ResultKind:    string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
+		FailureCode:   optionalText(row.FailureCode),
+		CreatedAt:     httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:     optionalTime(row.StartedAt),
+		FinishedAt:    optionalTime(row.FinishedAt),
+		RequestedBy:   requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
+		Openable:      row.RequestedByKind == "user" && row.RequestedByID == callerID,
 	}
+	out.Title = runTitle(row.Title.String, row.Prompt, out.Intent)
 	if row.Priced {
 		out.CostUSD = &row.CostUsd
 	}
@@ -225,14 +232,14 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	return out
 }
 
-func runTitle(title, prompt, source string) string {
+func runTitle(title, prompt, intent string) string {
 	if title != "" {
 		return title
 	}
 	first, _, _ := strings.Cut(strings.TrimSpace(prompt), "\n")
 	first = strings.TrimSpace(first)
 	if first == "" {
-		return source
+		return intent
 	}
 	if runes := []rune(first); len(runes) > maxTitleRunes {
 		return string(runes[:maxTitleRunes])
@@ -253,4 +260,18 @@ func optionalTime(t pgtype.Timestamptz) *string {
 	}
 	s := httpapi.FormatTime(t.Time)
 	return &s
+}
+
+func (h *Handler) recordList(ctx context.Context, query runQuery, scope string) {
+	e := audit.Event{Action: actionRunList, Data: map[string]any{"scope": scope}}
+	if query.kind != kindBuiltin {
+		e.Target = audit.Target{Kind: query.kind, ID: query.id.String()}
+	}
+	if h.reads.SeenRecently(ctx, string(e.Action)+":agent:"+query.kind+":"+e.Target.ID+":"+scope, time.Now()) {
+		audit.Skip(ctx)
+		return
+	}
+	if err := audit.RecordNow(ctx, e); err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		h.logger.WarnContext(ctx, "read not recorded", logattrs.Failure("audit_record_failed", err, slog.String("action", string(e.Action)))...)
+	}
 }

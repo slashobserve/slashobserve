@@ -10,17 +10,31 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/links"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const (
 	nameSaveRunAnswer = "save_run_answer"
+	nameShareAnswer   = "share_answer"
 
-	codeNoAnswer = "no_answer"
+	codeNoAnswer     = "no_answer"
+	codeNotShareable = "not_shareable"
+	codeWrongThread  = "invalid_thread"
 
 	descSaveRunAnswer = "Save the answer of a run as an observation: a plain question asked in chat or in a comment is answered in the chat only, and this files that answer as an observation, with its text and evidence, in the folder of the dashboard it was about, else in your default folder. Only the one who asked may. Returns the observation id and url; a repeat call returns the same observation with replayed true."
 
+	descShareAnswer = "Share the answer of a private question with the people who can read what it was about. A question asked with start_run kind ask is read only by you and Admins; this posts the question and the agent's answer as a new comment thread on that dashboard or observation, at the same panel or block, and on an observation also writes the answer onto the page. With thread_id it adds both to that thread instead, which must be on the same dashboard or observation. Only the one who asked may, once the run has an answer; you need Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared where only Admins can read. A repeat call returns the same thread with replayed true."
+
+	schemaShareAnswer = `{"type":"object","properties":{"run_id":{"type":"string","format":"uuid","description":"The run whose answer to share: the id of the request, from get_run or the chat."},"thread_id":{"type":"string","format":"uuid","description":"A comment thread on the same dashboard or observation to add the question and answer to; omit to start a new thread."}},"required":["run_id"],"additionalProperties":false}`
+
 	schemaSaveRunAnswer = `{"type":"object","properties":{"run_id":{"type":"string","format":"uuid","description":"The run whose answer to save: the id of the request, from get_run or the chat url."}},"required":["run_id"],"additionalProperties":false}`
 )
+
+type answerSharedOut struct {
+	ThreadID  string `json:"thread_id"`
+	MessageID string `json:"message_id"`
+	Replayed  bool   `json:"replayed"`
+}
 
 type runAnswerSavedOut struct {
 	ObservationID string `json:"observation_id"`
@@ -33,6 +47,7 @@ func init() { registerEntries((*Registry).runAnswerEntries) }
 func (r *Registry) runAnswerEntries() []entry {
 	return []entry{
 		{Tool{Name: nameSaveRunAnswer, Description: descSaveRunAnswer, InputSchema: json.RawMessage(schemaSaveRunAnswer), MCPOnly: true, MinRole: auth.RoleViewer}, r.saveRunAnswer},
+		{Tool{Name: nameShareAnswer, Description: descShareAnswer, InputSchema: json.RawMessage(schemaShareAnswer), MCPOnly: true, MinRole: auth.RoleViewer}, r.shareAnswer},
 	}
 }
 
@@ -63,4 +78,58 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 		return Result{}, err
 	}
 	return success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed}), nil
+}
+
+func (r *Registry) shareAnswer(ctx context.Context, input json.RawMessage) (Result, error) {
+	if r.deps.Threads == nil {
+		return Result{}, errCommentsNotConfigured
+	}
+	var in struct {
+		RunID    string  `json:"run_id"`
+		ThreadID *string `json:"thread_id"`
+	}
+	if res, ok := decodeInput(input, &in); !ok {
+		return res, nil
+	}
+	share := threads.ShareInput{}
+	var err error
+	if share.RunID, err = db.ParseUUID(in.RunID); err != nil {
+		return invalid("run_id must be a UUID"), nil
+	}
+	if in.ThreadID != nil {
+		if share.ThreadID, err = db.ParseUUID(*in.ThreadID); err != nil {
+			return invalid("thread_id must be a UUID"), nil
+		}
+	}
+	principal, _ := auth.FromContext(ctx)
+	shared, err := r.deps.Threads.ShareRun(ctx, principal, share)
+	if res, ok := shareRefusal(err); ok {
+		return res, nil
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	out := answerSharedOut{ThreadID: shared.Thread.ID, MessageID: shared.Message.ID, Replayed: shared.Replayed}
+	return success("Shared the answer of run "+in.RunID+" in thread "+out.ThreadID, out), nil
+}
+
+func shareRefusal(err error) (Result, bool) {
+	var wrong *threads.InvalidInputError
+	switch {
+	case err == nil:
+		return Result{}, false
+	case errors.Is(err, threads.ErrRunNotFound):
+		return toolError(codeNotFound, "run not found"), true
+	case errors.Is(err, threads.ErrNoAnswer):
+		return toolError(codeNoAnswer, err.Error()), true
+	case errors.Is(err, threads.ErrNotShareable):
+		return toolError(codeNotShareable, err.Error()), true
+	case errors.Is(err, threads.ErrNotFound), errors.As(err, &wrong) && wrong.Code == threads.CodeWrongThread:
+		return toolError(codeWrongThread, "thread_id must be a thread you can comment in, on the dashboard or observation the question was about"), true
+	case errors.Is(err, threads.ErrTargetNotFound):
+		return toolError(codeNotFound, "the dashboard or observation the question was about no longer exists"), true
+	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):
+		return toolError(codeForbiddenRole, roleDeniedMessage), true
+	}
+	return restrictedRefusal(err)
 }

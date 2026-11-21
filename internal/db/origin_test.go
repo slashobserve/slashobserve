@@ -17,8 +17,8 @@ func TestOriginClientConstraintsRequireAnMCPOrigin(t *testing.T) {
 	inserts := map[string]string{
 		"dashboard_versions": `INSERT INTO dashboard_versions (dashboard_id, version, spec, summary, author_kind, author_id, author_name, origin, origin_client)
 VALUES ($1::uuid, $2, '{}'::jsonb, 's', 'user', gen_random_uuid(), 'n', $3, $4)`,
-		"agent_requests": `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, origin, origin_client)
-VALUES ($1::uuid, 'prompt', 'p', $2, 'user', gen_random_uuid(), 'n', $3, $4)`,
+		"agent_requests": `INSERT INTO agent_requests (dashboard_id, intent, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name, origin, origin_client)
+VALUES ($1::uuid, 'apply', 'p', $2, 'user', gen_random_uuid(), 'n', $3, $4)`,
 		"findings": `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
   VALUES (general_folder_id(), 't', 'user', gen_random_uuid(), 'n') RETURNING id)
 INSERT INTO findings (observation_id, dashboard_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name, origin, origin_client)

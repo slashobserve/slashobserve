@@ -11,6 +11,7 @@ import { dashboardKeys, observeKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { maxPromptLength } from "@/prompts/rules"
 import { sentence, type ObserveRequest } from "@/observe/queries"
+import { requestOrigin, type OriginFields } from "@/observe/request-origin"
 
 export type BuildProgress = components["schemas"]["AgentBuildProgress"]
 
@@ -38,11 +39,12 @@ export function answeredRequestId(
 }
 
 export function awaitsFirstPanel(
-  request: Pick<ObserveRequest, "status" | "build" | "source" | "dashboard_id">
+  request: OriginFields &
+    Pick<ObserveRequest, "status" | "build" | "dashboard_id">
 ): boolean {
   return (
     (request.status === "queued" || request.status === "running") &&
-    request.source === "observe" &&
+    requestOrigin(request) === "observe" &&
     request.dashboard_id === null &&
     request.build === null
   )

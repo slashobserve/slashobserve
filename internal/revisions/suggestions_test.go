@@ -96,7 +96,7 @@ func sameJSON(t *testing.T, got []byte, want string) bool {
 }
 
 func principalN(i int) auth.Principal {
-	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i)}
+	return auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("44444444-4444-4444-8444-%012d", i), Name: fmt.Sprintf("account %d", i), Role: auth.RoleEditor}
 }
 
 func proposing(panel string) reviserFunc {
@@ -154,7 +154,7 @@ func TestSuggestionsDoNotCountTowardTheDashboardRevisionCap(t *testing.T) {
 	for i := range revisions.MaxActive {
 		submit(t, svc, dash, fmt.Sprintf("p%d", i))
 	}
-	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Source: revisions.SourcePrompt, Prompt: "one too many", BaseVersion: 1, By: user})
+	_, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "one too many", BaseVersion: 1, By: user})
 	if !errors.Is(err, revisions.ErrTooManyRevisions) {
 		t.Fatalf("sixth revision: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestSuggestionsAreCappedPerPrincipalAndPerInstance(t *testing.T) {
 	}
 
 	var stored int
-	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests WHERE source = 'suggest'").Scan(&stored); err != nil || stored != revisions.MaxActiveSuggest {
+	if err := d.SQLDB(t).QueryRow("SELECT count(*) FROM agent_requests WHERE intent = 'suggest'").Scan(&stored); err != nil || stored != revisions.MaxActiveSuggest {
 		t.Fatalf("stored %d suggestions, err %v", stored, err)
 	}
 }
@@ -237,9 +237,9 @@ func TestSuggestionRowsMustHoldAnObjectWhenTheyHaveSucceeded(t *testing.T) {
 		suggestion any
 		constraint string
 	}{
-		{"no suggestion", nil, "agent_requests_succeeded_check"},
-		{"JSON null", `null`, "agent_requests_suggestion_check"},
-		{"an array", `[]`, "agent_requests_suggestion_check"},
+		{"no suggestion", nil, "agent_requests_intent_succeeded_check"},
+		{"JSON null", `null`, "agent_requests_intent_suggestion_check"},
+		{"an array", `[]`, "agent_requests_intent_suggestion_check"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

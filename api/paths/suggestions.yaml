@@ -116,12 +116,13 @@ dashboards-id-suggestions-suggestionid:
         format: uuid
   get:
     operationId: getPanelSuggestion
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { action: run.view, target: { kind: run, id: path.suggestion_id } }
     summary: Read one panel suggestion.
     description: >-
       Only the caller who requested the suggestion can read it; any other caller, a suggestion of another dashboard and an unknown id all answer 404.
       `panel` is set only when the status is `succeeded` and `error` only when it is `failed`.
       Poll every second until the status is `succeeded` or `failed`; suggestions send no events.
+      A read is recorded in the audit trail as `run.view`, once per reader and suggestion in 10 minutes.
     responses:
       "200":
         description: The suggestion with its current status and progress steps.

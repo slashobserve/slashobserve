@@ -62,19 +62,21 @@ func RunAccess(req revisions.Request) datasource.Access {
 }
 
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Access: RunAccess(req)}
+	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Access: RunAccess(req), Investigation: req.Investigation}
 	switch {
-	case req.Source == revisions.SourceSuggest:
+	case req.Intent == revisions.IntentSuggest:
 		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID, Access: run.Access}
-	case req.Source == revisions.SourceInvestigate:
+	case req.Intent == revisions.IntentApply:
+		run.Mode, run.Build = ModeRevise, true
+	case req.Intent != revisions.IntentAsk:
+		return Run{}, fmt.Errorf("%w: run intent %q", ErrInvariant, req.Intent)
+	case req.Source == revisions.SourceObserve:
+		run.Mode, run.Build = ModeCreate, true
+	default:
 		run.Mode, run.PanelID = ModeInvestigate, req.PanelID
 		if req.From != nil && req.To != nil {
 			run.From, run.To = *req.From, *req.To
 		}
-	case req.DashboardID == "":
-		run.Mode, run.Build = ModeCreate, true
-	default:
-		run.Mode, run.Build = ModeRevise, true
 	}
 	if req.DashboardID == "" {
 		return run, nil

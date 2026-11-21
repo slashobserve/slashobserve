@@ -18,7 +18,7 @@ func TestAllRequesterListUsesTheListedIndex(t *testing.T) {
 	if _, err := tx.Exec(`SET LOCAL enable_seqscan = off`); err != nil {
 		t.Fatal(err)
 	}
-	rows, err := tx.Query(`EXPLAIN SELECT r.id FROM agent_requests r WHERE r.source <> 'suggest' AND r.archived_at IS NULL ORDER BY r.created_at DESC, r.id DESC LIMIT 21`)
+	rows, err := tx.Query(`EXPLAIN SELECT r.id FROM agent_requests r WHERE r.intent <> 'suggest' AND r.archived_at IS NULL ORDER BY r.created_at DESC, r.id DESC LIMIT 21`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestAllRequesterListUsesTheListedIndex(t *testing.T) {
 		}
 		plan.WriteString(line + "\n")
 	}
-	if !strings.Contains(plan.String(), "agent_requests_listed_recent_idx") {
-		t.Fatalf("plan does not name agent_requests_listed_recent_idx:\n%s", plan.String())
+	if !strings.Contains(plan.String(), "agent_requests_listed_intent_idx") {
+		t.Fatalf("plan does not name agent_requests_listed_intent_idx:\n%s", plan.String())
 	}
 }

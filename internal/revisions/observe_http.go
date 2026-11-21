@@ -44,6 +44,7 @@ type ObserveOptions struct {
 	ObservationURL     func(observationID string) string
 	Finding            func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error)
 	SaveAnswer         AnswerSaver
+	ShareAnswer        AnswerSharer
 	LiveText           func(runID string, attempt int) (string, bool)
 	ShareTitle         TitleSharer
 	ObservationVisible func(ctx context.Context, by auth.Principal, id pgtype.UUID) (bool, error)
@@ -74,7 +75,8 @@ type agentInfoJSON struct {
 type agentRequestJSON struct {
 	ID             string             `json:"id"`
 	Kind           string             `json:"kind"`
-	Source         Source             `json:"source"`
+	Intent         Intent             `json:"intent"`
+	Investigation  bool               `json:"investigation"`
 	Trigger        string             `json:"trigger"`
 	Title          string             `json:"title"`
 	Prompt         string             `json:"prompt"`
@@ -110,6 +112,7 @@ type agentRequestJSON struct {
 	CanceledBy        *authorJSON `json:"canceled_by"`
 	CanCancel         bool        `json:"can_cancel"`
 	ReadOnly          bool        `json:"read_only"`
+	Redacted          bool        `json:"redacted"`
 	AllowedActions    []string    `json:"allowed_actions"`
 	ContinuesID       *string     `json:"continues_id"`
 	ContinueNote      *string     `json:"continue_note"`
@@ -121,7 +124,9 @@ type agentRequestJSON struct {
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
 	ObservationID *string         `json:"observation_id"`
+	SubjectID     *string         `json:"subject_observation_id"`
 	ChatID        *string         `json:"chat_id"`
+	SharedThread  *string         `json:"shared_thread_id"`
 	Finding       json.RawMessage `json:"finding"`
 
 	ObservationRename SharedTitle `json:"observation_rename,omitempty"`
@@ -137,7 +142,8 @@ type assigneeJSON struct {
 type requestSummaryJSON struct {
 	ID             string     `json:"id"`
 	Kind           string     `json:"kind"`
-	Source         Source     `json:"source"`
+	Intent         Intent     `json:"intent"`
+	Investigation  bool       `json:"investigation"`
 	Trigger        string     `json:"trigger"`
 	Title          string     `json:"title"`
 	PinnedAt       *string    `json:"pinned_at"`
@@ -148,6 +154,8 @@ type requestSummaryJSON struct {
 	DashboardID    *string    `json:"dashboard_id"`
 	DashboardTitle *string    `json:"dashboard_title"`
 	PanelID        *string    `json:"panel_id"`
+	BaseVersion    *int       `json:"base_version"`
+	CommentID      *string    `json:"comment_id"`
 	ResultVersion  *int       `json:"result_version"`
 	URL            *string    `json:"url"`
 	Error          *string    `json:"error"`
@@ -197,6 +205,7 @@ func (h *ObserveHandler) Register(api auth.Routes) {
 	api.GET("/observe/:id/build", auth.RoleViewer, h.getBuild)
 	api.POST("/observe/:id/build/save", auth.RoleViewer, h.saveBuild)
 	api.POST("/observe/:id/observation", auth.RoleViewer, h.saveAnswer)
+	api.POST("/observe/:id/share", auth.RoleViewer, h.shareAnswer)
 	api.POST("/observe/:id/cancel", auth.RoleViewer, h.cancelObserve)
 	api.POST("/observe/:id/continue", auth.RoleViewer, h.continueObserve)
 	api.POST("/observe/:id/retry", auth.RoleViewer, h.retryObserve)
@@ -312,15 +321,6 @@ func listFilter(c *gin.Context) (ListFilter, bool) {
 	if !scopeAndStates(c, &filter) {
 		return filter, false
 	}
-	if raw, present := c.GetQuery("source"); present {
-		switch Source(raw) {
-		case SourceObserve, SourcePrompt, SourceComment, SourceInvestigate:
-			filter.Source = raw
-		default:
-			httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "source must be observe, prompt, comment or investigate")
-			return filter, false
-		}
-	}
 	if raw, present := c.GetQuery("q"); present {
 		q, err := CheckQuery(raw)
 		if err != nil {
@@ -371,6 +371,14 @@ func optionalUUID(id pgtype.UUID) *string {
 	}
 	s := id.String()
 	return &s
+}
+
+func optionalInt(n pgtype.Int4) *int {
+	if !n.Valid {
+		return nil
+	}
+	v := int(n.Int32)
+	return &v
 }
 
 func optionalText(t pgtype.Text) *string {

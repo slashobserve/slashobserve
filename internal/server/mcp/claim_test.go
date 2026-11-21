@@ -41,7 +41,7 @@ func (s *claimingService) Claim(_ context.Context, c claims.Claimer, _ time.Dura
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.claimed = append(s.claimed, c)
-	return claims.Offer{Run: &claims.OfferedRun{ID: runRequestID, Attempt: 1, Kind: "create", Source: "observe", Prompt: "checkout latency"}}, nil
+	return claims.Offer{Run: &claims.OfferedRun{ID: runRequestID, Attempt: 1, Kind: "create", Intent: "ask", Prompt: "checkout latency"}}, nil
 }
 
 func (*claimingService) ClaimedRun(context.Context, claims.Claimer, string, int) (revisions.Request, error) {

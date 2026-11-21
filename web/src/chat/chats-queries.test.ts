@@ -18,7 +18,13 @@ function chat(over: Partial<Chat> = {}): Chat {
     created_at: "2026-11-20T10:00:00Z",
     last_turn_at: "2026-11-20T10:05:00Z",
     turns: 1,
-    last_turn: { id: "c1", state: "running", prompt: "x" },
+    last_turn: {
+      id: "c1",
+      state: "running",
+      prompt: "x",
+      investigation: false,
+      subject_observation_id: null,
+    },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
     ...over,
@@ -37,7 +43,13 @@ describe("refreshChat", () => {
     const saved = chat({
       dashboard_id: dashboardId,
       dashboard_title: "Checkout health",
-      last_turn: { id: "c1", state: "succeeded", prompt: "x" },
+      last_turn: {
+        id: "c1",
+        state: "succeeded",
+        prompt: "x",
+        investigation: false,
+        subject_observation_id: null,
+      },
     })
     vi.stubGlobal(
       "fetch",

@@ -17,19 +17,19 @@ export function AskOnDashboard({
   askOn: AskOn
   prompt: string
 }) {
-  const mayEdit = useLatestPermissions(askOn.dashboard_id).edit
+  const mayAsk = useLatestPermissions(askOn.dashboard_id).comment
   const create = useCreateObserveRequest()
   const navigate = useNavigate()
   const busy = create.isPending || create.isSuccess
   return (
     <div className="flex flex-col gap-2 rounded-card border px-3.5 py-3 text-[13px]">
       <p>
-        {mayEdit
-          ? `This change is made on the dashboard ${askOn.title}; ask there with the same request.`
-          : `This change is made on the dashboard ${askOn.title}, which you cannot edit; someone who can edit it can ask there.`}
+        {mayAsk
+          ? `This request is about the dashboard ${askOn.title}. Ask there and the agent answers about it; a change it suggests is made only when you choose Revise the dashboard.`
+          : `This request is about the dashboard ${askOn.title}, where you cannot ask the agent.`}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        {mayEdit ? (
+        {mayAsk ? (
           <Button
             variant="outline"
             size="sm"
@@ -37,7 +37,7 @@ export function AskOnDashboard({
             aria-busy={busy}
             onClick={() =>
               create.mutate(
-                { prompt, dashboardId: askOn.dashboard_id },
+                { prompt, dashboardId: askOn.dashboard_id, kind: "ask" },
                 {
                   onSuccess: (request) =>
                     void navigate({

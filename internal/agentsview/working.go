@@ -30,17 +30,18 @@ type workingAgentJSON struct {
 }
 
 type workingRunJSON struct {
-	ID          string           `json:"id"`
-	Source      string           `json:"source"`
-	State       string           `json:"state"`
-	CreatedAt   string           `json:"created_at"`
-	StartedAt   *string          `json:"started_at"`
-	Mine        bool             `json:"mine"`
-	Title       *string          `json:"title"`
-	Agent       workingAgentJSON `json:"agent"`
-	RequestedBy requesterJSON    `json:"requested_by"`
-	Dashboard   *linkJSON        `json:"dashboard"`
-	Observation *linkJSON        `json:"observation"`
+	ID            string           `json:"id"`
+	Intent        string           `json:"intent"`
+	Investigation bool             `json:"investigation"`
+	State         string           `json:"state"`
+	CreatedAt     string           `json:"created_at"`
+	StartedAt     *string          `json:"started_at"`
+	Mine          bool             `json:"mine"`
+	Title         *string          `json:"title"`
+	Agent         workingAgentJSON `json:"agent"`
+	RequestedBy   requesterJSON    `json:"requested_by"`
+	Dashboard     *linkJSON        `json:"dashboard"`
+	Observation   *linkJSON        `json:"observation"`
 }
 
 type workingPageJSON struct {
@@ -123,17 +124,18 @@ func (h *Handler) workingAgent(ctx context.Context, row dbsqlc.ListWorkingRunsRo
 func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalKind, callerID pgtype.UUID, agent workingAgentJSON) workingRunJSON {
 	mine := row.RequestedByKind == string(callerKind) && row.RequestedByID == callerID
 	out := workingRunJSON{
-		ID:          row.ID.String(),
-		Source:      row.Source,
-		State:       row.State,
-		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:   optionalTime(row.StartedAt),
-		Mine:        mine,
-		Agent:       agent,
-		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
+		ID:            row.ID.String(),
+		Intent:        row.Intent,
+		Investigation: row.Investigation,
+		State:         row.State,
+		CreatedAt:     httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:     optionalTime(row.StartedAt),
+		Mine:          mine,
+		Agent:         agent,
+		RequestedBy:   requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
 	}
 	if mine {
-		title := runTitle(row.Title.String, row.Prompt, row.Source)
+		title := runTitle(row.Title.String, row.Prompt, out.Intent)
 		out.Title = &title
 	}
 	if row.VisibleDashboardID.Valid {

@@ -8,7 +8,8 @@ import { expectPanelsReady } from "./dashboards"
 import { expect, test, type Page } from "./fixtures"
 
 const redPrompt = "demo shop RED metrics by endpoint"
-const followUpPrompt = "add a requests by pod panel"
+const followUpQuestion = "can this show requests by pod?"
+const suggestedChange = "add a requests by pod panel"
 const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
@@ -140,7 +141,11 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
     title: uniqueTitle("Follow-up retry"),
   })
   const queued = await page.request.post("/api/v1/observe", {
-    data: { prompt: unanswerablePrompt, dashboard_id: dashboardId },
+    data: {
+      prompt: unanswerablePrompt,
+      dashboard_id: dashboardId,
+      kind: "revise",
+    },
     headers: mutationHeaders,
   })
   expect(queued.status()).toBe(202)
@@ -168,12 +173,12 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
     `/api/v1/dashboards/${dashboardId}/revisions`
   )
   const body = (await revisions.json()) as {
-    revisions: { source: string; prompt: string }[]
+    revisions: { intent: string; prompt: string }[]
   }
   expect(body.revisions).toHaveLength(2)
   for (const revision of body.revisions) {
     expect(revision).toMatchObject({
-      source: "prompt",
+      intent: "apply",
       prompt: unanswerablePrompt,
     })
   }
@@ -217,6 +222,7 @@ test("links a failed comment revision back to its dashboard", async ({
 })
 
 test("follows up in the same chat", async ({ page }) => {
+  test.setTimeout(180_000)
   const release = await holdRequestPollsUntilFinished(page)
   await page.goto("/ask")
   const promptBar = page.getByRole("textbox", { name: "Message the agent" })
@@ -252,21 +258,35 @@ test("follows up in the same chat", async ({ page }) => {
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === "/api/v1/observe"
   )
-  await promptBar.fill(followUpPrompt)
+  await promptBar.fill(followUpQuestion)
   await promptBar.press("Enter")
   const followUp = (await (await followUpCreated).json()) as {
     request: { id: string }
   }
   await expect(page).toHaveURL(conversationUrl)
-  await expect(page.getByText(followUpPrompt, { exact: true })).toBeVisible()
+  await expect(page.getByText(followUpQuestion, { exact: true })).toBeVisible()
   await releaseFollowUp(followUp.request.id)
+  await expect(
+    page.getByText(`Suggested change: ${suggestedChange}`)
+  ).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByText("Saved as version 2")).toHaveCount(0)
+
+  const revisionCreated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/observe"
+  )
+  await page
+    .getByRole("button", { name: "Revise the dashboard", exact: true })
+    .click()
+  expect((await revisionCreated).status()).toBe(202)
   await expect(page.getByText("Saved as version 2")).toBeVisible({
     timeout: 90_000,
   })
   await expect(page).toHaveURL(conversationUrl)
   await expect(promptBar).toHaveAttribute(
     "placeholder",
-    "Ask for another change to Demo shop RED metrics"
+    "Ask about Demo shop RED metrics"
   )
 })
 

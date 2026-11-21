@@ -4,9 +4,15 @@ import { canSaveAsPrompt, savePromptButtonId } from "./save-prompt-target"
 
 describe("canSaveAsPrompt", () => {
   it("offers only new-dashboard chats", () => {
-    expect(canSaveAsPrompt({ source: "observe" })).toBe(true)
-    expect(canSaveAsPrompt({ source: "prompt" })).toBe(false)
-    expect(canSaveAsPrompt({ source: "comment" })).toBe(false)
+    const chat = { intent: "apply" as const, comment_id: null }
+    expect(canSaveAsPrompt({ ...chat, base_version: null })).toBe(true)
+    expect(
+      canSaveAsPrompt({ ...chat, intent: "ask", base_version: null })
+    ).toBe(true)
+    expect(canSaveAsPrompt({ ...chat, base_version: 1 })).toBe(false)
+    expect(
+      canSaveAsPrompt({ ...chat, base_version: 1, comment_id: "c1" })
+    ).toBe(false)
   })
 })
 

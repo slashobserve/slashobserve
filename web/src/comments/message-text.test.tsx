@@ -187,4 +187,25 @@ describe("MessageText", () => {
     const { container } = show("**bold**", {}, true)
     expect(container.querySelector("strong")).toBeNull()
   })
+
+  it("keeps Edit and Delete in the message's menu, never as loose buttons", async () => {
+    const { user } = show("text", { can_edit: true, can_delete: true })
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Comment actions" }))
+    expect(
+      await screen.findByRole("menuitem", { name: "Delete" })
+    ).toBeVisible()
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }))
+    expect(
+      await screen.findByRole("textbox", { name: "Edit comment" })
+    ).toBeVisible()
+  })
+
+  it("offers no menu without a right to edit or delete, or while folded", () => {
+    show("text")
+    expect(screen.queryByRole("button", { name: "Comment actions" })).toBeNull()
+    show("text", { can_edit: true }, true)
+    expect(screen.queryByRole("button", { name: "Comment actions" })).toBeNull()
+  })
 })

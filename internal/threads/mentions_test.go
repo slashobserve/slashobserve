@@ -149,3 +149,21 @@ func TestWithoutMentionRemovesOnlyTheNamedAgent(t *testing.T) {
 		})
 	}
 }
+
+func TestASuggestedChangeLosesItsMentionSyntax(t *testing.T) {
+	tests := map[string]string{
+		"Add a Declines panel":                                         "Add a Declines panel",
+		"Ask @observe to add a panel":                                  "Ask observe to add a panel",
+		"Ping @[Ada](user:11111111-1111-4111-8111-111111111111) first": "Ping Ada first",
+		"mail ops@observe.example":                                     "mail ops@observe.example",
+	}
+	for in, want := range tests {
+		got := withoutMentionSyntax(in)
+		if got != want {
+			t.Errorf("withoutMentionSyntax(%q) = %q, want %q", in, got, want)
+		}
+		if mentions, err := ParseMentions(got); err != nil || len(mentions) != 0 {
+			t.Errorf("%q still mentions %+v (%v)", got, mentions, err)
+		}
+	}
+}

@@ -148,7 +148,7 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 	}
 	dash := seedDashboard(t, d, 1)
 	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs mention " + privateWord)})
-	followUp := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a latency panel"), DashboardID: text(dash.String())})
+	followUp := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a latency panel"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())})
 	inv := investigate(t, svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why is checkout failing"}).ID
 	homeChat, followUpChat := chatOfTurn(t, d, home), chatOfTurn(t, d, followUp)
 	failAllRuns(t, svc, d, home.String(), followUp.String(), inv.String())
@@ -225,6 +225,23 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 	}
 }
 
+func streamed(t *testing.T, store *activity.Store, who auth.Principal) string {
+	t.Helper()
+	audience, err := store.Audience(t.Context(), who)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, _, _, err := store.Next(t.Context(), audience, activity.Filter{}, activity.At(0, 0), 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}
+
 func recordedReads(t *testing.T, d *dbtest.Database) []string {
 	t.Helper()
 	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT concat_ws(' ', action, coalesce(actor_id::text, '-'), outcome, coalesce(nullif(target_id, ''), '-'), coalesce(chat_id::text, '-'), coalesce(data->>'owner_id', data->>'scope', '-'))
@@ -248,7 +265,7 @@ func recordedReads(t *testing.T, d *dbtest.Database) []string {
 	return got
 }
 
-func TestAReadOfSomeoneElsesRunOrChatIsRecordedOncePerReaderInTheWindowAndARefusedReadEveryTime(t *testing.T) {
+func TestEveryReadOfARunOrChatIsRecordedOncePerReaderInTheWindowAndARefusedReadEveryTime(t *testing.T) {
 	d := dbtest.New(t)
 	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(&recordingBuilds{}))
 	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
@@ -309,11 +326,19 @@ func TestAReadOfSomeoneElsesRunOrChatIsRecordedOncePerReaderInTheWindowAndARefus
 	<-done
 
 	want := []string{
+		"chat.list " + userID + " success - - mine",
+		"chat.list " + adminID + " success - - mine",
 		"chat.list " + adminID + " success - - all",
+		"chat.list " + strangerID + " success - - mine",
+		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
 		"chat.view " + strangerID + " denied " + chat + " - -",
 		"chat.view " + strangerID + " denied " + chat + " - -",
+		"run.list " + userID + " success - - mine",
+		"run.list " + adminID + " success - - mine",
 		"run.list " + adminID + " success - - all",
+		"run.list " + strangerID + " success - - mine",
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
 		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
 		"run.view " + strangerID + " denied " + run + " - -",
 		"run.view " + strangerID + " denied " + run + " - -",
@@ -338,7 +363,7 @@ func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
 	if got := storedRun(t, svc, build.String()); !strings.Contains(got.ThreadContext.String, privateWord) {
 		t.Fatalf("the second turn stored no transcript of the first: %q", got.ThreadContext.String)
 	}
-	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid WHERE id = $1::uuid`, build.String(), seedDashboard(t, d, 1).String())
+	d.Exec(t, `UPDATE agent_requests SET intent = 'apply', dashboard_id = $2::uuid WHERE id = $1::uuid`, build.String(), seedDashboard(t, d, 1).String())
 
 	w := newPrivateWalk(t, svc, d)
 	for _, body := range []string{w.http(eve, "/api/v1/observe/"+build.String(), http.StatusOK), w.mcp(eve, "get_run", `{"id":"`+build.String()+`"}`, false)} {
@@ -364,7 +389,7 @@ func TestADashboardReaderOfAChatsFirstTurnIsNotToldTheChatsTitle(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
 	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("build a checkout dashboard")})
-	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid, title = $3 WHERE id = $1::uuid`, first.String(), seedDashboard(t, d, 1).String(), privateWord)
+	d.Exec(t, `UPDATE agent_requests SET intent = 'apply', dashboard_id = $2::uuid, title = $3 WHERE id = $1::uuid`, first.String(), seedDashboard(t, d, 1).String(), privateWord)
 	d.Exec(t, `UPDATE chats SET title = $2 WHERE id = $1::uuid`, first.String(), privateWord)
 
 	w := newPrivateWalk(t, svc, d)
@@ -393,4 +418,69 @@ func TestARunInAnObservationIsReadByEveryoneWhoReadsTheObservation(t *testing.T)
 	}
 	w.http(eve, "/api/v1/observe/"+private, http.StatusNotFound)
 	w.mcp(eve, "get_run", `{"id":"`+private+`"}`, true)
+}
+
+func TestAPrivateAskAboutADashboardOrAnObservationIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
+	svc, d := newService(t, reviserFunc(func(context.Context, revisions.Request) (revisions.Result, error) {
+		return revisions.Result{FailureCode: revisions.FailureRateLimited}, errors.New("failed")
+	}))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	ci := auth.Principal{Kind: auth.KindServiceAccount, ID: "55555555-5555-4555-8555-555555555555", Name: "ci", Role: auth.RoleEditor}
+	for _, p := range []auth.Principal{user, bea, eve, vic} {
+		d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $3, $2)`, p.ID, p.Name, p.Name+"@example.com")
+	}
+	d.Exec(t, `INSERT INTO service_accounts (id, name, role) VALUES ($1::uuid, $2, 'editor')`, ci.ID, ci.Name)
+	const observation = "eeeeeeee-0000-4000-8000-0000000000a1"
+	d.Exec(t, `INSERT INTO observations (id, folder_id, title, created_by_kind, created_by_id, created_by_name)
+VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada')`, observation, userID)
+	dash := seedDashboard(t, d, 1)
+	onDashboard := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why does " + privateWord + " spike"), Kind: text("ask"), DashboardID: text(dash.String())})
+	onObservation := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("is " + privateWord + " the cause"), Kind: text("ask"), ObservationID: text(observation)})
+	private := []string{onDashboard.String(), onObservation.String()}
+	chats := []string{chatOfTurn(t, d, onDashboard), chatOfTurn(t, d, onObservation)}
+	failAllRuns(t, svc, d, private...)
+
+	w := newPrivateWalk(t, svc, d)
+	stream := activity.NewStore(d.DB, folders.NewAccess(d.DB))
+	for _, who := range []auth.Principal{user, bea} {
+		for _, id := range private {
+			mustContain(t, who.Name, "the run", w.http(who, "/api/v1/observe/"+id, http.StatusOK)+w.mcp(who, "get_run", `{"id":"`+id+`"}`, false), privateWord)
+		}
+		mustContain(t, who.Name, "the activity stream", streamed(t, stream, who), private...)
+	}
+	for _, chat := range chats {
+		mustContain(t, user.Name, "the chat", w.mcp(user, "get_chat", `{"id":"`+chat+`"}`, false), privateWord)
+	}
+	for _, who := range []auth.Principal{eve, vic, ci} {
+		for _, id := range private {
+			w.http(who, "/api/v1/observe/"+id, http.StatusNotFound)
+			w.mcp(who, "get_run", `{"id":"`+id+`"}`, true)
+		}
+		for _, chat := range chats {
+			w.http(who, "/api/v1/chats/"+chat, http.StatusNotFound)
+			w.mcp(who, "get_chat", `{"id":"`+chat+`"}`, true)
+		}
+		w.http(who, "/api/v1/chats", http.StatusOK)
+		w.http(who, "/api/v1/chats?dashboard_id="+dash.String(), http.StatusOK)
+		w.http(who, "/api/v1/chats?observation_id="+observation, http.StatusOK)
+		w.mcp(who, "list_chats", `{}`, false)
+		w.mcp(who, "list_chats", `{"dashboard_id":"`+dash.String()+`"}`, false)
+		w.http(who, "/api/v1/observe", http.StatusOK)
+		w.http(who, "/api/v1/observe?dashboard_id="+dash.String(), http.StatusOK)
+		w.mcp(who, "list_runs", `{}`, false)
+		w.mcp(who, "list_runs", `{"dashboard_id":"`+dash.String()+`"}`, false)
+		w.http(who, "/api/v1/activity", http.StatusOK)
+		w.http(who, "/api/v1/activity?dashboard_id="+dash.String(), http.StatusOK)
+		w.mcp(who, "list_activity", `{}`, false)
+		w.http(who, "/api/v1/search?q="+privateWord, http.StatusOK)
+		w.seen[who.Name] = append(w.seen[who.Name], streamed(t, stream, who))
+		if who.Kind == auth.KindUser {
+			w.http(who, "/api/v1/agents/runs?kind=builtin", http.StatusOK)
+			w.http(who, "/api/v1/inbox", http.StatusOK)
+		}
+		for _, body := range w.seen[who.Name] {
+			mustNotContain(t, who.Name, "a read", body, privateWord)
+			mustNotContain(t, who.Name, "a read", body, private...)
+		}
+	}
 }
