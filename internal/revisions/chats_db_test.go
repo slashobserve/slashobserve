@@ -96,7 +96,7 @@ func TestAChatIDMustNameTheCallersLiveChatOnTheSameSubject(t *testing.T) {
 	ctx := context.Background()
 	dash := seedDashboard(t, d, 1)
 	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("one")})
-	onDash := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("two"), DashboardID: text(dash.String())})
+	onDash := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("two"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())})
 	archived := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("three")})
 	if err := svc.ArchiveChat(ctx, user, archived); err != nil {
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func TestAChatIDMustNameTheCallersLiveChatOnTheSameSubject(t *testing.T) {
 		"an Admin on archived":    {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
 		"an archived chat":        {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
 		"a chat that never was":   {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
-		"a Home chat on a board":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), DashboardID: text(dash.String())}, nil},
+		"a Home chat on a board":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}, nil},
 		"a board chat from Home":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(chatOfTurn(t, d, onDash))}, nil},
 		"chat_id with follows_id": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), FollowsID: text(home.String())}, nil},
 	} {
@@ -132,7 +132,7 @@ func TestADashboardTurnWithoutAChatIDJoinsTheLatestLiveChatOnThatDashboard(t *te
 	ctx := context.Background()
 	dash := seedDashboard(t, d, 1)
 	on := func(by auth.Principal) string {
-		return chatOfTurn(t, d, startTurn(t, svc, by, revisions.StartRequest{Prompt: text("p"), DashboardID: text(dash.String())}))
+		return chatOfTurn(t, d, startTurn(t, svc, by, revisions.StartRequest{Prompt: text("p"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}))
 	}
 	first := on(user)
 	if again := on(user); again != first {
@@ -213,7 +213,7 @@ func TestAHomeBuildThatSavesADashboardMakesItTheChatsSubject(t *testing.T) {
 		err := d.SQLDB(t).QueryRowContext(context.Background(), `SELECT coalesce(dashboard_id::text, '') FROM chats WHERE id = $1`, turn).Scan(&subject)
 		return err == nil && subject == dash.String()
 	})
-	if _, err := svc.Start(context.Background(), user, revisions.StartRequest{Prompt: text("again"), ChatID: text(turn.String()), DashboardID: text(dash.String())}); err != nil {
+	if _, err := svc.Start(context.Background(), user, revisions.StartRequest{Prompt: text("again"), ChatID: text(turn.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}); err != nil {
 		t.Fatalf("a turn on the saved dashboard in that chat: %v", err)
 	}
 }
@@ -303,6 +303,35 @@ func TestChatsAreListedAndArchivedByTheirOwnerAndReadByAdmins(t *testing.T) {
 	}
 	if len(archives) != 1 || archives[0].targetID != older.String() || archives[0].actorID != userID || strings.Contains(archives[0].whole, "which logs") || strings.Contains(archives[0].whole, renamed) {
 		t.Fatalf("chat.archive events = %+v", archives)
+	}
+}
+
+func TestAKindTellsAnAskFromARevise(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	ctx := context.Background()
+	dash := seedDashboard(t, d, 1)
+	start := func(req revisions.StartRequest) revisions.Started {
+		t.Helper()
+		started, err := svc.Start(ctx, user, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return started
+	}
+
+	asked := start(revisions.StartRequest{Prompt: text("why is checkout slow"), DashboardID: text(dash.String())})
+	if asked.Intent != string(revisions.IntentAsk) || !revisions.PrivateAsk(asked.AgentRequest) || asked.BaseVersion.Valid || asked.DashboardID != dash {
+		t.Errorf("no kind on a dashboard = %+v, want a private ask about it", asked.AgentRequest)
+	}
+	revised := start(revisions.StartRequest{Prompt: text("add a latency panel"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())})
+	if revised.Intent != string(revisions.IntentApply) || !revised.BaseVersion.Valid || revised.DashboardID != dash {
+		t.Errorf("kind revise = %+v, want an apply from the latest version", revised.AgentRequest)
+	}
+	for _, kind := range []*string{nil, text(revisions.KindAsk)} {
+		home := start(revisions.StartRequest{Prompt: text("which logs exist"), Kind: kind})
+		if home.Intent != string(revisions.IntentAsk) || home.DashboardID.Valid || home.ObservationID.Valid {
+			t.Errorf("an ask about nothing = %+v, want a Home turn that may build", home.AgentRequest)
+		}
 	}
 }
 

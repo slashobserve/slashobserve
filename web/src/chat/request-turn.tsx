@@ -18,6 +18,7 @@ import {
   usePollFailures,
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
+import { requestOrigin, type OriginFields } from "@/observe/request-origin"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { FindingCard } from "@/findings/finding-card"
@@ -45,9 +46,8 @@ import {
 
 const reconnectingAfterFailures = 2
 
-export type TurnSummary = {
+export type TurnSummary = OriginFields & {
   id: string
-  source: "observe" | "prompt" | "comment" | "investigate"
   prompt: string
   status: "queued" | "running" | "succeeded" | "failed"
   state: ObserveRequest["state"]
@@ -92,14 +92,14 @@ export function opensBuildPage({
   own,
   onChatPage,
 }: {
-  request: Pick<TurnSummary, "source" | "status" | "dashboard_id" | "build">
+  request: OriginFields & Pick<TurnSummary, "status" | "dashboard_id" | "build">
   own: boolean
   onChatPage: boolean
 }): boolean {
   return (
     onChatPage &&
     own &&
-    request.source === "observe" &&
+    requestOrigin(request) === "observe" &&
     isActive(request.status) &&
     request.dashboard_id === null &&
     request.build !== null
@@ -121,7 +121,7 @@ function Sender({ summary }: { summary: TurnSummary }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const own = summary.requested_by.id === principal.id
   const fromDashboard =
-    summary.source === "comment" || summary.panel_id !== null
+    requestOrigin(summary) === "comment" || summary.panel_id !== null
   if (own && !fromDashboard) return null
   return (
     <p className="self-end text-xs text-muted-foreground">
@@ -160,7 +160,7 @@ export function RequestTurn({
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const investigates = summary.source === "investigate"
+  const investigates = summary.kind === "investigate"
   const query = useQuery({
     ...observeRequestQuery(summary.id),
     enabled:

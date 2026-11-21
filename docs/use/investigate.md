@@ -19,6 +19,12 @@ A plain question sent without the command, such as "how many pods are up?", is a
 A finding is the agent's answer, written as Markdown of at most 400 words.
 It carries up to four evidence panels, each a panel whose query the server ran and checked before the finding was saved.
 It covers one window of time, shown under the answer with when it was found.
+
+An answer about a dashboard may also carry `suggested_change`, one plain sentence describing a change to the dashboard that would help; the agent never makes the change itself, and nothing applies it until someone starts a revision with it or, for an answer given in a dashboard thread, applies it from that thread (`POST /threads/{id}/apply`, `apply_suggested_change` or `observe comments apply`), which posts "Revise the dashboard: <suggested change>" there and starts the revision as them.
+An answer you can read, such as one in your chat on the dashboard, is also applied as a revision of its dashboard that takes the suggested change as its prompt, with `kind` `revise` and `applies_finding_id` on `POST /api/v1/observe`, `start_run` or `observe --revise --dashboard <id> --apply <finding-id>`; a second apply of the same answer while the first is queued or running, or after it succeeded, returns that run with `replayed` true when it is yours and answers `already_applied` when it is someone else's.
+`observe_worthy` is true when the agent judged that the answer shows a jump, a drop or an error spike worth keeping as an observation; it saves nothing by itself.
+Both are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
+
 The answer is saved into an observation, as a text block with the conclusion and one panel block for each evidence panel, so its address is the observation's, `/o/<id>`, which you can share with anyone who can read the observation.
 The observation is in a folder and follows that folder's access; see [Observations](observations.md#who-can-do-what).
 An investigation about a dashboard files its observation in that dashboard's folder when you can edit it, and otherwise in your My Dashboards, or in General when you have none.

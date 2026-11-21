@@ -96,23 +96,18 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
 }
 
 type startChecks struct {
 	service *Service
 	by      auth.Principal
-	seen    map[startKey]bool
+	seen    map[RunTarget]bool
 	edits   map[pgtype.UUID]bool
 }
 
-type startKey struct {
-	source    Source
-	dashboard pgtype.UUID
-}
-
 func (s *Service) newStartChecks(by auth.Principal) *startChecks {
-	return &startChecks{service: s, by: by, seen: map[startKey]bool{}, edits: map[pgtype.UUID]bool{}}
+	return &startChecks{service: s, by: by, seen: map[RunTarget]bool{}, edits: map[pgtype.UUID]bool{}}
 }
 
 func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgtype.UUID) (bool, error) {
@@ -134,22 +129,19 @@ func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgty
 	return false, err
 }
 
-func (c *startChecks) may(ctx context.Context, state State, source Source, dashboardID pgtype.UUID) (bool, error) {
-	if !state.Terminal() || !(runFacts{source: source, onDashboard: dashboardID.Valid}).retryable() {
+func (c *startChecks) may(ctx context.Context, state State, source Source, ran RunTarget) (bool, error) {
+	if !state.Terminal() || !(runFacts{source: source, onDashboard: ran.DashboardID.Valid}).retryable() {
 		return false, nil
 	}
-	if source == SourceObserve {
-		dashboardID = pgtype.UUID{}
-	}
-	key := startKey{source: source, dashboard: dashboardID}
+	key := retryTarget(source, ran)
 	if may, ok := c.seen[key]; ok {
 		return may, nil
 	}
-	err := c.service.checkRun(ctx, source, dashboardID, c.by)
+	err := c.service.checkRun(ctx, key, c.by)
 	may := err == nil
 	switch {
 	case err == nil,
-		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound),
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound),
 		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.seen[key] = may
 		return may, nil
@@ -159,7 +151,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, dashb
 
 func (s *Service) factsFor(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) (runFacts, error) {
 	checks := s.newStartChecks(by)
-	mayStart, err := checks.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+	mayStart, err := checks.may(ctx, State(row.State), SourceOf(row), targetOf(row))
 	if err != nil {
 		return runFacts{}, err
 	}
@@ -259,7 +251,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err := s.continueBlocker(ctx, row, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if err := s.checkRun(ctx, Source(row.Source), row.DashboardID, by); err != nil {
+	if err := s.checkRun(ctx, targetOf(row), by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
@@ -276,7 +268,6 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		if row.DashboardID.Valid {
 			next, err = s.Enqueue(ctx, q, EnqueueParams{
 				DashboardID:  row.DashboardID,
-				Source:       Source(row.Source),
 				CommentID:    row.CommentID,
 				Prompt:       row.Prompt,
 				PanelID:      row.PanelID.String,
@@ -288,6 +279,8 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 				Assignee:        assignee,
 				ThreadMessageID: threadMessage,
 				ThreadContext:   threadContext,
+
+				AppliesFindingID: row.AppliesFindingID,
 
 				chat: againChat(row, by),
 			})
@@ -379,11 +372,11 @@ func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, bui
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
 	threadMessage, threadContext := threadOf(row)
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
-	switch Source(row.Source) {
+	switch SourceOf(row) {
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:
-		return s.SubmitInvestigate(ctx, InvestigateParams{
+		p := InvestigateParams{
 			Prompt:      row.Prompt,
 			By:          by,
 			DashboardID: row.DashboardID,
@@ -391,16 +384,26 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
 
-			ObservationID:    row.ObservationID,
+			ObservationID:    firstValid(row.ObservationID, row.SubjectObservationID),
 			ReuseObservation: true,
 			RetriesID:        retries,
 
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+			Ask:             threadMessage.Valid,
+			Private:         PrivateAsk(row),
 
 			chat: againChat(row, by),
-		})
+		}
+		if threadMessage.Valid && row.SubjectObservationID.Valid {
+			inThread, err := s.mayComment(ctx, row.SubjectObservationID, by)
+			if err != nil {
+				return dbsqlc.AgentRequest{}, err
+			}
+			p = p.again(row, inThread)
+		}
+		return s.SubmitInvestigate(ctx, p)
 	default:
 		return s.submitFollowUp(ctx, EnqueueParams{
 			DashboardID:     row.DashboardID,
@@ -411,13 +414,34 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadContext:   threadContext,
 			RetriesID:       retries,
 
+			AppliesFindingID: row.AppliesFindingID,
+
 			chat: againChat(row, by),
 		}, nil)
 	}
 }
 
+func (p InvestigateParams) again(row dbsqlc.AgentRequest, inThread bool) InvestigateParams {
+	if inThread {
+		p.ObservationID = row.SubjectObservationID
+		return p
+	}
+	p.ThreadMessageID, p.ThreadContext, p.Ask = pgtype.UUID{}, "", false
+	p.Private, p.chat = true, chatChoice{mode: newChat}
+	return p
+}
+
+func firstValid(ids ...pgtype.UUID) pgtype.UUID {
+	for _, id := range ids {
+		if id.Valid {
+			return id
+		}
+	}
+	return pgtype.UUID{}
+}
+
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
-	if !row.ThreadMessageID.Valid {
+	if !row.ThreadMessageID.Valid || row.ChatID.Valid {
 		return pgtype.UUID{}, ""
 	}
 	return row.ThreadMessageID, row.ThreadContext.String

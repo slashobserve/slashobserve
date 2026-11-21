@@ -53,6 +53,8 @@ function finding(): Finding {
     },
     created_at: "2026-11-06T11:05:00Z",
     url: "",
+    suggested_change: null,
+    observe_worthy: false,
   }
 }
 

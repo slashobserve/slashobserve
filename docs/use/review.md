@@ -115,9 +115,9 @@ A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 Mention one agent in a comment and send it: the send button then reads "Send and ask Observe Agent" (or the connected agent's name), and the agent gets a run for that message.
 Asking needs Comment on the dashboard's folder.
-With Comment but not Edit, what the agent builds becomes a [proposal](../concepts/proposals.md) for someone who can edit to merge, and **Save what was built** is not offered.
+The agent answers in the thread and changes nothing: it reads the dashboard and its data, saves no version and opens no observation.
 
-- **From the form.** Write what to change, mention `@observe`, and send.
+- **From the form.** Write your question, mention `@observe`, and send.
   Pick a panel in **On** to tell the agent which panel you mean.
   The comment is attached to the latest version and the panel you chose.
 - **From a thread.** Choose **Reply** on a comment, write the instruction with the mention, and send.
@@ -130,15 +130,15 @@ When the run ends, its answer arrives as a reply in the same thread, from "Obser
 A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
-An answer kept only in the asker's chat reads "Answered in the chat of the person who asked." with the start of the text and a link to the chat, which opens for the person who asked and for Admins.
+An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
+When the asker later saves that answer as an observation, everyone who can read the thread still opens it from the thread, and someone who cannot see the new observation reads the answer without it.
 
 A discussion entry reads "asked the agent" only when the message started a run.
-A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
+A message that mentions an agent but started none, such as a comment for everyone, reads "mentioned the agent".
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
-The agent revises the latest version and saves the next one, as described in [Chat and follow-ups](chat.md).
-It sees the Spec, your message and the panel you chose.
+The agent reads the latest version, your message and the panel you chose.
 
 A mention does not start a run, and the form says why, when:
 

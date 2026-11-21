@@ -47,16 +47,6 @@ type RunRefusal struct {
 	Message string
 }
 
-type RunOption func(*runPolicy)
-
-type runPolicy struct {
-	noInvestigations bool
-}
-
-func WithoutInvestigations() RunOption {
-	return func(p *runPolicy) { p.noInvestigations = true }
-}
-
 func ParseTo(s string) (To, error) {
 	switch to := To(s); to {
 	case ToAuto, ToAgent, ToEveryone:
@@ -84,19 +74,19 @@ func NewAsks(service *Service, queue *revisions.Service, builtinAgent bool) *Ask
 	return &Asks{service: service, queue: queue, builtinAgent: builtinAgent}
 }
 
-func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To, opts ...RunOption) (Sent, error) {
+func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To) (Sent, error) {
 	sc, err := a.service.scopeOf(ctx, by, in.Target)
 	if err != nil {
 		return Sent{}, err
 	}
-	req := a.newAsk(ctx, by, sc, to, opts)
+	req := a.newAsk(ctx, by, sc, to)
 	if err := req.precheck(threadAgent{}, in.Body); err != nil {
 		return Sent{}, err
 	}
 	w, err := a.service.open(ctx, by, sc, in, req.options())
 	var exists *ObservationThreadExistsError
 	if errors.As(err, &exists) && in.Anchor == nil {
-		return a.Reply(ctx, by, exists.ThreadID, ReplyInput{Body: in.Body, BlockID: in.BlockID, ClientID: in.ClientID}, to, opts...)
+		return a.Reply(ctx, by, exists.ThreadID, ReplyInput{Body: in.Body, BlockID: in.BlockID, ClientID: in.ClientID}, to)
 	}
 	if err != nil {
 		return Sent{}, err
@@ -104,12 +94,12 @@ func (a *Asks) Open(ctx context.Context, by auth.Principal, in OpenInput, to To,
 	return req.sent(w), nil
 }
 
-func (a *Asks) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, to To, opts ...RunOption) (Sent, error) {
+func (a *Asks) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUID, in ReplyInput, to To) (Sent, error) {
 	row, sc, err := a.service.writableThread(ctx, by, threadID)
 	if err != nil {
 		return Sent{}, err
 	}
-	req := a.newAsk(ctx, by, sc, to, opts)
+	req := a.newAsk(ctx, by, sc, to)
 	if err := req.precheck(threadOf(row, nil, rights{}).recipientState(), in.Body); err != nil {
 		return Sent{}, err
 	}
@@ -126,7 +116,6 @@ type ask struct {
 	by        auth.Principal
 	sc        scope
 	to        To
-	policy    runPolicy
 	checked   bool
 	checkErr  error
 	denied    *RunRefusal
@@ -135,12 +124,8 @@ type ask struct {
 	asked     bool
 }
 
-func (a *Asks) newAsk(ctx context.Context, by auth.Principal, sc scope, to To, opts []RunOption) *ask {
-	req := &ask{asks: a, ctx: ctx, by: by, sc: sc, to: to}
-	for _, opt := range opts {
-		opt(&req.policy)
-	}
-	return req
+func (a *Asks) newAsk(ctx context.Context, by auth.Principal, sc scope, to To) *ask {
+	return &ask{asks: a, ctx: ctx, by: by, sc: sc, to: to}
 }
 
 func (r *ask) precheck(state threadAgent, body string) error {
@@ -172,22 +157,17 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 		return r.denied, r.checkErr
 	}
 	r.checked = true
-	var source revisions.Source
-	var dashboardID pgtype.UUID
+	var target revisions.RunTarget
 	switch r.sc.target.Kind {
 	case KindDashboard:
-		source, dashboardID = revisions.SourceComment, r.sc.target.ID
+		target = revisions.RunTarget{Intent: revisions.IntentAsk, DashboardID: r.sc.target.ID}
 	case KindObservation:
-		if r.policy.noInvestigations {
-			r.denied = &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}
-			return r.denied, nil
-		}
-		source = revisions.SourceInvestigate
+		target = revisions.RunTarget{Intent: revisions.IntentAsk, ObservationID: r.sc.target.ID}
 	default:
 		r.denied = &RunRefusal{Code: RefusalUnsupportedTarget, Message: "agents can be asked from dashboard and observation threads"}
 		return r.denied, nil
 	}
-	err := r.asks.queue.CheckRun(r.ctx, source, dashboardID, r.by)
+	err := r.asks.queue.CheckRun(r.ctx, target, r.by)
 	if errors.Is(err, revisions.ErrForbidden) || errors.Is(err, folders.ErrForbidden) {
 		r.denied = &RunRefusal{Code: RefusalForbidden, Message: err.Error()}
 		return r.denied, nil
@@ -350,13 +330,9 @@ func capRefusal(err error) *RunRefusal {
 }
 
 func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent revisions.Assignee) (dbsqlc.AgentRequest, error) {
-	threadID, err := db.ParseUUID(thread.ID)
+	asked, err := askedIn(r.ctx, q, thread, message)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("thread id: %w", err)
-	}
-	messageID, err := db.ParseUUID(message.ID)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("message id: %w", err)
+		return dbsqlc.AgentRequest{}, err
 	}
 	prompt := message.Body
 	if mentioned := agentMentions(message.Body); len(mentioned) == 1 {
@@ -364,45 +340,51 @@ func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent r
 			prompt = cut
 		}
 	}
-	earlier, err := q.ThreadTranscript(r.ctx, dbsqlc.ThreadTranscriptParams{ThreadID: threadID, BeforeID: messageID, RowLimit: transcriptMessages})
+	params := revisions.InvestigateParams{
+		Prompt:          prompt,
+		By:              r.by,
+		Assignee:        agent,
+		Trigger:         triggerMention,
+		ThreadMessageID: asked.message,
+		ThreadContext:   asked.transcript,
+		Point:           asked.point,
+		Ask:             true,
+	}
+	switch thread.Target.Kind {
+	case KindDashboard:
+		params.DashboardID, params.PanelID = thread.Target.ID, thread.PanelID
+	case KindObservation:
+		params.ObservationID = thread.Target.ID
+	default:
+		return dbsqlc.AgentRequest{}, fmt.Errorf("start a run on a %s thread", thread.Target.Kind)
+	}
+	return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, params)
+}
+
+type askContext struct {
+	thread, message pgtype.UUID
+	transcript      string
+	point           revisions.Point
+}
+
+func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Message) (askContext, error) {
+	threadID, err := db.ParseUUID(thread.ID)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("read the thread transcript: %w", err)
+		return askContext{}, fmt.Errorf("thread id: %w", err)
+	}
+	messageID, err := db.ParseUUID(message.ID)
+	if err != nil {
+		return askContext{}, fmt.Errorf("message id: %w", err)
+	}
+	earlier, err := q.ThreadTranscript(ctx, dbsqlc.ThreadTranscriptParams{ThreadID: threadID, BeforeID: messageID, RowLimit: transcriptMessages})
+	if err != nil {
+		return askContext{}, fmt.Errorf("read the thread transcript: %w", err)
 	}
 	point, err := pointOfThread(thread)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, err
+		return askContext{}, err
 	}
-	transcript := transcriptOf(earlier)
-	switch thread.Target.Kind {
-	case KindDashboard:
-		return r.asks.queue.EnqueueAssigned(r.ctx, q, revisions.EnqueueParams{
-			DashboardID:     thread.Target.ID,
-			Source:          revisions.SourceComment,
-			CommentID:       threadID,
-			Prompt:          prompt,
-			PanelID:         thread.PanelID,
-			BaseVersion:     *thread.Version,
-			By:              r.by,
-			Assignee:        agent,
-			Trigger:         triggerMention,
-			ThreadMessageID: messageID,
-			ThreadContext:   transcript,
-			Point:           point,
-		})
-	case KindObservation:
-		return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, revisions.InvestigateParams{
-			Prompt:          prompt,
-			By:              r.by,
-			ObservationID:   thread.Target.ID,
-			Assignee:        agent,
-			Trigger:         triggerMention,
-			ThreadMessageID: messageID,
-			ThreadContext:   transcript,
-			Point:           point,
-			Ask:             true,
-		})
-	}
-	return dbsqlc.AgentRequest{}, fmt.Errorf("start a run on a %s thread", thread.Target.Kind)
+	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier), point: point}, nil
 }
 
 func pointOfThread(thread Thread) (revisions.Point, error) {

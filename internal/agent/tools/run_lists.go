@@ -23,7 +23,7 @@ const (
 	defaultListRuns = 20
 	maxListRuns     = 50
 
-	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, source, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, state, source, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
+	descListRuns   = "List the runs of the built-in agent you started, which the web app shows as chats, newest first with pinned ones on top, 20 per page by default. Keep runs by state, dashboard_id or pinned, or by q, a word of the title, the prompt or an answer you may read. scope all lists every person's runs and needs the Admin role. Each has its id, title, kind, intent (ask, apply or suggest), state, result_kind, dashboard, observation, pinned_at, created_at and allowed_actions; read one with get_run. Page with next_cursor."
 	descRenameRun  = "Give one of your runs a title, 1 to 120 characters on one line, as the Rename action of a chat does; null takes the title back to the start of the prompt. Only the person or key that started the run can rename it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Renaming the first run of a chat with no dashboard also renames the one observation made from that chat; observation_rename in the result is renamed, or kept when you may not edit that observation. Safe to repeat."
 	descPinRun     = "Pin one of your runs to the top of list_runs. Only the person or key that started the run can pin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
 	descUnpinRun   = "Unpin one of your runs so list_runs puts it back by date. Only the person or key that started the run can unpin it: anyone else gets forbidden on a run they can see on a dashboard and not_found on any other. Safe to repeat."
@@ -31,7 +31,6 @@ const (
 
 	schemaListRuns = `{"type":"object","properties":{` +
 		`"scope":{"type":"string","enum":["mine","all"],"description":"mine (default) lists your own runs; all lists everyone's and needs the Admin role."},` +
-		`"source":{"type":"string","enum":["observe","prompt","comment","investigate"],"description":"Only runs of this source: observe (a new dashboard or a question), prompt (a follow-up on a dashboard), comment or investigate."},` +
 		`"state":{"type":"array","maxItems":6,"items":{"type":"string","enum":["queued","running","canceling","succeeded","failed","canceled"]},"description":"Only runs in one of these states."},` +
 		`"q":{"type":"string","minLength":1,"maxLength":200,"description":"Only runs whose title, prompt or readable answer contains this text, ignoring case."},` +
 		`"pinned":{"type":"boolean","description":"true keeps only pinned runs, false only unpinned ones."},` +
@@ -57,7 +56,6 @@ func (r *Registry) runListEntries() []entry {
 
 type listRunsInput struct {
 	Scope       string   `json:"scope"`
-	Source      string   `json:"source"`
 	State       []string `json:"state"`
 	Q           *string  `json:"q"`
 	Pinned      *bool    `json:"pinned"`
@@ -74,13 +72,6 @@ func (in listRunsInput) parse() (revisions.ListFilter, int, Result, bool) {
 		filter.Scope = revisions.ListScope(in.Scope)
 	default:
 		return filter, 0, invalid("scope must be mine or all"), false
-	}
-	switch revisions.Source(in.Source) {
-	case "":
-	case revisions.SourceObserve, revisions.SourcePrompt, revisions.SourceComment, revisions.SourceInvestigate:
-		filter.Source = in.Source
-	default:
-		return filter, 0, invalid("source must be observe, prompt, comment or investigate"), false
 	}
 	for _, state := range in.State {
 		if !slices.Contains(listRunStates, state) {
@@ -118,7 +109,8 @@ type runListAuthorOut struct {
 type runListItemOut struct {
 	ID               string           `json:"id"`
 	Title            string           `json:"title"`
-	Source           string           `json:"source"`
+	Kind             string           `json:"kind"`
+	Intent           string           `json:"intent"`
 	State            string           `json:"state"`
 	ResultKind       string           `json:"result_kind"`
 	DashboardID      *string          `json:"dashboard_id"`

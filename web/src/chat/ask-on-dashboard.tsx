@@ -37,7 +37,7 @@ export function AskOnDashboard({
             aria-busy={busy}
             onClick={() =>
               create.mutate(
-                { prompt, dashboardId: askOn.dashboard_id },
+                { prompt, dashboardId: askOn.dashboard_id, kind: "revise" },
                 {
                   onSuccess: (request) =>
                     void navigate({

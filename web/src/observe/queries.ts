@@ -153,7 +153,6 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
         .GET("/observe", {
           params: {
             query: {
-              source: filters.source,
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,
@@ -252,7 +251,7 @@ export type ObserveInput = {
   prompt: string
   dashboardId?: string
   followsId?: string
-  kind?: "build" | "investigate"
+  kind?: "ask" | "revise" | "investigate"
   panelId?: string
   from?: string
   to?: string

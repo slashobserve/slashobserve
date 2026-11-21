@@ -8,7 +8,9 @@ function summary(
   overrides: Partial<RequestSummary> & { id: string }
 ): RequestSummary {
   return {
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     trigger: "person",
     prompt: "Show checkout latency",
     status: "succeeded",

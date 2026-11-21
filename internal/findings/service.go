@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -13,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -24,7 +26,11 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const savedDashboardSummary = "Saved from a finding"
+const (
+	savedDashboardSummary = "Saved from a finding"
+
+	actionRunView audit.Action = "run.view"
+)
 
 var ErrNoObservations = errors.New("findings need an observation service")
 
@@ -34,6 +40,8 @@ type Service struct {
 	annotations  *annotations.Service
 	dashboards   *dashboards.Service
 	observations Observations
+	threads      ThreadReader
+	answerReads  AnswerReadRecorder
 	logger       *slog.Logger
 }
 
@@ -44,6 +52,14 @@ func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash
 	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
 }
 
+func (s *Service) ReadThreadsWith(read ThreadReader) {
+	s.threads = read
+}
+
+func (s *Service) RecordAnswerReadsWith(record AnswerReadRecorder) {
+	s.answerReads = record
+}
+
 type SaveInput struct {
 	AgentRequestID  pgtype.UUID
 	DashboardID     pgtype.UUID
@@ -52,6 +68,8 @@ type SaveInput struct {
 	Title, Markdown string
 	Evidence        []spec.Panel
 	From, To        time.Time
+	SuggestedChange string
+	ObserveWorthy   bool
 }
 
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {
@@ -135,12 +153,48 @@ func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requ
 	return f, !attached, err
 }
 
+func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, requestID, observationID pgtype.UUID) error {
+	f, found, err := s.store.forRequestIn(ctx, q, requestID)
+	if err == nil && !found {
+		err = ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	id, err := db.ParseUUID(f.ID)
+	if err != nil {
+		return err
+	}
+	current, err := q.LockFinding(ctx, id)
+	if err != nil {
+		return fmt.Errorf("lock finding: %w", err)
+	}
+	if current.Valid {
+		return nil
+	}
+	conclusion := Conclusion{RunID: requestID, Into: observationID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
+	if _, _, err := s.observations.WriteConclusion(ctx, q, by, conclusion); err != nil {
+		return err
+	}
+	if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
+		return fmt.Errorf("show finding in observation: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) HideFrom(ctx context.Context, q *dbsqlc.Queries, requestID, observationID pgtype.UUID) error {
+	if err := q.UnsetFindingObservation(ctx, dbsqlc.UnsetFindingObservationParams{AgentRequestID: requestID, ObservationID: observationID}); err != nil {
+		return fmt.Errorf("take the answer back from the observation: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
 	f, err := s.store.get(ctx, id)
 	if err != nil {
 		return Finding{}, err
 	}
-	folder, abilities, err := s.place(ctx, by, f)
+	f, folder, abilities, err := s.readPlace(ctx, by, f)
 	if err != nil {
 		return Finding{}, err
 	}
@@ -151,12 +205,41 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 	return s.askOnIfViewable(ctx, by, f)
 }
 
+func (s *Service) Read(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
+	f, err := s.Get(ctx, by, id)
+	if errors.Is(err, ErrNotFound) {
+		s.recordRefusedRead(ctx, id)
+	}
+	if err != nil || f.Saved() || s.answerReads == nil {
+		return f, err
+	}
+	run, err := db.ParseUUID(f.AgentRequestID)
+	if err != nil {
+		return Finding{}, fmt.Errorf("answer run id: %w", err)
+	}
+	s.answerReads(ctx, run)
+	return f, nil
+}
+
+func (s *Service) recordRefusedRead(ctx context.Context, id pgtype.UUID) {
+	err := audit.RecordNow(ctx, audit.Event{
+		Action:  actionRunView,
+		Outcome: audit.OutcomeDenied,
+		Reason:  "not_found",
+		Status:  http.StatusNotFound,
+		Target:  audit.Target{Kind: "finding", ID: id.String()},
+	})
+	if err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		s.logger.WarnContext(ctx, "refused read not recorded", logattrs.Failure("audit_record_failed", err, slog.String("finding_id", id.String()))...)
+	}
+}
+
 func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
 	f, found, err := s.store.forRequest(ctx, requestID)
 	if err != nil || !found {
 		return Finding{}, false, err
 	}
-	_, _, err = s.place(ctx, by, f)
+	f, _, _, err = s.readPlace(ctx, by, f)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return Finding{}, false, nil
@@ -395,9 +478,18 @@ func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (fold
 	return s.observations.Placement(ctx, by, observationID)
 }
 
+func (s *Service) readPlace(ctx context.Context, by auth.Principal, f Finding) (Finding, folders.Folder, folders.Abilities, error) {
+	folder, abilities, err := s.place(ctx, by, f)
+	if errors.Is(err, ErrNotFound) && f.Saved() && s.readableInThread(ctx, by, f) == nil {
+		f.ObservationID, f.FolderID = "", ""
+		return f, folders.Folder{}, folders.Abilities{View: true}, nil
+	}
+	return f, folder, abilities, err
+}
+
 func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Finding) error {
 	if !isRequester(by, f) && !by.Role.AtLeast(auth.RoleAdmin) {
-		return ErrNotFound
+		return s.readableInThread(ctx, by, f)
 	}
 	if f.DashboardID == "" {
 		return nil
@@ -407,6 +499,16 @@ func (s *Service) readableUnsaved(ctx context.Context, by auth.Principal, f Find
 		return err
 	}
 	return s.viewable(ctx, by, dashboardID)
+}
+
+func (s *Service) readableInThread(ctx context.Context, by auth.Principal, f Finding) error {
+	if !f.SharedIn.Valid || s.threads == nil {
+		return ErrNotFound
+	}
+	if err := s.threads(ctx, by, f.SharedIn); err != nil {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Service) viewable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestRevisionsListPagesAndShowsOne(t *testing.T) {
-	row := `{"id":"` + stoppedID + `","source":"prompt","prompt":"add a panel\nfor errors","state":"succeeded","base_version":2,"result_version":3,"error":null,"created_at":"2026-01-01T00:00:00Z"}`
+	row := `{"id":"` + stoppedID + `","intent":"apply","prompt":"add a panel\nfor errors","state":"succeeded","base_version":2,"result_version":3,"error":null,"created_at":"2026-01-01T00:00:00Z"}`
 	server, seen := recordingServer(t, `{"revisions":[`+row+`],"next_cursor":"c2"}`)
 	stdout, stderr, code := runWith(server, "dashboards", "revisions", testDashboard, "--limit", "10")
 	if code != 0 || seen.path != "/api/v1/dashboards/"+testDashboard+"/revisions" || seen.query != "limit=10" {

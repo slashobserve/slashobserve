@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -19,6 +21,7 @@ const (
 	maxClaimsPerCall = 8
 
 	actsForAnotherMessage = "this agent acts for another person"
+	noObservationMessage  = "No observation to write into; the answer stays on this run"
 	noSaveMessage         = "the agent finished without saving a dashboard"
 )
 
@@ -50,11 +53,14 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 			return Claimed{}, false, err
 		}
 		if result.firstClaim && result.request.StartedAt.Valid && result.request.CreatedAt.Valid {
-			s.metrics.RequestClaimed(result.request.Source, result.request.StartedAt.Time.Sub(result.request.CreatedAt.Time))
+			s.metrics.RequestClaimed(string(SourceOf(result.request)), result.request.StartedAt.Time.Sub(result.request.CreatedAt.Time))
 		}
 		req, outcome := s.admit(ctx, c, result.request)
 		switch outcome {
 		case admitted:
+			if result.firstClaim && InvestigatesWithoutObservation(result.request) {
+				s.noteNoObservation(ctx, result.request, req)
+			}
 			return Claimed{Row: result.request, Request: req, FirstClaim: result.firstClaim}, true, nil
 		case released:
 			return Claimed{}, false, nil
@@ -64,7 +70,7 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 }
 
 func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest) (Request, admission) {
-	if Source(row.Source) != SourceSuggest {
+	if SourceOf(row) != SourceSuggest {
 		if done, progressed := s.settleSaved(ctx, row, nil); done {
 			if progressed {
 				return Request{}, settled
@@ -82,8 +88,8 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 		s.releaseLogged(ctx, row, true)
 		return Request{}, released
 	}
-	switch err := s.checkRun(ctx, Source(row.Source), row.DashboardID, requester); {
-	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
+	switch err := s.checkRun(ctx, targetOf(row), requester); {
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound):
 		s.finishLogged(ctx, row, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
 		return Request{}, settled
 	case err != nil:
@@ -98,6 +104,39 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 	req := RequestOf(row)
 	req.RequestedBy = requester
 	return req, admitted
+}
+
+func noObservationStep(attempt int) Step {
+	return Step{At: time.Now().UTC(), Attempt: attempt, Phase: "save", Tool: "agent", Status: "ok", Message: noObservationMessage}
+}
+
+func seedNoObservationStep(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
+	if row.ObservationID.Valid || row.ThreadMessageID.Valid {
+		return nil
+	}
+	payload, err := json.Marshal(noObservationStep(1))
+	if err != nil {
+		return fmt.Errorf("encode the no observation step: %w", err)
+	}
+	if _, err := q.SeedAgentRequestStep(ctx, dbsqlc.SeedAgentRequestStepParams{ID: row.ID, Step: payload}); err != nil {
+		return fmt.Errorf("seed the no observation step: %w", err)
+	}
+	return nil
+}
+
+func saysNoObservation(steps []byte) bool {
+	var recorded []Step
+	if json.Unmarshal(steps, &recorded) != nil {
+		return false
+	}
+	return slices.ContainsFunc(recorded, func(st Step) bool { return st.Message == noObservationMessage })
+}
+
+func (s *Service) noteNoObservation(ctx context.Context, row dbsqlc.AgentRequest, req Request) {
+	if saysNoObservation(row.Steps) {
+		return
+	}
+	NewSteps(s.db, s.logger).RecordStep(ctx, req, noObservationStep(req.Attempt))
 }
 
 func (s *Service) Requester(ctx context.Context, row dbsqlc.AgentRequest) (auth.Principal, error) {
@@ -143,7 +182,7 @@ func (s *Service) End(ctx context.Context, row dbsqlc.AgentRequest, e Ending) (d
 }
 
 func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e Ending) (outcome, error) {
-	if Source(row.Source) != SourceSuggest {
+	if SourceOf(row) != SourceSuggest {
 		success, saved, err := s.savedOutcome(ctx, row, e.Usage)
 		if err != nil {
 			return outcome{}, err
@@ -164,9 +203,9 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 		return canceledOutcome(nil, e.Usage), nil
 	case e.Failure != "":
 		return outcome{message: e.Message, code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
-	case Source(row.Source) == SourceSuggest:
+	case SourceOf(row) == SourceSuggest:
 		return suggestionOutcome(e.Suggestion, e.Usage), nil
-	case Source(row.Source) == SourceInvestigate:
+	case SourceOf(row) == SourceInvestigate:
 		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
 	}
 	return outcome{message: noSaveMessage, code: "agent_no_save", failure: FailureNoToolCall, usage: e.Usage}, nil
@@ -174,7 +213,7 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 
 func (s *Service) savedOutcome(ctx context.Context, row dbsqlc.AgentRequest, usage *Usage) (success outcome, saved bool, err error) {
 	finding := outcome{finding: true, usage: usage}
-	if Source(row.Source) == SourceInvestigate {
+	if SourceOf(row) == SourceInvestigate {
 		found, err := s.hasFinding(ctx, row)
 		return finding, found, err
 	}
@@ -262,9 +301,15 @@ func logAttrs(row dbsqlc.AgentRequest) []any {
 
 func RequestOf(row dbsqlc.AgentRequest) Request {
 	return Request{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Source:       Source(row.Source),
+		ID:          row.ID.String(),
+		DashboardID: row.DashboardID.String(),
+		Intent:      Intent(row.Intent),
+		Source:      SourceOf(row),
+
+		ObservationID:        row.ObservationID.String(),
+		SubjectObservationID: row.SubjectObservationID.String(),
+		ChatID:               row.ChatID.String(),
+
 		Prompt:       row.Prompt,
 		PanelID:      row.PanelID.String,
 		BaseVersion:  int(row.BaseVersion.Int32),

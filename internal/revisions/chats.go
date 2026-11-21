@@ -55,6 +55,13 @@ type ChatFilter struct {
 	Everyone      bool
 }
 
+func (f ChatFilter) scope() ListScope {
+	if f.Everyone {
+		return ScopeAll
+	}
+	return ScopeMine
+}
+
 type chatReader struct {
 	kind  string
 	id    pgtype.UUID
@@ -163,9 +170,7 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt}
 		}
 	}
-	if f.Everyone {
-		s.recordEveryonesList(ctx, actionChatList)
-	}
+	s.recordList(ctx, actionChatList, f.scope())
 	return chats, next, nil
 }
 

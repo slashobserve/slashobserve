@@ -3,10 +3,12 @@ package revisions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -107,7 +109,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
 		var allowed []Action
 		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
-			mayStart, err := starts.may(ctx, State(row.State), Source(row.Source), row.DashboardID)
+			mayStart, err := starts.may(ctx, State(row.State), listedSource(row), listedShape(row).target())
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may start a listed agent request again: %w", err)
 			}
@@ -115,7 +117,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may keep a listed agent request's build: %w", err)
 			}
-			allowed = allowedActions(newFacts(State(row.State), Source(row.Source), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
+			allowed = allowedActions(newFacts(State(row.State), listedSource(row), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
 		}
 		state := states[row.ID]
 		state.build = state.progressFor(requester, caller)
@@ -228,6 +230,9 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	if out.AssignedTo, err = r.service.assignee(ctx, row); err != nil {
 		return agentRequestJSON{}, err
 	}
+	if out.SharedThread, err = r.service.sharedThreadShownTo(ctx, row, caller); err != nil {
+		return agentRequestJSON{}, err
+	}
 	if mayHaveFinding(row) && r.opts.Finding != nil {
 		if err := r.attachFinding(ctx, caller, row, &out); err != nil {
 			return agentRequestJSON{}, err
@@ -248,8 +253,22 @@ func (s *Service) assignee(ctx context.Context, row dbsqlc.AgentRequest) (*assig
 	return &assigneeJSON{Kind: kind, ID: row.AssignedID.String(), Name: httpapi.OptionalString(name)}, nil
 }
 
+func (s *Service) sharedThreadShownTo(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal) (*string, error) {
+	if !row.ChatID.Valid || !row.ThreadMessageID.Valid || !sameActor(requesterOf(row), caller) {
+		return nil, nil
+	}
+	thread, err := s.db.Queries().GetThreadOfMessage(ctx, row.ThreadMessageID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("read the thread a run is shared in: %w", err)
+	}
+	return optionalUUID(thread.ID), nil
+}
+
 func mayHaveFinding(row dbsqlc.AgentRequest) bool {
-	return row.Source != string(SourceSuggest) && !row.ResultVersion.Valid
+	return SourceOf(row) != SourceSuggest && !row.ResultVersion.Valid
 }
 
 func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {
@@ -269,8 +288,8 @@ func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row 
 func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth.Principal, state buildState, allowed []Action, position *int) agentRequestJSON {
 	out := agentRequestJSON{
 		ID:          row.ID.String(),
-		Kind:        Kind(Source(row.Source)),
-		Source:      Source(row.Source),
+		Kind:        Kind(SourceOf(row)),
+		Intent:      Intent(row.Intent),
 		Trigger:     row.Trigger,
 		Title:       titleShownTo(row, caller),
 		Prompt:      row.Prompt,
@@ -380,8 +399,8 @@ func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {
 func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, allowed []Action) requestSummaryJSON {
 	out := requestSummaryJSON{
 		ID:           row.ID.String(),
-		Kind:         Kind(Source(row.Source)),
-		Source:       Source(row.Source),
+		Kind:         Kind(listedSource(row)),
+		Intent:       Intent(row.Intent),
 		Trigger:      row.Trigger,
 		Title:        requestTitle(row.Title, row.Prompt),
 		PinnedAt:     formatOptionalTime(optionalTime(row.PinnedAt)),
@@ -390,6 +409,8 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, state buildState, a
 		State:        State(row.State),
 		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
 		PanelID:      optionalText(row.PanelID),
+		BaseVersion:  optionalInt(row.BaseVersion),
+		CommentID:    optionalUUID(row.CommentID),
 		Error:        httpapi.OptionalString(row.Error.String),
 		Origin:       httpapi.OptionalString(row.Origin.String),
 		OriginClient: httpapi.OptionalString(row.OriginClient.String),

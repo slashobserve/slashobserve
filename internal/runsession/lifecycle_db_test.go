@@ -374,7 +374,7 @@ func TestFinishWithCommitSavesWithTheRunsOriginOnlyForTheBuiltInAgent(t *testing
 		t.Run(tt.name, func(t *testing.T) {
 			r := newRig(t)
 			row, err := r.runs.Submit(origin.With(context.Background(), runOrigin), revisions.EnqueueParams{
-				DashboardID: r.dash, Source: revisions.SourcePrompt, Prompt: "add a latency panel", BaseVersion: 1, By: ada,
+				DashboardID: r.dash, Prompt: "add a latency panel", BaseVersion: 1, By: ada,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -612,8 +612,8 @@ func TestAGrantOrServiceAccountClaimerNeverReceivesASuggestRun(t *testing.T) {
 	}
 	for _, kind := range []string{"grant", "service_account"} {
 		err := execErr(r, "UPDATE agent_requests SET assigned_kind = $2, assigned_id = $3 WHERE id = $1", row.ID, kind, mustUUID(t, grantID))
-		if err == nil || !strings.Contains(err.Error(), "agent_requests_assigned_source_check") {
-			t.Fatalf("assigning a suggest run to a %s: err = %v, want the source check", kind, err)
+		if err == nil || !strings.Contains(err.Error(), "agent_requests_assigned_intent_check") {
+			t.Fatalf("assigning a suggest run to a %s: err = %v, want the intent check", kind, err)
 		}
 	}
 	if claimed := r.claim(builtin); claimed.Row.ID != row.ID {

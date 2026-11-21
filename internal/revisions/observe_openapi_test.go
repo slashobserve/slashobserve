@@ -151,7 +151,7 @@ func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	h.call(t, http.MethodPatch, "/api/v1/observe/"+build, `{}`, http.StatusBadRequest)
 	newDocumentedObserve(t, svc, account, nil).call(t, http.MethodPatch, "/api/v1/observe/"+investigation, `{"pinned":true}`, http.StatusForbidden)
 
-	for _, query := range []string{"", "?q=checkout", "?pinned=true", "?source=investigate", "?dashboard_id=" + dash.String(), "?limit=1"} {
+	for _, query := range []string{"", "?q=checkout", "?pinned=true", "?dashboard_id=" + dash.String(), "?limit=1"} {
 		h.call(t, http.MethodGet, "/api/v1/observe"+query, "", http.StatusOK)
 	}
 	h.call(t, http.MethodGet, "/api/v1/observe?pinned=maybe", "", http.StatusBadRequest)
@@ -167,7 +167,7 @@ func TestEveryRequestIsStartedByAPerson(t *testing.T) {
 	h := newDocumentedObserve(t, svc, user, nil)
 
 	created := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
-	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 
 	var triggers struct {
 		Request struct {
@@ -209,8 +209,8 @@ func TestAFinishedRequestReportsItsCostAsTheDocumentSays(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 1)
 	h := newDocumentedObserve(t, svc, user, nil)
-	priced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"priced run","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
-	unpriced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"other run","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	priced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"priced run","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	unpriced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"other run","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 
 	for id, want := range map[string]*float64{priced: &cost, unpriced: nil} {
@@ -241,7 +241,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
 	var findingID, observationID string
-	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
+	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT id::text, coalesce(observation_id::text, '') FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
 		t.Fatal(err)
 	}
 	finding := func(_ context.Context, _ auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
@@ -300,7 +300,7 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 		t.Fatalf("GET of a succeeded investigation: %s", rec.Body)
 	}
 
-	list := h.call(t, http.MethodGet, "/api/v1/observe?source=investigate&q="+url.QueryEscape("errors"), "", http.StatusOK)
+	list := h.call(t, http.MethodGet, "/api/v1/observe?q="+url.QueryEscape("errors"), "", http.StatusOK)
 	if !strings.Contains(list.Body.String(), `"url":"/o/`+findingID+`"`) {
 		t.Fatalf("the list does not link the finding: %s", list.Body)
 	}
@@ -321,7 +321,7 @@ func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) 
 		t.Fatal(err)
 	}
 	r := got.Request
-	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "/o/"+findingID || r.DashboardID != nil || r.ResultVersion != nil {
+	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "" || r.DashboardID != nil || r.ResultVersion != nil {
 		t.Fatalf("GET of an answered observe request: %s", rec.Body)
 	}
 }
@@ -362,7 +362,7 @@ func TestRetryAndTheRunStateFieldsMatchTheDocument(t *testing.T) {
 	h := newDocumentedObserve(t, svc, user, nil)
 
 	build := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
-	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 
 	queued := h.call(t, http.MethodGet, "/api/v1/observe/"+build, "", http.StatusOK)
 	var shown struct {

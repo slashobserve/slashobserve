@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 type Threads struct {
@@ -157,6 +158,10 @@ func ParseClientID(raw *string) (pgtype.UUID, error) {
 	return id, nil
 }
 
+type applyRequest struct {
+	FindingID string `json:"finding_id"`
+}
+
 type resolveThreadRequest struct {
 	Version *int `json:"version"`
 }
@@ -169,6 +174,8 @@ func (th *Threads) Register(api auth.Routes) {
 	api.POST("/threads/:thread_id/resolve", auth.RoleViewer, th.resolve)
 	api.POST("/threads/:thread_id/reopen", auth.RoleViewer, th.reopen)
 	api.POST("/threads/:thread_id/read", auth.RoleViewer, auth.RequireUser, th.markRead)
+	api.DELETE("/threads/:thread_id/share", auth.RoleViewer, th.withdraw)
+	api.POST("/threads/:thread_id/apply", auth.RoleViewer, th.apply)
 	api.PATCH("/messages/:message_id", auth.RoleViewer, th.edit)
 	api.DELETE("/messages/:message_id", auth.RoleViewer, th.deleteMessage)
 }
@@ -347,6 +354,55 @@ func (th *Threads) deleteMessage(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (th *Threads) withdraw(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "thread_id")
+	if !ok {
+		return
+	}
+	if err := th.service.Withdraw(c.Request.Context(), httpapi.Caller(c), id); err != nil {
+		th.fail(c, "withdraw shared answer", err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (th *Threads) apply(c *gin.Context) {
+	id, ok := httpapi.UUIDParam(c, "thread_id")
+	if !ok {
+		return
+	}
+	var req applyRequest
+	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
+		return
+	}
+	findingID, err := db.ParseUUID(req.FindingID)
+	if err != nil {
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "finding_id must be a UUID")
+		return
+	}
+	sent, err := th.asks.Apply(c.Request.Context(), httpapi.Caller(c), id, findingID)
+	if err != nil {
+		th.failApply(c, err)
+		return
+	}
+	th.respondSent(c, sent)
+}
+
+func (th *Threads) failApply(c *gin.Context, err error) {
+	reply, known := revisions.ReplyFor(err)
+	switch {
+	case errors.Is(err, ErrAnswerNotHere):
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, revisions.ErrTooManyRevisions), errors.Is(err, revisions.ErrUnavailable):
+		reply = revisions.StartReplyFor(err)
+		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)
+	case known:
+		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)
+	default:
+		th.fail(c, "apply suggested change", err)
+	}
+}
+
 func (th *Threads) resolve(c *gin.Context) {
 	id, ok := httpapi.UUIDParam(c, "thread_id")
 	if !ok {
@@ -441,8 +497,10 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 
 func abortKnown(c *gin.Context, err error) bool {
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrTargetNotFound), errors.Is(err, ErrNothingShared):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
+	case errors.Is(err, ErrOthersWroteHere):
+		httpapi.AbortError(c, http.StatusConflict, CodeOthersWroteHere, err.Error())
 	case errors.Is(err, ErrNotStarter):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotStarter, err.Error())
 	case errors.Is(err, ErrUnknownPanel):

@@ -37,7 +37,7 @@ func TestCancelNeedsAnActiveRequestAndTheRequester(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			row := dbsqlc.AgentRequest{State: string(tc.state), Source: string(tc.source), RequestedByKind: string(auth.KindUser), RequestedByID: requesterID}
+			row := shapedAs(dbsqlc.AgentRequest{State: string(tc.state), RequestedByKind: string(auth.KindUser), RequestedByID: requesterID}, tc.source)
 			if got := slices.Contains(allowedActions(factsOf(row, buildState{}, tc.by, true, true)), ActionCancel); got != tc.want {
 				t.Fatalf("cancel allowed = %t, want %t", got, tc.want)
 			}
@@ -73,7 +73,7 @@ func TestContinueIsAllowedOnlyForAnUnsavedStoppedBuildOfTheRequester(t *testing.
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			row := dbsqlc.AgentRequest{State: string(tc.state), Source: string(tc.source), BuildSavedAt: tc.savedAt, RequestedByKind: string(auth.KindUser), RequestedByID: requesterID}
+			row := shapedAs(dbsqlc.AgentRequest{State: string(tc.state), BuildSavedAt: tc.savedAt, RequestedByKind: string(auth.KindUser), RequestedByID: requesterID}, tc.source)
 			if got := slices.Contains(allowedActions(factsOf(row, tc.build, requester, false, true)), ActionContinue); got != tc.want {
 				t.Fatalf("continue allowed = %t, want %t", got, tc.want)
 			}

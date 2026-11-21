@@ -727,7 +727,7 @@ const runAttempt = 1
 func (r *rig) runWithABuild(t *testing.T, dash pgtype.UUID, panels ...panel) pgtype.UUID {
 	t.Helper()
 	queued, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
-		DashboardID: dash, Source: "prompt", Prompt: "revise", BaseVersion: 1,
+		DashboardID: dash, Intent: "apply", Prompt: "revise", BaseVersion: 1,
 		RequestedByKind: string(editor.Kind), RequestedByID: mustParse(t, editor.ID), RequestedByName: editor.Name,
 	})
 	if err != nil {

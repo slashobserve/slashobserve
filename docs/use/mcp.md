@@ -23,6 +23,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | ---- | ----------- |
 | `add_block` | Viewer |
 | `aggregate_audit_events` | Admin |
+| `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
 | `arrange_blocks` | Viewer |
 | `cancel_run` | Viewer |
@@ -118,6 +119,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `search_workspace` | Viewer |
 | `set_home_dashboard` | Viewer |
 | `set_inbox_item_done` | Viewer |
+| `share_answer` | Viewer |
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
@@ -300,14 +302,18 @@ A comment is for everyone and asks no agent unless the call sets `to` to `agent`
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
-A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
+A dashboard or an observation thread starts a read-only ask, which needs Comment on the dashboard or observation and answers in the thread without changing it, and an annotation or a proposal thread starts none.
 A run started this way is checked like one the same person starts in the web app.
+
+An answer on a dashboard may carry `suggested_change`, one sentence on a change that would help, and `apply_suggested_change` (`comment_id` and the answer's `finding_id` from `get_run`) posts "Revise the dashboard: <suggested change>" in that thread as you and starts a run that makes the change: it saves a version when you can edit the dashboard and opens a proposal when you can only comment.
+The run is yours and goes to the agent that answered; a repeat call while it is queued or running, or after it succeeded, posts nothing and returns that run with `replayed` true.
+An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable` and `assignee_unavailable`.
 Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
-The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
+The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run a comment started ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did (an answer kept in its asker's chat ends with `[the chat](/c/<run id>)`, a chat only the person who asked and Admins can open); a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
+When a run a comment started ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did; a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
 It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
@@ -426,11 +432,14 @@ An Admin can read any run; the answer then has `read_only: true` and no allowed 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
 Only the person who asked and an Admin can read such an answer.
 When a request made on Home asked to change one existing dashboard, the run's `finding` carries `ask_on`, the `dashboard_id` and `title` of that dashboard, and no `ask_on` means the finding names none or several.
-To make that change, use `update_panels` on that dashboard yourself, or ask the built-in agent there with `start_run`, sending the finding's `ask_on.dashboard_id` as `dashboard_id` and the run's prompt, or with `observe --dashboard <id>` or `POST /api/v1/observe` with `dashboard_id`.
+To make that change, use `update_panels` on that dashboard yourself, or ask the built-in agent there with `start_run`, sending `kind` `revise`, the finding's `ask_on.dashboard_id` as `dashboard_id` and the run's prompt, or with `observe --revise --dashboard <id>` or `POST /api/v1/observe` with `kind` `revise` and `dashboard_id`.
 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
-`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, a `chat_id`, one of your chats from `list_chats` whose next turn the run is, and an `anchor`, the spot on the dashboard the prompt is about, shaped as `list_comments` shows it; it queues a run and answers with it at once, and you follow it with `get_run`.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `kind`, `ask` (the default) or `revise`, a `dashboard_id`, with `base_version` for a revise, a `chat_id`, one of your chats from `list_chats` whose next turn the run is, and an `anchor`, the spot on the dashboard the prompt is about, shaped as `list_comments` shows it; it queues a run and answers with it at once, and you follow it with `get_run`.
+Without a `dashboard_id` an `ask` builds a new dashboard or answers in the chat, and `kind: revise` with a `dashboard_id` changes that dashboard and saves a version.
+With `kind: revise`, `applies_finding_id` in place of `prompt` makes the change an answer about that dashboard suggests: the answer's `suggested_change` from `get_run` is the prompt, and while a run applying it is queued or running, or after it succeeded, the call returns your run with `replayed: true` or answers `already_applied` for someone else's.
+An `ask` with one of `dashboard_id` or `observation_id` is a [private ask](../concepts/agent.md#private-asks): it only answers, changes nothing, and is read only by you and Admins; `kind: investigate` is refused, because an investigation is a person's decision.
 
 Every run is a turn of a chat: without `chat_id` a new chat starts, and a revision joins your latest chat on that dashboard; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
@@ -438,6 +447,7 @@ Without `client_id` every call queues another run, so read `get_run` or `list_ac
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+A private ask about a dashboard or an observation is not an investigation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
 
 `list_chats` lists your chats, pinned ones first and then the one most recently asked in, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats by their last turn only and needs an Admin.
 Each chat carries `dashboard_title`, null when you cannot see its dashboard.
@@ -445,8 +455,8 @@ Each chat carries `dashboard_title`, null when you cannot see its dashboard.
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
-`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `source`, `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
-It takes `state` (a list), `source` (`observe`, `prompt`, `comment` or `investigate`), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
+`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
+It takes `state` (a list), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
 An observation the run saved stays too, because no MCP tool deletes anything; a person deletes it with the chat in the web app, or with `observe requests archive <id> --delete-observation --yes`.
@@ -457,6 +467,14 @@ Only the person or key that started a run can rename, pin, unpin or archive it, 
 It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
 Until then a run's `result_kind` is `answer` and its `observation_id` is null, and it reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else and a run without an answer get `no_answer`.
+
+`share_answer` takes `run_id` and shows the answer of a private question (`start_run` with `kind` `ask`) to the people who can read the dashboard or observation it was about.
+It opens a comment thread there, at the same panel or block, with the question as your message and the agent's answer as its reply, and on an observation it also writes the answer onto the page; with `thread_id` it adds both to that thread instead, which must be on the same dashboard or observation.
+It answers `thread_id`, `message_id` and `replayed`, true when the run was already shared, and a run is shared once.
+Only the one who asked can share it, and only when you can comment there: anyone else gets `not_found`, a run that is not a private question gets `not_shareable` and one without an answer gets `no_answer`.
+An answer whose evidence reads a datasource only Admins can query is refused with `restricted_content` unless the dashboard or observation is in a folder only Admins can read.
+The run and the rest of the chat stay readable only by you and Admins.
+Withdrawing a shared answer deletes the shared question and its answer, or the thread the share opened, so no MCP tool does it; the person who asked uses `observe comments withdraw` or `DELETE /threads/{id}/share`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.
@@ -666,7 +684,7 @@ The loop of an agent that takes runs:
 1. Call `claim_run`, which waits up to `wait_seconds` (0 to 30, 30 by default) and answers `run: null` when nothing is waiting.
    Call it again.
    An agent may keep 2 waiting `claim_run` calls at a time; past that, and when `wait_seconds` is 0, the answer is `run: null` with `retry_after_seconds` of 5, so wait that long before the next call.
-2. A claimed run holds its `id`, `attempt`, `kind` (`build` or `investigate`), its `source` (`observe`, `prompt`, `comment`, `suggest` or `investigate`), its `prompt`, its target (`dashboard_id`, `base_version`, `panel_id`, `from` and `to`, null when the run has none), `continue_note`, and `requested_by`, the person it acts for.
+2. A claimed run holds its `id`, `attempt`, `kind` (`build` or `investigate`), its `intent` (`ask`, `apply` or `suggest`), its `prompt`, its target (`dashboard_id`, `base_version`, `panel_id`, `from` and `to`, null when the run has none), `continue_note`, and `requested_by`, the person it acts for.
    The answer also has `lease_seconds` (60), a `session` with a `url`, a `token` (starting `sot_`) and `expires_at`, and `system_prompt`, the `observe` prompt to read with the run's `kind`.
    When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
    The server answers in the thread when the run ends, so do not reply there yourself.

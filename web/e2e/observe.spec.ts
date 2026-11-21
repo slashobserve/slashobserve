@@ -140,7 +140,11 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
     title: uniqueTitle("Follow-up retry"),
   })
   const queued = await page.request.post("/api/v1/observe", {
-    data: { prompt: unanswerablePrompt, dashboard_id: dashboardId },
+    data: {
+      prompt: unanswerablePrompt,
+      dashboard_id: dashboardId,
+      kind: "revise",
+    },
     headers: mutationHeaders,
   })
   expect(queued.status()).toBe(202)
@@ -168,12 +172,12 @@ test("retries a failed follow-up on the same dashboard", async ({ page }) => {
     `/api/v1/dashboards/${dashboardId}/revisions`
   )
   const body = (await revisions.json()) as {
-    revisions: { source: string; prompt: string }[]
+    revisions: { intent: string; prompt: string }[]
   }
   expect(body.revisions).toHaveLength(2)
   for (const revision of body.revisions) {
     expect(revision).toMatchObject({
-      source: "prompt",
+      intent: "apply",
       prompt: unanswerablePrompt,
     })
   }

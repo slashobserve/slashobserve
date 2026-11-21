@@ -437,12 +437,18 @@ func run() error {
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
 	proposalsService.OnClosed(threadsService)
+	threadsService.ShowAnswersWith(findingsService.ShowIn, findingsService.HideFrom)
+	findingsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
+		_, err := threadsService.ReadMessage(ctx, by, messageID)
+		return err
+	})
 	liveText := livetext.New(database, database.Listen, logger)
 	baseObserveOpts := revisions.ObserveOptions{
 		DashboardURL:       func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
 		ObservationURL:     func(id string) string { return links.Observation(cfg.PublicURL, id) },
 		Finding:            findingOfRequest(findingsService, findingURL),
 		SaveAnswer:         saveAnswerOf(findingsService),
+		ShareAnswer:        shareAnswerOf(threadsService),
 		LiveText:           liveText.Text,
 		ShareTitle:         observationsService.RenameFromChat,
 		ObservationVisible: observationsService.Visible,
@@ -459,6 +465,11 @@ func run() error {
 	}
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
+	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
+	revisionsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
+		_, err := threadsService.ReadMessage(ctx, by, messageID)
+		return err
+	})
 	asks := threads.NewAsks(threadsService, revisionsService, llmProvider != nil)
 	claimsConfig := claims.Config{
 		DB: database, Runs: revisionsService, Listen: database.Listen, PublicURL: cfg.PublicURL, InternalURL: sidecar.internalURL(),
@@ -687,6 +698,28 @@ func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
 			return revisions.SavedAnswer{}, err
 		}
 		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
+	}
+}
+
+func shareAnswerOf(service *threads.Service) revisions.AnswerSharer {
+	return func(ctx context.Context, by auth.Principal, requestID, threadID pgtype.UUID) (revisions.SharedAnswer, error) {
+		shared, err := service.ShareRun(ctx, by, threads.ShareInput{RunID: requestID, ThreadID: threadID})
+		var invalid *threads.InvalidInputError
+		switch {
+		case errors.Is(err, threads.ErrRunNotFound):
+			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
+		case errors.Is(err, threads.ErrNoAnswer):
+			return revisions.SharedAnswer{}, revisions.ErrNoAnswerToShare
+		case errors.Is(err, threads.ErrNotShareable):
+			return revisions.SharedAnswer{}, revisions.ErrNotShareable
+		case errors.Is(err, threads.ErrNotFound), errors.As(err, &invalid) && invalid.Code == threads.CodeWrongThread:
+			return revisions.SharedAnswer{}, revisions.ErrShareThread
+		case errors.Is(err, threads.ErrTargetNotFound):
+			return revisions.SharedAnswer{}, revisions.ErrRequestNotFound
+		case err != nil:
+			return revisions.SharedAnswer{}, err
+		}
+		return revisions.SharedAnswer{ThreadID: shared.Thread.ID, MessageID: shared.Message.ID, Replayed: shared.Replayed}, nil
 	}
 }
 

@@ -14,16 +14,15 @@ import (
 )
 
 var (
-	requestScopes  = []string{"mine", "all"}
-	requestSources = []string{"observe", "prompt", "comment", "investigate"}
-	requestStates  = []string{"queued", "running", "canceling", "succeeded", "failed", "canceled"}
+	requestScopes = []string{"mine", "all"}
+	requestStates = []string{"queued", "running", "canceling", "succeeded", "failed", "canceled"}
 )
 
 type requestRow struct {
 	ID             string   `json:"id"`
 	Kind           string   `json:"kind"`
 	Title          string   `json:"title"`
-	Source         string   `json:"source"`
+	Intent         string   `json:"intent"`
 	State          string   `json:"state"`
 	DashboardID    *string  `json:"dashboard_id"`
 	DashboardTitle *string  `json:"dashboard_title"`
@@ -41,7 +40,6 @@ type requestListBody struct {
 
 type requestListOptions struct {
 	scope     string
-	source    string
 	states    []string
 	query     string
 	pinned    bool
@@ -66,7 +64,7 @@ func (a *app) requestsListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List agent requests, newest first",
-		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, source and dashboard.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.",
+		Long:  "list prints your agent requests, newest first and pinned ones first, with their state, intent and dashboard.\nArchived requests are left out.\n--scope all lists every principal's requests and needs the Admin role.\n--state may repeat or take a comma-separated list.",
 		Args:  noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := page.check(); err != nil {
@@ -95,9 +93,9 @@ func (a *app) requestsListCommand() *cobra.Command {
 			}
 			rows := make([][]string, 0, len(list.Requests))
 			for _, r := range list.Requests {
-				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Source), orDash(r.DashboardTitle), text(r.Title)})
+				rows = append(rows, []string{text(r.ID), requestStateWord(r.State), text(r.Intent), orDash(r.DashboardTitle), text(r.Title)})
 			}
-			out.table([]string{"ID", "STATE", "SOURCE", "DASHBOARD", "TITLE"}, rows)
+			out.table([]string{"ID", "STATE", "INTENT", "DASHBOARD", "TITLE"}, rows)
 			var total *int
 			if list.Summary != nil {
 				total = &list.Summary.Total
@@ -109,7 +107,6 @@ func (a *app) requestsListCommand() *cobra.Command {
 	addPageFlags(cmd, &page, maxRequestPage)
 	flags := cmd.Flags()
 	flags.StringVar(&opts.scope, "scope", "", "mine (default) or all, which needs the Admin role")
-	flags.StringVar(&opts.source, "source", "", "observe, prompt, comment or investigate")
 	flags.StringSliceVar(&opts.states, "state", nil, "keep these states: queued, running, canceling, succeeded, failed or canceled")
 	flags.StringVar(&opts.query, "q", "", "keep requests whose title or prompt contains this text")
 	flags.BoolVar(&opts.pinned, "pinned", false, "keep only pinned requests, or only unpinned ones with --pinned=false")
@@ -135,12 +132,6 @@ func (o requestListOptions) apply(cmd *cobra.Command, query url.Values) error {
 			return usagef("--scope must be one of %s", strings.Join(requestScopes, ", "))
 		}
 		query.Set("scope", o.scope)
-	}
-	if o.source != "" {
-		if !slices.Contains(requestSources, o.source) {
-			return usagef("--source must be one of %s", strings.Join(requestSources, ", "))
-		}
-		query.Set("source", o.source)
 	}
 	for _, state := range o.states {
 		if !slices.Contains(requestStates, state) {

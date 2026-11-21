@@ -1,6 +1,7 @@
 package findings_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -26,6 +27,24 @@ func TestAnAnswerToAQuestionStaysOnTheRunAndMakesNoObservation(t *testing.T) {
 	}
 	if n := r.count(t, `SELECT count(*) FROM activity WHERE type = 'finding.created'`); n != 0 {
 		t.Fatalf("%d finding activity entries for an answer nobody filed", n)
+	}
+}
+
+func TestAnAnswerKeepsItsSuggestedChangeAndObserveWorthyFlag(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, r.open)
+	saved := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, SuggestedChange: "Split the error panel by pod.", ObserveWorthy: true})
+	got, found, err := r.service.ForRequest(reading(t.Context()), editor, request)
+	if err != nil || !found || got.ID != saved.ID {
+		t.Fatalf("read back: %+v found %v, %v", got, found, err)
+	}
+	body := findings.JSONOf(got, "")
+	if body.SuggestedChange == nil || *body.SuggestedChange != "Split the error panel by pod." || !body.ObserveWorthy {
+		t.Fatalf("answer suggested_change %v observe_worthy %v", body.SuggestedChange, body.ObserveWorthy)
+	}
+	plain := findings.JSONOf(r.save(t, editor, findings.SaveInput{AgentRequestID: r.request(t, editor, r.open), DashboardID: r.open}), "")
+	if plain.SuggestedChange != nil || plain.ObserveWorthy {
+		t.Fatalf("an answer with neither: suggested_change %v observe_worthy %v", plain.SuggestedChange, plain.ObserveWorthy)
 	}
 }
 
@@ -86,6 +105,24 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 	}
 	if n := r.count(t, `SELECT count(*) FROM observations`); n != 1 {
 		t.Fatalf("%d observations after a repeated save", n)
+	}
+}
+
+func TestSavingAHomeAnswerAsAnObservationKeepsTheRunABuild(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, pgtype.UUID{})
+	r.save(t, editor, findings.SaveInput{AgentRequestID: request, Title: "Which logs exist"})
+
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
+	if err != nil || !saved.Saved() {
+		t.Fatalf("save: %+v, %v", saved, err)
+	}
+	run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Kind != "build" || run.Intent != "ask" || run.ObservationID.String() != saved.ObservationID {
+		t.Fatalf("the saved run is kind %q intent %q observation %v, want a build ask naming %s", run.Kind, run.Intent, run.ObservationID, saved.ObservationID)
 	}
 }
 
@@ -161,5 +198,34 @@ func TestDeletingARunTakesItsUnsavedAnswerWithIt(t *testing.T) {
 	}
 	if n := r.count(t, `SELECT count(*) FROM findings`); n != 0 {
 		t.Fatalf("%d findings left after their run was deleted", n)
+	}
+}
+
+func TestAReadOfAnUnsavedAnswerIsRecordedAsAReadOfItsRun(t *testing.T) {
+	r := newRig(t)
+	var read []pgtype.UUID
+	r.service.RecordAnswerReadsWith(func(_ context.Context, run pgtype.UUID) { read = append(read, run) })
+	unsaved := r.request(t, editor, pgtype.UUID{})
+	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: unsaved})
+	filed := r.request(t, editor, pgtype.UUID{})
+	r.save(t, editor, findings.SaveInput{AgentRequestID: filed})
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, filed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, who := range []auth.Principal{editor, admin} {
+		if _, err := r.service.Read(reading(t.Context()), who, mustUUID(t, answer.ID)); err != nil {
+			t.Fatalf("%s reads the unsaved answer: %v", who.Name, err)
+		}
+	}
+	if _, err := r.service.Read(reading(t.Context()), otherEditor, mustUUID(t, answer.ID)); !errors.Is(err, findings.ErrNotFound) {
+		t.Fatalf("another Editor reads the unsaved answer: %v, want ErrNotFound", err)
+	}
+	if _, err := r.service.Read(reading(t.Context()), editor, mustUUID(t, saved.ID)); err != nil {
+		t.Fatalf("read the saved answer: %v", err)
+	}
+	if len(read) != 2 || read[0] != unsaved || read[1] != unsaved {
+		t.Fatalf("recorded run reads %v, want the unsaved answer's run %v twice", read, unsaved)
 	}
 }

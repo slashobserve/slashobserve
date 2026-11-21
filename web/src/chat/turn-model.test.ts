@@ -40,13 +40,13 @@ describe("noFindingText", () => {
   it.each([
     [
       "an answer in a folder the reader cannot see",
-      "observe",
+      "build",
       "observation",
       "The answer is saved in an observation in a folder you cannot see.",
     ],
     [
       "an answer kept in a chat about a dashboard the reader cannot open",
-      "prompt",
+      "build",
       "answer",
       "The answer is about a dashboard you cannot open.",
     ],
@@ -64,12 +64,12 @@ describe("noFindingText", () => {
     ],
     [
       "a request that saved nothing",
-      "observe",
+      "build",
       "none",
       "The request finished without a dashboard.",
     ],
-  ] as const)("%s", (_name, source, result_kind, expected) => {
-    expect(noFindingText({ source, result_kind })).toBe(expected)
+  ] as const)("%s", (_name, kind, result_kind, expected) => {
+    expect(noFindingText({ kind, result_kind })).toBe(expected)
   })
 })
 
@@ -133,17 +133,17 @@ describe("mayHaveFinding", () => {
       "observation",
       true,
     ],
-    ["a new dashboard that answered", "observe", "observation", true],
-    ["a new dashboard whose answer is not saved", "observe", "answer", true],
-    ["a new dashboard that saved a version", "observe", "version", false],
-    ["a new dashboard still running", "observe", "none", false],
-    ["a failed new dashboard", "observe", "none", false],
-    ["a stopped build that was kept", "observe", "partial_version", false],
-    ["a dashboard chat prompt that answered", "prompt", "observation", true],
-    ["a comment that answered", "comment", "observation", true],
-    ["a revision that saved a version", "prompt", "version", false],
-    ["a revision still running", "prompt", "none", false],
-  ] as const)("%s", (_name, source, result_kind, expected) => {
-    expect(mayHaveFinding({ source, result_kind })).toBe(expected)
+    ["a new dashboard that answered", "build", "observation", true],
+    ["a new dashboard whose answer is not saved", "build", "answer", true],
+    ["a new dashboard that saved a version", "build", "version", false],
+    ["a new dashboard still running", "build", "none", false],
+    ["a failed new dashboard", "build", "none", false],
+    ["a stopped build that was kept", "build", "partial_version", false],
+    ["a dashboard chat prompt that answered", "build", "observation", true],
+    ["a comment that answered", "build", "observation", true],
+    ["a revision that saved a version", "build", "version", false],
+    ["a revision still running", "build", "none", false],
+  ] as const)("%s", (_name, kind, result_kind, expected) => {
+    expect(mayHaveFinding({ kind, result_kind })).toBe(expected)
   })
 })

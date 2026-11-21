@@ -34,10 +34,11 @@ var exceptions = map[string]exception{
 
 	"exportAuditEvents": {MCP: auditFileExport},
 
-	"deleteAnnotation": {MCP: noMCPDeletes},
-	"deleteMessage":    {MCP: noMCPDeletes},
-	"archiveChat":      {MCP: noMCPDeletes},
-	"markThreadRead":   {MCP: personOnly, CLI: personOnly},
+	"deleteAnnotation":     {MCP: noMCPDeletes},
+	"deleteMessage":        {MCP: noMCPDeletes},
+	"archiveChat":          {MCP: noMCPDeletes},
+	"withdrawSharedAnswer": {MCP: noMCPDeletes},
+	"markThreadRead":       {MCP: personOnly, CLI: personOnly},
 
 	"getAssetImage":   {MCP: personOnly, CLI: personOnly},
 	"getAssetGeojson": {MCP: personOnly, CLI: personOnly},

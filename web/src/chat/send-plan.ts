@@ -46,10 +46,16 @@ export function planSend(context: SendContext): SendPlan | { error: string } {
       if (dashboardId === undefined) {
         return { error: "Open a dashboard to revise it." }
       }
-      return { input: { prompt: text, dashboardId }, opens: "same" }
+      return {
+        input: { prompt: text, dashboardId, kind: "revise" },
+        opens: "same",
+      }
     case null:
       if (dashboardId !== undefined) {
-        return { input: { prompt: text, dashboardId }, opens: "same" }
+        return {
+          input: { prompt: text, dashboardId, kind: "revise" },
+          opens: "same",
+        }
       }
       return followsId === undefined
         ? { input: { prompt: text }, opens: "chat" }

@@ -20,7 +20,7 @@ import (
 
 type runItem struct {
 	ID          string   `json:"id"`
-	Source      string   `json:"source"`
+	Intent      string   `json:"intent"`
 	Title       string   `json:"title"`
 	State       string   `json:"state"`
 	ResultKind  string   `json:"result_kind"`
@@ -68,8 +68,8 @@ func (r *rig) seed(t *testing.T, in seededRun) string {
 		prompt = "p"
 	}
 	var id string
-	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (source, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, assigned_id, dashboard_id, base_version, created_at)
-		VALUES ($1, nullif($2, ''), $3, 'user', $4::uuid, $5, 'queued', 'queued', $6, nullif($7, '')::uuid, nullif($8, '')::uuid, CASE WHEN $8 <> '' THEN 1 END, now() - make_interval(mins => $9))
+	err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, title, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, assigned_id, dashboard_id, base_version, created_at)
+		VALUES (CASE $1 WHEN 'suggest' THEN 'suggest' WHEN 'prompt' THEN 'apply' WHEN 'comment' THEN 'apply' ELSE 'ask' END, nullif($2, ''), $3, 'user', $4::uuid, $5, 'queued', 'queued', $6, nullif($7, '')::uuid, nullif($8, '')::uuid, CASE WHEN $8 <> '' THEN 1 END, now() - make_interval(mins => $9))
 		RETURNING id::text`,
 		source, in.title, prompt, in.by.ID, in.by.Name, in.kind, in.assignedID, in.dashboardID, in.minutesAgo).Scan(&id)
 	if err != nil {
@@ -115,21 +115,21 @@ func kindQuery(kind, id string) url.Values {
 	return q
 }
 
-func TestRunTitlePrefersTheTitleThenThePromptThenTheSource(t *testing.T) {
+func TestRunTitlePrefersTheTitleThenThePromptThenTheIntent(t *testing.T) {
 	long := strings.Repeat("é", 130)
 	tests := []struct {
-		name, title, prompt, source, want string
+		name, title, prompt, intent, want string
 	}{
-		{"title wins", "Checkout latency", "something else", "prompt", "Checkout latency"},
+		{"title wins", "Checkout latency", "something else", "apply", "Checkout latency"},
 		{"first prompt line", "", "Why is checkout slow?\nSecond line", "prompt", "Why is checkout slow?"},
-		{"leading blank lines are skipped by trimming", "", "\n  \n  Hello  \nworld", "prompt", "Hello"},
-		{"cut to 120 runes", "", long, "prompt", strings.Repeat("é", 120)},
-		{"blank prompt falls back to the source", "", " \n ", "investigate", "investigate"},
+		{"leading blank lines are skipped by trimming", "", "\n  \n  Hello  \nworld", "apply", "Hello"},
+		{"cut to 120 runes", "", long, "apply", strings.Repeat("é", 120)},
+		{"blank prompt falls back to the intent", "", " \n ", "ask", "ask"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := runTitle(tc.title, tc.prompt, tc.source); got != tc.want {
-				t.Fatalf("runTitle(%q, %q, %q) = %q, want %q", tc.title, tc.prompt, tc.source, got, tc.want)
+			if got := runTitle(tc.title, tc.prompt, tc.intent); got != tc.want {
+				t.Fatalf("runTitle(%q, %q, %q) = %q, want %q", tc.title, tc.prompt, tc.intent, got, tc.want)
 			}
 		})
 	}
@@ -229,7 +229,7 @@ func TestSuggestionRunsNeverAppear(t *testing.T) {
 	r := newRig(t, Observe{})
 	r.db.Exec(t, `INSERT INTO dashboards (id, title, latest_version, created_by_kind, created_by_id, created_by_name, created_via)
 		VALUES ('55555555-5555-4555-8555-555555555555', 'Checkout', 1, 'user', gen_random_uuid(), 'Seed', 'direct')`)
-	r.db.Exec(t, `INSERT INTO agent_requests (source, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, dashboard_id, base_version, panel_id)
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, status, state, assigned_kind, dashboard_id, base_version, panel_id)
 		VALUES ('suggest', 'p', 'user', $1::uuid, 'Ada', 'queued', 'queued', 'builtin', '55555555-5555-4555-8555-555555555555', 1, 'p1')`, ada.ID)
 	kept := r.seed(t, seededRun{kind: "builtin", by: ada})
 

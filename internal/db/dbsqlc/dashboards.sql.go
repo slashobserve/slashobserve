@@ -212,7 +212,7 @@ WHERE d.id = $1
   AND NOT EXISTS (
     SELECT 1 FROM dashboard_versions v
     JOIN agent_requests r ON r.id = v.agent_request_id
-    WHERE v.dashboard_id = d.id AND r.source = 'observe' AND r.status IN ('queued', 'running')
+    WHERE v.dashboard_id = d.id AND r.base_version IS NULL AND r.intent <> 'suggest' AND r.status IN ('queued', 'running')
   )
 `
 

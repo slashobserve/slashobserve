@@ -93,9 +93,9 @@ threads:
       The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`.
       More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says.
       The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context.
-      A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts an `investigate` run that writes into the observation, which needs the Editor role and has no per-person cap.
+      A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page.
       An annotation or a proposal thread starts no run.
-      A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role`, `too_many_runs` or `investigation_person_only` (an MCP client or key asking the agent on an observation).
+      A run that cannot start never fails the message: the message is stored and `message.run_refusal` says why, as `mention_target_unsupported`, `agent_unavailable` (`@observe` without a model provider, or a thread agent that was disconnected, which is then cleared), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
       A started run is in `message.run`, and `to` in the answer says how the message was delivered.
       `client_id` is a UUID the caller makes for the message; sending it again answers 200 with the message already posted, `replayed: true` and no new run, and reusing it on another target answers 422 `client_id_reused`.
       The thread is recorded as a `thread.opened` activity event, and a dashboard thread also sends `comment.created` to the dashboard's event stream; a change of the thread's agent is audited as `thread.agent_set`.
@@ -391,6 +391,136 @@ threads-threadid-read:
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
+threads-threadid-share:
+  parameters:
+    - name: thread_id
+      in: path
+      required: true
+      description: The thread's id, or the id of any of its messages.
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: withdrawSharedAnswer
+    x-audit: { action: run.withdraw, target: { kind: run } }
+    x-surfaces:
+      cli: [observe comments withdraw]
+    summary: Withdraw a shared answer back to only you.
+    description: >-
+      Undoes `POST /observe/{id}/share` for the caller's own private questions shared in this thread and makes each of those runs a private question again, read only by its requester and Admins.
+      When a share opened the thread, the whole thread is deleted; otherwise only the shared questions and the answers posted under them are, and the thread keeps its other messages.
+      It is allowed only to the person who asked, while every message in the thread is theirs or their run's reply; once someone else wrote in it, the answer stays shared (`others_wrote`).
+      On an observation the run's answer leaves the observation, so it is no longer read or listed through it, but the answer's text that the share wrote onto the page stays there as page content; the observation's editors remove those blocks like any other block.
+      The run can be shared again afterwards, which opens a new thread.
+      Each withdrawn run is recorded as `run.withdraw`, and each deletion, of the thread or of a message, as a `thread.deleted` activity event.
+      Needs View on the thread's target; someone who cannot view it, or who has no answer shared in it, gets 404.
+      It is a delete, so no MCP tool reaches it.
+    responses:
+      "204":
+        description: The shares are deleted and their answers are private again.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: Someone other than the asker wrote in the thread, so the answer stays shared (`others_wrote`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+threads-threadid-apply:
+  parameters:
+    - name: thread_id
+      in: path
+      required: true
+      description: The thread's id, or the id of any of its messages.
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: applySuggestedChange
+    x-audit: { action: finding.apply, target: { kind: finding } }
+    x-surfaces:
+      mcp: [apply_suggested_change]
+      cli: [observe comments apply]
+    summary: Ask the agent to make the change an answer in this thread suggests.
+    description: >-
+      An answer to a question about a dashboard may carry `suggested_change`, one sentence on a change that would help; the question's run never changes the dashboard itself.
+      This posts the message "Revise the dashboard: <suggested change>" in the thread as the caller and starts a run that revises the dashboard, with the suggested change as its prompt and the thread's earlier messages as context, so the thread shows who asked for the change.
+      The run is the caller's and goes to the agent that wrote the answer; it saves a new version when the caller can edit the dashboard, and opens a proposal for someone who can edit to merge when the caller can only comment.
+      `finding_id` must be the answer of a run asked in this thread, on a dashboard; any other id answers 404, and an answer with no suggested change answers 422 `no_suggested_change`.
+      A second call for the same answer while its run is queued or running, or after it succeeded, posts nothing and returns the first message and run with `replayed` true; after that run failed or was canceled, a call starts a new one.
+      The run counts against the dashboard's limit of 5 waiting or running revisions (429 `too_many_revisions`), needs the model provider for the built-in agent (503 `agent_unavailable`), and refuses with 409 `assignee_unavailable` when the connected agent that answered is not the caller's live agent or the service account no longer takes runs.
+      It is recorded as `finding.apply` and the message as a `thread.replied` activity event.
+      Needs Comment on the dashboard.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [finding_id]
+            properties:
+              finding_id:
+                type: string
+                format: uuid
+                description: The answer whose suggested change to apply, the `id` of the run's finding.
+    responses:
+      "200":
+        description: The answer's change is already being applied or was applied; the first message and its run are returned with `replayed` true.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ThreadSent"
+      "201":
+        description: The thread, the new message and its run in `message.run`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ThreadSent"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The connected agent or service account that answered cannot take the run (`assignee_unavailable`), or the change is being applied by a run that could not be read back (`already_applied`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The thread is not on a dashboard (`invalid_thread`), or the answer suggests no change (`no_suggested_change`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "429":
+        description: The dashboard already has its limit of waiting or running revisions (`too_many_revisions`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: The built-in agent answered and the server has no model provider (`agent_unavailable`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
 threads-mentionable:
   get:
     operationId: listMentionablePeople

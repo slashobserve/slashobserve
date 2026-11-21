@@ -10,6 +10,11 @@ A search is recorded once per caller and query text in 10 minutes: the repeats, 
 The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
 A query that is refused is recorded every time, as a `failed` event with its reason.
 
+A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded once per reader and subject in 10 minutes, the owner's own views included.
+A list of chats or requests is one `chat.list` or `run.list` event, recorded once per reader and scope in 10 minutes, never one per row.
+The Agents page's list of one agent's runs is a `run.list` with scope `workspace` for an Admin or `you`, and the connected agent or service account as its target.
+A refused view is recorded every time.
+
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.

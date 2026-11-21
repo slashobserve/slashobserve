@@ -192,3 +192,12 @@ func capName(name string) string {
 	}
 	return name
 }
+
+func withoutMentionSyntax(text string) string {
+	text = mentionToken.ReplaceAllString(text, "$1")
+	spans := handleSpans(text)
+	for i := len(spans) - 1; i >= 0; i-- {
+		text = text[:spans[i][0]] + text[spans[i][0]+1:]
+	}
+	return text
+}

@@ -188,9 +188,10 @@ UPDATE agent_requests
 SET result_version = $1::integer,
   dashboard_id = $2::uuid,
   build_saved_at = clock_timestamp(),
+  intent = 'apply',
   result_kind = 'partial_version'
 WHERE id = $3 AND state = ANY($4::text[]) AND build_saved_at IS NULL
-RETURNING id, dashboard_id, source, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id
+RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id
 `
 
 type MarkAgentRequestBuildSavedParams struct {
@@ -211,7 +212,6 @@ func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentR
 	err := row.Scan(
 		&i.ID,
 		&i.DashboardID,
-		&i.Source,
 		&i.CommentID,
 		&i.Prompt,
 		&i.PanelID,
@@ -264,6 +264,10 @@ func (q *Queries) MarkAgentRequestBuildSaved(ctx context.Context, arg MarkAgentR
 		&i.Anchor,
 		&i.BlockID,
 		&i.ClientID,
+		&i.Intent,
+		&i.Kind,
+		&i.AppliesFindingID,
+		&i.SubjectObservationID,
 	)
 	return i, err
 }

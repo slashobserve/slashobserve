@@ -47,7 +47,7 @@ type authorJSON struct {
 type revisionJSON struct {
 	ID             string     `json:"id"`
 	DashboardID    string     `json:"dashboard_id"`
-	Source         Source     `json:"source"`
+	Intent         Intent     `json:"intent"`
 	CommentID      *string    `json:"comment_id"`
 	PanelID        *string    `json:"panel_id"`
 	Prompt         string     `json:"prompt"`
@@ -241,7 +241,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 	views := make([]revisionJSON, len(revs))
 	for i, rev := range revs {
 		state := states[ids[i]]
-		mayStart, err := starts.may(ctx, rev.State, rev.Source, dashboardID)
+		mayStart, err := starts.may(ctx, rev.State, rev.Source, RunTarget{Intent: IntentApply, DashboardID: dashboardID})
 		if err != nil {
 			return nil, fmt.Errorf("check who may start a revision again: %w", err)
 		}
@@ -272,7 +272,7 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 	}
 }
 
-var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound}
+var missingForFail = []error{ErrNotFound, ErrDashboardNotFound, ErrObservationNotFound, ErrDashboardVersionNotFound, ErrCommentNotFound, ErrChatNotFound, ErrRequestNotFound, ErrFindingNotFound}
 
 func failureReplyFor(err error) (Reply, bool) {
 	switch {
@@ -288,6 +288,8 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRevisions):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
+	case errors.Is(err, ErrFindingApplied):
+		return Reply{Status: http.StatusConflict, Code: CodeAlreadyApplied, Message: err.Error()}, true
 	case errors.Is(err, ErrTooManyRequests):
 		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
 	case errors.Is(err, ErrAgentBusy):
@@ -324,7 +326,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 	out := revisionJSON{
 		ID:             r.ID,
 		DashboardID:    r.DashboardID,
-		Source:         r.Source,
+		Intent:         r.Intent,
 		CommentID:      httpapi.OptionalString(r.CommentID),
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,

@@ -366,7 +366,7 @@ func (r *findingRig) answerRun(t *testing.T, by auth.Principal, dashboard pgtype
 		t.Fatal(err)
 	}
 	row, err := r.db.Queries().EnqueueAgentRequest(reading(t.Context()), dbsqlc.EnqueueAgentRequestParams{
-		DashboardID: dashboard, Source: "prompt", Prompt: "why is this panel flat", BaseVersion: 1,
+		DashboardID: dashboard, Intent: "apply", Prompt: "why is this panel flat", BaseVersion: 1,
 		RequestedByKind: string(by.Kind), RequestedByID: byID, RequestedByName: by.Name,
 	})
 	if err != nil {
@@ -461,6 +461,31 @@ func TestSaveFindingInARunWithoutAnObservationStaysInTheChat(t *testing.T) {
 	after, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), row.ID)
 	if err != nil || after.ObservationID.Valid || saved.URL != "/c/"+row.ID.String() {
 		t.Errorf("run observation %v url %q, %v", after.ObservationID, saved.URL, err)
+	}
+}
+
+func TestSuggestedChangeIsOneSentenceOnADashboardAskOnly(t *testing.T) {
+	onDashboard := Run{Mode: ModeInvestigate, DashboardID: "00000000-0000-4000-8000-000000000001"}
+	cases := []struct {
+		name string
+		raw  string
+		run  Run
+		want string
+		ok   bool
+	}{
+		{"none anywhere", "", Run{Mode: ModeCreate}, "", true},
+		{"a sentence on a dashboard ask", "  Split the error panel by pod. ", onDashboard, "Split the error panel by pod.", true},
+		{"on Home", "Add a panel.", Run{Mode: ModeCreate}, "", false},
+		{"on an observation ask", "Add a panel.", Run{Mode: ModeInvestigate}, "", false},
+		{"in a revision", "Add a panel.", Run{Mode: ModeRevise, DashboardID: onDashboard.DashboardID}, "", false},
+		{"two lines", "Add a panel.\nThen another.", onDashboard, "", false},
+		{"too long", strings.Repeat("a", maxSuggestedChangeRunes+1), onDashboard, "", false},
+	}
+	for _, c := range cases {
+		got, res, ok := suggestedChange(c.raw, c.run)
+		if ok != c.ok || got != c.want || ok == res.IsError {
+			t.Errorf("%s: got %q ok %v res %#v", c.name, got, ok, res.Content)
+		}
 	}
 }
 

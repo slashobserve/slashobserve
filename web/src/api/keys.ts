@@ -79,7 +79,6 @@ export const folderKeys = {
 }
 
 export type ChatListFilters = {
-  source?: "observe" | "investigate"
   q?: string
   pinned?: boolean
   dashboardId?: string

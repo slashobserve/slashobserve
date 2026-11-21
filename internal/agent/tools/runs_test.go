@@ -306,14 +306,18 @@ func TestRunToolsMapTheServicesRefusals(t *testing.T) {
 }
 
 func TestRetryRunRefusesAnInvestigationAndRetriesOtherRuns(t *testing.T) {
-	investigation := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","source":"investigate"}`)}
+	investigation := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","kind":"investigate","observation_id":"` + runID + `"}`)}
 	res := callRunTool(t, investigation, nameRetryRun, `{"id":"`+runID+`"}`)
 	if code := errorCode(t, res); code != threads.RefusalPersonStarts || investigation.retried {
 		t.Fatalf("code %q, retried %v", code, investigation.retried)
 	}
-	build := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","source":"observe"}`)}
+	build := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","kind":"build"}`)}
 	if res := callRunTool(t, build, nameRetryRun, `{"id":"`+runID+`"}`); res.IsError || !build.retried {
 		t.Fatalf("retry of a build run: %+v retried %v", res.Content, build.retried)
+	}
+	ask := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","kind":"investigate","observation_id":null}`)}
+	if res := callRunTool(t, ask, nameRetryRun, `{"id":"`+runID+`"}`); res.IsError || !ask.retried {
+		t.Fatalf("retry of a private ask: %+v retried %v", res.Content, ask.retried)
 	}
 }
 

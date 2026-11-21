@@ -297,6 +297,10 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 
 ## Whose permissions it uses
 
+Each run carries an `intent`: `ask` reads and answers, `apply` changes a dashboard, and `suggest` proposes one panel.
+A new-dashboard request is an `ask` until it saves its dashboard, and then an `apply`.
+Run listings show the `intent` and the run's `kind`, `build` or `investigate`; a private ask lists as `investigate`.
+
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
 A new dashboard goes to the requester's My Dashboards, where every person has Edit, or to General for a key, unless the request names a folder the requester can create in: the agent reads the folders with `list_folders` and passes one as `folder_id`, and a folder it cannot create in is refused and never replaced by another.
@@ -308,10 +312,30 @@ A run never changes its own mode, and only a run on Home takes `ask_on_dashboard
 
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
+An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it and is answered in the thread, writing nothing on the observation's page, whoever asks it.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
+
+### Private asks
+
+A private ask is a question about one dashboard or one observation, asked in a chat of yours: `observe investigate --private`, `start_run` or `POST /observe` with `kind` `ask` (the default) and a `dashboard_id` or `observation_id`, or `observe --dashboard <id>`.
+It needs Comment on what it is about, and it does not count toward the investigation limits.
+It writes nothing anyone else reads: no observation is opened or written, no dashboard version is saved, and its activity events are seen only by you and Admins.
+Its run and its answer are read only by you and, read only, by Admins.
+
+Once it has an answer you can share it: `observe share-answer <request-id>`, `share_answer`, or `POST /observe/{id}/share`.
+That opens a comment thread on the dashboard or observation, at the same panel, block or spot, with your question as your message and the agent's answer as its reply, and on an observation it also writes the answer onto the page.
+With a thread id the two are added to that thread instead, which must be on the same dashboard or observation.
+Everyone who can read the thread then reads the answer and its evidence, and the run itself, read only, with `GET /observe/{id}`, `get_run` or `observe status`, while the chat stays yours.
+Their reads are recorded in the audit trail like yours, and one who can reply in the thread may apply the answer's suggested change there.
+The run then names that thread as `shared_thread_id`, which only you see.
+A run is shared once, sharing needs Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
+
+While nobody else has written in that thread, you can withdraw the answer back to only you: `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share` deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
+On an observation the run and its answer leave the observation's lists, but the answer's text that was written onto the page stays there as page content until an editor removes it.
+No MCP tool withdraws, because none deletes.
 
 ### When the requester cannot edit
 
@@ -324,11 +348,11 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 108 tools: MCP clients get 107, every one except `save_finding`, which only a run offers.
+The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
 The built-in agent gets 30 in a new-dashboard or revision request and 29 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 78 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `request_comment_access`, `list_access_requests`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `list_chats`, `get_chat`, `run_dashboard_health`, the six audit trail tools, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 80 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `request_comment_access`, `list_access_requests`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `list_chats`, `get_chat`, `run_dashboard_health`, the six audit trail tools, `save_run_answer`, `share_answer`, `apply_suggested_change`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open; an investigation cites what it used by the observation's title and `/o/<id>`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.

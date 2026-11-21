@@ -11,6 +11,7 @@ const findingsDashboard = "00000000-0000-4000-8000-000000000001"
 
 type requestRow struct {
 	source, status, dashboardID, panelID, title string
+	intent                                      string
 	baseVersion                                 int
 	windowed                                    bool
 }
@@ -21,8 +22,8 @@ VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, nullif($3, '')::uuid, nu
   CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
 
 const insertRequestWithStateSQL = `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name,
-  source, status, state, dashboard_id, base_version, panel_id, title, context_from, context_to)
-VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, $2, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
+  intent, kind, status, state, dashboard_id, base_version, panel_id, title, context_from, context_to)
+VALUES ('p', 'user', gen_random_uuid(), 'seed', $1, CASE WHEN $1 = 'ask' AND $3 <> '' THEN 'investigate' ELSE 'build' END, $2, $2, nullif($3, '')::uuid, nullif($4, 0), nullif($5, ''), nullif($6, ''),
   CASE WHEN $7 THEN now() - interval '1 hour' END, CASE WHEN $7 THEN now() END)`
 
 func insertRequest(sqlDB *sql.DB, r requestRow) error {
@@ -30,6 +31,7 @@ func insertRequest(sqlDB *sql.DB, r requestRow) error {
 }
 
 func insertRequestWithState(sqlDB *sql.DB, r requestRow) error {
+	r.source = r.intent
 	return execRequest(sqlDB, insertRequestWithStateSQL, r)
 }
 
@@ -64,19 +66,17 @@ func TestInvestigateRowsFollowTheirShape(t *testing.T) {
 		row  requestRow
 		want string
 	}{
-		{"an investigation without a dashboard", requestRow{source: "investigate", windowed: true}, ""},
-		{"an investigation of a panel without a dashboard", requestRow{source: "investigate", panelID: "p1"}, "agent_requests_investigate_shape_check"},
-		{"an observe request with a window", requestRow{source: "observe", windowed: true}, "agent_requests_context_check"},
-		{"a succeeded investigation without a version", requestRow{source: "investigate", status: "succeeded"}, ""},
-		{"an answered prompt on a dashboard without a version", requestRow{source: "prompt", status: "succeeded", dashboardID: findingsDashboard, baseVersion: 1}, ""},
-		{"an answered comment on a dashboard without a version", requestRow{source: "comment", status: "succeeded", dashboardID: findingsDashboard, baseVersion: 1}, ""},
-		{"a succeeded prompt without a dashboard", requestRow{source: "prompt", status: "succeeded"}, "agent_requests_succeeded_check"},
-		{"an answered observe request without a dashboard or version", requestRow{source: "observe", status: "succeeded"}, ""},
-		{"a succeeded observe request with a dashboard but no version", requestRow{source: "observe", status: "succeeded", dashboardID: findingsDashboard}, "agent_requests_succeeded_check"},
-		{"a first running investigation on a dashboard", requestRow{source: "investigate", status: "running", dashboardID: findingsDashboard}, ""},
-		{"a second running investigation on a dashboard", requestRow{source: "investigate", status: "running", dashboardID: findingsDashboard}, ""},
-		{"a first running prompt on a dashboard", requestRow{source: "prompt", status: "running", dashboardID: findingsDashboard, baseVersion: 1}, ""},
-		{"a second running prompt on a dashboard", requestRow{source: "prompt", status: "running", dashboardID: findingsDashboard, baseVersion: 1}, "agent_requests_running_dashboard_idx"},
+		{"an ask without a dashboard", requestRow{intent: "ask", windowed: true}, ""},
+		{"an ask about a panel without a dashboard", requestRow{intent: "ask", panelID: "p1"}, "agent_requests_ask_shape_check"},
+		{"an apply with a window", requestRow{intent: "apply", dashboardID: findingsDashboard, baseVersion: 1, windowed: true}, "agent_requests_intent_context_check"},
+		{"a succeeded ask without a version", requestRow{intent: "ask", status: "succeeded"}, ""},
+		{"an answered apply on a dashboard without a version", requestRow{intent: "apply", status: "succeeded", dashboardID: findingsDashboard, baseVersion: 1}, ""},
+		{"an apply without a dashboard", requestRow{intent: "apply", status: "succeeded"}, "agent_requests_ask_target_check"},
+		{"a succeeded apply with a dashboard but no version", requestRow{intent: "apply", status: "succeeded", dashboardID: findingsDashboard}, ""},
+		{"a first running ask on a dashboard", requestRow{intent: "ask", status: "running", dashboardID: findingsDashboard}, ""},
+		{"a second running ask on a dashboard", requestRow{intent: "ask", status: "running", dashboardID: findingsDashboard}, ""},
+		{"a first running apply on a dashboard", requestRow{intent: "apply", status: "running", dashboardID: findingsDashboard, baseVersion: 1}, ""},
+		{"a second running apply on a dashboard", requestRow{intent: "apply", status: "running", dashboardID: findingsDashboard, baseVersion: 1}, "agent_requests_running_dashboard_idx"},
 	}
 	for _, c := range cases {
 		err := insertRequestWithState(sqlDB, c.row)

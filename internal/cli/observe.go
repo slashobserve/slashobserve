@@ -23,7 +23,8 @@ const (
 
 type agentRequest struct {
 	ID          string        `json:"id"`
-	Source      string        `json:"source"`
+	Kind        string        `json:"kind"`
+	Intent      string        `json:"intent"`
 	Trigger     string        `json:"trigger"`
 	Title       string        `json:"title"`
 	Prompt      string        `json:"prompt"`
@@ -45,6 +46,7 @@ type agentRequest struct {
 	RetriedBy     *string         `json:"retried_by"`
 	Finding       *findingSummary `json:"finding"`
 	ObservationID *string         `json:"observation_id"`
+	SharedThread  *string         `json:"shared_thread_id"`
 
 	AllowedActions []string `json:"allowed_actions"`
 }
@@ -72,6 +74,8 @@ type requestEnvelope struct {
 
 type promptOptions struct {
 	dashboard string
+	revise    bool
+	apply     string
 	chat      string
 	follows   string
 	at        string
@@ -86,7 +90,9 @@ type statusOptions struct {
 
 func (a *app) addPromptFlags(root *cobra.Command) {
 	flags := root.Flags()
-	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "revise this dashboard with a follow-up prompt")
+	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "ask about this dashboard; with --revise, change it")
+	flags.BoolVar(&a.prompt.revise, "revise", false, "change --dashboard with this prompt instead of only answering about it")
+	flags.StringVar(&a.prompt.apply, "apply", "", "with --revise and no prompt: change --dashboard as this answer's suggested change says, by its finding id")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
 	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object or a short form such as pos:0.4,0.3")
@@ -95,6 +101,9 @@ func (a *app) addPromptFlags(root *cobra.Command) {
 }
 
 func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
+	if a.prompt.apply != "" {
+		return a.runApplyAnswer(cmd, args)
+	}
 	if len(args) == 0 {
 		_, _ = fmt.Fprintf(a.std.Err, "a prompt is required\n\n%s", cmd.UsageString())
 		return usageError{}
@@ -122,6 +131,33 @@ func (a *app) runPrompt(cmd *cobra.Command, args []string) error {
 	return a.submit(cmd.Context(), c, payload, a.prompt.noWait, a.prompt.timeout)
 }
 
+func (a *app) runApplyAnswer(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return usagef("--apply takes no prompt: the answer's suggested change is the prompt")
+	}
+	if !a.prompt.revise {
+		return usagef("--apply needs --revise")
+	}
+	if a.prompt.timeout <= 0 {
+		return usagef("--timeout must be positive")
+	}
+	finding, err := parseID(a.prompt.apply)
+	if err != nil {
+		return err
+	}
+	payload, err := a.prompt.payload("")
+	if err != nil {
+		return err
+	}
+	delete(payload, "prompt")
+	payload["applies_finding_id"] = finding
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	return a.submit(cmd.Context(), c, payload, a.prompt.noWait, a.prompt.timeout)
+}
+
 func (o promptOptions) payload(prompt string) (map[string]any, error) {
 	if o.dashboard != "" && o.follows != "" {
 		return nil, usagef("--dashboard and --follows exclude each other")
@@ -129,7 +165,13 @@ func (o promptOptions) payload(prompt string) (map[string]any, error) {
 	if o.chat != "" && o.follows != "" {
 		return nil, usagef("--chat and --follows exclude each other")
 	}
+	if o.revise && o.dashboard == "" {
+		return nil, usagef("--revise needs --dashboard")
+	}
 	payload := map[string]any{"prompt": prompt}
+	if o.revise {
+		payload["kind"] = kindRevise
+	}
 	for field, raw := range map[string]string{"dashboard_id": o.dashboard, "chat_id": o.chat, "follows_id": o.follows} {
 		if raw == "" {
 			continue
@@ -252,7 +294,7 @@ func printRequest(out *output, req agentRequest) {
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"State", text(req.State)},
-		{"Source", text(req.Source)},
+		{"Intent", text(req.Intent)},
 		{"Trigger", text(req.Trigger)},
 		{"Cost", costText(req.Usage)},
 		{"Dashboard", orDash(req.DashboardID)},
@@ -264,6 +306,9 @@ func printRequest(out *output, req agentRequest) {
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
+	}
+	if req.SharedThread != nil {
+		fields = append(fields, [2]string{"Shared in thread", text(*req.SharedThread)})
 	}
 	out.fields(fields)
 	switch {
@@ -317,7 +362,7 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
-	if req.Source == sourceInvestigate || req.Finding != nil {
+	if req.Kind == kindInvestigate || req.Finding != nil {
 		return a.reportFinding(out, req)
 	}
 	address, err := dashboardAddress(c, req)

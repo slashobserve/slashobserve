@@ -31,7 +31,7 @@ type workingAgentJSON struct {
 
 type workingRunJSON struct {
 	ID          string           `json:"id"`
-	Source      string           `json:"source"`
+	Intent      string           `json:"intent"`
 	State       string           `json:"state"`
 	CreatedAt   string           `json:"created_at"`
 	StartedAt   *string          `json:"started_at"`
@@ -124,7 +124,7 @@ func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalK
 	mine := row.RequestedByKind == string(callerKind) && row.RequestedByID == callerID
 	out := workingRunJSON{
 		ID:          row.ID.String(),
-		Source:      row.Source,
+		Intent:      row.Intent,
 		State:       row.State,
 		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:   optionalTime(row.StartedAt),
@@ -133,7 +133,7 @@ func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalK
 		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
 	}
 	if mine {
-		title := runTitle(row.Title.String, row.Prompt, row.Source)
+		title := runTitle(row.Title.String, row.Prompt, out.Intent)
 		out.Title = &title
 	}
 	if row.VisibleDashboardID.Valid {

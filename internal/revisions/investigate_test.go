@@ -3,6 +3,7 @@ package revisions_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,18 +34,20 @@ func investigate(t *testing.T, svc *revisions.Service, p revisions.InvestigatePa
 
 func insertFindingFor(t *testing.T, d *dbtest.Database, requestID pgtype.UUID) {
 	t.Helper()
-	d.Exec(t, `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
-  VALUES (general_folder_id(), 'why', 'user', $2::uuid, 'Ada') RETURNING id),
-r AS (UPDATE agent_requests SET observation_id = (SELECT id FROM o) WHERE id = $1)
+	d.Exec(t, `WITH run AS (SELECT observation_id, intent FROM agent_requests WHERE id = $1),
+made AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  SELECT general_folder_id(), 'why', 'user', $2::uuid, 'Ada' FROM run WHERE run.observation_id IS NULL AND run.intent = 'apply' RETURNING id),
+linked AS (UPDATE agent_requests SET observation_id = made.id FROM made WHERE agent_requests.id = $1)
 INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
-SELECT o.id, o.id, $1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada' FROM o`, requestID, userID)
+SELECT coalesce(run.observation_id, (SELECT id FROM made), gen_random_uuid()), coalesce(run.observation_id, (SELECT id FROM made)),
+  $1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada' FROM run`, requestID, userID)
 }
 
 func TestInvestigateStoresItsWindow(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
 	from := investigateWindowTo.Add(-time.Hour)
 	row := investigate(t, svc, revisions.InvestigateParams{From: &from, To: &investigateWindowTo})
-	if row.Source != string(revisions.SourceInvestigate) || !row.ContextFrom.Time.Equal(from) || !row.ContextTo.Time.Equal(investigateWindowTo) || row.DashboardID.Valid {
+	if revisions.SourceOf(row) != revisions.SourceInvestigate || !row.ContextFrom.Time.Equal(from) || !row.ContextTo.Time.Equal(investigateWindowTo) || row.DashboardID.Valid {
 		t.Fatalf("enqueued = %+v", row)
 	}
 }
@@ -69,15 +72,41 @@ func TestAnInvestigationAskedInAThreadSkipsThePersonAndInstanceCaps(t *testing.T
 		investigate(t, svc, revisions.InvestigateParams{})
 	}
 	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
-		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, source) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'investigate')`)
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', 'investigate', (SELECT id FROM observations LIMIT 1))`)
 	}
 	ctx := reading(context.Background())
 	if _, err := svc.SubmitInvestigate(ctx, revisions.InvestigateParams{Prompt: "one more", By: user}); !errors.Is(err, revisions.ErrTooManyInvestigations) {
 		t.Fatalf("a fourth investigation of one person: %v", err)
 	}
 	row, err := svc.EnqueueAssignedInvestigate(ctx, d.Queries(), revisions.InvestigateParams{Prompt: "asked in a thread", By: user, Ask: true})
-	if err != nil || row.Source != "investigate" {
+	if err != nil || revisions.SourceOf(row) != revisions.SourceInvestigate {
 		t.Fatalf("an asked investigation with both caps full: %+v, %v", row, err)
+	}
+}
+
+func TestPrivateAsksInOneChatSkipEveryCapAndWaitTheirTurn(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	for range revisions.MaxActiveInvestigatePerPrincipal {
+		investigate(t, svc, revisions.InvestigateParams{})
+	}
+	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, intent, kind, observation_id) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'ask', 'investigate', (SELECT id FROM observations LIMIT 1))`)
+	}
+	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("why is checkout slow?"), Kind: text(revisions.KindAsk), DashboardID: text(dash.String())})
+	chat := chatOfTurn(t, d, first)
+	for i := range revisions.MaxActive + revisions.MaxActiveInvestigate {
+		startTurn(t, svc, user, revisions.StartRequest{Prompt: text(fmt.Sprintf("and what about step %d?", i)), Kind: text(revisions.KindAsk), DashboardID: text(dash.String()), ChatID: text(chat)})
+	}
+	var queued int
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), "SELECT count(*) FROM agent_requests WHERE chat_id = $1::uuid AND state = 'queued'", chat).Scan(&queued); err != nil {
+		t.Fatal(err)
+	}
+	if want := 1 + revisions.MaxActive + revisions.MaxActiveInvestigate; queued != want {
+		t.Fatalf("unfinished turns in the chat = %d, want %d", queued, want)
+	}
+	if _, err := svc.Start(reading(t.Context()), user, revisions.StartRequest{Prompt: text("file it"), Kind: text(revisions.KindInvestigate), DashboardID: text(dash.String())}); !errors.Is(err, revisions.ErrTooManyInvestigations) {
+		t.Fatalf("an investigation beside them still meets its cap: %v", err)
 	}
 }
 
@@ -227,8 +256,8 @@ func TestTheWorkerFinishesAnAnsweredRequestByItsFinding(t *testing.T) {
 			if final.Status != string(revisions.StatusSucceeded) || final.FailureCode.Valid || final.ResultVersion.Valid || final.DashboardID != row.DashboardID {
 				t.Fatalf("finished %s with %q, version %v, dashboard %v", final.Status, final.FailureCode.String, final.ResultVersion, final.DashboardID)
 			}
-			if final.Source != string(c.source) {
-				t.Fatalf("source %q", final.Source)
+			if revisions.SourceOf(final) != c.source {
+				t.Fatalf("source %q", revisions.SourceOf(final))
 			}
 		})
 	}
