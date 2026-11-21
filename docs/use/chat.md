@@ -296,6 +296,7 @@ The run itself goes on server-side either way.
 Once the first dashboard exists, the box under the conversation reads "Ask about `<title>`", with the note "The dashboard changes only when you choose Revise the dashboard on an answer."
 A follow-up there, and **Ask again**, are questions about the dashboard: they get an answer and save no version.
 In a chat about an observation, a follow-up and **Ask again** ask about that observation the same way.
+What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
 While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."

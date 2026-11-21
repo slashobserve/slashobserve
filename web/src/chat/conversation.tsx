@@ -464,10 +464,9 @@ export function Conversation({
   const readsChat = chatId !== undefined
   const chat = useChat(chatId)
   const subject = subjectOf(
-    chat.data?.chat ?? {
-      dashboard_id: root.data?.dashboard_id ?? null,
-      observation_id: null,
-    }
+    readsChat
+      ? chat.data?.chat
+      : { dashboard_id: root.data?.dashboard_id ?? null, observation_id: null }
   )
   const dashboardId = subject?.kind === "dashboard" ? subject.id : null
   const readOnly = root.data?.read_only === true || !asks
@@ -523,6 +522,18 @@ export function Conversation({
     return <ConversationSkeleton />
   }
 
+  if (readsChat && chat.data === undefined) {
+    return chat.isError ? (
+      <LoadError
+        message={chat.error.message}
+        busy={chat.isFetching}
+        onRetry={() => void chat.refetch()}
+      />
+    ) : (
+      <ConversationSkeleton />
+    )
+  }
+
   return (
     <ConversationView
       requestId={requestId}
@@ -533,19 +544,16 @@ export function Conversation({
       turns={turns}
       readOnly={readOnly}
       ready={
-        readsChat
-          ? chat.data !== undefined || chat.isError
-          : !readsDashboard || revisions.data !== undefined || revisions.isError
+        readsChat ||
+        !readsDashboard ||
+        revisions.data !== undefined ||
+        revisions.isError
       }
       historyFailed={
-        readsChat
-          ? chat.isError && chat.data === undefined
-          : revisions.isError && revisions.data === undefined
+        !readsChat && revisions.isError && revisions.data === undefined
       }
-      retryHistory={() =>
-        void (readsChat ? chat.refetch() : revisions.refetch())
-      }
-      historyBusy={readsChat ? chat.isFetching : revisions.isFetching}
+      retryHistory={() => void revisions.refetch()}
+      historyBusy={revisions.isFetching}
       onSent={(request) => {
         setSent((previous) => [...previous, request])
         onSent?.(request)

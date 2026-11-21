@@ -64,14 +64,16 @@ function chatAbout(subject: {
 type Answer = { status: number; body: unknown }
 
 function stubServer(
-  chat?: ReturnType<typeof chatAbout>,
+  chat: ReturnType<typeof chatAbout> | null = chatAbout({
+    dashboard_id: dashboardId,
+  }),
   observe?: Answer,
   requests: readonly ObserveRequest[] = []
 ) {
   const fetch = vi.fn<(request: Request) => Promise<Response>>(
     async (request) => {
       const url = new URL(request.url)
-      if (chat !== undefined && url.pathname === `/api/v1/chats/${rootId}`) {
+      if (chat !== null && url.pathname === `/api/v1/chats/${rootId}`) {
         return Response.json(chat)
       }
       const known = requests.find(
@@ -432,6 +434,23 @@ describe("Conversation", () => {
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
+  })
+
+  it("shows the load error, with no composer, when the chat cannot be read", async () => {
+    const fetch = stubServer(null)
+    const { user } = renderConversation()
+    expect(await screen.findByText("Could not load this request")).toBeVisible()
+    expect(
+      screen.queryByRole("textbox", { name: "Message the agent" })
+    ).toBeNull()
+    const reads = () =>
+      fetch.mock.calls.filter(
+        ([request]) =>
+          new URL(request.url).pathname === `/api/v1/chats/${rootId}`
+      ).length
+    const before = reads()
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+    await waitFor(() => expect(reads()).toBe(before + 1))
   })
 
   it("lets an Admin read another person's chat in full with no actions", async () => {
