@@ -215,7 +215,11 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.Query = trimmed
 	}
-	return params, problemFilter(c, &params) && folderFilters(c, &params)
+	return params, narrowingFilters(c, &params)
+}
+
+func narrowingFilters(c *gin.Context, params *ListParams) bool {
+	return problemFilter(c, params) && excludeAuditFilter(c, params) && folderFilters(c, params)
 }
 
 func problemFilter(c *gin.Context, params *ListParams) bool {
@@ -232,6 +236,18 @@ func problemFilter(c *gin.Context, params *ListParams) bool {
 		return false
 	}
 	params.Problem = problem
+	return true
+}
+
+func excludeAuditFilter(c *gin.Context, params *ListParams) bool {
+	switch c.DefaultQuery("exclude_audit", "false") {
+	case "false":
+	case "true":
+		params.ExcludeAudit = true
+	default:
+		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "exclude_audit must be true or false")
+		return false
+	}
 	return true
 }
 

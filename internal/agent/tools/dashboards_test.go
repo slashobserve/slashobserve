@@ -269,3 +269,31 @@ func TestGetDashboardNamesTheViewWindowLikeTheAPI(t *testing.T) {
 		t.Error("get_dashboard still answers view_window_days")
 	}
 }
+
+func TestListDashboardsExcludesTheAuditFolderOnlyWhenAsked(t *testing.T) {
+	r := newAccessRig(t)
+	r.seed(t, "Board")
+	trail := r.newFolder(t, "Trail")
+	if _, _, err := r.service.Create(reading(t.Context()), adminCaller, trail, []byte(boardSpec("Sign-ins")), "create"); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, folders.AuditStarterKey, trail)
+
+	for _, tt := range []struct {
+		input string
+		want  int
+	}{
+		{`{}`, 2},
+		{`{"exclude_audit":false}`, 2},
+		{`{"exclude_audit":true}`, 1},
+		{`{"exclude_audit":true,"order":"name","limit":1}`, 1},
+	} {
+		list, ok := r.call(t, adminCaller, nameListDashboards, tt.input).Content.(dashboardListOut)
+		if !ok || len(list.Dashboards) != tt.want {
+			t.Errorf("list_dashboards %s = %+v, want %d dashboards", tt.input, list, tt.want)
+		}
+	}
+	if list := r.call(t, adminCaller, nameListDashboards, `{"exclude_audit":true}`).Content.(dashboardListOut); list.Dashboards[0].Title != "Board" {
+		t.Errorf("the dashboard left is %q, want Board", list.Dashboards[0].Title)
+	}
+}

@@ -10874,6 +10874,8 @@ export interface operations {
                 tag?: string[];
                 /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them, and also a dashboard waiting for a recheck of an earlier problem, or with a health repair on record. The same rules as `GET /health`. */
                 problem?: "any" | "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
+                /** @description `true` leaves out the dashboards in the built-in Audit folder, from the page, the `total_count` and the paging alike; the other folders are listed as before. It only narrows what the caller can already see, and does not widen it. Default `false`. */
+                exclude_audit?: boolean;
             };
             header?: never;
             path?: never;

@@ -168,6 +168,7 @@ A Viewer still gets `forbidden_role`.
 
 `get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `window_days`.
 `list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default), `views` for the most viewed first or `name` for A to Z by title; pass a `next_cursor` back with the order that produced it.
+Pass `exclude_audit: true` to leave out the dashboards in the [Audit folder](activity.md#audit-folder).
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:

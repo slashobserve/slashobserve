@@ -215,3 +215,26 @@ func TestDashboardsShowPrintsViewsAndAddsThemToJSON(t *testing.T) {
 		t.Errorf("json = %s", out)
 	}
 }
+
+func TestDashboardsListSendsExcludeAuditOnlyWhenAsked(t *testing.T) {
+	for _, tt := range []struct {
+		args []string
+		want bool
+	}{
+		{[]string{"dashboards", "list"}, false},
+		{[]string{"dashboards", "list", "--exclude-audit"}, true},
+	} {
+		var query string
+		_, errOut, code := runDashboards(t, func(w http.ResponseWriter, r *http.Request) {
+			query = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"dashboards":[],"next_cursor":null}`)
+		}, tt.args...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", tt.args, code, errOut)
+		}
+		if got := strings.Contains(query, "exclude_audit=true"); got != tt.want {
+			t.Errorf("%v: query %q, sends exclude_audit=true is %t, want %t", tt.args, query, got, tt.want)
+		}
+	}
+}

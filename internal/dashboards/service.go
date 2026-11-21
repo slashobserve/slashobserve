@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -337,19 +338,20 @@ type MadeBy struct {
 }
 
 type ListParams struct {
-	Limit      int
-	Cursor     string
-	Offset     int
-	MadeBy     MadeBy
-	Datasource string
-	Query      string
-	Tags       []string
-	Problem    string
-	SkipTotal  bool
-	Folder     pgtype.UUID
-	ByFolder   bool
-	ByViews    bool
-	ByName     bool
+	Limit        int
+	Cursor       string
+	Offset       int
+	MadeBy       MadeBy
+	Datasource   string
+	Query        string
+	Tags         []string
+	Problem      string
+	ExcludeAudit bool
+	SkipTotal    bool
+	Folder       pgtype.UUID
+	ByFolder     bool
+	ByViews      bool
+	ByName       bool
 }
 
 type ListItem struct {
@@ -422,7 +424,13 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	if err != nil {
 		return ListPage{}, err
 	}
-	filter, err := filterOf(p, levels.Visible())
+	visible := levels.Visible()
+	if p.ExcludeAudit {
+		if visible, err = s.withoutAuditFolder(ctx, visible); err != nil {
+			return ListPage{}, err
+		}
+	}
+	filter, err := filterOf(p, visible)
 	if err != nil {
 		return ListPage{}, err
 	}
@@ -454,6 +462,14 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p)
 	}
 	return page, nil
+}
+
+func (s *Service) withoutAuditFolder(ctx context.Context, visible []pgtype.UUID) ([]pgtype.UUID, error) {
+	audit, err := s.access.AuditFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(slices.Clone(visible), func(id pgtype.UUID) bool { return id == audit }), nil
 }
 
 func (s *Service) listByRecency(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
