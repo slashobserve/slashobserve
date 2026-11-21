@@ -39,13 +39,12 @@ The Investigate chip shows above the box, and the send asks the question instead
 In a chat about a dashboard, the investigation is about that dashboard and its answer appears in the same conversation.
 Without a dashboard, the send opens a new chat page for it.
 
-On a dashboard, choose **Investigate** in a panel's menu.
-It opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel.
+On a dashboard, **Ask** in a panel's menu opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
 The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
 To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 
 The panel menu item shows only on data panels, when you can edit the dashboard and a model is connected.
-While you have unsaved layout changes it reads "Investigate (finish the layout first)" and cannot be chosen.
+While you have unsaved layout changes it reads "Ask (finish the layout first)" and cannot be chosen.
 
 From a terminal, `observe investigate <question...>` asks the same question and prints the finding; `--dashboard`, `--panel`, `--from` and `--to` set what it is about.
 See [CLI](cli.md).
@@ -102,7 +101,7 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
 Viewers can read the observations in the folders they can view.
-The web app offers Investigate, in a panel's menu and in the activity pane, only to an Editor or Admin who has Edit on that dashboard, so a Viewer or Commenter does not see it even on a copy in their own My Dashboards.
+The web app offers **Ask** in a panel's menu only to an Editor or Admin who has Edit on that dashboard, so a Viewer or Commenter does not see it even on a copy in their own My Dashboards.
 Where the panel toolbar and the bottom tool bar still show **Ask** to someone with Edit on that dashboard, it is disabled and reads "needs the Editor role".
 Over the API, `POST /api/v1/observe` with `kind` `investigate` from a Viewer or Commenter answers `403` `forbidden_role` with `needed_role` `editor`.
 

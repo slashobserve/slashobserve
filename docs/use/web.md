@@ -190,7 +190,7 @@ While you have unsaved layout changes, Comment, Ask, Edit query and Add to obser
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you can neither comment nor ask, as a Viewer cannot.
 With **Comment** pressed, a click on a panel starts a comment on it and goes back to **Select**, and `Esc` goes back to **Select** too.
-**Ask** opens the activity pane for the whole dashboard; below the Editor role it is disabled and reads "needs the Editor role".
+**Ask** opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent; below the Editor role it is disabled and reads "needs the Editor role".
 
 ### Arrange panels
 

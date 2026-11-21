@@ -8,6 +8,7 @@ import {
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
+  AtSignIcon,
   ChartLineIcon,
   CompassIcon,
   CopyPlusIcon,
@@ -21,7 +22,6 @@ import {
   NotebookTextIcon,
   PencilIcon,
   PinIcon,
-  SearchIcon,
   TableIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -156,9 +156,9 @@ export function PanelMenu({
   const data = isDataPanel(panel)
   if (canInvestigate && data && agentAvailable) {
     items.push({
-      id: "investigate",
-      label: idle ? "Investigate" : "Investigate (finish the layout first)",
-      icon: <SearchIcon aria-hidden="true" />,
+      id: "ask",
+      label: idle ? "Ask" : "Ask (finish the layout first)",
+      icon: <AtSignIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
         returnFocusToComposerUntilInput()
