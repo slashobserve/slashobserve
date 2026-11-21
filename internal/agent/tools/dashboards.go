@@ -254,6 +254,7 @@ func (r *Registry) getDashboard(ctx context.Context, input json.RawMessage) (Res
 	if err != nil || !ok {
 		return res, err
 	}
+	readContentIn(ctx, id.String(), access.Folder)
 	var (
 		dash dashboards.Dashboard
 		ver  dashboards.Version
