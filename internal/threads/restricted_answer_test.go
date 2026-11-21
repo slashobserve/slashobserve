@@ -247,3 +247,22 @@ func TestAnUnrestrictedAnswerIsSavedInTheDefaultFolderEvenWithAnAuditFolder(t *t
 		t.Fatal("an unrestricted answer was saved into the Audit folder")
 	}
 }
+
+func TestAnAnswerSavedAfterItsSubjectGainedARestrictedAnswerIsMarkedLikeIt(t *testing.T) {
+	r := newShareRig(t)
+	observation := r.filedObservationIn(t, admin, r.adminsOnlyFolder(t))
+	id := observation.String()
+	prompt, kind := "what else changed", "ask"
+	started, err := r.revisions.Start(reading(t.Context()), admin, revisions.StartRequest{ObservationID: &id, Prompt: &prompt, Kind: &kind})
+	if err != nil || started.ReadRestricted {
+		t.Fatalf("the ask before its subject held a restricted answer: marked %v, %v", started.ReadRestricted, err)
+	}
+	earlier, _ := r.restrictedAnswer(t, admin, revisions.StartRequest{})
+	r.db.Exec(t, `INSERT INTO observation_blocks (observation_id, kind, position, body, created_by_kind, created_by_id, created_by_name, run_id) VALUES ($1, 'text', 99, '{"markdown":"Root changed it"}', 'user', gen_random_uuid(), 'Root', $2)`, observation, earlier)
+
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = now() WHERE id = $1`, started.ID)
+	f, _, err := r.findings.Save(reading(t.Context()), admin, findings.SaveInput{AgentRequestID: started.ID, Title: "More changes", Markdown: "the alerts too", From: time.Now().Add(-time.Hour), To: time.Now()})
+	if err != nil || !f.Restricted {
+		t.Fatalf("the answer saved after its subject held a restricted answer: restricted %v, %v", f.Restricted, err)
+	}
+}

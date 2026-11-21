@@ -17,7 +17,3 @@ func (s *Service) ClaimRow(ctx context.Context) (dbsqlc.AgentRequest, bool, erro
 func (s *Service) ReleaseRow(ctx context.Context, claimed dbsqlc.AgentRequest, checkFailed bool) (bool, error) {
 	return s.release(ctx, claimed, checkFailed)
 }
-
-func InheritReadRestricted(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) (dbsqlc.AgentRequest, error) {
-	return inheritReadRestricted(ctx, q, row)
-}

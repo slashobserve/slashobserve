@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
-	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type answeredRun struct {
@@ -80,7 +80,7 @@ func TestARunThatStartsFromAnAnswerThatReadAdminOnlyDataIsMarkedLikeIt(t *testin
 				if err != nil {
 					t.Fatal(err)
 				}
-				marked, err := revisions.InheritReadRestricted(ctx, d.Queries(), queued)
+				marked, err := placement.InheritRestricted(ctx, d.Queries(), queued)
 				if err != nil || marked.ReadRestricted != restricted {
 					t.Fatalf("answer restricted %v: the run is marked %v, %v", restricted, marked.ReadRestricted, err)
 				}

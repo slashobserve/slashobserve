@@ -24,6 +24,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -105,7 +106,23 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if chatOnly {
 		conclude = func(*dbsqlc.Queries) (pgtype.UUID, bool, error) { return pgtype.UUID{}, false, nil }
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, conclude)
+	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, inheritingRestricted(ctx, in.AgentRequestID, conclude))
+}
+
+func inheritingRestricted(ctx context.Context, runID pgtype.UUID, next conclude) conclude {
+	if !runID.Valid {
+		return next
+	}
+	return func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		row, err := q.GetAgentRequestByID(ctx, runID)
+		if err != nil {
+			return pgtype.UUID{}, false, fmt.Errorf("read the run of the answer: %w", err)
+		}
+		if _, err := placement.InheritRestricted(ctx, q, row); err != nil {
+			return pgtype.UUID{}, false, err
+		}
+		return next(q)
+	}
 }
 
 func (s *Service) answersWithoutObservation(ctx context.Context, requestID pgtype.UUID) (bool, error) {
