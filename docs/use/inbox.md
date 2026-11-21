@@ -21,6 +21,7 @@ The view, the filter, the grouping and the selected item are kept in the address
 The list refreshes when new activity arrives.
 
 Each row names who did what and the real title of the dashboard, observation or proposal, shows the start of the comment for a mention or a reply, and has a dot while it is unread.
+A reply the agent wrote reads "Observe Agent answered" followed by the question it answered, in place of "replied on" and the title; a connected agent keeps its own name, such as "Ada (via Claude Code)".
 Two buttons at the right of the row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
 Marking an item done shows a "Marked done" toast with **Undo**.
 
@@ -74,9 +75,11 @@ An access request reads "asked for comment access to" followed by the title, sho
 | `everything` | Every visible event from others, and every item with a reason, with `reason` null on the events that have none. |
 
 `limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
-An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title` and `excerpt`.
-`target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none or has been deleted.
-`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, the reason a proposal was discarded, or the note of an access request, as plain text of at most 200 characters, and is null for other items.
+An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title`, `excerpt` and `question`.
+`target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none, has been deleted or is in a place you can no longer read.
+`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, the reason a proposal was discarded, or the note of an access request, as plain text of at most 200 characters, and is null for other items and for a comment in a thread you can no longer read.
+`question` is the first line of the thread message that an agent run answered, cut to a title of at most 60 characters, on the `thread.replied` item that run wrote.
+It is null on every other item, once that message is deleted or withdrawn, and when you can no longer read the thread; it never comes from a chat prompt.
 The rest of an item carries no comment, message or finding text, as in the log.
 
 ## Done and the unread filter

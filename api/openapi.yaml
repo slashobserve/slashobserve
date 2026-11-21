@@ -2211,7 +2211,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2256,11 +2256,15 @@ components:
         target_title:
           type: string
           nullable: true
-          description: The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists.
+          description: The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it.
         excerpt:
           type: string
           nullable: true
-          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items.
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read.
+        question:
+          type: string
+          nullable: true
+          description: The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote; null for every other item, when that message is gone, and when the caller cannot read the thread.
     InboxList:
       type: object
       additionalProperties: false
@@ -5357,6 +5361,7 @@ components:
         - evidence
         - suggested_change
         - observe_worthy
+        - restricted
         - from
         - to
         - annotation_id
@@ -5420,6 +5425,11 @@ components:
         observe_worthy:
           type: boolean
           description: True when the agent judged the answer worth keeping as an observation, because it describes a jump, a drop or an error spike; it only promotes saving the answer and saves nothing.
+        restricted:
+          type: boolean
+          description: >-
+            True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read.
+            Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`.
         from:
           type: string
           format: date-time

@@ -10,24 +10,22 @@ import {
 
 import { planSend, type Opens, type Subject } from "@/conversation/send-plan"
 
-export function AskAgainButton({
-  prompt,
-  subject = null,
-  chatId,
-  disabled,
-  onSent,
-  afterSent,
-}: {
-  prompt: string
+type AskInChat = {
   subject?: Subject | null
   chatId?: string
-  disabled: boolean
   onSent: (request: ObserveRequest, opens: Opens) => void | Promise<void>
   afterSent?: () => void
-}) {
+}
+
+export function useAskInChat({
+  subject = null,
+  chatId,
+  onSent,
+  afterSent,
+}: AskInChat) {
   const create = useCreateObserveRequest()
 
-  async function askAgain() {
+  async function ask(prompt: string) {
     const plan = planSend(
       { kind: "chat", chatId: chatId ?? null },
       subject,
@@ -44,14 +42,34 @@ export function AskAgainButton({
     }
   }
 
+  return { ask, pending: create.isPending }
+}
+
+export function AskAgainButton({
+  prompt,
+  subject,
+  chatId,
+  disabled,
+  onSent,
+  afterSent,
+}: {
+  prompt: string
+  subject?: Subject | null
+  chatId?: string
+  disabled: boolean
+  onSent: AskInChat["onSent"]
+  afterSent?: () => void
+}) {
+  const { ask, pending } = useAskInChat({ subject, chatId, onSent, afterSent })
+
   return (
     <Button
       variant="ghost"
       size="sm"
-      disabled={disabled || create.isPending}
+      disabled={disabled || pending}
       focusableWhenDisabled
-      aria-busy={create.isPending}
-      onClick={() => void askAgain()}
+      aria-busy={pending}
+      onClick={() => void ask(prompt)}
     >
       <RotateCcwIcon aria-hidden="true" />
       Ask again

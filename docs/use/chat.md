@@ -343,6 +343,34 @@ A follow-up and a revise need Comment on the dashboard's folder, which Commenter
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
+### Answers that read Admin-only data
+
+A run reads a datasource only Admins can query, such as the [audit trail](../reference/audit-queries.md), only when everyone who reads what the run writes is an Admin.
+That is an Admin's private chat, or a thread, dashboard, observation or build in a folder only Admins can read; any other run, an Admin's included, is not offered those datasources, and a query on one answers `admins_only_datasource` with where the data can be read.
+The same holds for what is stored in a folder only Admins can read: a run that writes where others read sees no such folder, so its dashboards, panels, annotations and observations answer `not_found`, and they are left out of its lists.
+A run that may read them is marked when a tool returns one: reading a dashboard, its panels or its annotations, or reading an observation.
+Reading the dashboard or observation the run is about is not counted, for an ask and an investigation as for a revision or a suggestion, because what the run learns there goes wherever that dashboard or observation goes; its panel data still counts when it comes from a datasource only Admins can query.
+The observation an ask's answer was saved into is not what that ask is about, so a later attempt of the ask that reads it there is counted.
+Lists of dashboards, folders and observations show titles only: in an Admin's run they leave out what is in folders only Admins can read, except the built-in Audit folder and its starter dashboards, what the run is about and what is in the folders it writes to, say how many they left out and mark nothing, and `include_restricted: true` lists those too and marks the answer; a run that writes where others read lists none of them and refuses `include_restricted`.
+An answer whose run read such a datasource or such content is marked `restricted`, and so is a run that starts from one, because it carries that answer as context: a later turn of the same chat, an ask in a thread that holds one, an apply of one, a continuation of a restricted run, and a run about a dashboard or observation that holds one.
+
+A restricted answer stays where only Admins read it.
+Sharing it in a thread or onto a page, saving it as an observation, pinning it, making it a dashboard, applying its suggested change, saving its build and proposing its build as a change are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, and the message says why.
+The same refusal reaches MCP tools and the CLI.
+
+An answer about a dashboard or observation that sits in a folder only Admins can read, when the answer is placed, is kept the same way even when its run read nothing only Admins can query: it may go into that dashboard's or observation's own threads and page, or into a folder only Admins can read, and is refused with `409 restricted_answer` anywhere else; saving it as an observation files it in that folder.
+The observation an ask's answer was saved into is not what the ask is about, so its folder keeps nothing; the observation an investigation opened for itself does keep its answer.
+A run that starts from such an answer in any of those ways is marked `restricted` too, unless it is about that same dashboard or observation, for example a later turn of the chat on a dashboard in General.
+What it was placed in then holds it as it would hold a restricted answer, so that content moves, is copied and has its folder opened only as [Folders](../teams/folders.md) describes, except the dashboard or observation the answer is about, which moves freely.
+Once the dashboard or observation has moved to a folder others read, nothing is refused.
+Deleting it while it is in a folder only Admins can read, or deleting a run whose answer is kept this way, does not free what was placed from the answer: each dashboard and observation it was placed in keeps holding it.
+A run about a dashboard that files into an observation, both in folders only Admins can read, makes each of them hold the other's answer, so neither moves out on its own; delete that run's reply, block or pin from one of them, then move that one out first and the other after it.
+
+A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
+A `restricted` run, and a run whose answer is kept for what it is about, answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them, until nothing keeps it any more; its finding says `restricted` for as long.
+Saving a restricted answer as an observation files it in the first folder only Admins can read among those of the dashboard it was about, the observation its run files into and the observation it was asked about, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
+Withdrawing a share and the privacy of chats are unchanged.
+
 ### In the dashboard's Chat tab
 
 A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.
@@ -351,6 +379,10 @@ The select at its top lists your chats on this dashboard, newest first, each wit
 **New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left; the chat your first message lands in then takes its place in the address.
 The first message after **New chat** is a question about the dashboard and starts a new chat, which the tab then shows; the note under the box says "Only you and Admins can see this chat."
 A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
+
+While the chat has one turn, yours and finished, above the box the tab offers up to two suggested follow-ups, the questions Home suggests for your datasources, such as "Which routes are slowest right now?".
+Choosing one asks it about the dashboard in the same chat, without leaving the dashboard, and the suggestions go once the chat has a second turn.
+They show when you can ask the agent and are not shown on the chat page.
 
 ### From the dashboard's activity pane
 

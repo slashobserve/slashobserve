@@ -24,7 +24,7 @@ func (q *Queries) DeleteAnnotation(ctx context.Context, id pgtype.UUID) (int64, 
 }
 
 const getAnnotation = `-- name: GetAnnotation :one
-SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
+SELECT id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client, copied_restricted_answer
 FROM annotations
 WHERE id = $1
 `
@@ -45,6 +45,7 @@ func (q *Queries) GetAnnotation(ctx context.Context, id pgtype.UUID) (Annotation
 		&i.CreatedByKind,
 		&i.Origin,
 		&i.OriginClient,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }
@@ -96,23 +97,24 @@ func (q *Queries) GetAnnotationNamed(ctx context.Context, id pgtype.UUID) (GetAn
 }
 
 const insertAnnotation = `-- name: InsertAnnotation :one
-INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client)
+INSERT INTO annotations (dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_by_kind, origin, origin_client, copied_restricted_answer)
 VALUES ($1::uuid, $2, $3, $4::timestamptz, $5, $6::text[], $7,
-  $8, $9::text, $10::text)
-RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client
+  $8, $9::text, $10::text, $11)
+RETURNING id, dashboard_id, panel_id, time_from, time_to, text, tags, created_by, created_at, created_by_kind, origin, origin_client, copied_restricted_answer
 `
 
 type InsertAnnotationParams struct {
-	DashboardID   pgtype.UUID
-	PanelID       string
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	Text          string
-	Tags          []string
-	CreatedBy     pgtype.UUID
-	CreatedByKind pgtype.Text
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
+	DashboardID            pgtype.UUID
+	PanelID                string
+	TimeFrom               pgtype.Timestamptz
+	TimeTo                 pgtype.Timestamptz
+	Text                   string
+	Tags                   []string
+	CreatedBy              pgtype.UUID
+	CreatedByKind          pgtype.Text
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	CopiedRestrictedAnswer bool
 }
 
 func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationParams) (Annotation, error) {
@@ -127,6 +129,7 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 		arg.CreatedByKind,
 		arg.Origin,
 		arg.OriginClient,
+		arg.CopiedRestrictedAnswer,
 	)
 	var i Annotation
 	err := row.Scan(
@@ -142,6 +145,7 @@ func (q *Queries) InsertAnnotation(ctx context.Context, arg InsertAnnotationPara
 		&i.CreatedByKind,
 		&i.Origin,
 		&i.OriginClient,
+		&i.CopiedRestrictedAnswer,
 	)
 	return i, err
 }

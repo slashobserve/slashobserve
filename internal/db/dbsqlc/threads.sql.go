@@ -768,14 +768,14 @@ func (q *Queries) LockDashboardKeyShare(ctx context.Context, id pgtype.UUID) (pg
 }
 
 const lockDashboardKeyShareSkipLocked = `-- name: LockDashboardKeyShareSkipLocked :one
-SELECT id FROM dashboards WHERE id = $1 FOR KEY SHARE SKIP LOCKED
+SELECT folder_id FROM dashboards WHERE id = $1 FOR KEY SHARE SKIP LOCKED
 `
 
 func (q *Queries) LockDashboardKeyShareSkipLocked(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockDashboardKeyShareSkipLocked, id)
-	var id_2 pgtype.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
 }
 
 const lockMessageInThread = `-- name: LockMessageInThread :one
@@ -822,14 +822,14 @@ func (q *Queries) LockObservationKeyShare(ctx context.Context, id pgtype.UUID) (
 }
 
 const lockObservationKeyShareSkipLocked = `-- name: LockObservationKeyShareSkipLocked :one
-SELECT id FROM observations WHERE id = $1 FOR KEY SHARE SKIP LOCKED
+SELECT folder_id FROM observations WHERE id = $1 FOR KEY SHARE SKIP LOCKED
 `
 
 func (q *Queries) LockObservationKeyShareSkipLocked(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockObservationKeyShareSkipLocked, id)
-	var id_2 pgtype.UUID
-	err := row.Scan(&id_2)
-	return id_2, err
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
 }
 
 const lockProposalKeyShare = `-- name: LockProposalKeyShare :one
