@@ -14,6 +14,7 @@ export type Rect = { x: number; y: number; width: number; height: number }
 
 export type AnchorsModule = {
   hitTest: (layout: never, point: Point) => Anchor | null
+  locate?: (layout: never, anchor: Anchor) => Rect | null
 }
 
 function clampedShare(value: number, length: number): number {
@@ -84,4 +85,14 @@ export function fit(anchor: Anchor): Anchor | null {
     current = withoutLastLabel(current)
   }
   return current
+}
+
+export function namesLabels(
+  named: Record<string, string> | undefined,
+  labels: Record<string, string>
+): boolean {
+  const entries = Object.entries(named ?? {})
+  return (
+    entries.length > 0 && entries.every(([key, value]) => labels[key] === value)
+  )
 }

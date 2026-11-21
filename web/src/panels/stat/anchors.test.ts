@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ValueAnchorLayout } from "../value-anchors"
 
-import { hitTest } from "./anchors"
+import { hitTest, locate } from "./anchors"
 
 const layout: ValueAnchorLayout = {
   body: { width: 300, height: 100 },
@@ -41,5 +41,27 @@ describe("stat hitTest", () => {
 
   it("returns null in the gap between tiles", () => {
     expect(hitTest(layout, { x: 150, y: 50 })).toBeNull()
+  })
+})
+
+describe("stat locate", () => {
+  it("finds the tile a value anchor names", () => {
+    expect(
+      locate(layout, {
+        kind: "value",
+        pos: { x: 0, y: 0 },
+        series: { name: "Availability" },
+      })
+    ).toEqual({ x: 154, y: 0, width: 146, height: 100 })
+  })
+
+  it("returns null when the tile is gone", () => {
+    expect(
+      locate(layout, {
+        kind: "value",
+        pos: { x: 0, y: 0 },
+        series: { service: "payments" },
+      })
+    ).toBeNull()
   })
 })

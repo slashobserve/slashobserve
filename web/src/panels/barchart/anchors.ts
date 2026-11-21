@@ -4,9 +4,12 @@ import {
   positionOf,
   type Anchor,
   type Point,
+  type Rect,
   type Size,
 } from "../anchors"
 import {
+  barRect,
+  categoryBand,
   hitTest as barAt,
   type BarchartModel,
   type Layout,
@@ -47,4 +50,28 @@ export function hitTest(
     series: { name: clip(series.name) },
     shown,
   })
+}
+
+function shifted(rect: Rect, origin: Point): Rect {
+  return { ...rect, x: rect.x + origin.x, y: rect.y + origin.y }
+}
+
+export function locate(
+  { origin, layout, model }: BarAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  if (anchor.kind !== "bar" && anchor.kind !== "segment") return null
+  const category = model.categories.findIndex(
+    ({ label }) => clip(label) === anchor.category
+  )
+  if (category < 0 || category >= layout.count) return null
+  const name = anchor.series?.name
+  if (name === undefined) return shifted(categoryBand(layout, category), origin)
+  const index = model.series.findIndex((series) => clip(series.name) === name)
+  const bar = index < 0 ? undefined : model.bars[category]?.[index]
+  if (bar === undefined || bar.value === null) return null
+  return shifted(
+    barRect(layout, category, model.series[index].slot, bar),
+    origin
+  )
 }

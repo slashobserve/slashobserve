@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type TableAnchorLayout } from "./anchors"
+import { edgeHeight, hitTest, locate, type TableAnchorLayout } from "./anchors"
 
 const layout: TableAnchorLayout = {
   body: { width: 400, height: 200 },
@@ -62,5 +62,55 @@ describe("table hitTest", () => {
   it("reads a body row when the table has no header", () => {
     const bare = { ...layout, header: null }
     expect(hitTest(bare, { x: 20, y: 40 })?.kind).toBe("row")
+  })
+})
+
+describe("table locate", () => {
+  const pos = { x: 0, y: 0 }
+
+  it("finds a row by its dimension labels", () => {
+    expect(
+      locate(layout, {
+        kind: "row",
+        pos,
+        row: { service: "payments", span: "authorize_card" },
+      })
+    ).toEqual({ x: 0, y: 57, width: 400, height: 25 })
+  })
+
+  it("finds a cell and a column", () => {
+    expect(
+      locate(layout, {
+        kind: "cell",
+        pos,
+        row: { service: "frontend" },
+        column: "errors",
+      })
+    ).toEqual({ x: 250, y: 32, width: 100, height: 25 })
+    expect(locate(layout, { kind: "column", pos, column: "span" })).toEqual({
+      x: 100,
+      y: 0,
+      width: 150,
+      height: 32,
+    })
+  })
+
+  it("points at the bottom edge for a row scrolled out of view", () => {
+    const scrolled = {
+      ...layout,
+      elsewhere: [["search", "query", "12"]],
+    }
+    expect(
+      locate(scrolled, { kind: "row", pos, row: { service: "search" } })
+    ).toEqual({ x: 0, y: 200 - edgeHeight, width: 400, height: edgeHeight })
+  })
+
+  it("returns null when the row or column is gone", () => {
+    expect(
+      locate(layout, { kind: "row", pos, row: { service: "search" } })
+    ).toBeNull()
+    expect(
+      locate(layout, { kind: "column", pos, column: "latency" })
+    ).toBeNull()
   })
 })

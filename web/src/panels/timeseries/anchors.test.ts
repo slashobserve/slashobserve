@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, rangeTest, type TimeseriesAnchorLayout } from "./anchors"
+import {
+  hitTest,
+  locate,
+  pointRadius,
+  rangeTest,
+  type TimeseriesAnchorLayout,
+} from "./anchors"
 
 const layout: TimeseriesAnchorLayout = {
   body: { width: 400, height: 200 },
@@ -97,5 +103,90 @@ describe("timeseries rangeTest", () => {
 
   it("needs both ends in the plot", () => {
     expect(rangeTest(layout, at(100, 40), { x: 0, y: 0 })).toBeNull()
+  })
+})
+
+const iso = (seconds: number) => new Date(seconds * 1000).toISOString()
+
+describe("timeseries locate", () => {
+  it("finds the sample a point anchor names", () => {
+    expect(
+      locate(layout, {
+        kind: "point",
+        pos: { x: 0, y: 0 },
+        from: iso(1100),
+        series: { service: "checkout" },
+      })
+    ).toEqual({
+      x: 140 - pointRadius,
+      y: 60 - pointRadius,
+      width: pointRadius * 2,
+      height: pointRadius * 2,
+    })
+  })
+
+  it("matches a series by the labels the anchor kept", () => {
+    const wide = {
+      ...layout,
+      series: layout.series.map((entry) => ({
+        ...entry,
+        labels: { ...entry.labels, pod: "a" },
+      })),
+    }
+    expect(
+      locate(wide, {
+        kind: "point",
+        pos: { x: 0, y: 0 },
+        from: iso(1200),
+        series: { service: "payments" },
+      })
+    ).toMatchObject({ x: 240 - pointRadius, y: 30 - pointRadius })
+  })
+
+  it.each([
+    ["the series is gone", { service: "search" }, 1100],
+    ["the time left the window", { service: "checkout" }, 5000],
+    ["the sample has no value", { service: "checkout" }, 1300],
+  ])("returns null when %s", (_why, series, seconds) => {
+    expect(
+      locate(layout, {
+        kind: "point",
+        pos: { x: 0, y: 0 },
+        from: iso(seconds),
+        series,
+      })
+    ).toBeNull()
+  })
+
+  it("draws a band for a time and a range", () => {
+    expect(
+      locate(layout, { kind: "time", pos: { x: 0, y: 0 }, from: iso(1100) })
+    ).toEqual({ x: 139, y: 10, width: 2, height: 150 })
+    expect(
+      locate(layout, {
+        kind: "range",
+        pos: { x: 0, y: 0 },
+        from: iso(1100),
+        to: iso(1200),
+      })
+    ).toEqual({ x: 139, y: 10, width: 102, height: 150 })
+    expect(
+      locate(layout, {
+        kind: "range",
+        pos: { x: 0, y: 0 },
+        from: iso(5000),
+        to: iso(6000),
+      })
+    ).toBeNull()
+  })
+
+  it("finds the series nearest the stored spot", () => {
+    expect(
+      locate(layout, {
+        kind: "series",
+        pos: { x: 240 / 400, y: 0 },
+        series: { service: "payments" },
+      })
+    ).toMatchObject({ x: 240 - pointRadius, y: 30 - pointRadius })
   })
 })
