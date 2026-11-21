@@ -386,7 +386,8 @@ A chat with two or more observations, a chat on a dashboard, a later turn's own 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
 - **Change an existing dashboard from Home.** A request on Home builds a new dashboard and cannot change one that exists.
-  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt and opens it as a new chat, and **Open dashboard**.
+  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which asks the same prompt about that dashboard and opens it as a new chat, and **Open dashboard**.
+  The agent answers there without changing the dashboard, and a change it suggests is made only when you choose **Revise the dashboard** on the answer; the button shows when you can comment on the dashboard.
   Without Edit on that dashboard you get only **Open dashboard**, with a line saying someone who can edit it can ask there.
   When it finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.
