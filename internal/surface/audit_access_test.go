@@ -235,7 +235,16 @@ func datasourceRESTRows() []surfaceRow {
 		onAuditDatasource(http.MethodGet, "/labels/{name}/values", "/labels/outcome/values", "", "values"),
 		onAuditDatasource(http.MethodGet, "/services", "/services", "", "services"),
 		onAuditDatasource(http.MethodGet, "/traces/{trace_id}", "/traces/0123456789abcdef0123456789abcdef", "", "frames"),
-		onAuditDatasource(http.MethodGet, "/tail", "/tail?"+queryOf("query", "*"), "", "event: ready"),
+		{
+			name: "GET /datasources/{uid}/tail",
+			send: func(s *stack, c caller) observed {
+				return observeREST(s.stream(c, "/datasources/"+auditUID+"/tail?"+queryOf("query", "*")))
+			},
+			twin: func(s *stack, c caller) observed {
+				return observeREST(s.stream(c, "/datasources/"+missingUID+"/tail?"+queryOf("query", "*")))
+			},
+			proof: fixed("event: ready"), admin: servesData, member: notFound,
+		},
 	}
 }
 
