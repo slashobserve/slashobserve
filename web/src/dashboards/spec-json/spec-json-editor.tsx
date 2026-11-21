@@ -83,6 +83,7 @@ export default function SpecJsonEditor({
       {
         onSuccess: (outcome) => {
           toast.success(saveToast(outcome))
+          onDirtyChange(false)
           onSaved()
         },
         onError: (failure) =>

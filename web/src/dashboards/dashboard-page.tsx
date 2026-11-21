@@ -107,7 +107,6 @@ import {
   useDashboardEvents,
   type LiveStatus,
 } from "./live/use-dashboard-events"
-import { useDashboardMovedLive } from "./live/use-dashboards-live"
 import { downloadSpec } from "./export-spec"
 import { KioskHint } from "./kiosk/kiosk-hint"
 import { useKiosk } from "./kiosk/use-kiosk"
@@ -1202,7 +1201,6 @@ export function DashboardPage({ dashboardId }: { dashboardId: string }) {
     pinnedVersion: search.version,
     toastVersions: !panelEditorShowsNewerVersion(search),
   })
-  useDashboardMovedLive(dashboardId)
   useEffect(() => () => useLayoutStore.getState().end(), [dashboardId])
   let content: ReactNode
   if (search.version !== undefined) {

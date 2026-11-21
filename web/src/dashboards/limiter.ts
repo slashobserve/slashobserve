@@ -48,4 +48,4 @@ export function createLimiter(max: number): Limiter {
   }
 }
 
-export const panelRequestLimiter = createLimiter(6)
+export const panelRequestLimiter = createLimiter(4)
