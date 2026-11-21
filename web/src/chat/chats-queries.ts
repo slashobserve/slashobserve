@@ -6,6 +6,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
@@ -84,6 +85,13 @@ function chatQuery(id: string) {
         ? activePollMs
         : false,
   })
+}
+
+export async function refreshChat(
+  queryClient: QueryClient,
+  id: string
+): Promise<void> {
+  await queryClient.fetchQuery({ ...chatQuery(id), staleTime: 0 })
 }
 
 export function useChat(id: string | undefined) {

@@ -8,6 +8,7 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { useChatPaneLayout } from "@/activity/activity-store"
 import { ChatPane } from "@/chat/chat-pane"
+import { refreshChat } from "@/chat/chats-queries"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
 import { pageClass } from "@/dashboards/dashboard-page-skeleton"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
@@ -182,13 +183,22 @@ export function BuildPage({ requestId }: { requestId: string }) {
   const chatId = request?.chat_id ?? requestId
   useEffect(() => {
     if (savedId === null) return
-    void navigate({
-      ...dashboardLink(savedId),
-      search: { tab: "chat", chat: chatId },
-      replace: true,
-      viewTransition: true,
-    })
-  }, [savedId, navigate, chatId])
+    let current = true
+    void refreshChat(queryClient, chatId)
+      .catch(() => undefined)
+      .then(() => {
+        if (!current) return
+        void navigate({
+          ...dashboardLink(savedId),
+          search: { tab: "chat", chat: chatId },
+          replace: true,
+          viewTransition: true,
+        })
+      })
+    return () => {
+      current = false
+    }
+  }, [savedId, navigate, chatId, queryClient])
 
   const answeredId =
     request === undefined
