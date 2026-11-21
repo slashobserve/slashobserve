@@ -248,6 +248,60 @@ describe("planSend into a thread", () => {
   })
 })
 
+describe("planSend for a canvas ask", () => {
+  const rowAnchor = {
+    kind: "row" as const,
+    pos: { x: 0.4, y: 0.6 },
+    row: { service: "payments", span: "authorize_card" },
+    shown: "440",
+    window: { from: "now-1h", to: "now" },
+  }
+
+  it("sends the spot, the value under the pointer and the window as a turn of the open chat", () => {
+    expect(
+      planSend(
+        { kind: "canvas", tool: "ask", chatId: "c1" },
+        dashboard,
+        privately,
+        { ...draft, target: { panelId: "p1", anchor: rowAnchor } }
+      )
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        chatId: "c1",
+        kind: "ask",
+        dashboardId: "d1",
+        panelId: "p1",
+        anchor: rowAnchor,
+      },
+      opens: "same",
+    })
+  })
+
+  it("starts a new chat about the dashboard when none is open, and stays on the canvas", () => {
+    expect(
+      planSend(
+        { kind: "canvas", tool: "ask", chatId: null },
+        dashboard,
+        privately,
+        { ...draft, target: { panelId: "p1" } }
+      )
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        kind: "ask",
+        dashboardId: "d1",
+        panelId: "p1",
+      },
+      opens: "same",
+    })
+  })
+})
+
 describe("planRevise", () => {
   it("applies the answer's change in the thread the answer is in", () => {
     expect(planRevise(openThread, dashboard, "f1", "k2")).toEqual({

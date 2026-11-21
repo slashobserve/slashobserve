@@ -65,13 +65,13 @@ export function panelPins(
   })
 }
 
-export type PinStack = { at: Point; pins: PanelPin[] }
+export type PinStack<T = PanelPin> = { at: Point; pins: T[] }
 
-export function stackPins(
-  pins: readonly PanelPin[],
+export function stackPins<T extends { placement: PinPlacement }>(
+  pins: readonly T[],
   reach = pinSize
-): PinStack[] {
-  const stacks: PinStack[] = []
+): PinStack<T>[] {
+  const stacks: PinStack<T>[] = []
   for (const pin of pins) {
     const { x, y } = pin.placement.at
     const near = stacks.find(({ at }) => Math.hypot(at.x - x, at.y - y) < reach)
@@ -209,7 +209,7 @@ function Pin({
   )
 }
 
-function markerClass(arriving: boolean, gone: boolean): string {
+export function markerClass(arriving: boolean, gone: boolean): string {
   return cn(
     "pointer-events-auto absolute grid place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring",
     markerShape,
@@ -219,7 +219,7 @@ function markerClass(arriving: boolean, gone: boolean): string {
   )
 }
 
-function markerStyle(at: Point) {
+export function markerStyle(at: Point) {
   return {
     left: at.x,
     top: at.y - pinSize,
@@ -228,7 +228,13 @@ function markerStyle(at: Point) {
   }
 }
 
-function PinPopup({ label, children }: { label: string; children: ReactNode }) {
+export function PinPopup({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner

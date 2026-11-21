@@ -38,7 +38,8 @@ export const dashboardShortcuts: readonly Shortcut[] = [
   {
     action: "ask",
     keys: ["a"],
-    description: "Ask the agent about the panel under the pointer",
+    description:
+      "Ask the agent about the whole panel under the pointer, or turn Ask mode on and off",
   },
   {
     action: "comment",
@@ -50,7 +51,7 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     action: "close",
     keys: ["Escape"],
     description:
-      "Close the panel view or Inspect, leave TV mode and full screen, leave Comment mode, or clear the selected panel",
+      "Close the panel view or Inspect, leave TV mode and full screen, leave Comment or Ask mode, or clear the selected panel",
   },
   {
     action: "zoomOut",

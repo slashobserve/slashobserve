@@ -258,6 +258,7 @@ func (q *Queries) ListChatRequests(ctx context.Context, chatID pgtype.UUID) ([]A
 const listChats = `-- name: ListChats :many
 SELECT c.id, c.owner_kind, c.owner_id, c.title, c.dashboard_id, c.observation_id, c.pinned_at, c.archived_at, c.created_at, c.last_turn_at, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
+  last.anchor AS last_turn_anchor, last.block_id AS last_turn_block_id,
   d.title AS dashboard_title
 FROM chats c
 LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY($1::uuid[])
@@ -266,7 +267,7 @@ LEFT JOIN LATERAL (
   SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) first ON true
 LEFT JOIN LATERAL (
-  SELECT t.id, t.state, t.prompt FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+  SELECT t.id, t.state, t.prompt, t.anchor, t.block_id FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
 WHERE ($2::uuid IS NULL OR (c.owner_kind = $3::text AND c.owner_id = $2::uuid))
   AND c.archived_at IS NULL
@@ -299,23 +300,25 @@ type ListChatsParams struct {
 }
 
 type ListChatsRow struct {
-	ID             pgtype.UUID
-	OwnerKind      string
-	OwnerID        pgtype.UUID
-	Title          pgtype.Text
-	DashboardID    pgtype.UUID
-	ObservationID  pgtype.UUID
-	PinnedAt       pgtype.Timestamptz
-	ArchivedAt     pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-	LastTurnAt     pgtype.Timestamptz
-	Turns          int64
-	FirstPrompt    string
-	OwnerName      string
-	LastTurnID     pgtype.UUID
-	LastTurnState  string
-	LastTurnPrompt string
-	DashboardTitle pgtype.Text
+	ID              pgtype.UUID
+	OwnerKind       string
+	OwnerID         pgtype.UUID
+	Title           pgtype.Text
+	DashboardID     pgtype.UUID
+	ObservationID   pgtype.UUID
+	PinnedAt        pgtype.Timestamptz
+	ArchivedAt      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	LastTurnAt      pgtype.Timestamptz
+	Turns           int64
+	FirstPrompt     string
+	OwnerName       string
+	LastTurnID      pgtype.UUID
+	LastTurnState   string
+	LastTurnPrompt  string
+	LastTurnAnchor  []byte
+	LastTurnBlockID pgtype.UUID
+	DashboardTitle  pgtype.Text
 }
 
 func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListChatsRow, error) {
@@ -357,6 +360,8 @@ func (q *Queries) ListChats(ctx context.Context, arg ListChatsParams) ([]ListCha
 			&i.LastTurnID,
 			&i.LastTurnState,
 			&i.LastTurnPrompt,
+			&i.LastTurnAnchor,
+			&i.LastTurnBlockID,
 			&i.DashboardTitle,
 		); err != nil {
 			return nil, err

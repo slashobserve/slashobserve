@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -323,9 +324,23 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 
 		ThreadContext: row.ThreadContext.String,
 
+		Anchor:  anchorOf(row.Anchor),
+		BlockID: row.BlockID.String(),
+
 		From: optionalTime(row.ContextFrom),
 		To:   optionalTime(row.ContextTo),
 
 		TimeZone: row.TimeZone.String,
 	}
+}
+
+func anchorOf(raw []byte) *anchor.Anchor {
+	if len(raw) == 0 {
+		return nil
+	}
+	var a anchor.Anchor
+	if err := json.Unmarshal(raw, &a); err != nil || a.Validate() != nil {
+		return nil
+	}
+	return &a
 }

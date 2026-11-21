@@ -78,7 +78,9 @@ describe("defaultDelivery outside a thread", () => {
   })
 
   it("asks the agent privately on the canvas ask tool", () => {
-    expect(defaultDelivery({ kind: "canvas", tool: "ask" }, "hi")).toEqual({
+    expect(
+      defaultDelivery({ kind: "canvas", tool: "ask", chatId: null }, "hi")
+    ).toEqual({
       to: "agent",
       visibleTo: "me",
     })
@@ -112,10 +114,10 @@ describe("flips", () => {
     ).toEqual({ to: true, visibleTo: false })
   })
 
-  it("turns who can see a canvas ask, and who a canvas comment is for", () => {
-    expect(flips({ kind: "canvas", tool: "ask" })).toEqual({
+  it("turns nothing on a canvas ask, which stays private to the asker, and only the recipient of a canvas comment", () => {
+    expect(flips({ kind: "canvas", tool: "ask", chatId: null })).toEqual({
       to: false,
-      visibleTo: true,
+      visibleTo: false,
     })
     expect(flips({ kind: "canvas", tool: "comment" })).toEqual({
       to: true,

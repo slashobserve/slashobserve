@@ -82,40 +82,26 @@ export function commentOnThisPanel(
   return "pane"
 }
 
-function askTheAgent() {
-  const activity = useActivityStore.getState()
-  activity.setOpen(true)
-  activity.setAskingAgent(true)
-}
-
-export function askAboutPanel(setSearch: SetSearch, panelId: string) {
-  askTheAgent()
+export function askAboutThisPanel(
+  setSearch: SetSearch,
+  panelId: string,
+  onCanvas: boolean
+): CommentPlace {
+  if (onCanvas) {
+    openKeyDraft(panelId, "ask")
+    return "canvas"
+  }
+  useActivityStore.getState().setOpen(true)
   setSearch((state) => ({
-    ...onActivityTab(state),
+    ...state,
+    tab: "chat",
     panel: panelId,
     edit: undefined,
   }))
-}
-
-export function askAboutPanelAndFocus(
-  setSearch: SetSearch,
-  panelId: string,
-  field: Composer
-) {
-  askAboutPanel(setSearch, panelId)
-  focusWhenMounted(field)
+  return "pane"
 }
 
 export function editPanelQuery(setSearch: SetSearch, panelId: string) {
   useActivityStore.getState().setOpen(true)
   setSearch((state) => ({ ...state, panel: panelId, edit: "query" }))
-}
-
-export function askAboutDashboard(setSearch: SetSearch) {
-  askTheAgent()
-  setSearch((state) => ({
-    ...onActivityTab(state),
-    panel: undefined,
-    edit: undefined,
-  }))
 }

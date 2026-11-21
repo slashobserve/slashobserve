@@ -1,4 +1,11 @@
-import { useCallback, useId, useRef, type Ref, type RefObject } from "react"
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  type Ref,
+  type RefObject,
+} from "react"
 
 import type { Selections } from "@/api/keys"
 import { DashboardChat, type OpenChat } from "@/chat/dashboard-chat"
@@ -13,7 +20,7 @@ import {
 } from "@/dashboards/search"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
-import type { Dashboard } from "@/spec"
+import { findPanel, type Dashboard } from "@/spec"
 import type { SidePanelCard } from "@/dashboards/dock"
 
 import { ActivityFeed } from "./activity-feed"
@@ -103,6 +110,23 @@ export function ActivityCard({
         { replace: true }
       ),
     [setSearch]
+  )
+
+  const chatPanelId = tab === "chat" ? panelId : undefined
+  const chatPanelTitle =
+    chatPanelId === undefined
+      ? undefined
+      : findPanel(spec, chatPanelId)?.panel.title
+  const chatPanel = useMemo(
+    () =>
+      chatPanelId === undefined || chatPanelTitle === undefined
+        ? null
+        : {
+            id: chatPanelId,
+            title: chatPanelTitle,
+            onRemove: () => onScopeChange(null),
+          },
+    [chatPanelId, chatPanelTitle, onScopeChange]
   )
 
   const onBack = useCallback(() => {
@@ -205,6 +229,7 @@ export function ActivityCard({
               dashboardTitle={spec.title}
               chatId={search.chat}
               onOpenChat={onOpenChat}
+              panel={chatPanel}
             />
           ) : (
             <ActivityFeed

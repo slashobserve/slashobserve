@@ -31,7 +31,7 @@ import {
 } from "@/spec"
 
 import {
-  askAboutPanelAndFocus,
+  askAboutThisPanel,
   commentOnThisPanel,
   editPanelQuery,
   useConversationActions,
@@ -219,7 +219,7 @@ export function PanelToolbar({
           tooltip={finishFirst("Ask @observe")}
           disabled={!idle}
           onClick={() => {
-            askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+            askAboutThisPanel(setSearch, panel.id, onCanvas)
           }}
         >
           <AtSignIcon aria-hidden="true" />
