@@ -375,6 +375,7 @@ A new title from `update_observation` also renames the chat the observation shar
 
 `pin_observation` pins an observation to a dashboard as an annotation, to `dashboard_id` or by default to the dashboard its run was about, and needs edit access to that dashboard; pinning again answers with the same annotation and `created: false`.
 `make_dashboard` makes a dashboard in My Dashboards from an observation's live panel blocks, or from one block with `block_id`, with the variables each block carries; making it again returns the dashboard you made first (`replayed: true`) unless `new` is true.
+When the observation came from your own chat and that chat is about nothing else, the chat becomes about the new dashboard.
 An observation with no dashboard to pin to answers `observation_has_no_dashboard`, and one with no live panel block answers `observation_has_no_panels`.
 No tool removes a block: people do that in the web app or through the HTTP API.
 
@@ -462,8 +463,15 @@ Each chat carries `dashboard_title`, null when you cannot see its dashboard, and
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
-`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `investigation` (true for an investigation that writes into an observation, false for an ask), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
+`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `investigation` (true for an investigation that writes into an observation, false for an ask), `result_kind`, dashboard, observation, `anchor` and `block_id` (the spot your own question points at), `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
 It takes `state` (a list), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
+
+`observation_id` keeps the runs asked about that observation and the runs that wrote into it.
+`anchored: true` keeps the runs that point at a spot, and works only with the default `scope` of `mine`: with `scope: all` it answers `invalid_request`, even for an Admin.
+
+`anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it, and are filled only for the person who asked the run.
+They are `null` for anyone else, such as a reader of a shared answer or an Admin reading a private chat, and for a run that points at nothing.
+`get_run` and the turns of `get_chat` carry the same two fields under the same rule.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
 An observation the run saved stays too, because no MCP tool deletes anything; a person deletes it with the chat in the web app, or with `observe requests archive <id> --delete-observation --yes`.
@@ -694,6 +702,8 @@ The loop of an agent that takes runs:
 2. A claimed run holds its `id`, `attempt`, `kind` (`build` or `investigate`), its `intent` (`ask`, `apply` or `suggest`), its `prompt`, its target (`dashboard_id`, `base_version`, `panel_id`, `from` and `to`, null when the run has none), `continue_note`, and `requested_by`, the person it acts for.
    The answer also has `lease_seconds` (60), a `session` with a `url`, a `token` (starting `sot_`) and `expires_at`, and `system_prompt`, the `observe` prompt to read with the run's `kind`.
    When a message in a comment thread started the run, `thread_context` holds the earlier messages of that thread, oldest first; read it before you answer, and it is `null` for any other run.
+   When the question points at a spot on a panel or an observation block, `anchor` holds it, shaped as `start_run` takes it, and `block_id` the observation block it sits on; both are `null` for a run that points at nothing.
+   `get_run_brief` names the same spot in one sentence, so an agent that reads only the claim can use `anchor`, and one that reads the brief gets the sentence.
    The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.

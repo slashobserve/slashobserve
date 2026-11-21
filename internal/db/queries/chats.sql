@@ -44,10 +44,19 @@ SELECT * FROM archived;
 UPDATE chats SET dashboard_id = @dashboard_id
 WHERE id = @id AND dashboard_id IS NULL AND observation_id IS NULL;
 
+-- name: AttachRunChatToDashboard :exec
+UPDATE chats SET dashboard_id = @dashboard_id
+FROM agent_requests r
+WHERE r.id = @run_id AND chats.id = r.chat_id
+  AND chats.owner_kind = @owner_kind AND chats.owner_id = @owner_id
+  AND chats.dashboard_id IS NULL AND chats.observation_id IS NULL;
+
 -- name: ListChats :many
 SELECT c.*, turns.count AS turns, coalesce(first.prompt, '')::text AS first_prompt, coalesce(first.requested_by_name, '')::text AS owner_name,
   last.id AS last_turn_id, coalesce(last.state, '')::text AS last_turn_state, coalesce(last.prompt, '')::text AS last_turn_prompt,
-  coalesce(last.investigation, false)::boolean AS last_turn_investigation, last.subject_observation_id AS last_turn_subject_observation_id, d.title AS dashboard_title
+  coalesce(last.investigation, false)::boolean AS last_turn_investigation, last.subject_observation_id AS last_turn_subject_observation_id,
+  last.anchor AS last_turn_anchor, last.block_id AS last_turn_block_id,
+  d.title AS dashboard_title
 FROM chats c
 LEFT JOIN dashboards d ON d.id = c.dashboard_id AND d.folder_id = ANY(sqlc.arg('folders')::uuid[])
 CROSS JOIN LATERAL (SELECT count(*) AS count FROM agent_requests t WHERE t.chat_id = c.id) turns
@@ -55,7 +64,7 @@ LEFT JOIN LATERAL (
   SELECT t.prompt, t.requested_by_name FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at, t.id LIMIT 1
 ) first ON true
 LEFT JOIN LATERAL (
-  SELECT t.id, t.state, t.prompt, t.investigation, t.subject_observation_id FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
+  SELECT t.id, t.state, t.prompt, t.investigation, t.subject_observation_id, t.anchor, t.block_id FROM agent_requests t WHERE t.chat_id = c.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1
 ) last ON true
 WHERE (sqlc.narg('owner_id')::uuid IS NULL OR (c.owner_kind = sqlc.narg('owner_kind')::text AND c.owner_id = sqlc.narg('owner_id')::uuid))
   AND c.archived_at IS NULL

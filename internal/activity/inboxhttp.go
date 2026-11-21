@@ -24,6 +24,7 @@ type InboxItemJSON struct {
 	Unread      bool    `json:"unread"`
 	TargetTitle *string `json:"target_title"`
 	Excerpt     *string `json:"excerpt"`
+	Question    *string `json:"question"`
 }
 
 type InboxJSON struct {
@@ -41,6 +42,7 @@ func InboxJSONOf(page InboxPage) InboxJSON {
 			Unread:      item.Unread,
 			TargetTitle: httpapi.OptionalString(item.TargetTitle),
 			Excerpt:     httpapi.OptionalString(item.Excerpt),
+			Question:    httpapi.OptionalString(item.Question),
 		})
 	}
 	if page.Next != "" {

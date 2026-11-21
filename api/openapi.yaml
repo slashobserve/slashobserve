@@ -2214,7 +2214,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2259,11 +2259,15 @@ components:
         target_title:
           type: string
           nullable: true
-          description: The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists.
+          description: The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it.
         excerpt:
           type: string
           nullable: true
-          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items.
+          description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read.
+        question:
+          type: string
+          nullable: true
+          description: The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote; null for every other item, when that message is gone, and when the caller cannot read the thread.
     InboxList:
       type: object
       additionalProperties: false
@@ -3311,7 +3315,7 @@ components:
       type: object
       additionalProperties: false
       required: [kind, pos]
-      description: One spot on a panel or an observation block, with the fields its kind needs.
+      description: One spot on a panel or an observation block, with the fields its kind needs. Text in it may not contain control, bidirectional override or hidden characters, the rule thread messages follow (400 `invalid_request`).
       properties:
         kind:
           type: string
@@ -4719,6 +4723,8 @@ components:
         - subject_observation_id
         - chat_id
         - shared_thread_id
+        - anchor
+        - block_id
         - finding
       properties:
         id:
@@ -4954,6 +4960,16 @@ components:
           format: uuid
           nullable: true
           description: The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
         finding:
           nullable: true
           allOf:
@@ -4969,7 +4985,7 @@ components:
     ChatTurnSummary:
       type: object
       additionalProperties: false
-      required: [id, state, prompt, investigation, subject_observation_id]
+      required: [id, state, prompt, investigation, subject_observation_id, anchor, block_id]
       properties:
         id:
           type: string
@@ -4987,6 +5003,16 @@ components:
           format: uuid
           nullable: true
           description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation."
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     Chat:
       type: object
       additionalProperties: false
@@ -5106,6 +5132,8 @@ components:
         - started_at
         - finished_at
         - requested_by
+        - anchor
+        - block_id
       properties:
         id:
           type: string
@@ -5252,6 +5280,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     ContinueObserveRequest:
       type: object
       additionalProperties: false

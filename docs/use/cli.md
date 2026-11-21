@@ -104,6 +104,7 @@ While a request waits for a worker, `observe status` prints `Queued, position N`
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 
 `observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
+When the request points at a spot, `observe status` prints `Points at`, and `On block` for an observation block.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
 An ask about an observation adds `About observation <id>`, also after its answer is saved into another observation.
@@ -113,9 +114,13 @@ While a request is running, `observe status` also prints a `Live text` section w
 
 ### Your requests
 
-`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard and title.
+`bin/observe requests list` prints your agent requests, newest first with pinned ones on top, as a table of id, state, intent, dashboard, the spot it points at and title.
 The state reads as in the web app, Running, Done or Stopped, and `--json` keeps the server's `queued`, `running`, `canceling`, `succeeded`, `failed` and `canceled`, which is also what `--state` takes.
-`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false` and `--dashboard <id>` narrow it.
+`--state` (repeatable, or comma-separated), `--q` (a word of the title or prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>`, the requests asked about that observation and the ones that wrote into it, narrow it.
+
+`--anchored` keeps the requests you asked about a spot, and the server refuses it with `--scope all`, even for an Admin.
+The `AT` column shows that spot in words, a dash when the request points at nothing, and `--json` carries it as `anchor` and `block_id`.
+Only the person who asked a request sees its spot, so anyone else reads `null`.
 `--scope all` lists every principal's requests and needs the Admin role.
 It pages like every list: `--limit`, `--cursor` and `--all`, and the footer gives the total that matches.
 Archived requests are left out.
@@ -136,7 +141,7 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, whether it is pinned, the state of the last turn, the number of turns, when it was last asked, its dashboard and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
-`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
+`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt, and a `points at` line under a turn that pointed at a spot; `observe status <request-id>` prints one turn in full.
 An Admin may show anyone's chat, read only.
 
 Every show is recorded in the audit trail as `chat.view` with the owner's id and every list as `chat.list` with its scope, each once per reader in 10 minutes.

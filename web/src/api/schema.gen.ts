@@ -2231,7 +2231,7 @@ export interface paths {
         };
         /**
          * List agent requests, newest first: the caller's own, or everyone's for an Admin.
-         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, and `chat_id` keeps the turns of one chat, the first request included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. Every list is recorded in the audit trail as one `run.list` with `scope` (`mine` or `all`) in its data, never one event per request, once per caller and scope in 10 minutes.
+         * @description With `scope=mine`, the default, only requests the caller made are listed; a user sees their own and a service account its own. `scope=all` lists every principal's requests and needs the Admin role; anyone else gets 403. `q` matches the title and the prompt case-insensitively, `pinned` keeps only pinned or only unpinned requests, `dashboard_id` keeps the requests about one dashboard, `observation_id` keeps the requests asked about one observation and the ones that wrote into it, and `chat_id` keeps the turns of one chat, the first request included. `anchored=true` keeps only the requests that point at a spot, as the `anchor` of each shows, and only works with `scope=mine`: with `scope=all` it answers 400 `invalid_request`, so no one lists other people's anchored questions. `anchor` and `block_id` are filled only for the person who asked the question and are null for everyone else, an Admin included. `state` keeps the requests in any of the given states and may repeat. Archived requests are left out; with `scope=mine` pinned requests come first, most recently pinned first, and with `scope=all` the order is newest first only. `dashboard_title` is null when the caller cannot see the dashboard, and an Admin's `allowed_actions` is empty on a request it sees only as an Admin. A new-dashboard request that failed has no dashboard and lives only in this list. Progress steps are not included; read `GET /observe/{id}` for them. Every list is recorded in the audit trail as one `run.list` with `scope` (`mine` or `all`) in its data, never one event per request, once per caller and scope in 10 minutes.
          */
         get: operations["listObserveRequests"];
         put?: never;
@@ -2603,7 +2603,7 @@ export interface paths {
         /**
          * Save a finding's evidence panels as a new dashboard.
          * @deprecated
-         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
+         * @description Anyone who can read the finding may call it; the dashboard lands in the caller's My Dashboards and every evidence query is run again before it is saved. The caller's own chat that the answer came from becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. A finding without evidence gives 409 `finding_has_no_evidence`. Deprecated: findings are observations now; use /observations. Removed in the release after this one.
          */
         post: operations["saveFindingAsDashboard"];
         delete?: never;
@@ -2861,7 +2861,7 @@ export interface paths {
         put?: never;
         /**
          * Make a dashboard from the live panel blocks of an observation.
-         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. An observation without a live panel block answers 409 `observation_has_no_panels`.
+         * @description Anyone who can read the observation may call it; the dashboard lands in the caller's My Dashboards and every query is run again before it is saved. The dashboard holds the live panel blocks in order, with the variables each block carries, over the observation's range or, when it has none, the range of the first panel. Making a dashboard again from the same observation answers 200 with the one the caller made first, unless the body sets `new`. The caller's own chat that wrote the observation becomes a chat about the new dashboard, when it is about no dashboard or observation yet; it stays private to the caller, and a failure to attach it does not fail the call. An observation without a live panel block answers 409 `observation_has_no_panels`.
          */
         post: operations["makeDashboardFromObservation"];
         delete?: never;
@@ -2883,7 +2883,7 @@ export interface paths {
         put?: never;
         /**
          * Make a dashboard from one panel block.
-         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`.
+         * @description Works as making a dashboard from the observation, with only this block; a block that is not a live panel block the caller can see answers 404. The same caller making a dashboard again from the same block gets the first one back, unless the body sets `new`. The chat attached is the chat of the run that wrote the block, or of the run that wrote the observation when the block has none, on the same terms.
          */
         post: operations["makeDashboardFromBlock"];
         delete?: never;
@@ -4233,7 +4233,7 @@ export interface paths {
         };
         /**
          * List what asks something of the signed-in person, newest first.
-         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `proposal_closed` is a proposal the caller opened that someone else merged or discarded; its `excerpt` is the reason given for a discard. `access_request` is a request for Comment access to a dashboard or observation whose folder sharing the caller manages, that is still open: nobody has marked it done, the requester cannot comment yet and it is under 30 days old; its `excerpt` is the requester's note, and marking it done closes it for every person who received it. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` and `proposal_closed` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when `PUT /api/v1/inbox/items/{seq}` marked it unread, or, when that never touched it, when it is newer than the position `POST /api/v1/inbox/read` stored for the caller; every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. `target_title` is the title of the dashboard, observation or proposal an item is about, and `excerpt` is the start of the comment for a `mention` or `reply`, the reason of a discarded proposal for `proposal_closed`, or the note of an `access_request`, as plain text; the rest of an item carries no comment, message or finding text, as in the activity log. A comment that mentions the caller and replies in a thread the caller wrote in is one `mention` item, not two. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
+         * @description The inbox is the activity the caller can see, from the last 30 days, filtered to what asks something of them now; it stores no events of its own, so it cannot differ from `GET /activity`. Each item is an activity event with a `reason`, the first rule it matches, and `unread`. `proposal` is a proposal someone else opened on a dashboard whose folder the caller can edit and that is still open. `requested_block` is a block someone requested on an observation the caller created and can still edit, that is still requested. `mention` is a comment that mentions the caller by name. `reply` is a reply by someone else in a thread the caller wrote in, or a reply an agent run wrote for a run the caller requested. `run_failed` is a failed run the caller requested that nobody has continued. `repaired` is a health repair the caller started that saved a version. `proposal_closed` is a proposal the caller opened that someone else merged or discarded; its `excerpt` is the reason given for a discard. `access_request` is a request for Comment access to a dashboard or observation whose folder sharing the caller manages, that is still open: nobody has marked it done, the requester cannot comment yet and it is under 30 days old; its `excerpt` is the requester's note, and marking it done closes it for every person who received it. `view` chooses what the list holds: `for_you`, the default, every item with a reason; `proposals`, the `proposal` and `proposal_closed` items; `mentions`, the `mention` and `reply` items; and `everything`, every visible event from others plus every item with a reason, with `reason` null on those that have none. An item is unread when `PUT /api/v1/inbox/items/{seq}` marked it unread, or, when that never touched it, when it is newer than the position `POST /api/v1/inbox/read` stored for the caller; every item is unread until the caller reads once. `unread_count` counts the unread `for_you` items whatever the view is, and `100` means 100 or more. `question` is the first line of the thread message an agent run answered, cut to a title of at most 60 characters, on the item for that run's reply; it is null when that message was deleted or withdrawn, and it never comes from a chat prompt. `target_title` is the title of the dashboard, observation or proposal an item is about, and `excerpt` is the start of the comment for a `mention` or `reply`, the reason of a discarded proposal for `proposal_closed`, or the note of an `access_request`, as plain text; the rest of an item carries no comment, message or finding text, as in the activity log. A comment that mentions the caller and replies in a thread the caller wrote in is one `mention` item, not two. Only signed-in people may call it: a service-account key gets 403 `user_session_required`.
          */
         get: operations["listInbox"];
         put?: never;
@@ -5286,10 +5286,12 @@ export interface components {
              */
             reason: "proposal" | "requested_block" | "mention" | "reply" | "run_failed" | "repaired" | "proposal_closed" | "access_request" | null;
             unread: boolean;
-            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none or no longer exists. */
+            /** @description The title of the dashboard, observation or proposal the event is about, or null when it has none, no longer exists, or the caller can no longer read it. */
             target_title: string | null;
-            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items. */
+            /** @description The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items, and for a comment in a thread the caller can no longer read. */
             excerpt: string | null;
+            /** @description The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote; null for every other item, when that message is gone, and when the caller cannot read the thread. */
+            question: string | null;
         };
         InboxList: {
             items: components["schemas"]["InboxItem"][];
@@ -5824,7 +5826,7 @@ export interface components {
             /** @description True after a message was sent to everyone; plain replies then ask no agent until a message mentions one or is sent to the agent. */
             agent_off: boolean;
         };
-        /** @description One spot on a panel or an observation block, with the fields its kind needs. */
+        /** @description One spot on a panel or an observation block, with the fields its kind needs. Text in it may not contain control, bidirectional override or hidden characters, the rule thread messages follow (400 `invalid_request`). */
         Anchor: {
             /** @enum {string} */
             kind: "time" | "range" | "series" | "point" | "row" | "column" | "cell" | "bar" | "segment" | "heat_cell" | "slice" | "value" | "log_line" | "span" | "element" | "text" | "title" | "variable" | "position";
@@ -6720,6 +6722,13 @@ export interface components {
              * @description The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
              */
             shared_thread_id: string | null;
+            /** @description The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in. */
+            anchor: components["schemas"]["Anchor"] | null;
+            /**
+             * Format: uuid
+             * @description The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
+             */
+            block_id: string | null;
             /** @description The finding the run saved: an investigation's, or the answer a request gave instead of a dashboard or a version; null for other runs and until one is saved. The answer to a plain question has `observation_id` null until its requester saves it as an observation, and only the requester and an Admin read it. */
             finding: components["schemas"]["Finding"] | null;
             /**
@@ -6743,6 +6752,13 @@ export interface components {
              * @description The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation.
              */
             subject_observation_id: string | null;
+            /** @description The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in. */
+            anchor: components["schemas"]["Anchor"] | null;
+            /**
+             * Format: uuid
+             * @description The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
+             */
+            block_id: string | null;
         };
         Chat: {
             /**
@@ -6890,6 +6906,13 @@ export interface components {
             started_at: string | null;
             /** Format: date-time */
             finished_at: string | null;
+            /** @description The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in. */
+            anchor: components["schemas"]["Anchor"] | null;
+            /**
+             * Format: uuid
+             * @description The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
+             */
+            block_id: string | null;
         };
         ContinueObserveRequest: {
             /** @description An instruction for the continued run, trimmed; 1 to 4000 visible characters without control or bidirectional override characters, the same rule as a prompt. */
@@ -14689,6 +14712,8 @@ export interface operations {
                 q?: string;
                 pinned?: boolean;
                 dashboard_id?: string;
+                observation_id?: string;
+                anchored?: boolean;
                 chat_id?: string;
                 limit?: number;
                 cursor?: string;
