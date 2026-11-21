@@ -168,9 +168,9 @@ func (q *Queries) MarkRunReadRestricted(ctx context.Context, id pgtype.UUID) err
 }
 
 const runInheritsReadRestricted = `-- name: RunInheritsReadRestricted :one
-SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id JOIN agent_requests a ON a.id = m.run_id WHERE asked.id = r.thread_message_id AND a.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests a ON a.id = f.agent_request_id WHERE f.id = r.applies_finding_id AND a.read_restricted)
-  OR EXISTS (SELECT 1 FROM agent_requests a WHERE a.id = r.continues_id AND a.read_restricted))::boolean
+SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id WHERE asked.id = r.thread_message_id AND run_answer_kept_with_admins(m.run_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))
+  OR EXISTS (SELECT 1 FROM findings f WHERE f.id = r.applies_finding_id AND run_answer_kept_with_admins(f.agent_request_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))
+  OR COALESCE(run_answer_kept_with_admins(r.continues_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]), false))::boolean
 FROM agent_requests r WHERE r.id = $1
 `
 
@@ -211,6 +211,23 @@ ORDER BY f.id FOR SHARE
 func (q *Queries) ShareRunTargets(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, shareRunTargets, id)
 	return err
+}
+
+const turnsKeptWithAdminsFrom = `-- name: TurnsKeptWithAdminsFrom :one
+SELECT EXISTS (SELECT 1 FROM unnest($1::uuid[]) AS t(id) WHERE run_answer_kept_with_admins(t.id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))::boolean
+FROM agent_requests r WHERE r.id = $2
+`
+
+type TurnsKeptWithAdminsFromParams struct {
+	TurnIds []pgtype.UUID
+	ID      pgtype.UUID
+}
+
+func (q *Queries) TurnsKeptWithAdminsFrom(ctx context.Context, arg TurnsKeptWithAdminsFromParams) (bool, error) {
+	row := q.db.QueryRow(ctx, turnsKeptWithAdminsFrom, arg.TurnIds, arg.ID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const upsertRunSession = `-- name: UpsertRunSession :exec

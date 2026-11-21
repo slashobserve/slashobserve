@@ -548,7 +548,7 @@ ORDER BY r.finished_at DESC, r.id
 LIMIT @max_rows::int;
 
 -- name: ChatTurnsBefore :many
-SELECT r.id, r.prompt, r.result_version, r.read_restricted, f.markdown AS answer, v.summary AS version_summary
+SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary
 FROM agent_requests r
 LEFT JOIN findings f ON f.agent_request_id = r.id
 LEFT JOIN dashboard_versions v ON v.agent_request_id = r.id

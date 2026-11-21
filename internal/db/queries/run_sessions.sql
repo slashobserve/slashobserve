@@ -92,7 +92,11 @@ WHERE r.id = @id;
 UPDATE agent_requests SET read_restricted = true WHERE id = @id AND NOT read_restricted;
 
 -- name: RunInheritsReadRestricted :one
-SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id JOIN agent_requests a ON a.id = m.run_id WHERE asked.id = r.thread_message_id AND a.read_restricted)
-  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests a ON a.id = f.agent_request_id WHERE f.id = r.applies_finding_id AND a.read_restricted)
-  OR EXISTS (SELECT 1 FROM agent_requests a WHERE a.id = r.continues_id AND a.read_restricted))::boolean
+SELECT (EXISTS (SELECT 1 FROM thread_messages asked JOIN thread_messages m ON m.thread_id = asked.thread_id WHERE asked.id = r.thread_message_id AND run_answer_kept_with_admins(m.run_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))
+  OR EXISTS (SELECT 1 FROM findings f WHERE f.id = r.applies_finding_id AND run_answer_kept_with_admins(f.agent_request_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))
+  OR COALESCE(run_answer_kept_with_admins(r.continues_id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]), false))::boolean
+FROM agent_requests r WHERE r.id = @id;
+
+-- name: TurnsKeptWithAdminsFrom :one
+SELECT EXISTS (SELECT 1 FROM unnest(@turn_ids::uuid[]) AS t(id) WHERE run_answer_kept_with_admins(t.id, ARRAY[r.dashboard_id, r.observation_id, r.subject_observation_id]))::boolean
 FROM agent_requests r WHERE r.id = @id;

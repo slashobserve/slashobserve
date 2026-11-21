@@ -538,7 +538,7 @@ func (q *Queries) RestrictedAnswerHolders(ctx context.Context, arg RestrictedAns
 }
 
 const runAnswerKeptWithAdmins = `-- name: RunAnswerKeptWithAdmins :one
-SELECT run_answer_kept_with_admins(r.id, NULL)::boolean FROM agent_requests r WHERE r.id = $1
+SELECT run_answer_kept_with_admins(r.id, '{}')::boolean FROM agent_requests r WHERE r.id = $1
 `
 
 func (q *Queries) RunAnswerKeptWithAdmins(ctx context.Context, id pgtype.UUID) (bool, error) {

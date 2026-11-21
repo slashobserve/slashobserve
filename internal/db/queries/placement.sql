@@ -14,7 +14,7 @@ SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
 -- name: RunAnswerKeptWithAdmins :one
-SELECT run_answer_kept_with_admins(r.id, NULL)::boolean FROM agent_requests r WHERE r.id = @id;
+SELECT run_answer_kept_with_admins(r.id, '{}')::boolean FROM agent_requests r WHERE r.id = @id;
 
 -- name: FindingRun :one
 SELECT agent_request_id FROM findings WHERE id = @id;
