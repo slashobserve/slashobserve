@@ -175,7 +175,7 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 	var target revisions.RunTarget
 	switch r.sc.target.Kind {
 	case KindDashboard:
-		target = revisions.RunTarget{Intent: revisions.IntentApply, DashboardID: r.sc.target.ID}
+		target = revisions.RunTarget{Intent: revisions.IntentAsk, DashboardID: r.sc.target.ID}
 	case KindObservation:
 		if r.policy.noInvestigations {
 			r.denied = &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}
@@ -374,18 +374,17 @@ func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent r
 	transcript := transcriptOf(earlier)
 	switch thread.Target.Kind {
 	case KindDashboard:
-		return r.asks.queue.EnqueueAssigned(r.ctx, q, revisions.EnqueueParams{
-			DashboardID:     thread.Target.ID,
-			CommentID:       threadID,
+		return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, revisions.InvestigateParams{
 			Prompt:          prompt,
-			PanelID:         thread.PanelID,
-			BaseVersion:     *thread.Version,
 			By:              r.by,
+			DashboardID:     thread.Target.ID,
+			PanelID:         thread.PanelID,
 			Assignee:        agent,
 			Trigger:         triggerMention,
 			ThreadMessageID: messageID,
 			ThreadContext:   transcript,
 			Point:           point,
+			Ask:             true,
 		})
 	case KindObservation:
 		return r.asks.queue.EnqueueAssignedInvestigate(r.ctx, q, revisions.InvestigateParams{

@@ -439,7 +439,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !p.Private {
+	if p.opensObservation() {
 		if row, err = s.openObservation(ctx, q, row, p); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
@@ -511,6 +511,10 @@ func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigatePara
 		return fmt.Errorf("lock the anchored block: %w", err)
 	}
 	return nil
+}
+
+func (p InvestigateParams) opensObservation() bool {
+	return !p.Private && (p.ObservationID.Valid || !p.ThreadMessageID.Valid)
 }
 
 func (p InvestigateParams) subject() pgtype.UUID {

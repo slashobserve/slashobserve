@@ -300,7 +300,7 @@ A comment is for everyone and asks no agent unless the call sets `to` to `agent`
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
-A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
+A dashboard thread starts a read-only ask that answers in the thread, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
 A run started this way is checked like one the same person starts in the web app.
 Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
 The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
