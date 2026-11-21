@@ -323,11 +323,11 @@ Someone who can edit the dashboard merges or discards the proposal; the run's la
 
 ### Tools in a run
 
-The server has 101 tools: MCP clients get 100, every one except `save_finding`, which only a run offers.
+The server has 107 tools: MCP clients get 106, every one except `save_finding`, which only a run offers.
 The built-in agent gets 30 in a new-dashboard or revision request and 29 in a suggestion, which leaves out `save_finding`.
 An investigation offers it only the read tools, `list_annotations` and `save_finding`.
-The other 71 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
-They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `request_comment_access`, `list_access_requests`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `list_chats`, `get_chat`, `run_dashboard_health`, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
+The other 77 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
+They are the comment, observation, proposal, RCA, inbox, saved search, pin, home dashboard and claim tools, the dashboard version, move and duplicate tools, `create_folder`, `rename_folder`, `create_annotation`, `update_annotation`, `list_activity`, `list_dashboard_health`, `list_dashboard_viewers`, `list_mentionable_people`, `request_comment_access`, `list_access_requests`, `recheck_datasource`, `get_run`, `get_run_build`, `start_run`, `cancel_run`, `retry_run`, `list_runs`, `rename_run`, `pin_run`, `unpin_run`, `archive_run`, `list_chats`, `get_chat`, `run_dashboard_health`, the six audit trail tools, `save_run_answer`, `search_workspace` and `draft_query`; [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open; an investigation cites what it used by the observation's title and `/o/<id>`.
 
 Its tool descriptions and input schemas are the ones MCP clients read, except where a run behaves differently.

@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 	"database/sql"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func SetSpecUpgradeBatch(n int) (restore func()) {
@@ -30,4 +32,8 @@ func (d *DB) MigrateUpTo(ctx context.Context, version int64) error {
 func (d *DB) MigrateDownTo(ctx context.Context, version int64) error {
 	_, err := d.migrator.DownTo(ctx, version)
 	return err
+}
+
+func (d *DB) Pool() *pgxpool.Pool {
+	return d.pool
 }

@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -130,13 +131,28 @@ func auditMiddleware(r *audit.Recorder) ([]gin.HandlerFunc, error) {
 }
 
 func recoverPanics(logger *slog.Logger) gin.HandlerFunc {
-	return gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, recovered any) {
-		logger.ErrorContext(c.Request.Context(), "panic serving request",
-			slog.String("method", c.Request.Method),
-			slog.String("path", loggedPath(c.Request.URL.Path)),
-			slog.String("panic_type", fmt.Sprintf("%T", recovered)))
-		c.AbortWithStatus(http.StatusInternalServerError)
-	})
+	return func(c *gin.Context) {
+		defer func() {
+			recovered := recover()
+			if recovered == nil {
+				return
+			}
+			err, _ := recovered.(error)
+			switch {
+			case errors.Is(err, http.ErrAbortHandler):
+				panic(recovered)
+			case errors.Is(err, syscall.EPIPE), errors.Is(err, syscall.ECONNRESET):
+				c.Abort()
+				return
+			}
+			logger.ErrorContext(c.Request.Context(), "panic serving request",
+				slog.String("method", c.Request.Method),
+				slog.String("path", loggedPath(c.Request.URL.Path)),
+				slog.String("panic_type", fmt.Sprintf("%T", recovered)))
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}()
+		c.Next()
+	}
 }
 
 func observeRequests(m RequestMetrics) gin.HandlerFunc {

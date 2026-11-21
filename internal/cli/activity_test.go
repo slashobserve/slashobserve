@@ -424,7 +424,7 @@ func TestActivityFollowStartsFromTheBeginningWhenThePageIsEmpty(t *testing.T) {
 	}
 }
 
-func newFollower(t *testing.T, f *activityFake, stdout io.Writer) *activityFollower {
+func newFollower(t *testing.T, f *activityFake, stdout io.Writer) *sseFollower {
 	t.Helper()
 	base, err := url.Parse(f.server.URL)
 	if err != nil {
@@ -434,7 +434,9 @@ func newFollower(t *testing.T, f *activityFake, stdout io.Writer) *activityFollo
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &activityFollower{c: c, query: url.Values{}, out: &output{out: stdout, err: io.Discard}, retry: time.Millisecond, idle: streamIdleTimeout}
+	follower := newActivityFollower(c, url.Values{}, &output{out: stdout, err: io.Discard}, false)
+	follower.retry = time.Millisecond
+	return follower
 }
 
 func TestActivityFollowGivesUpAfterRepeatedServerFailures(t *testing.T) {

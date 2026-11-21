@@ -1,0 +1,537 @@
+audit-events:
+  get:
+    operationId: listAuditEvents
+    x-audit: { action: audit.search }
+    x-surfaces:
+      mcp: [search_audit_events]
+      cli: [observe audit search]
+    summary: Search the audit trail, newest first.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise.
+      Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages.
+      Every call is itself recorded as `audit.search` with the query as sent (cut at 4 KiB), its form, the window and the row count, and a refused query as a failed `audit.search`.
+    parameters:
+      - name: q
+        in: query
+        description: >-
+          The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`.
+          Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: since
+        in: query
+        description: Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: until
+        in: query
+        description: End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: cursor
+        in: query
+        description: The `next_cursor` of the previous page. It pins the window of the first page, so `since` and `until` are ignored with it, and it is refused with another `q`.
+        schema:
+          type: string
+          maxLength: 1024
+      - name: limit
+        in: query
+        description: Events per page, 1 to 1000; 100 by default, or the `size` of a Query DSL body.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    responses:
+      "200":
+        description: One page of events.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditEventList"
+      "400":
+        description: "`since` or `until` is not a time, the window is empty or longer than 366 days, `limit` is out of range, or the cursor is unreadable or belongs to another query (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline;
+          `query_timeout` when the read runs longer than 30 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-events-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getAuditEvent
+    x-audit: { action: audit.search, target: { kind: audit_event, id: path.id } }
+    x-surfaces:
+      mcp: [get_audit_event]
+      cli: [observe audit show]
+    summary: Read one audit event with the other events of its request and its agent run.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself.
+      Recorded as `audit.search` with the event as its target.
+    responses:
+      "200":
+        description: The event.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditEventDetail"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "404":
+        description: No audit event has this id (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: The read ran longer than 30 seconds (`query_timeout`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-facets:
+  get:
+    operationId: listAuditFacets
+    x-audit: { action: audit.search }
+    x-surfaces:
+      mcp: [list_audit_facets]
+      cli: [observe audit facets]
+    summary: Count the top values of one field among the matching audit events.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted.
+      Recorded as `audit.search`.
+    parameters:
+      - name: q
+        in: query
+        description: >-
+          The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`.
+          Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: since
+        in: query
+        description: Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: until
+        in: query
+        description: End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: field
+        in: query
+        required: true
+        description: The field to count, such as `actor_name` or `action`; `GET /audit/fields` lists them.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: limit
+        in: query
+        description: Values to return, 1 to 100; 10 by default.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+    responses:
+      "200":
+        description: The counted values.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditFacets"
+      "400":
+        description: "`field` is missing, the window is not valid or `limit` is out of range (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline, or an unknown or uncountable `field`;
+          `query_timeout` when the read runs longer than 30 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-histogram:
+  get:
+    operationId: getAuditHistogram
+    x-audit: { action: audit.search }
+    x-surfaces:
+      mcp: [get_audit_histogram]
+      cli: [observe audit histogram]
+    summary: Count the matching audit events over time.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first.
+      Recorded as `audit.search`.
+    parameters:
+      - name: q
+        in: query
+        description: >-
+          The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`.
+          Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: since
+        in: query
+        description: Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: until
+        in: query
+        description: End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: buckets
+        in: query
+        description: The most buckets wanted, 1 to 200.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 60
+    responses:
+      "200":
+        description: The counts.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditHistogram"
+      "400":
+        description: "The window is not valid or `buckets` is out of range (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline;
+          `query_timeout` when the read runs longer than 30 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-aggregate:
+  get:
+    operationId: aggregateAuditEvents
+    x-audit: { action: audit.search }
+    x-surfaces:
+      mcp: [aggregate_audit_events]
+      cli: [observe audit aggregate]
+    summary: Run the aggs of a Query DSL body over the matching audit events.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level.
+      Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`.
+      An aggregation that would produce more than 100,000 rows is refused with its reason.
+      Recorded as `audit.search`.
+    parameters:
+      - name: q
+        in: query
+        description: >-
+          The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`.
+          Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: since
+        in: query
+        description: Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: until
+        in: query
+        description: End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+    responses:
+      "200":
+        description: The aggregation rows.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditAggregation"
+      "400":
+        description: "The window is not valid (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline, or the body has no `aggs` or asks for more rows than the limit, with the reason;
+          `query_timeout` when the read runs longer than 30 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-fields:
+  get:
+    operationId: listAuditFields
+    x-audit: { none: "a fixed list of field names; it reads no event" }
+    x-surfaces:
+      mcp: [list_audit_fields]
+      cli: [observe audit fields]
+    summary: List the fields an audit query can use.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      Each field has its name, an optional shorter alias, its type, what it holds and, for an enum, its values, for autocomplete and for agents writing a query.
+    responses:
+      "200":
+        description: The fields.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditFieldList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+audit-export:
+  get:
+    operationId: exportAuditEvents
+    x-audit: { action: audit.export }
+    x-surfaces:
+      cli: [observe audit export]
+    summary: Download the matching audit events as NDJSON or CSV.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin.
+      Streams the events in the window that match `q`, newest first, one JSON object per line in the shape of `listAuditEvents`, or CSV with a header row and `data` as JSON text.
+      An export stops at 1,000,000 rows, the value of the `X-Export-Row-Limit` header; narrow the window to read more.
+      A complete export ends with the trailer `X-Export-Truncated`, `true` when more matching events existed past the limit and `false` otherwise.
+      When a read fails after the first rows were sent, the server cuts the connection off instead of ending the response, so a client sees an unexpected end of the body and knows the export is incomplete.
+      Before each page of 1,000 rows after the first, the server re-reads the caller's credentials and role; a caller who is no longer an Admin is cut off the same way, and the export is recorded as denied with `forbidden_role`.
+      Recorded as `audit.export` with the query as sent (cut at 4 KiB), its form, the window, the format and the row count.
+    parameters:
+      - name: q
+        in: query
+        description: >-
+          The filter, in one of three forms: KQL by default (`action:dashboard.* and outcome:denied`), Lucene after a `lucene:` prefix, or a Query DSL body that starts with `{` and may carry `query`, `size` and `aggs`.
+          Empty matches every event in the window. `GET /audit/fields` lists the fields; the audit query reference in the guide has examples.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: since
+        in: query
+        description: Start of the window, inclusive, as an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`; 24 hours before `until` when left out.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: until
+        in: query
+        description: End of the window, exclusive, in the same forms; now when left out. The window is at most 366 days.
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+      - name: format
+        in: query
+        schema:
+          type: string
+          enum: [ndjson, csv]
+          default: ndjson
+    responses:
+      "200":
+        description: The events.
+        headers:
+          X-Export-Row-Limit:
+            description: The most rows one export returns.
+            schema:
+              type: integer
+        content:
+          application/x-ndjson:
+            schema:
+              type: string
+          text/csv:
+            schema:
+              type: string
+      "400":
+        description: "`format` is not ndjson or csv, or the window is not valid (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "422":
+        description: >-
+          The filter cannot run: `query_invalid` with the parser's message and, for a parse error, `start` and `end`, the byte offsets in `q` to underline;
+          `query_timeout` when the read runs longer than 30 seconds.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+audit-stream:
+  get:
+    operationId: streamAuditEvents
+    x-audit: { action: audit.search }
+    x-surfaces:
+      mcp: [search_audit_events]
+      cli: [observe audit search]
+    summary: Follow new audit events that match a query as Server-Sent Events.
+    description: >-
+      Only Admins can call this endpoint, and an Admin service-account key can too.
+      The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`.
+      Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`.
+      Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened.
+      A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away.
+      A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream.
+      An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds.
+      A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends.
+      The stream also ends when the server shuts down, and after 30 minutes; clients reconnect.
+      Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one.
+      A caller may hold 5 audit streams and the process 20, and one more answers 429.
+      Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
+    parameters:
+      - name: q
+        in: query
+        description: The filter, in the same three forms as `listAuditEvents`; empty follows every event. A Query DSL `size` and `aggs` are ignored.
+        schema:
+          type: string
+          maxLength: 65536
+      - name: Last-Event-ID
+        in: header
+        description: The `id` of the last frame the client handled.
+        schema:
+          type: string
+          maxLength: 64
+    responses:
+      "200":
+        description: An open `text/event-stream`.
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "400":
+        description: "`Last-Event-ID` is not the id of a frame of this stream, or its event is more than 24 hours old (`invalid_request`)."
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not an Admin, or is a key below the Admin role (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "422":
+        description: The filter cannot be read (`query_invalid`), with the parser's message and the byte offsets `start` and `end` in `q`.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
+      "429":
+        description: The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+      "503":
+        description: The server is shutting down (`shutting_down`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"

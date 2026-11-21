@@ -819,6 +819,33 @@ It reads `GET /api/v1/activity/stream` from the newest event it printed, so no e
 When the connection drops, or nothing arrives for 45 seconds (not even the server's 15 second pings), it reconnects after the server's retry delay from the last event it printed, and it exits 1 after 3 failed attempts in a row.
 If the server no longer knows that event it prints `Some activity may have been missed.` and continues from the newest event; run `bin/observe activity` again to read what happened in between.
 
+## Audit trail
+
+`bin/observe audit` reads the [audit trail](../reference/audit-queries.md) with an Admin key; every other key gets 403 `forbidden_role`.
+
+```sh
+bin/observe audit search --query 'outcome:denied and origin:mcp' --from now-7d
+bin/observe audit search --follow --query 'outcome:denied'
+bin/observe audit show <event-id>
+bin/observe audit facets actor_name --query 'action:dashboard.*'
+bin/observe audit histogram --query outcome:failed --buckets 48
+bin/observe audit aggregate --query '{"aggs":{"by":{"terms":{"field":"origin"}}}}'
+bin/observe audit fields
+bin/observe audit export --from now-30d --format csv --file audit.csv
+```
+
+`--query` takes KQL, `lucene:` and a Query DSL body, and `--from` and `--to` take an RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`, the last 24 hours by default and at most 366 days.
+`search` prints one line per event, newest first, with the time, who, through what, the action, the outcome and the target, 50 a page by default and at most 1,000, and pages with `--cursor` or `--all`.
+`show` prints one event and the other events of its request and its agent run, `facets` the most frequent values of a field, `histogram` the counts over time, `aggregate` the rows of a Query DSL `aggs` body and `fields` what a query can name.
+`--json` prints the API response unchanged.
+
+`export` streams NDJSON (the default) or CSV to standard output, or to `--file`, and warns on standard error when it stopped at the server's limit of 1,000,000 rows and more events matched.
+With `--file` it writes to `<file>.partial` and renames it to the name you gave once the export is complete; if the server or the connection ends the export early, it exits 1, says how many events arrived and leaves them in `<file>.partial`.
+
+`search --follow` reads `GET /api/v1/audit/stream` and prints each matching event recorded from then on, in the order it committed, until Ctrl-C; with `--json` it prints one event object per line.
+It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, and exits 1 when the key is no longer an Admin or the server ends the stream because the query is too expensive to follow.
+When the connection drops it reconnects from the last event it printed and prints every matching event committed since, down to 10 minutes before that event's time; when that event is more than 24 hours old it exits 1 and asks you to read the gap with `search --from`.
+
 ## Webhooks
 
 `bin/observe webhooks` manages the [webhooks](webhooks.md) that send workspace activity to an outside address as signed requests.

@@ -107,6 +107,30 @@ func TestRowsRefuseABadWindowOrCursor(t *testing.T) {
 	}
 }
 
+func TestFollowReadsInCommitOrderAfterAPosition(t *testing.T) {
+	q, err := Parse("outcome:denied")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := q.Follow(testWindow, Position{Xid: 42, Seq: 7}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"xid < pg_snapshot_xmin(pg_current_snapshot())", "(xid, seq) > (", "ORDER BY xid, seq LIMIT"} {
+		if !strings.Contains(c.SQL, want) {
+			t.Errorf("follow SQL lacks %q: %s", want, c.SQL)
+		}
+	}
+	if c.Columns[len(c.Columns)-1] != "xid::text" || !argsContain(c.Args, "42") {
+		t.Errorf("columns %v, args %#v", c.Columns, c.Args)
+	}
+	for _, limit := range []int{0, MaxRows + 1} {
+		if _, err := q.Follow(testWindow, Position{}, limit); err == nil {
+			t.Errorf("a follow of %d rows was compiled", limit)
+		}
+	}
+}
+
 func TestFacets(t *testing.T) {
 	q := mustParse(t, "outcome:denied")
 	c, err := q.Facets(testWindow, "actor", 0)
@@ -182,6 +206,7 @@ func TestInputNeverReachesTheSQLText(t *testing.T) {
 			for name, compile := range map[string]func() (Compiled, error){
 				"rows":   func() (Compiled, error) { return q.Rows(testWindow, Page{}) },
 				"facets": func() (Compiled, error) { return q.Facets(testWindow, "origin", 5) },
+				"follow": func() (Compiled, error) { return q.Follow(testWindow, Position{Xid: 7, Seq: 9}, 5) },
 			} {
 				c, err := compile()
 				if err != nil {
