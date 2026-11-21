@@ -5,7 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -82,5 +86,48 @@ func TestAnEmptyPanelAPersonKeptDoesNotBlockLaterSaves(t *testing.T) {
 	}
 	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "quiet" {
 		t.Fatalf("unverified %v, want quiet carried", ids)
+	}
+}
+
+func quietStarterSpec() []byte {
+	return specDef{panels: []panelDef{{id: "p0", query: "m0"}, {id: "quiet", query: "quiet"}}}.json()
+}
+
+func TestAStarterPanelThatIsEmptyWhenItIsCreatedIsNotUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	p.setEmptyBelow("quiet", quietWindow)
+
+	created, err := r.service.CreateStarter(reading(t.Context()), adminUser, pgtype.UUID{}, quietStarterSpec(), "seed", func(*dbsqlc.Queries, Dashboard) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ver, err := r.service.Get(reading(t.Context()), id); err != nil || !ver.Unverified.Empty() {
+		t.Fatalf("unverified %v, err %v, want none", ver.Unverified, err)
+	}
+}
+
+func TestAReleaseUpdateClearsAnEmptyPanelAnEarlierWriteKeptUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(1)})
+	p.setEmptyBelow("quiet", quietWindow)
+	saved, err := r.service.SavePatch(reading(t.Context()), testUser, PatchInput{DashboardID: id, Parent: 1, Patch: quietPatch(), Summary: "Add quiet", AcceptEmpty: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := panelIDs(saved.Version.Unverified); len(ids) != 1 {
+		t.Fatalf("unverified %v before the release, want quiet", ids)
+	}
+	r.markStarter(t, id)
+
+	res, err := r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{DashboardID: id, Parent: saved.Version.Number, Spec: quietStarterSpec(), Summary: "release", Home: r.generalFolder(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Version.Unverified.Empty() {
+		t.Fatalf("unverified %v after the release, want none", res.Version.Unverified)
 	}
 }

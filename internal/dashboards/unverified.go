@@ -387,13 +387,28 @@ func acceptsEmpty(ctx context.Context) bool {
 	return accepted
 }
 
+type ignoredEmptyKey struct{}
+
+func withIgnoredEmpty(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ignoredEmptyKey{}, true)
+}
+
+func ignoresEmpty(ctx context.Context) bool {
+	ignored, _ := ctx.Value(ignoredEmptyKey{}).(bool)
+	return ignored
+}
+
 func acceptEmpty(ctx context.Context, d *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, Unverified) {
-	if !acceptsEmpty(ctx) {
+	if !acceptsEmpty(ctx) && !ignoresEmpty(ctx) {
 		return issues, Unverified{}
+	}
+	nonEmpty := slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty })
+	if ignoresEmpty(ctx) {
+		return nonEmpty, Unverified{}
 	}
 	empty := slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code != queryproxy.CodeQueryEmpty })
 	accepted, _ := UnverifiedOf(d, empty)
-	return slices.DeleteFunc(slices.Clone(issues), func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty }), accepted
+	return nonEmpty, accepted
 }
 
 func (u Unverified) with(more Unverified) Unverified {
