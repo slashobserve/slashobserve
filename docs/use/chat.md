@@ -310,6 +310,15 @@ A follow-up needs Comment on the dashboard's folder, which Commenters, Editors a
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
+### In the dashboard's Chat tab
+
+A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.
+It opens your latest chat about the dashboard, and the address names it as `tab=chat&chat=<chat id>`.
+The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns, and **All your chats** opens the Chats page filtered to this dashboard.
+**New chat** clears the conversation and shows an empty box, and the chat your first message lands in opens in the tab.
+For now the first message after **New chat** still joins your latest chat about the dashboard when you have one, and the tab then shows that chat.
+A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
+
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.

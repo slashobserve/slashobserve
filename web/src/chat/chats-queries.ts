@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import {
   infiniteQueryOptions,
+  queryOptions,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -71,6 +72,23 @@ export function useChats(filters: ChatsFilters, limit = 20, enabled = true) {
     return unique
   }, [query.data])
   return { chats, query }
+}
+
+function chatQuery(id: string) {
+  return queryOptions({
+    queryKey: chatKeys.detail(id),
+    queryFn: ({ signal }) =>
+      api.GET("/chats/{id}", { params: { path: { id } }, signal }).then(unwrap),
+    staleTime: 2_000,
+    refetchInterval: (query) =>
+      query.state.data !== undefined && isLive(query.state.data.chat.last_turn)
+        ? activePollMs
+        : false,
+  })
+}
+
+export function useChat(id: string | undefined) {
+  return useQuery({ ...chatQuery(id ?? ""), enabled: id !== undefined })
 }
 
 export function useArchiveChat(id: string) {

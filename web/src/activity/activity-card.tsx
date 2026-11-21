@@ -1,23 +1,29 @@
 import { useCallback, useId, useRef, type Ref, type RefObject } from "react"
 
 import type { Selections } from "@/api/keys"
+import { DashboardChat } from "@/chat/dashboard-chat"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useDockFocus } from "@/components/dock/dock-focus"
 import { activityCardId, paneOpener } from "@/dashboards/pane-openers"
-import { useDashboardSearch, useSetDashboardSearch } from "@/dashboards/search"
+import {
+  useDashboardSearch,
+  useSetDashboardSearch,
+  type SidePanelTab,
+} from "@/dashboards/search"
 import { agentZone } from "@/lib/time"
-import { useAgentInfo } from "@/observe/queries"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
 import type { Dashboard } from "@/spec"
+import type { SidePanelCard } from "@/dashboards/dock"
 
 import { ActivityFeed } from "./activity-feed"
 import { useActivityLayout, useActivityStore } from "./activity-store"
-import { clientNameFrom } from "./client-name"
 import { EditPane, type EditGuard } from "./edit-pane"
+import { SidePanelTabs } from "./side-panel-tabs"
 
 type Props = {
+  view: SidePanelCard
   dashboardId: string
   apiId: string
   spec: Dashboard
@@ -38,6 +44,7 @@ type Props = {
 }
 
 export function ActivityCard({
+  view: cardView,
   dashboardId,
   apiId,
   spec,
@@ -61,15 +68,15 @@ export function ActivityCard({
   const setOpen = useActivityStore((state) => state.setOpen)
   const setWidth = useActivityStore((state) => state.setWidth)
   const setEditWidth = useActivityStore((state) => state.setEditWidth)
-  const agent = useAgentInfo()
   const headingId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const card = useRef<HTMLElement>(null)
 
   const panelId = search.panel
-  const editingId = canEdit && search.edit !== undefined ? panelId : undefined
+  const editingId = canEdit && cardView === "edit" ? panelId : undefined
   const editing = editingId !== undefined
-  const sharing = search.share === true && !editing
+  const sharing = cardView === "share"
+  const tab: SidePanelTab = cardView === "chat" ? "chat" : "activity"
   const view: EditorView = search.edit === "json" ? "json" : "editor"
   const layout = useActivityLayout(editing)
 
@@ -83,7 +90,7 @@ export function ActivityCard({
     opener: openerOfPane,
     onClose,
     closeOnEscape: !editing,
-    modeKey: `${panelId}|${editing}|${sharing}`,
+    modeKey: `${panelId}|${editing}|${sharing}|${tab}`,
   })
 
   const onScopeChange = useCallback(
@@ -123,12 +130,19 @@ export function ActivityCard({
     }))
   }, [setOpen, setSearch])
 
-  const noModel = agent.data?.available === false
-  const description = !noModel
-    ? "Comments, agent requests, proposals, annotations and saved versions."
-    : madeBy === null
-      ? "Comments, proposals, annotations and saved versions."
-      : `Comments and versions. ${clientNameFrom(madeBy)} made this dashboard.`
+  const onTabChange = useCallback(
+    (next: SidePanelTab) => {
+      setOpen(true)
+      setSearch((state) => ({ ...state, tab: next }), { replace: true })
+    },
+    [setOpen, setSearch]
+  )
+
+  const onOpenChat = useCallback(
+    (chat: string | undefined) =>
+      setSearch((state) => ({ ...state, tab: "chat", chat })),
+    [setSearch]
+  )
 
   return (
     <DockPanel
@@ -179,36 +193,43 @@ export function ActivityCard({
           />
         </>
       ) : (
-        <>
-          <DockHeader
-            headingId={headingId}
-            headingRef={heading}
-            title="Activity"
-            description={description}
-            onClose={close}
-            closeLabel="Close panel"
-          />
-          <ActivityFeed
-            dashboardId={dashboardId}
-            apiId={apiId}
-            spec={spec}
-            latestVersion={latestVersion}
-            pinned={pinned}
-            layoutEditing={false}
-            madeBy={madeBy}
-            scopePanelId={panelId ?? null}
-            onScopeChange={onScopeChange}
-            onSelectPanel={onSelectPanel}
-            back={back}
-            composerRef={composerRef}
-            focusedThreadId={search.thread}
-            range={{
-              from: timeRange.from ?? spec.time.from,
-              to: timeRange.to ?? spec.time.to,
-            }}
-            timeZone={agentZone(search.tz ?? spec.timezone)}
-          />
-        </>
+        <SidePanelTabs
+          headingId={headingId}
+          headingRef={heading}
+          tab={tab}
+          onTabChange={onTabChange}
+          onClose={close}
+        >
+          {tab === "chat" ? (
+            <DashboardChat
+              dashboardId={apiId}
+              dashboardTitle={spec.title}
+              chatId={search.chat}
+              onOpenChat={onOpenChat}
+            />
+          ) : (
+            <ActivityFeed
+              dashboardId={dashboardId}
+              apiId={apiId}
+              spec={spec}
+              latestVersion={latestVersion}
+              pinned={pinned}
+              layoutEditing={false}
+              madeBy={madeBy}
+              scopePanelId={panelId ?? null}
+              onScopeChange={onScopeChange}
+              onSelectPanel={onSelectPanel}
+              back={back}
+              composerRef={composerRef}
+              focusedThreadId={search.thread}
+              range={{
+                from: timeRange.from ?? spec.time.from,
+                to: timeRange.to ?? spec.time.to,
+              }}
+              timeZone={agentZone(search.tz ?? spec.timezone)}
+            />
+          )}
+        </SidePanelTabs>
       )}
     </DockPanel>
   )
