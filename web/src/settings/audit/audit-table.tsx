@@ -15,15 +15,20 @@ import {
 } from "./event-text"
 import type { AuditEvent } from "./stream"
 
+export const hiddenBesideDetail = "@min-[1001px]:hidden"
+
 export function AuditTable({
   events,
   selected,
+  panelOpen,
   onSelect,
 }: {
   events: readonly AuditEvent[]
   selected: string | null
+  panelOpen: boolean
   onSelect: (id: string) => void
 }) {
+  const besideDetail = panelOpen ? hiddenBesideDetail : undefined
   const body = useRef<HTMLTableSectionElement>(null)
   useEffect(() => {
     body.current
@@ -31,15 +36,23 @@ export function AuditTable({
       ?.scrollIntoView?.({ block: "nearest" })
   }, [selected])
   return (
-    <TableCard label="Audit events" minWidth={720} stackOnNarrow>
+    <TableCard
+      label="Audit events"
+      minWidth="var(--audit-table-min)"
+      className={cn(
+        "[--audit-table-min:720px]",
+        panelOpen && "@min-[1001px]:[--audit-table-min:460px]"
+      )}
+      stackOnNarrow
+    >
       <thead>
         <tr>
           <HeaderCell>Action</HeaderCell>
           <HeaderCell>Time</HeaderCell>
           <HeaderCell>Actor</HeaderCell>
           <HeaderCell>Outcome</HeaderCell>
-          <HeaderCell>Target</HeaderCell>
-          <HeaderCell>Origin</HeaderCell>
+          <HeaderCell className={besideDetail}>Target</HeaderCell>
+          <HeaderCell className={besideDetail}>Origin</HeaderCell>
         </tr>
       </thead>
       <tbody ref={body}>
@@ -80,10 +93,15 @@ export function AuditTable({
                 {outcomeLabels[event.outcome]}
               </StatusLabel>
             </Cell>
-            <Cell data-label="Target" className="wrap-anywhere">
+            <Cell
+              data-label="Target"
+              className={cn("wrap-anywhere", besideDetail)}
+            >
               {targetText(event)}
             </Cell>
-            <Cell data-label="Origin">{originText(event)}</Cell>
+            <Cell data-label="Origin" className={besideDetail}>
+              {originText(event)}
+            </Cell>
           </tr>
         ))}
       </tbody>

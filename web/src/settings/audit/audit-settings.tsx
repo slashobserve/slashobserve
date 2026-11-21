@@ -348,9 +348,16 @@ export function AuditSettings({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
+            {view.event === null ? null : (
+              <p className="hidden text-xs text-muted-foreground @min-[1001px]:block">
+                Target and Origin are shown in the detail panel while it is
+                open.
+              </p>
+            )}
             <AuditTable
               events={shown}
               selected={view.event}
+              panelOpen={view.event !== null}
               onSelect={(id) => onView({ ...shownView, event: id })}
             />
             {events.isFetchNextPageError ? (
