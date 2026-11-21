@@ -2,6 +2,7 @@
 -- +goose Up
 ALTER TABLE agent_requests
   ADD COLUMN IF NOT EXISTS intent TEXT,
+  ADD COLUMN IF NOT EXISTS kind TEXT,
   ADD COLUMN IF NOT EXISTS applies_finding_id UUID,
   ADD COLUMN IF NOT EXISTS subject_observation_id UUID;
 
@@ -22,6 +23,12 @@ BEGIN
             WHEN NEW.source IN ('prompt', 'comment') THEN 'apply'
             WHEN NEW.source = 'observe' AND NEW.result_version IS NOT NULL THEN 'apply'
             ELSE 'ask' END;
+        END IF;
+        IF NEW.kind IS NULL THEN
+          NEW.kind := CASE
+            WHEN NEW.source = 'investigate' THEN 'investigate'
+            WHEN NEW.intent = 'ask' AND (NEW.dashboard_id IS NOT NULL OR NEW.observation_id IS NOT NULL OR NEW.subject_observation_id IS NOT NULL) THEN 'investigate'
+            ELSE 'build' END;
         END IF;
         RETURN NEW;
       END
@@ -44,9 +51,10 @@ BEGIN
   END IF;
   LOOP
     SELECT array_agg(id ORDER BY id) INTO batch FROM (
-      SELECT id FROM agent_requests WHERE id > after_id AND intent IS NULL ORDER BY id LIMIT 1000) b;
+      SELECT id FROM agent_requests WHERE id > after_id AND (intent IS NULL OR kind IS NULL) ORDER BY id LIMIT 1000) b;
     EXIT WHEN batch IS NULL;
     UPDATE agent_requests SET intent = NULL WHERE id = ANY (batch) AND intent IS NULL;
+    UPDATE agent_requests SET kind = NULL WHERE id = ANY (batch) AND kind IS NULL;
     after_id := batch[array_upper(batch, 1)];
     COMMIT;
   END LOOP;
@@ -56,6 +64,8 @@ $$;
 
 ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_intent_check,
+  DROP CONSTRAINT IF EXISTS agent_requests_kind_check,
+  DROP CONSTRAINT IF EXISTS agent_requests_build_ask_check,
   DROP CONSTRAINT IF EXISTS agent_requests_ask_target_check,
   DROP CONSTRAINT IF EXISTS agent_requests_ask_shape_check,
   DROP CONSTRAINT IF EXISTS agent_requests_suggest_intent_shape_check,
@@ -69,6 +79,9 @@ ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_check,
   DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_id_fkey,
   ADD CONSTRAINT agent_requests_intent_check CHECK (intent IS NOT NULL AND intent IN ('ask', 'apply', 'suggest')) NOT VALID,
+  ADD CONSTRAINT agent_requests_kind_check CHECK (kind IS NOT NULL AND (kind = 'build' OR (kind = 'investigate' AND intent = 'ask'))) NOT VALID,
+  ADD CONSTRAINT agent_requests_build_ask_check
+    CHECK (kind <> 'build' OR intent <> 'ask' OR (dashboard_id IS NULL AND observation_id IS NULL AND subject_observation_id IS NULL)) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_target_check CHECK (intent = 'ask' OR dashboard_id IS NOT NULL) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_shape_check
     CHECK (intent <> 'ask' OR (base_version IS NULL AND comment_id IS NULL AND (panel_id IS NULL OR dashboard_id IS NOT NULL))) NOT VALID,
@@ -89,6 +102,8 @@ ALTER TABLE agent_requests
   ADD CONSTRAINT agent_requests_subject_observation_id_fkey FOREIGN KEY (subject_observation_id) REFERENCES observations (id) ON DELETE CASCADE NOT VALID;
 
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_intent_check;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_kind_check;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_build_ask_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_ask_target_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_ask_shape_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_suggest_intent_shape_check;
@@ -101,7 +116,7 @@ ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_applies_finding_ch
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_applies_finding_id_fkey;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_subject_observation_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_subject_observation_id_fkey;
-ALTER TABLE agent_requests ALTER COLUMN intent SET NOT NULL;
+ALTER TABLE agent_requests ALTER COLUMN intent SET NOT NULL, ALTER COLUMN kind SET NOT NULL;
 
 ALTER TABLE findings
   DROP CONSTRAINT IF EXISTS findings_suggested_change_check,
@@ -114,10 +129,10 @@ CREATE UNIQUE INDEX CONCURRENTLY agent_requests_running_dashboard_idx ON agent_r
   WHERE status = 'running' AND intent = 'apply';
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_create_active_idx;
 CREATE INDEX CONCURRENTLY agent_requests_create_active_idx ON agent_requests (requested_by_id)
-  WHERE intent = 'ask' AND dashboard_id IS NULL AND observation_id IS NULL AND status IN ('queued', 'running');
+  WHERE kind = 'build' AND intent = 'ask' AND status IN ('queued', 'running');
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_investigation_active_idx;
 CREATE INDEX CONCURRENTLY agent_requests_investigation_active_idx ON agent_requests (requested_by_id)
-  WHERE intent = 'ask' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
+  WHERE kind = 'investigate' AND observation_id IS NOT NULL AND thread_message_id IS NULL AND status IN ('queued', 'running');
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_suggest_intent_active_idx;
 CREATE INDEX CONCURRENTLY agent_requests_suggest_intent_active_idx ON agent_requests (requested_by_id)
   WHERE intent = 'suggest' AND status IN ('queued', 'running');
@@ -232,7 +247,7 @@ UPDATE agent_requests SET source = CASE
   WHEN intent = 'apply' AND base_version IS NULL THEN 'observe'
   WHEN intent = 'apply' AND (comment_id IS NOT NULL OR thread_message_id IS NOT NULL) THEN 'comment'
   WHEN intent = 'apply' THEN 'prompt'
-  WHEN observation_id IS NOT NULL OR subject_observation_id IS NOT NULL OR dashboard_id IS NOT NULL OR context_from IS NOT NULL THEN 'investigate'
+  WHEN kind = 'investigate' THEN 'investigate'
   ELSE 'observe' END
 WHERE source IS NULL;
 DELETE FROM agent_requests WHERE source = 'investigate' AND continues_id IS NOT NULL;
@@ -258,6 +273,8 @@ ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_suggest_intent_shape_check,
   DROP CONSTRAINT IF EXISTS agent_requests_ask_shape_check,
   DROP CONSTRAINT IF EXISTS agent_requests_ask_target_check,
+  DROP CONSTRAINT IF EXISTS agent_requests_build_ask_check,
+  DROP CONSTRAINT IF EXISTS agent_requests_kind_check,
   DROP CONSTRAINT IF EXISTS agent_requests_intent_check;
 
 ALTER TABLE agent_requests
@@ -386,4 +403,4 @@ FOR EACH ROW EXECUTE FUNCTION agent_requests_old_server_chat();
 
 ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_suggested_change_check, DROP COLUMN IF EXISTS observe_worthy, DROP COLUMN IF EXISTS suggested_change;
 DROP INDEX IF EXISTS agent_requests_subject_observation_idx;
-ALTER TABLE agent_requests DROP COLUMN IF EXISTS subject_observation_id, DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS intent;
+ALTER TABLE agent_requests DROP COLUMN IF EXISTS subject_observation_id, DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS kind, DROP COLUMN IF EXISTS intent;

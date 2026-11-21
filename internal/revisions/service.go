@@ -443,6 +443,9 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		if row, err = s.openObservation(ctx, q, row, p); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
+		if err := seedNoObservationStep(ctx, q, row); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
 	}
 	if err := lockAnchoredBlock(ctx, q, p); err != nil {
 		return dbsqlc.AgentRequest{}, err

@@ -70,7 +70,7 @@ func RunFor(req revisions.Request) (Run, error) {
 		run.Mode, run.Build = ModeRevise, true
 	case req.Intent != revisions.IntentAsk:
 		return Run{}, fmt.Errorf("%w: run intent %q", ErrInvariant, req.Intent)
-	case req.DashboardID == "" && req.ObservationID == "" && req.SubjectObservationID == "":
+	case req.Source == revisions.SourceObserve:
 		run.Mode, run.Build = ModeCreate, true
 	default:
 		run.Mode, run.PanelID = ModeInvestigate, req.PanelID

@@ -103,6 +103,7 @@ type AgentRequest struct {
 	BlockID              pgtype.UUID
 	ClientID             pgtype.UUID
 	Intent               string
+	Kind                 string
 	AppliesFindingID     pgtype.UUID
 	SubjectObservationID pgtype.UUID
 }

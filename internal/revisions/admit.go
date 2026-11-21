@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -19,6 +21,7 @@ const (
 	maxClaimsPerCall = 8
 
 	actsForAnotherMessage = "this agent acts for another person"
+	noObservationMessage  = "No observation to write into; the answer stays on this run"
 	noSaveMessage         = "the agent finished without saving a dashboard"
 )
 
@@ -55,6 +58,9 @@ func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) 
 		req, outcome := s.admit(ctx, c, result.request)
 		switch outcome {
 		case admitted:
+			if result.firstClaim && InvestigatesWithoutObservation(result.request) {
+				s.noteNoObservation(ctx, result.request, req)
+			}
 			return Claimed{Row: result.request, Request: req, FirstClaim: result.firstClaim}, true, nil
 		case released:
 			return Claimed{}, false, nil
@@ -98,6 +104,39 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 	req := RequestOf(row)
 	req.RequestedBy = requester
 	return req, admitted
+}
+
+func noObservationStep(attempt int) Step {
+	return Step{At: time.Now().UTC(), Attempt: attempt, Phase: "save", Tool: "agent", Status: "ok", Message: noObservationMessage}
+}
+
+func seedNoObservationStep(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest) error {
+	if row.ObservationID.Valid || row.ThreadMessageID.Valid {
+		return nil
+	}
+	payload, err := json.Marshal(noObservationStep(1))
+	if err != nil {
+		return fmt.Errorf("encode the no observation step: %w", err)
+	}
+	if _, err := q.SeedAgentRequestStep(ctx, dbsqlc.SeedAgentRequestStepParams{ID: row.ID, Step: payload}); err != nil {
+		return fmt.Errorf("seed the no observation step: %w", err)
+	}
+	return nil
+}
+
+func saysNoObservation(steps []byte) bool {
+	var recorded []Step
+	if json.Unmarshal(steps, &recorded) != nil {
+		return false
+	}
+	return slices.ContainsFunc(recorded, func(st Step) bool { return st.Message == noObservationMessage })
+}
+
+func (s *Service) noteNoObservation(ctx context.Context, row dbsqlc.AgentRequest, req Request) {
+	if saysNoObservation(row.Steps) {
+		return
+	}
+	NewSteps(s.db, s.logger).RecordStep(ctx, req, noObservationStep(req.Attempt))
 }
 
 func (s *Service) Requester(ctx context.Context, row dbsqlc.AgentRequest) (auth.Principal, error) {

@@ -16,6 +16,7 @@ const (
 
 type RunShape struct {
 	Intent          Intent
+	Kind            string
 	BaseVersion     pgtype.Int4
 	CommentID       pgtype.UUID
 	ThreadMessageID pgtype.UUID
@@ -34,7 +35,7 @@ func (r RunShape) Source() Source {
 		return SourceComment
 	case r.Intent == IntentApply:
 		return SourcePrompt
-	case r.DashboardID.Valid || r.ObservationID.Valid || r.SubjectID.Valid:
+	case r.Kind == KindInvestigate:
 		return SourceInvestigate
 	}
 	return SourceObserve
@@ -43,6 +44,7 @@ func (r RunShape) Source() Source {
 func shapeOfRow(row dbsqlc.AgentRequest) RunShape {
 	return RunShape{
 		Intent:          Intent(row.Intent),
+		Kind:            row.Kind,
 		BaseVersion:     row.BaseVersion,
 		CommentID:       row.CommentID,
 		ThreadMessageID: row.ThreadMessageID,
@@ -63,6 +65,7 @@ func listedSource(row dbsqlc.ListAgentRequestsByRow) Source {
 func listedShape(row dbsqlc.ListAgentRequestsByRow) RunShape {
 	return RunShape{
 		Intent:          Intent(row.Intent),
+		Kind:            row.Kind,
 		BaseVersion:     row.BaseVersion,
 		CommentID:       row.CommentID,
 		ThreadMessageID: row.ThreadMessageID,
@@ -74,4 +77,11 @@ func listedShape(row dbsqlc.ListAgentRequestsByRow) RunShape {
 
 func PrivateAsk(row dbsqlc.AgentRequest) bool {
 	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid && !row.ObservationID.Valid
+}
+
+func InvestigatesWithoutObservation(row dbsqlc.AgentRequest) bool {
+	if row.Kind != KindInvestigate || row.ObservationID.Valid || row.SubjectObservationID.Valid || row.ThreadMessageID.Valid {
+		return false
+	}
+	return !row.ChatID.Valid || !row.DashboardID.Valid
 }
