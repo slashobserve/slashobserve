@@ -59,3 +59,22 @@ func TestARunNamesNoObservationTheCallerCannotOpen(t *testing.T) {
 		}
 	}
 }
+
+func TestARunNamesNoSubjectTheCallerCannotOpen(t *testing.T) {
+	r := newObservationRig(t)
+	dash := seedDashboard(t, r.d, 1)
+	about := investigate(t, r.svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why are checkout errors up"}).ObservationID
+	ask := startTurn(t, r.svc, user, revisions.StartRequest{Prompt: text("what changed since"), ObservationID: text(about.String())})
+	path := "/api/v1/observe/" + ask.String()
+	router := r.routerAs(user)
+
+	if rec := call(router, http.MethodGet, path, ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"subject_observation_id":"`+about.String()+`"`) {
+		t.Fatalf("before the move: %d %s", rec.Code, rec.Body)
+	}
+	hidden := foldertest.Restricted(t, r.d, "On call", "oncall")
+	r.d.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, about, hidden)
+	rec := call(router, http.MethodGet, path, "")
+	if body := rec.Body.String(); rec.Code != http.StatusOK || strings.Contains(body, about.String()) || !strings.Contains(body, `"subject_observation_id":null`) {
+		t.Fatalf("after the move: %d %s", rec.Code, body)
+	}
+}

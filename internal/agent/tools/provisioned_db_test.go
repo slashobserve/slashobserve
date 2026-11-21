@@ -93,3 +93,45 @@ func TestStartingOrApplyingARunOnAStarterNamesTheProvisionedRefusal(t *testing.T
 		}
 	}
 }
+
+func (r *accessRig) keepAnEmptyPanelUnverified(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `UPDATE dashboard_versions SET unverified = '{"panels":[{"panel_id":"p1","issues":[{"path":"/panels/0/queries","code":"query_empty","message":"returned no data"}]}],"variables":[]}'::jsonb WHERE dashboard_id = $1`, id.String()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func unverifiedPanels(t *testing.T, res Result) int {
+	t.Helper()
+	out, ok := res.Content.(dashboardOut)
+	if res.IsError || !ok {
+		t.Fatalf("get_dashboard: %s", textOf(t, res))
+	}
+	if out.Unverified == nil {
+		return 0
+	}
+	return len(out.Unverified.Panels)
+}
+
+func TestAStarterDoesNotShowAnEmptyPanelAsUnverifiedButItsCopyDoes(t *testing.T) {
+	r := newAccessRig(t)
+	starter := r.starter(t)
+	ordinary := r.seed(t, "Ordinary board")
+	r.keepAnEmptyPanelUnverified(t, starter)
+	r.keepAnEmptyPanelUnverified(t, ordinary)
+
+	if n := unverifiedPanels(t, r.call(t, adminCaller, nameGetDashboard, `{"dashboard_id":"`+starter.String()+`"}`)); n != 0 {
+		t.Errorf("the starter shows %d unverified panels, want none", n)
+	}
+	if n := unverifiedPanels(t, r.call(t, adminCaller, nameGetDashboard, `{"dashboard_id":"`+ordinary.String()+`"}`)); n != 1 {
+		t.Errorf("an ordinary dashboard shows %d unverified panels, want 1", n)
+	}
+	res := r.call(t, adminCaller, nameDuplicateDashboard, `{"dashboard_id":"`+starter.String()+`","title":"My starter"}`)
+	saved, ok := res.Content.(savedOut)
+	if res.IsError || !ok {
+		t.Fatalf("duplicate_dashboard: %s", textOf(t, res))
+	}
+	if n := unverifiedPanels(t, r.call(t, adminCaller, nameGetDashboard, `{"dashboard_id":"`+saved.DashboardID+`"}`)); n != 1 {
+		t.Errorf("the copy shows %d unverified panels, want the 1 it inherited", n)
+	}
+}

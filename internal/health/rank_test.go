@@ -18,6 +18,7 @@ func TestRankCursorRoundTrips(t *testing.T) {
 	}{
 		{0, time.Date(2026, 11, 6, 9, 30, 15, 123456000, time.UTC), "Checkout"},
 		{3, time.Unix(0, 0).UTC(), `Latency: p99 "slow" pods`},
+		{4, time.Unix(0, 0).UTC(), "Waiting for a recheck"},
 	}
 	for _, tc := range cases {
 		got, ok := decodeRankCursor(encodeRankCursor(tc.rank, tc.seen, tc.title, cursorID))
@@ -40,7 +41,7 @@ func TestRankCursorIsAbsentOnTheFirstPage(t *testing.T) {
 func TestRankCursorRejectsMalformedCursors(t *testing.T) {
 	encode := func(raw string) string { return base64.RawURLEncoding.EncodeToString([]byte(raw)) }
 	cases := map[string]string{
-		"rank 4":           encodeRankCursor(4, time.Unix(0, 0), "a", cursorID),
+		"rank 5":           encodeRankCursor(5, time.Unix(0, 0), "a", cursorID),
 		"rank -1":          encodeRankCursor(-1, time.Unix(0, 0), "a", cursorID),
 		"unknown field":    encode(`{"r":0,"s":0,"t":"a","i":"` + cursorID + `","x":1}`),
 		"missing field":    encode(`{"r":0,"s":0,"t":"a"}`),

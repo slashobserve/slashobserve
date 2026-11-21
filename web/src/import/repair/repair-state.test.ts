@@ -153,6 +153,7 @@ describe("outcomeLines", () => {
       | "nothing_to_repair"
       | "not_found"
       | "forbidden_role"
+      | "provisioned"
       | "queue_full"
     )[]
   ) {
