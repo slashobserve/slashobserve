@@ -590,6 +590,7 @@ type ObservationBlock struct {
 	OriginClient  pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
+	Height        pgtype.Int4
 }
 
 type ObservationDashboard struct {

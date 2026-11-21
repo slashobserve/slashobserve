@@ -137,9 +137,9 @@ func TestObservationCommands(t *testing.T) {
 				"State open",
 				"Summary -",
 				"URL " + testObservedURL,
-				"POS ID KIND STATE VERSION WIDTH CONTENT",
-				"0 " + testBlock + " text requested 3 full Errors started at 09:12",
-				"1 " + testPanelBlock + " panel live 3 full Error rate",
+				"POS ID KIND STATE VERSION WIDTH HEIGHT CONTENT",
+				"0 " + testBlock + " text requested 3 full auto Errors started at 09:12",
+				"1 " + testPanelBlock + " panel live 3 full auto Error rate",
 			},
 		},
 		{

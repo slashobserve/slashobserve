@@ -443,6 +443,54 @@ observations-id-blocks:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+observations-id-layout:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  put:
+    operationId: arrangeObservationBlocks
+    x-audit: { action: observation.update, target: { kind: observation, id: path.id } }
+    x-surfaces:
+      mcp: [arrange_blocks]
+      cli: [observe o arrange]
+    summary: Arrange the blocks of an observation.
+    description: >-
+      Sets the order of the page and, for each block that names one, its `width` and `height`; a field a block leaves out keeps its value, and a `height` of `null` returns it to the default.
+      Needs Edit on the folder; a caller who can only comment answers 403.
+      It never reads or changes a block's `version` or `updated_at`, so an arrangement cannot make someone's edit of a block's text stale, and the last arrangement to arrive wins.
+      An id that names no block of this observation is skipped, and a block the list leaves out stays right after the block it followed, so a block someone added meanwhile keeps its place.
+      The answer is the page as stored, and an arrangement that changes nothing records nothing.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ObservationLayoutRequest"
+    responses:
+      "200":
+        description: The blocks the caller sees, in order.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ObservationLayout"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        $ref: "../openapi.yaml#/components/responses/ObservationInvalid"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
 blocks-id:
   parameters:
     - name: id
@@ -457,9 +505,11 @@ blocks-id:
     x-surfaces:
       mcp: [update_block]
       cli: [observe o edit-block]
-    summary: Change a block's body, width or position.
+    summary: Change a block's body, width, height or position.
     description: >-
       Needs Edit on the folder and the block's current `version`; another version answers 409 `version_conflict` with the current block.
+      Every change here raises the version, a width, height or position change included, so a person editing the block's text meets `version_conflict` when someone resizes it; arrange a page with `PUT /observations/{id}/layout` instead, which leaves versions alone.
+      A `height` of `null` returns the block to its default height.
       Only the body of a text or panel block can change (`body_not_editable`).
       A new panel body sent with a service-account key gets the check that panel blocks get when they are added, and a failure answers 422 `invalid_spec` with `issues`.
       A `position` moves the block and shifts the blocks between, which keep their versions.

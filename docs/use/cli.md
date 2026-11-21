@@ -335,12 +335,12 @@ The group is named `o`, with `observations` as an alias, so a prompt that starts
 It files the observation in `--folder <id>`, by default your My Dashboards, and `--from` and `--to`, RFC 3339 times that go together, set the range its panels show.
 `--text <markdown>` or `--text-file <path>`, never both, also adds a first text block.
 
-`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width and, for a text block, its first line, or for a panel block its title.
+`bin/observe o show <observation-id>` prints the title, state, summary and address, then one line for each block with its position, id, kind, state, version, width, height (`auto` or pixels) and, for a text block, its first line, or for a panel block its title.
 A block that someone who can only comment added shows the state `requested`.
 
 `bin/observe o add <observation-id>` adds one block and prints `Added <kind> block <id> (live)`, or `(requested)` when you can only comment.
 Give exactly one of `--text <markdown>`, `--text-file <path>`, `--panel-file <path>`, a JSON file with one panel whose query must return data, and `--snapshot-of <block-id>`, which freezes the data of a panel block.
-`--from` and `--to` give a panel its own range, `--half` makes the block half width and `--position <n>` places it instead of appending it.
+`--from` and `--to` give a panel its own range, `--width third|half|two_thirds|full` (or `--half`) sets the width, `--height <pixels>` from 120 to 960 sets the height and `--position <n>` places it instead of appending it.
 A panel whose queries use variables needs `--var name=value` for each, repeated for more values of the same name, and without one the block is refused with `variable_missing` and the name of the variable.
 The server runs the check the MCP `add_block` tool runs: a panel whose query is invalid, or returns nothing in its range, is refused with the failing paths below the error, exits 1 and adds no block; `o edit-block --panel-file` is checked the same way.
 
@@ -382,7 +382,9 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--width third|half|two_thirds|full`, `--half` or `--full` (its width), `--height <pixels>` (120 to 960, or 0 for the automatic height) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o arrange <observation-id> <block-id>[:<width>[:<height>]]...` sets the order of the blocks you name, with an optional width and a height in pixels or `auto` after each id; a block you leave out keeps its place after the block it followed.
+It takes no `--version`, because a layout change never conflicts with a content edit.
 `bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
 Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
 A snapshot block's body cannot change, and a requested block is kept or discarded instead.

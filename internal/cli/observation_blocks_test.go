@@ -21,6 +21,8 @@ func TestEditBlockSendsTheChangesWithTheVersion(t *testing.T) {
 	}{
 		{"text and width", []string{"--text", "new words", "--half"}, `{"body":{"markdown":"new words"},"version":3,"width":"half"}`},
 		{"position only", []string{"--position", "0", "--full"}, `{"position":0,"version":3,"width":"full"}`},
+		{"width and height", []string{"--width", "two_thirds", "--height", "360"}, `{"height":360,"version":3,"width":"two_thirds"}`},
+		{"automatic height", []string{"--height", "0"}, `{"height":null,"version":3}`},
 		{"panel", []string{"--panel-file", panelFile, "--from", "2026-01-01T00:00:00Z", "--to", "2026-01-02T00:00:00Z"}, `{"body":{"from":"2026-01-01T00:00:00Z","panel":{"type":"timeseries"},"to":"2026-01-02T00:00:00Z"},"version":3}`},
 	}
 	for _, tc := range cases {
@@ -42,6 +44,7 @@ func TestEditBlockRefusesAnEmptyOrUnversionedChange(t *testing.T) {
 		{"o", "edit-block", testBlock, "--version", "2"},
 		{"o", "edit-block", testBlock, "--version", "2", "--text", "x", "--panel-file", "p.json"},
 		{"o", "edit-block", testBlock, "--version", "2", "--half", "--full"},
+		{"o", "edit-block", testBlock, "--version", "2", "--half", "--width", "third"},
 		{"o", "edit-block", testBlock, "--version", "2", "--from", "2026-01-01T00:00:00Z", "--text", "x"},
 	} {
 		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, args...)
@@ -62,5 +65,33 @@ func TestRemoveBlockDeletesWithTheVersion(t *testing.T) {
 	}
 	if _, _, stderr, code := runAgainst(t, http.StatusNoContent, ``, "o", "remove-block", testBlock); code != 2 || !strings.Contains(stderr, "--version") {
 		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestArrangeSendsTheOrderWithWidthsAndHeights(t *testing.T) {
+	second := "22222222-2222-4222-8222-222222222222"
+	third := "33333333-3333-4333-8333-333333333333"
+	server, seen := recordingServer(t, `{"blocks":[{"id":"`+testBlock+`"},{"id":"`+second+`"},{"id":"`+third+`"}]}`)
+	stdout, stderr, code := runWith(server, "o", "arrange", testObservation, second+":third:auto", testBlock+"::300", third)
+	want := `{"blocks":[{"id":"` + second + `","width":"third","height":null},{"id":"` + testBlock + `","height":300},{"id":"` + third + `"}]}`
+	if code != 0 || seen.method != http.MethodPut || seen.path != "/api/v1/observations/"+testObservation+"/layout" || !sameJSON(seen.body, want) {
+		t.Fatalf("exit %d, call %+v, stderr %q", code, seen, stderr)
+	}
+	if !strings.Contains(stdout, "Arranged 3 blocks") {
+		t.Fatalf("stdout %q", stdout)
+	}
+}
+
+func TestArrangeRefusesWhatIsNotALayout(t *testing.T) {
+	for _, args := range [][]string{
+		{"o", "arrange", testObservation},
+		{"o", "arrange", testObservation, "nope"},
+		{"o", "arrange", testObservation, testBlock + ":half:tall"},
+		{"o", "arrange", testObservation, testBlock + ":half:300:x"},
+	} {
+		_, _, stderr, code := runAgainst(t, http.StatusOK, `{}`, args...)
+		if code != 2 || stderr == "" {
+			t.Fatalf("%v: exit %d, stderr %q", args, code, stderr)
+		}
 	}
 }

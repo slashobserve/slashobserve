@@ -30,6 +30,7 @@ type observationBlockRow struct {
 	State    string          `json:"state"`
 	Position int             `json:"position"`
 	Width    string          `json:"width"`
+	Height   *int            `json:"height"`
 	Version  int             `json:"version"`
 	Body     json.RawMessage `json:"body"`
 }
@@ -87,7 +88,7 @@ func (a *app) observationsCommand() *cobra.Command {
 		Args:    groupArgs,
 		RunE:    func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationPinCommand(), a.observationDashboardCommand(), a.observationDeleteCommand(), a.observationRCAsCommand(), a.observationWithdrawCommand(), a.observationEditBlockCommand(), a.observationRemoveBlockCommand())
+	cmd.AddCommand(a.observationNewCommand(), a.observationShowCommand(), a.observationAddCommand(), a.observationResolveCommand(), a.observationListCommand(), a.observationKeepCommand(), a.observationDiscardCommand(), a.observationPublishCommand(), a.observationEditCommand(), a.observationMoveCommand(), a.observationReopenCommand(), a.observationPinCommand(), a.observationDashboardCommand(), a.observationDeleteCommand(), a.observationRCAsCommand(), a.observationWithdrawCommand(), a.observationEditBlockCommand(), a.observationRemoveBlockCommand(), a.observationArrangeCommand())
 	return cmd
 }
 
@@ -143,7 +144,7 @@ func (a *app) observationShowCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <observation-id>",
 		Short: "Show an observation and its blocks",
-		Long:  "show prints the title, state, summary and address of an observation, then one line for each block with its position, id, kind, state, version, width and, for text, its first line.",
+		Long:  "show prints the title, state, summary and address of an observation, then one line for each block with its position, id, kind, state, version, width, height and, for text, its first line.",
 		Args:  exactArgs(1, "one observation id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -184,12 +185,19 @@ func printObservation(out *output, o observationRow) {
 	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {summaryLabel, summary}, {"URL", text(o.URL)}})
 	rows := make([][]string, 0, len(o.Blocks))
 	for _, b := range o.Blocks {
-		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), blockContent(b)})
+		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), heightColumn(b.Height), blockContent(b)})
 	}
 	if len(rows) > 0 {
 		out.line("")
-		out.table([]string{"POS", "ID", "KIND", "STATE", "VERSION", "WIDTH", "CONTENT"}, rows)
+		out.table([]string{"POS", "ID", "KIND", "STATE", "VERSION", "WIDTH", "HEIGHT", "CONTENT"}, rows)
 	}
+}
+
+func heightColumn(pixels *int) string {
+	if pixels == nil {
+		return "auto"
+	}
+	return strconv.Itoa(*pixels)
 }
 
 func blockContent(b observationBlockRow) string {
@@ -227,6 +235,8 @@ type addBlockOptions struct {
 	from, to   string
 	vars       []string
 	half       bool
+	width      string
+	height     int
 	position   int
 }
 
@@ -277,8 +287,20 @@ func (o addBlockOptions) body(cmd *cobra.Command) (map[string]any, string, error
 		kind, body["from_block_id"] = "snapshot", id
 	}
 	body["kind"] = kind
-	if o.half {
+	if err := checkWidthFlags(o.width, o.half, false); err != nil {
+		return nil, "", err
+	}
+	switch {
+	case o.width != "":
+		body["width"] = o.width
+	case o.half:
 		body["width"] = "half"
+	}
+	if cmd.Flags().Changed("height") {
+		if o.height < 1 {
+			return nil, "", usagef("--height takes a number of pixels, 120 to 960")
+		}
+		body["height"] = o.height
 	}
 	if cmd.Flags().Changed("position") {
 		body["position"] = o.position
@@ -327,7 +349,7 @@ func variableValues(pairs []string) (map[string][]string, error) {
 func (a *app) observationAddCommand() *cobra.Command {
 	var opts addBlockOptions
 	cmd := &cobra.Command{
-		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--var <name=value>]... [--from <time> --to <time>] | --snapshot-of <block-id>) [--half] [--position <n>]",
+		Use:   "add <observation-id> (--text <markdown> | --text-file <path> | --panel-file <path> [--var <name=value>]... [--from <time> --to <time>] | --snapshot-of <block-id>) [--width third|half|two_thirds|full] [--height <pixels>] [--position <n>]",
 		Short: "Add a block to an observation",
 		Long:  "add adds one block: Markdown text, a panel from a JSON file, whose query must return data, or a snapshot that freezes the data of a panel block.\nThe block is live when you can edit the observation and requested when you can only comment.\n--from and --to, RFC 3339 times given together, give a panel its own range.\nA panel that uses variables needs one --var name=value for each, repeated for several values, or it is refused as variable_missing.",
 		Args:  exactArgs(1, "one observation id"),
@@ -358,6 +380,8 @@ func (a *app) observationAddCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.to, "to", "", "end of the panel's own range, an RFC 3339 time")
 	cmd.Flags().StringArrayVar(&opts.vars, "var", nil, "a value for a variable the panel uses, name=value; repeat for more")
 	cmd.Flags().BoolVar(&opts.half, "half", false, "make the block half width")
+	cmd.Flags().StringVar(&opts.width, "width", "", "the block's width: third, half, two_thirds or full")
+	cmd.Flags().IntVar(&opts.height, "height", 0, "the block's height in pixels, 120 to 960")
 	cmd.Flags().IntVar(&opts.position, "position", 0, "place the block at this position, by default the end")
 	return cmd
 }

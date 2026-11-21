@@ -11,8 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const arrangeBlocks = `-- name: ArrangeBlocks :exec
+WITH arranged AS (
+  SELECT unnest($2::uuid[]) AS id, unnest($3::integer[]) AS position,
+    unnest($4::text[]) AS width, unnest($5::integer[]) AS height
+)
+UPDATE observation_blocks AS b
+SET position = arranged.position, width = arranged.width, height = NULLIF(arranged.height, 0)
+FROM arranged
+WHERE b.id = arranged.id AND b.observation_id = $1
+`
+
+type ArrangeBlocksParams struct {
+	ObservationID pgtype.UUID
+	Ids           []pgtype.UUID
+	Positions     []int32
+	Widths        []string
+	Heights       []int32
+}
+
+func (q *Queries) ArrangeBlocks(ctx context.Context, arg ArrangeBlocksParams) error {
+	_, err := q.db.Exec(ctx, arrangeBlocks,
+		arg.ObservationID,
+		arg.Ids,
+		arg.Positions,
+		arg.Widths,
+		arg.Heights,
+	)
+	return err
+}
+
 const blockByID = `-- name: BlockByID :one
-SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at FROM observation_blocks WHERE id = $1
+SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height FROM observation_blocks WHERE id = $1
 `
 
 func (q *Queries) BlockByID(ctx context.Context, id pgtype.UUID) (ObservationBlock, error) {
@@ -36,12 +66,13 @@ func (q *Queries) BlockByID(ctx context.Context, id pgtype.UUID) (ObservationBlo
 		&i.OriginClient,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Height,
 	)
 	return i, err
 }
 
 const blocksOfObservation = `-- name: BlocksOfObservation :many
-SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at FROM observation_blocks WHERE observation_id = $1 ORDER BY position
+SELECT id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height FROM observation_blocks WHERE observation_id = $1 ORDER BY position
 `
 
 func (q *Queries) BlocksOfObservation(ctx context.Context, observationID pgtype.UUID) ([]ObservationBlock, error) {
@@ -71,6 +102,7 @@ func (q *Queries) BlocksOfObservation(ctx context.Context, observationID pgtype.
 			&i.OriginClient,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Height,
 		); err != nil {
 			return nil, err
 		}
@@ -221,11 +253,11 @@ func (q *Queries) DeleteObservation(ctx context.Context, id pgtype.UUID) (int64,
 }
 
 const insertBlock = `-- name: InsertBlock :one
-INSERT INTO observation_blocks (observation_id, kind, state, position, width, body, snapshot_id, run_id,
+INSERT INTO observation_blocks (observation_id, kind, state, position, width, height, body, snapshot_id, run_id,
   created_by_kind, created_by_id, created_by_name, origin, origin_client)
-VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::uuid, $8::uuid,
-  $9, $10, $11, $12::text, $13::text)
-RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6::integer, $7::jsonb, $8::uuid, $9::uuid,
+  $10, $11, $12, $13::text, $14::text)
+RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height
 `
 
 type InsertBlockParams struct {
@@ -234,6 +266,7 @@ type InsertBlockParams struct {
 	State         string
 	Position      int32
 	Width         string
+	Height        pgtype.Int4
 	Body          []byte
 	SnapshotID    pgtype.UUID
 	RunID         pgtype.UUID
@@ -251,6 +284,7 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) (Obser
 		arg.State,
 		arg.Position,
 		arg.Width,
+		arg.Height,
 		arg.Body,
 		arg.SnapshotID,
 		arg.RunID,
@@ -279,6 +313,7 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) (Obser
 		&i.OriginClient,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Height,
 	)
 	return i, err
 }
@@ -352,7 +387,7 @@ const keepBlock = `-- name: KeepBlock :one
 UPDATE observation_blocks
 SET state = 'live', version = version + 1, updated_at = clock_timestamp()
 WHERE id = $1 AND version = $2 AND state = ANY($3::text[])
-RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at
+RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height
 `
 
 type KeepBlockParams struct {
@@ -382,6 +417,7 @@ func (q *Queries) KeepBlock(ctx context.Context, arg KeepBlockParams) (Observati
 		&i.OriginClient,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Height,
 	)
 	return i, err
 }
@@ -741,14 +777,15 @@ func (q *Queries) TouchObservation(ctx context.Context, id pgtype.UUID) error {
 
 const updateBlock = `-- name: UpdateBlock :one
 UPDATE observation_blocks
-SET body = $1::jsonb, width = $2, position = $3, version = version + 1, updated_at = clock_timestamp()
-WHERE id = $4 AND version = $5 AND state = ANY($6::text[])
-RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at
+SET body = $1::jsonb, width = $2, height = $3::integer, position = $4, version = version + 1, updated_at = clock_timestamp()
+WHERE id = $5 AND version = $6 AND state = ANY($7::text[])
+RETURNING id, observation_id, kind, state, position, width, version, body, snapshot_id, run_id, created_by_kind, created_by_id, created_by_name, origin, origin_client, created_at, updated_at, height
 `
 
 type UpdateBlockParams struct {
 	Body       []byte
 	Width      string
+	Height     pgtype.Int4
 	Position   int32
 	ID         pgtype.UUID
 	Version    int32
@@ -759,6 +796,7 @@ func (q *Queries) UpdateBlock(ctx context.Context, arg UpdateBlockParams) (Obser
 	row := q.db.QueryRow(ctx, updateBlock,
 		arg.Body,
 		arg.Width,
+		arg.Height,
 		arg.Position,
 		arg.ID,
 		arg.Version,
@@ -783,6 +821,7 @@ func (q *Queries) UpdateBlock(ctx context.Context, arg UpdateBlockParams) (Obser
 		&i.OriginClient,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Height,
 	)
 	return i, err
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -15,6 +16,8 @@ type blockEditOptions struct {
 	version   int
 	half      bool
 	full      bool
+	width     string
+	height    int
 	position  int
 }
 
@@ -22,8 +25,8 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 	if o.version < 1 {
 		return nil, usagef("--version <n> is required, the block's version from observe o show")
 	}
-	if o.half && o.full {
-		return nil, usagef("--half and --full cannot be used together")
+	if err := checkWidthFlags(o.width, o.half, o.full); err != nil {
+		return nil, err
 	}
 	content, err := o.content()
 	if err != nil {
@@ -34,10 +37,15 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 		body["body"] = content
 	}
 	switch {
+	case o.width != "":
+		body["width"] = o.width
 	case o.half:
 		body["width"] = "half"
 	case o.full:
 		body["width"] = "full"
+	}
+	if cmd.Flags().Changed("height") {
+		body["height"] = heightValue(o.height)
 	}
 	if cmd.Flags().Changed("position") {
 		if o.position < 0 {
@@ -46,7 +54,7 @@ func (o blockEditOptions) body(cmd *cobra.Command) (map[string]any, error) {
 		body["position"] = o.position
 	}
 	if len(body) == 1 {
-		return nil, usagef("give something to change: --text, --text-file, --panel-file, --half, --full or --position")
+		return nil, usagef("give something to change: --text, --text-file, --panel-file, --width, --height or --position")
 	}
 	return body, nil
 }
@@ -74,9 +82,9 @@ func (o blockEditOptions) content() (any, error) {
 func (a *app) observationEditBlockCommand() *cobra.Command {
 	var opts blockEditOptions
 	cmd := &cobra.Command{
-		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path>) [--half | --full] [--position <n>]",
-		Short: "Change a live block's text, panel, width or position",
-		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, or its position, which moves the blocks in between.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
+		Use:   "edit-block <block-id> --version <n> (--text <markdown> | --text-file <path> | --panel-file <path>) [--width third|half|two_thirds|full] [--height <pixels>] [--position <n>]",
+		Short: "Change a live block's text, panel, width, height or position",
+		Long:  "edit-block changes one live block of an observation: the Markdown of a text block, the panel of a panel block, its width, its height in pixels, or its position, which moves the blocks in between.\n--height takes 120 to 960, and 0 returns the block to its automatic height.\nTo place several blocks at once, use observe o arrange.\n--version is the block's version from observe o show; a block that changed since answers version_conflict, so read it again and retry.\nA snapshot block's body cannot change, and a requested block is kept or discarded instead.",
 		Args:  exactArgs(1, "one block id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])
@@ -106,6 +114,8 @@ func (a *app) observationEditBlockCommand() *cobra.Command {
 	flags.StringVar(&opts.to, "to", "", "end of the panel's own range, an RFC 3339 time")
 	flags.BoolVar(&opts.half, "half", false, "make the block half width")
 	flags.BoolVar(&opts.full, "full", false, "make the block full width")
+	flags.StringVar(&opts.width, "width", "", "the block's width: third, half, two_thirds or full")
+	flags.IntVar(&opts.height, "height", 0, "the block's height in pixels, 120 to 960; 0 for the automatic height")
 	flags.IntVar(&opts.position, "position", 0, "move the block to this position")
 	return cmd
 }
@@ -144,4 +154,86 @@ func (a *app) observationRemoveBlockCommand() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&version, "version", 0, "the block's version")
 	return cmd
+}
+
+func checkWidthFlags(width string, half, full bool) error {
+	given := 0
+	for _, present := range []bool{width != "", half, full} {
+		if present {
+			given++
+		}
+	}
+	if given > 1 {
+		return usagef("give one of --width, --half and --full")
+	}
+	return nil
+}
+
+func heightValue(pixels int) any {
+	if pixels == 0 {
+		return nil
+	}
+	return pixels
+}
+
+func layoutItem(arg string) (map[string]any, error) {
+	parts := strings.Split(arg, ":")
+	if len(parts) > 3 {
+		return nil, usagef("%q is not <block-id>[:<width>[:<height>]]", text(arg))
+	}
+	id, err := parseID(parts[0])
+	if err != nil {
+		return nil, err
+	}
+	item := map[string]any{"id": id}
+	if len(parts) > 1 && parts[1] != "" {
+		item["width"] = parts[1]
+	}
+	if len(parts) > 2 && parts[2] != "" {
+		if parts[2] == "auto" {
+			item["height"] = nil
+		} else {
+			pixels, err := strconv.Atoi(parts[2])
+			if err != nil {
+				return nil, usagef("the height in %q is a number of pixels or auto", text(arg))
+			}
+			item["height"] = pixels
+		}
+	}
+	return item, nil
+}
+
+func (a *app) observationArrangeCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "arrange <observation-id> <block-id>[:<width>[:<height>]]...",
+		Short: "Set the order, widths and heights of an observation's blocks",
+		Long:  "arrange places the blocks you name in the order you name them, then the blocks you leave out keep their place after the block that precedes them.\nAfter a block id, :<width> sets third, half, two_thirds or full, and :<width>:<height> also sets the height in pixels, 120 to 960, or auto.\nLeave the width empty to keep it, as in <block-id>::auto.\nIt needs edit rights on the observation, and it never conflicts with a text edit made at the same time, so it takes no --version.",
+		Args:  minimumArgs(2, "an observation id and the block ids in the order you want them"),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0])
+			if err != nil {
+				return err
+			}
+			blocks := make([]map[string]any, 0, len(args)-1)
+			for _, arg := range args[1:] {
+				item, err := layoutItem(arg)
+				if err != nil {
+					return err
+				}
+				blocks = append(blocks, item)
+			}
+			return a.observationCall(cmd, http.MethodPut, "observations/"+id+"/layout", map[string]any{"blocks": blocks}, func(out *output, data []byte) error {
+				arranged, err := decode[layoutEnvelope](data)
+				if err != nil {
+					return err
+				}
+				out.confirm("Arranged %d blocks", len(arranged.Blocks))
+				return nil
+			})
+		},
+	}
+}
+
+type layoutEnvelope struct {
+	Blocks []observationBlockRow `json:"blocks"`
 }

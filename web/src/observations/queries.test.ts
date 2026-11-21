@@ -50,6 +50,7 @@ function block(id: string, position: number, version = 1): Block {
     state: "live",
     position,
     width: "full",
+    height: null,
     version,
     body: { markdown: id },
     snapshot_id: null,

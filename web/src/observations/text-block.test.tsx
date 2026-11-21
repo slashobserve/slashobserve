@@ -24,6 +24,7 @@ function textBlock(overrides: Partial<Block> = {}): Block {
     state: "live",
     position: 0,
     width: "full",
+    height: null,
     version: 3,
     body: { markdown: "Checkout latency doubled" },
     snapshot_id: null,

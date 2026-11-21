@@ -37,6 +37,7 @@ function block(
     state: "live",
     position,
     width,
+    height: null,
     version: 1,
     body: { markdown: id },
     snapshot_id: null,
