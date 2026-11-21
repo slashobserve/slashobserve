@@ -86,12 +86,19 @@ func RestrictedOpening(item ContentItem, datasource string) error {
 func RestrictedAudience(datasource string, items []ContentItem, unlisted, hidden int) error {
 	message := fmt.Sprintf("dashboards, observations or saved searches outside folders only Admins can read use the datasource %q; move them to a folder only Admins can read before you make it Admins only", datasource)
 	if unlisted > 0 {
-		message += fmt.Sprintf("; %d more are not listed", unlisted)
+		message += fmt.Sprintf("; %d more %s not listed", unlisted, Agree(unlisted, "is", "are"))
 	}
 	if hidden > 0 {
-		message += fmt.Sprintf("; %d of them are in people's My Dashboards, which only their owners can open", hidden)
+		message += fmt.Sprintf("; %d of them %s in people's My Dashboards, which only %s can open", hidden, Agree(hidden, "is", "are"), Agree(hidden, "its owner", "their owners"))
 	}
 	return &RestrictedContentError{Datasource: datasource, Items: items, Hidden: hidden, message: message}
+}
+
+func Agree(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 type contentItemJSON struct {
