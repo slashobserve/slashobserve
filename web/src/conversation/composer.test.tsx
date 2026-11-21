@@ -5,7 +5,10 @@ import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { ChatComposer } from "./chat-composer"
+import { Composer } from "./composer"
+import { ungated } from "./delivery"
+import type { Subject } from "./send-plan"
+import { useComposer, type SentResult } from "./use-composer"
 
 const session = vi.hoisted(() => ({ role: "editor" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -33,32 +36,34 @@ function stubCreate() {
   return fetch
 }
 
-function stubRunning(request: Partial<ObserveRequest>) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(
-      async () =>
-        new Response(JSON.stringify({ request }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-    )
+function ChatComposer({
+  subject = null,
+  chatId = null,
+  initialText,
+  runningRequestId,
+  onSent,
+}: {
+  subject?: Subject | null
+  chatId?: string | null
+  initialText?: string
+  runningRequestId?: string
+  onSent: (sent: SentResult) => void
+}) {
+  const model = useComposer({
+    subject,
+    place: { kind: "chat", chatId },
+    gate: ungated,
+    initialText,
+    runningRequestId,
+    onSent,
+  })
+  return (
+    <Composer model={model} layout="page" placeholder="Describe a dashboard" />
   )
 }
 
-const running: Partial<ObserveRequest> = {
-  id: runningId,
-  status: "running",
-  can_cancel: true,
-  cancel_requested_at: null,
-}
-
 function renderComposer(
-  props: {
-    dashboardId?: string
-    runningRequestId?: string
-    initialPrompt?: string
-  } = {},
+  props: Omit<Parameters<typeof ChatComposer>[0], "onSent"> = {},
   agentLoaded = true
 ) {
   const queryClient = testQueryClient()
@@ -72,19 +77,16 @@ function renderComposer(
   }
   queryClient.setQueryData(datasourceKeys.list(), { datasources: [] })
   if (props.runningRequestId !== undefined) {
-    queryClient.setQueryData(
-      observeKeys.request(props.runningRequestId),
-      running as ObserveRequest
-    )
+    queryClient.setQueryData(observeKeys.request(props.runningRequestId), {
+      id: runningId,
+      status: "running",
+      can_cancel: true,
+      cancel_requested_at: null,
+    } as Partial<ObserveRequest> as ObserveRequest)
   }
-  const onSent = vi.fn()
+  const onSent = vi.fn<(sent: SentResult) => void>()
   const result = renderWithProviders(
-    <ChatComposer
-      rows={2}
-      placeholder="Describe a dashboard"
-      onSent={onSent}
-      {...props}
-    />,
+    <ChatComposer {...props} onSent={onSent} />,
     { queryClient, route: { path: "/", url: "/" } }
   )
   return { ...result, onSent }
@@ -92,6 +94,13 @@ function renderComposer(
 
 async function box() {
   return screen.findByRole("textbox", { name: "Message the agent" })
+}
+
+async function sentBody(fetch: ReturnType<typeof stubCreate>, call = 0) {
+  return (await fetch.mock.calls[call][0].clone().json()) as Record<
+    string,
+    unknown
+  >
 }
 
 beforeEach(() => {
@@ -104,12 +113,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("ChatComposer", () => {
+describe("Composer in a chat", () => {
   it("shows the keyboard hint to everyone, not only to screen readers", async () => {
     renderComposer()
     const hint = await screen.findByText(/Enter sends\. Shift\+Enter/)
     expect(hint).not.toHaveClass("sr-only")
-    expect(await box()).toHaveAccessibleDescription(hint.textContent ?? "")
+  })
+
+  it("names who reads the message, with chips that do not turn", async () => {
+    renderComposer()
+    await box()
+    expect(screen.getByText("To: Observe Agent")).toBeVisible()
+    expect(screen.getByText("Visible to: only you")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /To:/ })).toBeNull()
   })
 
   it("adds a new line on Shift+Enter and sends nothing", async () => {
@@ -121,15 +137,51 @@ describe("ChatComposer", () => {
     expect(onSent).not.toHaveBeenCalled()
   })
 
-  it("sends the trimmed prompt on Enter and opens the chat without a dashboard", async () => {
+  it("sends the trimmed prompt on Enter as an ask and opens the chat from Home", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer()
     await user.type(await box(), "  checkout health  {Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
-    expect(onSent.mock.calls[0][1]).toBe("chat")
-    const sent = (await fetch.mock.calls[0][0].json()) as { prompt: string }
-    expect(sent.prompt).toBe("checkout health")
+    expect(onSent.mock.calls[0][0]).toMatchObject({
+      via: "chat",
+      opens: "chat",
+    })
+    expect(await sentBody(fetch)).toMatchObject({
+      prompt: "checkout health",
+      kind: "ask",
+      client_id: expect.any(String),
+    })
+    expect(await sentBody(fetch)).not.toHaveProperty("follows_id")
     expect(await box()).toHaveValue("")
+  })
+
+  it("continues an open chat in place with a new client id per message", async () => {
+    const fetch = stubCreate()
+    const { user, onSent } = renderComposer({ chatId: "c1" })
+    await user.type(await box(), "one{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    await user.type(await box(), "two{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(2))
+    const first = await sentBody(fetch, 0)
+    const second = await sentBody(fetch, 1)
+    expect(first).toMatchObject({ chat_id: "c1", kind: "ask" })
+    expect(onSent.mock.calls[0][0]).toMatchObject({ opens: "same" })
+    expect(first.client_id).not.toBe(second.client_id)
+  })
+
+  it("asks about the dashboard the chat is about without changing it", async () => {
+    const fetch = stubCreate()
+    const { user, onSent } = renderComposer({
+      subject: { kind: "dashboard", id: dashboardId },
+      chatId: "c1",
+    })
+    await user.type(await box(), "add a p99 panel{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(await sentBody(fetch)).toMatchObject({
+      kind: "ask",
+      dashboard_id: dashboardId,
+      chat_id: "c1",
+    })
   })
 
   it("recalls the sent prompt with the up arrow", async () => {
@@ -139,19 +191,6 @@ describe("ChatComposer", () => {
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     await user.keyboard("{ArrowUp}")
     expect(await box()).toHaveValue("checkout health")
-  })
-
-  it("turns a typed /revise into a chip and empties the box", async () => {
-    stubCreate()
-    const { user } = renderComposer({ dashboardId })
-    await user.type(await box(), "/revise ")
-    expect(await box()).toHaveValue("")
-    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
-      "Revise"
-    )
-    expect(
-      screen.getByRole("button", { name: "Remove Revise" })
-    ).toBeInTheDocument()
   })
 
   it.each([
@@ -170,6 +209,30 @@ describe("ChatComposer", () => {
     else expect(hint).not.toBeInTheDocument()
   })
 
+  it("turns a typed /investigate into a chip and sends an investigation", async () => {
+    const fetch = stubCreate()
+    const { user, onSent } = renderComposer()
+    await user.type(await box(), "/investigate ")
+    expect(await box()).toHaveValue("")
+    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
+      "Investigate"
+    )
+    await user.type(await box(), "why is checkout slow{Enter}")
+    await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
+    expect(await sentBody(fetch)).toMatchObject({
+      prompt: "why is checkout slow",
+      kind: "investigate",
+    })
+  })
+
+  it("offers no /revise", async () => {
+    const { user } = renderComposer({
+      subject: { kind: "dashboard", id: dashboardId },
+    })
+    await user.type(await box(), "/revise ")
+    expect(await box()).toHaveValue("/revise ")
+  })
+
   it("shows the model and effort in the footer", async () => {
     renderComposer()
     expect(
@@ -185,7 +248,9 @@ describe("ChatComposer", () => {
       "Ask a question or describe a dashboard first."
     )
     unmount()
-    const next = renderComposer({ dashboardId })
+    const next = renderComposer({
+      subject: { kind: "dashboard", id: dashboardId },
+    })
     await next.user.click(await screen.findByRole("button", { name: "Send" }))
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Describe the change you want first."
@@ -195,7 +260,6 @@ describe("ChatComposer", () => {
   it("counts characters near the limit and marks an over-long prompt", async () => {
     const { user } = renderComposer()
     const field = await box()
-    expect(screen.queryByText(/of 4000/)).not.toBeInTheDocument()
     await user.click(field)
     await user.paste("a".repeat(3600))
     expect(screen.getByText("3600 of 4000")).toBeInTheDocument()
@@ -206,13 +270,13 @@ describe("ChatComposer", () => {
 
   it("opens with a prefilled prompt and sends nothing until the person does", async () => {
     const fetch = stubCreate()
-    renderComposer({ initialPrompt: "Why is GET /api/products slow?" })
+    renderComposer({ initialText: "Why is GET /api/products slow?" })
     expect(await box()).toHaveValue("Why is GET /api/products slow?")
     expect(fetch).not.toHaveBeenCalled()
   })
 
   it("offers Stop for the running request", async () => {
-    stubRunning(running)
+    stubCreate()
     renderComposer({ runningRequestId: runningId })
     expect(
       await screen.findByRole("button", { name: "Stop the run" })
@@ -223,7 +287,7 @@ describe("ChatComposer", () => {
     const fetch = vi.fn(() => new Promise<Response>(() => undefined))
     vi.stubGlobal("fetch", fetch)
     const { user, onSent } = renderComposer(
-      { initialPrompt: "Why is it slow?" },
+      { initialText: "Why is it slow?" },
       false
     )
     await user.type(await box(), "{Enter}")

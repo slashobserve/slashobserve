@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -131,6 +132,21 @@ func TestOfferedRunCarriesTheThreadContextOnlyWhenThereIsOne(t *testing.T) {
 	}
 	encoded, err = json.Marshal(plain)
 	if err != nil || !strings.Contains(string(encoded), `"thread_context":null`) {
+		t.Fatalf("encoded plain run = %s, err %v", encoded, err)
+	}
+}
+
+func TestOfferedRunCarriesTheAnchorAndBlockOnlyWhenThereAreOnes(t *testing.T) {
+	requester := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada"}
+	pointed := &anchor.Anchor{Kind: anchor.Row, Pos: anchor.Pos{X: 0.4, Y: 0.3}, Row: map[string]string{"service": "payments"}, Shown: "440"}
+	asked := offeredRun(revisions.Request{ID: "r1", Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1, Anchor: pointed, BlockID: "b1", RequestedBy: requester})
+	plain := offeredRun(revisions.Request{ID: "r2", Source: revisions.SourceInvestigate, Prompt: "why", Attempt: 1, RequestedBy: requester})
+	encoded, err := json.Marshal(asked)
+	if err != nil || !strings.Contains(string(encoded), `"anchor":{"kind":"row","pos":{"x":0.4,"y":0.3},"row":{"service":"payments"},"shown":"440"}`) || !strings.Contains(string(encoded), `"block_id":"b1"`) {
+		t.Fatalf("encoded run = %s, err %v", encoded, err)
+	}
+	encoded, err = json.Marshal(plain)
+	if err != nil || !strings.Contains(string(encoded), `"anchor":null`) || !strings.Contains(string(encoded), `"block_id":null`) {
 		t.Fatalf("encoded plain run = %s, err %v", encoded, err)
 	}
 }

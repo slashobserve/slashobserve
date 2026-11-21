@@ -16,6 +16,7 @@ export function dashboardTitlesQuery() {
         id,
         title,
         canEdit: permissions.edit,
+        canComment: permissions.comment,
         updatedBy: updated_by.id,
       })),
     staleTime: 15_000,

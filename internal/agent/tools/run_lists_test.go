@@ -43,6 +43,29 @@ func TestListRunsPassesTheFilterAndAnswersACompactPage(t *testing.T) {
 	}
 }
 
+func TestListRunsKeepsAnchoredRunsAboutAnObservationAndShowsTheSpot(t *testing.T) {
+	row := strings.Replace(runRow(runID, "Spot"), `"observation_id":null`, `"observation_id":null,"anchor":{"kind":"row","pos":{"x":0.4,"y":0.3},"row":{"service":"payments"},"shown":"440"},"block_id":"`+runID+`"`, 1)
+	runs := &fakeRuns{raw: listPage([]string{row, runRow(runID, "Plain")}, "", 2)}
+	res := callRunTool(t, runs, nameListRuns, `{"anchored":true,"observation_id":"`+runID+`"}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	if !runs.gotFilter.Anchored || runs.gotFilter.ObservationID.String() != runID || runs.gotFilter.Scope != revisions.ScopeMine {
+		t.Fatalf("filter = %+v", runs.gotFilter)
+	}
+	body := string(contentJSON(t, res))
+	if !strings.Contains(body, `"anchor":{"kind":"row","pos":{"x":0.4,"y":0.3},"row":{"service":"payments"},"shown":"440"}`) || !strings.Contains(body, `"block_id":"`+runID+`"`) || !strings.Contains(body, `"anchor":null,"block_id":null`) {
+		t.Fatalf("body = %s", body)
+	}
+	if code := errorCode(t, callRunTool(t, &fakeRuns{raw: listPage(nil, "", 0)}, nameListRuns, `{"observation_id":"nope"}`)); code != codeInvalidRequest {
+		t.Fatalf("code %q", code)
+	}
+	refused := &fakeRuns{err: revisions.ErrAnchoredNeedsMine}
+	if code := errorCode(t, callRunTool(t, refused, nameListRuns, `{"anchored":true,"scope":"all"}`)); code != codeInvalidRequest {
+		t.Fatalf("code %q", code)
+	}
+}
+
 func TestListRunsDefaultsToYourOwnRunsAndTwentyAPage(t *testing.T) {
 	runs := &fakeRuns{raw: listPage(nil, "", 0)}
 	res := callRunTool(t, runs, nameListRuns, `{}`)

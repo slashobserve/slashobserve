@@ -11,6 +11,7 @@ import {
 } from "@/activity/timeline-list"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -20,23 +21,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Composer } from "@/comments/composer"
-import {
-  agentMentionsIn,
-  mentionedAgents,
-  threadParticipants,
-} from "@/comments/mentions"
+import { threadParticipants } from "@/comments/mentions"
 import { MessageText } from "@/comments/message-text"
-import { RunStarted } from "@/comments/run-started"
-import {
-  useOpenThread,
-  useReplyToThread,
-  useThreads,
-  type Message,
-  askedAgent,
-  type SentMessage,
-} from "@/comments/thread-queries"
-import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { useThreads, type Message } from "@/comments/thread-queries"
+import { Composer } from "@/conversation/composer"
+import { threadPlace, ungated } from "@/conversation/delivery"
+import { subjectOf } from "@/conversation/send-plan"
+import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
 import { cn } from "@/lib/utils"
@@ -173,13 +164,6 @@ export function DiscussionFeed({
     refetch,
     isFetching,
   } = useThreads(target)
-  const openThread = useOpenThread(target)
-  const replyToThread = useReplyToThread(target)
-  const agents = useMentionableAgents()
-  const [sent, setSent] = useState<{
-    result: SentMessage
-    agentName: string
-  } | null>(null)
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const filter = view?.filter ?? noFilter
   const today = useToday()
@@ -226,24 +210,18 @@ export function DiscussionFeed({
     }))
   }, [isPending, isError, messages, principal.id])
 
-  async function send(body: string) {
-    const startRuns = agentMentionsIn(body) === 1
-    setSent(null)
-    const result =
-      replyThreadId !== null
-        ? await replyToThread.mutateAsync({
-            threadId: replyThreadId,
-            body,
-            startRuns,
-            blockId: anchor,
-            replyToId: replyingTo?.id,
-          })
-        : await openThread.mutateAsync({ body, startRuns, blockId: anchor })
-    setReplyingTo(null)
-    if (askedAgent(result)) {
-      setSent({ result, agentName: mentionedAgents(body)[0]?.name ?? "" })
-    }
-  }
+  const model = useComposer({
+    subject: subjectOf(target),
+    place: threadPlace(
+      replyThreadId,
+      threads.find((entry) => entry.thread.id === replyThreadId)?.thread
+    ),
+    target: anchor === null ? undefined : { blockId: anchor },
+    gate: { ...ungated, canComment: canWrite },
+    people,
+    replyToId: replyingTo?.id,
+    onSent: () => setReplyingTo(null),
+  })
 
   let disabledReason: string | null = null
   if (isPending) disabledReason = "Loading the discussion"
@@ -373,24 +351,15 @@ export function DiscussionFeed({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
+      <ScrollPane ref={stickRef} className="flex-1">
         {body}
-      </div>
+      </ScrollPane>
       <div className="border-t px-4 pt-3 pb-4">
         {isPending ||
         isError ||
         canWrite ||
         readOnlyAction === undefined ? null : (
           <div className="flex flex-col pb-2">{readOnlyAction}</div>
-        )}
-        {sent === null ? null : (
-          <div className="pb-2">
-            <RunStarted
-              run={sent.result.run}
-              refusal={sent.result.runRefusal}
-              agentName={sent.agentName}
-            />
-          </div>
         )}
         {replyingTo === null ? null : (
           <div className="flex items-center gap-1 pb-2 text-xs text-muted-foreground">
@@ -409,6 +378,8 @@ export function DiscussionFeed({
           </div>
         )}
         <Composer
+          model={model}
+          layout="docked"
           label="Message"
           placeholder={placeholder ?? "Message, or type @ to ask an agent"}
           hint={hint}
@@ -425,11 +396,7 @@ export function DiscussionFeed({
               />
             )
           }
-          people={people}
-          target={target}
-          agents={agents}
           disabledReason={disabledReason}
-          onSubmit={send}
         />
       </div>
       <p role="status" className="sr-only">

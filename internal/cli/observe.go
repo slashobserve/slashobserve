@@ -50,6 +50,8 @@ type agentRequest struct {
 	Finding       *findingSummary `json:"finding"`
 	ObservationID *string         `json:"observation_id"`
 	SharedThread  *string         `json:"shared_thread_id"`
+	Anchor        *anchor.Anchor  `json:"anchor"`
+	BlockID       *string         `json:"block_id"`
 
 	AllowedActions []string `json:"allowed_actions"`
 }
@@ -343,6 +345,7 @@ func printRequest(out *output, req agentRequest) {
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})
 	}
+	fields = append(fields, pointedFields(req)...)
 	if req.SharedThread != nil {
 		fields = append(fields, [2]string{"Shared in thread", text(*req.SharedThread)})
 	}
@@ -366,6 +369,17 @@ func printRequest(out *output, req agentRequest) {
 		}
 	}
 	printLiveText(out, req.LiveText)
+}
+
+func pointedFields(req agentRequest) [][2]string {
+	if req.Anchor == nil {
+		return nil
+	}
+	fields := [][2]string{{"Points at", anchorText(req.Anchor)}}
+	if req.BlockID != nil {
+		fields = append(fields, [2]string{"On block", text(*req.BlockID)})
+	}
+	return fields
 }
 
 func printLiveText(out *output, live *string) {

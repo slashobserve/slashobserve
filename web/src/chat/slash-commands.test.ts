@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  availableCommands,
+  chatCommands,
   matchingCommands,
   takeCommand,
   withCommand,
   type SlashCommand,
 } from "./slash-commands"
 
-const all: SlashCommand[] = ["investigate", "import", "revise"]
+const all: SlashCommand[] = ["investigate", "import"]
 
 describe("takeCommand", () => {
   it("takes an available command and the text after it", () => {
-    expect(takeCommand("/revise   add a p99 row", all)).toEqual({
-      command: "revise",
-      rest: "add a p99 row",
+    expect(takeCommand("/investigate   why p99", all)).toEqual({
+      command: "investigate",
+      rest: "why p99",
     })
   })
 
@@ -34,9 +34,10 @@ describe("takeCommand", () => {
 
   it.each([
     ["an unknown command", "/foo bar", all],
-    ["a command without a space", "/revise", all],
-    ["a command that is not available", "/revise add", ["import"]],
-    ["text that does not start with a slash", "revise add", all],
+    ["a command without a space", "/import", all],
+    ["a command that is not available", "/investigate why", ["import"]],
+    ["a command that no longer exists", "/revise add", all],
+    ["text that does not start with a slash", "import add", all],
   ] as const)("leaves %s as plain text", (_name, text, available) => {
     expect(takeCommand(text, available)).toBeNull()
   })
@@ -45,10 +46,10 @@ describe("takeCommand", () => {
 describe("matchingCommands", () => {
   it("lists the available commands a typed word starts", () => {
     expect(matchingCommands("/i", all)).toEqual(["investigate", "import"])
-    expect(matchingCommands("/", ["revise"])).toEqual(["revise"])
+    expect(matchingCommands("/", ["import"])).toEqual(["import"])
   })
 
-  it.each(["", "/revise x", "/x", "hello", "/Rev"])(
+  it.each(["", "/import x", "/x", "/revise", "hello", "/Imp"])(
     "lists nothing for %j",
     (text) => {
       expect(matchingCommands(text, all)).toEqual([])
@@ -58,34 +59,14 @@ describe("matchingCommands", () => {
 
 describe("withCommand", () => {
   it("prefixes the command and keeps plain text unchanged", () => {
-    expect(withCommand("revise", "add a row")).toBe("/revise add a row")
+    expect(withCommand("import", "a link")).toBe("/import a link")
     expect(withCommand(null, "add a row")).toBe("add a row")
   })
 })
 
-describe("availableCommands", () => {
-  it.each([
-    [
-      { hasDashboard: false, surface: "chat", canInvestigate: true },
-      ["investigate", "import"],
-    ],
-    [
-      { hasDashboard: true, surface: "chat", canInvestigate: true },
-      ["investigate", "import", "revise"],
-    ],
-    [
-      { hasDashboard: true, surface: "activity", canInvestigate: true },
-      ["investigate", "revise"],
-    ],
-    [
-      { hasDashboard: true, surface: "activity", canInvestigate: false },
-      ["revise"],
-    ],
-    [
-      { hasDashboard: false, surface: "chat", canInvestigate: false },
-      ["import"],
-    ],
-  ] as const)("offers the commands for %o", (input, expected) => {
-    expect(availableCommands(input)).toEqual(expected)
+describe("chatCommands", () => {
+  it("offers Investigate only to someone who may investigate", () => {
+    expect(chatCommands(true)).toEqual(["investigate", "import"])
+    expect(chatCommands(false)).toEqual(["import"])
   })
 })

@@ -3,7 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
-import { dashboardKeys } from "@/api/keys"
+import { dashboardKeys, threadKeys } from "@/api/keys"
 import { testQueryClient } from "@/test/render"
 
 import { useDashboardEvents } from "./use-dashboard-events"
@@ -151,6 +151,7 @@ it("closes the stream 15 seconds after the tab is hidden and catches up when it 
       expect.arrayContaining([
         dashboardKeys.history("d1"),
         dashboardKeys.comments("d1"),
+        threadKeys.list("dashboard:d1"),
         dashboardKeys.revisions("d1"),
       ])
     )
@@ -184,6 +185,21 @@ it("refetches the dashboard and the list on every reconnect, so a move made whil
     expect.arrayContaining([dashboardKeys.latest("d1"), dashboardKeys.list()])
   )
 })
+
+it.each(["comment.created", "comment.updated", "revision.updated"])(
+  "refetches the dashboard's threads on %s",
+  (event) => {
+    const client = testQueryClient()
+    const invalidate = vi.spyOn(client, "invalidateQueries")
+    renderHook(() => useDashboardEvents("d1", {}), {
+      wrapper: wrapperWith(client),
+    })
+    act(() => openSources()[0].send(event, { dashboard_id: "d1" }))
+    expect(
+      invalidate.mock.calls.map(([filters]) => filters?.queryKey)
+    ).toContainEqual(threadKeys.list("dashboard:d1"))
+  }
+)
 
 it("checks the dashboard as soon as its stream ends, so a dashboard the caller lost shows as gone without waiting for a reconnect", async () => {
   const requested: string[] = []

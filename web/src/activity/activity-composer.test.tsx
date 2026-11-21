@@ -1,14 +1,22 @@
-import { QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, waitFor, within } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
+import { act, screen, waitFor, within } from "@testing-library/react"
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { renderWithProviders, testQueryClient } from "@/test/render"
+import { pinnedText, ungated, type GateInput } from "@/conversation/delivery"
+import { renderWithProviders } from "@/test/render"
 
-import { ActivityComposer, type Target } from "./activity-composer"
 import { useActivityStore } from "./activity-store"
-import type { AgentGate } from "./agent-gate"
+
+import {
+  ActivityComposer,
+  type Replying,
+  type Target,
+} from "./activity-composer"
+
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useRouteContext: () => ({ principal: { id: "u1", role: "editor" } }),
+}))
 
 vi.mock("@/chat/prompt-history", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/chat/prompt-history")>()),
@@ -24,22 +32,26 @@ function json(body: unknown, status = 200): Response {
 
 const grantId = "3c9a1b2d-0e4f-4a5b-8c6d-7e8f9a0b1c2d"
 
+type Post = { path: string; body: Record<string, unknown> }
+
 function stubServer(
   sent: Record<string, unknown> = {},
-  postHeld: Promise<void> = Promise.resolve()
+  postHeld: () => Promise<void> = () => Promise.resolve()
 ) {
-  const posts: { path: string; body: Record<string, unknown> }[] = []
+  const posts: Post[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const { pathname } = new URL(request.url)
       if (request.method === "POST") {
         posts.push({ path: pathname, body: await request.clone().json() })
-        await postHeld
+        await postHeld()
         return json(
           {
             thread: { id: "t1" },
-            message: { id: "t1", thread_id: "t1", body: "", ...sent },
+            message: { id: "m1", thread_id: "t1", body: "", ...sent },
+            to: "everyone",
+            replayed: false,
           },
           201
         )
@@ -64,170 +76,195 @@ function stubServer(
   return posts
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
-
 const panels = [
   { id: "latency", title: "Latency" },
   { id: "errors", title: "Errors" },
 ]
 
-async function renderComposer({
-  gate = { kind: "allowed" },
-  draft = "Raise the threshold",
-  canInvestigate = true,
+function renderComposer({
+  gate = ungated,
+  draft: initialDraft = "Raise the threshold",
   target = { kind: "dashboard" },
+  replying: initialReplying = null,
 }: {
-  gate?: AgentGate
+  gate?: GateInput
   draft?: string
-  canInvestigate?: boolean
   target?: Target
+  replying?: Replying | null
 } = {}) {
   const onTargetChange = vi.fn<(target: Target) => void>()
-  renderWithProviders(
-    <ActivityComposer
-      dashboardId="dashboard"
-      latestVersion={3}
-      panels={panels}
-      target={target}
-      onTargetChange={onTargetChange}
-      draft={draft}
-      onDraftChange={vi.fn()}
-      gate={gate}
-      canInvestigate={canInvestigate}
-      placeholder="Write a comment"
-      range={{ from: "now-1h", to: "now" }}
-      timeZone="Asia/Kolkata"
-    />,
-    { route: { path: "/", url: "/" } }
-  )
-  return {
-    form: await screen.findByRole("form", { name: "Add to the activity" }),
-    onTargetChange,
+  function Harness() {
+    const [draft, setDraft] = useState(initialDraft)
+    const [replying, setReplying] = useState(initialReplying)
+    return (
+      <ActivityComposer
+        dashboardId="dashboard"
+        panels={panels}
+        target={target}
+        onTargetChange={onTargetChange}
+        replying={replying}
+        onLeaveThread={() => setReplying(null)}
+        draft={draft}
+        onDraftChange={setDraft}
+        gate={gate}
+        placeholder="Write a comment"
+      />
+    )
   }
+  const result = renderWithProviders(<Harness />, {
+    route: { path: "/", url: "/" },
+  })
+  return { ...result, onTargetChange }
 }
+
+async function form() {
+  return screen.findByRole("form", { name: "Add to the activity" })
+}
+
+async function field() {
+  return within(await form()).findByRole("textbox", {
+    name: "Comment or request",
+  })
+}
+
+const thread: Replying = {
+  threadId: "t9",
+  label: "Latency",
+  agent: null,
+  agentOff: false,
+  people: [],
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("ActivityComposer", () => {
   beforeEach(() => {
-    useActivityStore.getState().setAgentKind("revise")
     stubServer()
   })
 
-  it("holds the target combobox, starting with the whole dashboard, and the mention picker", async () => {
-    const user = userEvent.setup()
-    const { form } = await renderComposer()
-    const comboboxes = within(form).getAllByRole("combobox")
-    expect(comboboxes).toHaveLength(2)
-    expect(comboboxes[0]).toHaveAccessibleName("On")
-    expect(comboboxes[0]).toHaveTextContent("The whole dashboard")
-    expect(comboboxes[1]).toHaveAccessibleName("Mention a person or an agent")
-    await user.click(comboboxes[0])
+  it("targets a panel through the On select", async () => {
+    const { user, onTargetChange } = renderComposer()
+    await user.click(within(await form()).getByRole("combobox", { name: "On" }))
     const options = await screen.findAllByRole("option")
     expect(options.map((option) => option.textContent)).toEqual([
       "The whole dashboard",
       "Latency",
       "Errors",
     ])
-  })
-
-  it("targets a panel when one is chosen", async () => {
-    const user = userEvent.setup()
-    const { form, onTargetChange } = await renderComposer()
-    await user.click(within(form).getByRole("combobox", { name: "On" }))
-    await user.click(await screen.findByRole("option", { name: "Errors" }))
+    await user.click(screen.getByRole("option", { name: "Errors" }))
     expect(onTargetChange).toHaveBeenCalledWith({
       kind: "panel",
       panelId: "errors",
     })
   })
 
-  it("has one send button and no separate agent button", async () => {
-    const { form } = await renderComposer()
-    expect(within(form).getByRole("button", { name: "Send" })).toBeEnabled()
-    expect(
-      within(form).queryByRole("button", { name: "Add comment" })
-    ).not.toBeInTheDocument()
-    expect(
-      within(form).queryByRole("button", { name: "Send to agent" })
-    ).not.toBeInTheDocument()
-  })
-
-  it("posts a plain comment to the dashboard thread without start_runs", async () => {
+  it("posts a plain comment on a panel with a client id and leaves the recipient to the server", async () => {
     const posts = stubServer()
-    const user = userEvent.setup()
-    const { form } = await renderComposer({
+    const { user } = renderComposer({
       target: { kind: "panel", panelId: "latency" },
     })
-    await user.click(within(form).getByRole("button", { name: "Send" }))
+    expect(within(await form()).getByText("To: everyone here")).toBeVisible()
+    await user.click(within(await form()).getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0]).toEqual({
       path: "/api/v1/threads",
       body: {
         target: "dashboard:dashboard",
         body: "Raise the threshold",
-        version: 3,
+        client_id: expect.any(String),
         panel_id: "latency",
       },
     })
+    expect(posts[0].body).not.toHaveProperty("start_runs")
   })
 
-  it("sends on Enter, adds a line on Shift+Enter, and says a plain comment is for the team", async () => {
+  it("sends on Enter and adds a line on Shift+Enter", async () => {
     const posts = stubServer()
-    const user = userEvent.setup()
-    const { form } = await renderComposer()
-    expect(
-      await within(form).findByText(/This goes to the team as a comment/)
-    ).toBeTruthy()
-    const field = within(form).getByRole("textbox", {
-      name: "Comment or request",
-    })
-    await user.click(field)
-    await user.keyboard("{Shift>}{Enter}{/Shift}")
+    const { user } = renderComposer({ draft: "" })
+    await user.type(await field(), "one{Shift>}{Enter}{/Shift}two")
     expect(posts).toHaveLength(0)
     await user.keyboard("{Enter}")
     await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body.body).toBe("one\ntwo")
+    expect(await field()).toHaveValue("")
   })
 
-  it("leaves out the team hint once the draft asks an agent", async () => {
-    await renderComposer({ draft: "@observe make it a bar chart" })
-    await screen.findByRole("form", { name: "Add to the activity" })
-    expect(screen.queryByText(/This goes to the team as a comment/)).toBeNull()
-  })
-
-  it("puts the cursor back in the field after a send when focus stayed in the form", async () => {
-    const user = userEvent.setup()
-    const { form } = await renderComposer()
-    await user.click(within(form).getByRole("button", { name: "Send" }))
-    expect(await within(form).findByText("Comment added")).toBeInTheDocument()
-    expect(
-      within(form).getByRole("textbox", { name: "Comment or request" })
-    ).toHaveFocus()
-  })
-
-  it("leaves focus alone when the person moved it elsewhere while the send was in flight", async () => {
-    let release = () => {}
-    const posts = stubServer(
-      {},
-      new Promise<void>((resolve) => {
-        release = resolve
+  it("sends to the agent when the To chip is turned, with the agent's name on the button", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer()
+    await user.click(
+      within(await form()).getByRole("button", {
+        name: /To: everyone here/,
       })
     )
-    const user = userEvent.setup()
-    const { form } = await renderComposer()
-    const elsewhere = document.body.appendChild(
-      document.createElement("button")
+    expect(within(await form()).getByText("To: Observe Agent")).toBeVisible()
+    await user.click(
+      within(await form()).getByRole("button", {
+        name: "Send and ask Observe Agent",
+      })
     )
-    await user.click(within(form).getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    elsewhere.focus()
-    release()
-    expect(await within(form).findByText("Comment added")).toBeInTheDocument()
-    expect(elsewhere).toHaveFocus()
-    elsewhere.remove()
+    expect(posts[0].body).toMatchObject({ to: "agent" })
   })
 
-  it("sends start_runs: true when the comment mentions @observe and shows the run line", async () => {
+  it("keeps the thread's agent on when a person is mentioned in a reply", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({
+      draft:
+        "@[Alice](user:0b7e6a51-2c3d-4e5f-8a9b-0c1d2e3f4a5b) can you look?",
+      replying: { ...thread, agent: { kind: "builtin", id: null } },
+    })
+    expect(within(await form()).getByText("To: everyone here")).toBeVisible()
+    await user.click(within(await form()).getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/threads/t9/messages")
+    expect(posts[0].body).not.toHaveProperty("to")
+  })
+
+  it("opens addressed to the agent when the agent is asked from a panel, and lets the person turn it back", async () => {
+    stubServer()
+    useActivityStore.getState().setAskingAgent(true)
+    const { user } = renderComposer()
+    expect(
+      await within(await form()).findByText("To: Observe Agent")
+    ).toBeVisible()
+    await waitFor(() =>
+      expect(useActivityStore.getState().askingAgent).toBe(false)
+    )
+    await user.click(
+      within(await form()).getByRole("button", { name: /To: Observe Agent/ })
+    )
+    expect(within(await form()).getByText("To: everyone here")).toBeVisible()
+  })
+
+  it("leaves the thread being replied in when the agent is asked from a panel, and opens a new thread on that panel", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({
+      replying: thread,
+      target: { kind: "panel", panelId: "errors" },
+    })
+    expect(
+      await within(await form()).findByText("Replying in Latency")
+    ).toBeVisible()
+    act(() => useActivityStore.getState().setAskingAgent(true))
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("form")).queryByText("Replying in Latency")
+      ).toBeNull()
+    )
+    expect(
+      await within(await form()).findByText("To: Observe Agent")
+    ).toBeVisible()
+    await user.click(await field())
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/threads")
+    expect(posts[0].body).toMatchObject({ panel_id: "errors", to: "agent" })
+  })
+
+  it("asks the mentioned agent and shows the run line", async () => {
     const posts = stubServer({
       run: {
         id: "6f1e2d3c-4b5a-4968-8776-655443322110",
@@ -235,259 +272,92 @@ describe("ActivityComposer", () => {
         assigned_kind: "builtin",
       },
     })
-    const user = userEvent.setup()
-    const { form } = await renderComposer({
-      draft: "@observe raise the threshold",
-    })
+    const { user } = renderComposer({ draft: "@observe raise the threshold" })
     await user.click(
-      within(form).getByRole("button", { name: "Send and ask Observe Agent" })
-    )
-    await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/threads")
-    expect(posts[0].body).toMatchObject({
-      target: "dashboard:dashboard",
-      body: "@observe raise the threshold",
-      version: 3,
-      start_runs: true,
-    })
-    expect(
-      await within(form).findByText(/Observe Agent is working on it/)
-    ).toBeVisible()
-  })
-
-  it("offers the person's connected agents in the mention picker", async () => {
-    const user = userEvent.setup()
-    const { form } = await renderComposer()
-    await user.click(
-      within(form).getByRole("combobox", {
-        name: "Mention a person or an agent",
+      within(await form()).getByRole("button", {
+        name: "Send and ask Observe Agent",
       })
     )
-    expect(
-      await screen.findByRole("option", { name: /Claude Code/ })
-    ).toBeVisible()
-    expect(screen.getByRole("option", { name: /Observe Agent/ })).toBeVisible()
-  })
-
-  it("opens the mention picker on a typed @ and puts the chosen agent in the box", async () => {
-    const user = userEvent.setup()
-    function Harness() {
-      const [draft, setDraft] = useState("")
-      return (
-        <QueryClientProvider client={testQueryClient()}>
-          <ActivityComposer
-            dashboardId="dashboard"
-            latestVersion={3}
-            panels={panels}
-            target={{ kind: "dashboard" }}
-            onTargetChange={vi.fn()}
-            draft={draft}
-            onDraftChange={setDraft}
-            gate={{ kind: "allowed" }}
-            canInvestigate
-            placeholder="Write a comment"
-            range={{ from: "now-1h", to: "now" }}
-            timeZone="Asia/Kolkata"
-          />
-        </QueryClientProvider>
-      )
-    }
-    render(<Harness />)
-    const field = screen.getByRole("textbox", { name: "Comment or request" })
-    await user.type(field, "please @")
-    await user.click(
-      await screen.findByRole("option", { name: /Observe Agent/ })
-    )
-    await waitFor(() => expect(field).toHaveValue("please @observe "))
-  })
-
-  it("blocks sending a message that mentions two agents", async () => {
-    const { form } = await renderComposer({
-      draft: `@observe @[Claude Code](grant:${grantId}) go`,
-    })
-    expect(
-      within(form).getByText("Mention one agent per message")
-    ).toBeVisible()
-    expect(within(form).getByRole("button", { name: "Send" })).toBeDisabled()
-  })
-
-  it("keeps a plain comment sendable and says why when the agent is blocked", async () => {
-    const reason = "Finish editing the layout to send changes to the agent."
-    const blocked: AgentGate = { kind: "blocked", reason }
-    const { form } = await renderComposer({ gate: blocked })
-    expect(within(form).getByRole("button", { name: "Send" })).toBeEnabled()
-    expect(within(form).getByText(reason)).toBeVisible()
-  })
-
-  it("holds an agent mention back while the agent is blocked", async () => {
-    const blocked: AgentGate = { kind: "blocked", reason: "Wait." }
-    const { form } = await renderComposer({
-      gate: blocked,
-      draft: "@observe go",
-    })
-    expect(
-      within(form).getByRole("button", { name: "Send and ask Observe Agent" })
-    ).toBeDisabled()
-  })
-
-  it.each([
-    [true, "Investigate"],
-    [false, "Send"],
-  ])(
-    "as someone who can investigate %s, typing /investigate makes the send button say %s",
-    async (canInvestigate, label) => {
-      const user = userEvent.setup()
-      function Harness() {
-        const [draft, setDraft] = useState("")
-        return (
-          <QueryClientProvider client={testQueryClient()}>
-            <ActivityComposer
-              dashboardId="dashboard"
-              latestVersion={3}
-              panels={panels}
-              target={{ kind: "dashboard" }}
-              onTargetChange={vi.fn()}
-              draft={draft}
-              onDraftChange={setDraft}
-              gate={{ kind: "allowed" }}
-              canInvestigate={canInvestigate}
-              placeholder="Write a comment"
-              range={{ from: "now-1h", to: "now" }}
-              timeZone="Asia/Kolkata"
-            />
-          </QueryClientProvider>
-        )
-      }
-      render(<Harness />)
-      await user.type(
-        screen.getByRole("textbox", { name: "Comment or request" }),
-        "/investigate why is latency up"
-      )
-      expect(screen.getByRole("button", { name: label })).toBeVisible()
-      expect(
-        screen.getByRole("textbox", { name: "Comment or request" })
-      ).toHaveValue(
-        canInvestigate ? "why is latency up" : "/investigate why is latency up"
-      )
-    }
-  )
-
-  it("still starts an investigation while the gate blocks only changes on a starter", async () => {
-    const user = userEvent.setup()
-    function Harness() {
-      const [draft, setDraft] = useState("")
-      return (
-        <QueryClientProvider client={testQueryClient()}>
-          <ActivityComposer
-            dashboardId="dashboard"
-            latestVersion={3}
-            panels={panels}
-            target={{ kind: "dashboard" }}
-            onTargetChange={vi.fn()}
-            draft={draft}
-            onDraftChange={setDraft}
-            gate={{ kind: "blocked", reason: "Starter.", provisioned: true }}
-            canInvestigate
-            placeholder="Write a comment"
-            range={{ from: "now-1h", to: "now" }}
-            timeZone="Asia/Kolkata"
-          />
-        </QueryClientProvider>
-      )
-    }
-    render(<Harness />)
-    await user.type(
-      screen.getByRole("textbox", { name: "Comment or request" }),
-      "/investigate why is latency up"
-    )
-    expect(screen.getByRole("button", { name: "Investigate" })).toBeEnabled()
-    expect(screen.getByText("Starter.")).toBeVisible()
-  })
-
-  it("sends an investigation with the time zone the dashboard shows", async () => {
-    const posts = stubServer()
-    const user = userEvent.setup()
-    function Harness() {
-      const [draft, setDraft] = useState("")
-      return (
-        <QueryClientProvider client={testQueryClient()}>
-          <ActivityComposer
-            dashboardId="dashboard"
-            latestVersion={3}
-            panels={panels}
-            target={{ kind: "dashboard" }}
-            onTargetChange={vi.fn()}
-            draft={draft}
-            onDraftChange={setDraft}
-            gate={{ kind: "allowed" }}
-            canInvestigate
-            placeholder="Write a comment"
-            range={{ from: "now-1h", to: "now" }}
-            timeZone="Asia/Kolkata"
-          />
-        </QueryClientProvider>
-      )
-    }
-    render(<Harness />)
-    await user.type(
-      screen.getByRole("textbox", { name: "Comment or request" }),
-      "/investigate why is latency up"
-    )
-    await user.click(screen.getByRole("button", { name: "Investigate" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/observe")
     expect(posts[0].body).toMatchObject({
-      kind: "investigate",
-      prompt: "why is latency up",
-      time_zone: "Asia/Kolkata",
+      body: "@observe raise the threshold",
     })
-  })
-
-  it("starts the investigation on Enter when the Investigate chip is on", async () => {
-    useActivityStore.getState().setAgentKind("investigate")
-    const posts = stubServer()
-    const user = userEvent.setup()
-    const { form } = await renderComposer({ draft: "why is latency up" })
-    await user.click(
-      within(form).getByRole("textbox", { name: "Comment or request" })
-    )
-    await user.keyboard("{Enter}")
-    await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).toBe("/api/v1/observe")
-    expect(posts[0].body).toMatchObject({
-      kind: "investigate",
-      prompt: "why is latency up",
-    })
-  })
-
-  it("posts a comment on Enter when the chip is on but the agent is blocked", async () => {
-    useActivityStore.getState().setAgentKind("investigate")
-    const posts = stubServer()
-    const user = userEvent.setup()
-    const { form } = await renderComposer({
-      draft: "why is latency up",
-      gate: { kind: "blocked", reason: "The agent is not set up." },
-    })
-    await user.click(
-      within(form).getByRole("textbox", { name: "Comment or request" })
-    )
-    await user.keyboard("{Enter}")
-    await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].path).not.toBe("/api/v1/observe")
-  })
-
-  it("sends rather than investigates when investigate mode is left over for someone who cannot investigate", async () => {
-    useActivityStore.getState().setAgentKind("investigate")
-    const { form } = await renderComposer({ canInvestigate: false })
+    expect(posts[0].body).not.toHaveProperty("to")
     expect(
-      within(form).queryByRole("button", { name: "Investigate" })
+      await within(await form()).findByText(/Observe Agent is working on it/)
+    ).toBeVisible()
+  })
+
+  it("holds an agent send back on an older version but keeps a comment sendable", async () => {
+    const gate = { ...ungated, pinned: true }
+    const { unmount } = renderComposer({ gate, draft: "@observe go" })
+    expect(within(await form()).getByText(pinnedText)).toBeVisible()
+    expect(
+      within(await form()).getByRole("button", {
+        name: "Send and ask Observe Agent",
+      })
+    ).toHaveAttribute("aria-disabled", "true")
+    unmount()
+    renderComposer({ gate, draft: "a note" })
+    expect(
+      within(await form()).getByRole("button", { name: "Send" })
+    ).toBeEnabled()
+    expect(screen.queryByText(pinnedText)).toBeNull()
+  })
+
+  it("blocks a message that mentions two agents", async () => {
+    renderComposer({ draft: `@observe @[Claude Code](grant:${grantId}) go` })
+    expect(
+      within(await form()).getByText("Mention one agent per message")
+    ).toBeVisible()
+  })
+
+  it("opens a thread and sends two replies without another click", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({ draft: "", replying: thread })
+    expect(within(await form()).getByText("Replying in Latency")).toBeVisible()
+    expect(
+      within(await form()).queryByRole("combobox", { name: "On" })
     ).toBeNull()
-    expect(within(form).getByRole("button", { name: "Send" })).toBeEnabled()
-    useActivityStore.getState().setAgentKind("revise")
+    await user.type(await field(), "first{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    await waitFor(async () => expect(await field()).toHaveValue(""))
+    await user.type(await field(), "second{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(2))
+    expect(posts.map((post) => [post.path, post.body.body])).toEqual([
+      ["/api/v1/threads/t9/messages", "first"],
+      ["/api/v1/threads/t9/messages", "second"],
+    ])
+    expect(within(await form()).getByText("Replying in Latency")).toBeVisible()
   })
 
-  it("disables sending while the draft is empty", async () => {
-    const { form } = await renderComposer({ draft: "  " })
-    expect(within(form).getByRole("button", { name: "Send" })).toBeDisabled()
+  it("returns to a new comment when the thread chip is removed", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({ replying: thread })
+    await user.click(
+      within(await form()).getByRole("button", {
+        name: "Remove Replying in Latency",
+      })
+    )
+    expect(within(await form()).queryByText("Replying in Latency")).toBeNull()
+    expect(await field()).toHaveFocus()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/threads")
+  })
+
+  it("delivers a double send once", async () => {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const posts = stubServer({}, () => held)
+    const { user } = renderComposer()
+    await user.click(await field())
+    await user.keyboard("{Enter}{Enter}")
+    await user.click(within(await form()).getByRole("button", { name: "Send" }))
+    release()
+    await waitFor(async () => expect(await field()).toHaveValue(""))
+    expect(posts).toHaveLength(1)
   })
 })

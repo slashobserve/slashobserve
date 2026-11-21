@@ -274,7 +274,15 @@ func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
 		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
 		TimeZone: req.TimeZone,
+		Pointer:  brief.Pointer{Anchor: req.Anchor, BlockID: req.BlockID, ObservationID: observationOf(req)},
 	}
+}
+
+func observationOf(req revisions.Request) string {
+	if req.SubjectObservationID != "" {
+		return req.SubjectObservationID
+	}
+	return req.ObservationID
 }
 
 func (s *Service) Brief(ctx context.Context, req revisions.Request, reason string) (tools.BriefAnswer, error) {

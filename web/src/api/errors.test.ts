@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest"
+import { describe, expect, it, test, vi } from "vitest"
 
 import {
   ApiError,
@@ -6,6 +6,7 @@ import {
   isRetryable,
   maxRetryDelayMs,
   NetworkError,
+  resendOnceOffline,
   toApiError,
   unwrap,
 } from "./errors"
@@ -240,5 +241,31 @@ describe("failedQueryText", () => {
     expect(
       failedQueryText(new ApiError(502, "x", "Datasource unavailable"))
     ).toBe("Datasource unavailable")
+  })
+})
+
+describe("resendOnceOffline", () => {
+  it("resends once after a network failure when the send has a client id", async () => {
+    const send = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new NetworkError("offline"))
+      .mockResolvedValueOnce("sent")
+    await expect(resendOnceOffline("k1", send)).resolves.toBe("sent")
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not resend without a client id or after a server answer", async () => {
+    const offline = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValue(new NetworkError("offline"))
+    await expect(resendOnceOffline(undefined, offline)).rejects.toThrow(
+      NetworkError
+    )
+    expect(offline).toHaveBeenCalledOnce()
+    const refused = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValue(new Error("refused"))
+    await expect(resendOnceOffline("k1", refused)).rejects.toThrow("refused")
+    expect(refused).toHaveBeenCalledOnce()
   })
 })

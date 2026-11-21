@@ -9,6 +9,10 @@ import { InboxPage, type InboxState } from "./inbox-page"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useRouteContext: () => ({ principal: { id: "u1", role: "editor" } }),
+}))
 
 const dashboardId = "a1b2c3d4-0b5a-4c7d-9e11-2a6b8c4d5e71"
 const proposalId = "3f2c8d1e-0b5a-4c7d-9e11-2a6b8c4d5e70"

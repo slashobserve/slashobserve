@@ -37,6 +37,8 @@ function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
       prompt: title,
       investigation: false,
       subject_observation_id: null,
+      anchor: null,
+      block_id: null,
     },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
@@ -167,6 +169,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ChatsPage rows", () => {
+  it("says who can see your chats", async () => {
+    stub([chat("c1", "Why did checkout errors rise")])
+    render()
+    expect(
+      await screen.findByText("Only you and Admins can see your chats.")
+    ).toBeVisible()
+  })
+
   it("lists one row per chat with its dashboard, turns and link", async () => {
     stub([
       chat("c1", "Why did checkout errors rise", {

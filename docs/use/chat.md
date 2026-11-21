@@ -11,9 +11,24 @@ For a first run, follow [Your first dashboard](../get-started/first-dashboard.md
 A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer in the chat.
 A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
-The answer stays in the chat, and no observation is created, until you choose **Save as observation** under it; an `/investigate` request opens an observation.
+A request for a dashboard builds one, and a message in a dashboard's chat is a question about that dashboard: it gets an answer in the chat and leaves the dashboard as it is, even when it asks for a change.
+The dashboard changes only when you choose **Revise the dashboard** on an answer.
+The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation, and in a chat about an observation it writes into that observation.
 When it has none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
+
+On an answer about a dashboard in a chat, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
+Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for**, in the chat and in any thread the answer is in, and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, starts nothing more.
+While no model is connected to the server, the button is off with "No model is connected to this server, so the agent cannot make this change."
+On a [starter dashboard](activity.md#audit-folder) the answer keeps its suggested change without the button and offers **Duplicate**, as in a [comment thread](review.md#ask-the-agent-from-a-comment).
+
+The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
+Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
+Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which makes the answer private again: it removes your question and the answer from the thread, and deletes the thread only when sharing opened it, so a thread you shared into keeps its other messages.
+Withdraw works only while every message in the thread is yours or the agent's reply to you; once someone else wrote in it, the answer stays shared.
+After a withdraw you can share the answer again, which opens a new thread.
+Sharing an answer that is already shared, from another tab for example, adds nothing and says "This answer is already shared in its thread".
+In a chat about an observation the same menu shares into that observation's threads, and **Show to everyone** also writes the answer onto the page; **Shared in the thread** opens the observation, and a withdraw takes the answer out of the observation again, so it is no longer read or listed through it, while the blocks the share already wrote stay on the page until the observation's editors remove them like any other block.
+
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
 The answer, the observation saved from it and a dashboard saved from it take a short title the agent writes for the answer, three to eight words; an answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
@@ -31,7 +46,9 @@ From 3600 characters a counter such as "3650 of 4000" appears in the box's foote
 A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
 
 An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
-Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send revises it; the chip appears only for a dashboard you can edit, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
+Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send asks about it: the agent answers without changing the dashboard, and when a change fits, the answer offers it with **Revise the dashboard**.
+The chip appears for a dashboard you can comment on, because asking about one needs Comment, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
+For a dashboard you cannot comment on, the box says "You cannot ask about `<title>`, because you cannot comment on it; this message asks without it."
 Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.
@@ -44,11 +61,11 @@ Type the command and a space, and it turns into a chip above the box:
 | -------------- | ----------- | --------------------------------------------------------------------------------- |
 | `/investigate` | Investigate | Asks a question and answers in an observation, see [Investigate](investigate.md). |
 | `/import`      | Import      | Imports a Grafana dashboard from a link or its JSON.                              |
-| `/revise`      | Revise      | Changes the dashboard this chat is about.                                         |
 
 While you type a command, a line under the box lists the matching commands and says "Type a space after the command to use it."
 Remove the chip with its button, or press Backspace in the empty box.
-`/revise` works only in a chat that already has a dashboard, and `/import` only in the chat, not in a dashboard's activity pane.
+In a chat that already has a dashboard, a send without a command changes that dashboard.
+`/import` works only in the chat, and no command works in a dashboard's activity pane.
 `/investigate` is offered to Editors and Admins only, because starting an investigation needs the Editor role.
 In a chat about a dashboard, a second chip names that dashboard.
 A chat about no dashboard becomes the chat about the first dashboard it saves, whether a build saved it or you chose **Make a dashboard** on one of its answers.
@@ -266,10 +283,15 @@ Every request has an id, shown as "Request" and its first eight characters at th
 
 **Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
 **Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
-An answer's actions sit in one row: **Make a dashboard**, **Save as observation**, **Copy answer** and **Ask again**, each where it applies.
+An answer's actions sit in one row, each where it applies: the evidence chip, **Revise the dashboard**, **Create observation**, and, once the answer is in an observation, **Pin to dashboard** and **Make a dashboard**, then **Ask again** and the **Answer actions** menu with **Copy answer**.
 It is off while a run goes on.
 While a run works you see its live text, but the answer itself is written in one piece when the agent saves it, so there is nothing to copy until then.
 The model comes from the server's configuration and cannot be picked in the chat box.
+
+An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
+Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
+An investigation's answer shows as the observation's finding instead, with its evidence open.
 
 The page keeps polling the server, also while its browser tab is in the background, so a finished run leaves "Running" without a reload.
 It shows "Reconnecting..." after two failed polls, and "Progress stopped updating." with a **Retry** button when polling stalls.
@@ -277,7 +299,10 @@ The run itself goes on server-side either way.
 
 ## Follow-ups
 
-Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
+Once the first dashboard exists, the box under the conversation reads "Ask about `<title>`", with the note "The dashboard changes only when you choose Revise the dashboard on an answer."
+A follow-up there, and **Ask again**, are questions about the dashboard: they get an answer and save no version.
+In a chat about an observation, a follow-up and **Ask again** ask about that observation the same way.
+What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
 While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
@@ -286,12 +311,14 @@ A follow-up is a continuation of the chat.
 The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation: each earlier question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
 It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
 For a chat about a dashboard these are the earlier requests you sent on that dashboard; for a chat with no dashboard they are the earlier turns of that chat.
-Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
+Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
 Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
+In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.
+Its page is read only: it offers nothing to copy, retry or ask again, and has no message box.
 An Admin reads another person's chat read only.
 
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.
@@ -305,7 +332,7 @@ Without `chat_id` a new chat starts, except a `revise` on a dashboard, which joi
 `client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
 `GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats` (`list`, `show`, `pin`, `unpin` and `archive`), and MCP `list_chats` and `get_chat`; a chat is pinned with `PATCH /observe/{id}` on its first request, which MCP `pin_run` and `unpin_run` call.
 
-The agent revises the latest version of that dashboard and saves the result as the next version.
+A revise, which **Revise the dashboard** on an answer sends, works on the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.
 It saves again only after the same checks as a new dashboard.
 If someone saves a version while it works, it restarts once from the newest one.
@@ -313,7 +340,7 @@ If someone saves a version while it works, it restarts once from the newest one.
 Requests for one dashboard run one at a time, in the order they were sent, and up to 5 can be queued or running.
 A sixth is refused with `too_many_revisions`.
 
-A follow-up needs Comment on the dashboard's folder, which Commenters, Editors and Admins have by default; with Comment but not Edit, the result is a [proposal](../concepts/proposals.md) that someone with Edit merges.
+A follow-up and a revise need Comment on the dashboard's folder, which Commenters, Editors and Admins have by default; with Comment but not Edit, a revise ends as a [proposal](../concepts/proposals.md) that someone with Edit merges.
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 
@@ -323,13 +350,14 @@ A dashboard's side panel has a **Chat** tab next to **Activity**, which shows yo
 It opens your latest chat about the dashboard and names it in the address as `tab=chat&chat=<chat id>`, so the chat stays open when a turn in another chat makes that one the latest.
 The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns, and **All your chats** opens the Chats page filtered to this dashboard.
 **New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left; the chat your first message lands in then takes its place in the address.
-For now the first message after **New chat** still joins your latest chat about the dashboard when you have one, and the tab then shows that chat.
+The first message after **New chat** is a question about the dashboard and starts a new chat, which the tab then shows; the note under the box says "Only you and Admins can see this chat."
 A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
 
 ### From the dashboard's activity pane
 
 You can also send a follow-up from the dashboard.
-In its activity pane, write the change in "Write a comment, or type @ to ask the agent" with `@observe` in it and send, or reply to a comment thread with `@observe` in the reply.
+In its activity pane, write the change in "Comment or request" and either mention `@observe` or choose the "To: everyone here" chip above the box so it reads "To: Observe Agent", then send.
+To ask inside a comment thread, choose **Reply** on it: the same box shows "Replying in" and the panel or dashboard, and the send goes to that thread.
 The up arrow recalls your earlier prompts there too, and the footer shows the model.
 These requests carry on in the activity pane; see [Comments, agent requests and versions](review.md).
 In the conversation, a turn sent from the dashboard shows "Sent from the dashboard".
@@ -356,7 +384,7 @@ A run that ended on a suggested panel or a proposal reads "Suggested a panel" or
 An investigation reads "Answered in <title>" with the observation it was saved to, as long as you can open that observation's folder.
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
-**Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
+**Create observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
 
 A saved answer to a question about a dashboard or an observation is read by the readers of the observation it was saved in, not by the readers of the dashboard or observation it was about.
 Retrying it asks the same private question again in the same chat.
@@ -366,7 +394,7 @@ On the Chats page, each of your chats has a menu with Rename, Pin and Delete, sh
 The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
-From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Save as observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
+From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Create observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
 
 In History, the search box finds chats whose title, prompt or answer contains the text, ignoring case.
 Chats you pinned come first under "Pinned", most recently pinned first, and the rest are grouped by the dashboard they are about, with "No dashboard" for chats that never got one and "A dashboard you cannot see" for one you lost access to.
@@ -388,7 +416,7 @@ If the observation cannot be deleted, the chat is kept and the dialog says why.
 
 ### One title for a chat and its observation
 
-A chat with no dashboard and exactly one observation made from it, by **Save as observation** or by an investigation that opened it, shares its title with that observation.
+A chat with no dashboard and exactly one observation made from it, by **Create observation** or by an investigation that opened it, shares its title with that observation.
 Renaming the chat renames the observation, and renaming the observation renames the chat, in the web app, the API, the CLI and MCP alike, and both lists show the new title at once.
 When you may not edit the observation, the chat is still renamed and a note says "The observation made from this chat keeps its title, because you cannot edit it."; an observation you cannot open is left alone and never named.
 When someone other than the person who started the chat renames the observation, the chat keeps its title and the note says so.
@@ -399,7 +427,8 @@ A chat with two or more observations, a chat on a dashboard, a later turn's own 
 - **Use a datasource that is not configured or not healthy**, or names it did not discover.
 - **Change a dashboard you cannot edit.** It cannot reach folders you have no Edit access to.
 - **Change an existing dashboard from Home.** A request on Home builds a new dashboard and cannot change one that exists.
-  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which starts an ordinary revision on that dashboard with the same prompt and opens it as a new chat, and **Open dashboard**.
+  When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on <title>**, which asks the same prompt about that dashboard and opens it as a new chat, and **Open dashboard**.
+  The agent answers there without changing the dashboard, and a change it suggests is made only when you choose **Revise the dashboard** on the answer; the button shows when you can comment on the dashboard.
   Without Edit on that dashboard you get only **Open dashboard**, with a line saying someone who can edit it can ask there.
   When it finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 - **Add panels with no data.** The save refuses them, and the agent does not create placeholders.

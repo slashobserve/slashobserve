@@ -5,33 +5,24 @@ import { ArrowRightIcon } from "lucide-react"
 import { AuthorMark } from "@/components/author-mark"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
-import type { Comment } from "@/comments/queries"
-import { markOf, markOfAuthor, type AuthorMarkModel } from "@/lib/author"
-import { isAgentActor } from "@/lib/origin"
+import type { AuthorMarkModel } from "@/lib/author"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
 import { sentence } from "@/observe/queries"
 
 import { EntryTime } from "./entry-time"
 
-export function commentAvatar(
-  comment: Pick<Comment, "actor" | "author">
-): AuthorMarkModel {
-  return isAgentActor(comment.actor)
-    ? markOf(comment.actor)
-    : markOfAuthor(comment.author)
-}
-
 type Props = {
   avatar: AuthorMarkModel
   who: string
-  verb: string
+  verb?: string
   panel?: { title: string; onSelect: () => void }
   at: string
   edited?: boolean
   nested?: boolean
   focused?: boolean
   unread?: { onRead: () => void }
+  className?: string
   children?: ReactNode
 }
 
@@ -50,6 +41,7 @@ export function EntryFrame({
   nested,
   focused,
   unread,
+  className,
   children,
 }: Props) {
   const item = useRef<HTMLLIElement>(null)
@@ -65,7 +57,8 @@ export function EntryFrame({
       className={cn(
         "group/entry relative flex gap-2.5",
         nested ? "py-1.5" : "py-2",
-        focused && "rounded-control bg-selection"
+        focused && "rounded-control bg-selection",
+        className
       )}
     >
       {nested ? null : (
@@ -90,7 +83,9 @@ export function EntryFrame({
             <span className="font-medium wrap-anywhere text-foreground">
               {who}
             </span>
-            <span className="text-muted-foreground">{verb}</span>
+            {verb === undefined ? null : (
+              <span className="text-muted-foreground">{verb}</span>
+            )}
             {panel === undefined ? null : (
               <button
                 type="button"

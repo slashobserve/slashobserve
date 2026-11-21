@@ -11,7 +11,6 @@ import {
   useSetDashboardSearch,
   type SidePanelTab,
 } from "@/dashboards/search"
-import { agentZone } from "@/lib/time"
 import type { EditorView } from "@/panel-editor/panel-editor"
 import { SharePane } from "@/share/share-pane"
 import type { Dashboard } from "@/spec"
@@ -212,7 +211,6 @@ export function ActivityCard({
               dashboardId={dashboardId}
               apiId={apiId}
               spec={spec}
-              latestVersion={latestVersion}
               pinned={pinned}
               layoutEditing={false}
               madeBy={madeBy}
@@ -222,11 +220,6 @@ export function ActivityCard({
               back={back}
               composerRef={composerRef}
               focusedThreadId={search.thread}
-              range={{
-                from: timeRange.from ?? spec.time.from,
-                to: timeRange.to ?? spec.time.to,
-              }}
-              timeZone={agentZone(search.tz ?? spec.timezone)}
             />
           )}
         </SidePanelTabs>

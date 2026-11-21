@@ -5,7 +5,7 @@ import { LoaderCircleIcon, LockIcon, UsersIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useSendExample } from "@/chat/chat-composer"
+import { useSendExample } from "@/chat/open-sent"
 import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { useAgentInfo } from "@/observe/queries"
 

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -47,6 +48,8 @@ type ChatTurn struct {
 	Prompt        string
 	Investigation bool
 	Subject       pgtype.UUID
+	Anchor        *anchor.Anchor
+	BlockID       *string
 }
 
 type ChatFilter struct {
@@ -170,6 +173,7 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 		}
 		if row.LastTurnID.Valid {
 			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt, Investigation: row.LastTurnInvestigation, Subject: row.LastTurnSubjectObservationID}
+			chats[i].LastTurn.Anchor, chats[i].LastTurn.BlockID = pointShownTo(row.OwnerKind, row.OwnerID, row.LastTurnAnchor, row.LastTurnBlockID, by)
 		}
 	}
 	s.recordList(ctx, actionChatList, f.scope())
@@ -217,6 +221,7 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 		first = turns[0].Prompt
 		last := turns[len(turns)-1]
 		chat.LastTurn = &ChatTurn{ID: last.ID, State: State(last.State), Prompt: last.Prompt, Investigation: last.Investigation, Subject: last.SubjectObservationID}
+		chat.LastTurn.Anchor, chat.LastTurn.BlockID = pointShownTo(last.RequestedByKind, last.RequestedByID, last.Anchor, last.BlockID, by)
 	}
 	chat.Title = chatTitle(row.Title, first)
 	s.recordChatView(ctx, chat)

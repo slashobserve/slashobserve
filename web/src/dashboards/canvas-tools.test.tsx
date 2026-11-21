@@ -9,8 +9,7 @@ import { CanvasTools } from "./canvas-tools"
 
 async function renderTools(
   permissions: { comment: boolean; edit: boolean },
-  agentAvailable: boolean,
-  canInvestigate = true
+  agentAvailable: boolean
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -22,12 +21,7 @@ async function renderTools(
   renderWithProviders(
     <>
       <p>page</p>
-      <CanvasTools
-        permissions={permissions}
-        canInvestigate={canInvestigate}
-        idle
-        composerRef={createRef()}
-      />
+      <CanvasTools permissions={permissions} idle composerRef={createRef()} />
     </>,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -35,8 +29,8 @@ async function renderTools(
 }
 
 describe("CanvasTools", () => {
-  it("shows Select and Comment to a Commenter", async () => {
-    await renderTools({ comment: true, edit: false }, true, false)
+  it("shows Select and Comment to a Commenter without an agent", async () => {
+    await renderTools({ comment: true, edit: false }, false)
     expect(
       screen.getByRole("toolbar", { name: "Canvas tools" })
     ).toBeInTheDocument()
@@ -47,34 +41,16 @@ describe("CanvasTools", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("shows Ask and Comment on a starter dashboard, where nobody has Edit", async () => {
-    await renderTools({ comment: true, edit: false }, true, true)
+  it("shows Ask to a Commenter with an agent, since an ask needs only Comment", async () => {
+    await renderTools({ comment: true, edit: false }, true)
     expect(screen.getByRole("button", { name: "Ask" })).toBeEnabled()
-    expect(screen.getByRole("button", { name: "Comment" })).toBeEnabled()
-  })
-
-  it("shows Ask to an Editor with an agent", async () => {
-    await renderTools({ comment: false, edit: true }, true)
-    expect(screen.getByRole("button", { name: "Ask" })).toBeInTheDocument()
-  })
-
-  it("disables Ask and names the Editor role for someone with Edit who is not an Editor", async () => {
-    await renderTools({ comment: true, edit: true }, true, false)
-    const ask = screen.getByRole("button", {
-      name: "Ask (needs the Editor role)",
-    })
-    expect(ask).toHaveAttribute("aria-disabled", "true")
   })
 
   it.each([
     ["a Viewer", { comment: false, edit: false }, true],
-    [
-      "an Editor with no agent and no comment access",
-      { comment: false, edit: true },
-      false,
-    ],
+    ["someone who cannot comment", { comment: false, edit: true }, true],
   ])("hides the whole bar for %s", async (_who, permissions, agent) => {
-    await renderTools(permissions, agent, permissions.edit)
+    await renderTools(permissions, agent)
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Select" })

@@ -1,24 +1,16 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 
 import { EntryFrame } from "@/activity/entry-frame"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Composer } from "@/comments/composer"
-import {
-  agentMentionsIn,
-  mentionedAgents,
-  threadParticipants,
-} from "@/comments/mentions"
+import { threadParticipants } from "@/comments/mentions"
 import { MessageText } from "@/comments/message-text"
-import { RunStarted } from "@/comments/run-started"
-import {
-  askedAgent,
-  useReplyToThread,
-  useThreads,
-  type SentMessage,
-} from "@/comments/thread-queries"
-import { useMentionableAgents } from "@/comments/use-mentionable-agents"
+import { useThreads, type ThreadWithMessages } from "@/comments/thread-queries"
+import { Composer } from "@/conversation/composer"
+import { threadPlace, ungated } from "@/conversation/delivery"
+import { subjectOf } from "@/conversation/send-plan"
+import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { sentence } from "@/observe/queries"
 
@@ -38,30 +30,12 @@ export function ThreadDetail({
     refetch,
     isFetching,
   } = useThreads(target)
-  const reply = useReplyToThread(target)
-  const agents = useMentionableAgents()
-  const [started, setStarted] = useState<{
-    result: SentMessage
-    agentName: string
-  } | null>(null)
   const thread = threads.find((entry) => entry.thread.id === threadId)
   const messages = useMemo(() => thread?.messages ?? [], [thread])
   const people = useMemo(
     () => threadParticipants(messages.map((message) => message.actor)),
     [messages]
   )
-
-  async function send(body: string) {
-    setStarted(null)
-    const result = await reply.mutateAsync({
-      threadId,
-      body,
-      startRuns: agentMentionsIn(body) === 1,
-    })
-    if (askedAgent(result)) {
-      setStarted({ result, agentName: mentionedAgents(body)[0]?.name ?? "" })
-    }
-  }
 
   if (isError && thread === undefined) {
     return (
@@ -112,23 +86,35 @@ export function ThreadDetail({
         ))}
       </ol>
       {canComment ? (
-        <Composer
-          label="Reply"
-          formLabel="Reply to this thread"
-          placeholder="Reply, or type @ to ask an agent"
-          people={people}
-          target={target}
-          agents={agents}
-          onSubmit={send}
-        />
+        <ThreadReply target={target} thread={thread} people={people} />
       ) : null}
-      {started === null ? null : (
-        <RunStarted
-          run={started.result.run}
-          refusal={started.result.runRefusal}
-          agentName={started.agentName}
-        />
-      )}
     </div>
+  )
+}
+
+function ThreadReply({
+  target,
+  thread,
+  people,
+}: {
+  target: string
+  thread: ThreadWithMessages
+  people: ReturnType<typeof threadParticipants>
+}) {
+  const model = useComposer({
+    subject: subjectOf(target),
+    place: threadPlace(thread.thread.id, thread.thread),
+    gate: ungated,
+    people,
+    onSent: () => undefined,
+  })
+  return (
+    <Composer
+      model={model}
+      layout="docked"
+      label="Reply"
+      formLabel="Reply to this thread"
+      placeholder="Reply in this thread"
+    />
   )
 }
