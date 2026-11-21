@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type store struct {
@@ -73,10 +74,14 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		if row.AgentRequestID.Valid {
 			data["agent_request_id"] = row.AgentRequestID.String()
 		}
+		owner, err := createdOwner(ctx, q, row)
+		if err != nil {
+			return err
+		}
 		_, err = activity.Append(ctx, q, activity.Entry{
 			Type:     activity.TypeFindingCreated,
 			TargetID: row.ID,
-			Owner:    activityOwner(row.DashboardID, row.ObservationID),
+			Owner:    owner,
 			Actor:    by,
 			Data:     data,
 		}, nil)
@@ -216,6 +221,14 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 	return findingsOf(found, func(r dbsqlc.ListFindingsByRow) (dbsqlc.Finding, pgtype.UUID, bool) {
 		return r.Finding, r.ObservationFolderID, r.KeptWithAdmins
 	})
+}
+
+func createdOwner(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Finding) (activity.Owner, error) {
+	kept, err := placement.AnswerKeptWithAdmins(ctx, q, row.AgentRequestID)
+	if err != nil || !kept {
+		return activityOwner(row.DashboardID, row.ObservationID), err
+	}
+	return activity.OnObservation(row.ObservationID), nil
 }
 
 func activityOwner(dashboardID, observationID pgtype.UUID) activity.Owner {
