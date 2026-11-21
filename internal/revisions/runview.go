@@ -107,7 +107,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 		requester := auth.Principal{Kind: auth.PrincipalKind(row.RequestedByKind), ID: row.RequestedByID.String()}
 		var allowed []Action
 		if mine := sameActor(requester, caller); mine || row.DashboardTitle.Valid {
-			mayStart, err := starts.may(ctx, State(row.State), listedSource(row), row.DashboardID)
+			mayStart, err := starts.may(ctx, State(row.State), listedSource(row), listedShape(row).target())
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may start a listed agent request again: %w", err)
 			}

@@ -587,9 +587,9 @@ func TestCreateObserveChecksTheInvestigateFields(t *testing.T) {
 	cases := []struct {
 		name, body, message string
 	}{
-		{"panel without investigate", `{"prompt":"p","panel_id":"a"}`, "panel_id, from and to need kind investigate"},
-		{"window without investigate", `{"prompt":"p","kind":"build","from":"now-1h","to":"now"}`, "panel_id, from and to need kind investigate"},
-		{"unknown kind", `{"prompt":"p","kind":"explain"}`, "kind must be build or investigate"},
+		{"panel without investigate", `{"prompt":"p","panel_id":"a"}`, "panel_id, from and to need kind ask or investigate"},
+		{"window without investigate", `{"prompt":"p","kind":"build","from":"now-1h","to":"now"}`, "panel_id, from and to need kind ask or investigate"},
+		{"unknown kind", `{"prompt":"p","kind":"explain"}`, "kind must be build, ask or investigate"},
 		{"base version", `{"prompt":"p","kind":"investigate",` + dashboard + `,"base_version":1}`, "base_version is not allowed for kind investigate"},
 		{"panel without dashboard", `{"prompt":"p","kind":"investigate","panel_id":"a"}`, "panel_id needs dashboard_id"},
 		{"empty panel", `{"prompt":"p","kind":"investigate",` + dashboard + `,"panel_id":""}`, "panel_id must be 1 to 64 characters without NUL"},

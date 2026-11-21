@@ -7,7 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const sourceInvestigate = "investigate"
+const (
+	sourceInvestigate = "investigate"
+	kindAsk           = "ask"
+)
 
 type investigateOptions struct {
 	dashboard   string
@@ -17,6 +20,7 @@ type investigateOptions struct {
 	at          string
 	from        string
 	to          string
+	private     bool
 	noWait      bool
 	timeout     time.Duration
 }
@@ -59,7 +63,8 @@ func (a *app) investigateCommand() *cobra.Command {
 			"With --dashboard the question is about that dashboard, and --panel narrows it to one of its panels.",
 		Example: "  observe investigate why did checkout errors rise after 10:00\n" +
 			"  observe investigate --dashboard <id> --panel <panel-id> --from now-6h --to now what changed\n" +
-			"  observe investigate --observation <id> why did checkout errors rise",
+			"  observe investigate --observation <id> why did checkout errors rise\n" +
+			"  observe investigate --private --dashboard <id> why is this panel flat",
 		Args: minimumArgs(1, "a question"),
 		RunE: a.runInvestigate,
 	}
@@ -71,6 +76,7 @@ func (a *app) investigateCommand() *cobra.Command {
 	flags.StringVar(&a.investigating.block, "block", "", "the block of --observation that --at points into, from observe o show")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")
+	flags.BoolVar(&a.investigating.private, "private", false, "answer privately about --dashboard or --observation, writing nothing shared until you share the answer")
 	flags.BoolVar(&a.investigating.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.investigating.timeout, "timeout", defaultTimeout, "stop waiting after this long; the investigation keeps running on the server")
 	flags.BoolVar(&a.open, "open", false, "open the finding in the browser once it is saved")
@@ -89,19 +95,35 @@ func (a *app) runInvestigate(cmd *cobra.Command, args []string) error {
 	return a.submit(cmd.Context(), c, payload, a.investigating.noWait, a.investigating.timeout)
 }
 
-func investigatePayload(args []string, o investigateOptions) (map[string]any, error) {
-	question := strings.TrimSpace(strings.Join(args, " "))
+func (o investigateOptions) kind() string {
+	if o.private {
+		return kindAsk
+	}
+	return sourceInvestigate
+}
+
+func (o investigateOptions) check(question string) error {
 	switch {
 	case question == "":
-		return nil, usagef("the question is empty")
+		return usagef("the question is empty")
 	case o.timeout <= 0:
-		return nil, usagef("--timeout must be positive")
+		return usagef("--timeout must be positive")
 	case o.panel != "" && o.dashboard == "":
-		return nil, usagef("--panel needs --dashboard")
+		return usagef("--panel needs --dashboard")
 	case (o.from == "") != (o.to == ""):
-		return nil, usagef("--from and --to go together")
+		return usagef("--from and --to go together")
+	case o.private && (o.dashboard == "") == (o.observation == ""):
+		return usagef("--private needs one of --dashboard or --observation")
 	}
-	payload := map[string]any{"prompt": question, "kind": sourceInvestigate}
+	return nil
+}
+
+func investigatePayload(args []string, o investigateOptions) (map[string]any, error) {
+	question := strings.TrimSpace(strings.Join(args, " "))
+	if err := o.check(question); err != nil {
+		return nil, err
+	}
+	payload := map[string]any{"prompt": question, "kind": o.kind()}
 	if o.dashboard != "" {
 		id, err := parseID(o.dashboard)
 		if err != nil {

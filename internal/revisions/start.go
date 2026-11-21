@@ -110,12 +110,16 @@ func checkStartText(ctx context.Context, req StartRequest) (context.Context, str
 
 func (s *Service) startKind(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
 	switch {
+	case req.Kind == nil && req.ObservationID != nil && req.DashboardID == nil:
+		return s.startInvestigation(ctx, by, req, prompt, turn, true)
 	case req.Kind == nil || *req.Kind == KindBuild:
 		return s.startBuild(ctx, by, req, prompt, turn)
 	case *req.Kind == KindInvestigate:
-		return s.startInvestigation(ctx, by, req, prompt, turn)
+		return s.startInvestigation(ctx, by, req, prompt, turn, false)
+	case *req.Kind == KindAsk:
+		return s.startInvestigation(ctx, by, req, prompt, turn, true)
 	}
-	return dbsqlc.AgentRequest{}, refused("kind must be build or investigate")
+	return dbsqlc.AgentRequest{}, refused("kind must be build, ask or investigate")
 }
 
 func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pgtype.UUID, req StartRequest, prompt string) (Started, bool, error) {
@@ -224,9 +228,9 @@ func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartReq
 func buildFieldConflict(req StartRequest) string {
 	switch {
 	case req.PanelID != nil || req.From != nil || req.To != nil:
-		return "panel_id, from and to need kind investigate"
+		return "panel_id, from and to need kind ask or investigate"
 	case req.ObservationID != nil:
-		return "observation_id goes with kind investigate"
+		return "observation_id goes with kind ask or investigate"
 	case req.DashboardID == nil && req.BaseVersion != nil:
 		return "base_version needs dashboard_id"
 	case req.DashboardID != nil && req.FollowsID != nil:
@@ -248,14 +252,29 @@ func uuidField(name string, raw *string) (pgtype.UUID, error) {
 	return id, nil
 }
 
-func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
-	if req.BaseVersion != nil {
-		return dbsqlc.AgentRequest{}, refused("base_version is not allowed for kind investigate")
+func askFieldConflict(req StartRequest, private bool) string {
+	kind := KindInvestigate
+	if private {
+		kind = KindAsk
 	}
-	if req.ChatID != nil && req.FollowsID != nil {
-		return dbsqlc.AgentRequest{}, refused("follows_id and chat_id exclude each other")
+	switch {
+	case req.BaseVersion != nil:
+		return "base_version is not allowed for kind " + kind
+	case private && req.DashboardID == nil && req.ObservationID == nil:
+		return "kind ask needs dashboard_id or observation_id"
+	case private && req.DashboardID != nil && req.ObservationID != nil:
+		return "kind ask takes dashboard_id or observation_id, not both"
+	case req.ChatID != nil && req.FollowsID != nil:
+		return "follows_id and chat_id exclude each other"
 	}
-	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, clientID: turn.clientID}
+	return ""
+}
+
+func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput, private bool) (dbsqlc.AgentRequest, error) {
+	if msg := askFieldConflict(req, private); msg != "" {
+		return dbsqlc.AgentRequest{}, refused("%s", msg)
+	}
+	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, Private: private, clientID: turn.clientID}
 	var err error
 	if params.chat, err = s.investigationChat(ctx, by, req); err != nil {
 		return dbsqlc.AgentRequest{}, err

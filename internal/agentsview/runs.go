@@ -204,7 +204,7 @@ func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	out := runJSON{
 		ID:          row.ID.String(),
 		Intent:      row.Intent,
-		Source:      string(revisions.SourceFor(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)),
+		Source:      string(revisions.RunShape{Intent: revisions.Intent(row.Intent), BaseVersion: row.BaseVersion, CommentID: row.CommentID, ThreadMessageID: row.ThreadMessageID, DashboardID: row.DashboardID, ObservationID: row.ObservationID, SubjectID: row.SubjectObservationID}.Source()),
 		State:       row.State,
 		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
 		FailureCode: optionalText(row.FailureCode),

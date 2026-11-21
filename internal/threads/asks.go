@@ -172,22 +172,21 @@ func (r *ask) runAllowed() (*RunRefusal, error) {
 		return r.denied, r.checkErr
 	}
 	r.checked = true
-	var source revisions.Source
-	var dashboardID pgtype.UUID
+	var target revisions.RunTarget
 	switch r.sc.target.Kind {
 	case KindDashboard:
-		source, dashboardID = revisions.SourceComment, r.sc.target.ID
+		target = revisions.RunTarget{Intent: revisions.IntentApply, DashboardID: r.sc.target.ID}
 	case KindObservation:
 		if r.policy.noInvestigations {
 			r.denied = &RunRefusal{Code: RefusalPersonStarts, Message: "investigations are started by a person in the web app or the CLI, not through MCP; the message was saved without a run"}
 			return r.denied, nil
 		}
-		source = revisions.SourceInvestigate
+		target = revisions.RunTarget{Intent: revisions.IntentAsk, ObservationID: r.sc.target.ID}
 	default:
 		r.denied = &RunRefusal{Code: RefusalUnsupportedTarget, Message: "agents can be asked from dashboard and observation threads"}
 		return r.denied, nil
 	}
-	err := r.asks.queue.CheckRun(r.ctx, source, dashboardID, r.by)
+	err := r.asks.queue.CheckRun(r.ctx, target, r.by)
 	if errors.Is(err, revisions.ErrForbidden) || errors.Is(err, folders.ErrForbidden) {
 		r.denied = &RunRefusal{Code: RefusalForbidden, Message: err.Error()}
 		return r.denied, nil

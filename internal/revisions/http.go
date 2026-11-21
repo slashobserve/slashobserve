@@ -240,7 +240,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 	views := make([]revisionJSON, len(revs))
 	for i, rev := range revs {
 		state := states[ids[i]]
-		mayStart, err := starts.may(ctx, rev.State, rev.Source, dashboardID)
+		mayStart, err := starts.may(ctx, rev.State, rev.Source, RunTarget{Intent: IntentApply, DashboardID: dashboardID})
 		if err != nil {
 			return nil, fmt.Errorf("check who may start a revision again: %w", err)
 		}

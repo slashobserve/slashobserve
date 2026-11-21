@@ -48,7 +48,7 @@ LIMIT 100;
 
 -- name: ListAgentRuns :many
 SELECT r.id, r.intent, r.title, r.prompt, r.state, r.result_kind, r.failure_code,
-       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id,
+       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.subject_observation_id,
        r.created_at, r.started_at, r.finished_at,
        ((r.run_usage->>'cost_usd') IS NOT NULL)::boolean AS priced,
        coalesce((r.run_usage->>'cost_usd')::float8, 0)::float8 AS cost_usd,
@@ -70,7 +70,7 @@ LIMIT @row_limit;
 
 -- name: ListWorkingRuns :many
 SELECT r.id, r.intent, r.title, r.prompt, r.state, r.created_at, r.started_at,
-       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.observation_id,
+       r.base_version, r.comment_id, r.thread_message_id, r.dashboard_id, r.observation_id, r.subject_observation_id,
        r.assigned_kind, r.assigned_id,
        r.requested_by_kind, r.requested_by_id, r.requested_by_name,
        d.id AS visible_dashboard_id, d.title AS dashboard_title,
@@ -82,7 +82,8 @@ WHERE r.state IN ('queued', 'running', 'canceling')
   AND r.intent <> 'suggest' AND r.archived_at IS NULL
   AND (
     (r.requested_by_kind = @caller_kind AND r.requested_by_id = @caller_id)
-    OR (d.id IS NOT NULL AND d.created_by_kind = @caller_kind AND d.created_by_id = @caller_id)
+    OR (d.id IS NOT NULL AND d.created_by_kind = @caller_kind AND d.created_by_id = @caller_id
+      AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.thread_message_id IS NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = @caller_kind AND o.created_by_id = @caller_id)
   )
 ORDER BY r.created_at DESC, r.id DESC

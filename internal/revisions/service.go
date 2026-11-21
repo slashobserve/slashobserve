@@ -87,7 +87,7 @@ type Point struct {
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentApply, DashboardID: p.DashboardID}, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	return s.submit(ctx, p)
@@ -213,7 +213,7 @@ func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
-	if err := s.checkRun(ctx, SourcePrompt, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentApply, DashboardID: p.DashboardID}, p.By); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	latest, base, err := s.baseVersionFor(ctx, p.DashboardID, baseVersion)
@@ -265,7 +265,7 @@ func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt s
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
-	if err := s.checkRun(ctx, SourceObserve, pgtype.UUID{}, by); err != nil {
+	if err := s.checkRun(ctx, RunTarget{Intent: IntentAsk}, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	var row dbsqlc.AgentRequest
@@ -352,6 +352,7 @@ type InvestigateParams struct {
 	ThreadContext   string
 	Point           Point
 	Ask             bool
+	Private         bool
 
 	chat     chatChoice
 	clientID pgtype.UUID
@@ -396,7 +397,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if !p.Ask {
+	if !p.Ask && !p.Private {
 		if err := checkInvestigateCaps(ctx, q, requesterID); err != nil {
 			return dbsqlc.AgentRequest{}, err
 		}
@@ -426,6 +427,8 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
+
+		SubjectObservationID: p.subject(),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
@@ -436,8 +439,10 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if row, err = s.openObservation(ctx, q, row, p); err != nil {
-		return dbsqlc.AgentRequest{}, err
+	if !p.Private {
+		if row, err = s.openObservation(ctx, q, row, p); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
 	}
 	if err := lockAnchoredBlock(ctx, q, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
@@ -505,8 +510,19 @@ func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigatePara
 	return nil
 }
 
+func (p InvestigateParams) subject() pgtype.UUID {
+	if !p.Private {
+		return pgtype.UUID{}
+	}
+	return p.ObservationID
+}
+
+func (p InvestigateParams) target() RunTarget {
+	return RunTarget{Intent: IntentAsk, DashboardID: p.DashboardID, ObservationID: p.ObservationID, Files: !p.Ask && !p.Private}
+}
+
 func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {
-	if err := s.checkRun(ctx, SourceInvestigate, p.DashboardID, p.By); err != nil {
+	if err := s.checkRun(ctx, p.target(), p.By); err != nil {
 		return err
 	}
 	if p.PanelID == "" {
@@ -560,7 +576,11 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
 	switch {
-	case sameActor(requesterOf(row), by), row.DashboardID.Valid:
+	case sameActor(requesterOf(row), by):
+		return row, nil
+	case privateAsk(row):
+		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:
 		return row, s.checkObservationVisible(ctx, row.ObservationID, by)

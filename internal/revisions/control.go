@@ -102,17 +102,12 @@ func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, maySt
 type startChecks struct {
 	service *Service
 	by      auth.Principal
-	seen    map[startKey]bool
+	seen    map[RunTarget]bool
 	edits   map[pgtype.UUID]bool
 }
 
-type startKey struct {
-	source    Source
-	dashboard pgtype.UUID
-}
-
 func (s *Service) newStartChecks(by auth.Principal) *startChecks {
-	return &startChecks{service: s, by: by, seen: map[startKey]bool{}, edits: map[pgtype.UUID]bool{}}
+	return &startChecks{service: s, by: by, seen: map[RunTarget]bool{}, edits: map[pgtype.UUID]bool{}}
 }
 
 func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgtype.UUID) (bool, error) {
@@ -134,22 +129,19 @@ func (c *startChecks) mayEdit(ctx context.Context, state State, dashboardID pgty
 	return false, err
 }
 
-func (c *startChecks) may(ctx context.Context, state State, source Source, dashboardID pgtype.UUID) (bool, error) {
-	if !state.Terminal() || !(runFacts{source: source, onDashboard: dashboardID.Valid}).retryable() {
+func (c *startChecks) may(ctx context.Context, state State, source Source, ran RunTarget) (bool, error) {
+	if !state.Terminal() || !(runFacts{source: source, onDashboard: ran.DashboardID.Valid}).retryable() {
 		return false, nil
 	}
-	if source == SourceObserve {
-		dashboardID = pgtype.UUID{}
-	}
-	key := startKey{source: source, dashboard: dashboardID}
+	key := retryTarget(source, ran)
 	if may, ok := c.seen[key]; ok {
 		return may, nil
 	}
-	err := c.service.checkRun(ctx, source, dashboardID, c.by)
+	err := c.service.checkRun(ctx, key, c.by)
 	may := err == nil
 	switch {
 	case err == nil,
-		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound),
+		errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound),
 		errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden):
 		c.seen[key] = may
 		return may, nil
@@ -159,7 +151,7 @@ func (c *startChecks) may(ctx context.Context, state State, source Source, dashb
 
 func (s *Service) factsFor(ctx context.Context, row dbsqlc.AgentRequest, build buildState, by auth.Principal) (runFacts, error) {
 	checks := s.newStartChecks(by)
-	mayStart, err := checks.may(ctx, State(row.State), SourceOf(row), row.DashboardID)
+	mayStart, err := checks.may(ctx, State(row.State), SourceOf(row), targetOf(row))
 	if err != nil {
 		return runFacts{}, err
 	}
@@ -259,7 +251,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err := s.continueBlocker(ctx, row, by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if err := s.checkRun(ctx, SourceOf(row), row.DashboardID, by); err != nil {
+	if err := s.checkRun(ctx, targetOf(row), by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	ctx = WithTimeZone(ctx, row.TimeZone.String)

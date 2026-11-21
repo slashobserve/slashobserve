@@ -163,7 +163,7 @@ func TestObservationIdChecksBeforeAnythingIsEnqueued(t *testing.T) {
 	if n := r.count(t, "agent_requests"); n != 0 {
 		t.Errorf("%d requests were enqueued", n)
 	}
-	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"build","observation_id":"x"}`); !strings.Contains(rec.Body.String(), "observation_id goes with kind investigate") {
+	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"build","observation_id":"x"}`); !strings.Contains(rec.Body.String(), "observation_id goes with kind ask or investigate") {
 		t.Errorf("message: %s", rec.Body)
 	}
 }

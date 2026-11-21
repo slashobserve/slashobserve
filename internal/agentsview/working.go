@@ -127,7 +127,7 @@ func newWorkingRunJSON(row dbsqlc.ListWorkingRunsRow, callerKind auth.PrincipalK
 	out := workingRunJSON{
 		ID:          row.ID.String(),
 		Intent:      row.Intent,
-		Source:      string(revisions.SourceFor(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)),
+		Source:      string(revisions.RunShape{Intent: revisions.Intent(row.Intent), BaseVersion: row.BaseVersion, CommentID: row.CommentID, ThreadMessageID: row.ThreadMessageID, DashboardID: row.DashboardID, ObservationID: row.ObservationID, SubjectID: row.SubjectObservationID}.Source()),
 		State:       row.State,
 		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
 		StartedAt:   optionalTime(row.StartedAt),

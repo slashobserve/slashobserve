@@ -311,10 +311,18 @@ A run never changes its own mode, and only a run on Home takes `ask_on_dashboard
 
 A follow-up, a revision or a comment sent to the agent needs Comment on the dashboard's folder, so a person who can comment but not edit may ask, and their change becomes a [proposal](proposals.md) that someone who can edit merges (see [Folders and access](../teams/folders.md)).
 A [suggestion](../use/edit-panel.md) for one panel still needs Edit.
+An investigation that writes into an observation needs the Editor role, while a question asked in a thread on an observation needs only Comment on it, so a Commenter's question there is answered in the thread and files nothing.
 These runs count toward the same limit as any other, at most 5 revisions queued or running on a dashboard.
 
 The saved version records the requester as its author and the request that asked for it, and the version menu on the dashboard shows "Agent" as the one who saved it.
 The tool-level roles do not apply inside a run, because the requester was already checked.
+
+### Private asks
+
+A private ask is a question about one dashboard or one observation, asked in a chat of yours: `observe investigate --private`, `start_run` with `kind: ask`, or `POST /observe` with `kind: ask`.
+It needs Comment on what it is about, and it does not count toward the investigation limits.
+It writes nothing anyone else reads: no observation is opened or written, no dashboard version is saved, and its activity events are seen only by you and Admins.
+Its run and its answer are read only by you and, read only, by Admins.
 
 ### When the requester cannot edit
 

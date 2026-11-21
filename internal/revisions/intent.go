@@ -14,54 +14,64 @@ const (
 	IntentSuggest Intent = "suggest"
 )
 
-type runShape struct {
-	intent      Intent
-	revises     bool
-	fromThread  bool
-	dashboard   bool
-	observation bool
+type RunShape struct {
+	Intent          Intent
+	BaseVersion     pgtype.Int4
+	CommentID       pgtype.UUID
+	ThreadMessageID pgtype.UUID
+	DashboardID     pgtype.UUID
+	ObservationID   pgtype.UUID
+	SubjectID       pgtype.UUID
 }
 
-func (r runShape) source() Source {
+func (r RunShape) Source() Source {
 	switch {
-	case r.intent == IntentSuggest:
+	case r.Intent == IntentSuggest:
 		return SourceSuggest
-	case r.intent == IntentApply && !r.revises:
+	case r.Intent == IntentApply && !r.BaseVersion.Valid:
 		return SourceObserve
-	case r.intent == IntentApply && r.fromThread:
+	case r.Intent == IntentApply && (r.CommentID.Valid || r.ThreadMessageID.Valid):
 		return SourceComment
-	case r.intent == IntentApply:
+	case r.Intent == IntentApply:
 		return SourcePrompt
-	case r.dashboard || r.observation:
+	case r.DashboardID.Valid || r.ObservationID.Valid || r.SubjectID.Valid:
 		return SourceInvestigate
 	}
 	return SourceObserve
 }
 
-func shapeOf(intent string, baseVersion pgtype.Int4, commentID, threadMessageID, dashboardID, observationID pgtype.UUID) runShape {
-	return runShape{
-		intent:      Intent(intent),
-		revises:     baseVersion.Valid,
-		fromThread:  commentID.Valid || threadMessageID.Valid,
-		dashboard:   dashboardID.Valid,
-		observation: observationID.Valid,
+func shapeOfRow(row dbsqlc.AgentRequest) RunShape {
+	return RunShape{
+		Intent:          Intent(row.Intent),
+		BaseVersion:     row.BaseVersion,
+		CommentID:       row.CommentID,
+		ThreadMessageID: row.ThreadMessageID,
+		DashboardID:     row.DashboardID,
+		ObservationID:   row.ObservationID,
+		SubjectID:       row.SubjectObservationID,
 	}
 }
 
-func rowShape(row dbsqlc.AgentRequest) runShape {
-	return shapeOf(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)
-}
-
 func SourceOf(row dbsqlc.AgentRequest) Source {
-	return rowShape(row).source()
+	return shapeOfRow(row).Source()
 }
 
 func listedSource(row dbsqlc.ListAgentRequestsByRow) Source {
-	shape := shapeOf(row.Intent, row.BaseVersion, row.CommentID, row.ThreadMessageID, row.DashboardID, row.ObservationID)
-	shape.observation = shape.observation || row.ChatObservationID.Valid
-	return shape.source()
+	return listedShape(row).Source()
 }
 
-func SourceFor(intent string, baseVersion pgtype.Int4, commentID, threadMessageID, dashboardID, observationID pgtype.UUID) Source {
-	return shapeOf(intent, baseVersion, commentID, threadMessageID, dashboardID, observationID).source()
+func listedShape(row dbsqlc.ListAgentRequestsByRow) RunShape {
+	return RunShape{
+		Intent:          Intent(row.Intent),
+		BaseVersion:     row.BaseVersion,
+		CommentID:       row.CommentID,
+		ThreadMessageID: row.ThreadMessageID,
+		DashboardID:     row.DashboardID,
+		ObservationID:   row.ObservationID,
+		SubjectID:       row.SubjectObservationID,
+	}
+}
+
+func privateAsk(row dbsqlc.AgentRequest) bool {
+	return Intent(row.Intent) == IntentAsk && row.ChatID.Valid && !row.ThreadMessageID.Valid && !row.ObservationID.Valid
 }

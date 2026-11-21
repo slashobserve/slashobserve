@@ -145,7 +145,7 @@ func TestTheRunAudienceIsTheRequesters(t *testing.T) {
 		t.Fatalf("RunAudience = %q, want the requester's own audience", got)
 	}
 	by := auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}
-	run, err := RunFor(revisions.Request{ID: runForRequestID, Source: revisions.SourceObserve, RequestedBy: by})
+	run, err := RunFor(revisions.Request{ID: runForRequestID, Intent: revisions.IntentAsk, RequestedBy: by})
 	if err != nil {
 		t.Fatal(err)
 	}

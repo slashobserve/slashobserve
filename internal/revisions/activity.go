@@ -96,10 +96,17 @@ func runActivityWith(row dbsqlc.AgentRequest, typ string, extra map[string]any) 
 	return activity.Entry{
 		Type:     typ,
 		TargetID: row.ID,
-		Owner:    activity.OnDashboard(row.DashboardID),
+		Owner:    runOwner(row),
 		Actor:    actor.FromColumns(columns),
 		Data:     data,
 	}
+}
+
+func runOwner(row dbsqlc.AgentRequest) activity.Owner {
+	if privateAsk(row) {
+		return activity.Owner{}
+	}
+	return activity.OnDashboard(row.DashboardID)
 }
 
 func storedCost(runUsage []byte) (float64, bool) {

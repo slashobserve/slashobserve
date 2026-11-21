@@ -2,7 +2,8 @@
 -- +goose Up
 ALTER TABLE agent_requests
   ADD COLUMN IF NOT EXISTS intent TEXT,
-  ADD COLUMN IF NOT EXISTS applies_finding_id UUID;
+  ADD COLUMN IF NOT EXISTS applies_finding_id UUID,
+  ADD COLUMN IF NOT EXISTS subject_observation_id UUID;
 
 ALTER TABLE findings
   ADD COLUMN IF NOT EXISTS suggested_change TEXT,
@@ -65,6 +66,8 @@ ALTER TABLE agent_requests
   DROP CONSTRAINT IF EXISTS agent_requests_assigned_intent_check,
   DROP CONSTRAINT IF EXISTS agent_requests_applies_finding_check,
   DROP CONSTRAINT IF EXISTS agent_requests_applies_finding_id_fkey,
+  DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_check,
+  DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_id_fkey,
   ADD CONSTRAINT agent_requests_intent_check CHECK (intent IS NOT NULL AND intent IN ('ask', 'apply', 'suggest')) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_target_check CHECK (intent = 'ask' OR dashboard_id IS NOT NULL) NOT VALID,
   ADD CONSTRAINT agent_requests_ask_shape_check
@@ -80,7 +83,10 @@ ALTER TABLE agent_requests
     CHECK (status <> 'succeeded' OR ((intent <> 'suggest' OR suggestion IS NOT NULL) AND (result_version IS NULL OR dashboard_id IS NOT NULL))) NOT VALID,
   ADD CONSTRAINT agent_requests_assigned_intent_check CHECK (assigned_kind = 'builtin' OR intent <> 'suggest') NOT VALID,
   ADD CONSTRAINT agent_requests_applies_finding_check CHECK (applies_finding_id IS NULL OR intent = 'apply') NOT VALID,
-  ADD CONSTRAINT agent_requests_applies_finding_id_fkey FOREIGN KEY (applies_finding_id) REFERENCES findings (id) ON DELETE SET NULL NOT VALID;
+  ADD CONSTRAINT agent_requests_applies_finding_id_fkey FOREIGN KEY (applies_finding_id) REFERENCES findings (id) ON DELETE SET NULL NOT VALID,
+  ADD CONSTRAINT agent_requests_subject_observation_check
+    CHECK (subject_observation_id IS NULL OR (intent = 'ask' AND observation_id IS NULL AND dashboard_id IS NULL)) NOT VALID,
+  ADD CONSTRAINT agent_requests_subject_observation_id_fkey FOREIGN KEY (subject_observation_id) REFERENCES observations (id) ON DELETE CASCADE NOT VALID;
 
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_intent_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_ask_target_check;
@@ -93,6 +99,8 @@ ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_intent_succeeded_c
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_assigned_intent_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_applies_finding_check;
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_applies_finding_id_fkey;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_subject_observation_check;
+ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_subject_observation_id_fkey;
 ALTER TABLE agent_requests ALTER COLUMN intent SET NOT NULL;
 
 ALTER TABLE findings
@@ -119,6 +127,9 @@ CREATE INDEX CONCURRENTLY agent_requests_listed_intent_idx ON agent_requests (cr
 DROP INDEX CONCURRENTLY IF EXISTS agent_requests_applies_finding_idx;
 CREATE UNIQUE INDEX CONCURRENTLY agent_requests_applies_finding_idx ON agent_requests (applies_finding_id)
   WHERE applies_finding_id IS NOT NULL AND status IN ('queued', 'running', 'succeeded');
+DROP INDEX CONCURRENTLY IF EXISTS agent_requests_subject_observation_idx;
+CREATE INDEX CONCURRENTLY agent_requests_subject_observation_idx ON agent_requests (subject_observation_id)
+  WHERE subject_observation_id IS NOT NULL;
 
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION inbox_reason(a activity, reader uuid, editable uuid[], repair_prefix text) RETURNS text
@@ -194,7 +205,7 @@ UPDATE agent_requests SET source = CASE
   WHEN intent = 'apply' AND base_version IS NULL THEN 'observe'
   WHEN intent = 'apply' AND (comment_id IS NOT NULL OR thread_message_id IS NOT NULL) THEN 'comment'
   WHEN intent = 'apply' THEN 'prompt'
-  WHEN observation_id IS NOT NULL OR dashboard_id IS NOT NULL OR context_from IS NOT NULL THEN 'investigate'
+  WHEN observation_id IS NOT NULL OR subject_observation_id IS NOT NULL OR dashboard_id IS NOT NULL OR context_from IS NOT NULL THEN 'investigate'
   ELSE 'observe' END
 WHERE source IS NULL;
 DELETE FROM agent_requests WHERE source = 'investigate' AND continues_id IS NOT NULL;
@@ -202,6 +213,8 @@ UPDATE agent_requests SET context_from = NULL, context_to = NULL WHERE source <>
 ALTER TABLE agent_requests ALTER COLUMN source SET NOT NULL;
 
 ALTER TABLE agent_requests
+  DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_id_fkey,
+  DROP CONSTRAINT IF EXISTS agent_requests_subject_observation_check,
   DROP CONSTRAINT IF EXISTS agent_requests_applies_finding_id_fkey,
   DROP CONSTRAINT IF EXISTS agent_requests_applies_finding_check,
   DROP CONSTRAINT IF EXISTS agent_requests_assigned_intent_check,
@@ -339,4 +352,5 @@ CREATE OR REPLACE TRIGGER agent_requests_old_server_chat BEFORE INSERT ON agent_
 FOR EACH ROW EXECUTE FUNCTION agent_requests_old_server_chat();
 
 ALTER TABLE findings DROP CONSTRAINT IF EXISTS findings_suggested_change_check, DROP COLUMN IF EXISTS observe_worthy, DROP COLUMN IF EXISTS suggested_change;
-ALTER TABLE agent_requests DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS intent;
+DROP INDEX IF EXISTS agent_requests_subject_observation_idx;
+ALTER TABLE agent_requests DROP COLUMN IF EXISTS subject_observation_id, DROP COLUMN IF EXISTS applies_finding_id, DROP COLUMN IF EXISTS intent;

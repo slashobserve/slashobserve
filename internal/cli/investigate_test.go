@@ -43,6 +43,16 @@ func TestInvestigatePayloadNamesTheObservationOnlyWhenGiven(t *testing.T) {
 	}
 }
 
+func TestInvestigatePrivateSendsKindAsk(t *testing.T) {
+	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, private: true, timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"kind":"ask","observation_id":"`+observationID+`","prompt":"why"}` {
+		t.Errorf("payload = %s", raw)
+	}
+}
+
 func TestInvestigateSendsTheObservationFlag(t *testing.T) {
 	server, requests := investigationServer(t, findingJSON)
 	_, stderr, code := runCLI("--server", server.URL, "--token", "k", "-q", "investigate", "--observation", observationID, "why", "did", "errors", "rise")
@@ -64,6 +74,8 @@ func TestInvestigateFlagRulesAreUsageErrors(t *testing.T) {
 		"bad dashboard id":        {"investigate", "why", "--dashboard", "checkout"},
 		"bad observation id":      {"investigate", "why", "--observation", "weekly-review"},
 		"zero timeout":            {"investigate", "why", "--timeout", "0s"},
+		"private with no subject": {"investigate", "why", "--private"},
+		"private with both":       {"investigate", "why", "--private", "--dashboard", repairID, "--observation", observationID},
 	}
 	for name, args := range cases {
 		server, requests := healthServer(t, `{}`)

@@ -315,7 +315,10 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--observation` names an existing observation to write into, by its id.
 `--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks.
-`--panel` without `--dashboard`, or one of `--from` and `--to` alone, or an `--observation` that is not an id, exits 2.
+`--panel` without `--dashboard`, one of `--from` and `--to` alone, an `--observation` that is not an id, or `--private` without exactly one of `--dashboard` and `--observation`, exits 2.
+
+`--private` asks privately about one of `--dashboard` or `--observation`: it needs only Comment on it, writes nothing into it and opens no observation, and the answer is read only by you and, read only, by Admins (see [Private asks](../concepts/agent.md#private-asks)).
+
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
 Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
 With `--observation` the run and the conclusion go into that observation.

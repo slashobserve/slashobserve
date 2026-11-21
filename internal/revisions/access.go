@@ -9,21 +9,83 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 var ErrForbidden = errors.New(forbidden.RoleMessage)
 
-func refusal(source Source, hasDashboard bool, role auth.Role, folderTitle string) error {
+type RunTarget struct {
+	Intent        Intent
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	Files         bool
+}
+
+func targetOf(row dbsqlc.AgentRequest) RunTarget {
+	return shapeOfRow(row).target()
+}
+
+func (r RunShape) target() RunTarget {
+	t := RunTarget{Intent: r.Intent, DashboardID: r.DashboardID, ObservationID: r.ObservationID}
+	if !t.ObservationID.Valid {
+		t.ObservationID = r.SubjectID
+	}
+	t.Files = r.Intent == IntentAsk && r.ObservationID.Valid && !r.ThreadMessageID.Valid
+	return t
+}
+
+func retryTarget(source Source, ran RunTarget) RunTarget {
+	if source == SourceObserve {
+		return RunTarget{Intent: IntentAsk}
+	}
+	return ran
+}
+
+type runRule struct {
+	target      RunTarget
+	role        auth.Role
+	canCreate   bool
+	dashboard   folders.Abilities
+	observation folders.Abilities
+}
+
+func runAllowed(r runRule) bool {
+	t := r.target
+	switch t.Intent {
+	case IntentSuggest:
+		return t.DashboardID.Valid && r.dashboard.Edit
+	case IntentApply:
+		return t.DashboardID.Valid && r.dashboard.Comment
+	case IntentAsk:
+	default:
+		return false
+	}
+	if t.DashboardID.Valid && !r.dashboard.View {
+		return false
+	}
 	switch {
-	case source == SourceInvestigate && !role.AtLeast(auth.RoleEditor):
+	case t.Files:
+		return r.role.AtLeast(auth.RoleEditor)
+	case t.ObservationID.Valid:
+		return r.observation.Comment
+	case t.DashboardID.Valid:
+		return r.dashboard.Comment
+	}
+	return r.canCreate
+}
+
+func refusal(r runRule, folderTitle string) error {
+	t := r.target
+	switch {
+	case t.Intent == IntentAsk && t.Files && !r.role.AtLeast(auth.RoleEditor):
 		return forbidden.Need(ErrForbidden, forbidden.NeedsRole(string(auth.RoleEditor)))
-	case source == SourceInvestigate:
-		return ErrForbidden
-	case hasDashboard && source == SourceSuggest:
+	case t.Intent == IntentAsk && (t.Files || t.ObservationID.Valid && !t.DashboardID.Valid):
+		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("comment", folderTitle))
+	case t.DashboardID.Valid && t.Intent == IntentSuggest:
 		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", folderTitle))
-	case hasDashboard:
+	case t.DashboardID.Valid:
 		return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("comment", folderTitle))
 	}
 	return forbidden.Need(ErrForbidden, forbidden.NeedsAccess("edit", ""))
@@ -31,51 +93,77 @@ func refusal(source Source, hasDashboard bool, role auth.Role, folderTitle strin
 
 const requesterForbiddenMessage = "the person or key that asked no longer has access to change this dashboard"
 
-func runAllowed(source Source, hasDashboard, canCreate bool, role auth.Role, a folders.Abilities) bool {
-	if source == SourceInvestigate {
-		return role.AtLeast(auth.RoleEditor) && (!hasDashboard || a.View)
-	}
-	if hasDashboard {
-		if source == SourceSuggest {
-			return a.Edit
+func (s *Service) CheckRun(ctx context.Context, target RunTarget, by auth.Principal) error {
+	return s.checkRun(ctx, target, by)
+}
+
+func (s *Service) checkRun(ctx context.Context, target RunTarget, by auth.Principal) error {
+	rule := runRule{target: target, role: by.Role}
+	title := ""
+	if target.DashboardID.Valid {
+		var err error
+		if rule.dashboard, title, err = s.dashboardAccess(ctx, target.DashboardID, by); err != nil {
+			return err
 		}
-		return a.Comment
 	}
-	return source == SourceObserve && canCreate
-}
-
-func (s *Service) CheckRun(ctx context.Context, source Source, dashboardID pgtype.UUID, by auth.Principal) error {
-	return s.checkRun(ctx, source, dashboardID, by)
-}
-
-func (s *Service) checkRun(ctx context.Context, source Source, dashboardID pgtype.UUID, by auth.Principal) error {
-	if !dashboardID.Valid {
+	if target.Intent == IntentAsk && target.ObservationID.Valid && !target.Files {
+		folder, abilities, err := s.observationAccess(ctx, target.ObservationID, by)
+		if err != nil {
+			return err
+		}
+		rule.observation, title = abilities, folder
+	}
+	if !target.DashboardID.Valid && !target.ObservationID.Valid && !target.Files {
 		levels, err := s.access.Levels(ctx, by)
 		switch {
 		case errors.Is(err, folders.ErrForbidden):
 			return ErrForbidden
 		case err != nil:
 			return err
-		case !runAllowed(source, false, levels.CanCreate(), by.Role, folders.Abilities{}):
-			return refusal(source, false, by.Role, "")
 		}
-		return nil
+		rule.canCreate = levels.CanCreate()
 	}
+	if !runAllowed(rule) {
+		return refusal(rule, title)
+	}
+	return nil
+}
+
+func (s *Service) dashboardAccess(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) (folders.Abilities, string, error) {
 	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
-		return ErrDashboardNotFound
+		return folders.Abilities{}, "", ErrDashboardNotFound
 	case errors.Is(err, folders.ErrForbidden):
-		return ErrForbidden
+		return folders.Abilities{}, "", ErrForbidden
 	case err != nil:
-		return err
-	case !runAllowed(source, true, false, by.Role, access.Abilities):
-		if !access.Abilities.View {
-			return ErrForbidden
-		}
-		return refusal(source, true, by.Role, access.Folder.Title)
+		return folders.Abilities{}, "", err
+	case !access.Abilities.View:
+		return folders.Abilities{}, "", ErrForbidden
 	}
-	return nil
+	return access.Abilities, access.Folder.Title, nil
+}
+
+func (s *Service) observationAccess(ctx context.Context, observationID pgtype.UUID, by auth.Principal) (string, folders.Abilities, error) {
+	observation, err := s.db.Queries().ObservationByID(ctx, observationID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return "", folders.Abilities{}, ErrObservationNotFound
+	case err != nil:
+		return "", folders.Abilities{}, fmt.Errorf("read the run's observation: %w", err)
+	}
+	folder, abilities, err := s.access.Folder(ctx, by, observation.FolderID)
+	switch {
+	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+		return "", folders.Abilities{}, ErrObservationNotFound
+	case errors.Is(err, folders.ErrForbidden):
+		return "", folders.Abilities{}, ErrForbidden
+	case err != nil:
+		return "", folders.Abilities{}, err
+	case !abilities.View:
+		return "", folders.Abilities{}, ErrObservationNotFound
+	}
+	return folder.Title, abilities, nil
 }
 
 func (s *Service) checkVisible(ctx context.Context, dashboardID pgtype.UUID, by auth.Principal) error {

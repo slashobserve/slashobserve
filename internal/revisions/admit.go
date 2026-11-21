@@ -82,8 +82,8 @@ func (s *Service) admit(ctx context.Context, c Claimant, row dbsqlc.AgentRequest
 		s.releaseLogged(ctx, row, true)
 		return Request{}, released
 	}
-	switch err := s.checkRun(ctx, SourceOf(row), row.DashboardID, requester); {
-	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound):
+	switch err := s.checkRun(ctx, targetOf(row), requester); {
+	case errors.Is(err, ErrForbidden), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound):
 		s.finishLogged(ctx, row, outcome{message: requesterForbiddenMessage, code: "agent_requester_forbidden", failure: FailureRequesterForbidden})
 		return Request{}, settled
 	case err != nil:
@@ -262,9 +262,15 @@ func logAttrs(row dbsqlc.AgentRequest) []any {
 
 func RequestOf(row dbsqlc.AgentRequest) Request {
 	return Request{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Source:       SourceOf(row),
+		ID:          row.ID.String(),
+		DashboardID: row.DashboardID.String(),
+		Intent:      Intent(row.Intent),
+		Source:      SourceOf(row),
+
+		ObservationID:        row.ObservationID.String(),
+		SubjectObservationID: row.SubjectObservationID.String(),
+		ChatID:               row.ChatID.String(),
+
 		Prompt:       row.Prompt,
 		PanelID:      row.PanelID.String,
 		BaseVersion:  int(row.BaseVersion.Int32),

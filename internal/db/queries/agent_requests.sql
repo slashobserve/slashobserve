@@ -275,7 +275,7 @@ SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
-  r.base_version, r.comment_id, r.thread_message_id,
+  r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
@@ -292,8 +292,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
     WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
     WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
     WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
-      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
     ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
@@ -318,7 +317,7 @@ SELECT r.id, r.intent, r.trigger, r.prompt, r.dashboard_id, r.panel_id, r.status
   r.origin, r.origin_client, r.created_at, r.started_at, r.finished_at,
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
-  r.base_version, r.comment_id, r.thread_message_id,
+  r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
@@ -335,8 +334,7 @@ WHERE r.intent <> 'suggest'
     WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
     WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
     WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
-      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
     ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
@@ -363,8 +361,7 @@ WHERE r.requested_by_kind = @requested_by_kind AND r.requested_by_id = @requeste
     WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
     WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
     WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
-      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
     ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
@@ -387,8 +384,7 @@ WHERE r.intent <> 'suggest'
     WHEN r.intent = 'apply' AND r.base_version IS NULL THEN 'observe'
     WHEN r.intent = 'apply' AND (r.comment_id IS NOT NULL OR r.thread_message_id IS NOT NULL) THEN 'comment'
     WHEN r.intent = 'apply' THEN 'prompt'
-    WHEN r.observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL
-      OR EXISTS (SELECT 1 FROM chats sc WHERE sc.id = r.chat_id AND sc.observation_id IS NOT NULL) THEN 'investigate'
+    WHEN r.observation_id IS NOT NULL OR r.subject_observation_id IS NOT NULL OR r.dashboard_id IS NOT NULL THEN 'investigate'
     ELSE 'observe' END)
   AND (sqlc.narg('dashboard_id')::uuid IS NULL OR r.dashboard_id = sqlc.narg('dashboard_id')::uuid)
   AND (sqlc.narg('chat_id')::uuid IS NULL OR r.chat_id = sqlc.narg('chat_id')::uuid OR r.id = sqlc.narg('chat_id')::uuid)
@@ -443,7 +439,7 @@ INSERT INTO agent_requests (
   id, dashboard_id, intent, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
-  chat_id, anchor, block_id, client_id
+  chat_id, anchor, block_id, client_id, subject_observation_id
 ) VALUES (
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'ask', @prompt, sqlc.narg('panel_id')::text,
   sqlc.narg('context_from')::timestamptz, sqlc.narg('context_to')::timestamptz,
@@ -451,7 +447,8 @@ INSERT INTO agent_requests (
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('retries_id')::uuid, coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
   sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text,
-  sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid
+  sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid,
+  sqlc.narg('subject_observation_id')::uuid
 )
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;

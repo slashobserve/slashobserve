@@ -64,6 +64,7 @@ const (
 const (
 	KindBuild       = "build"
 	KindInvestigate = "investigate"
+	KindAsk         = "ask"
 )
 
 type Status string
@@ -218,15 +219,20 @@ func WithMetrics(m Metrics) Option {
 type Request struct {
 	ID          string
 	DashboardID string
+	Intent      Intent
 	Source      Source
-	Prompt      string
-	PanelID     string
-	BaseVersion int
-	Draft       json.RawMessage
-	Attempt     int
-	RequestedBy auth.Principal
-	Origin      origin.Origin
-	Assignee    AssigneeKind
+
+	ObservationID        string
+	SubjectObservationID string
+	ChatID               string
+	Prompt               string
+	PanelID              string
+	BaseVersion          int
+	Draft                json.RawMessage
+	Attempt              int
+	RequestedBy          auth.Principal
+	Origin               origin.Origin
+	Assignee             AssigneeKind
 
 	Continues    bool
 	ContinueNote string

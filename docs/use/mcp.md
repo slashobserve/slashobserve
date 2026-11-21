@@ -421,6 +421,7 @@ To make that change, use `update_panels` on that dashboard yourself, or ask the 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
 `start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, a `chat_id`, one of your chats from `list_chats` whose next turn the run is, and an `anchor`, the spot on the dashboard the prompt is about, shaped as `list_comments` shows it; it queues a run and answers with it at once, and you follow it with `get_run`.
+With `kind: ask` and one of `dashboard_id` or `observation_id`, the run is a [private ask](../concepts/agent.md#private-asks): it only answers, changes nothing, and is read only by you and Admins; `kind: investigate` is refused, because an investigation is a person's decision.
 
 Every run is a turn of a chat: without `chat_id` a new chat starts, and a revision joins your latest chat on that dashboard; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
