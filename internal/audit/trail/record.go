@@ -3,7 +3,6 @@ package trail
 import (
 	"context"
 	"maps"
-	"net/http"
 	"time"
 	"unicode/utf8"
 
@@ -14,8 +13,9 @@ import (
 const (
 	ActionSearch audit.Action = "audit.search"
 	ActionExport audit.Action = "audit.export"
-	targetEvent               = "audit_event"
+	noAction     audit.Action = ""
 
+	viewEvents            = "events"
 	MaxRecordedQueryBytes = 4096
 	truncatedMark         = " [truncated]"
 )
@@ -43,7 +43,7 @@ func windowData(p Prepared) map[string]any {
 func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) (Prepared, error) {
 	p, err := Prepare(req, r.now())
 	if err != nil {
-		if problem, ok := ProblemOf(err); ok {
+		if problem, ok := ProblemOf(err); ok && action != noAction {
 			r.write(ctx, audit.Event{
 				Action: action, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
 				Data: map[string]any{"query": recordedQuery(req.Text)},
@@ -54,11 +54,11 @@ func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) 
 	return p, nil
 }
 
-func (r *Reader) searchFailed(ctx context.Context, p Prepared, view string, err error) error {
+func (r *Reader) searchFailed(ctx context.Context, p Prepared, err error) error {
 	if problem, ok := ProblemOf(err); ok {
 		r.record(ctx, p, audit.Event{
 			Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
-			Data: map[string]any{"view": view},
+			Data: map[string]any{"view": viewEvents},
 		})
 	}
 	return err
@@ -69,17 +69,6 @@ func (r *Reader) record(ctx context.Context, p Prepared, e audit.Event) {
 	maps.Copy(data, e.Data)
 	e.Data = data
 	r.write(ctx, e)
-}
-
-func searched(extra map[string]any) audit.Event {
-	return audit.Event{Action: ActionSearch, Status: http.StatusOK, Data: extra}
-}
-
-func (r *Reader) recordEvent(ctx context.Context, d Detail) {
-	r.write(ctx, audit.Event{
-		Action: ActionSearch, Status: http.StatusOK, Target: audit.Target{Kind: targetEvent, ID: d.Event.ID},
-		Data: map[string]any{"view": "event", "row_count": 1 + len(d.SameRequest) + len(d.SameRun)},
-	})
 }
 
 func (r *Reader) write(ctx context.Context, e audit.Event) {

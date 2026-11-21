@@ -126,7 +126,10 @@ func (q Query) Follow(w Window, after Position, limit int) (Compiled, error) {
 
 func (q Query) Facets(w Window, field string, limit int) (Compiled, error) {
 	f, ok := lookupField(field)
-	if !ok || !f.groupable() {
+	if ok && !f.groupable() {
+		return Compiled{}, fmt.Errorf("cannot count %q: it is not a field with values to count", truncate(field))
+	}
+	if !ok {
 		return Compiled{}, fmt.Errorf("cannot count %q: %s", truncate(field), unknownFieldMessage(field))
 	}
 	limit, err := pageLimit(limit, 0, DefaultFacets, MaxFacets)

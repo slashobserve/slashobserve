@@ -129,7 +129,7 @@ func (c cursor) at() time.Time {
 
 var (
 	errCursorUnreadable = &InvalidRequest{Msg: "cursor is not readable; start again without it"}
-	errCursorForeign    = &InvalidRequest{Msg: "cursor belongs to another query; send the q it was returned with, or start again without it"}
+	errCursorForeign    = &InvalidRequest{Msg: "cursor belongs to another query; send the query it was returned with, or start again without it"}
 )
 
 func encodeCursor(p Prepared, at time.Time, id string) string {

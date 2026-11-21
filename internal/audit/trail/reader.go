@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/db"
 )
@@ -32,10 +34,11 @@ type Reader struct {
 	now           func() time.Time
 	timeout       time.Duration
 	followTimeout time.Duration
+	searches      *searchMemo
 }
 
 func NewReader(d *db.DB, logger *slog.Logger) *Reader {
-	return &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout, followTimeout: FollowTimeout}
+	return &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout, followTimeout: FollowTimeout, searches: newSearchMemo()}
 }
 
 func (r *Reader) Now() time.Time {
@@ -107,9 +110,13 @@ func refused(err error) error {
 func (r *Reader) Search(ctx context.Context, p Prepared, limit int) (Page, error) {
 	page, err := r.events(ctx, p, limit)
 	if err != nil {
-		return Page{}, r.searchFailed(ctx, p, "events", err)
+		return Page{}, r.searchFailed(ctx, p, err)
 	}
-	r.record(ctx, p, searched(map[string]any{"view": "events", "row_count": len(page.Events)}))
+	if r.searches.seenRecently(ctx, p.Text, r.now()) {
+		audit.Skip(ctx)
+		return page, nil
+	}
+	r.record(ctx, p, audit.Event{Action: ActionSearch, Status: http.StatusOK, Data: map[string]any{"view": viewEvents, "row_count": len(page.Events)}})
 	return page, nil
 }
 
@@ -165,7 +172,7 @@ func collectEvents(ctx context.Context, tx db.Rows, c filter.Compiled) ([]Event,
 func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int) ([]Facet, error) {
 	c, err := p.Query.Facets(p.Window, field, limit)
 	if err != nil {
-		return nil, r.searchFailed(ctx, p, "facets", refused(err))
+		return nil, refused(err)
 	}
 	facets := []Facet{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -184,9 +191,8 @@ func (r *Reader) Facets(ctx context.Context, p Prepared, field string, limit int
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, r.searchFailed(ctx, p, "facets", err)
+		return nil, err
 	}
-	r.record(ctx, p, searched(map[string]any{"view": "facets", "field": field, "row_count": len(facets)}))
 	return facets, nil
 }
 
@@ -216,7 +222,7 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 	step := StepFor(p.Window, buckets)
 	agg, err := p.Query.Histogram(p.Window, step)
 	if err != nil {
-		return Histogram{}, r.searchFailed(ctx, p, "histogram", refused(err))
+		return Histogram{}, refused(err)
 	}
 	counts := map[int64]int64{}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -236,7 +242,7 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 		return rows.Err()
 	})
 	if err != nil {
-		return Histogram{}, r.searchFailed(ctx, p, "histogram", err)
+		return Histogram{}, err
 	}
 	h := Histogram{StepMs: step.Milliseconds(), Buckets: []Bucket{}}
 	for at := binStart(p.Window.From, step); at.Before(p.Window.To); at = at.Add(step) {
@@ -244,14 +250,13 @@ func (r *Reader) Histogram(ctx context.Context, p Prepared, buckets int) (Histog
 		h.Total += n
 		h.Buckets = append(h.Buckets, Bucket{Time: at.UTC().Format(time.RFC3339), Count: n})
 	}
-	r.record(ctx, p, searched(map[string]any{"view": "histogram", "row_count": len(h.Buckets)}))
 	return h, nil
 }
 
 func (r *Reader) Aggregate(ctx context.Context, p Prepared) (Aggregation, error) {
 	agg, err := p.Query.Aggregate(p.Window)
 	if err != nil {
-		return Aggregation{}, r.searchFailed(ctx, p, "aggregate", refused(err))
+		return Aggregation{}, refused(err)
 	}
 	out := Aggregation{Levels: agg.Levels, Metrics: agg.Metrics, Rows: []AggRow{}}
 	err = r.read(ctx, func(tx db.Rows) error {
@@ -274,9 +279,8 @@ func (r *Reader) Aggregate(ctx context.Context, p Prepared) (Aggregation, error)
 		return rows.Err()
 	})
 	if err != nil {
-		return Aggregation{}, r.searchFailed(ctx, p, "aggregate", err)
+		return Aggregation{}, err
 	}
-	r.record(ctx, p, searched(map[string]any{"view": "aggregate", "row_count": len(out.Rows)}))
 	return out, nil
 }
 
@@ -339,7 +343,6 @@ func (r *Reader) Event(ctx context.Context, id string) (Detail, error) {
 		}
 		d.SameRun = page.Events
 	}
-	r.recordEvent(ctx, d)
 	return d, nil
 }
 

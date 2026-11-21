@@ -7537,7 +7537,7 @@ components:
     AuditEventList:
       type: object
       additionalProperties: false
-      required: [events, next_cursor, form, since, until]
+      required: [events, next_cursor, form, since, until, warnings]
       properties:
         events:
           type: array
@@ -7559,6 +7559,11 @@ components:
           type: string
           format: date-time
           description: The resolved end of the window, exclusive.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none.
     AuditEventDetail:
       type: object
       additionalProperties: false
@@ -7579,7 +7584,7 @@ components:
     AuditFacets:
       type: object
       additionalProperties: false
-      required: [field, values, form, since, until]
+      required: [field, values, form, since, until, warnings]
       properties:
         field:
           type: string
@@ -7608,10 +7613,15 @@ components:
           type: string
           format: date-time
           description: The resolved end of the window, exclusive.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none.
     AuditHistogram:
       type: object
       additionalProperties: false
-      required: [step_ms, total, buckets, form, since, until]
+      required: [step_ms, total, buckets, form, since, until, warnings]
       properties:
         step_ms:
           type: integer
@@ -7648,10 +7658,15 @@ components:
           type: string
           format: date-time
           description: The resolved end of the window, exclusive.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none.
     AuditAggregation:
       type: object
       additionalProperties: false
-      required: [levels, metrics, rows, truncated, form, since, until]
+      required: [levels, metrics, rows, truncated, form, since, until, warnings]
       properties:
         levels:
           type: array
@@ -7718,6 +7733,11 @@ components:
           type: string
           format: date-time
           description: The resolved end of the window, exclusive.
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none.
     AuditFieldList:
       type: object
       additionalProperties: false
@@ -7728,13 +7748,19 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [name, alias, type, description, values]
+            required: [name, alias, aliases, type, description, values]
             properties:
               name:
                 type: string
               alias:
                 type: string
                 nullable: true
+                description: The first of `aliases`, kept for older clients.
+              aliases:
+                type: array
+                items:
+                  type: string
+                description: The other names a query can use for the field, such as `actor` and `actor.name` for `actor_name`.
               type:
                 type: string
                 enum: [text, enum, int, uuid, ip, date, target]

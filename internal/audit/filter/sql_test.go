@@ -277,10 +277,7 @@ func TestFieldsListIsConsistent(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, f := range Fields() {
-		for _, name := range []string{f.Name, f.Alias} {
-			if name == "" {
-				continue
-			}
+		for _, name := range append([]string{f.Name}, f.Aliases...) {
 			if seen[name] {
 				t.Errorf("field name %q appears twice", name)
 			}
@@ -334,7 +331,7 @@ func TestEveryFieldTakesAValueOfItsType(t *testing.T) {
 			continue
 		}
 		assertSafeSQL(t, c.SQL, c.Args)
-		if f.Type == TypeTarget {
+		if !f.groupable() {
 			continue
 		}
 		if _, err := q.Facets(testWindow, f.Name, 5); err != nil {
@@ -344,7 +341,11 @@ func TestEveryFieldTakesAValueOfItsType(t *testing.T) {
 }
 
 func TestEveryAliasMapsToItsField(t *testing.T) {
-	for alias, column := range map[string]string{"actor": "actor_name", "run": "run_id", "request": "request_id", "datasource": "datasource_uid", "ip": "client_ip", "duration": "duration_ms"} {
+	for alias, column := range map[string]string{
+		"actor": "actor_name", "run": "run_id", "request": "request_id", "datasource": "datasource_uid", "ip": "client_ip", "duration": "duration_ms",
+		"actor.name": "actor_name", "actor.id": "actor_id", "actor.kind": "actor_kind", "actor.role": "actor_role", "actor.email": "actor_id",
+		"target.kind": "target_kind", "target.id": "target_id", "target.name": "target_name",
+	} {
 		where, _ := whereAndArgs(t, alias+":*")
 		if where != "("+column+" IS NOT NULL)" {
 			t.Errorf("%s:* compiled to %s", alias, where)
@@ -353,7 +354,7 @@ func TestEveryAliasMapsToItsField(t *testing.T) {
 }
 
 func TestLuceneQueriesFeedEveryShape(t *testing.T) {
-	q := mustParse(t, "lucene: outcome:(denied OR failed) AND NOT actor:Riya")
+	q := mustParse(t, "lucene: outcome:(denied OR failed) AND NOT actor_name:Riya")
 	rows, err := q.Rows(testWindow, Page{Limit: 5})
 	if err != nil {
 		t.Fatal(err)
@@ -378,5 +379,55 @@ func TestLuceneQueriesFeedEveryShape(t *testing.T) {
 	}
 	if _, err := q.Aggregate(testWindow); err == nil {
 		t.Error("a Lucene query has no aggs to aggregate")
+	}
+}
+
+func TestDottedNamesWorkInEveryQueryLanguage(t *testing.T) {
+	const id = "5b1e0a52-0b7c-4f08-9b1f-6a1d3d6a9a10"
+	for _, text := range []string{
+		`actor.name:"Ada" and target.kind:dashboard and target.id:abc and target.name:Checkout and actor.role:admin and actor.kind:user`,
+		`lucene: actor.name:Ada AND target.kind:dashboard AND actor.id:` + id,
+		`{"query":{"bool":{"must":[{"term":{"actor.name":"Ada"}},{"term":{"target.kind":"dashboard"}},{"term":{"actor.id":"` + id + `"}}]}}}`,
+	} {
+		if _, err := mustParse(t, text).Rows(testWindow, Page{}); err != nil {
+			t.Errorf("Rows(%q): %v", text, err)
+		}
+	}
+}
+
+func TestAnActorIsFoundByEmailOrByName(t *testing.T) {
+	for _, tc := range []struct{ text, want string }{
+		{`actor.email:"admin@example.com"`, "COALESCE((actor_id IN (SELECT id FROM users WHERE lower(email) = lower($3))), false)"},
+		{`actor:"admin@example.com"`, "COALESCE(((actor_name = $3 OR actor_id IN (SELECT id FROM users WHERE lower(email) = lower($3)))), false)"},
+		{`actor.name:"admin@example.com"`, "COALESCE((actor_name = $3), false)"},
+		{`actor_name:"admin@example.com"`, "COALESCE((actor_name = $3), false)"},
+		{`actor.email:admin*`, "COALESCE(actor_id IN (SELECT id FROM users WHERE email ILIKE $3 ESCAPE '\\'), false)"},
+		{`actor:admin*`, "COALESCE((actor_name ILIKE $3 ESCAPE '\\' OR actor_id IN (SELECT id FROM users WHERE email ILIKE $3 ESCAPE '\\')), false)"},
+	} {
+		where, args := whereAndArgs(t, tc.text)
+		if !strings.Contains(where, tc.want) || len(args) != 1 {
+			t.Errorf("%s compiled to %s with %v, want %s", tc.text, where, args, tc.want)
+		}
+	}
+}
+
+func TestAnUnknownFieldNamesTheNearestValidOnes(t *testing.T) {
+	for _, tc := range []struct{ text, want string }{
+		{"actor.emial:x", `unknown field "actor.emial"; did you mean "actor.email"?`},
+		{"acter.name:x", `did you mean "actor.name"`},
+		{"actor.zzz:x", `unknown field "actor.zzz"; did you mean `},
+		{"target.zzzz:x", `"target.`},
+		{"nothingalike:x", `unknown field "nothingalike"`},
+	} {
+		_, err := Parse(tc.text)
+		var parse *Error
+		if !errors.As(err, &parse) || !strings.Contains(parse.Msg, tc.want) {
+			t.Errorf("Parse(%q) = %v, want it to say %q", tc.text, err, tc.want)
+		}
+	}
+	_, err := Parse("actor.zzz:x")
+	var parse *Error
+	if errors.As(err, &parse) && strings.Count(parse.Msg, `"actor.`) < 3 {
+		t.Errorf("an unknown actor field names %q, want three nearest actor fields", parse.Msg)
 	}
 }

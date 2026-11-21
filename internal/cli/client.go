@@ -50,6 +50,8 @@ type apiError struct {
 	code    string
 	raw     []byte
 	issues  []apiIssue
+	start   *int
+	end     *int
 }
 
 type apiIssue struct {
@@ -317,6 +319,8 @@ func decodeAPIError(status int, data []byte) error {
 		Error  string     `json:"error"`
 		Code   string     `json:"code"`
 		Issues []apiIssue `json:"issues"`
+		Start  *int       `json:"start"`
+		End    *int       `json:"end"`
 	}
 	if json.Unmarshal(data, &body) != nil {
 		return &apiError{status: status, raw: data}
@@ -324,7 +328,7 @@ func decodeAPIError(status int, data []byte) error {
 	for i := range body.Issues {
 		body.Issues[i].Path, body.Issues[i].Message = text(body.Issues[i].Path), text(body.Issues[i].Message)
 	}
-	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data, issues: body.Issues}
+	return &apiError{status: status, message: text(body.Error), code: text(body.Code), raw: data, issues: body.Issues, start: body.Start, end: body.End}
 }
 
 type transportFailure struct{ error }

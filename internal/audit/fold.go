@@ -23,8 +23,8 @@ type foldKey struct {
 }
 
 type fold struct {
-	row    dbsqlc.InsertAuditEventParams
-	count  int64
+	latest dbsqlc.InsertAuditEventParams
+	later  int64
 	opened time.Time
 }
 
@@ -83,9 +83,9 @@ func overflowRow(row dbsqlc.InsertAuditEventParams) dbsqlc.InsertAuditEventParam
 	}
 }
 
-func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) bool {
+func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) (write dbsqlc.InsertAuditEventParams, enqueue bool) {
 	if !isFolded(row.Action) {
-		return false
+		return row, true
 	}
 	key := foldKeyOf(row)
 	f.mu.Lock()
@@ -95,11 +95,12 @@ func (f *folds) absorb(row dbsqlc.InsertAuditEventParams, now time.Time) bool {
 		row = overflowRow(row)
 	}
 	if open, found := f.open[key]; found {
-		open.count++
-		return true
+		open.latest = row
+		open.later++
+		return write, false
 	}
-	f.open[key] = &fold{row: row, count: 1, opened: now}
-	return true
+	f.open[key] = &fold{latest: row, opened: now}
+	return withCount(row, 1), true
 }
 
 func (f *folds) due(now time.Time) []dbsqlc.InsertAuditEventParams {
@@ -119,7 +120,9 @@ func (f *folds) take(ready func(*fold) bool) []dbsqlc.InsertAuditEventParams {
 			continue
 		}
 		delete(f.open, key)
-		rows = append(rows, withCount(open.row, open.count))
+		if open.later > 0 {
+			rows = append(rows, withCount(open.latest, open.later))
+		}
 	}
 	slices.SortFunc(rows, func(a, b dbsqlc.InsertAuditEventParams) int { return a.OccurredAt.Time.Compare(b.OccurredAt.Time) })
 	return rows

@@ -63,7 +63,8 @@ func newWriter(r *Recorder, limits writerLimits) *Writer {
 }
 
 func (w *Writer) enqueue(row dbsqlc.InsertAuditEventParams) {
-	if w.folds.absorb(row, time.Now()) {
+	row, enqueue := w.folds.absorb(row, time.Now())
+	if !enqueue {
 		return
 	}
 	select {
