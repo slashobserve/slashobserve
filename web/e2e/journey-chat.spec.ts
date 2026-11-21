@@ -11,6 +11,7 @@ import { expect, test } from "./fixtures"
 
 const agentTimeout = 90_000
 const askPrompt = "demo shop RED metrics by endpoint"
+const followUpQuestion = "Can this panel show each route?"
 const followUpPrompt = "Show this per route"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
 const dashboardTitle = "Demo shop RED metrics"
@@ -43,7 +44,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       let firstId = ""
       let dashboardId = ""
       const firstTurn = turnWith(page, askPrompt)
-      const secondTurn = turnWith(page, followUpPrompt)
+      const questionTurn = turnWith(page, followUpQuestion)
       const release = await holdRequestPollsUntilFinished(page)
 
       await test.step("ask", async () => {
@@ -116,27 +117,45 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(firstTurn).toBeVisible()
       })
 
-      await test.step("follow up", async () => {
+      await test.step("follow up with a question", async () => {
         const releaseFollowUp = await holdRequestPollsUntilFinished(page)
         const followUpCreated = page.waitForResponse(
           (response) =>
             response.request().method() === "POST" &&
             new URL(response.url()).pathname === "/api/v1/observe"
         )
-        await composer(page).fill(followUpPrompt)
+        await composer(page).fill(followUpQuestion)
         await composer(page).press("Enter")
         const followUp = (await (await followUpCreated).json()) as {
           request: { id: string }
         }
 
-        await expect(secondTurn).toBeVisible()
+        await expect(questionTurn).toBeVisible()
         await releaseFollowUp(followUp.request.id)
-        await expect(secondTurn.getByText(/Saved as version 2/)).toBeVisible({
+        await expect(
+          questionTurn.getByText(`Suggested change: ${followUpPrompt}`)
+        ).toBeVisible({ timeout: agentTimeout })
+        await expect(page.getByText(/Saved as version 2/)).toHaveCount(0)
+        await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
+      })
+
+      await test.step("revise the dashboard from the answer", async () => {
+        const revisionCreated = page.waitForResponse(
+          (response) =>
+            response.request().method() === "POST" &&
+            new URL(response.url()).pathname === "/api/v1/observe"
+        )
+        await questionTurn
+          .getByRole("button", { name: "Revise the dashboard", exact: true })
+          .click()
+        expect((await revisionCreated).status()).toBe(202)
+
+        const turns = page.getByRole("region", { name: /^Request / })
+        await expect(turns.last().getByText(/Saved as version 2/)).toBeVisible({
           timeout: agentTimeout,
         })
-        await expect(secondTurn.getByText(/^Ran \d+ steps?/)).toBeVisible()
+        await expect(turns.last().getByText(/^Ran \d+ steps?/)).toBeVisible()
         await expect(page).toHaveURL(new RegExp(`/c/${firstId}$`))
-        const turns = page.getByRole("region", { name: /^Request / })
         await expect(turns.first()).toContainText(askPrompt)
         await expect(turns.last()).toContainText(followUpPrompt)
       })
