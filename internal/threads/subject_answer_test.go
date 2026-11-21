@@ -115,9 +115,9 @@ func TestAnAnswerAboutAnObservationOnlyAdminsReadGoesOnItsPageButNotOutUntilItMo
 	shared := r.createDashboard(t, "errors")
 	onShared := revisions.StartRequest{DashboardID: new(shared.String())}
 	applied, f := r.answerAbout(t, onShared)
-	r.db.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2 WHERE id = $1`, applied, observation)
+	r.db.Exec(t, `UPDATE agent_requests SET observation_id = $2 WHERE id = $1`, applied, observation)
 	if err := r.applyOnto(t, shared, f); !errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("apply onto a dashboard in General of an answer about the observation: err = %v, want the restricted answer refusal", err)
+		t.Fatalf("apply onto a dashboard in General of an answer filed into the observation: err = %v, want the restricted answer refusal", err)
 	}
 
 	r.moveInto(t, "observations", observation, r.generalFolder(t))
@@ -126,7 +126,7 @@ func TestAnAnswerAboutAnObservationOnlyAdminsReadGoesOnItsPageButNotOutUntilItMo
 		t.Fatalf("save as a dashboard after the observation moved out: %v", err)
 	}
 	applied, f = r.answerAbout(t, onShared)
-	r.db.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2 WHERE id = $1`, applied, observation)
+	r.db.Exec(t, `UPDATE agent_requests SET observation_id = $2 WHERE id = $1`, applied, observation)
 	if err := r.applyOnto(t, shared, f); errors.Is(err, folders.ErrRestrictedAnswer) {
 		t.Fatalf("apply onto a dashboard in General after the observation moved out: %v", err)
 	}
