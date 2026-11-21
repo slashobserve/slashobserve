@@ -71,7 +71,7 @@ func (s *Service) Start(ctx context.Context, by auth.Principal, req StartRequest
 	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
 		return Started{}, err
 	}
-	if turn.point, err = s.pointOf(ctx, req); err != nil {
+	if turn.point, err = pointOf(req); err != nil {
 		return Started{}, err
 	}
 	if turn.clientID.Valid {
@@ -140,7 +140,7 @@ func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pg
 	return Started{AgentRequest: row, Replayed: true}, true, nil
 }
 
-func (s *Service) pointOf(ctx context.Context, req StartRequest) (Point, error) {
+func pointOf(req StartRequest) (Point, error) {
 	if req.Anchor == nil {
 		if req.BlockID != nil {
 			return Point{}, refused("block_id needs anchor")
@@ -169,17 +169,6 @@ func (s *Service) pointOf(ctx context.Context, req StartRequest) (Point, error) 
 	}
 	if point.BlockID, err = uuidField("block_id", req.BlockID); err != nil {
 		return Point{}, err
-	}
-	observationID, err := uuidField("observation_id", req.ObservationID)
-	if err != nil {
-		return Point{}, err
-	}
-	_, err = s.db.Queries().LockObservationBlock(ctx, dbsqlc.LockObservationBlockParams{ID: point.BlockID, ObservationID: observationID})
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return Point{}, refused("block_id is not a block of that observation")
-	case err != nil:
-		return Point{}, fmt.Errorf("read the anchored block: %w", err)
 	}
 	return point, nil
 }

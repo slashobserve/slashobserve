@@ -3,10 +3,13 @@ package revisions_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -173,18 +176,21 @@ func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 		"anchor without a subject":      `{"prompt":"here?",` + spot + `}`,
 		"block without an anchor":       `{"prompt":"here?","kind":"investigate",` + observation + `,"block_id":"` + block + `"}`,
 		"block without an observation":  `{"prompt":"here?","kind":"investigate","dashboard_id":"` + seedDashboard(t, r.d, 1).String() + `",` + spot + `,"block_id":"` + block + `"}`,
-		"block of another observation":  `{"prompt":"here?","kind":"investigate",` + observation + `,` + spot + `,"block_id":"` + otherBlock + `"}`,
 		"anchor that breaks its shape":  `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"position","pos":{"x":2,"y":0.5}}}`,
 		"block id that is not an id":    `{"prompt":"here?","kind":"investigate",` + observation + `,` + spot + `,"block_id":"nope"}`,
 		"anchor kind no one knows":      `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"nowhere","pos":{"x":0.5,"y":0.5}}}`,
 		"block without anything at all": `{"prompt":"here?","block_id":"` + block + `"}`,
 		"variable anchor on a block":    `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"variable","pos":{"x":0.5,"y":0.5},"id":"service"},"block_id":"` + block + `"}`,
+		"anchor too large to store":     `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"series","pos":{"x":0.5,"y":0.5},"series":` + largestLabels() + `}}`,
 	} {
 		if rec := call(router, http.MethodPost, "/api/v1/observe", body); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", name, rec.Code, rec.Body)
 		}
 	}
 
+	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"here?","kind":"investigate",`+observation+`,`+spot+`,"block_id":"`+otherBlock+`"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("block of another observation: %d %s", rec.Code, rec.Body)
+	}
 	rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"what happened here?","kind":"investigate",`+observation+`,`+spot+`,"block_id":"`+block+`"}`)
 	var created struct {
 		Request struct {
@@ -197,5 +203,35 @@ func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 	var kind, stored string
 	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT anchor->>'kind', block_id::text FROM agent_requests WHERE id = $1::uuid`, created.Request.ID).Scan(&kind, &stored); err != nil || kind != "position" || stored != block {
 		t.Fatalf("stored point %q on %q, want position on %s (%v)", kind, stored, block, err)
+	}
+}
+
+func largestLabels() string {
+	labels := map[string]string{}
+	for i := range 16 {
+		labels[fmt.Sprintf("%02d%s", i, strings.Repeat("k", 198))] = strings.Repeat("v", 200)
+	}
+	raw, err := json.Marshal(labels)
+	if err != nil {
+		panic(err)
+	}
+	return string(raw)
+}
+
+func TestAStrangersAnchoredAskAnswersTheSameForABlockThatIsAndIsNotThere(t *testing.T) {
+	r := newObservationRig(t)
+	r.d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'ada', 'ada@example.com', 'Ada')`, userID)
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	mine := investigate(t, r.svc, revisions.InvestigateParams{Prompt: "why are checkout errors up"})
+	block := r.fetch(t, user, mine.ObservationID).Blocks[0].ID
+	router := observeRouterAs(r.svc, eve)
+	ask := func(blockID string) (int, string) {
+		rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"here?","kind":"investigate","observation_id":"`+mine.ObservationID.String()+`","anchor":{"kind":"position","pos":{"x":0.25,"y":0.5}},"block_id":"`+blockID+`"}`)
+		return rec.Code, rec.Body.String()
+	}
+	thereCode, there := ask(block)
+	missingCode, missing := ask("00000000-0000-4000-8000-0000000000b1")
+	if thereCode != http.StatusNotFound || thereCode != missingCode || there != missing {
+		t.Fatalf("a block that is there answered %d %s, one that is not %d %s; want the same 404", thereCode, there, missingCode, missing)
 	}
 }

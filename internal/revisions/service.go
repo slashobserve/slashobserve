@@ -436,6 +436,9 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if row, err = s.openObservation(ctx, q, row, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	if err := lockAnchoredBlock(ctx, q, p); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
@@ -481,6 +484,20 @@ func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row db
 		return row, fmt.Errorf("link run to observation: %w", err)
 	}
 	return linked, nil
+}
+
+func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) error {
+	if !p.Point.BlockID.Valid {
+		return nil
+	}
+	_, err := q.LockObservationBlock(ctx, dbsqlc.LockObservationBlockParams{ID: p.Point.BlockID, ObservationID: p.ObservationID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrObservationNotFound
+	case err != nil:
+		return fmt.Errorf("lock the anchored block: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {
