@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const agentGrantIsLive = `-- name: AgentGrantIsLive :one
+SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = $1 AND revoked_at IS NULL AND expires_at > now())::boolean AS live
+`
+
+func (q *Queries) AgentGrantIsLive(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, agentGrantIsLive, id)
+	var live bool
+	err := row.Scan(&live)
+	return live, err
+}
+
 const countObservationMessages = `-- name: CountObservationMessages :many
 SELECT t.observation_id, count(m.id)::int AS messages
 FROM threads t
@@ -45,17 +56,18 @@ func (q *Queries) CountObservationMessages(ctx context.Context, observationIds [
 }
 
 const createMessage = `-- name: CreateMessage :one
-WITH clock AS (SELECT coalesce($12::timestamptz, clock_timestamp()) AS at)
+WITH clock AS (SELECT coalesce($13::timestamptz, clock_timestamp()) AS at)
 INSERT INTO thread_messages (
   id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at,
-  reply_to_id, observation_block_id
+  reply_to_id, observation_block_id, client_id
 )
 SELECT
   coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::text, $4::text, $5::uuid,
   $6::text, $7::text, $8::text, $9::text, clock.at, clock.at,
-  $10::uuid, $11::uuid
+  $10::uuid, $11::uuid, $12::uuid
 FROM clock
-RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id
+ON CONFLICT (author_kind, author_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
 
 type CreateMessageParams struct {
@@ -70,6 +82,7 @@ type CreateMessageParams struct {
 	OriginClient       pgtype.Text
 	ReplyToID          pgtype.UUID
 	ObservationBlockID pgtype.UUID
+	ClientID           pgtype.UUID
 	CreatedAt          pgtype.Timestamptz
 }
 
@@ -86,6 +99,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (T
 		arg.OriginClient,
 		arg.ReplyToID,
 		arg.ObservationBlockID,
+		arg.ClientID,
 		arg.CreatedAt,
 	)
 	var i ThreadMessage
@@ -106,17 +120,19 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (T
 		&i.RunAssignedKind,
 		&i.ReplyToID,
 		&i.ObservationBlockID,
+		&i.ClientID,
 	)
 	return i, err
 }
 
 const createThread = `-- name: CreateThread :one
-INSERT INTO threads (dashboard_id, dashboard_version, panel_id, annotation_id, observation_id, proposal_id)
+INSERT INTO threads (dashboard_id, dashboard_version, panel_id, annotation_id, observation_id, proposal_id, anchor, block_id)
 VALUES (
   $1::uuid, $2::integer, $3::text,
-  $4::uuid, $5::uuid, $6::uuid
+  $4::uuid, $5::uuid, $6::uuid,
+  $7::jsonb, $8::uuid
 )
-RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id
+RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id
 `
 
 type CreateThreadParams struct {
@@ -126,6 +142,8 @@ type CreateThreadParams struct {
 	AnnotationID     pgtype.UUID
 	ObservationID    pgtype.UUID
 	ProposalID       pgtype.UUID
+	Anchor           []byte
+	BlockID          pgtype.UUID
 }
 
 func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thread, error) {
@@ -136,6 +154,8 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 		arg.AnnotationID,
 		arg.ObservationID,
 		arg.ProposalID,
+		arg.Anchor,
+		arg.BlockID,
 	)
 	var i Thread
 	err := row.Scan(
@@ -158,6 +178,11 @@ func (q *Queries) CreateThread(ctx context.Context, arg CreateThreadParams) (Thr
 		&i.UpdatedAt,
 		&i.ObservationID,
 		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
 	)
 	return i, err
 }
@@ -193,7 +218,7 @@ const editMessage = `-- name: EditMessage :one
 UPDATE thread_messages
 SET body = $1::text, edited_at = clock_timestamp(), updated_at = clock_timestamp()
 WHERE id = $2
-RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
 
 type EditMessageParams struct {
@@ -221,12 +246,13 @@ func (q *Queries) EditMessage(ctx context.Context, arg EditMessageParams) (Threa
 		&i.RunAssignedKind,
 		&i.ReplyToID,
 		&i.ObservationBlockID,
+		&i.ClientID,
 	)
 	return i, err
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id FROM thread_messages WHERE id = $1
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id FROM thread_messages WHERE id = $1
 `
 
 func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (ThreadMessage, error) {
@@ -249,6 +275,42 @@ func (q *Queries) GetMessage(ctx context.Context, id pgtype.UUID) (ThreadMessage
 		&i.RunAssignedKind,
 		&i.ReplyToID,
 		&i.ObservationBlockID,
+		&i.ClientID,
+	)
+	return i, err
+}
+
+const getMessageByClient = `-- name: GetMessageByClient :one
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id FROM thread_messages WHERE author_kind = $1 AND author_id = $2 AND client_id = $3
+`
+
+type GetMessageByClientParams struct {
+	AuthorKind string
+	AuthorID   pgtype.UUID
+	ClientID   pgtype.UUID
+}
+
+func (q *Queries) GetMessageByClient(ctx context.Context, arg GetMessageByClientParams) (ThreadMessage, error) {
+	row := q.db.QueryRow(ctx, getMessageByClient, arg.AuthorKind, arg.AuthorID, arg.ClientID)
+	var i ThreadMessage
+	err := row.Scan(
+		&i.ID,
+		&i.ThreadID,
+		&i.Body,
+		&i.AuthorKind,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.AuthorEmail,
+		&i.Origin,
+		&i.OriginClient,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.EditedAt,
+		&i.RunID,
+		&i.RunAssignedKind,
+		&i.ReplyToID,
+		&i.ObservationBlockID,
+		&i.ClientID,
 	)
 	return i, err
 }
@@ -265,7 +327,7 @@ func (q *Queries) GetRunProposalTitle(ctx context.Context, runID pgtype.UUID) (s
 }
 
 const getThread = `-- name: GetThread :one
-SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id FROM threads WHERE id = $1
+SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id FROM threads WHERE id = $1
 `
 
 func (q *Queries) GetThread(ctx context.Context, id pgtype.UUID) (Thread, error) {
@@ -291,43 +353,17 @@ func (q *Queries) GetThread(ctx context.Context, id pgtype.UUID) (Thread, error)
 		&i.UpdatedAt,
 		&i.ObservationID,
 		&i.ProposalID,
-	)
-	return i, err
-}
-
-const getThreadForShare = `-- name: GetThreadForShare :one
-SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id FROM threads WHERE id = $1 FOR SHARE
-`
-
-func (q *Queries) GetThreadForShare(ctx context.Context, id pgtype.UUID) (Thread, error) {
-	row := q.db.QueryRow(ctx, getThreadForShare, id)
-	var i Thread
-	err := row.Scan(
-		&i.ID,
-		&i.DashboardID,
-		&i.DashboardVersion,
-		&i.PanelID,
-		&i.FindingID,
-		&i.AnnotationID,
-		&i.Status,
-		&i.ResolvedAt,
-		&i.ResolvedByKind,
-		&i.ResolvedByID,
-		&i.ResolvedByName,
-		&i.ResolvedOrigin,
-		&i.ResolvedOriginClient,
-		&i.ResolvedRunID,
-		&i.ResolvedByVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ObservationID,
-		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
 	)
 	return i, err
 }
 
 const getThreadOfMessage = `-- name: GetThreadOfMessage :one
-SELECT t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id FROM threads t
+SELECT t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id, t.agent_kind, t.agent_id, t.agent_off, t.anchor, t.block_id FROM threads t
 JOIN thread_messages m ON m.thread_id = t.id
 WHERE m.id = $1
 `
@@ -356,6 +392,11 @@ func (q *Queries) GetThreadOfMessage(ctx context.Context, id pgtype.UUID) (Threa
 		&i.UpdatedAt,
 		&i.ObservationID,
 		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
 	)
 	return i, err
 }
@@ -392,7 +433,7 @@ SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
   $6::text, $7::text, $8::uuid, $9::text
 WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = $8::uuid AND thread_replied_at IS NULL)
-RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id
+RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
 
 type InsertRunReplyParams struct {
@@ -437,6 +478,7 @@ func (q *Queries) InsertRunReply(ctx context.Context, arg InsertRunReplyParams) 
 		&i.RunAssignedKind,
 		&i.ReplyToID,
 		&i.ObservationBlockID,
+		&i.ClientID,
 	)
 	return i, err
 }
@@ -473,7 +515,7 @@ func (q *Queries) ListMentions(ctx context.Context, messageIds []pgtype.UUID) ([
 }
 
 const listMessagesByID = `-- name: ListMessagesByID :many
-SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id FROM thread_messages WHERE id = ANY($1::uuid[])
+SELECT id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id FROM thread_messages WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) ListMessagesByID(ctx context.Context, ids []pgtype.UUID) ([]ThreadMessage, error) {
@@ -502,6 +544,7 @@ func (q *Queries) ListMessagesByID(ctx context.Context, ids []pgtype.UUID) ([]Th
 			&i.RunAssignedKind,
 			&i.ReplyToID,
 			&i.ObservationBlockID,
+			&i.ClientID,
 		); err != nil {
 			return nil, err
 		}
@@ -566,7 +609,7 @@ func (q *Queries) ListReplyQuotes(ctx context.Context, messageIds []pgtype.UUID)
 }
 
 const listThreadMessages = `-- name: ListThreadMessages :many
-SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id
+SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, m.client_id, t.id, t.dashboard_id, t.dashboard_version, t.panel_id, t.finding_id, t.annotation_id, t.status, t.resolved_at, t.resolved_by_kind, t.resolved_by_id, t.resolved_by_name, t.resolved_origin, t.resolved_origin_client, t.resolved_run_id, t.resolved_by_version, t.created_at, t.updated_at, t.observation_id, t.proposal_id, t.agent_kind, t.agent_id, t.agent_off, t.anchor, t.block_id
 FROM thread_messages m
 JOIN threads t ON t.id = m.thread_id
 WHERE (t.dashboard_id = $1::uuid
@@ -634,6 +677,7 @@ func (q *Queries) ListThreadMessages(ctx context.Context, arg ListThreadMessages
 			&i.ThreadMessage.RunAssignedKind,
 			&i.ThreadMessage.ReplyToID,
 			&i.ThreadMessage.ObservationBlockID,
+			&i.ThreadMessage.ClientID,
 			&i.Thread.ID,
 			&i.Thread.DashboardID,
 			&i.Thread.DashboardVersion,
@@ -653,6 +697,11 @@ func (q *Queries) ListThreadMessages(ctx context.Context, arg ListThreadMessages
 			&i.Thread.UpdatedAt,
 			&i.Thread.ObservationID,
 			&i.Thread.ProposalID,
+			&i.Thread.AgentKind,
+			&i.Thread.AgentID,
+			&i.Thread.AgentOff,
+			&i.Thread.Anchor,
+			&i.Thread.BlockID,
 		); err != nil {
 			return nil, err
 		}
@@ -760,6 +809,42 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 	var id_2 pgtype.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const lockThreadForWrite = `-- name: LockThreadForWrite :one
+SELECT id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id FROM threads WHERE id = $1 FOR NO KEY UPDATE
+`
+
+func (q *Queries) LockThreadForWrite(ctx context.Context, id pgtype.UUID) (Thread, error) {
+	row := q.db.QueryRow(ctx, lockThreadForWrite, id)
+	var i Thread
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.DashboardVersion,
+		&i.PanelID,
+		&i.FindingID,
+		&i.AnnotationID,
+		&i.Status,
+		&i.ResolvedAt,
+		&i.ResolvedByKind,
+		&i.ResolvedByID,
+		&i.ResolvedByName,
+		&i.ResolvedOrigin,
+		&i.ResolvedOriginClient,
+		&i.ResolvedRunID,
+		&i.ResolvedByVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ObservationID,
+		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
+	)
+	return i, err
 }
 
 const markRunReplied = `-- name: MarkRunReplied :exec
@@ -889,7 +974,7 @@ SET status = 'resolved',
   resolved_by_version = $7::integer,
   updated_at = clock_timestamp()
 WHERE id = $8 AND dashboard_id = $9 AND status = 'open'
-RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id
+RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id
 `
 
 type ResolveThreadForRunParams struct {
@@ -937,6 +1022,11 @@ func (q *Queries) ResolveThreadForRun(ctx context.Context, arg ResolveThreadForR
 		&i.UpdatedAt,
 		&i.ObservationID,
 		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
 	)
 	return i, err
 }
@@ -980,6 +1070,56 @@ func (q *Queries) RunsOfMessages(ctx context.Context, messageIds []pgtype.UUID) 
 	return items, nil
 }
 
+const setThreadAgent = `-- name: SetThreadAgent :one
+UPDATE threads SET agent_kind = $1::text, agent_id = $2::uuid, agent_off = $3
+WHERE id = $4
+RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id
+`
+
+type SetThreadAgentParams struct {
+	AgentKind pgtype.Text
+	AgentID   pgtype.UUID
+	AgentOff  bool
+	ID        pgtype.UUID
+}
+
+func (q *Queries) SetThreadAgent(ctx context.Context, arg SetThreadAgentParams) (Thread, error) {
+	row := q.db.QueryRow(ctx, setThreadAgent,
+		arg.AgentKind,
+		arg.AgentID,
+		arg.AgentOff,
+		arg.ID,
+	)
+	var i Thread
+	err := row.Scan(
+		&i.ID,
+		&i.DashboardID,
+		&i.DashboardVersion,
+		&i.PanelID,
+		&i.FindingID,
+		&i.AnnotationID,
+		&i.Status,
+		&i.ResolvedAt,
+		&i.ResolvedByKind,
+		&i.ResolvedByID,
+		&i.ResolvedByName,
+		&i.ResolvedOrigin,
+		&i.ResolvedOriginClient,
+		&i.ResolvedRunID,
+		&i.ResolvedByVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ObservationID,
+		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
+	)
+	return i, err
+}
+
 const setThreadStatus = `-- name: SetThreadStatus :one
 UPDATE threads
 SET status = $1::text,
@@ -993,7 +1133,7 @@ SET status = $1::text,
   resolved_by_version = CASE WHEN $1::text = 'resolved' THEN $8::integer END,
   updated_at = clock_timestamp()
 WHERE id = $9 AND status <> $1::text
-RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id
+RETURNING id, dashboard_id, dashboard_version, panel_id, finding_id, annotation_id, status, resolved_at, resolved_by_kind, resolved_by_id, resolved_by_name, resolved_origin, resolved_origin_client, resolved_run_id, resolved_by_version, created_at, updated_at, observation_id, proposal_id, agent_kind, agent_id, agent_off, anchor, block_id
 `
 
 type SetThreadStatusParams struct {
@@ -1041,12 +1181,17 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 		&i.UpdatedAt,
 		&i.ObservationID,
 		&i.ProposalID,
+		&i.AgentKind,
+		&i.AgentID,
+		&i.AgentOff,
+		&i.Anchor,
+		&i.BlockID,
 	)
 	return i, err
 }
 
 const threadTranscript = `-- name: ThreadTranscript :many
-SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id
+SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, m.client_id
 FROM thread_messages m
 WHERE m.thread_id = $1
   AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = $2)
@@ -1086,6 +1231,7 @@ func (q *Queries) ThreadTranscript(ctx context.Context, arg ThreadTranscriptPara
 			&i.RunAssignedKind,
 			&i.ReplyToID,
 			&i.ObservationBlockID,
+			&i.ClientID,
 		); err != nil {
 			return nil, err
 		}

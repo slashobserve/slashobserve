@@ -18,7 +18,12 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	audit.ActionPrune:   "the audit_partitions job, when it removes old partitions",
 	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
+	"thread.agent_set":  "the asks service, when a message changes which agent a thread asks or turns it off",
+	"chat.create":       "the run funnel, in the transaction of a chat's first turn",
+	"chat.turn":         "the run funnel, in the transaction of every turn a chat takes",
 	"job.run":           "the scheduler, in the transaction that finishes a job run",
+	"run.list":          "the run list, when an Admin lists every person's runs",
+	"chat.list":         "the chat list, when an Admin lists every person's chats",
 
 	"agent.tool_call":          "the MCP handler, for each tool call except the claim tools",
 	"auth.credential_rejected": "authentication, for a bearer credential that matches no key or token",
@@ -34,14 +39,10 @@ var nonHTTPAuditSources = map[audit.Action]string{
 }
 
 var pendingAuditActions = []audit.Action{
-	"chat.create",
-	"chat.delete",
-	"chat.turn",
 	"finding.apply",
 	"observation.arrange",
 	"run.share",
 	"run.withdraw",
-	"thread.agent_set",
 }
 
 type declaredOperation struct {

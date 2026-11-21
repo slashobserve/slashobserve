@@ -2,6 +2,7 @@ package anchor_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -183,4 +184,34 @@ func TestValidateOnATypedValue(t *testing.T) {
 func nan() float64 {
 	zero := 0.0
 	return zero / zero
+}
+
+func TestOnlyAKindABlockHasMaySitOnOne(t *testing.T) {
+	for _, kind := range allKinds {
+		err := anchor.Anchor{Kind: kind}.CheckOnBlock()
+		if kind == anchor.Variable {
+			if err == nil || !strings.Contains(err.Error(), "block_id") || !strings.Contains(err.Error(), "anchor") {
+				t.Errorf("a variable anchor on a block: error = %v, want one naming block_id and anchor", err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("a %s anchor on a block was refused: %v", kind, err)
+		}
+	}
+}
+
+func TestAnAnchorTooLargeToStoreIsRefused(t *testing.T) {
+	labels := map[string]string{}
+	for i := range 16 {
+		labels[fmt.Sprintf("%02d%s", i, strings.Repeat("k", 198))] = strings.Repeat("v", 200)
+	}
+	err := anchor.Anchor{Kind: anchor.Series, Pos: anchor.Pos{X: 0.5, Y: 0.5}, Series: labels}.Validate()
+	if err == nil || !strings.Contains(err.Error(), "bytes") {
+		t.Fatalf("an anchor of 16 labels of 200 characters: error = %v, want one naming its size", err)
+	}
+	small := anchor.Anchor{Kind: anchor.Series, Pos: anchor.Pos{X: 0.5, Y: 0.5}, Series: map[string]string{"service": "checkout", "pod": "checkout-0"}}
+	if err := small.Validate(); err != nil {
+		t.Errorf("a two-label anchor: %v", err)
+	}
 }

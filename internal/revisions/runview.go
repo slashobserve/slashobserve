@@ -135,8 +135,25 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 }
 
 func (r *RunDesk) Start(ctx context.Context, caller auth.Principal, req StartRequest) (json.RawMessage, error) {
-	row, err := r.service.Start(ctx, caller, req)
-	return r.answer(ctx, row, caller, err)
+	started, err := r.service.Start(ctx, caller, req)
+	if err != nil {
+		return nil, err
+	}
+	out, err := r.renderStarted(ctx, started, caller)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return nil, fmt.Errorf("encode agent request: %w", err)
+	}
+	return raw, nil
+}
+
+func (r *RunDesk) renderStarted(ctx context.Context, started Started, caller auth.Principal) (agentRequestJSON, error) {
+	out, err := r.render(ctx, started.AgentRequest, caller, false)
+	out.Replayed = started.Replayed
+	return out, err
 }
 
 func (r *RunDesk) Cancel(ctx context.Context, id pgtype.UUID, caller auth.Principal) (json.RawMessage, error) {
@@ -255,7 +272,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		Kind:        Kind(Source(row.Source)),
 		Source:      Source(row.Source),
 		Trigger:     row.Trigger,
-		Title:       requestTitle(row.Title, row.Prompt),
+		Title:       titleShownTo(row, caller),
 		Prompt:      row.Prompt,
 		Status:      Status(row.Status),
 		State:       State(row.State),
@@ -291,7 +308,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		To:         formatOptionalTime(optionalTime(row.ContextTo)),
 
 		ObservationID: optionalUUID(row.ObservationID),
-		ChatID:        chatOf(row.ID, row.ChatID),
+		ChatID:        chatShownTo(row, caller),
 	}
 	if row.CanceledByKind.Valid {
 		out.CanceledBy = &authorJSON{Kind: row.CanceledByKind.String, ID: row.CanceledByID.String(), Name: row.CanceledByName.String}
@@ -328,6 +345,25 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
 	out.LiveText = r.liveText(row)
 	return out
+}
+
+func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
+	return sameActor(requesterOf(row), caller) || caller.Role.AtLeast(auth.RoleAdmin)
+}
+
+func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
+	if !readsTheChat(row, caller) {
+		return nil
+	}
+	chat := chatOf(row.ID, row.ChatID)
+	return &chat
+}
+
+func titleShownTo(row dbsqlc.AgentRequest, caller auth.Principal) string {
+	if row.ChatID == row.ID && !readsTheChat(row, caller) {
+		return requestTitle(pgtype.Text{}, row.Prompt)
+	}
+	return requestTitle(row.Title, row.Prompt)
 }
 
 func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {

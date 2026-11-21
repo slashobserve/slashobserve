@@ -149,7 +149,7 @@ func TestThreadEventsOnAnObservationAreOwnedByIt(t *testing.T) {
 	}
 }
 
-func TestOpeningASecondObservationThreadOverHTTPAnswers409WithTheThreadID(t *testing.T) {
+func TestOpeningASecondObservationPageThreadOverHTTPRepliesIntoTheFirst(t *testing.T) {
 	r := newRig(t)
 	tg := "observation:" + r.createObservation(t, testUser, pgtype.UUID{}).String()
 	first := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": tg, "body": "first"})
@@ -158,9 +158,9 @@ func TestOpeningASecondObservationThreadOverHTTPAnswers409WithTheThreadID(t *tes
 		t.Errorf("thread = %v", first.body["thread"])
 	}
 	second := r.call(t, commenter, http.MethodPost, "/threads", map[string]any{"target": tg, "body": "second"})
-	second.expect(t, http.StatusConflict, CodeObservationThreadExists)
-	if second.at(t, "thread_id") != first.at(t, "thread", "id") {
-		t.Errorf("409 body %v, want the id of %v", second.body, first.at(t, "thread", "id"))
+	second.expect(t, http.StatusCreated, "")
+	if second.at(t, "thread", "id") != first.at(t, "thread", "id") || second.at(t, "message", "thread_id") != first.at(t, "thread", "id") {
+		t.Errorf("second open %v, want a reply in %v", second.body, first.at(t, "thread", "id"))
 	}
 }
 

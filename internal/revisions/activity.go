@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"fmt"
 	"maps"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
@@ -139,6 +140,9 @@ func notifyRevision(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequ
 }
 
 func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, a Action) error {
+	if err := attachChatDashboard(ctx, q, row, a); err != nil {
+		return err
+	}
 	typ, ok := runEventFor(row, a)
 	if !ok {
 		return notifyRevision(ctx, q, row)
@@ -160,4 +164,14 @@ func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, 
 	}
 	_, err := activity.Append(ctx, q, entry, live)
 	return err
+}
+
+func attachChatDashboard(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, a Action) error {
+	if !row.ChatID.Valid || !row.DashboardID.Valid || a == ActionEnqueue || a == ActionClaim {
+		return nil
+	}
+	if err := q.SetChatSubjectDashboard(ctx, dbsqlc.SetChatSubjectDashboardParams{ID: row.ChatID, DashboardID: row.DashboardID}); err != nil {
+		return fmt.Errorf("attach the saved dashboard to its chat: %w", err)
+	}
+	return nil
 }

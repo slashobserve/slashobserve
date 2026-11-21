@@ -42,6 +42,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `finish_run` | Viewer |
 | `get_audit_event` | Admin |
 | `get_audit_histogram` | Admin |
+| `get_chat` | Viewer |
 | `get_dashboard` | Viewer |
 | `get_home_dashboard` | Viewer |
 | `get_observation` | Viewer |
@@ -62,6 +63,7 @@ Each tool has a lowest role, which the server checks when a client calls it, usi
 | `list_annotations` | Viewer |
 | `list_audit_facets` | Admin |
 | `list_audit_fields` | Admin |
+| `list_chats` | Viewer |
 | `list_comments` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
@@ -286,18 +288,23 @@ Every comment the comment tools return carries `block_id` (null for the whole ob
 
 `list_mentionable_people` takes a `target` and an optional `query` and returns the people who can see it, with the `id` to put in `@[Name](user:<id>)`; it returns at most 20, and `more` is true when others match, so narrow with `query`.
 Mentioning a person who does not exist or cannot see the target answers `invalid_mention`, and a mentioned person gets it in their Inbox.
-An observation has one discussion, so `create_comment` on an observation that has one answers `observation_thread_exists` and names the `comment_id` to give `reply_to_comment`.
+An observation has one discussion, so `create_comment` on an observation that has one adds the comment to it; with `anchor` it opens a thread of its own on that spot instead.
+`create_comment` takes `anchor`, the spot a dashboard or observation thread points at (with `block_id` on an observation, a spot in that block), and every comment it returns carries `at`, the spot in words.
+Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
 
-Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`, and it does not start a run unless the call sets `start_runs`.
-`create_comment` and `reply_to_comment` take `start_runs`, which starts a run for the one agent the text mentions in the same transaction as the comment, and the result then carries `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
+Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`.
+A comment is for everyone and asks no agent unless the call sets `to` to `agent`; `start_runs` is the deprecated spelling of the same.
+With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
+The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
+
 A dashboard thread starts a comment run, and an observation, an annotation or a proposal thread starts none: over MCP an observation thread stores the comment and answers `run_refusal` with `investigation_person_only`, because investigations are started by a person in the web app or the CLI.
 A run started this way is checked like one the same person starts in the web app.
-Two agents in one comment with `start_runs` answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
-The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable`, `forbidden_role` and `too_many_runs`.
+Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
+The refusal codes are `mention_target_unsupported`, `investigation_person_only`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run started with `start_runs` ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did (an answer kept in its asker's chat ends with `[the chat](/c/<run id>)`, a chat only the person who asked and Admins can open); a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
+When a run a comment started ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did (an answer kept in its asker's chat ends with `[the chat](/c/<run id>)`, a chat only the person who asked and Admins can open); a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
 It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
@@ -413,11 +420,18 @@ To make that change, use `update_panels` on that dashboard yourself, or ask the 
 
 `get_run_build` reads the dashboard a run has saved so far, the object `GET /api/v1/observe/{id}/build` returns, for the person who started the run and for an Admin.
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
-`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, or a `follows_id`, an earlier run of yours with no dashboard whose chat the new run continues (not together with `dashboard_id`); it queues a run and answers with it at once, and you follow it with `get_run`.
-Every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
+`start_run` takes a `prompt` (1 to 4000 characters) and optionally a `dashboard_id` to revise, with `base_version`, a `chat_id`, one of your chats from `list_chats` whose next turn the run is, and an `anchor`, the spot on the dashboard the prompt is about, shaped as `list_comments` shows it; it queues a run and answers with it at once, and you follow it with `get_run`.
+
+Every run is a turn of a chat: without `chat_id` a new chat starts, and a revision joins your latest chat on that dashboard; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
+Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
+Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
 `retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
+
+`list_chats` lists your chats, the one most recently asked in first, 20 per page by default and at most 50, with `scope`, `dashboard_id`, `observation_id`, `pinned` and `q` as `GET /api/v1/chats` takes them, and pages with `next_cursor`; `scope: all` lists every person's chats and needs an Admin.
+`get_chat` reads one chat with its turns oldest first, each the run as `get_run` returns it without steps; when they do not all fit it answers `truncated: true` and a `next_offset` to pass as `offset`.
+A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
 `list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `source`, `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.

@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -28,7 +28,6 @@ const (
 	codeUnknownPanel      = "unknown_panel"
 	codeNotAuthor         = "not_author"
 	codeNotStarter        = "not_starter"
-	codeThreadExists      = "observation_thread_exists"
 	commentNotFoundNotice = "comment or target not found"
 )
 
@@ -78,6 +77,7 @@ type commentOut struct {
 	Body              string       `json:"body"`
 	BodyTruncated     bool         `json:"body_truncated,omitempty"`
 	ResolvedByVersion *int         `json:"resolved_by_version"`
+	At                string       `json:"at,omitempty"`
 	Mentions          []mentionOut `json:"mentions"`
 	BlockID           *string      `json:"block_id"`
 	ReplyTo           *replyToOut  `json:"reply_to"`
@@ -103,17 +103,19 @@ type runRefusalOut struct {
 
 type commentResultOut struct {
 	Comment    commentOut     `json:"comment"`
+	To         string         `json:"to"`
+	Replayed   bool           `json:"replayed,omitempty"`
 	Run        *runOut        `json:"run,omitempty"`
 	RunRefusal *runRefusalOut `json:"run_refusal,omitempty"`
 }
 
-func commentResult(ref commentRef, run *threads.StartedRun, refusal *threads.RunRefusal) commentResultOut {
-	out := commentResultOut{Comment: targetedCommentItem(ref)}
-	if run != nil {
-		out.Run = &runOut{ID: run.ID, Status: run.Status, AssignedKind: run.AssignedKind}
+func commentResult(ref commentRef, sent threads.Sent) commentResultOut {
+	out := commentResultOut{Comment: targetedCommentItem(ref), To: string(sent.To), Replayed: sent.Replayed}
+	if sent.Run != nil {
+		out.Run = &runOut{ID: sent.Run.ID, Status: sent.Run.Status, AssignedKind: sent.Run.AssignedKind}
 	}
-	if refusal != nil {
-		out.RunRefusal = &runRefusalOut{Code: refusal.Code, Message: refusal.Message}
+	if sent.Refusal != nil {
+		out.RunRefusal = &runRefusalOut{Code: sent.Refusal.Code, Message: sent.Refusal.Message}
 	}
 	return out
 }
@@ -160,6 +162,9 @@ func commentItem(ref commentRef) commentOut {
 		out.ParentID = &t.ID
 	} else {
 		out.ResolvedByVersion = t.ResolvedByVersion
+		if t.Anchor != nil {
+			out.At = t.Anchor.Describe()
+		}
 	}
 	if t.PanelID != "" {
 		out.PanelID = &t.PanelID
@@ -213,12 +218,9 @@ func rejectAgentRun(ctx context.Context) (Result, bool) {
 
 func commentFailure(err error) (Result, error) {
 	var bad *threads.InvalidInputError
-	var exists *threads.ObservationThreadExistsError
 	switch {
 	case errors.As(err, &bad):
 		return invalid("%s", bad.Message), nil
-	case errors.As(err, &exists):
-		return toolError(codeThreadExists, fmt.Sprintf("%s; add to it with reply_to_comment and comment_id %s", exists.Error(), exists.ThreadID.String())), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
 	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
@@ -403,38 +405,52 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 		return res, err
 	}
 	var in struct {
-		Target  string  `json:"target"`
-		Body    string  `json:"body"`
-		PanelID *string `json:"panel_id"`
-		Version *int    `json:"version"`
-		BlockID *string `json:"block_id"`
+		Target   string         `json:"target"`
+		Body     string         `json:"body"`
+		PanelID  *string        `json:"panel_id"`
+		Version  *int           `json:"version"`
+		BlockID  *string        `json:"block_id"`
+		Anchor   *anchor.Anchor `json:"anchor"`
+		To       string         `json:"to"`
+		ClientID *string        `json:"client_id"`
 
 		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if r.deps.Asks == nil {
+		return Result{}, errCommentsNotConfigured
+	}
 	target, err := threads.ParseTarget(in.Target)
 	if err != nil {
 		return commentFailure(err)
 	}
-	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, BlockID: in.BlockID, Body: in.Body}
-	var thread threads.Thread
-	var message threads.Message
-	var run *threads.StartedRun
-	var refusal *threads.RunRefusal
-	switch {
-	case !in.StartRuns:
-		thread, message, err = r.deps.Threads.Open(ctx, principal, open, nil)
-	case r.deps.Mentions == nil:
-		return Result{}, errCommentsNotConfigured
-	default:
-		thread, message, run, refusal, err = r.deps.Mentions.Open(ctx, principal, open, true, threads.WithoutInvestigations())
-	}
+	to, clientID, err := deliveryOf(in.To, in.StartRuns, in.ClientID)
 	if err != nil {
 		return commentFailure(err)
 	}
-	return success(startedStep("Opened a comment", run), commentResult(commentRef{thread, message}, run, refusal)), nil
+	open := threads.OpenInput{Target: target, Version: in.Version, PanelID: in.PanelID, BlockID: in.BlockID, Anchor: in.Anchor, ClientID: clientID, Body: in.Body}
+	sent, err := r.deps.Asks.Open(ctx, principal, open, to, threads.WithoutInvestigations())
+	if err != nil {
+		return commentFailure(err)
+	}
+	return success(startedStep("Opened a comment", sent.Run), commentResult(commentRef{sent.Thread, sent.Message}, sent)), nil
+}
+
+func deliveryOf(to string, startRuns bool, rawClientID *string) (threads.To, pgtype.UUID, error) {
+	clientID, err := threads.ParseClientID(rawClientID)
+	if err != nil {
+		return "", pgtype.UUID{}, err
+	}
+	switch {
+	case to == "" && startRuns:
+		return threads.ToAgent, clientID, nil
+	case to == "":
+		return threads.ToEveryone, clientID, nil
+	}
+	parsed, err := threads.ParseTo(to)
+	return parsed, clientID, err
 }
 
 func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -447,33 +463,31 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 		Body      string  `json:"body"`
 		BlockID   *string `json:"block_id"`
 		ReplyToID *string `json:"reply_to_id"`
+		To        string  `json:"to"`
+		ClientID  *string `json:"client_id"`
 
 		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
 	}
+	if r.deps.Asks == nil {
+		return Result{}, errCommentsNotConfigured
+	}
 	commentID, res, ok := parseCommentID(in.CommentID)
 	if !ok {
 		return res, nil
 	}
-	reply := threads.ReplyInput{Body: in.Body, BlockID: in.BlockID, ReplyToID: in.ReplyToID}
-	var thread threads.Thread
-	var message threads.Message
-	var run *threads.StartedRun
-	var refusal *threads.RunRefusal
-	switch {
-	case !in.StartRuns:
-		thread, message, err = r.deps.Threads.Reply(ctx, principal, commentID, reply, nil)
-	case r.deps.Mentions == nil:
-		return Result{}, errCommentsNotConfigured
-	default:
-		thread, message, run, refusal, err = r.deps.Mentions.Reply(ctx, principal, commentID, reply, true, threads.WithoutInvestigations())
-	}
+	to, clientID, err := deliveryOf(in.To, in.StartRuns, in.ClientID)
 	if err != nil {
 		return commentFailure(err)
 	}
-	return success(startedStep("Replied to a comment", run), commentResult(commentRef{thread, message}, run, refusal)), nil
+	reply := threads.ReplyInput{Body: in.Body, BlockID: in.BlockID, ReplyToID: in.ReplyToID, ClientID: clientID}
+	sent, err := r.deps.Asks.Reply(ctx, principal, commentID, reply, to, threads.WithoutInvestigations())
+	if err != nil {
+		return commentFailure(err)
+	}
+	return success(startedStep("Replied to a comment", sent.Run), commentResult(commentRef{sent.Thread, sent.Message}, sent)), nil
 }
 
 func (r *Registry) editComment(ctx context.Context, input json.RawMessage) (Result, error) {

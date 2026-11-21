@@ -83,6 +83,7 @@ const kindRules: Record<
 const maxLabels = 16
 const maxText = 200
 const maxQuote = 280
+const maxEncoded = 1536
 
 const wireFields = new Set([
   "kind",
@@ -185,7 +186,14 @@ function problemOf(anchor: Anchor): string | null {
   ) {
     return "range ends before it starts"
   }
-  return sizeProblem(anchor)
+  return sizeProblem(anchor) ?? encodedProblem(anchor)
+}
+
+function encodedProblem(anchor: Anchor): string | null {
+  const bytes = new TextEncoder().encode(JSON.stringify(anchor)).length
+  return bytes > maxEncoded
+    ? `${bytes} bytes once encoded, over the limit of ${maxEncoded} bytes; send fewer or shorter labels`
+    : null
 }
 
 function stringField(

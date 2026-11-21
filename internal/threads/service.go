@@ -3,6 +3,7 @@ package threads
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -31,7 +33,7 @@ const (
 	maxInt32     = 1<<31 - 1
 
 	resolvedByVersionConstraint = "threads_resolved_by_version_fkey"
-	observationThreadIndex      = "threads_observation_idx"
+	observationThreadIndex      = "threads_observation_page_idx"
 	foreignKeyViolationCode     = "23503"
 	uniqueViolationCode         = "23505"
 )
@@ -53,18 +55,34 @@ func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.
 type MessageHook func(*dbsqlc.Queries, Thread, Message) error
 
 type OpenInput struct {
-	Target  Target
-	Version *int
-	PanelID *string
-	BlockID *string
-	Body    string
+	Target   Target
+	Version  *int
+	PanelID  *string
+	BlockID  *string
+	Anchor   *anchor.Anchor
+	ClientID pgtype.UUID
+	Body     string
 }
 
 type ReplyInput struct {
 	Body      string
 	BlockID   *string
 	ReplyToID *string
+	ClientID  pgtype.UUID
 }
+
+type writeOptions struct {
+	hook       MessageHook
+	lockForRun bool
+}
+
+type written struct {
+	thread   Thread
+	message  Message
+	replayed bool
+}
+
+var errReplayed = errors.New("a message with this client_id was already posted")
 
 type ListQuery struct {
 	Target  Target
@@ -86,13 +104,19 @@ func (s *Service) Abilities(ctx context.Context, by auth.Principal, t Target) (f
 	return sc.abilities, err
 }
 
-type anchor struct {
+type placement struct {
 	version      pgtype.Int4
 	panelID      pgtype.Text
 	latestPanels map[string]struct{}
+	point        threadPoint
 }
 
-func checkAnchorShape(in OpenInput) error {
+type threadPoint struct {
+	anchor []byte
+	block  pgtype.UUID
+}
+
+func checkPlacementShape(in OpenInput) error {
 	if in.Target.Kind != KindDashboard {
 		if in.Version != nil || in.PanelID != nil {
 			return invalidTarget("version and panel_id apply only to a dashboard")
@@ -108,41 +132,41 @@ func checkAnchorShape(in OpenInput) error {
 	return nil
 }
 
-func (s *Service) anchorOf(ctx context.Context, in OpenInput) (anchor, error) {
-	if err := checkAnchorShape(in); err != nil {
-		return anchor{}, err
+func (s *Service) placementOf(ctx context.Context, in OpenInput) (placement, error) {
+	if err := checkPlacementShape(in); err != nil {
+		return placement{}, err
 	}
 	if in.Target.Kind != KindDashboard {
-		return anchor{}, nil
+		return placement{}, nil
 	}
 	latest, err := s.dashboards.LatestVersion(ctx, in.Target.ID)
 	if errors.Is(err, dashboards.ErrNotFound) {
-		return anchor{}, ErrTargetNotFound
+		return placement{}, ErrTargetNotFound
 	}
 	if err != nil {
-		return anchor{}, err
+		return placement{}, err
 	}
 	version := latest
 	if in.Version != nil {
 		if *in.Version > latest {
-			return anchor{}, ErrUnknownVersion
+			return placement{}, ErrUnknownVersion
 		}
 		version = *in.Version
 	}
-	at := anchor{version: pgtype.Int4{Int32: httpapi.Int32(version), Valid: true}}
+	at := placement{version: pgtype.Int4{Int32: httpapi.Int32(version), Valid: true}}
 	if in.PanelID == nil {
 		return at, nil
 	}
 	onVersion, err := s.panels(ctx, in.Target.ID, version)
 	if err != nil {
-		return anchor{}, err
+		return placement{}, err
 	}
 	if _, ok := onVersion[*in.PanelID]; !ok {
-		return anchor{}, ErrUnknownPanel
+		return placement{}, ErrUnknownPanel
 	}
 	at.panelID = pgtype.Text{String: *in.PanelID, Valid: true}
 	if at.latestPanels, err = s.panels(ctx, in.Target.ID, latest); err != nil {
-		return anchor{}, err
+		return placement{}, err
 	}
 	return at, nil
 }
@@ -152,37 +176,37 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
+	w, err := s.open(ctx, by, sc, in, writeOptions{hook: hook})
+	return w.thread, w.message, err
+}
+
+func (s *Service) open(ctx context.Context, by auth.Principal, sc scope, in OpenInput, opts writeOptions) (written, error) {
 	in.Target = sc.target
 	if !sc.abilities.Comment {
-		return Thread{}, Message{}, folders.ErrForbidden
+		return written{}, folders.ErrForbidden
 	}
-	body, mentions, err := checkBody(in.Body)
+	first, err := s.firstMessageOf(ctx, in)
 	if err != nil {
-		return Thread{}, Message{}, err
+		return written{}, err
 	}
-	at, err := s.anchorOf(ctx, in)
-	if err != nil {
-		return Thread{}, Message{}, err
-	}
-	refs, err := parseRefs(in.Target.Kind, in.BlockID, nil)
-	if err != nil {
-		return Thread{}, Message{}, err
-	}
+	body, mentions, at, refs := first.body, first.mentions, first.at, first.refs
 	author := actorOf(ctx, by)
 	var thread Thread
 	var message Message
+	var threadID pgtype.UUID
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockTarget(ctx, q, sc); err != nil {
+		if err := lockTarget(ctx, q, sc, opts.lockForRun); err != nil {
 			return err
 		}
 		threadRow, err := q.CreateThread(ctx, createThreadParams(sc.target, at))
 		if err != nil {
 			return fmt.Errorf("create thread: %w", err)
 		}
+		threadID = threadRow.ID
 		if err := refs.lock(ctx, q, sc.target, threadRow.ID); err != nil {
 			return err
 		}
-		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{id: threadRow.ID, threadID: threadRow.ID, body: body, createdAt: threadRow.CreatedAt, refs: refs})
+		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{id: threadRow.ID, threadID: threadRow.ID, body: body, createdAt: threadRow.CreatedAt, refs: refs, clientID: in.ClientID})
 		if err != nil {
 			return err
 		}
@@ -196,18 +220,109 @@ func (s *Service) Open(ctx context.Context, by auth.Principal, in OpenInput, hoo
 		if err := (emitter{scope: sc, thread: threadRow, actor: author}).opened(ctx, q, messageRow, recorded); err != nil {
 			return err
 		}
-		if hook == nil {
+		if opts.hook == nil {
 			return nil
 		}
-		return hook(q, thread, message)
+		return opts.hook(q, thread, message)
 	})
-	if isUniqueViolation(err, observationThreadIndex) {
-		return Thread{}, Message{}, s.existingObservationThread(ctx, in.Target.ID)
+	switch {
+	case errors.Is(err, errReplayed):
+		return s.replayed(ctx, by, sc, author, in.ClientID)
+	case isUniqueViolation(err, observationThreadIndex):
+		return written{}, s.existingObservationThread(ctx, in.Target.ID)
+	case err != nil:
+		return written{}, targetGone(err)
 	}
+	if opts.hook != nil {
+		row, err := s.db.Queries().GetThread(ctx, threadID)
+		if err != nil {
+			return written{}, threadLookup(err)
+		}
+		thread = threadOf(row, at.latestPanels, sc.rights(true))
+	}
+	return written{thread: thread, message: message}, nil
+}
+
+type firstMessage struct {
+	body     string
+	mentions []Mention
+	at       placement
+	refs     messageRefs
+}
+
+func (s *Service) firstMessageOf(ctx context.Context, in OpenInput) (firstMessage, error) {
+	body, mentions, err := checkBody(in.Body)
 	if err != nil {
-		return Thread{}, Message{}, targetGone(err)
+		return firstMessage{}, err
 	}
-	return thread, message, nil
+	at, err := s.placementOf(ctx, in)
+	if err != nil {
+		return firstMessage{}, err
+	}
+	refs, err := parseRefs(in.Target.Kind, in.BlockID, nil)
+	if err != nil {
+		return firstMessage{}, err
+	}
+	if at.point, err = pointOf(in, refs); err != nil {
+		return firstMessage{}, err
+	}
+	return firstMessage{body: body, mentions: mentions, at: at, refs: refs}, nil
+}
+
+func pointOf(in OpenInput, refs messageRefs) (threadPoint, error) {
+	if in.Anchor == nil {
+		return threadPoint{}, nil
+	}
+	if in.Target.Kind != KindDashboard && in.Target.Kind != KindObservation {
+		return threadPoint{}, invalidTarget("anchor applies only to a dashboard or an observation")
+	}
+	if err := in.Anchor.Validate(); err != nil {
+		return threadPoint{}, &InvalidInputError{Code: CodeInvalidAnchor, Message: "anchor: " + err.Error()}
+	}
+	if refs.block.Valid {
+		if err := in.Anchor.CheckOnBlock(); err != nil {
+			return threadPoint{}, &InvalidInputError{Code: CodeInvalidAnchor, Message: err.Error()}
+		}
+	}
+	raw, err := json.Marshal(in.Anchor)
+	if err != nil {
+		return threadPoint{}, fmt.Errorf("encode anchor: %w", err)
+	}
+	return threadPoint{anchor: raw, block: refs.block}, nil
+}
+
+func (s *Service) replayed(ctx context.Context, by auth.Principal, sc scope, author actor.Actor, clientID pgtype.UUID) (written, error) {
+	cols, err := author.Columns()
+	if err != nil {
+		return written{}, err
+	}
+	row, err := s.db.Queries().GetMessageByClient(ctx, dbsqlc.GetMessageByClientParams{AuthorKind: cols.Kind, AuthorID: cols.ID, ClientID: clientID})
+	if err != nil {
+		return written{}, threadLookup(err)
+	}
+	threadRow, err := s.db.Queries().GetThread(ctx, row.ThreadID)
+	if err != nil {
+		return written{}, threadLookup(err)
+	}
+	if targetOf(threadRow) != sc.target {
+		return written{}, &InvalidInputError{Code: CodeClientIDReused, Message: "client_id was already used for a message elsewhere; send a new one"}
+	}
+	mentions, err := s.mentionsOf(ctx, s.db.Queries(), row.ID)
+	if err != nil {
+		return written{}, err
+	}
+	message, err := s.presentMessage(ctx, row, mentions, by, sc)
+	if err != nil {
+		return written{}, err
+	}
+	message.CanDelete = mayDelete(row, by, sc, false)
+	runs, err := runsOf(ctx, s.db.Queries(), []pgtype.UUID{row.ID})
+	if err != nil {
+		return written{}, err
+	}
+	message.Run = runs[row.ID]
+	thread, err := s.present(ctx, threadRow, by, sc)
+	return written{thread: thread, message: message, replayed: true}, err
 }
 
 func (s *Service) existingObservationThread(ctx context.Context, observationID pgtype.UUID) error {
@@ -223,29 +338,34 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	if err != nil {
 		return Thread{}, Message{}, err
 	}
+	w, err := s.reply(ctx, by, row, sc, in, writeOptions{hook: hook})
+	return w.thread, w.message, err
+}
+
+func (s *Service) reply(ctx context.Context, by auth.Principal, row dbsqlc.Thread, sc scope, in ReplyInput, opts writeOptions) (written, error) {
 	cleaned, mentions, err := checkBody(in.Body)
 	if err != nil {
-		return Thread{}, Message{}, err
+		return written{}, err
 	}
 	refs, err := parseRefs(sc.target.Kind, in.BlockID, in.ReplyToID)
 	if err != nil {
-		return Thread{}, Message{}, err
+		return written{}, err
 	}
 	author := actorOf(ctx, by)
 	var message Message
 	var current dbsqlc.Thread
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockTarget(ctx, q, sc); err != nil {
+		if err := lockTarget(ctx, q, sc, opts.lockForRun); err != nil {
 			return err
 		}
 		var err error
-		if current, err = q.GetThreadForShare(ctx, row.ID); err != nil {
+		if current, err = q.LockThreadForWrite(ctx, row.ID); err != nil {
 			return threadLookup(err)
 		}
 		if err := refs.lock(ctx, q, sc.target, current.ID); err != nil {
 			return err
 		}
-		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{threadID: current.ID, body: cleaned, refs: refs})
+		messageRow, err := createMessage(ctx, q, author, by.Email, newMessage{threadID: current.ID, body: cleaned, refs: refs, clientID: in.ClientID})
 		if err != nil {
 			return err
 		}
@@ -266,16 +386,22 @@ func (s *Service) Reply(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 		if err := (emitter{scope: sc, thread: current, actor: author}).replied(ctx, q, messageRow, recorded); err != nil {
 			return err
 		}
-		if hook == nil {
+		if opts.hook == nil {
 			return nil
 		}
-		return hook(q, threadOf(current, nil, sc.rights(false)), message)
+		return opts.hook(q, threadOf(current, nil, sc.rights(false)), message)
 	})
+	if errors.Is(err, errReplayed) {
+		return s.replayed(ctx, by, sc, author, in.ClientID)
+	}
 	if err != nil {
-		return Thread{}, Message{}, threadGone(err)
+		return written{}, threadGone(err)
+	}
+	if current, err = s.db.Queries().GetThread(ctx, current.ID); err != nil {
+		return written{}, threadLookup(err)
 	}
 	thread, err := s.present(ctx, current, by, sc)
-	return thread, message, err
+	return written{thread: thread, message: message}, err
 }
 
 func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.UUID, body string) (Thread, Message, bool, error) {
@@ -301,7 +427,7 @@ func (s *Service) Edit(ctx context.Context, by auth.Principal, messageID pgtype.
 	changed := false
 	var recorded []Mention
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockTarget(ctx, q, sc); err != nil {
+		if err := lockTarget(ctx, q, sc, false); err != nil {
 			return err
 		}
 		var err error
@@ -380,7 +506,7 @@ func (s *Service) SetStatus(ctx context.Context, by auth.Principal, id pgtype.UU
 	var updated dbsqlc.Thread
 	changed := false
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockTarget(ctx, q, sc); err != nil {
+		if err := lockTarget(ctx, q, sc, false); err != nil {
 			return err
 		}
 		var err error
@@ -615,6 +741,7 @@ type newMessage struct {
 	body      string
 	createdAt pgtype.Timestamptz
 	refs      messageRefs
+	clientID  pgtype.UUID
 }
 
 func createMessage(ctx context.Context, q *dbsqlc.Queries, author actor.Actor, email string, m newMessage) (dbsqlc.ThreadMessage, error) {
@@ -636,7 +763,11 @@ func createMessage(ctx context.Context, q *dbsqlc.Queries, author actor.Actor, e
 
 		ReplyToID:          m.refs.replyTo,
 		ObservationBlockID: m.refs.block,
+		ClientID:           m.clientID,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbsqlc.ThreadMessage{}, errReplayed
+	}
 	if err != nil {
 		return dbsqlc.ThreadMessage{}, fmt.Errorf("create message: %w", err)
 	}
@@ -726,8 +857,8 @@ func quotesOf(ctx context.Context, q *dbsqlc.Queries, rows []dbsqlc.ThreadMessag
 	return quotes, nil
 }
 
-func createThreadParams(t Target, at anchor) dbsqlc.CreateThreadParams {
-	params := dbsqlc.CreateThreadParams{DashboardVersion: at.version, PanelID: at.panelID}
+func createThreadParams(t Target, at placement) dbsqlc.CreateThreadParams {
+	params := dbsqlc.CreateThreadParams{DashboardVersion: at.version, PanelID: at.panelID, Anchor: at.point.anchor, BlockID: at.point.block}
 	switch t.Kind {
 	case KindDashboard:
 		params.DashboardID = t.ID

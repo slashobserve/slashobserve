@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -25,6 +26,21 @@ INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, tim
 SELECT o.id, o.id, $1, 'answer', $2, now() - interval '1 hour', now(), 'user', $3::uuid, 'Ada' FROM o`, id, markdown, userID)
 }
 
+func followUp(ctx context.Context, svc *revisions.Service, by auth.Principal, prompt string, id pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	follows := id.String()
+	row, err := svc.Start(ctx, by, revisions.StartRequest{Prompt: &prompt, FollowsID: &follows})
+	return row.AgentRequest, err
+}
+
+func claimedContext(t *testing.T, svc *revisions.Service, id pgtype.UUID) string {
+	t.Helper()
+	claimed, found := claimOne(t, svc)
+	if !found || claimed.ID != id {
+		t.Fatalf("claimed %v (found %v), want %v", claimed.ID, found, id)
+	}
+	return claimed.ThreadContext.String
+}
+
 func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	ctx := reading(context.Background())
@@ -32,31 +48,34 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.ChatID.Valid {
-		t.Fatalf("a first request has no chat_id of its own, got %v", first.ChatID)
+	if first.ChatID != first.ID {
+		t.Fatalf("a first request starts a chat under its own id, got %v", first.ChatID)
 	}
 	answerWith(t, d, first.ID, "Loki and Elasticsearch")
 
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "show the errors", first.ID)
+	second, err := followUp(ctx, svc, user, "show the errors", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if second.ChatID != first.ID {
 		t.Fatalf("chat_id = %v, want the first request %v", second.ChatID, first.ID)
 	}
-	if got := second.ThreadContext.String; !strings.Contains(got, "You: which logs exist") || !strings.Contains(got, "Observe Agent: Loki and Elasticsearch") {
+	if second.ThreadContext.Valid {
+		t.Fatalf("a chat turn's transcript is built when it is claimed, got %q at enqueue", second.ThreadContext.String)
+	}
+	if got := claimedContext(t, svc, second.ID); !strings.Contains(got, "You: which logs exist") || !strings.Contains(got, "Observe Agent: Loki and Elasticsearch") {
 		t.Fatalf("thread context = %q, want the first question and answer", got)
 	}
 	answerWith(t, d, second.ID, "Errors are flat")
 
-	third, err := svc.SubmitObserveFollowUp(ctx, user, "and latency", second.ID)
+	third, err := followUp(ctx, svc, user, "and latency", second.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if third.ChatID != first.ID {
 		t.Fatalf("chat_id = %v, want the root %v", third.ChatID, first.ID)
 	}
-	if got := third.ThreadContext.String; strings.Index(got, "Loki") > strings.Index(got, "Errors are flat") || !strings.Contains(got, "Errors are flat") {
+	if got := claimedContext(t, svc, third.ID); strings.Index(got, "Loki") > strings.Index(got, "Errors are flat") || !strings.Contains(got, "Errors are flat") {
 		t.Fatalf("thread context = %q, want both answers oldest first", got)
 	}
 }
@@ -67,7 +86,7 @@ func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SubmitObserveFollowUp(reading(context.Background()), account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
+	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
 		t.Fatalf("err = %v, want not found", err)
 	}
 }
@@ -79,7 +98,7 @@ func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SubmitObserveFollowUp(reading(context.Background()), user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
+	if _, err := followUp(reading(context.Background()), svc, user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
 		t.Fatalf("err = %v, want ErrFollowsDashboard", err)
 	}
 }
@@ -96,7 +115,10 @@ func TestDashboardFollowUpCarriesTheEarlierTurnsOnThatDashboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := second.ThreadContext.String; !strings.Contains(got, "You: add a latency panel") || !strings.Contains(got, "Latency is already covered") {
+	if !first.ChatID.Valid || second.ChatID != first.ChatID {
+		t.Fatalf("chat = %v then %v, want the second turn in the first turn's chat", first.ChatID, second.ChatID)
+	}
+	if got := claimedContext(t, svc, second.ID); !strings.Contains(got, "You: add a latency panel") || !strings.Contains(got, "Latency is already covered") {
 		t.Fatalf("thread context = %q, want the earlier turn on the dashboard", got)
 	}
 }
@@ -109,7 +131,7 @@ func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	answerWith(t, d, first.ID, "answer one")
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	second, err := followUp(ctx, svc, user, "two", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +201,7 @@ func TestRetryKeepsTheChat(t *testing.T) {
 		t.Fatal(err)
 	}
 	answerWith(t, d, first.ID, "answer one")
-	second, err := svc.SubmitObserveFollowUp(ctx, user, "two", first.ID)
+	second, err := followUp(ctx, svc, user, "two", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,8 +211,11 @@ func TestRetryKeepsTheChat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if retried.ChatID != first.ID || !strings.Contains(retried.ThreadContext.String, "answer one") {
-		t.Fatalf("retry = chat %v, context %q; want the chat and its context kept", retried.ChatID, retried.ThreadContext.String)
+	if retried.ChatID != first.ID {
+		t.Fatalf("retry chat = %v, want %v", retried.ChatID, first.ID)
+	}
+	if got := claimedContext(t, svc, retried.ID); !strings.Contains(got, "answer one") {
+		t.Fatalf("retry context = %q, want the earlier answer", got)
 	}
 }
 
@@ -244,7 +269,10 @@ func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := next.ThreadContext.String; !strings.Contains(got, "Payments p95 is 420ms") {
+	if next.ChatID != second.ChatID {
+		t.Fatalf("continued chat = %v, want %v", next.ChatID, second.ChatID)
+	}
+	if got := claimedContext(t, svc, next.ID); !strings.Contains(got, "Payments p95 is 420ms") {
 		t.Fatalf("continued run context = %q, want the earlier turn on the dashboard", got)
 	}
 }

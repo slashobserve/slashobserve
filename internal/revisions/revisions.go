@@ -103,6 +103,7 @@ var (
 
 	ErrDashboardNotFound        = errors.New("dashboard not found")
 	ErrObservationNotFound      = errors.New("observation not found")
+	ErrChatNotFound             = errors.New("chat not found")
 	ErrDashboardVersionNotFound = errors.New("dashboard version not found")
 )
 

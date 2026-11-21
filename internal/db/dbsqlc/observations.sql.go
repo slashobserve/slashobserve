@@ -563,7 +563,7 @@ func (q *Queries) ObservationByID(ctx context.Context, id pgtype.UUID) (Observat
 }
 
 const observationThread = `-- name: ObservationThread :one
-SELECT id FROM threads WHERE observation_id = $1
+SELECT id FROM threads WHERE observation_id = $1 AND anchor IS NULL AND block_id IS NULL
 `
 
 func (q *Queries) ObservationThread(ctx context.Context, observationID pgtype.UUID) (pgtype.UUID, error) {
@@ -574,7 +574,7 @@ func (q *Queries) ObservationThread(ctx context.Context, observationID pgtype.UU
 }
 
 const observationThreads = `-- name: ObservationThreads :many
-SELECT observation_id, id FROM threads WHERE observation_id = ANY($1::uuid[])
+SELECT observation_id, id FROM threads WHERE observation_id = ANY($1::uuid[]) AND anchor IS NULL AND block_id IS NULL
 `
 
 type ObservationThreadsRow struct {

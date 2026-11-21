@@ -73,7 +73,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, messageID pgtyp
 	}
 	root := messageRow.ID == row.ID
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockTarget(ctx, q, sc); err != nil {
+		if err := lockTarget(ctx, q, sc, false); err != nil {
 			return err
 		}
 		current, err := q.GetMessage(ctx, messageID)
