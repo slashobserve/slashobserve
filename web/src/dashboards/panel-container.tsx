@@ -401,7 +401,9 @@ export const PanelContainer = memo(function PanelContainer({
   const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || viewing) return
     const target = event.target as Element
-    if (target.closest(interactiveTarget)) return
+    const pressesTitle =
+      !commentTool && target.closest("[data-panel-title]") !== null
+    if (!pressesTitle && target.closest(interactiveTarget)) return
     if (commentTool && sourceKind !== "block") {
       if (layoutSession) return
       event.preventDefault()
