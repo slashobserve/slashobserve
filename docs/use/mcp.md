@@ -474,7 +474,7 @@ It answers `thread_id`, `message_id` and `replayed`, true when the run was alrea
 Only the one who asked can share it, and only when you can comment there: anyone else gets `not_found`, a run that is not a private question gets `not_shareable` and one without an answer gets `no_answer`.
 An answer whose evidence reads a datasource only Admins can query is refused with `restricted_content` unless the dashboard or observation is in a folder only Admins can read.
 The run and the rest of the chat stay readable only by you and Admins.
-Withdrawing a shared answer deletes its thread, so no MCP tool does it; the person who asked uses `observe comments withdraw` or `DELETE /threads/{id}/share`.
+Withdrawing a shared answer deletes the shared question and its answer, or the thread the share opened, so no MCP tool does it; the person who asked uses `observe comments withdraw` or `DELETE /threads/{id}/share`.
 
 `search_workspace` runs the [search](search.md) of the workspace: pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder`, `updated_at` and, for a comment, the `target` it is on and its `thread_id`.

@@ -437,7 +437,7 @@ func run() error {
 	healthService := health.New(health.Deps{DB: database, Runner: runner, Access: folderAccess, PublicURL: cfg.PublicURL, Logger: logger, Job: healthJob})
 	threadsService := threads.NewService(database, folderAccess, dashboardsService, annotationsService, observationsService, proposalsService)
 	proposalsService.OnClosed(threadsService)
-	threadsService.ShowAnswersWith(findingsService.ShowIn)
+	threadsService.ShowAnswersWith(findingsService.ShowIn, findingsService.HideFrom)
 	findingsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err

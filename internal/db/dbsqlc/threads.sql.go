@@ -205,6 +205,38 @@ func (q *Queries) DeleteMessage(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteSharedMessages = `-- name: DeleteSharedMessages :many
+DELETE FROM thread_messages
+WHERE thread_id = $1 AND (id = ANY($2::uuid[]) OR run_id = ANY($3::uuid[]))
+RETURNING id
+`
+
+type DeleteSharedMessagesParams struct {
+	ThreadID   pgtype.UUID
+	MessageIds []pgtype.UUID
+	RunIds     []pgtype.UUID
+}
+
+func (q *Queries) DeleteSharedMessages(ctx context.Context, arg DeleteSharedMessagesParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, deleteSharedMessages, arg.ThreadID, arg.MessageIds, arg.RunIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteThread = `-- name: DeleteThread :exec
 DELETE FROM threads WHERE id = $1
 `
@@ -431,7 +463,7 @@ const insertRunReply = `-- name: InsertRunReply :one
 INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
 SELECT $1::uuid, $2::text, $3::text, $4::uuid, $5::text,
   $6::text, $7::text, $8::uuid, $9::text
-WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid)
+WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = $8::uuid AND thread_id = $1::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = $8::uuid AND thread_replied_at IS NULL)
 RETURNING id, thread_id, body, author_kind, author_id, author_name, author_email, origin, origin_client, created_at, updated_at, edited_at, run_id, run_assigned_kind, reply_to_id, observation_block_id, client_id
 `
@@ -812,7 +844,7 @@ func (q *Queries) LockProposalKeyShare(ctx context.Context, id pgtype.UUID) (pgt
 }
 
 const lockSharedRunsInThread = `-- name: LockSharedRunsInThread :many
-SELECT r.id, r.chat_id FROM agent_requests r
+SELECT r.id, r.chat_id, r.thread_message_id FROM agent_requests r
 JOIN thread_messages m ON m.id = r.thread_message_id
 WHERE m.thread_id = $1 AND r.chat_id IS NOT NULL
   AND r.requested_by_kind = $2 AND r.requested_by_id = $3
@@ -827,8 +859,9 @@ type LockSharedRunsInThreadParams struct {
 }
 
 type LockSharedRunsInThreadRow struct {
-	ID     pgtype.UUID
-	ChatID pgtype.UUID
+	ID              pgtype.UUID
+	ChatID          pgtype.UUID
+	ThreadMessageID pgtype.UUID
 }
 
 func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRunsInThreadParams) ([]LockSharedRunsInThreadRow, error) {
@@ -840,7 +873,7 @@ func (q *Queries) LockSharedRunsInThread(ctx context.Context, arg LockSharedRuns
 	var items []LockSharedRunsInThreadRow
 	for rows.Next() {
 		var i LockSharedRunsInThreadRow
-		if err := rows.Scan(&i.ID, &i.ChatID); err != nil {
+		if err := rows.Scan(&i.ID, &i.ChatID, &i.ThreadMessageID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1231,7 +1264,7 @@ func (q *Queries) SetThreadStatus(ctx context.Context, arg SetThreadStatusParams
 }
 
 const shareRunInThread = `-- name: ShareRunInThread :execrows
-UPDATE agent_requests SET thread_message_id = $1 WHERE id = $2 AND thread_message_id IS NULL
+UPDATE agent_requests SET thread_message_id = $1, thread_replied_at = NULL WHERE id = $2 AND thread_message_id IS NULL
 `
 
 type ShareRunInThreadParams struct {

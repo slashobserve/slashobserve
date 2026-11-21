@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -117,7 +118,24 @@ func TestSomeoneWhoCannotViewTheThreadCannotWithdrawIt(t *testing.T) {
 	}
 }
 
-func TestWithdrawingAnObservationAnswerKeepsTheBlocksItWrote(t *testing.T) {
+func (r *rig) listedFindingsWith(t *testing.T, by auth.Principal, observation pgtype.UUID) []string {
+	t.Helper()
+	var folder pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT folder_id FROM observations WHERE id = $1`, observation).Scan(&folder); err != nil {
+		t.Fatal(err)
+	}
+	listed, _, err := r.findings.List(reading(t.Context()), by, findings.ListFilter{FolderID: folder}, 50, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, 0, len(listed))
+	for _, f := range listed {
+		ids = append(ids, f.ID)
+	}
+	return ids
+}
+
+func TestWithdrawingAnObservationAnswerMakesItPrivateAgainAndKeepsTheBlocksItWrote(t *testing.T) {
 	r := newShareRig(t)
 	observation := r.filedObservationIn(t, testUser, pgtype.UUID{})
 	id := observation.String()
@@ -127,6 +145,10 @@ func TestWithdrawingAnObservationAnswerKeepsTheBlocksItWrote(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocks := r.blockCount(t, observation)
+	answer, err := r.findingOfRun(t, otherEditor, run)
+	if err != nil || !slices.Contains(r.listedFindingsWith(t, otherEditor, observation), answer.ID) {
+		t.Fatalf("an observation reader before the withdraw: %+v, %v", answer, err)
+	}
 
 	if got := r.callStatus(t, testUser, http.MethodDelete, "/threads/"+shared.Thread.ID+"/share"); got != http.StatusNoContent {
 		t.Fatalf("status = %d, want 204", got)
@@ -136,6 +158,18 @@ func TestWithdrawingAnObservationAnswerKeepsTheBlocksItWrote(t *testing.T) {
 	}
 	if n := r.messageCount(t); n != 0 {
 		t.Fatalf("messages after the withdraw = %d, want 0", n)
+	}
+	if _, err := r.findingOfRun(t, otherEditor, run); !errors.Is(err, findings.ErrNotFound) {
+		t.Fatalf("an observation reader reads the withdrawn answer: %v", err)
+	}
+	if code := r.observeStatus(t, otherEditor, run); code != http.StatusNotFound {
+		t.Fatalf("an observation reader: GET /observe/{id} of the withdrawn run answered %d", code)
+	}
+	if listed := r.listedFindingsWith(t, otherEditor, observation); slices.Contains(listed, answer.ID) {
+		t.Fatalf("the withdrawn answer is still listed: %v", listed)
+	}
+	if f, err := r.findingOfRun(t, testUser, run); err != nil || f.ObservationID != "" {
+		t.Fatalf("the asker reads the withdrawn answer as %+v, %v", f, err)
 	}
 	events := r.db.AuditEvents(t, "run.withdraw")
 	if len(events) != 1 || events[0].TargetID != run.String() {
@@ -270,11 +304,12 @@ func TestASharedAnswerIsReadByTheThreadsReadersUntilItIsWithdrawn(t *testing.T) 
 	r := newShareRig(t)
 	_, run, shared := r.sharedDashboardAnswer(t)
 	desk := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{})
+	robot := auth.Principal{Kind: auth.KindServiceAccount, ID: "66666666-6666-4666-8666-666666666666", Name: "ci", Role: auth.RoleViewer}
 
 	if shown := r.runAsReadBy(t, testUser, run); shown.ReadOnly || shown.SharedThread == nil || len(shown.AllowedActions) == 0 {
 		t.Fatalf("the asker reads the run as %+v", shown)
 	}
-	for _, reader := range []auth.Principal{otherEditor, viewer, admin} {
+	for _, reader := range []auth.Principal{otherEditor, commenter, viewer, robot, admin} {
 		if shown := r.runAsReadBy(t, reader, run); !shown.ReadOnly || len(shown.AllowedActions) != 0 || shown.SharedThread != nil || shown.ChatID != nil && reader.ID != adminID {
 			t.Errorf("%s reads the shared run as %+v, want read only", reader.Name, shown)
 		}
@@ -289,7 +324,7 @@ func TestASharedAnswerIsReadByTheThreadsReadersUntilItIsWithdrawn(t *testing.T) 
 	if err := r.service.Withdraw(reading(t.Context()), testUser, mustParse(t, shared.Thread.ID)); err != nil {
 		t.Fatal(err)
 	}
-	for _, former := range []auth.Principal{otherEditor, viewer} {
+	for _, former := range []auth.Principal{otherEditor, commenter, viewer, robot} {
 		if _, err := desk.Run(reading(t.Context()), run, former, 0); !errors.Is(err, revisions.ErrRequestNotFound) {
 			t.Errorf("%s reads the withdrawn run: %v", former.Name, err)
 		}

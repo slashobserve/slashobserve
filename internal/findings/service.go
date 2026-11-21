@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -13,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -24,7 +26,11 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-const savedDashboardSummary = "Saved from a finding"
+const (
+	savedDashboardSummary = "Saved from a finding"
+
+	actionRunView audit.Action = "run.view"
+)
 
 var ErrNoObservations = errors.New("findings need an observation service")
 
@@ -189,6 +195,13 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	return nil
 }
 
+func (s *Service) HideFrom(ctx context.Context, q *dbsqlc.Queries, requestID, observationID pgtype.UUID) error {
+	if err := q.UnsetFindingObservation(ctx, dbsqlc.UnsetFindingObservationParams{AgentRequestID: requestID, ObservationID: observationID}); err != nil {
+		return fmt.Errorf("take the answer back from the observation: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
 	f, err := s.store.get(ctx, id)
 	if err != nil {
@@ -207,6 +220,9 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (F
 
 func (s *Service) Read(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
 	f, err := s.Get(ctx, by, id)
+	if errors.Is(err, ErrNotFound) {
+		s.recordRefusedRead(ctx, id)
+	}
 	if err != nil || f.Saved() || s.answerReads == nil {
 		return f, err
 	}
@@ -216,6 +232,19 @@ func (s *Service) Read(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 	}
 	s.answerReads(ctx, run)
 	return f, nil
+}
+
+func (s *Service) recordRefusedRead(ctx context.Context, id pgtype.UUID) {
+	err := audit.RecordNow(ctx, audit.Event{
+		Action:  actionRunView,
+		Outcome: audit.OutcomeDenied,
+		Reason:  "not_found",
+		Status:  http.StatusNotFound,
+		Target:  audit.Target{Kind: "finding", ID: id.String()},
+	})
+	if err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		s.logger.WarnContext(ctx, "refused read not recorded", logattrs.Failure("audit_record_failed", err, slog.String("finding_id", id.String()))...)
+	}
 }
 
 func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
