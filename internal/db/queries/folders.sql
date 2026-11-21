@@ -76,6 +76,13 @@ LEFT JOIN users u ON u.id = p.user_id
 WHERE p.folder_id = @folder_id
 ORDER BY (p.group_name IS NOT NULL), lower(coalesce(nullif(u.name, ''), u.email, p.group_name)), p.created_at;
 
+-- name: ListFolderGrantsForAudit :many
+SELECT p.user_id, p.group_name, p.level, coalesce(u.name, '')::text AS user_name
+FROM folder_permissions p
+LEFT JOIN users u ON u.id = p.user_id
+WHERE p.folder_id = @folder_id
+ORDER BY (p.group_name IS NOT NULL), p.group_name, p.user_id;
+
 -- name: DeleteFolderPermissions :exec
 DELETE FROM folder_permissions WHERE folder_id = @folder_id;
 

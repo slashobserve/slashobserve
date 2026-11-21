@@ -110,6 +110,7 @@ type accessFixture struct {
 	findings *findings.Service
 	threads  *threads.Service
 	authn    keyAuth
+	registry *tools.Registry
 }
 
 func newAccessFixture(t *testing.T) *accessFixture {
@@ -140,7 +141,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 		authn[bearer(p)] = Credential{Principal: p}
 	}
 	f := &fixture{handler: NewHandler(reg, authn, Options{PublicURL: base, Version: "test", Logger: logger}), tools: offeredOverMCP(reg)}
-	return &accessFixture{fixture: f, db: database, service: service, findings: found, threads: commentThreads, authn: authn}
+	return &accessFixture{fixture: f, db: database, service: service, findings: found, threads: commentThreads, authn: authn, registry: reg}
 }
 
 func (f *accessFixture) writtenRows(t *testing.T) int {
