@@ -221,10 +221,11 @@ func WithMetrics(m Metrics) Option {
 }
 
 type Request struct {
-	ID          string
-	DashboardID string
-	Intent      Intent
-	Source      Source
+	ID            string
+	DashboardID   string
+	Intent        Intent
+	Source        Source
+	Investigation bool
 
 	ObservationID        string
 	SubjectObservationID string

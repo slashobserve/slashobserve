@@ -305,10 +305,11 @@ func logAttrs(row dbsqlc.AgentRequest) []any {
 
 func RequestOf(row dbsqlc.AgentRequest) Request {
 	return Request{
-		ID:          row.ID.String(),
-		DashboardID: row.DashboardID.String(),
-		Intent:      Intent(row.Intent),
-		Source:      SourceOf(row),
+		ID:            row.ID.String(),
+		DashboardID:   row.DashboardID.String(),
+		Intent:        Intent(row.Intent),
+		Source:        SourceOf(row),
+		Investigation: row.Investigation,
 
 		ObservationID:        row.ObservationID.String(),
 		SubjectObservationID: row.SubjectObservationID.String(),
