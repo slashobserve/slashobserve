@@ -36,9 +36,9 @@ func (c Census) Held() bool { return c.Shared+c.Personal > 0 }
 func (c Census) Unlisted() int { return c.Shared - len(c.Listed) }
 
 type scope struct {
-	uids       []string
-	folderID   pgtype.UUID
-	sharedOnly bool
+	uids         []string
+	folderID     pgtype.UUID
+	sharedOnly   bool
 	hidePersonal bool
 	keep         int
 	stopAt       int
