@@ -253,6 +253,61 @@ func (s *Service) ForRequest(ctx context.Context, by auth.Principal, requestID p
 	return f, err == nil, err
 }
 
+type ThreadAnswer struct {
+	Finding Finding
+	Savable bool
+}
+
+func (s *Service) ForThreadRuns(ctx context.Context, by auth.Principal, repliedIn map[pgtype.UUID]pgtype.UUID) (map[pgtype.UUID]ThreadAnswer, error) {
+	out := make(map[pgtype.UUID]ThreadAnswer, len(repliedIn))
+	if len(repliedIn) == 0 {
+		return out, nil
+	}
+	runIDs := make([]pgtype.UUID, 0, len(repliedIn))
+	for run := range repliedIn {
+		runIDs = append(runIDs, run)
+	}
+	asked, err := s.store.forRequests(ctx, runIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range asked {
+		savable := !a.finding.Saved() && isRequester(by, a.finding)
+		f, err := s.readInThread(ctx, by, a, repliedIn[a.answered])
+		switch {
+		case errors.Is(err, ErrNotFound):
+			continue
+		case err != nil:
+			return nil, err
+		}
+		if f, err = s.askOnIfViewable(ctx, by, f); err != nil {
+			return nil, err
+		}
+		if !a.finding.Saved() && s.answerReads != nil {
+			s.answerReads(ctx, a.answered)
+		}
+		out[a.answered] = ThreadAnswer{Finding: f, Savable: savable}
+	}
+	return out, nil
+}
+
+func (s *Service) readInThread(ctx context.Context, by auth.Principal, a askedFinding, readableThread pgtype.UUID) (Finding, error) {
+	f := a.finding
+	if !a.askedIn.Valid || a.askedIn != readableThread {
+		f, _, _, err := s.readPlace(ctx, by, f)
+		return f, err
+	}
+	if !f.Saved() {
+		return f, nil
+	}
+	_, _, err := s.place(ctx, by, f)
+	if errors.Is(err, ErrNotFound) {
+		f.ObservationID, f.FolderID = "", ""
+		return f, nil
+	}
+	return f, err
+}
+
 func (s *Service) askOnIfViewable(ctx context.Context, by auth.Principal, f Finding) (Finding, error) {
 	if f.AskOnID == "" {
 		return f, nil

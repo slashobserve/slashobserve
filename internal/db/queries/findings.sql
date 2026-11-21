@@ -27,6 +27,17 @@ JOIN agent_requests r ON r.id = f.agent_request_id
 LEFT JOIN dashboards ask ON ask.id = f.ask_dashboard_id
 WHERE f.agent_request_id = @agent_request_id;
 
+-- name: ListFindingsByAgentRequests :many
+SELECT sqlc.embed(f), o.folder_id AS observation_folder_id,
+  r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
+  r.thread_message_id AS request_thread_message_id, asked.thread_id AS request_thread_id
+FROM findings f
+LEFT JOIN observations o ON o.id = f.observation_id
+JOIN agent_requests r ON r.id = f.agent_request_id
+LEFT JOIN thread_messages asked ON asked.id = r.thread_message_id
+LEFT JOIN dashboards ask ON ask.id = f.ask_dashboard_id
+WHERE f.agent_request_id = ANY(@agent_request_ids::uuid[]);
+
 -- name: ListFindingsByDashboard :many
 SELECT sqlc.embed(f), o.folder_id AS observation_folder_id
 FROM findings f

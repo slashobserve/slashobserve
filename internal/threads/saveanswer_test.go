@@ -2,7 +2,6 @@ package threads
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -65,7 +64,7 @@ func TestSavingAThreadAnswerFilesANewObservationAndKeepsTheReply(t *testing.T) {
 		t.Fatalf("the observation the thread is on has %d blocks, want %d", got, blocks)
 	}
 	replies := r.runReplies(t, thread)
-	if len(replies) != 1 || !strings.HasPrefix(replies[0].Body, "Answered: Checkout is slow.") || replies[0].RunID != run.ID.String() {
+	if len(replies) != 1 || replies[0].Body != "Answered." || replies[0].RunID != run.ID.String() {
 		t.Fatalf("replies = %+v, want the one answer reply", replies)
 	}
 	if code := r.observeStatus(t, testUser, run.ID); code != http.StatusOK {

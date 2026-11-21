@@ -127,7 +127,7 @@ func TestSharingAPrivateDashboardAnswerOpensAThreadThatTheDashboardsReadersRead(
 		t.Fatalf("shared = %+v", shared)
 	}
 	replies := r.runReplies(t, shared.Thread.ID)
-	if len(replies) != 1 || replies[0].RunID != run.String() || !strings.HasPrefix(replies[0].Body, "Answered: Checkout is slow.") || strings.Contains(replies[0].Body, "/c/") {
+	if len(replies) != 1 || replies[0].RunID != run.String() || replies[0].Body != "Answered." {
 		t.Fatalf("replies = %+v", replies)
 	}
 
@@ -189,7 +189,7 @@ func TestSharingAPrivateObservationAnswerWritesItOntoThePage(t *testing.T) {
 		t.Fatalf("finding = %+v, %v", f, err)
 	}
 	replies := r.runReplies(t, shared.Thread.ID)
-	if len(replies) != 1 || !strings.HasPrefix(replies[0].Body, "Wrote the answer into this observation") {
+	if len(replies) != 1 || replies[0].Body != "Answered." {
 		t.Fatalf("replies = %+v", replies)
 	}
 	stored, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), run)

@@ -1,6 +1,7 @@
 package threads
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"unicode/utf8"
@@ -72,6 +73,12 @@ type messageJSON struct {
 	ReplyTo    *replyToJSON    `json:"reply_to"`
 	Run        *startedRunJSON `json:"run"`
 	RunRefusal *runRefusalJSON `json:"run_refusal"`
+	Answer     *answerJSON     `json:"answer"`
+}
+
+type answerJSON struct {
+	Finding json.RawMessage `json:"finding"`
+	CanSave bool            `json:"can_save"`
 }
 
 type replyToJSON struct {
@@ -565,6 +572,9 @@ func newMessageJSON(m Message) messageJSON {
 	}
 	if m.ReplyTo != nil {
 		out.ReplyTo = &replyToJSON{ID: m.ReplyTo.ID, Actor: m.ReplyTo.Author.JSON(), Excerpt: m.ReplyTo.Excerpt}
+	}
+	if m.Answer != nil {
+		out.Answer = &answerJSON{Finding: m.Answer.Finding, CanSave: m.Answer.CanSave}
 	}
 	if m.EditedAt != nil {
 		at := httpapi.FormatTime(*m.EditedAt)

@@ -127,6 +127,20 @@ type threadMessage struct {
 	Body       string        `json:"body"`
 	Run        *startedRun   `json:"run"`
 	RunRefusal *runRefusal   `json:"run_refusal"`
+	Answer     *threadAnswer `json:"answer"`
+}
+
+type threadAnswer struct {
+	Finding struct {
+		Title string `json:"title"`
+	} `json:"finding"`
+}
+
+func (m threadMessage) preview() string {
+	if m.Answer == nil || m.Answer.Finding.Title == "" {
+		return m.Body
+	}
+	return m.Body + " " + m.Answer.Finding.Title
 }
 
 type startedRun struct {
@@ -319,7 +333,7 @@ func commentRows(data []byte, byDashboard bool) ([]commentRow, *string, error) {
 			status:  th.Status,
 			author:  m.Actor.Label,
 			created: m.CreatedAt,
-			body:    m.Body,
+			body:    m.preview(),
 		})
 	}
 	return rows, page.NextCursor, nil

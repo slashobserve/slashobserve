@@ -336,6 +336,34 @@ func worstCaseRef(t *testing.T) commentRef {
 	}
 }
 
+func worstCaseRunReplyRef(t *testing.T) commentRef {
+	ref := worstCaseRef(t)
+	ref.message.Mentions = nil
+	ref.message.Body = strings.Repeat("<", 520)
+	ref.message.Answer = &threads.Answer{
+		RunID:           dashA,
+		FindingID:       dashB,
+		Title:           strings.Repeat("<", 400),
+		Markdown:        strings.Repeat("<", 4000),
+		EvidencePanels:  4,
+		SuggestedChange: strings.Repeat("<", maxSuggestedChangeRunes),
+		ObservationID:   dashB,
+	}
+	return ref
+}
+
+func TestWorstCaseRunReplyWithItsAnswerFitsTheListBudget(t *testing.T) {
+	q := commentQuery{target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}, byTarget: true}
+	out, _, cut := commentPage(q, []commentRef{worstCaseRunReplyRef(t)}, strings.Repeat("c", 256))
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cut || len(out.Comments) != 1 || out.Comments[0].BodyTruncated || len(body) > listBudget {
+		t.Fatalf("worst-case run reply: cut %v, %d comments, body truncated %v, %d bytes over the %d byte budget", cut, len(out.Comments), out.Comments[0].BodyTruncated, len(body), listBudget)
+	}
+}
+
 func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 	cursor := strings.Repeat("c", 256)
 	q := commentQuery{target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}, byTarget: true}
@@ -768,5 +796,29 @@ func TestCommentItemCarriesTheSameActorAsTheRESTAPI(t *testing.T) {
 				t.Fatalf("actor = %v", got.Actor)
 			}
 		})
+	}
+}
+
+func TestARunReplyListsItsAnswerCappedAndAPersonsMessageNone(t *testing.T) {
+	long := strings.Repeat("word ", 200)
+	reply := commentItem(commentRef{threads.Thread{ID: dashA}, threads.Message{ID: dashB, Body: "Answered.", Answer: &threads.Answer{
+		RunID: dashA, FindingID: dashB, Title: "Checkout errors doubled", Markdown: long, EvidencePanels: 2,
+	}}})
+	a := reply.Answer
+	if a == nil || a.RunID != dashA || a.FindingID != dashB || a.Title != "Checkout errors doubled" || a.EvidencePanels != 2 {
+		t.Fatalf("answer = %+v", a)
+	}
+	if !a.MarkdownTruncated || len(a.Markdown) > maxAnswerOutBytes+len("...") || !strings.HasPrefix(long, strings.TrimSuffix(a.Markdown, "...")) {
+		t.Fatalf("markdown %d bytes, truncated %v, want it cut at %d", len(a.Markdown), a.MarkdownTruncated, maxAnswerOutBytes)
+	}
+	if a.SuggestedChange != nil || a.ObservationID != nil {
+		t.Fatalf("unset suggested_change and observation_id = %v, %v, want null", a.SuggestedChange, a.ObservationID)
+	}
+	body, err := json.Marshal(commentItem(commentRef{threads.Thread{ID: dashA}, threads.Message{ID: dashA, Body: "is this real?"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), `"answer"`) {
+		t.Fatalf("a person's message lists an answer: %s", body)
 	}
 }

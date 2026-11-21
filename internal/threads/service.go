@@ -48,6 +48,7 @@ type Service struct {
 	panelSets    *panelCache
 	showAnswer   AnswerShower
 	hideAnswer   AnswerHider
+	answers      Answers
 }
 
 func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {
@@ -612,6 +613,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && pd.others[r.Thread.ID])
 		message.ReplyTo = pd.quotes[r.ThreadMessage.ID]
 		message.Run = pd.runs[r.ThreadMessage.ID]
+		message.Answer = answerOf(pd.answers, r.ThreadMessage)
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
@@ -624,6 +626,7 @@ type pageData struct {
 	runs     map[pgtype.UUID]*StartedRun
 	started  map[pgtype.UUID]bool
 	unread   map[pgtype.UUID]bool
+	answers  map[pgtype.UUID]Answer
 }
 
 func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, rows []dbsqlc.ListThreadMessagesRow) (pageData, error) {
@@ -652,6 +655,9 @@ func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, r
 	}
 	if pd.unread, err = s.unreadAmong(ctx, s.db.Queries(), by, threadIDsOf(rows)); err != nil {
 		return pageData{}, err
+	}
+	if pd.answers, err = s.answersOf(ctx, by, rows); err != nil {
+		return pageData{}, fmt.Errorf("read the answers of the page's runs: %w", err)
 	}
 	return pd, nil
 }
