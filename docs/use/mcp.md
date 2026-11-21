@@ -447,7 +447,7 @@ Every run is a turn of a chat: without `chat_id` a new chat starts, and a revisi
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
 Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
-`retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, and a failed or canceled run that was already retried, answers `invalid_transition` with `allowed_actions`.
+`retry_run` starts a succeeded, failed or canceled run again with the same prompt as a new run; a queued or running run, a failed or canceled run that was already retried, and a run you read `redacted`, answers `invalid_transition` with `allowed_actions`.
 Investigations are a person's decision, so `start_run` has no way to ask for one and `retry_run` answers `investigation_person_only` for one.
 A private ask about a dashboard or an observation is not an investigation, also once its answer is saved as an observation: `retry_run` starts it again as a private ask about the same dashboard or observation, in the same chat.
 The run's `investigation` field says which one a run is.

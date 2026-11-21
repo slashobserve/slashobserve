@@ -251,6 +251,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
+		mayStart = mayStart && rev.audience.viewFor(caller) == viewFull
 		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart, mayEdit)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 	}
