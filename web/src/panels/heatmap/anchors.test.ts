@@ -104,6 +104,40 @@ describe("heatmap rangeTest", () => {
     })
   })
 
+  it("reads the columns of a gappy heatmap by index, not by an even time step", () => {
+    const gappy = {
+      ...layout,
+      model: { ...layout.model, xs: [0, 60_000, 120_000, 600_000] },
+    }
+    const anchor = rangeTest(gappy, start, end)
+    expect(anchor).toMatchObject({
+      from: new Date(60_000).toISOString(),
+      to: new Date(600_000).toISOString(),
+    })
+    expect(locate(gappy, anchor!)).toEqual({
+      x: 40 + 50,
+      y: 10,
+      width: 100,
+      height: 100,
+    })
+  })
+
+  it("places a drag inside a wide column partway along that column's time span", () => {
+    const gappy = {
+      ...layout,
+      model: { ...layout.model, xs: [0, 60_000, 120_000, 600_000] },
+    }
+    const anchor = rangeTest(
+      gappy,
+      { x: 40 + 25, y: 20 },
+      { x: 40 + 175, y: 40 }
+    )
+    expect(anchor).toMatchObject({
+      from: new Date(30_000).toISOString(),
+      to: new Date(600_000 + 0.5 * 480_000).toISOString(),
+    })
+  })
+
   it("returns null for a drag that leaves the plot or a plot with no time span", () => {
     expect(rangeTest(layout, start, { x: 10, y: 50 })).toBeNull()
     const single = { ...layout, model: { ...layout.model, xs: [0] } }

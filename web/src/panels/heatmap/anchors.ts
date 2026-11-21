@@ -45,22 +45,33 @@ export function hitTest(
   })
 }
 
-function stepOf(model: HeatmapAnchorLayout["model"]): number {
-  const { xs } = model
-  return xs.length > 1 ? (xs[xs.length - 1] - xs[0]) / (xs.length - 1) : 0
-}
-
-function spanOf(layout: HeatmapAnchorLayout): number {
-  const { xs } = layout.model
-  return xs.length > 1 ? xs[xs.length - 1] - xs[0] + stepOf(layout.model) : 0
+function edgeAt(xs: readonly number[], index: number): number {
+  const last = xs.length - 1
+  if (index <= last) return xs[index]
+  return xs[last] + (xs[last] - xs[last - 1])
 }
 
 function timeAt(layout: HeatmapAnchorLayout, x: number): number {
-  return layout.model.xs[0] + (x / layout.plot.width) * spanOf(layout)
+  const { xs } = layout.model
+  const position = (x / layout.plot.width) * xs.length
+  const col = Math.min(xs.length - 1, Math.max(0, Math.floor(position)))
+  const start = edgeAt(xs, col)
+  return start + (position - col) * (edgeAt(xs, col + 1) - start)
 }
 
 function pixelAt(layout: HeatmapAnchorLayout, time: number): number {
-  return ((time - layout.model.xs[0]) / spanOf(layout)) * layout.plot.width
+  const { xs } = layout.model
+  let col = 0
+  while (col < xs.length - 1 && xs[col + 1] <= time) col++
+  const start = edgeAt(xs, col)
+  const width = edgeAt(xs, col + 1) - start
+  const fraction = width > 0 ? (time - start) / width : 0
+  return ((col + fraction) / xs.length) * layout.plot.width
+}
+
+function hasTimeSpan(layout: HeatmapAnchorLayout): boolean {
+  const { xs } = layout.model
+  return xs.length > 1 && xs[xs.length - 1] > xs[0]
 }
 
 function plotArea(layout: HeatmapAnchorLayout): Rect {
@@ -74,7 +85,7 @@ export function rangeTest(
 ): Anchor | null {
   const area = plotArea(layout)
   if (!inRect(area, start) || !inRect(area, end)) return null
-  if (!(layout.plot.width > 0) || !(spanOf(layout) > 0)) return null
+  if (!(layout.plot.width > 0) || !hasTimeSpan(layout)) return null
   const [low, high] = start.x <= end.x ? [start, end] : [end, start]
   const from = msToIso(timeAt(layout, low.x - layout.origin.x))
   const to = msToIso(timeAt(layout, high.x - layout.origin.x))
@@ -91,7 +102,7 @@ export function rangeTest(
 }
 
 function locateRange(layout: HeatmapAnchorLayout, anchor: Anchor): Rect | null {
-  if (!(spanOf(layout) > 0)) return null
+  if (!hasTimeSpan(layout)) return null
   const from = Date.parse(anchor.from ?? "")
   const to = Date.parse(anchor.to ?? "")
   const left = Math.max(0, pixelAt(layout, from))
