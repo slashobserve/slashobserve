@@ -88,7 +88,7 @@ func TestTheAdapterReadsTheAuditTrailInEveryQueryShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	origins, slowest := column(t, frames[0], "by"), column(t, frames[0], "slowest")
+	origins, slowest := column(t, frames[0], "origin"), column(t, frames[0], "slowest")
 	if len(origins) != 2 || len(slowest) != 2 {
 		t.Fatalf("terms table = %+v", frames[0])
 	}
