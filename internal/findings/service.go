@@ -182,6 +182,13 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	return nil
 }
 
+func (s *Service) HideFrom(ctx context.Context, q *dbsqlc.Queries, requestID, observationID pgtype.UUID) error {
+	if err := q.UnsetFindingObservation(ctx, dbsqlc.UnsetFindingObservationParams{AgentRequestID: requestID, ObservationID: observationID}); err != nil {
+		return fmt.Errorf("take the answer back from the observation: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Finding, error) {
 	f, err := s.store.get(ctx, id)
 	if err != nil {

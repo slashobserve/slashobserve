@@ -521,11 +521,11 @@ func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigatePara
 }
 
 func (p InvestigateParams) opensObservation() bool {
-	return !p.Private && (p.ObservationID.Valid || !p.ThreadMessageID.Valid)
+	return !p.Private && !p.ThreadMessageID.Valid
 }
 
 func (p InvestigateParams) subject() pgtype.UUID {
-	if !p.Private {
+	if p.opensObservation() {
 		return pgtype.UUID{}
 	}
 	return p.ObservationID
@@ -598,6 +598,8 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 		return row, nil
 	case row.ObservationID.Valid:
 		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+	case row.SubjectObservationID.Valid:
+		return row, s.checkObservationVisible(ctx, row.SubjectObservationID, by)
 	}
 	return dbsqlc.AgentRequest{}, ErrRequestNotFound
 }

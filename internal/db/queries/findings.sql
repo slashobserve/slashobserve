@@ -66,5 +66,8 @@ UPDATE findings SET annotation_id = @annotation_id WHERE id = @id AND annotation
 -- name: LockFinding :one
 SELECT observation_id FROM findings WHERE id = @id FOR UPDATE;
 
+-- name: UnsetFindingObservation :exec
+UPDATE findings SET observation_id = NULL WHERE agent_request_id = @agent_request_id AND observation_id = @observation_id;
+
 -- name: SetFindingObservation :execrows
 UPDATE findings SET observation_id = @observation_id WHERE id = @id AND observation_id IS NULL;

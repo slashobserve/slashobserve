@@ -621,29 +621,38 @@ func TestStartRunsNeedsTheMentionRuns(t *testing.T) {
 	}
 }
 
-func TestCommentToolsNeverStartAnInvestigationOnAnObservation(t *testing.T) {
+func TestCommentToolsAskAnAgentOnAnObservationThreadWithoutWritingOnThePage(t *testing.T) {
 	r := newAccessRig(t)
 	var account string
 	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `INSERT INTO service_accounts (name, takes_runs) VALUES ('runner', true) RETURNING id::text`).Scan(&account); err != nil {
 		t.Fatal(err)
 	}
 	token := "@[runner](service_account:" + account + ")"
-
-	for _, mention := range []string{"@observe", token} {
-		target := `"target":"observation:` + r.privateFinding(t, adminCaller).ObservationID + `"`
-		created := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+mention+` what changed?","start_runs":true}`)
-		out, ok := created.Content.(commentResultOut)
-		if !ok || out.Run != nil || out.RunRefusal == nil || out.RunRefusal.Code != threads.RefusalPersonStarts || !strings.Contains(out.RunRefusal.Message, "web app or the CLI") || created.Step != "Opened a comment" {
-			t.Fatalf("create with %s = %s, step %q", mention, textOf(t, created), created.Step)
+	observation := r.privateFinding(t, adminCaller).ObservationID
+	blocks := func() int {
+		var n int
+		if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM observation_blocks WHERE observation_id = $1`, observation).Scan(&n); err != nil {
+			t.Fatal(err)
 		}
-		replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+mention+` and before?","start_runs":true}`)
-		if again, ok := replied.Content.(commentResultOut); !ok || again.Run != nil || again.RunRefusal == nil || again.RunRefusal.Code != threads.RefusalPersonStarts || again.Comment.Body == "" {
-			t.Fatalf("reply with %s = %s", mention, textOf(t, replied))
-		}
+		return n
 	}
-	var queued int
-	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests`).Scan(&queued); err != nil || queued != 0 {
-		t.Fatalf("%d runs queued, err %v", queued, err)
+	before := blocks()
+
+	created := r.call(t, adminCaller, nameCreateComment, `{"target":"observation:`+observation+`","body":"`+token+` what changed?","to":"agent"}`)
+	out, ok := created.Content.(commentResultOut)
+	if !ok || out.Run == nil || out.RunRefusal != nil {
+		t.Fatalf("create = %s", textOf(t, created))
+	}
+	replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+token+` and before?","to":"agent"}`)
+	if again, ok := replied.Content.(commentResultOut); !ok || again.Run == nil || again.RunRefusal != nil {
+		t.Fatalf("reply = %s", textOf(t, replied))
+	}
+	var asks int
+	if err := r.db.SQLDB(t).QueryRowContext(reading(t.Context()), `SELECT count(*) FROM agent_requests WHERE intent = 'ask' AND observation_id IS NULL AND subject_observation_id = $1 AND thread_message_id IS NOT NULL`, observation).Scan(&asks); err != nil || asks != 2 {
+		t.Fatalf("%d read-only asks about the observation, err %v, want 2", asks, err)
+	}
+	if after := blocks(); after != before {
+		t.Fatalf("the observation has %d blocks after the asks, want %d", after, before)
 	}
 }
 

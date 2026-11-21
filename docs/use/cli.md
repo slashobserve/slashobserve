@@ -459,7 +459,7 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   Deleting the first comment of a thread deletes the whole thread, which its author may do only while nobody else has written in it; everyone else gets 403 `not_author`.
   `-q` hides its confirmation.
 - `bin/observe comments withdraw <comment-id>` withdraws an answer you shared with `share-answer` back to only you: it deletes the thread when the share opened it and otherwise only the shared question and its answer, takes the id of the thread or of any of its comments, and works only for the person who asked while every comment in the thread is theirs or their run's reply.
-  On an observation the answer already written onto the page stays, the answer can be shared again later, and `-q` hides its confirmation.
+  On an observation the answer's text that was written onto the page stays there, while the run and its answer leave the observation's lists, the answer can be shared again later, and `-q` hides its confirmation.
 - `bin/observe comments apply <comment-id> <finding-id>` makes the change an answer in a dashboard thread suggests: the finding id is the answer's, from `bin/observe status <request-id> --json`, and the answer must have been given in that thread.
   It posts "Revise the dashboard: <suggested change>" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
   Applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints `Already applied by run <id>`; an answer without a suggested change is refused with `no_suggested_change`.
@@ -481,11 +481,10 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 `--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
-A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts an investigation, which needs Comment on the observation; an annotation or a proposal thread starts none.
+A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts a read-only ask, which needs Comment on the observation and answers in the thread without writing on the page; an annotation or a proposal thread starts none.
 Mentioning more than one agent is refused with `too_many_agents` and nothing is written.
 
 An observation has one discussion, so `comments add` on an observation that has one adds the comment to that discussion, unless `--at` points it at a spot of its own.
-Only a person starts an investigation: the CLI and the web app do, and an agent connected over MCP gets `investigation_person_only` and the message is saved without a run.
 You can mention only people who can see the target, your own connected agents and service accounts that take runs; anything else is refused with `invalid_mention`, and a service-account key can never mention a connected agent.
 When the comment is stored but the run cannot start, the command succeeds and prints `No run started (<code>)` on stderr with the code `mention_target_unsupported`, `agent_unavailable` (`@observe` on a server with no model provider, or a thread agent that was disconnected), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` or `too_many_runs`.
 When it starts, the command prints `Started run <id>, taken by <builtin|grant|service_account>`.
