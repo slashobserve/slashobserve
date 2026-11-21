@@ -425,7 +425,7 @@ func run() error {
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
 	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService), observations.WithPlacement(dashboardsService.Placement()))
-	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger, findings.AttachChatsWith(revisions.AttachRunChat))
+	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}

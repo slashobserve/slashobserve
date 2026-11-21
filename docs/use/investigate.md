@@ -88,11 +88,13 @@ The finding move tool, command and route are gone; only earlier `finding.moved` 
 ## Make a dashboard from it
 
 **Make a dashboard** saves the evidence panels as a new dashboard in your My Dashboards and opens it.
-From a chat, the dashboard opens with that chat in the Chat tab of its side panel.
-Until the chat is about the new dashboard, the tab shows it read only, with a link to continue it on its chat page.
+From a chat, the dashboard opens with that chat in the Chat tab of its side panel, where you can keep asking.
+The server attaches the chat to the new dashboard when it makes it, whichever way you made it: the button, the API route or the `make_dashboard` tool.
+The chat stays private to you, and Admins read it without writing; nobody else sees it on the dashboard.
+A chat that is already about another dashboard or observation stays where it is, and the new dashboard opens without it.
+A build that is still running in the same chat keeps the chat on whichever dashboard attached it first, so make the dashboard after the build finishes if you want the chat on the built one.
 The server runs every evidence query again before it saves.
 Anyone who can read the finding can do this, and a finding without evidence panels has no such button.
-When the person who asked makes the dashboard from an answer in a chat about no dashboard, that chat becomes the chat about the new dashboard.
 
 ## When there is no finding
 

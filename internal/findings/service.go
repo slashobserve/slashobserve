@@ -41,28 +41,15 @@ type Service struct {
 	dashboards   *dashboards.Service
 	observations Observations
 	threads      ThreadReader
-	attachChat   ChatAttacher
 	answerReads  AnswerReadRecorder
 	logger       *slog.Logger
 }
 
-type ChatAttacher func(ctx context.Context, q *dbsqlc.Queries, runID, dashboardID pgtype.UUID) error
-
-type Option func(*Service)
-
-func AttachChatsWith(attach ChatAttacher) Option {
-	return func(s *Service) { s.attachChat = attach }
-}
-
-func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, observations Observations, logger *slog.Logger, opts ...Option) (*Service, error) {
+func New(database *db.DB, access *folders.Access, ann *annotations.Service, dash *dashboards.Service, observations Observations, logger *slog.Logger) (*Service, error) {
 	if observations == nil {
 		return nil, ErrNoObservations
 	}
-	s := &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s, nil
+	return &Service{store: &store{db: database}, access: access, annotations: ann, dashboards: dash, observations: observations, logger: logger}, nil
 }
 
 func (s *Service) ReadThreadsWith(read ThreadReader) {
@@ -441,28 +428,14 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
-	hook, err := s.attachRunChat(by, f)
+	made, version, err := s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
 	if err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
-	return s.dashboards.CreateWith(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary, hook)
-}
-
-func (s *Service) attachRunChat(by auth.Principal, f Finding) (dashboards.CreateHook, error) {
-	if s.attachChat == nil || f.AgentRequestID == "" || !isRequester(by, f) {
-		return nil, nil
+	if err := s.store.attachChat(ctx, by, f.AgentRequestID, made.ID); err != nil {
+		s.logger.WarnContext(ctx, "attach the chat to the dashboard made from its answer", logattrs.Failure("chat_attach_failed", err, slog.String("finding_id", f.ID), slog.String("dashboard_id", made.ID))...)
 	}
-	runID, err := db.ParseUUID(f.AgentRequestID)
-	if err != nil {
-		return nil, err
-	}
-	return func(ctx context.Context, q *dbsqlc.Queries, dash dashboards.Dashboard, _ dashboards.Version) error {
-		dashboardID, err := db.ParseUUID(dash.ID)
-		if err != nil {
-			return err
-		}
-		return s.attachChat(ctx, q, runID, dashboardID)
-	}, nil
+	return made, version, nil
 }
 
 type Placement struct {

@@ -8,7 +8,6 @@ import (
 	"maps"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
@@ -218,25 +217,10 @@ func recordRun(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, 
 }
 
 func attachChatDashboard(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, a Action) error {
-	if !row.DashboardID.Valid || a == ActionEnqueue || a == ActionClaim {
+	if !row.ChatID.Valid || !row.DashboardID.Valid || a == ActionEnqueue || a == ActionClaim {
 		return nil
 	}
-	return setChatDashboard(ctx, q, row.ChatID, row.DashboardID)
-}
-
-func AttachRunChat(ctx context.Context, q *dbsqlc.Queries, runID, dashboardID pgtype.UUID) error {
-	row, err := q.GetAgentRequestByID(ctx, runID)
-	if err != nil {
-		return fmt.Errorf("read the run whose answer became a dashboard: %w", err)
-	}
-	return setChatDashboard(ctx, q, row.ChatID, dashboardID)
-}
-
-func setChatDashboard(ctx context.Context, q *dbsqlc.Queries, chatID, dashboardID pgtype.UUID) error {
-	if !chatID.Valid {
-		return nil
-	}
-	if err := q.SetChatSubjectDashboard(ctx, dbsqlc.SetChatSubjectDashboardParams{ID: chatID, DashboardID: dashboardID}); err != nil {
+	if err := q.SetChatSubjectDashboard(ctx, dbsqlc.SetChatSubjectDashboardParams{ID: row.ChatID, DashboardID: row.DashboardID}); err != nil {
 		return fmt.Errorf("attach the saved dashboard to its chat: %w", err)
 	}
 	return nil
