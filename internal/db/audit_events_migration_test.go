@@ -23,6 +23,8 @@ VALUES ($1, $2, gen_random_uuid(), 'user', gen_random_uuid(), 'Ada', 'web', '{"t
 	}
 	d.Exec(t, `INSERT INTO activity (type, target_kind, target_id, actor_kind, actor_id, actor_name, data)
 VALUES ('dashboard.deleted', 'dashboard', '66666666-6666-4666-8666-666666666666', 'user', gen_random_uuid(), 'Ada', '{}')`)
+	d.Exec(t, `INSERT INTO activity (type, target_kind, target_id, actor_kind, actor_id, actor_name, run_id, data)
+VALUES ('dashboard.deleted', 'dashboard', '77777777-7777-4777-8777-777777777777', 'user', gen_random_uuid(), 'Ada', gen_random_uuid(), '{}')`)
 	if err := d.MigrateUpTo(ctx, auditEventsVersion); err != nil {
 		t.Fatalf("up: %v", err)
 	}
@@ -73,6 +75,12 @@ WHERE a.origin = 'web'`)
 	}
 	if origin != "unknown" {
 		t.Errorf("an activity row with no origin backfilled from %q, want unknown", origin)
+	}
+	if err := d.SQLDB(t).QueryRowContext(ctx, `SELECT origin FROM audit_events WHERE target_id = '77777777-7777-4777-8777-777777777777'`).Scan(&origin); err != nil {
+		t.Fatal(err)
+	}
+	if origin != "agent" {
+		t.Errorf("an activity row of a run with no origin backfilled from %q, want agent", origin)
 	}
 }
 

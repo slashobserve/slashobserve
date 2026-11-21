@@ -38,11 +38,11 @@ const (
 
 var (
 	categoryValues   = []string{"auth", "access", "content", "conversation", "agent", "query", "admin", "system"}
-	outcomeValues    = []string{"success", "denied", "failed"}
+	outcomeValues    = []string{"success", "denied", "failed", "unknown"}
 	actorKindValues  = []string{"user", "service_account", "anonymous", "system"}
 	initiatorValues  = []string{"person", "agent", "system"}
 	authMethodValues = []string{"session", "api_key", "oauth", "public_link", "none"}
-	originValues     = []string{"web", "cli", "mcp", "api", "agent", "job", "provision"}
+	originValues     = []string{"web", "cli", "mcp", "api", "agent", "job", "provision", "unknown"}
 )
 
 var fieldList = []Field{
@@ -50,7 +50,7 @@ var fieldList = []Field{
 	{Name: "id", Type: TypeUUID, column: "id", Description: "Event id"},
 	{Name: "category", Type: TypeEnum, column: "category", Values: categoryValues, Description: "Kind of action: auth, access, content, conversation, agent, query, admin or system"},
 	{Name: "action", Type: TypeText, column: "action", Description: "What was attempted, such as dashboard.update; end with * for a prefix such as dashboard.*"},
-	{Name: "outcome", Type: TypeEnum, column: "outcome", Values: outcomeValues, Description: "success, denied or failed"},
+	{Name: "outcome", Type: TypeEnum, column: "outcome", Values: outcomeValues, Description: "success, denied, failed or unknown (a redirect or an unconfirmed commit)"},
 	{Name: "reason", Type: TypeText, column: "reason", Description: "API error code of a refusal or failure, such as forbidden_role"},
 	{Name: "status", Type: TypeInt, column: "status", Description: "HTTP status of the request"},
 	{Name: durationField, Alias: "duration", Type: TypeInt, column: durationField, Description: "How long the action took, in milliseconds"},
@@ -64,7 +64,7 @@ var fieldList = []Field{
 	{Name: "run_id", Alias: "run", Type: TypeUUID, column: "run_id", Description: "Agent run that made the event"},
 	{Name: "auth_method", Type: TypeEnum, column: "auth_method", Values: authMethodValues, Description: "How the caller proved who they are: session, api_key, oauth, public_link or none"},
 	{Name: "credential_id", Type: TypeText, column: "credential_id", Description: "Id of the session, key, grant or public link used, never the secret"},
-	{Name: "origin", Type: TypeEnum, column: "origin", Values: originValues, Description: "Where it came from: web, cli, mcp, api, agent, job or provision"},
+	{Name: "origin", Type: TypeEnum, column: "origin", Values: originValues, Description: "Where it came from: web, cli, mcp, api, agent (a run's own tool calls), job, provision or unknown (an event whose origin was never recorded)"},
 	{Name: "origin_client", Type: TypeText, column: "origin_client", Description: "Name of the connected client"},
 	{Name: "tool", Type: TypeText, column: "tool", Description: "MCP or agent tool name"},
 	{Name: "client_ip", Alias: "ip", Type: TypeIP, column: "client_ip", Description: "Address of the caller; accepts an address or a CIDR such as 10.4.0.0/16"},

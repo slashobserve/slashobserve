@@ -18,7 +18,11 @@ func attributed(ctx context.Context, tool string, run Run, inRun bool) context.C
 	from := origin.From(ctx)
 	refine := func(s *audit.Scope) {
 		s.Actor = auth.AuditActor(p)
-		s.Origin = audit.Origin{Kind: string(from.Kind), Client: from.Client, Tool: tool}
+		kind := string(from.Kind)
+		if s.Origin.Kind == audit.OriginAgent {
+			kind = audit.OriginAgent
+		}
+		s.Origin = audit.Origin{Kind: kind, Client: from.Client, Tool: tool}
 		if id, err := uuid.Parse(run.RequestID); inRun && err == nil {
 			s.Initiator = audit.InitiatorAgent
 			s.RunID = uuid.NullUUID{UUID: id, Valid: true}

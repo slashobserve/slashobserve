@@ -19,7 +19,7 @@ A field with an alias takes either name in a query.
 | `id` | | uuid | Event id |
 | `category` | | enum | `auth`, `access`, `content`, `conversation`, `agent`, `query`, `admin` or `system` |
 | `action` | | text | What was attempted, such as `dashboard.update`; `dashboard.*` matches a prefix |
-| `outcome` | | enum | `success`, `denied` or `failed`; an event whose commit the server could not confirm reads `unknown`, which a query cannot name |
+| `outcome` | | enum | `success`, `denied`, `failed` or `unknown`, for a redirect or an event whose commit the server could not confirm |
 | `reason` | | text | The API error code of a refusal or failure, such as `forbidden_role` |
 | `status` | | int | HTTP status of the request |
 | `duration_ms` | `duration` | int | How long the action took, in milliseconds |
@@ -32,7 +32,7 @@ A field with an alias takes either name in a query.
 | `run_id` | `run` | uuid | The agent run that made the event |
 | `auth_method` | | enum | `session`, `api_key`, `oauth`, `public_link` or `none` |
 | `credential_id` | | text | The session, key, grant or public link used, never the secret |
-| `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent`, `job` or `provision` |
+| `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent` (what the built-in agent does with its run key), `job`, `provision` or `unknown` (history copied from activity that recorded no origin) |
 | `origin_client` | | text | The connected client's name |
 | `tool` | | text | The MCP or agent tool |
 | `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16` |

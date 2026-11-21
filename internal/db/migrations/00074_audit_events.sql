@@ -244,7 +244,7 @@ BEGIN
       to_hex(8 + get_byte(decode(md5('variant:' || a.seq), 'hex'), 0) % 4) || substr(md5('audit:' || a.seq), 4, 15))::uuid,
     CASE WHEN keep_position THEN a.xid ELSE pg_current_xact_id() END, a.created_at, m.category, m.action, 'success',
     a.actor_kind, a.actor_id, a.actor_name, CASE WHEN a.run_id IS NULL THEN 'person' ELSE 'agent' END, a.run_id,
-    coalesce(a.origin, 'unknown'), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
+    coalesce(a.origin, CASE WHEN a.run_id IS NULL THEN 'unknown' ELSE 'agent' END), a.origin_client, a.target_kind, a.target_id::text, a.folder_id, a.dashboard_id, a.observation_id,
     (SELECT coalesce(jsonb_object_agg(d.key, d.value), '{}'::jsonb) FROM jsonb_each(a.data || m.extra) AS d WHERE d.key = ANY (m.keys)),
     a.seq, by_server, by_version
   FROM activity a

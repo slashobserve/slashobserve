@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/runsession"
 )
 
@@ -37,6 +38,9 @@ func attribute(ctx context.Context, cred Credential) {
 		auth.Authenticated(ctx, cred.Principal, audit.AuthAPIKey, "")
 		if id, err := uuid.Parse(cred.Run.ID); err == nil {
 			audit.Update(ctx, func(s *audit.Scope) { s.RunID = uuid.NullUUID{UUID: id, Valid: true} })
+		}
+		if cred.Run.Assignee == revisions.AssignBuiltin {
+			audit.Update(ctx, func(s *audit.Scope) { s.Origin.Kind = audit.OriginAgent })
 		}
 	case cred.ClaimOnly:
 		audit.Update(ctx, func(s *audit.Scope) { s.Auth = audit.Auth{Method: audit.AuthAPIKey} })
