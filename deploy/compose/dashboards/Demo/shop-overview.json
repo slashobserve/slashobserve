@@ -218,7 +218,7 @@
           "display": { "feedUrl": "https://github.com/slashobserve/slashobserve/releases.atom" } },
         { "id": "p_panel_notes", "type": "text", "title": "About these panels",
           "gridPos": { "x": 12, "y": 158, "w": 12, "h": 8 },
-          "content": "From **How are requests and load spread out?** down, this dashboard shows one panel of every type SlashObserve draws, on the demo shop's own data.\n\nThe news panel needs github.com on the outbound allowlist in Settings, and it says so until an Admin allows it.\n\nPick **Edit** on a panel to see its query and change its type." }
+          "content": "From **How are requests and load spread out?** down, this dashboard shows one panel of every type SlashObserve draws, on the demo shop's own data.\n\nThe news panel reads the releases feed on github.com, which the demo stack allows on its outbound allowlist.\n\nPick **Edit** on a panel to see its query and change its type." }
       ] }
   ]
 }
