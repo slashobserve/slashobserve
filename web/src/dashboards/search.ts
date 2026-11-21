@@ -332,3 +332,11 @@ export function useSetDashboardSearch() {
     [navigate]
   )
 }
+
+export function searchWithoutLegacyTab(
+  raw: Record<string, unknown>
+): DashboardSearchParams | undefined {
+  if (!("tab" in raw)) return undefined
+  const search = searchFromState(validateDashboardSearch(raw))
+  return search.tab === undefined ? search : undefined
+}
