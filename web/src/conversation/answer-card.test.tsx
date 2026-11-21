@@ -375,6 +375,21 @@ describe("AnswerCard", () => {
     ).toBeNull()
   })
 
+  it("knows an answer the request says is already shared", async () => {
+    const { user } = renderCard({
+      menu: { shareTarget: "dashboard:d1", sharedThreadId: "t5" },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: /^Shared in the thread/ })
+    ).toHaveAttribute("href", "/d/d1?thread=t5")
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+  })
+
   it("withdraws a shared answer back to only the asker", async () => {
     const fetch = stubResponses(shared, { status: 204 })
     const { user } = renderCard({

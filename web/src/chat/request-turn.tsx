@@ -142,7 +142,7 @@ function ChatAnswer({
       menu={{
         shareTarget:
           own && dashboardId !== null ? `dashboard:${dashboardId}` : null,
-        sharedThreadId: null,
+        sharedThreadId: request.shared_thread_id,
       }}
     />
   )
