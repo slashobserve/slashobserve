@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from "react"
+import { useEffect, useEffectEvent, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { FilterIcon } from "lucide-react"
@@ -40,8 +40,13 @@ export function AuditDetail({
   const detail = useQuery(auditEventQuery(id))
   const event = detail.data?.event
 
+  const titleRef = useRef<HTMLHeadingElement>(null)
   const step = useEffectEvent((key: KeyboardEvent) => {
-    const next = stepFromKey(key, neighbors)
+    const next = stepFromKey(
+      key,
+      neighbors,
+      titleRef.current?.closest("aside") ?? null
+    )
     if (next === null) return
     key.preventDefault()
     onSelect(next)
@@ -58,6 +63,7 @@ export function AuditDetail({
           ? undefined
           : `${actorText(event)}, ${formatDateTimeMs(event.occurred_at)}`
       }
+      titleRef={titleRef}
       onClose={onClose}
     >
       {detail.isError ? (

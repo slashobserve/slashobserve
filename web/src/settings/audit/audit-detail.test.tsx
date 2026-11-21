@@ -113,10 +113,21 @@ describe("AuditDetail", () => {
   it("steps to the previous and next event with the arrow keys", async () => {
     const { onSelect } = open(auditEvent())
     await screen.findByText("Checkout")
-    fireEvent.keyDown(document.body, { key: "ArrowDown" })
+    const title = screen.getByRole("heading", { name: "dashboard.update" })
+    fireEvent.keyDown(title, { key: "ArrowDown" })
     expect(onSelect).toHaveBeenLastCalledWith("e3")
-    fireEvent.keyDown(document.body, { key: "ArrowUp" })
+    fireEvent.keyDown(title, { key: "ArrowUp" })
     expect(onSelect).toHaveBeenLastCalledWith("e1")
+  })
+
+  it("leaves the arrow keys alone while focus is elsewhere on the page", async () => {
+    const { onSelect } = open(auditEvent())
+    await screen.findByText("Checkout")
+    const bar = document.createElement("button")
+    document.body.append(bar)
+    fireEvent.keyDown(bar, { key: "ArrowDown" })
+    fireEvent.keyDown(document.body, { key: "ArrowUp" })
+    expect(onSelect).not.toHaveBeenCalled()
   })
 
   it("leaves the arrow keys to an input", async () => {

@@ -31,11 +31,20 @@ function inWidgetThatOwnsArrows(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(ownsArrowKeys) !== null
 }
 
+const tableScope = '[role="region"][aria-label="Audit events"]'
+
+function inStepScope(target: EventTarget | null, panel: Element | null) {
+  if (!(target instanceof Element)) return false
+  return target.closest(tableScope) !== null || panel?.contains(target) === true
+}
+
 export function stepFromKey(
   event: StepEvent,
-  neighbors: Neighbors
+  neighbors: Neighbors,
+  panel: Element | null
 ): string | null {
   if (event.defaultPrevented) return null
+  if (!inStepScope(event.target, panel)) return null
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
     return null
   }

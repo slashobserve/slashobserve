@@ -4,6 +4,15 @@ import { neighborsOf, stepFromKey } from "./step"
 
 const neighbors = { previous: "a", next: "c" }
 
+function inTable(): HTMLElement {
+  const table = document.createElement("div")
+  table.setAttribute("role", "region")
+  table.setAttribute("aria-label", "Audit events")
+  const row = document.createElement("button")
+  table.append(row)
+  return row
+}
+
 function key(init: Partial<Parameters<typeof stepFromKey>[0]>) {
   return {
     key: "ArrowDown",
@@ -12,7 +21,7 @@ function key(init: Partial<Parameters<typeof stepFromKey>[0]>) {
     ctrlKey: false,
     altKey: false,
     shiftKey: false,
-    target: document.body,
+    target: inTable(),
     ...init,
   }
 }
@@ -34,9 +43,9 @@ describe("neighborsOf", () => {
 
 describe("stepFromKey", () => {
   it("maps Up to the previous event and Down to the next", () => {
-    expect(stepFromKey(key({ key: "ArrowUp" }), neighbors)).toBe("a")
-    expect(stepFromKey(key({ key: "ArrowDown" }), neighbors)).toBe("c")
-    expect(stepFromKey(key({ key: "Enter" }), neighbors)).toBe(null)
+    expect(stepFromKey(key({ key: "ArrowUp" }), neighbors, null)).toBe("a")
+    expect(stepFromKey(key({ key: "ArrowDown" }), neighbors, null)).toBe("c")
+    expect(stepFromKey(key({ key: "Enter" }), neighbors, null)).toBe(null)
   })
 
   it.each([
@@ -44,8 +53,10 @@ describe("stepFromKey", () => {
     ["a handled key", { defaultPrevented: true }],
     ["an input", { target: document.createElement("input") }],
     ["a menu", { target: menuItem() }],
+    ["the page body", { target: document.body }],
+    ["a histogram bar", { target: document.createElement("button") }],
   ])("ignores %s", (_name, init) => {
-    expect(stepFromKey(key(init), neighbors)).toBe(null)
+    expect(stepFromKey(key(init), neighbors, null)).toBe(null)
   })
 })
 
@@ -56,3 +67,23 @@ function menuItem(): HTMLElement {
   menu.append(item)
   return item
 }
+
+describe("stepFromKey in the detail panel", () => {
+  it("steps while focus is inside the panel", () => {
+    const panel = document.createElement("aside")
+    const title = document.createElement("h2")
+    panel.append(title)
+    expect(stepFromKey(key({ target: title }), neighbors, panel)).toBe("c")
+  })
+
+  it("leaves focus outside both areas alone", () => {
+    const panel = document.createElement("aside")
+    expect(
+      stepFromKey(
+        key({ target: document.createElement("button") }),
+        neighbors,
+        panel
+      )
+    ).toBe(null)
+  })
+})
