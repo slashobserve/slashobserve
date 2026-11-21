@@ -14,9 +14,15 @@ import type { DatasourceDraft } from "./draft"
 export type DatasourceUser =
   components["schemas"]["DatasourceInUseError"]["used_by"][number]
 
+export type HeldItem = NonNullable<
+  components["schemas"]["RestrictedContentError"]["items"]
+>[number]
+
 export class DatasourceError extends ApiError {
   readonly fields: { field: string; message: string }[]
   readonly usedBy: DatasourceUser[]
+  readonly held: HeldItem[]
+  readonly unlisted: number
   readonly hidden: number
 
   constructor(base: ApiError, body: unknown) {
@@ -31,6 +37,8 @@ export class DatasourceError extends ApiError {
     this.usedBy = Array.isArray(record.used_by)
       ? (record.used_by as DatasourceUser[])
       : []
+    this.held = Array.isArray(record.items) ? (record.items as HeldItem[]) : []
+    this.unlisted = typeof record.unlisted === "number" ? record.unlisted : 0
     this.hidden = typeof record.hidden === "number" ? record.hidden : 0
   }
 }

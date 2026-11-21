@@ -4803,6 +4803,11 @@ export interface components {
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
             time_field?: string;
+            /**
+             * @description Who can query the datasource, for an Admin caller only; absent for everyone else.
+             * @enum {string}
+             */
+            audience?: "everyone" | "admins";
             healthy: boolean;
             /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
@@ -4939,8 +4944,6 @@ export interface components {
             code: "restricted_content";
             /** @description The uid of the Admins-only datasource the content reads. */
             datasource: string;
-            /** @description How many more items block the change than `items` lists; absent when `items` lists them all. */
-            unlisted?: number;
             /** @description The content that blocks the change, when the change is to a folder or a datasource rather than to one piece of content. */
             items?: {
                 /** @enum {string} */
@@ -4950,6 +4953,8 @@ export interface components {
                 folder_id: string;
                 folder_title: string;
             }[];
+            /** @description How many more items that block the change are not in `items`; 0 when the list is complete, absent when `items` is. */
+            unlisted?: number;
             /** @description How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none. */
             hidden?: number;
         };

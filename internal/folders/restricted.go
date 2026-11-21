@@ -62,8 +62,8 @@ type ContentItem struct {
 type RestrictedContentError struct {
 	Datasource string
 	Items      []ContentItem
-	Hidden     int
 	Unlisted   int
+	Hidden     int
 	message    string
 }
 
@@ -98,7 +98,7 @@ func RestrictedAudience(datasource string, items []ContentItem, unlisted, hidden
 		message += fmt.Sprintf("; %d of them %s in people's My Dashboards, which only %s can open, so %s must move or remove %s; you cannot see which", hidden, Agree(hidden, "is", "are"),
 			Agree(hidden, "its owner", "their owners"), Agree(hidden, "the owner", "the owners"), Agree(hidden, "it", "them"))
 	}
-	return &RestrictedContentError{Datasource: datasource, Items: items, Hidden: hidden, Unlisted: unlisted, message: message}
+	return &RestrictedContentError{Datasource: datasource, Items: items, Unlisted: unlisted, Hidden: hidden, message: message}
 }
 
 func Agree(n int, one, many string) string {
@@ -132,12 +132,10 @@ func AbortRestricted(c *gin.Context, err error) bool {
 			items[i] = contentItemJSON(it)
 		}
 		body["items"] = items
+		body["unlisted"] = restricted.Unlisted
 	}
 	if restricted.Hidden > 0 {
 		body["hidden"] = restricted.Hidden
-	}
-	if restricted.Unlisted > 0 {
-		body["unlisted"] = restricted.Unlisted
 	}
 	c.AbortWithStatusJSON(http.StatusConflict, body)
 	return true

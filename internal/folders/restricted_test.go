@@ -1,34 +1,53 @@
-package folders
+package folders_test
 
 import (
-	"strings"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
-func TestARefusalCountsItsItemsInTheRightNumber(t *testing.T) {
-	cases := []struct {
-		unlisted, hidden int
-		want             string
-	}{
-		{1, 1, "1 more is not listed; 1 of them is in people's My Dashboards, which only its owner can open, so the owner must move or remove it; you cannot see which"},
-		{2, 3, "2 more are not listed; 3 of them are in people's My Dashboards, which only their owners can open, so the owners must move or remove them; you cannot see which"},
+func abortBody(t *testing.T, err error) map[string]any {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	if !folders.AbortRestricted(c, err) {
+		t.Fatalf("AbortRestricted refused to handle %v", err)
 	}
-	for _, tc := range cases {
-		got := RestrictedAudience("audit", nil, tc.unlisted, tc.hidden).Error()
-		if !strings.Contains(got, tc.want) {
-			t.Errorf("unlisted %d hidden %d: %q lacks %q", tc.unlisted, tc.hidden, got, tc.want)
-		}
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	return body
+}
+
+func TestAudienceRefusalCountsTheSharedItemsItDoesNotList(t *testing.T) {
+	items := []folders.ContentItem{{Kind: folders.ContentDashboard, ID: "d1", Title: "Checkout", FolderID: "f1", FolderTitle: "Team"}}
+	body := abortBody(t, folders.RestrictedAudience("payroll", items, 7, 2))
+	if body["unlisted"] != float64(7) || body["hidden"] != float64(2) {
+		t.Fatalf("unlisted = %v, hidden = %v", body["unlisted"], body["hidden"])
 	}
 }
 
-func TestTheOpeningRefusalListsWhatItCanAndCountsTheRest(t *testing.T) {
-	items := []ContentItem{{Kind: ContentDashboard, Title: "Salaries"}, {Kind: ContentSavedSearch, Title: "Pay"}}
-	one := RestrictedOpening(items[:1], 0, "payroll").Error()
-	many := RestrictedOpening(items, 3, "payroll").Error()
-	if !strings.Contains(one, `the dashboard "Salaries" in this folder reads the datasource "payroll"`) {
-		t.Errorf("one item: %q", one)
+func TestAudienceRefusalWithACompleteListCountsZeroUnlisted(t *testing.T) {
+	items := []folders.ContentItem{{Kind: folders.ContentDashboard, ID: "d1", Title: "Checkout", FolderID: "f1", FolderTitle: "Team"}}
+	body := abortBody(t, folders.RestrictedAudience("payroll", items, 0, 0))
+	if got, ok := body["unlisted"]; !ok || got != float64(0) {
+		t.Fatalf("unlisted = %v, present = %v", got, ok)
 	}
-	if !strings.HasPrefix(many, "5 items in this folder read datasources only Admins can query") {
-		t.Errorf("many items: %q", many)
+}
+
+func TestRefusalWithoutItemsCarriesNoCounts(t *testing.T) {
+	body := abortBody(t, folders.RestrictedSave(folders.ContentDashboard, "payroll"))
+	if _, ok := body["unlisted"]; ok {
+		t.Fatalf("body = %v", body)
 	}
 }
