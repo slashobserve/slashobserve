@@ -157,3 +157,28 @@ it("closes the stream 15 seconds after the tab is hidden and catches up when it 
     vi.useRealTimers()
   }
 })
+
+it("refetches the dashboard and the list on every reconnect, so a move made while the stream was closed is caught up", () => {
+  const client = testQueryClient()
+  client.setQueryData(dashboardKeys.latest("d1"), { version: { version: 3 } })
+  const invalidate = vi.spyOn(client, "invalidateQueries")
+  renderHook(() => useDashboardEvents("d1", {}), {
+    wrapper: wrapperWith(client),
+  })
+  const refetched = () =>
+    invalidate.mock.calls.map(([filters]) => filters?.queryKey)
+
+  act(() =>
+    openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 3 })
+  )
+  expect(refetched()).not.toContainEqual(dashboardKeys.latest("d1"))
+
+  act(() => window.dispatchEvent(pageTransition("pagehide", true)))
+  act(() => window.dispatchEvent(pageTransition("pageshow", true)))
+  act(() =>
+    openSources()[0].send("ready", { dashboard_id: "d1", latest_version: 3 })
+  )
+  expect(refetched()).toEqual(
+    expect.arrayContaining([dashboardKeys.latest("d1"), dashboardKeys.list()])
+  )
+})

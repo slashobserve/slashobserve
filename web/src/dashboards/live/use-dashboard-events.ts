@@ -186,13 +186,15 @@ export function useDashboardEvents(
           report("live")
           const cached = cachedLatestVersion(queryClient, dashboardId)
           const behind = cached !== undefined && cached < event.latestVersion
-          if (behind) {
-            invalidate(dashboardKeys.latest(dashboardId), dashboardKeys.list())
+          const reconnected = readyCount > 1
+          if (behind || reconnected) {
+            invalidate(
+              dashboardKeys.latest(dashboardId),
+              dashboardKeys.list(),
+              dashboardKeys.history(dashboardId)
+            )
           }
-          if (behind || readyCount > 1) {
-            invalidate(dashboardKeys.history(dashboardId))
-          }
-          if (readyCount > 1) {
+          if (reconnected) {
             invalidate(
               dashboardKeys.comments(dashboardId),
               dashboardKeys.revisions(dashboardId),
