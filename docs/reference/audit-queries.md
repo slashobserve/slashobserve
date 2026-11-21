@@ -47,6 +47,7 @@ A field with an alias takes either name in a query.
 | `server_id`, `server_version` | | text | The server replica and build that recorded the event |
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
+A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
 Free text, a word with no field, matches the action, the actor's and the target's names, the reason, the tool, the route and a query's text.
 
 ## Query forms
