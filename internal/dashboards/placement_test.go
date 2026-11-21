@@ -152,3 +152,29 @@ func TestADuplicateWithoutAFolderGoesToTheSourcesFolderWhenTheCallerCanCreateThe
 	_, _, err = r.service.Duplicate(ctx, placementAdmin, source, other, "Salaries elsewhere")
 	restricted(t, err, "audit")
 }
+
+func TestADuplicateWithoutAFolderGoesToTheCallersPersonalFolderWhenTheyCannotCreateInTheSourcesFolder(t *testing.T) {
+	r := newPlacementRig(t)
+	ctx := reading(t.Context())
+	open := r.folder(t, "Team", false)
+	dash, _, err := r.service.Create(ctx, placementAdmin, open, panelsSpec("Latency", "rps"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, _ := db.ParseUUID(dash.ID)
+	viewer := auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Role: auth.RoleViewer}
+
+	copied, _, err := r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
+	if err != nil {
+		t.Fatalf("duplicate without a folder: %v", err)
+	}
+
+	var personal string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(),
+		`SELECT id::text FROM folders WHERE personal AND owner_id = $1`, testUserID).Scan(&personal); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.folderOfDashboard(t, mustUUID(t, copied.ID)); got.String() != personal {
+		t.Fatalf("the copy is in folder %v, want the caller's personal folder %v", got, personal)
+	}
+}
