@@ -50,7 +50,7 @@ SELECT xid, seq, occurred_at FROM audit_export_cursor;
 
 -- name: AdvanceAuditExportCursor :exec
 INSERT INTO audit_export_cursor (xid, seq, occurred_at) VALUES (@xid::xid8, @seq::bigint, @occurred_at::timestamptz)
-ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = EXCLUDED.occurred_at, updated_at = now()
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = GREATEST(audit_export_cursor.occurred_at, EXCLUDED.occurred_at), updated_at = now()
 WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq);
 
 -- name: GetAuditExportLag :one

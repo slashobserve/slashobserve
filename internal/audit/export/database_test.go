@@ -282,3 +282,18 @@ func TestNoGapIsReportedWhileEveryEventAfterThePositionIsRetained(t *testing.T) 
 		t.Fatalf("dropped = %v", counted.dropped)
 	}
 }
+
+func TestLagIsZeroOnceEveryEventIsExportedEvenWhenTheLastOneHappenedBeforeEarlierOnes(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	trailtest.Insert(t, r.db, trailtest.Event{At: r.base.Add(10 * time.Minute), Action: "a.one"})
+	trailtest.Insert(t, r.db, trailtest.Event{At: r.base.Add(time.Minute), Action: "b.two"})
+	r.runUntilIdle(t, rx.server.URL)
+	if got := rx.received(); !slices.Equal(got, []string{"a.one", "b.two"}) {
+		t.Fatalf("received %v", got)
+	}
+	lag, err := NewCursor(r.db.Queries()).Lag(t.Context())
+	if err != nil || lag != 0 {
+		t.Fatalf("lag = %v, %v, want 0: everything was exported", lag, err)
+	}
+}

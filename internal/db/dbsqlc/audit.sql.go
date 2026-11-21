@@ -25,7 +25,7 @@ func (q *Queries) AddAuditPartition(ctx context.Context, day pgtype.Date) (bool,
 
 const advanceAuditExportCursor = `-- name: AdvanceAuditExportCursor :exec
 INSERT INTO audit_export_cursor (xid, seq, occurred_at) VALUES ($1::xid8, $2::bigint, $3::timestamptz)
-ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = EXCLUDED.occurred_at, updated_at = now()
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = GREATEST(audit_export_cursor.occurred_at, EXCLUDED.occurred_at), updated_at = now()
 WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq)
 `
 
