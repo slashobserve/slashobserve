@@ -253,6 +253,7 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 		return nil, err
 	}
 	var shown []Block
+	var unchanged *audit.Result
 	err := s.write(ctx, by, observationID, runID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(BlockMachine, BlockLive, BlockUpdate, can(abilities, false)); err != nil {
 			return err
@@ -268,7 +269,15 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 			return refused
 		}
 		placed := arrangedBlocks(rows, items)
-		if !unchangedLayout(rows, placed) {
+		if unchangedLayout(rows, placed) {
+			unchanged = &audit.Result{
+				Action:  auditArranged,
+				Outcome: audit.OutcomeSuccess,
+				Reason:  audit.ReasonNoChange,
+				Target:  audit.Target{Kind: "observation", ID: parent.ID.String(), Name: parent.Title},
+				Data:    map[string]any{"title": parent.Title},
+			}
+		} else {
 			params := layoutArrays(placed)
 			params.ObservationID = parent.ID
 			if err := q.ArrangeBlocks(ctx, params); err != nil {
@@ -296,5 +305,8 @@ func (s *Service) Arrange(ctx context.Context, by auth.Principal, observationID 
 		shown = shownBlocks(rows, abilities, who)
 		return nil
 	})
+	if err == nil && unchanged != nil {
+		audit.Conclude(ctx, *unchanged)
+	}
 	return shown, err
 }
