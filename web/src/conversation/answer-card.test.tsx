@@ -203,7 +203,7 @@ describe("AnswerCard", () => {
     const onRevise = vi.fn(async () => false)
     const { user } = renderCard({
       finding: finding({ suggested_change: "Add a p99 latency panel" }),
-      revise: { onRevise, pending: false },
+      revise: { onRevise, pending: false, blocked: null },
     })
     expect(
       await screen.findByText("Suggested change: Add a p99 latency panel")
@@ -216,7 +216,11 @@ describe("AnswerCard", () => {
 
   it("shows a suggested change to a reader who cannot revise, without the button", async () => {
     const view = renderCard({
-      revise: { onRevise: vi.fn(async () => false), pending: false },
+      revise: {
+        onRevise: vi.fn(async () => false),
+        pending: false,
+        blocked: null,
+      },
     })
     await screen.findByText("doubled")
     expect(

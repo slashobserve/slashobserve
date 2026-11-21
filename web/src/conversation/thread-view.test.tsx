@@ -12,6 +12,7 @@ import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
+import { noModelReviseText, pinnedText, type AgentGate } from "./delivery"
 import { ThreadView } from "./thread-view"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -160,9 +161,11 @@ function stubFetch(routes: Record<string, Route>) {
 function Harness({
   initial,
   later,
+  gate = { kind: "allowed" },
 }: {
   initial: ThreadWithMessages
   later?: Message
+  gate?: AgentGate
 }) {
   const [entry, setEntry] = useState(initial)
   return (
@@ -181,7 +184,7 @@ function Harness({
         entry={entry}
         target={target}
         panelTitle={null}
-        gate={{ kind: "allowed" }}
+        gate={gate}
         clientName="Claude Code"
         onReplyHere={() => {}}
       />
@@ -192,11 +195,13 @@ function Harness({
 function show(
   entry: ThreadWithMessages,
   seed?: (client: ReturnType<typeof testQueryClient>) => void,
-  later?: Message
+  later?: Message,
+  gate?: AgentGate
 ) {
   const queryClient = testQueryClient()
   seed?.(queryClient)
-  const view = renderWithProviders(<Harness initial={entry} later={later} />, {
+  const harness = <Harness initial={entry} later={later} gate={gate} />
+  const view = renderWithProviders(harness, {
     queryClient,
     route: { path: "/", url: "/" },
   })
@@ -278,6 +283,39 @@ describe("ThreadView", () => {
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
   })
+
+  it.each([
+    [
+      "an older version",
+      { kind: "blocked", reason: pinnedText } as const,
+      pinnedText,
+    ],
+    ["no model", { kind: "no-model" } as const, noModelReviseText],
+  ])(
+    "holds Revise the dashboard on %s with the composer's reason",
+    async (_name, gate, reason) => {
+      const fetch = stubFetch({})
+      show(
+        { thread: thread(), messages: [question, reply] },
+        (client) =>
+          client.setQueryData(
+            observeKeys.request(runId),
+            request({ finding: finding() })
+          ),
+        undefined,
+        gate
+      )
+      const button = await screen.findByRole("button", {
+        name: "Revise the dashboard",
+      })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAccessibleDescription(reason)
+      expect(screen.getByText(reason)).toBeVisible()
+      expect(fetch.mock.calls.some(([input]) => input.method === "POST")).toBe(
+        false
+      )
+    }
+  )
 
   it("applies the suggested change in the thread with Revise the dashboard", async () => {
     const fetch = stubFetch({

@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils"
 import { observeRequestQuery, sentence } from "@/observe/queries"
 
 import { AnswerCard, type RevisionAsked } from "./answer-card"
-import { threadPlace, type AgentGate } from "./delivery"
+import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
 import { planRevise, subjectOf } from "./send-plan"
 import {
   askedAgentName,
@@ -89,10 +89,12 @@ function RunAnswer({
   runId,
   target,
   entry,
+  gate,
 }: {
   runId: string
   target: string
   entry: ThreadWithMessages
+  gate: AgentGate
 }) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const request = useQuery({ ...observeRequestQuery(runId), retry: false })
@@ -137,7 +139,18 @@ function RunAnswer({
       finding={finding}
       requestId={runId}
       canSave={request.data.requested_by.id === principal.id}
-      revise={mayRevise ? { onRevise: revise, pending } : undefined}
+      revise={
+        mayRevise
+          ? {
+              onRevise: revise,
+              pending,
+              blocked: reviseBlock(
+                gate,
+                entry.thread.agent?.kind === "builtin"
+              ),
+            }
+          : undefined
+      }
     />
   )
 }
@@ -148,12 +161,14 @@ function MessageRow({
   target,
   people,
   arriving,
+  gate,
 }: {
   message: Message
   entry: ThreadWithMessages
   target: string
   people: readonly MentionPerson[]
   arriving: boolean
+  gate: AgentGate
 }) {
   const runId = message.actor.run_id
   const pending = unansweredRun(message, entry.messages)
@@ -177,7 +192,7 @@ function MessageRow({
           <p className="text-xs text-muted-foreground">
             <RunLink runId={runId} />
           </p>
-          <RunAnswer runId={runId} target={target} entry={entry} />
+          <RunAnswer runId={runId} target={target} entry={entry} gate={gate} />
         </>
       )}
       {pending === null ? null : <RunLine message={message} run={pending} />}
@@ -336,6 +351,7 @@ export function ThreadView({
                 target={target}
                 people={people}
                 arriving={!firstSeen.has(reply.id)}
+                gate={gate}
               />
             ))}
           </ol>

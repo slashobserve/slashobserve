@@ -18,6 +18,8 @@ When it has none to write into, because no folder can take a new one or the one 
 
 On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** starts the next turn of the chat as a revision that applies that answer, so the server takes the answer's suggested change as its prompt.
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for**, in the chat and in any thread the answer is in, and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, starts nothing more.
+While no model is connected to the server, the button is off with "No model is connected to this server, so the agent cannot make this change."
+
 The answer's **Answer actions** menu has **Show to everyone**, which opens a thread on the dashboard with your question and the answer, **Share to thread**, which adds both to an open thread you pick, and **Copy answer**, which copies the answer as Markdown.
 Only you see the two share choices; anyone else who reads the chat gets **Copy answer** alone.
 Once you share the answer, the menu has **Shared in the thread**, which opens that thread on the dashboard, and **Withdraw**, which deletes the thread and makes the answer private again.

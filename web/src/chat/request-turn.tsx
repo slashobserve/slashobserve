@@ -7,6 +7,13 @@ import { ApiError } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
 import { AnswerCard, type RevisionAsked } from "@/conversation/answer-card"
 import {
+  defaultDelivery,
+  deliveryGate,
+  reviseBlock,
+  ungated,
+  type Place,
+} from "@/conversation/delivery"
+import {
   planRevise,
   threadTargetOf,
   type Subject,
@@ -25,6 +32,7 @@ import {
   sentence,
   type ObserveRequest,
   stopsPolling,
+  useAgentInfo,
   usePollFailures,
 } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
@@ -112,15 +120,16 @@ function ChatAnswer({
   const subject: Subject | null =
     dashboardId === null ? about : { kind: "dashboard", id: dashboardId }
   const { deliver, pending } = useDeliver(subject)
+  const agent = useAgentInfo()
   const mayRevise = own && !request.read_only && subject?.kind === "dashboard"
+  const place: Place = { kind: "chat", chatId: request.chat_id }
+  const gate = deliveryGate(
+    { ...ungated, agentAvailable: agent.data?.available },
+    defaultDelivery(place, "")
+  )
 
   async function revise(): Promise<RevisionAsked> {
-    const plan = planRevise(
-      { kind: "chat", chatId: request.chat_id },
-      subject,
-      finding.id,
-      crypto.randomUUID()
-    )
+    const plan = planRevise(place, subject, finding.id, crypto.randomUUID())
     if ("error" in plan) {
       toast.error(plan.error)
       return false
@@ -147,7 +156,11 @@ function ChatAnswer({
       finding={finding}
       requestId={request.id}
       canSave={own}
-      revise={mayRevise ? { onRevise: revise, pending } : undefined}
+      revise={
+        mayRevise
+          ? { onRevise: revise, pending, blocked: reviseBlock(gate, true) }
+          : undefined
+      }
       chatId={request.chat_id ?? undefined}
       menu={{
         shareTarget: own && subject !== null ? threadTargetOf(subject) : null,

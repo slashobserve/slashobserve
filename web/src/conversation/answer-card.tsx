@@ -51,6 +51,7 @@ type Props = {
   revise?: {
     onRevise: () => Promise<RevisionAsked>
     pending: boolean
+    blocked: string | null
   }
   menu?: AnswerMenu
   chatId?: string
@@ -346,6 +347,8 @@ export function AnswerCard({
   )
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
+  const blockedId = useId()
+  const blocked = revise?.blocked ?? null
   const change = finding.suggested_change
   const observationId = finding.observation_id
   const promoted =
@@ -386,8 +389,9 @@ export function AnswerCard({
           <Button
             type="button"
             size="sm"
-            disabled={revise.pending || revisionAsked}
+            disabled={revise.pending || revisionAsked || blocked !== null}
             aria-busy={revise.pending}
+            aria-describedby={blocked === null ? undefined : blockedId}
             onClick={() =>
               void revise.onRevise().then((asked) => {
                 if (asked) markAsked(finding.id)
@@ -418,6 +422,11 @@ export function AnswerCard({
           />
         )}
       </div>
+      {blocked === null || revise === undefined || change === null ? null : (
+        <p id={blockedId} className="text-xs text-muted-foreground">
+          {blocked}
+        </p>
+      )}
       {unfolded ? (
         <div id={evidenceId} className="flex flex-col gap-2.5">
           <div className="@container">

@@ -113,3 +113,20 @@ export function deliveryGate(input: GateInput, delivery: Delivery): AgentGate {
   if (input.layoutEditing) return { kind: "blocked", reason: layoutEditingText }
   return { kind: "allowed" }
 }
+
+export const noModelReviseText =
+  "No model is connected to this server, so the agent cannot make this change."
+
+export function reviseBlock(
+  gate: AgentGate,
+  builtinAgent: boolean
+): string | null {
+  switch (gate.kind) {
+    case "blocked":
+      return gate.reason
+    case "no-model":
+      return builtinAgent ? noModelReviseText : null
+    default:
+      return null
+  }
+}

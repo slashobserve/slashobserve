@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, observeKeys } from "@/api/keys"
+import { noModelReviseText } from "@/conversation/delivery"
 import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -404,6 +405,20 @@ describe("Conversation", () => {
     expect(
       screen.queryByRole("button", { name: "Revision asked for" })
     ).toBeNull()
+  })
+
+  it("holds Revise the dashboard while no model is connected", async () => {
+    const fetch = stubServer()
+    const { queryClient } = renderConversation(answered())
+    queryClient.setQueryData(observeKeys.agent(), { available: false })
+    const button = await screen.findByRole("button", {
+      name: "Revise the dashboard",
+    })
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(button).toHaveAccessibleDescription(noModelReviseText)
+    expect(
+      fetch.mock.calls.some(([request]) => request.method === "POST")
+    ).toBe(false)
   })
 
   it("lets an Admin read another person's chat in full with no actions", async () => {

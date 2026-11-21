@@ -147,6 +147,7 @@ When the answer suggests a change to the dashboard, every reader sees "Suggested
 It posts "Revise the dashboard: `<change>`" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for** and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, posts nothing more.
 A refusal, such as five revisions already waiting on the dashboard, shows the server's reason and leaves the button as it was.
+While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
 
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
 An answer already in an observation links to it with **Open the observation**.

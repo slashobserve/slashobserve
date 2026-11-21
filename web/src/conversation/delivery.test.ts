@@ -6,7 +6,9 @@ import {
   deliveryGate,
   flips,
   layoutEditingText,
+  noModelReviseText,
   pinnedText,
+  reviseBlock,
   storeOf,
   type Delivery,
   type Place,
@@ -162,4 +164,21 @@ describe("deliveryGate", () => {
       expect(deliveryGate(input, toEveryone)).toEqual({ kind: "allowed" })
     }
   )
+})
+
+describe("reviseBlock", () => {
+  it("passes the composer's blocking reason through", () => {
+    expect(reviseBlock({ kind: "blocked", reason: pinnedText }, true)).toBe(
+      pinnedText
+    )
+  })
+
+  it("blocks without a model only when the built-in agent would make the change", () => {
+    expect(reviseBlock({ kind: "no-model" }, true)).toBe(noModelReviseText)
+    expect(reviseBlock({ kind: "no-model" }, false)).toBeNull()
+  })
+
+  it("lets an allowed revision through", () => {
+    expect(reviseBlock({ kind: "allowed" }, true)).toBeNull()
+  })
 })
