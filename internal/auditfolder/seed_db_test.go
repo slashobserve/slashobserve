@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
