@@ -217,7 +217,7 @@ func TestChatsAreBackfilledFromTheirTurns(t *testing.T) {
 	}
 
 	backfilled := chatsBackfillState(t, sqlDB)
-	runMigrationHalf(t, sqlDB, "00077_chats.sql", "Up")
+	runChatsMigrationHalf(t, sqlDB, "Up")
 	if got := chatsBackfillState(t, sqlDB); got != backfilled {
 		t.Errorf("running the up statements again changed the rows:\n%s\nwant\n%s", got, backfilled)
 	}
@@ -241,7 +241,7 @@ VALUES ('p', 'user', $1::uuid, 'Ada', 'observe', '00000000-0000-4000-8000-000000
 	if err := d.MigrateDownTo(ctx, chatsVersion-1); err != nil {
 		t.Fatalf("down: %v", err)
 	}
-	runMigrationHalf(t, sqlDB, "00077_chats.sql", "Down")
+	runChatsMigrationHalf(t, sqlDB, "Down")
 	for _, c := range []struct{ name, id, want string }{
 		{"an observe root", observeRoot, "none"},
 		{"an observe follow-up", observeTurn, observeRoot},
@@ -276,15 +276,17 @@ func chatsSchemaState(t *testing.T, sqlDB *sql.DB) string {
   || ',' || coalesce((SELECT indisvalid::text FROM pg_index WHERE indexrelid = 'agent_requests_chat_order_idx'::regclass), 'missing')`)
 }
 
-func runMigrationHalf(t *testing.T, sqlDB *sql.DB, file, half string) {
+const chatsMigrationFile = "migrations/00077_chats.sql"
+
+func runChatsMigrationHalf(t *testing.T, sqlDB *sql.DB, half string) {
 	t.Helper()
-	body, err := os.ReadFile("migrations/" + file)
+	body, err := os.ReadFile(chatsMigrationFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, rest, ok := strings.Cut(string(body), "-- +goose "+half+"\n")
 	if !ok {
-		t.Fatalf("%s has no %s section", file, half)
+		t.Fatalf("%s has no %s section", chatsMigrationFile, half)
 	}
 	rest, _, _ = strings.Cut(rest, "-- +goose ")
 	for statement := range strings.SplitSeq(rest, ";\n") {
