@@ -742,6 +742,8 @@ func revisionsBuildError(err error) error {
 	switch {
 	case errors.As(err, &conflict):
 		return &revisions.BuildConflictError{Latest: conflict.Latest}
+	case errors.Is(err, dashboards.ErrNoBuild):
+		return revisions.ErrNoBuild
 	case errors.Is(err, dashboards.ErrBuildNotFound):
 		return revisions.ErrBuildNotFound
 	case errors.Is(err, dashboards.ErrBuildEmpty):
@@ -766,7 +768,7 @@ func (m mcpCredentials) Authenticate(ctx context.Context, header string) (mcp.Cr
 		return cred, ok, err
 	}
 	if run, ok, err := m.runs.Authenticate(ctx, header); err != nil || ok {
-		return mcp.Credential{Principal: run.Request.RequestedBy, Run: &run.Request, Mode: run.Mode}, ok, err
+		return mcp.Credential{Principal: run.Request.RequestedBy, Run: &run.Request, Agent: run.Agent, Mode: run.Mode}, ok, err
 	}
 	access, ok, err := m.oauth.Authenticate(ctx, header)
 	if err != nil || !ok {

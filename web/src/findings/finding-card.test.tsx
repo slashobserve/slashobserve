@@ -157,6 +157,56 @@ describe("FindingCard", () => {
     vi.unstubAllGlobals()
   })
 
+  it("opens a made dashboard with its chat in the side panel", async () => {
+    const dashboardId = "33333333-3333-4333-8333-333333333333"
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              dashboard: { id: dashboardId, title: "Checkout errors" },
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } }
+          )
+      )
+    )
+    const { user, router } = renderWithProviders(
+      <FindingCard
+        finding={{ ...finding(), observation_id: null, url: null }}
+        showOpenLink
+        saveAnswerOf="r1"
+        chatId="c1"
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Make a dashboard" })
+    )
+    await vi.waitFor(() =>
+      expect(router?.state.location.pathname).toBe(
+        `/d/${dashboardId}/checkout-errors`
+      )
+    )
+    expect(router?.state.location.search).toEqual({ tab: "chat", chat: "c1" })
+    vi.unstubAllGlobals()
+  })
+
+  it("puts extra answer actions in the same row as Copy answer", async () => {
+    renderWithProviders(
+      <FindingCard
+        finding={finding()}
+        showOpenLink={false}
+        actions={<button type="button">Ask again</button>}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    const copy = await screen.findByRole("button", { name: "Copy answer" })
+    expect(copy.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Ask again" })
+    )
+  })
+
   it("offers Pin to dashboard only with Edit on the dashboard", async () => {
     const onDashboard = { ...finding(), dashboard_id: "d1" }
     permissions.edit = false

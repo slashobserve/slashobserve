@@ -179,7 +179,7 @@ func compileUser(form Form, body string, m *Mapping) (userQuery, error) {
 		}
 		return userQuery{clause: luceneQuery(body)}, nil
 	}
-	compiled, err := kql.Compile(body, kqlFields(m))
+	compiled, err := kql.CompileKnowing(body, kqlFields(m), m.KnownField)
 	if err != nil {
 		offset := 0
 		if len(compiled.Diagnostics) > 0 {

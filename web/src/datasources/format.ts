@@ -40,6 +40,17 @@ export function exploreTargets(type: string): ExploreTarget[] {
   }
 }
 
+export function sourceLabel(source: DatasourceStatus["source"]): string {
+  switch (source) {
+    case "file":
+      return "From file"
+    case "app":
+      return "Added in the app"
+    case "builtin":
+      return "Built in"
+  }
+}
+
 export function usageLabel(count: number): string {
   if (count === 0) return "No dashboards"
   if (count === 1) return "1 dashboard"

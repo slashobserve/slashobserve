@@ -5,5 +5,6 @@ export const manifest: RendererManifest = {
   supported: true,
   minWidth: 240,
   minHeight: 260,
+  anchors: () => import("./anchors"),
   load: () => import("./barchart-panel"),
 }

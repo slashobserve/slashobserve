@@ -8,12 +8,13 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { useChatPaneLayout } from "@/activity/activity-store"
 import { ChatPane } from "@/chat/chat-pane"
+import { refreshChat } from "@/chat/chats-queries"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
 import { pageClass } from "@/dashboards/dashboard-page-skeleton"
 import { DashboardTopRow } from "@/dashboards/dashboard-top-row"
 import { PanelContainer } from "@/dashboards/panel-container"
 import { mixesDatasources } from "@/dashboards/panel-datasources"
-import type { PanelSource } from "@/dashboards/panel-source"
+import type { VariableSource } from "@/dashboards/panel-source"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -56,7 +57,7 @@ function BuildGrid({
   spec: Dashboard
   fresh: ReadonlySet<string>
 }) {
-  const source = useMemo<PanelSource>(
+  const source = useMemo<VariableSource>(
     () => ({ kind: "build", requestId, saves }),
     [requestId, saves]
   )
@@ -179,15 +180,25 @@ export function BuildPage({ requestId }: { requestId: string }) {
   }
 
   const savedId = request === undefined ? null : savedDashboardId(request)
+  const chatId = request?.chat_id ?? requestId
   useEffect(() => {
     if (savedId === null) return
-    void navigate({
-      ...dashboardLink(savedId),
-      search: { chat: requestId },
-      replace: true,
-      viewTransition: true,
-    })
-  }, [savedId, navigate, requestId])
+    let current = true
+    void refreshChat(queryClient, chatId)
+      .catch(() => undefined)
+      .then(() => {
+        if (!current) return
+        void navigate({
+          ...dashboardLink(savedId),
+          search: { tab: "chat", chat: chatId },
+          replace: true,
+          viewTransition: true,
+        })
+      })
+    return () => {
+      current = false
+    }
+  }, [savedId, navigate, chatId, queryClient])
 
   const answeredId =
     request === undefined

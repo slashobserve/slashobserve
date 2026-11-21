@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { savedCursorSync } from "@/dashboards/cursor-sync"
 import { DashboardGrid } from "@/dashboards/dashboard-grid"
-import type { PanelSource } from "@/dashboards/panel-source"
+import type { VariableSource } from "@/dashboards/panel-source"
 import { ALL, type DashboardSearch } from "@/dashboards/search"
 import {
   effectiveRefresh,
@@ -77,7 +77,7 @@ export function PublicPage({
   const { spec, version, variables: mode } = dashboard
   const queryClient = useQueryClient()
   const variables = useMemo(() => spec.variables ?? [], [spec])
-  const source = useMemo<PanelSource>(
+  const source = useMemo<VariableSource>(
     () => ({ kind: "public", token, version }),
     [token, version]
   )

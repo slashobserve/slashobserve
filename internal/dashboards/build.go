@@ -26,6 +26,7 @@ import (
 var (
 	ErrBuildLost       = errors.New("the build no longer belongs to this attempt")
 	ErrBuildNotFound   = errors.New("build not found")
+	ErrNoBuild         = fmt.Errorf("%w", ErrBuildNotFound)
 	ErrBuildEmpty      = errors.New("the build has no panels")
 	ErrBuildNotSavable = errors.New("the request is no longer a failed request with an unsaved build")
 )
@@ -190,8 +191,11 @@ func (s *Service) ViewBuild(ctx context.Context, by auth.Principal, requestID pg
 	if err != nil {
 		return Build{}, err
 	}
+	if !found {
+		return Build{}, ErrNoBuild
+	}
 	mine := build.requestedByKind == string(by.Kind) && build.requestedByID.String() == by.ID
-	if !found || (!mine && !by.Role.AtLeast(auth.RoleAdmin)) {
+	if !mine && !by.Role.AtLeast(auth.RoleAdmin) {
 		return Build{}, ErrBuildNotFound
 	}
 	if !build.DashboardID.Valid {

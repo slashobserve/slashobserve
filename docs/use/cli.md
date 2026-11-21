@@ -89,7 +89,12 @@ A prompt sent with `--dashboard <dashboard-id>` is never refused, since a comman
 `--dashboard <dashboard-id>` sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md).
 `--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
 `--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
-`--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`.
+`--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at pos:0.4,0.3`.
+
+The short forms are `row:service=payments,span=authorize_card`, `time:2026-11-20T23:56Z`, `range:23:50Z..23:58Z`, `series:service=checkout` and `pos:0.4,0.3`, and every `--at` of the CLI takes them.
+A time of day such as `23:50Z` means its latest occurrence not after now, and a short form that names no position points at the middle of the panel.
+A time of day may carry seconds, as in `23:56:10Z`, and a range given as times of day must end in the past, so `range:10:00Z..09:00Z` asked at noon is refused.
+A label value in a short form cannot contain a comma, because the comma separates labels; the JSON form takes any value.
 
 `--no-wait` prints the request id and returns at once; `bin/observe status <request-id>` shows that request, and `--wait` makes it wait the way a prompt does.
 An Admin can show anyone's request with `observe status`, read only.
@@ -124,7 +129,7 @@ A request that saved no observation is refused and left as it was.
 ### Your chats
 
 Every prompt you send is a turn of a chat, which you and Admins can read and nobody else sees.
-`bin/observe chats list` prints your chats, the one most recently asked in first, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
+`bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, the state of the last turn, the number of turns, when it was last asked and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
 `chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt; `observe status <request-id>` prints one turn in full.
@@ -315,7 +320,7 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--observation` names an existing observation to write into, by its id.
-`--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks.
+`--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at series:service=checkout`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks.
 `--panel` without `--dashboard`, or one of `--from` and `--to` alone, or an `--observation` that is not an id, exits 2.
 It shows the steps like a prompt, then prints the finding's title, its answer as plain text and its address.
 Without `--observation`, each investigation opens a new observation that shows its run and receives its conclusion, and `--json` prints the finished request, which carries the `observation_id` of that observation, or null when no folder allowed one (see [Observations](observations.md#investigations-write-into-an-observation)).
@@ -382,7 +387,7 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width), `--position <n>` (which moves the blocks in between) and `--follow-page` (which drops a panel block's own range, so it shows the observation's range again); it needs something to change.
 `bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
 Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
 A snapshot block's body cannot change, and a requested block is kept or discarded instead.
@@ -424,7 +429,7 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
   On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
   On an observation, `--block <block-id>` anchors the comment to one of its blocks, and without it the comment is about the whole observation; the server refuses `--block` on any other target.
-  `--at '<anchor JSON>'` points the thread at one spot, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, and on an observation with `--block` at a spot in that block.
+  `--at '<anchor JSON>'` points the thread at one spot, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'` or `--at time:2026-11-20T23:56Z`, and on an observation with `--block` at a spot in that block.
   Everything after the flags is the comment text, so `--on`, `--panel`, `--block`, `--at`, `--version`, `--to`, `--json` and `-q` must come before it.
   A comment is for everyone and asks no agent unless you add `--to agent`; see [Ask an agent from a comment](#ask-an-agent-from-a-comment).
 - `bin/observe comments reply <comment-id> <text...>` adds a reply to a thread, and the id can be any comment of the thread.

@@ -72,7 +72,7 @@ func TestChatsListRejectsABadIDAndALimitOverFifty(t *testing.T) {
 }
 
 func TestChatsShowPrintsTheChatAndItsTurnsInOrder(t *testing.T) {
-	reply := `{"chat":{"id":"` + stoppedID + `","title":"Checkout latency","dashboard_id":"` + testDashboard + `","observation_id":null,"pinned_at":null,"created_at":"x","last_turn_at":"x","turns":2,"last_turn":null},` +
+	reply := `{"chat":{"id":"` + stoppedID + `","title":"Checkout latency","dashboard_id":"` + testDashboard + `","dashboard_title":"Checkout health","observation_id":null,"pinned_at":null,"created_at":"x","last_turn_at":"x","turns":2,"last_turn":null},` +
 		`"turns":[{"id":"00000000-0000-4000-8000-000000000001","state":"succeeded","prompt":"first question\nmore"},{"id":"00000000-0000-4000-8000-000000000002","state":"running","prompt":"second question"}]}`
 	call, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "chats", "show", stoppedID)
 	if code != 0 {
@@ -82,7 +82,7 @@ func TestChatsShowPrintsTheChatAndItsTurnsInOrder(t *testing.T) {
 		t.Fatalf("got %+v", call)
 	}
 	first, second := strings.Index(stdout, "first question"), strings.Index(stdout, "second question")
-	if first < 0 || second < first || strings.Contains(stdout, "more") || !strings.Contains(stdout, testDashboard) || !strings.Contains(stdout, "Running") {
+	if first < 0 || second < first || strings.Contains(stdout, "more") || !strings.Contains(stdout, testDashboard) || !strings.Contains(stdout, "Checkout health") || !strings.Contains(stdout, "Running") {
 		t.Fatalf("stdout:\n%s", stdout)
 	}
 }

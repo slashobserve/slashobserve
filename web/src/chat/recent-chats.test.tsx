@@ -10,72 +10,47 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useNavigate: () => vi.fn(),
 }))
 
-function turn(id: string, source: string, title: string, createdAt: string) {
-  return {
-    id,
-    kind: "build",
-    title,
-    pinned_at: null,
-    source,
-    trigger: "person",
-    prompt: title,
-    status: "succeeded",
-    state: "succeeded",
-    result_kind: "version",
-    allowed_actions: [],
-    dashboard_id: "d1",
-    dashboard_title: "Checkout health",
-    panel_id: null,
-    result_version: null,
-    url: null,
-    error: null,
-    failure_code: null,
-    build: null,
-    build_saved_at: null,
-    continues_id: null,
-    continued_by: null,
-    retried_by: null,
-    continue_note: null,
-    observation_id: null,
-    observation_title: null,
-    chat_id: "t1",
-    origin: "web",
-    origin_client: null,
-    created_at: createdAt,
-    started_at: null,
-    finished_at: null,
-    requested_by: { kind: "user", id: "u1", name: "Ada" },
-  }
-}
-
 afterEach(() => vi.unstubAllGlobals())
 
 describe("RecentChats", () => {
-  it("names a chat by its latest request and lists every source", async () => {
+  it("lists one row per chat with its turns and dashboard", async () => {
     const urls: string[] = []
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: Request | string, init?: RequestInit) => {
         const req = input instanceof Request ? input : new Request(input, init)
         urls.push(req.url)
-        return new Response(
-          JSON.stringify({
-            requests: [
-              turn("t2", "prompt", "undo that", "2026-11-02T10:00:00Z"),
-              turn("t1", "observe", "Checkout health", "2026-11-01T10:00:00Z"),
-            ],
-            next_cursor: null,
-            summary: { total: 2, people: null },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
+        const body = {
+          chats: [
+            {
+              id: "t1",
+              title: "Checkout health dashboard",
+              dashboard_id: "d1",
+              dashboard_title: "Checkout health",
+              observation_id: null,
+              pinned_at: null,
+              created_at: "2026-11-01T10:00:00Z",
+              last_turn_at: "2026-11-02T10:00:00Z",
+              turns: 3,
+              last_turn: { id: "t3", state: "succeeded", prompt: "x" },
+              owner: { kind: "user", name: "Ada" },
+              read_only: false,
+            },
+          ],
+          next_cursor: null,
+        }
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
       })
     )
     renderWithProviders(<RecentChats />, { route: { path: "/", url: "/" } })
     expect(
-      await screen.findByText("Revised Checkout health")
+      await screen.findByText("Checkout health dashboard")
     ).toBeInTheDocument()
-    expect(screen.queryByText("Saved Checkout health")).not.toBeInTheDocument()
-    expect(urls.every((url) => !url.includes("source="))).toBe(true)
+    expect(screen.getByText("3 turns")).toBeInTheDocument()
+    expect(await screen.findByText("Checkout health")).toBeInTheDocument()
+    expect(urls.some((url) => url.includes("/api/v1/chats?limit=5"))).toBe(true)
   })
 })

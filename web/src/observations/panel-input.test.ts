@@ -7,6 +7,7 @@ import {
   bakedSelections,
   blockPanelFrom,
   blockRange,
+  blockVariableStates,
   blockVariables,
   variableCaption,
 } from "./panel-input"
@@ -170,5 +171,82 @@ describe("blockPanelFrom", () => {
     const source = panel({ repeat: "service" })
     blockPanelFrom(source)
     expect(source.repeat).toBe("service")
+  })
+})
+
+describe("blockVariableStates", () => {
+  const variables = [
+    {
+      name: "service",
+      type: "custom",
+      multi: true,
+      options: ["checkout", "cart", "search"],
+      default: ["checkout"],
+    },
+    {
+      name: "pod",
+      type: "query",
+      datasource: "prom",
+      query: "label_values(up, pod)",
+      default: "checkout-0",
+    },
+    { name: "step", type: "interval", options: ["1m", "5m"], default: "5m" },
+  ] as unknown as Variable[]
+
+  it("offers a custom variable's options and a query variable's baked value", () => {
+    const { states, selections } = blockVariableStates(variables, {})
+    expect(states.map((state) => [state.variable.name, state.options])).toEqual(
+      [
+        ["service", ["checkout", "cart", "search"]],
+        ["pod", ["checkout-0"]],
+        ["step", ["1m", "5m"]],
+      ]
+    )
+    expect(states.every((state) => state.status === "ready")).toBe(true)
+    expect(selections).toEqual({
+      service: ["checkout"],
+      pod: ["checkout-0"],
+      step: ["5m"],
+    })
+  })
+
+  it("runs with what the person picked over the baked value", () => {
+    const { states, selections } = blockVariableStates(variables, {
+      service: ["cart", "search"],
+      step: ["1m"],
+    })
+    expect(selections).toEqual({
+      service: ["cart", "search"],
+      pod: ["checkout-0"],
+      step: ["1m"],
+    })
+    expect(states[0].selected).toEqual(["cart", "search"])
+  })
+
+  it("keeps free-entry variables at their stored value and out of the pickers", () => {
+    const stored = [
+      ...variables,
+      { name: "svc", type: "textbox", default: "checkout" },
+      { name: "filters", type: "adhoc", datasource: "prom" },
+      { name: "by", type: "groupby", datasource: "prom", default: ["pod"] },
+    ] as unknown as Variable[]
+    const { states, fixed, selections } = blockVariableStates(stored, {
+      svc: ['.+"} or up{x="'],
+      filters: ["job=api"],
+      by: ["node"],
+    })
+    expect(states.map((state) => state.variable.name)).toEqual([
+      "service",
+      "pod",
+      "step",
+    ])
+    expect(fixed.map((state) => state.variable.name)).toEqual([
+      "svc",
+      "filters",
+      "by",
+    ])
+    expect(selections.svc).toEqual(["checkout"])
+    expect(selections.by).toEqual(["pod"])
+    expect(selections.filters ?? []).toEqual([])
   })
 })

@@ -13,7 +13,6 @@ import { orderTurns } from "@/observe/conversation"
 import {
   sentence,
   useAgentInfo,
-  useMyRequests,
   useObserveRequest,
   type ObserveRequest,
 } from "@/observe/queries"
@@ -21,6 +20,7 @@ import { revisionsQuery } from "@/revisions/queries"
 
 import { AskAgainButton } from "./ask-again"
 import { ChatComposer, useOpenSent } from "./chat-composer"
+import { useChat } from "./chats-queries"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { RetryButton } from "./turn-failure"
@@ -388,45 +388,40 @@ function ConversationView({
 export function Conversation({
   requestId,
   layout,
+  asks = true,
+  onSent,
 }: {
   requestId: string
   layout: ConversationLayout
+  asks?: boolean
+  onSent?: (request: ObserveRequest) => void
 }) {
   const queryClient = useQueryClient()
   const root = useObserveRequest(requestId)
   const [sent, setSent] = useState<ObserveRequest[]>([])
-  const dashboardId = root.data?.dashboard_id ?? null
-  const readOnly = root.data?.read_only === true
+  const chatId = root.data?.chat_id ?? undefined
+  const readsChat = chatId !== undefined
+  const chat = useChat(chatId)
+  const dashboardId =
+    root.data?.dashboard_id ?? chat.data?.chat.dashboard_id ?? null
+  const readOnly = root.data?.read_only === true || !asks
   const readsDashboard = dashboardId !== null && !readOnly
   const revisions = useQuery({
     ...revisionsQuery(dashboardId ?? ""),
-    enabled: readsDashboard,
+    enabled: readsDashboard && !readsChat,
   })
-  const chatId = root.data?.chat_id ?? undefined
-  const readsChat = dashboardId === null && chatId !== undefined
-  const { requests: chatRequests, query: chatQuery } = useMyRequests(
-    {
-      chatId,
-      ...(readOnly ? { scope: "all" as const } : {}),
-    },
-    50,
-    readsChat
-  )
   const latest = useQuery({
     ...latestDashboardQuery(queryClient, dashboardId ?? ""),
     enabled: readsDashboard,
   })
 
+  const history = readsChat ? chat.data?.turns : revisions.data
+
   const turns = useMemo<Turn[]>(() => {
     if (root.data === undefined) return []
     const summaries = new Map<string, TurnSummary>()
     for (const request of sent) summaries.set(request.id, request)
-    for (const revision of revisions.data ?? []) {
-      summaries.set(revision.id, revision)
-    }
-    for (const turn of dashboardId === null ? chatRequests : []) {
-      summaries.set(turn.id, turn)
-    }
+    for (const turn of history ?? []) summaries.set(turn.id, turn)
     summaries.set(requestId, root.data)
     const known = [...summaries.values()]
     const ids = orderTurns(requestId, known)
@@ -434,7 +429,7 @@ export function Conversation({
       const summary = summaries.get(id)
       return summary === undefined ? [] : [{ id, summary }]
     })
-  }, [root.data, revisions.data, chatRequests, sent, requestId, dashboardId])
+  }, [root.data, history, sent, requestId])
 
   if (
     root.error instanceof ApiError &&
@@ -471,15 +466,23 @@ export function Conversation({
       turns={turns}
       readOnly={readOnly}
       ready={
-        (!readsDashboard ||
-          revisions.data !== undefined ||
-          revisions.isError) &&
-        (!readsChat || chatQuery.data !== undefined || chatQuery.isError)
+        readsChat
+          ? chat.data !== undefined || chat.isError
+          : !readsDashboard || revisions.data !== undefined || revisions.isError
       }
-      historyFailed={revisions.isError && revisions.data === undefined}
-      retryHistory={() => void revisions.refetch()}
-      historyBusy={revisions.isFetching}
-      onSent={(request) => setSent((previous) => [...previous, request])}
+      historyFailed={
+        readsChat
+          ? chat.isError && chat.data === undefined
+          : revisions.isError && revisions.data === undefined
+      }
+      retryHistory={() =>
+        void (readsChat ? chat.refetch() : revisions.refetch())
+      }
+      historyBusy={readsChat ? chat.isFetching : revisions.isFetching}
+      onSent={(request) => {
+        setSent((previous) => [...previous, request])
+        onSent?.(request)
+      }}
     />
   )
 }

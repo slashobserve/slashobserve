@@ -13,7 +13,7 @@ A query that is refused is recorded every time, as a `failed` event with its rea
 ## Fields
 
 Every event has these fields; `GET /api/v1/audit/fields`, `list_audit_fields` and `observe audit fields` list them with their descriptions.
-A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
+A field with an alias takes either name in a query, in KQL, Lucene and a Query DSL body alike, and the query lint of the audit datasource accepts either; the `fields` list shows every alias, and a query that names an unknown field says which valid ones are nearest to it.
 
 | Field | Alias | Type | What it holds |
 | ----- | ----- | ---- | ------------- |
@@ -31,7 +31,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `actor_email` | `actor.email` | text | The current email address of the user who acted, read from the user and not stored in the event; a service account has none; a query can match it but not count it |
 | `actor_role` | `actor.role` | text | The actor's role when the event happened |
 | `initiator` | | enum | Who started it: `person`, `agent` or `system` |
-| `agent_id`, `agent_name` | | uuid, text | The agent that acted |
+| `agent_id`, `agent_name` | | uuid, text | The agent that took the run, on every event of its run session: `Observe Agent` with no id, a connected agent's grant id and client name, or a service account's id and name; empty outside a run |
 | `run_id` | `run` | uuid | The agent run that made the event |
 | `auth_method` | | enum | `session`, `api_key`, `oauth`, `public_link` or `none` |
 | `credential_id` | | text | The session, key, grant or public link used, never the secret |
@@ -158,6 +158,7 @@ A datasources file entry with the uid `slashobserve-audit` stops the server at s
 
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.
+The Logs page histogram counts `failed` as error, `denied` as warning, `success` as info and `unknown` as other.
 The time field is `occurred_at`, and the field list marks the fields that `terms` can group by.
 
 It answers searches sorted by `occurred_at`, oldest or newest first, paged with `from` and `size` up to 10,000 events deep, with totals counted up to 10,000 and at most 1,000 events a read.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/logvolume"
 )
 
 type Flavor string
@@ -56,6 +57,9 @@ type Options struct {
 	Limits            datasource.Limits
 	HTTPClient        *http.Client
 	MaxResponseBytes  int64
+	MaxAggregations   int
+	KnownField        func(string) bool
+	LevelKinds        map[string]logvolume.Kind
 }
 
 type Datasource struct {

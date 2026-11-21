@@ -23,6 +23,7 @@ declare module "@tanstack/react-router" {
 }
 
 type EditView = "query" | "json"
+export type SidePanelTab = "chat" | "activity"
 type KioskCycle = "rows" | "folder"
 export type InspectTab = "data" | "query" | "stats"
 
@@ -43,6 +44,7 @@ export type DashboardSearch = {
   viewPanel?: string
   inspect?: string
   inspectTab?: InspectTab
+  tab?: SidePanelTab
   chat?: string
   thread?: string
   vars: Record<string, string[]>
@@ -185,6 +187,9 @@ export function validateDashboardSearch(
     }
   }
 
+  const tab = firstString(raw.tab)
+  if (tab === "chat" || tab === "activity") state.tab = tab
+
   const chat = firstString(raw.chat)
   if (chat !== undefined && requestIdPattern.test(chat)) state.chat = chat
 
@@ -240,6 +245,7 @@ export function searchFromState(
       }
     }
   }
+  if (state.tab !== undefined) out.tab = state.tab
   if (state.chat !== undefined) out.chat = state.chat
   if (state.thread !== undefined) out.thread = state.thread
   for (const [name, values] of Object.entries(state.vars)) {
