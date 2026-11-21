@@ -34,6 +34,18 @@ func TestEveryActivityTypeRecordsACatalogChangeAction(t *testing.T) {
 	}
 }
 
+func TestARunFinishIsASuccessOnlyWhenTheRunSucceeded(t *testing.T) {
+	for typ, want := range map[string]audit.Outcome{
+		TypeRunSucceeded: "",
+		TypeRunFailed:    audit.OutcomeFailed,
+		TypeRunCanceled:  audit.OutcomeFailed,
+	} {
+		if got := auditActions[typ].outcome; got != want {
+			t.Errorf("%s outcome = %q, want %q", typ, got, want)
+		}
+	}
+}
+
 func TestAnAppendAndItsAuditEventCommitAndRollBackTogether(t *testing.T) {
 	r := newRig(t)
 	dashboard := r.dashboardIn(t, pgtype.UUID{})
