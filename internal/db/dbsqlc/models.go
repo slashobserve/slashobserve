@@ -570,22 +570,23 @@ type OauthToken struct {
 }
 
 type Observation struct {
-	ID            pgtype.UUID
-	FolderID      pgtype.UUID
-	Title         string
-	State         string
-	Summary       pgtype.Text
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	CreatedByKind string
-	CreatedByID   pgtype.UUID
-	CreatedByName string
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
-	RunID         pgtype.UUID
-	ResolvedAt    pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
+	ID                     pgtype.UUID
+	FolderID               pgtype.UUID
+	Title                  string
+	State                  string
+	Summary                pgtype.Text
+	TimeFrom               pgtype.Timestamptz
+	TimeTo                 pgtype.Timestamptz
+	CreatedByKind          string
+	CreatedByID            pgtype.UUID
+	CreatedByName          string
+	Origin                 pgtype.Text
+	OriginClient           pgtype.Text
+	RunID                  pgtype.UUID
+	ResolvedAt             pgtype.Timestamptz
+	CreatedAt              pgtype.Timestamptz
+	UpdatedAt              pgtype.Timestamptz
+	CopiedRestrictedAnswer bool
 }
 
 type ObservationBlock struct {
