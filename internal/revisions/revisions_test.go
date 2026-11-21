@@ -26,6 +26,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/logtest"
+	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -75,7 +76,8 @@ func quietLogger() *slog.Logger {
 func newService(t *testing.T, reviser revisions.Reviser) (*revisions.Service, *dbtest.Database) {
 	t.Helper()
 	d := dbtest.New(t)
-	return newTestService(d.DB, reviser, quietLogger()), d
+	opened := runObservations{observations.New(d.DB, folders.NewAccess(d.DB), nil, nil, quietLogger())}
+	return newTestService(d.DB, reviser, quietLogger(), revisions.WithObservations(opened)), d
 }
 
 func seedDashboard(t *testing.T, d *dbtest.Database, versions int) pgtype.UUID {

@@ -237,9 +237,9 @@ func TestSuggestionRowsMustHoldAnObjectWhenTheyHaveSucceeded(t *testing.T) {
 		suggestion any
 		constraint string
 	}{
-		{"no suggestion", nil, "agent_requests_succeeded_check"},
-		{"JSON null", `null`, "agent_requests_suggestion_check"},
-		{"an array", `[]`, "agent_requests_suggestion_check"},
+		{"no suggestion", nil, "agent_requests_intent_succeeded_check"},
+		{"JSON null", `null`, "agent_requests_intent_suggestion_check"},
+		{"an array", `[]`, "agent_requests_intent_suggestion_check"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

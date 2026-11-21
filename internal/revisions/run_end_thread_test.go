@@ -178,12 +178,18 @@ func TestARetryOfAMentionRunAnswersInTheSameThread(t *testing.T) {
 		return revisions.Result{}, errors.New("model call failed")
 	}))
 	dash := seedDashboard(t, d, 1)
-	rev, thread := mentionRun(t, svc, d, dash, "")
-	if _, err := svc.Cancel(reading(context.Background()), mustUUID(t, rev.ID), user); err != nil {
+	thread := openThread(t, d, dash).ID
+	asked, err := svc.EnqueueAssignedInvestigate(reading(context.Background()), d.Queries(), revisions.InvestigateParams{
+		Prompt: "why", By: user, DashboardID: dash, Ask: true, ThreadMessageID: thread, ThreadContext: "Ada: earlier",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Cancel(reading(context.Background()), asked.ID, user); err != nil {
 		t.Fatal(err)
 	}
 
-	retried, err := svc.Retry(reading(context.Background()), mustUUID(t, rev.ID), user)
+	retried, err := svc.Retry(reading(context.Background()), asked.ID, user)
 	if err != nil {
 		t.Fatal(err)
 	}

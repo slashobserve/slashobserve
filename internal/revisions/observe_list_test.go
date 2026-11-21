@@ -176,7 +176,7 @@ func TestListObserveFiltersBySourceAndRefusesBadQueries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	comment, err := svc.Submit(reading(context.Background()), revisions.EnqueueParams{DashboardID: dash, Prompt: "comment", BaseVersion: 1, By: user})
+	comment, err := svc.SubmitForThread(reading(context.Background()), dash, openThread(t, d, dash).ID, nil, "comment", user)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestListObserveNamesTheDashboardOfASucceededRequest(t *testing.T) {
 	dash := seedDashboard(t, d, 2)
 	done := observeFor(t, svc, user, "done")
 	failed := observeFor(t, svc, user, "failed")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', intent = 'apply', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, done), dash)
 	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', error = 'nope' WHERE id = $1", mustUUID(t, failed))
 
 	for _, row := range listObserve(t, observeRouterFor(svc, user), "").Requests {
