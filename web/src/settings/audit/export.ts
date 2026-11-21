@@ -2,6 +2,8 @@ import type { AuditWindowKey } from "@/api/keys"
 
 export type ExportFormat = "ndjson" | "csv"
 
+export const exportRowLimit = 1_000_000
+
 const exportPath = "/api/v1/audit/export"
 
 export function auditExportUrl(
@@ -14,6 +16,12 @@ export function auditExportUrl(
   params.set("until", window.until)
   params.set("format", format)
   return `${exportPath}?${params}`
+}
+
+export function exportLimitText(total: number): string | null {
+  if (total <= exportRowLimit) return null
+  const count = (n: number) => n.toLocaleString("en-US")
+  return `${count(total)} events match; the export stops at ${count(exportRowLimit)}.`
 }
 
 export function startDownload(url: string) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest"
 
-import { auditExportUrl } from "./export"
+import { auditExportUrl, exportLimitText, exportRowLimit } from "./export"
 
 describe("auditExportUrl", () => {
   test("sends the query, the window and the format", () => {
@@ -34,5 +34,18 @@ describe("auditExportUrl", () => {
       "ndjson"
     )
     expect(url).not.toContain("q=")
+  })
+})
+
+describe("exportLimitText", () => {
+  test("says nothing up to the limit", () => {
+    expect(exportLimitText(0)).toBe(null)
+    expect(exportLimitText(exportRowLimit)).toBe(null)
+  })
+
+  test("names the match count past the limit", () => {
+    expect(exportLimitText(exportRowLimit + 1)).toBe(
+      "1,000,001 events match; the export stops at 1,000,000."
+    )
   })
 })

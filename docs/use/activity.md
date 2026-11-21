@@ -99,7 +99,7 @@ The query, the time range and the open event are in the page's address, so a lin
 
 **Export** downloads the matching events as NDJSON or CSV through `GET /api/v1/audit/export`, which records the download as `audit.export` with the query, the window, the format and the row count.
 The file downloads in the browser, which shows its progress and can cancel it, so the page never holds the file in memory.
-An export stops at 1,000,000 events, and a shorter range exports the rest.
+An export stops at 1,000,000 events; when more match, the page says how many before the download starts, and a shorter range exports the rest.
 The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a panel's CSV, are assembled in the browser from reads that are each recorded, so they have no separate export event.
 `observe audit search` and the `search_audit_events` tool read the same trail; see [Audit queries](../reference/audit-queries.md#api-mcp-and-the-cli).
 

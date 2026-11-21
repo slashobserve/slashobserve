@@ -44,6 +44,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 type Routes = {
+  total?: number
   events?: (url: URL) => Response
   stream?: () => Response
 }
@@ -85,7 +86,7 @@ function serve(routes: Routes = {}) {
           return Promise.resolve(
             json({
               step_ms: 1_800_000,
-              total: 42,
+              total: routes.total ?? 42,
               buckets: [
                 { time: "2026-11-21T05:00:00Z", count: 40 },
                 { time: "2026-11-21T05:30:00Z", count: 2 },
@@ -378,31 +379,42 @@ describe("AuditSettings", () => {
     )
   })
 
-  it("exports as a browser download without reading the file", async () => {
-    serve()
-    const clicked: string[] = []
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement
-    ) {
-      clicked.push(this.href)
-    })
-    const { user } = renderPage({ q: "origin:mcp" })
-    await screen.findByText("No audit events match these filters.")
-    await user.click(screen.getByRole("button", { name: "Export" }))
-    await user.click(await screen.findByRole("menuitem", { name: /^CSV/ }))
-    expect(clicked).toHaveLength(1)
-    const url = new URL(clicked[0])
-    expect(url.pathname).toBe("/api/v1/audit/export")
-    expect(url.searchParams.get("q")).toBe("origin:mcp")
-    expect(url.searchParams.get("format")).toBe("csv")
-    expect(
-      fetchMock.mock.calls.some(([request]) =>
-        String(typeof request === "string" ? request : request.url).includes(
-          "/audit/export"
-        )
+  it.each([
+    [1_000_001, "1,000,001 events match; the export stops at 1,000,000."],
+    [1_000_000, null],
+  ])(
+    "exports %i matching events as a browser download",
+    async (total, warning) => {
+      serve({ total })
+      const clicked: string[] = []
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+        function (this: HTMLAnchorElement) {
+          clicked.push(this.href)
+        }
       )
-    ).toBe(false)
-  })
+      const { user } = renderPage({ q: "origin:mcp" })
+      await screen.findByText("No audit events match these filters.")
+      await user.click(screen.getByRole("button", { name: "Export" }))
+      await user.click(await screen.findByRole("menuitem", { name: /^CSV/ }))
+      await waitFor(() => expect(clicked).toHaveLength(1))
+      const url = new URL(clicked[0])
+      expect(url.pathname).toBe("/api/v1/audit/export")
+      expect(url.searchParams.get("q")).toBe("origin:mcp")
+      expect(url.searchParams.get("format")).toBe("csv")
+      expect(
+        fetchMock.mock.calls.some(([request]) =>
+          String(typeof request === "string" ? request : request.url).includes(
+            "/audit/export"
+          )
+        )
+      ).toBe(false)
+      if (warning === null) {
+        expect(screen.queryByText(/the export stops at/)).toBe(null)
+      } else {
+        expect(await screen.findByText(warning)).toBeInTheDocument()
+      }
+    }
+  )
 
   it("says Live is off when the caller already holds five streams", async () => {
     serve({ stream: () => refusedStream(429, "too_many_streams") })
