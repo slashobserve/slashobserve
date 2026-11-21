@@ -144,8 +144,18 @@ func folderWriteFailure(err error) (Result, bool) {
 }
 
 func (r *Registry) viewableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
-	_, res, ok, err := r.dashboardAbilities(ctx, id, notFoundMessage)
+	access, res, ok, err := r.dashboardAccess(ctx, id, notFoundMessage)
+	if ok {
+		readDashboardIn(ctx, id, access.Folder)
+	}
 	return res, ok, err
+}
+
+func readDashboardIn(ctx context.Context, id pgtype.UUID, f folders.Folder) {
+	if run, inRun := RunFrom(ctx); inRun && run.Mode != ModeInvestigate && run.DashboardID == id.String() {
+		return
+	}
+	folders.Read(ctx, f)
 }
 
 func (r *Registry) commentableDashboard(ctx context.Context, id pgtype.UUID, notFoundMessage string) (Result, bool, error) {
@@ -160,18 +170,23 @@ func (r *Registry) commentableDashboard(ctx context.Context, id pgtype.UUID, not
 }
 
 func (r *Registry) dashboardAbilities(ctx context.Context, id pgtype.UUID, notFoundMessage string) (folders.Abilities, Result, bool, error) {
+	access, res, ok, err := r.dashboardAccess(ctx, id, notFoundMessage)
+	return access.Abilities, res, ok, err
+}
+
+func (r *Registry) dashboardAccess(ctx context.Context, id pgtype.UUID, notFoundMessage string) (folders.DashboardAccess, Result, bool, error) {
 	if r.deps.Folders == nil {
-		return folders.Abilities{}, Result{}, false, errFoldersNotConfigured
+		return folders.DashboardAccess{}, Result{}, false, errFoldersNotConfigured
 	}
 	principal, _ := auth.FromContext(ctx)
 	access, err := r.deps.Folders.Dashboard(ctx, principal, id)
 	switch {
 	case errors.Is(err, folders.ErrNotFound), errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrForbidden), errors.Is(err, dashboards.ErrNotFound):
-		return folders.Abilities{}, toolError(codeNotFound, notFoundMessage), false, nil
+		return folders.DashboardAccess{}, toolError(codeNotFound, notFoundMessage), false, nil
 	case err != nil:
-		return folders.Abilities{}, Result{}, false, err
+		return folders.DashboardAccess{}, Result{}, false, err
 	}
-	return access.Abilities, Result{}, true, nil
+	return access, Result{}, true, nil
 }
 
 func createFolderFailure(err error) (Result, bool) {

@@ -18,8 +18,8 @@ const (
 
 var ErrNotVisible = errors.New("datasource not visible")
 
-const WithheldNote = "Audit data and other datasources only Admins can query are available in a private chat, or in a folder only Admins can read. " +
-	"What this run writes is read by people who are not Admins, so those datasources are not available to it."
+const WithheldNote = "Audit data, other datasources only Admins can query and what is stored in folders only Admins can read are available in a private chat, or in a folder only Admins can read. " +
+	"What this run writes is read by people who are not Admins, so they are not available to it."
 
 type withheld struct{}
 
@@ -55,7 +55,7 @@ func AccessFrom(ctx context.Context) (Access, bool) {
 	return a, ok
 }
 
-func (a Access) reads(audience Audience) bool {
+func (a Access) Reads(audience Audience) bool {
 	if a.System || audience != AudienceAdmins {
 		return true
 	}
@@ -78,6 +78,12 @@ func NotingRestrictedReads(ctx context.Context) (context.Context, func() bool) {
 	return context.WithValue(ctx, restrictedReadsKey{}, n), n.read.Load
 }
 
+func NoteRead(ctx context.Context, audience Audience) {
+	if a, ok := AccessFrom(ctx); ok {
+		noteRestrictedRead(ctx, a, audience)
+	}
+}
+
 func noteRestrictedRead(ctx context.Context, a Access, audience Audience) {
 	if a.System || audience != AudienceAdmins {
 		return
@@ -89,5 +95,5 @@ func noteRestrictedRead(ctx context.Context, a Access, audience Audience) {
 
 func ReadsRestricted(ctx context.Context) bool {
 	a, ok := AccessFrom(ctx)
-	return ok && a.reads(AudienceAdmins)
+	return ok && a.Reads(AudienceAdmins)
 }

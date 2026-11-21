@@ -245,7 +245,7 @@ func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	if !ok {
 		return Instance{}, ErrNotVisible
 	}
-	if !access.reads(in.Audience) {
+	if !access.Reads(in.Audience) {
 		return Instance{}, access.refusal(in.Audience)
 	}
 	noteRestrictedRead(ctx, access, in.Audience)
@@ -258,7 +258,7 @@ func (r *Registry) Visible(ctx context.Context) []Instance {
 	if !ok {
 		return nil
 	}
-	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.reads(in.Audience) })
+	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.Reads(in.Audience) })
 }
 
 func (r *Registry) AdminsOnly(uid string) bool {

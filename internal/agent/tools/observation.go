@@ -798,6 +798,7 @@ func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (R
 	if err != nil {
 		return r.observationFailure("Read an observation", err)
 	}
+	folders.Read(ctx, o.Folder)
 	blocks := o.Blocks
 	o.Blocks = nil
 	out := observationViewOut{ObservationJSON: observations.ObservationOf(o, r.deps.Observations.URL(o.ID)), Blocks: make([]blockViewOut, len(blocks))}
@@ -929,6 +930,7 @@ func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) 
 		}
 		out := observationListOut{Observations: make([]observations.ObservationJSON, len(list))}
 		for i, o := range list {
+			folders.Read(ctx, o.Folder)
 			out.Observations[i] = observations.ObservationOf(o, r.deps.Observations.URL(o.ID))
 		}
 		if next != "" {
