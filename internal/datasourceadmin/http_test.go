@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/audittest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -63,6 +64,7 @@ func buildHTTPRig(t *testing.T, audited bool, file ...datasource.Instance) *http
 		middleware = append(middleware, mw)
 	}
 	middleware = append(middleware, func(c *gin.Context) {
+		auth.Authenticated(c.Request.Context(), h.caller, audit.AuthSession, "")
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.caller), datasource.Access{By: h.caller}))
 	})
 	NewHandler(svc, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(h.engine.Group("/api/v1", middleware...)))

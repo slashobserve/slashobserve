@@ -21,7 +21,7 @@ func TestTestingAGrafanaConnectionIsRecordedWithItsHostAndOutcome(t *testing.T) 
 		t.Fatalf("events = %+v, want two", events)
 	}
 	healthy, broken := events[0], events[1]
-	if healthy.Outcome != "success" || healthy.TargetKind != "grafana_connection" || healthy.TargetID != id {
+	if healthy.Outcome != "success" || healthy.TargetKind != "grafana_connection" || healthy.TargetID != id || healthy.ActorKind != "user" || healthy.ActorID != h.admin.ID {
 		t.Fatalf("healthy test = %+v", healthy)
 	}
 	if healthy.Data["host"] != grafanaHost || healthy.Data["healthy"] != true {
@@ -52,7 +52,7 @@ func TestFetchingADashboardFromALinkIsRecordedWithoutTheLinkOrTheBody(t *testing
 		t.Fatalf("events = %+v, want two", events)
 	}
 	fetched, refused := events[0], events[1]
-	if fetched.Outcome != "success" || fetched.TargetKind != "grafana_connection" || fetched.TargetID != id || fetched.Data["host"] != grafanaHost {
+	if fetched.Outcome != "success" || fetched.TargetKind != "grafana_connection" || fetched.TargetID != id || fetched.ActorID != h.admin.ID || fetched.Data["host"] != grafanaHost {
 		t.Fatalf("fetch = %+v", fetched)
 	}
 	if refused.Outcome != "failed" || refused.Reason != "dashboard_not_found" {

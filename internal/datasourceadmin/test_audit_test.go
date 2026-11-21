@@ -28,7 +28,7 @@ func TestTestingADatasourceIsRecordedWithItsHostAndOutcome(t *testing.T) {
 		t.Fatalf("events = %+v, want two", events)
 	}
 	healthy, broken := events[0], events[1]
-	if healthy.Outcome != "success" || healthy.TargetKind != "datasource" || healthy.TargetID != "added" {
+	if healthy.Outcome != "success" || healthy.TargetKind != "datasource" || healthy.TargetID != "added" || healthy.ActorKind != "user" || healthy.ActorID != h.admin.ID {
 		t.Fatalf("healthy test = %+v", healthy)
 	}
 	if healthy.Data["type"] != "prometheus" || healthy.Data["healthy"] != true || healthy.Data["host"] == "" {

@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/slashobserve/slashobserve/api/apitest"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/audittest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -61,6 +62,7 @@ func buildHTTPRig(t *testing.T, base *rig, audited bool) *httpRig {
 		middleware = append(middleware, mw)
 	}
 	middleware = append(middleware, func(c *gin.Context) {
+		auth.Authenticated(c.Request.Context(), h.caller, audit.AuthSession, "")
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), h.caller), datasource.Access{By: h.caller}))
 	})
 	grafanaconn.NewHandler(base.svc).Register(auth.NewRoutes(h.engine.Group("/api/v1", middleware...)))
