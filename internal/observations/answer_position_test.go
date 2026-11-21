@@ -53,7 +53,7 @@ func TestARunAskedOnABlockPutsItsRunBlockAndAnswerDirectlyUnderIt(t *testing.T) 
 	o := r.create(t, editor, r.shared)
 	r.addText(t, editor, o, "a")
 	asked := r.addText(t, editor, o, "b")
-	r.addText(t, editor, o, "c")
+	r.addPanel(t, editor, o)
 	half := observations.WidthHalf
 	got, err := r.service.Get(reading(t.Context()), editor, mustUUID(t, o.ID))
 	if err != nil {
@@ -73,7 +73,7 @@ func TestARunAskedOnABlockPutsItsRunBlockAndAnswerDirectlyUnderIt(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	want := []observations.Kind{observations.KindText, observations.KindText, observations.KindRun, observations.KindText, observations.KindPanel, observations.KindPanel, observations.KindText}
+	want := []observations.Kind{observations.KindText, observations.KindText, observations.KindRun, observations.KindText, observations.KindPanel, observations.KindPanel, observations.KindPanel}
 	if kinds := r.kindsOf(t, editor, o.ID); !slices.Equal(kinds, want) {
 		t.Fatalf("kinds %v, want %v", kinds, want)
 	}
