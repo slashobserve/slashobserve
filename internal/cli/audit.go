@@ -184,6 +184,8 @@ var errAuditStreamForbidden = errors.New("the audit stream ended because the key
 func auditFrames(out *output, asJSON bool) func(sseFrame) (string, error) {
 	return func(fr sseFrame) (string, error) {
 		switch fr.event {
+		case "ready":
+			return fr.id, nil
 		case "audit":
 			if asJSON {
 				out.body([]byte(fr.data))

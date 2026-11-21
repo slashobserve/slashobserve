@@ -260,16 +260,12 @@ func TestListActivityShowsAdminChangesToAdminsOnly(t *testing.T) {
 	workspace := r.append(t, activity.TypeDashboardCreated, d)
 
 	asAdmin, _ := r.list(t, adminCaller, `{}`)
-	adminOnly, _ := r.list(t, adminCaller, `{"scope":"admin"}`)
-	byActor, _ := r.list(t, adminCaller, `{"scope":"admin","actor_id":"`+editorCaller.ID+`","until":"2999-01-01T00:00:00Z"}`)
+	byActor, _ := r.list(t, adminCaller, `{"types":["webhook.created"],"actor_id":"`+editorCaller.ID+`","until":"2999-01-01T00:00:00Z"}`)
 	asEditor, _ := r.list(t, editorCaller, `{}`)
-	_, refused := r.list(t, editorCaller, `{"scope":"admin"}`)
+	_, scoped := r.list(t, adminCaller, `{"scope":"admin"}`)
 
 	if got := seqsOfActivity(asAdmin); !slices.Equal(got, []int64{workspace, changed}) {
 		t.Errorf("admin sees %v, want [%d %d]", got, workspace, changed)
-	}
-	if got := seqsOfActivity(adminOnly); !slices.Equal(got, []int64{changed}) {
-		t.Errorf("scope admin lists %v, want [%d]", got, changed)
 	}
 	if got := seqsOfActivity(byActor); !slices.Equal(got, []int64{changed}) {
 		t.Errorf("actor filter lists %v, want [%d]", got, changed)
@@ -277,9 +273,9 @@ func TestListActivityShowsAdminChangesToAdminsOnly(t *testing.T) {
 	if got := seqsOfActivity(asEditor); !slices.Equal(got, []int64{workspace}) {
 		t.Errorf("editor sees %v, want only [%d]", got, workspace)
 	}
-	body, _ := refused.Content.(errorBody)
-	if !refused.IsError || body.Code != codeForbiddenRole || body.Message != activity.AdminScopeMessage {
-		t.Errorf("scope admin as editor: error %v, %+v", refused.IsError, body)
+	body, _ := scoped.Content.(errorBody)
+	if !scoped.IsError || body.Code != codeInvalidRequest || !strings.HasPrefix(body.Message, `unknown field "scope"`) {
+		t.Errorf("scope admin: error %v, %+v", scoped.IsError, body)
 	}
 }
 

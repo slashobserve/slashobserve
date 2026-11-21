@@ -106,9 +106,11 @@ Before each page after the first the server re-reads the caller's credentials an
 `GET /api/v1/audit/stream?q=<query>` is a server-sent event stream of the events that match the query and are recorded after it opens, in the order they committed, one `audit` frame each with the event as its data.
 It takes the same query text as a search and no window: a new stream sends events from the 10 minutes before it opened onward and never one recorded earlier.
 Each frame's `id` is its position in the trail and the event's time; send it back as `Last-Event-ID` to resume after it.
+The first frame, `ready`, carries the id of the position the stream starts from, so a client cut off before any event resumes without missing one.
 A resumed stream sends every matching event committed after that frame whose time is at most 10 minutes before the frame's event, however long the client was away.
 A `Last-Event-ID` whose event is more than 24 hours old answers 400 `invalid_request`; read the gap with a search, then open a new stream.
 An id the stream did not send answers 400 `invalid_request` too.
+
 Opening the stream records one `audit.search` event with the query, not one per event it delivers.
 The server checks every 5 seconds that the caller is still an Admin, and ends the stream with a `forbidden` frame (`forbidden_role`) once they are not; it also ends at shutdown and after 30 minutes, and a client reconnects from its last id.
 

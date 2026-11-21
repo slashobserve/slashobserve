@@ -278,6 +278,19 @@ func TestAuditSearchFollowPrintsNewEventsAndResumesFromTheLastOne(t *testing.T) 
 	}
 }
 
+func TestAuditSearchFollowResumesFromTheReadyIDWhenNoEventCameYet(t *testing.T) {
+	_, opened, url := auditStream(t,
+		"retry: 10\nid: 40-1-5\nevent: ready\ndata: {}\n\n",
+		"retry: 10\nid: 40-1-5\nevent: ready\ndata: {}\n\n"+auditFrame("41-7", auditEventID, "dashboard.update"))
+	var stdout, stderr bytes.Buffer
+	if code := Main([]string{"--server", url, "--token", "k", "audit", "search", "--follow"}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test"); code != 1 {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	if fmt.Sprint(*opened) != "[ 40-1-5 41-7]" {
+		t.Errorf("Last-Event-ID sent %q", *opened)
+	}
+}
+
 func TestAuditSearchFollowPrintsJSONLinesAndStopsWhenNoLongerAnAdmin(t *testing.T) {
 	_, opened, url := auditStream(t, "event: ready\ndata: {}\n\n"+auditFrame("41-7", auditEventID, "dashboard.update")+"event: forbidden\ndata: {\"error\":\"x\",\"code\":\"forbidden_role\"}\n\n")
 	var stdout, stderr bytes.Buffer

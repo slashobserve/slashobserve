@@ -193,14 +193,13 @@ func TestParseSince(t *testing.T) {
 	}
 }
 
-func TestActivityFiltersCarryTheAdminFilters(t *testing.T) {
+func TestActivityFiltersCarryTheActorAndTimeFilters(t *testing.T) {
 	now := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
-	got, err := activityOptions{limit: 20, admin: true, actor: "11111111-1111-4111-8111-111111111111", until: "1h", since: "24h"}.filters(now)
+	got, err := activityOptions{limit: 20, actor: "11111111-1111-4111-8111-111111111111", until: "1h", since: "24h"}.filters(now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := url.Values{
-		"scope":    {"admin"},
 		"actor_id": {"11111111-1111-4111-8111-111111111111"},
 		"until":    {"2026-11-01T09:00:00Z"},
 		"since":    {"2026-10-31T10:00:00Z"},

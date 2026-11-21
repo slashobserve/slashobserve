@@ -80,11 +80,28 @@ To see more of the change, read the object through its own endpoint, which check
 
 ## Audit log
 
-An Admin reads these events in the web app under Settings, then **Audit log**, which other roles do not see.
-It lists the admin changes with the public link and comment access request events, newest first, 50 at a time, with **Load older changes** for more; it reads `GET /api/v1/activity?scope=admin`.
-Three filters narrow it: **Who** (anyone, a person or a service account), **Kind of change** (any, or one event type by name) and **Time**, which is the last 7 days unless you pick the last hour, 24 hours, 30 days or all time.
-Each row names who did what, with the time beside it, and never shows a secret.
-`observe activity --admin` and `list_activity` with `scope: "admin"` read the same list.
+An Admin reads the audit trail in the web app under Settings, then **Audit log**, which other roles do not see.
+It shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
+The query box takes the same text as `GET /api/v1/audit/events`, KQL by default, Lucene after `lucene:` and a Query DSL body that starts with `{`, and it names the form it reads and completes field names.
+**Search**, or Ctrl+Enter (Cmd+Enter on a Mac), runs it, and a query the server cannot read is shown with the part it stopped at marked and the parser's message under it.
+The time range is the last 24 hours unless you pick another, and it spans at most 366 days.
+
+A chart counts the matching events over the range, and the chips under it count the top actors, actions, outcomes, origins and initiators.
+Clicking a chip adds its value to a KQL query, or removes it when it is there, and the minus beside it leaves the value out; a Lucene or Query DSL query is edited only as text.
+The table lists the matching events newest first, 100 at a time, with **Load older events** for more.
+A row opens a panel with every field the event has, the other events of the same request and everything the same agent run did.
+
+**Live**, while the range ends now, adds new matching events at the top as they are recorded.
+After a dropped connection it reconnects and continues from the last event it showed; when the server refuses that resume because the event is more than 24 hours old, Live starts over, reloads the list and says so.
+After 500 new events the page reloads the list up to now, so the newest of them are in the list and the older ones a click on Load older events away.
+It turns itself off with a message when you are no longer an Admin, when you already hold 5 audit streams, or when the query is too slow to follow.
+The query, the time range and the open event are in the page's address, so a link opens the same view.
+
+**Export** downloads the matching events as NDJSON or CSV through `GET /api/v1/audit/export`, which records the download as `audit.export` with the query, the window, the format and the row count.
+The file downloads in the browser, which shows its progress and can cancel it, so the page never holds the file in memory.
+An export stops at 1,000,000 events; when more match, the page says how many before the download starts, and a shorter range exports the rest.
+The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a panel's CSV, are assembled in the browser from reads that are each recorded, so they have no separate export event.
+`observe audit search` and the `search_audit_events` tool read the same trail; see [Audit queries](../reference/audit-queries.md#api-mcp-and-the-cli).
 
 ## Who sees an event
 
@@ -113,7 +130,7 @@ An event appears once its own transaction and every older one have committed, so
 The list is newest first, 50 per page by default and at most 100, and `next_cursor` is `null` on the last page.
 Pass it back as `cursor` to read the next page.
 Narrow the list with `dashboard_id`, `folder_id`, `observation_id`, `actor_id` (a person or a service account), a repeated `type`, `since` and `until` (RFC 3339 times); a parameter that does not parse answers 400.
-`scope=admin` lists only [admin changes](#admin-changes), public link events and comment access requests, the audit log, and answers 403 `forbidden_role` to a caller who is not an Admin; an Admin sees admin changes in the ordinary list too.
+An Admin sees [admin changes](#admin-changes) in the ordinary list.
 `observation_id` returns the events recorded on that observation: its changes, its blocks, its RCA publications and the messages of its discussion.
 It narrows what you may see and never widens it, so an observation in a folder you cannot view returns nothing.
 
@@ -156,10 +173,10 @@ A stream that resumes with the `Last-Event-ID` of a deleted event gets `reset`.
 
 ## Read it over MCP
 
-The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `scope`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes, and `scope: "admin"` with another key is refused.
+The `list_activity` tool of the [MCP server](mcp.md) reads the same list, newest first, with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since`, `until`, `limit` and `cursor`, and it needs a Viewer key; an Admin key also gets admin changes.
 It lists only what the key may see, by the rules above, and pages with `next_cursor`.
 The tool has no stream; an agent calls it again with `since` to see what changed.
-`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>`, `--until` and `--admin` match `actor_id`, `until` and `scope=admin`.
+`observe activity --observation <observation-id>` takes the same filter in the CLI, beside `--dashboard` and `--folder`, and `--actor <id>` and `--until` match `actor_id` and `until`.
 
 ## Send it to another system
 

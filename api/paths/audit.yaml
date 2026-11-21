@@ -470,7 +470,7 @@ audit-stream:
     summary: Follow new audit events that match a query as Server-Sent Events.
     description: >-
       Only Admins can call this endpoint, and an Admin service-account key can too.
-      The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`.
+      The stream starts with `retry: 3000` and an `event: ready` whose data is `{}` and whose `id` is the position the stream starts from, so a client cut off before the first event resumes from it.
       Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`.
       Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened.
       A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away.

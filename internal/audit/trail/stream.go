@@ -32,6 +32,7 @@ type Follow struct {
 	query  filter.Query
 	from   time.Time
 	at     filter.Position
+	start  string
 }
 
 func (r *Reader) Follow(ctx context.Context, text, lastEventID string) (*Follow, error) {
@@ -56,9 +57,11 @@ func (r *Reader) follow(ctx context.Context, text, lastEventID string) (*Follow,
 	if err != nil {
 		return nil, err
 	}
-	f := &Follow{reader: r, query: q, from: r.now().UTC().Add(-FollowSlack)}
+	opened := r.now().UTC()
+	f := &Follow{reader: r, query: q, from: opened.Add(-FollowSlack)}
 	if lastEventID == "" {
 		f.at, err = r.head(ctx, f.from)
+		f.start = eventID(f.at, opened)
 		return f, err
 	}
 	at, when, ok := parseEventID(lastEventID)
@@ -68,8 +71,12 @@ func (r *Reader) follow(ctx context.Context, text, lastEventID string) (*Follow,
 	if when.Before(r.now().Add(-MaxResumeAge)) {
 		return nil, invalidf("the stream resumes only within 24 hours of the last event it sent, and that event is from %s; read the events since then with a search", when.UTC().Format(time.RFC3339))
 	}
-	f.from, f.at = when.UTC().Add(-FollowSlack), at
+	f.from, f.at, f.start = when.UTC().Add(-FollowSlack), at, eventID(at, when)
 	return f, nil
+}
+
+func (f *Follow) Start() string {
+	return f.start
 }
 
 func (r *Reader) head(ctx context.Context, from time.Time) (filter.Position, error) {
