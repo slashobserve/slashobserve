@@ -44,3 +44,11 @@ SELECT migrated_at FROM audit_backfill;
 
 -- name: CatchUpAuditEvents :one
 SELECT audit_events_catch_up(@since::timestamptz, @by_server::text, @by_version::text, false)::bigint AS inserted;
+
+-- name: GetAuditExportCursor :one
+SELECT xid, seq FROM audit_export_cursor;
+
+-- name: AdvanceAuditExportCursor :exec
+INSERT INTO audit_export_cursor (xid, seq) VALUES (@xid::xid8, @seq::bigint)
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, updated_at = now()
+WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq);

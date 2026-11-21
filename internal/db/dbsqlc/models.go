@@ -210,6 +210,13 @@ type AuditEvent struct {
 	ServerVersion string
 }
 
+type AuditExportCursor struct {
+	OnlyRow   bool
+	Xid       pgtype.Uint64
+	Seq       int64
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Chat struct {
 	ID            pgtype.UUID
 	OwnerKind     string

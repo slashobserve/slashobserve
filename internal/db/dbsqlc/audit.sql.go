@@ -23,6 +23,22 @@ func (q *Queries) AddAuditPartition(ctx context.Context, day pgtype.Date) (bool,
 	return audit_events_add_partition, err
 }
 
+const advanceAuditExportCursor = `-- name: AdvanceAuditExportCursor :exec
+INSERT INTO audit_export_cursor (xid, seq) VALUES ($1::xid8, $2::bigint)
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, updated_at = now()
+WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq)
+`
+
+type AdvanceAuditExportCursorParams struct {
+	Xid pgtype.Uint64
+	Seq int64
+}
+
+func (q *Queries) AdvanceAuditExportCursor(ctx context.Context, arg AdvanceAuditExportCursorParams) error {
+	_, err := q.db.Exec(ctx, advanceAuditExportCursor, arg.Xid, arg.Seq)
+	return err
+}
+
 const catchUpAuditEvents = `-- name: CatchUpAuditEvents :one
 SELECT audit_events_catch_up($1::timestamptz, $2::text, $3::text, false)::bigint AS inserted
 `
@@ -109,6 +125,22 @@ func (q *Queries) GetAuditBackfill(ctx context.Context) (pgtype.Timestamptz, err
 	var migrated_at pgtype.Timestamptz
 	err := row.Scan(&migrated_at)
 	return migrated_at, err
+}
+
+const getAuditExportCursor = `-- name: GetAuditExportCursor :one
+SELECT xid, seq FROM audit_export_cursor
+`
+
+type GetAuditExportCursorRow struct {
+	Xid pgtype.Uint64
+	Seq int64
+}
+
+func (q *Queries) GetAuditExportCursor(ctx context.Context) (GetAuditExportCursorRow, error) {
+	row := q.db.QueryRow(ctx, getAuditExportCursor)
+	var i GetAuditExportCursorRow
+	err := row.Scan(&i.Xid, &i.Seq)
+	return i, err
 }
 
 const insertAuditEvent = `-- name: InsertAuditEvent :exec

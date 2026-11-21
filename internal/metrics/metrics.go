@@ -268,6 +268,7 @@ type Audit struct {
 	writes     prometheus.Histogram
 	buffered   prometheus.Gauge
 	partitions prometheus.Gauge
+	exportLag  prometheus.Gauge
 }
 
 func (r *Registry) Audit() Audit {
@@ -289,8 +290,12 @@ func (r *Registry) Audit() Audit {
 			Name: "slashobserve_audit_partitions_ahead",
 			Help: "Daily audit partitions attached after today, as of the last partition job.",
 		}),
+		exportLag: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "slashobserve_audit_export_lag_seconds",
+			Help: "Age of the oldest audit event waiting to be exported over OTLP at this server's last export attempt; 0 when caught up or when this server does not hold the export.",
+		}),
 	}
-	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions)
+	r.registry.MustRegister(a.dropped, a.writes, a.buffered, a.partitions, a.exportLag)
 	return a
 }
 
@@ -303,3 +308,5 @@ func (a Audit) BatchWritten(took time.Duration) { a.writes.Observe(took.Seconds(
 func (a Audit) BufferedEvents(n int) { a.buffered.Set(float64(n)) }
 
 func (a Audit) PartitionsAhead(n int) { a.partitions.Set(float64(n)) }
+
+func (a Audit) ExportLag(behind time.Duration) { a.exportLag.Set(behind.Seconds()) }

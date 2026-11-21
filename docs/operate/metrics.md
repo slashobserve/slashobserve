@@ -52,6 +52,7 @@ A series with labels appears after its first observation, so a server that has r
 | `slashobserve_audit_write_seconds` | histogram | | Time to write one batch of read and refusal events. |
 | `slashobserve_audit_buffer_events` | gauge | | Read and refusal events waiting in this server's buffer at the last flush. |
 | `slashobserve_audit_partitions_ahead` | gauge | | Daily audit partitions after today; it drops below 14 when the `audit_partitions` job stops. |
+| `slashobserve_audit_export_lag_seconds` | gauge | | Age of the oldest audit event waiting to be sent by the [audit export](audit-export.md) at this server's last attempt; `0` when caught up or when this server does not hold the export. |
 
 These series describe only the audit recorder's own health.
 Counts of audit events by action, person or outcome are not exported here, because `/metrics` is open to anyone and those counts are for Admins only.
