@@ -312,3 +312,25 @@ func TestRequestWithoutAnAgentIsUnavailable(t *testing.T) {
 		t.Errorf("error %v, want ErrUnavailable", err)
 	}
 }
+
+func TestAStarterDashboardIsNeverListedOrQueuedForRepair(t *testing.T) {
+	r := newRig(t)
+	starter := r.failing(t, r.shared, "Starter")
+	ordinary := r.failing(t, r.shared, "Ordinary")
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, starter.String())
+
+	listed := byID(r.list(t, r.editor, repairs.ListParams{}).Items)
+	if _, ok := listed[starter.String()]; ok || len(listed) != 1 {
+		t.Errorf("listed %d dashboards, want only the ordinary one", len(listed))
+	}
+	out := r.request(t, repairs.Target{DashboardIDs: []pgtype.UUID{starter, ordinary}})
+	if len(out.Queued) != 1 || out.Queued[0].DashboardID != ordinary.String() || reasons(out)[starter.String()] != repairs.ReasonProvisioned {
+		t.Errorf("outcome %+v, want the ordinary dashboard queued and the starter provisioned", out)
+	}
+	all := r.request(t, repairs.Target{All: true})
+	for _, q := range all.Queued {
+		if q.DashboardID == starter.String() {
+			t.Error("a repair of everything queued the starter")
+		}
+	}
+}

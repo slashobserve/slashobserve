@@ -27,13 +27,15 @@ LEFT JOIN LATERAL (
 WHERE d.folder_id = ANY(@folders::uuid[])
   AND (sqlc.narg('folder')::uuid IS NULL OR d.folder_id = sqlc.narg('folder')::uuid)
   AND c.unverified_panels + c.unverified_variables + c.placeholder_panels > 0
+  AND NOT EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)
   AND (sqlc.narg('cursor_updated_at')::timestamptz IS NULL
     OR (d.updated_at, d.id) < (sqlc.narg('cursor_updated_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
 ORDER BY d.updated_at DESC, d.id DESC
 LIMIT @row_limit;
 
 -- name: RepairTarget :one
-SELECT d.folder_id, d.latest_version, v.unverified
+SELECT d.folder_id, d.latest_version, v.unverified,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 WHERE d.id = @dashboard_id;

@@ -97,7 +97,8 @@ func (q *Queries) DashboardsDueForHealth(ctx context.Context, arg DashboardsDueF
 }
 
 const healthRepairTarget = `-- name: HealthRepairTarget :one
-SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues
+SELECT d.folder_id, d.latest_version, coalesce(h.version, 0)::integer AS checked_version, coalesce(h.issues, '[]'::jsonb)::jsonb AS issues,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
 FROM dashboards d
 LEFT JOIN dashboard_health h ON h.dashboard_id = d.id
 WHERE d.id = $1
@@ -108,6 +109,7 @@ type HealthRepairTargetRow struct {
 	LatestVersion  int32
 	CheckedVersion int32
 	Issues         []byte
+	Provisioned    bool
 }
 
 func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUID) (HealthRepairTargetRow, error) {
@@ -118,6 +120,7 @@ func (q *Queries) HealthRepairTarget(ctx context.Context, dashboardID pgtype.UUI
 		&i.LatestVersion,
 		&i.CheckedVersion,
 		&i.Issues,
+		&i.Provisioned,
 	)
 	return i, err
 }
@@ -173,6 +176,7 @@ SELECT r.id, r.title, r.created_at, r.folder_id, r.folder_title, r.folder_genera
   r.checked_version, r.checked_at, r.skipped, r.issues, r.last_viewed_at, r.duplicate_title,
   r.rank::integer AS rank, r.seen_at::timestamptz AS seen_at,
   dd.latest_version AS latest_version,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = r.id)::boolean AS provisioned,
   rep.id AS repair_id, coalesce(rep.status, '')::text AS repair_status, coalesce(rep.state, '')::text AS repair_state,
   rep.result_version AS repair_version, coalesce(rep.error, '')::text AS repair_error,
   rep.updated_at AS repair_updated_at
@@ -239,6 +243,7 @@ type ListHealthRow struct {
 	Rank            int32
 	SeenAt          pgtype.Timestamptz
 	LatestVersion   int32
+	Provisioned     bool
 	RepairID        pgtype.UUID
 	RepairStatus    string
 	RepairState     string
@@ -286,6 +291,7 @@ func (q *Queries) ListHealth(ctx context.Context, arg ListHealthParams) ([]ListH
 			&i.Rank,
 			&i.SeenAt,
 			&i.LatestVersion,
+			&i.Provisioned,
 			&i.RepairID,
 			&i.RepairStatus,
 			&i.RepairState,

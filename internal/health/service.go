@@ -209,7 +209,7 @@ func (s *Service) item(row dbsqlc.ListHealthRow, levels folders.Levels, kind Kin
 		Title:          row.Title,
 		URL:            links.Dashboard(s.publicURL, id, row.Title),
 		Folder:         folders.Folder{ID: row.FolderID, Title: row.FolderTitle, General: row.FolderGeneral, Personal: row.FolderPersonal},
-		CanEdit:        levels.Of(row.FolderID).Edit,
+		CanEdit:        folders.DashboardAccess{Abilities: levels.Of(row.FolderID), Provisioned: row.Provisioned}.Shown().Edit,
 		State:          itemState(checkedVersion, int(row.LatestVersion), row.Skipped, checked),
 		CheckedVersion: checkedVersion,
 		CheckedAt:      timeOf(row.CheckedAt),

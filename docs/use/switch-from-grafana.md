@@ -235,4 +235,5 @@ The answer is `202` with the `queued` request ids and the `skipped` dashboards, 
 - `nothing_to_repair`: it holds only placeholders, which the agent never edits.
 - `not_found`: it does not exist or is in a folder you cannot see.
 - `forbidden_role`: you can see it but not edit it.
+- `provisioned`: it is a starter dashboard the server keeps current with each release; duplicate it to repair a copy.
 - `queue_full`: you already have 20 repairs queued or running; send the request again when they finish.

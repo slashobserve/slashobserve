@@ -559,7 +559,7 @@ Listing exits 0 whatever it finds, and `--json` prints the response of `GET /api
 
 ### Repair dashboards and run a check
 
-`bin/observe health repair <dashboard-id>...` asks the agent to repair 1 to 50 dashboards and prints one row per dashboard with `queued` and the request id, or the reason it was skipped: `active`, `nothing_to_repair`, `not_found`, `forbidden_role` or `queue_full`.
+`bin/observe health repair <dashboard-id>...` asks the agent to repair 1 to 50 dashboards and prints one row per dashboard with `queued` and the request id, or the reason it was skipped: `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` (a starter dashboard, which only a release changes) or `queue_full`.
 It needs an Editor key and a model on the server, and exits 1 when it queued no repair.
 `bin/observe health run` starts a check of every dashboard now and needs an Admin key; results appear as each dashboard is checked.
 

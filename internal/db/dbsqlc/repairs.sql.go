@@ -58,6 +58,7 @@ LEFT JOIN LATERAL (
 WHERE d.folder_id = ANY($2::uuid[])
   AND ($3::uuid IS NULL OR d.folder_id = $3::uuid)
   AND c.unverified_panels + c.unverified_variables + c.placeholder_panels > 0
+  AND NOT EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)
   AND ($4::timestamptz IS NULL
     OR (d.updated_at, d.id) < ($4::timestamptz, $5::uuid))
 ORDER BY d.updated_at DESC, d.id DESC
@@ -133,7 +134,8 @@ func (q *Queries) ListRepairs(ctx context.Context, arg ListRepairsParams) ([]Lis
 }
 
 const repairTarget = `-- name: RepairTarget :one
-SELECT d.folder_id, d.latest_version, v.unverified
+SELECT d.folder_id, d.latest_version, v.unverified,
+  EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
 FROM dashboards d
 JOIN dashboard_versions v ON v.dashboard_id = d.id AND v.version = d.latest_version
 WHERE d.id = $1
@@ -143,11 +145,17 @@ type RepairTargetRow struct {
 	FolderID      pgtype.UUID
 	LatestVersion int32
 	Unverified    []byte
+	Provisioned   bool
 }
 
 func (q *Queries) RepairTarget(ctx context.Context, dashboardID pgtype.UUID) (RepairTargetRow, error) {
 	row := q.db.QueryRow(ctx, repairTarget, dashboardID)
 	var i RepairTargetRow
-	err := row.Scan(&i.FolderID, &i.LatestVersion, &i.Unverified)
+	err := row.Scan(
+		&i.FolderID,
+		&i.LatestVersion,
+		&i.Unverified,
+		&i.Provisioned,
+	)
 	return i, err
 }

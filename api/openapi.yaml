@@ -6624,7 +6624,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
     GrafanaResolved:
       type: object
       additionalProperties: false
@@ -6837,7 +6837,7 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         can_edit:
           type: boolean
-          description: Whether the caller may edit the dashboard, and so ask for a repair.
+          description: Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release.
         state:
           type: string
           enum: [unchecked, outdated, skipped, failing, healthy]

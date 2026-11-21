@@ -166,7 +166,8 @@ Its `outcome` is what the repair came to: `queued`, `running`, `repaired`, `stil
 }
 ```
 
-`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role` and `queue_full`.
+`POST /api/v1/health/repairs` takes `{"dashboard_ids": [...]}` with up to 50 dashboards, needs the Editor role, and answers 202 with the repairs it queued and the dashboards it skipped, with the reasons `active`, `nothing_to_repair`, `not_found`, `forbidden_role`, `provisioned` and `queue_full`.
+A starter dashboard is skipped as `provisioned`, because the server keeps it current with each release; duplicate it to repair a copy.
 It answers 503 `agent_unavailable` when no LLM provider is configured.
 
 `POST /api/v1/health/run` needs the Admin role and answers 202 while the run starts in the background.

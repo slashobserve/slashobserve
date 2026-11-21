@@ -348,6 +348,14 @@ describe("repairAction", () => {
     ).toBe(
       "No repair queued. A revision is already queued or running on this dashboard."
     )
+    expect(
+      repairOutcomeText({
+        queued: [],
+        skipped: [{ dashboard_id: "d1", reason: "provisioned" }],
+      } as never)
+    ).toBe(
+      "No repair queued. This is a starter dashboard that releases keep current. Duplicate it to repair a copy."
+    )
   })
 })
 
