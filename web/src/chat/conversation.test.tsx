@@ -153,6 +153,7 @@ const finding: Finding = {
   dashboard_id: null,
   folder_id: null,
   ask_on: null,
+  restricted: false,
   title: "p99 rose after the deploy",
   markdown: "p99 rose after the deploy.",
   evidence: [],

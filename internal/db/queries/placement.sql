@@ -13,6 +13,12 @@ SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 -- name: ShareFolderPlacement :one
 SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
+-- name: RunAnswerKeptWithAdmins :one
+SELECT run_answer_kept_with_admins(r.id, '{}')::boolean FROM agent_requests r WHERE r.id = @id;
+
+-- name: FindingRun :one
+SELECT agent_request_id FROM findings WHERE id = @id;
+
 -- name: PlacementDashboardVersions :many
 SELECT v.dashboard_id AS id, v.version AS seq, d.title, d.folder_id, f.title AS folder_title, f.personal AS folder_personal, v.spec AS payload
 FROM dashboard_versions v
@@ -81,3 +87,44 @@ SELECT folder_id FROM dashboards WHERE id = @id FOR UPDATE;
 
 -- name: ShareDashboardPlacement :one
 SELECT folder_id FROM dashboards WHERE id = @id FOR SHARE;
+
+-- name: DashboardHoldsRestrictedAnswer :one
+SELECT dashboard_holds_restricted_answer(@id::uuid)::boolean;
+
+-- name: ObservationHoldsRestrictedAnswer :one
+SELECT observation_holds_restricted_answer(@id::uuid)::boolean;
+
+-- name: DashboardKeptWithAdmins :one
+SELECT (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted,
+  (f.admins_only AND dashboard_has_run_in_flight(d.id))::boolean AS in_flight
+FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = @id;
+
+-- name: ObservationKeptWithAdmins :one
+SELECT (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean AS restricted,
+  (f.admins_only AND observation_has_run_in_flight(o.id))::boolean AS in_flight
+FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = @id;
+
+-- name: RestrictedAnswerHolders :many
+SELECT kind, id, title, restricted FROM (
+  SELECT 'dashboard'::text AS kind, d.id, d.title, (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted, dashboard_has_run_in_flight(d.id) AS in_flight
+  FROM dashboards d WHERE d.folder_id = @folder_id
+  UNION ALL
+  SELECT 'observation'::text, o.id, o.title, (observation_holds_restricted_answer(o.id) OR observation_holds_restricted_run(o.id))::boolean, observation_has_run_in_flight(o.id)
+  FROM observations o WHERE o.folder_id = @folder_id
+) held
+WHERE restricted OR in_flight
+ORDER BY restricted DESC, kind, title, id
+LIMIT @row_limit;
+
+-- name: RestrictedAnswerFolder :one
+SELECT COALESCE(
+  (SELECT f.id FROM agent_requests r
+    CROSS JOIN LATERAL (VALUES
+      (1, (SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id)),
+      (2, (SELECT o.folder_id FROM observations o WHERE o.id = r.observation_id)),
+      (3, (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))) AS subject(rank, folder_id)
+    JOIN folders f ON f.id = subject.folder_id
+    WHERE r.id = @run_id AND f.admins_only
+    ORDER BY subject.rank LIMIT 1),
+  (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = @audit_folder_key AND f.admins_only)
+)::uuid AS folder_id;

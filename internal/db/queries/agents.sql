@@ -86,6 +86,8 @@ WHERE r.state IN ('queued', 'running', 'canceling')
       AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = @caller_kind AND o.created_by_id = @caller_id)
   )
+  AND ((r.requested_by_kind = @caller_kind AND r.requested_by_id = @caller_id) OR @caller_admin::boolean
+    OR NOT run_answer_kept_with_admins(r.id, '{}'))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT @row_limit;
 

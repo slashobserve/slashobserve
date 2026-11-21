@@ -271,7 +271,7 @@ func TestSucceededObserveRowIsARevisionWithNoBaseVersion(t *testing.T) {
 	if rev.Source != revisions.SourceObserve || rev.BaseVersion != nil || rev.ResultVersion == nil || *rev.ResultVersion != 2 {
 		t.Fatalf("Get = %+v", rev)
 	}
-	items, _, err := svc.List(reading(context.Background()), dash, 10, "")
+	items, _, err := svc.List(reading(context.Background()), user, dash, 10, "")
 	if err != nil || len(items) != 1 || items[0].ID != id || items[0].BaseVersion != nil {
 		t.Fatalf("List = %+v, %v", items, err)
 	}
@@ -338,7 +338,7 @@ func TestPostStoresAKnownPanelAndRefusesAnUnknownOne(t *testing.T) {
 	if panels.asked != before+1 {
 		t.Fatalf("the panel check ran %d times", panels.asked-before)
 	}
-	if items, _, err := svc.List(reading(context.Background()), dash, 10, ""); err != nil || len(items) != 2 {
+	if items, _, err := svc.List(reading(context.Background()), user, dash, 10, ""); err != nil || len(items) != 2 {
 		t.Fatalf("a refused request was stored: %d items, %v", len(items), err)
 	}
 }
