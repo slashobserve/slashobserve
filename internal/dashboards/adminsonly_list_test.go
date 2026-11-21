@@ -10,7 +10,7 @@ import (
 
 func TestAnAdminsOnlyFolderKeepsItsDashboardsOffItsNonAdminCreatorsSidebar(t *testing.T) {
 	b := seedBoards(t)
-	foldertest.Move(t, b.rig.db, b.hidden, foldertest.AdminsOnlyMadeBy(t, b.rig.db, "Payroll", otherUser))
+	foldertest.Move(t, b.rig.db, b.hidden, foldertest.AdminsOnlyMadeBy(t, b.rig.db, "Salaries", otherUser))
 
 	for _, params := range []ListParams{{Limit: 50}, {Limit: 50, ByFolder: true}} {
 		creator, err := b.rig.service.List(reading(t.Context()), otherUser, params)
