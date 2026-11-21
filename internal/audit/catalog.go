@@ -55,6 +55,7 @@ var (
 	proposalKeys = []string{"title", "revision", "base_version", "version"}
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
 	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
+	usageKeys    = []string{"model", "input_tokens", "output_tokens"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
 	accountKeys  = []string{"name", "role", "takes_runs", "key_id", "key_name", "expires_at"}
@@ -173,7 +174,7 @@ var catalog = map[Action]Spec{
 
 	"run.queue":       change(CategoryAgent, runKeys),
 	"run.start":       change(CategoryAgent, runKeys),
-	"run.finish":      change(CategoryAgent, runKeys),
+	"run.finish":      change(CategoryAgent, runKeys, usageKeys),
 	"run.cancel":      change(CategoryAgent, runKeys),
 	"run.release":     change(CategoryAgent, runKeys),
 	"run.keep":        change(CategoryAgent, runKeys),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -128,6 +129,7 @@ func recordAudit(ctx context.Context, q *dbsqlc.Queries, seq int64, e Entry, col
 	if mapping.result != "" {
 		data["result"] = mapping.result
 	}
+	maps.Copy(data, e.AuditOnly)
 	target := audit.Target{Kind: targetKind(e.Type), ID: e.TargetID.String(), Name: displayName(data)}
 	switch e.Owner.kind {
 	case ownerDashboard:

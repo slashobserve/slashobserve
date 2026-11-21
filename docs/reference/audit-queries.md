@@ -72,6 +72,7 @@ Only the fields an action declares are kept, and no event holds a message body, 
 | ------ | ---- | ------------- |
 | `dashboard.view` | `version` | The version number the reader was shown |
 | `observation.view` | `updated_at` | When the observation last changed before the reader opened it, as an RFC 3339 time, since an observation has no versions |
+| `run.finish` | `model`, `input_tokens`, `output_tokens` | The model that ran and the tokens it used, as the run reported them, left out when the run reported none; the activity feed does not carry them |
 
 ## Query forms
 
