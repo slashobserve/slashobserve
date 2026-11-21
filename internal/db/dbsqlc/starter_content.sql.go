@@ -31,6 +31,30 @@ func (q *Queries) LatestVersionIsNotBy(ctx context.Context, arg LatestVersionIsN
 	return column_1, err
 }
 
+const listStarterContentRefs = `-- name: ListStarterContentRefs :many
+SELECT ref FROM starter_content
+`
+
+func (q *Queries) ListStarterContentRefs(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listStarterContentRefs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var ref pgtype.UUID
+		if err := rows.Scan(&ref); err != nil {
+			return nil, err
+		}
+		items = append(items, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const provisionedAmong = `-- name: ProvisionedAmong :many
 SELECT ref FROM starter_content WHERE ref = ANY($1::uuid[])
 `

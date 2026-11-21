@@ -184,6 +184,32 @@ func TestSharingAFolderThatHoldsRestrictedContentIsRefused(t *testing.T) {
 	}
 }
 
+func TestSwitchingOffOnlyAdminsForAFolderThatHoldsARestrictedAnswerIsRefused(t *testing.T) {
+	d := dbtest.New(t)
+	folder := newFolder(t, d, "Audit")
+	admin := engineAs(t, d, rootAdmin, nil)
+	if got := call(t, admin, http.MethodPut, "/api/v1/folders/"+folder+"/permissions", `{"entries":[],"admins_only":true}`); got.Code != http.StatusOK {
+		t.Fatalf("set = %d %s", got.Code, got.Body)
+	}
+	guarded := engineAs(t, d, rootAdmin, func(_ context.Context, _ *dbsqlc.Queries, f dbsqlc.Folder) error {
+		return RestrictedAnswerOpening([]ContentItem{{Kind: ContentObservation, ID: "o1", Title: "Who changed checkout", FolderID: f.ID.String()}})
+	})
+	for name, body := range map[string]string{
+		"an entry": `{"entries":[{"group":"sre","level":"view"}]}`,
+		"open":     `{"entries":[]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := call(t, guarded, http.MethodPut, "/api/v1/folders/"+folder+"/permissions", body)
+			if got.Code != http.StatusConflict || !strings.Contains(got.Body.String(), `"code":"restricted_answer"`) || !strings.Contains(got.Body.String(), "Who changed checkout") {
+				t.Fatalf("got %d %s", got.Code, got.Body)
+			}
+			if perms := call(t, admin, http.MethodGet, "/api/v1/folders/"+folder+"/permissions", ""); !strings.Contains(perms.Body.String(), `"admins_only":true`) {
+				t.Fatalf("folder changed after a refusal: %s", perms.Body)
+			}
+		})
+	}
+}
+
 func TestOnlyTheFolderRecordedAsTheAuditFolderCarriesTheAuditFlag(t *testing.T) {
 	d := dbtest.New(t)
 	trail := folderMadeBy(t, d, "Trail", addUser(t, d, "alice"))

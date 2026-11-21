@@ -267,15 +267,18 @@ WHERE r.state IN ('queued', 'running', 'canceling')
       AND NOT (r.intent = 'ask' AND r.chat_id IS NOT NULL AND r.observation_id IS NULL))
     OR (o.id IS NOT NULL AND o.created_by_kind = $2 AND o.created_by_id = $3)
   )
+  AND ((r.requested_by_kind = $2 AND r.requested_by_id = $3) OR $4::boolean
+    OR NOT run_answer_kept_with_admins(r.id, '{}'))
 ORDER BY r.created_at DESC, r.id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListWorkingRunsParams struct {
-	Folders    []pgtype.UUID
-	CallerKind string
-	CallerID   pgtype.UUID
-	RowLimit   int32
+	Folders     []pgtype.UUID
+	CallerKind  string
+	CallerID    pgtype.UUID
+	CallerAdmin bool
+	RowLimit    int32
 }
 
 type ListWorkingRunsRow struct {
@@ -309,6 +312,7 @@ func (q *Queries) ListWorkingRuns(ctx context.Context, arg ListWorkingRunsParams
 		arg.Folders,
 		arg.CallerKind,
 		arg.CallerID,
+		arg.CallerAdmin,
 		arg.RowLimit,
 	)
 	if err != nil {

@@ -133,7 +133,7 @@ func mustUUID(t *testing.T, s string) pgtype.UUID {
 
 func get(t *testing.T, svc *revisions.Service, dashboard pgtype.UUID, id string) revisions.Revision {
 	t.Helper()
-	rev, err := svc.Get(reading(context.Background()), dashboard, mustUUID(t, id))
+	rev, err := svc.Get(reading(context.Background()), user, dashboard, mustUUID(t, id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1051,7 +1051,7 @@ func TestConcurrentSubmitsNeverExceedTheCap(t *testing.T) {
 	if accepted.Load() != revisions.MaxActive || rejected.Load() != 24-revisions.MaxActive {
 		t.Fatalf("accepted %d and rejected %d", accepted.Load(), rejected.Load())
 	}
-	items, _, err := svc.List(reading(context.Background()), dash, 100, "")
+	items, _, err := svc.List(reading(context.Background()), user, dash, 100, "")
 	if err != nil || len(items) != revisions.MaxActive {
 		t.Fatalf("stored %d requests, err %v", len(items), err)
 	}
@@ -1067,7 +1067,7 @@ func TestSubmitWithoutAnAgentIsRefused(t *testing.T) {
 	if !errors.Is(err, revisions.ErrUnavailable) {
 		t.Fatalf("err = %v", err)
 	}
-	items, _, err := svc.List(reading(context.Background()), dash, 10, "")
+	items, _, err := svc.List(reading(context.Background()), user, dash, 10, "")
 	if err != nil || len(items) != 0 {
 		t.Fatalf("nothing may be queued without an agent: %v, %v", items, err)
 	}
@@ -1080,11 +1080,11 @@ func TestListPagesNewestFirst(t *testing.T) {
 	for i := range 4 {
 		ids = append([]string{submit(t, svc, dash, fmt.Sprintf("p%d", i)).ID}, ids...)
 	}
-	first, next, err := svc.List(reading(context.Background()), dash, 3, "")
+	first, next, err := svc.List(reading(context.Background()), user, dash, 3, "")
 	if err != nil || next == "" || len(first) != 3 {
 		t.Fatalf("first page: %v, next %q, %v", len(first), next, err)
 	}
-	second, end, err := svc.List(reading(context.Background()), dash, 3, next)
+	second, end, err := svc.List(reading(context.Background()), user, dash, 3, next)
 	if err != nil || end != "" || len(second) != 1 {
 		t.Fatalf("second page: %v, next %q, %v", len(second), end, err)
 	}
@@ -1095,7 +1095,7 @@ func TestListPagesNewestFirst(t *testing.T) {
 	if strings.Join(got, ",") != strings.Join(ids, ",") {
 		t.Fatalf("order = %v, want %v", got, ids)
 	}
-	if _, _, err := svc.List(reading(context.Background()), dash, 3, "!!!"); !errors.Is(err, revisions.ErrInvalidCursor) {
+	if _, _, err := svc.List(reading(context.Background()), user, dash, 3, "!!!"); !errors.Is(err, revisions.ErrInvalidCursor) {
 		t.Fatalf("bad cursor: %v", err)
 	}
 }

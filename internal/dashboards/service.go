@@ -95,6 +95,14 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, folderID pgtype
 	return s.create(ctx, by, folderID, rawSpec, summary, pgtype.UUID{})
 }
 
+func (s *Service) CreateFromAnswer(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, run pgtype.UUID) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{answerOf: run})
+}
+
+func (s *Service) CreateCopy(ctx context.Context, by auth.Principal, rawSpec []byte, summary string, from placement.Copied) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, pgtype.UUID{}, rawSpec, summary, newVersion{copyOf: from})
+}
+
 func (s *Service) AddVersion(ctx context.Context, by auth.Principal, id pgtype.UUID, parent int, rawSpec []byte, summary string) (Dashboard, Version, bool, error) {
 	res, err := s.Save(ctx, by, SaveInput{DashboardID: id, Parent: parent, Spec: rawSpec, Summary: summary})
 	return res.Dashboard, res.Version, res.Replayed, err
@@ -178,6 +186,10 @@ func (s *Service) CreatedByRequest(ctx context.Context, requestID pgtype.UUID) (
 }
 
 func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, requestID pgtype.UUID) (Dashboard, Version, error) {
+	return s.createVersion(ctx, by, folderID, rawSpec, summary, newVersion{requestID: requestID})
+}
+
+func (s *Service) createVersion(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, in newVersion) (Dashboard, Version, error) {
 	target, err := s.creationTarget(ctx, by, folderID)
 	if err != nil {
 		return Dashboard{}, Version{}, err
@@ -189,7 +201,8 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	if err := s.checkQueries(ctx, by, parsed); err != nil {
 		return Dashboard{}, Version{}, err
 	}
-	dash, ver, err := s.store.create(ctx, newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), requestID: requestID, origin: origin.From(ctx), folder: target.folder})
+	in.spec, in.canonical, in.summary, in.author, in.origin, in.folder = parsed, canonical, summary, authorOf(by), origin.From(ctx), target.folder
+	dash, ver, err := s.store.create(ctx, in)
 	if err != nil {
 		return Dashboard{}, Version{}, err
 	}

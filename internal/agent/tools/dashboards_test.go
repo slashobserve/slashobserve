@@ -231,7 +231,7 @@ func TestListDashboardsSchemaOffersEveryOrder(t *testing.T) {
 			} `json:"order"`
 		} `json:"properties"`
 	}
-	if err := json.Unmarshal([]byte(schemaListDashboards), &schema); err != nil {
+	if err := json.Unmarshal([]byte(mcpWording.replacer.Replace(schemaListDashboards)), &schema); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.Join(schema.Properties.Order.Enum, ","); got != "updated,views,name" {

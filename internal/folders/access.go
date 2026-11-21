@@ -144,6 +144,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 	if err != nil {
 		return Levels{}, err
 	}
+	withheld := withholdsAdminsOnly(ctx, p)
 	entries := make([]folderLevel, 0, len(rows))
 	var personal pgtype.UUID
 	for _, r := range rows {
@@ -154,7 +155,7 @@ func (a *Access) Levels(ctx context.Context, p auth.Principal) (Levels, error) {
 			}
 		}
 		level := LevelFor(p.Role, facts)
-		if level < LevelView {
+		if level < LevelView || withheld && r.AdminsOnly {
 			continue
 		}
 		if r.Owner {

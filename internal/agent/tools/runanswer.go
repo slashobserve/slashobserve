@@ -21,9 +21,9 @@ const (
 	codeNotShareable = "not_shareable"
 	codeWrongThread  = "invalid_thread"
 
-	descSaveRunAnswer = "Save the answer of a run as an observation: a plain question asked in chat or in a comment is answered in the chat only, and this files that answer as an observation, with its text and evidence, in the folder of the dashboard it was about, else in your default folder. Only the one who asked may. Returns the observation id and url; a repeat call returns the same observation with replayed true."
+	descSaveRunAnswer = "Save the answer of a run as an observation: a plain question asked in chat or in a comment is answered in the chat only, and this files that answer as an observation, with its text and evidence, in the folder of the dashboard it was about, else in your default folder. Only the one who asked may. An answer whose run read data only Admins can query, such as the audit trail, is saved in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder, and is refused with restricted_answer when neither is one only Admins can read. Returns the observation id and url; a repeat call returns the same observation with replayed true."
 
-	descShareAnswer = "Share the answer of a private question with the people who can read what it was about. A question asked with start_run kind ask is read only by you and Admins; this posts the question and the agent's answer as a new comment thread on that dashboard or observation, at the same panel or block, and on an observation also writes the answer onto the page. With thread_id it adds both to that thread instead, which must be on the same dashboard or observation. Only the one who asked may, once the run has an answer; you need Comment there, and an answer whose evidence reads a datasource only Admins can query can only be shared where only Admins can read. A repeat call returns the same thread with replayed true."
+	descShareAnswer = "Share the answer of a private question with the people who can read what it was about. A question asked with start_run kind ask is read only by you and Admins; this posts the question and the agent's answer as a new comment thread on that dashboard or observation, at the same panel or block, and on an observation also writes the answer onto the page. With thread_id it adds both to that thread instead, which must be on the same dashboard or observation. Only the one who asked may, once the run has an answer; you need Comment there, and an answer whose evidence reads a datasource only Admins can query, or whose run read one such as the audit trail, can only be shared where only Admins can read (restricted_answer otherwise). A repeat call returns the same thread with replayed true."
 
 	schemaShareAnswer = `{"type":"object","properties":{"run_id":{"type":"string","format":"uuid","description":"The run whose answer to share: the id of the request, from get_run or the chat."},"thread_id":{"type":"string","format":"uuid","description":"A comment thread on the same dashboard or observation to add the question and answer to; omit to start a new thread."}},"required":["run_id"],"additionalProperties":false}`
 
@@ -74,7 +74,11 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 		return toolError(codeForbiddenRole, "only the one who asked can save the answer"), nil
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
-	case err != nil:
+	}
+	if res, ok := restrictedRefusal(err); ok {
+		return res, nil
+	}
+	if err != nil {
 		return Result{}, err
 	}
 	return success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed}), nil

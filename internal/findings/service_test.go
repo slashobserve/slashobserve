@@ -12,6 +12,8 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/findings"
@@ -19,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -61,7 +64,12 @@ func newRig(t *testing.T) rig {
 	access := folders.NewAccess(d.DB)
 	logger := slog.New(slog.DiscardHandler)
 	obs := observations.New(d.DB, access, nil, nil, logger)
-	service, err := findings.New(d.DB, access, annotations.New(d.DB, access), nil, obs, logger)
+	registry, err := datasource.NewRegistry(logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dash := dashboards.New(d.DB, queryproxy.NewRunner(registry, logger), access, logger)
+	service, err := findings.New(d.DB, access, annotations.New(d.DB, access), dash, obs, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
