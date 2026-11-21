@@ -302,6 +302,11 @@ describe("AskPopover", () => {
       await screen.findByRole("list", { name: "Your chat on this spot" })
     ).toHaveTextContent("Why is payments slow?")
     expect(await screen.findByText("Looking into it")).toBeVisible()
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Ask a follow-up" })
+      ).toHaveFocus()
+    )
     expect(useCanvasTool.getState().openTurn).toMatchObject({
       requestId: "q1",
       chatId: "c1",

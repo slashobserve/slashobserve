@@ -90,12 +90,16 @@ function useReturnFocus() {
   )
   useEffect(
     () => () => {
-      const active = document.activeElement
-      const dropped = active === null || active === document.body
-      if (dropped && origin !== null && origin.isConnected) origin.focus()
+      if (focusDropped() && origin !== null && origin.isConnected)
+        origin.focus()
     },
     [origin]
   )
+}
+
+function focusDropped(): boolean {
+  const active = document.activeElement
+  return active === null || active === document.body
 }
 
 function closeAsk() {
@@ -296,6 +300,10 @@ function AskThread({
       if (sent.via === "chat") asked(sent.request)
     },
   })
+  const field = model.field
+  useEffect(() => {
+    if (focusDropped()) field.current?.focus()
+  }, [field])
   return (
     <>
       <div className="flex items-center gap-0.5 border-b py-1.5 pr-1.5 pl-3">
