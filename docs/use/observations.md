@@ -384,7 +384,8 @@ A question on the whole page, and one asked on a block that has been deleted sin
 The new blocks are full width, and the order, widths and heights you arranged for the other blocks stay as they are.
 The same rule holds when the agent writes its answer over MCP, when you save an answer from a chat onto the page, and when a commenter asks, whose blocks arrive as `requested` blocks in the same place.
 
-On the page a run block shows the outcome and **View the run** on one line once the run has finished, and **Run details** unfolds the steps, the failure and the blocks it cites.
+On the page a run block that finished normally shows the outcome and **View the run** on one line, and **Run details** unfolds the steps and the blocks it cites.
+A run that failed or was stopped stays unfolded, so its error and the retry control show without a click.
 A text block written by a run that is longer than 600 characters shows its heading and first paragraph, and **The rest of the answer** shows or hides the remainder.
 Folding is only how the page is drawn, so the stored block, a published revision and a snapshot always hold the whole text.
 

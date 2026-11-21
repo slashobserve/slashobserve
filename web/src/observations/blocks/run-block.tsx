@@ -109,7 +109,8 @@ function RunProgress({
     )
   }
   const finished = isTerminal(request)
-  const expanded = !finished || open
+  const folds = finished && request.state === "succeeded"
+  const expanded = !folds || open
   const timeline = (working: boolean) => (
     <StepTimeline
       steps={request.steps}
@@ -139,27 +140,29 @@ function RunProgress({
             >
               View the run
             </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-expanded={open}
-              aria-controls={open ? detailsId : undefined}
-              onClick={() => setOpen(!open)}
-            >
-              {open ? (
-                <ChevronDownIcon aria-hidden="true" />
-              ) : (
-                <ChevronRightIcon aria-hidden="true" />
-              )}
-              Run details
-            </Button>
+            {folds ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-expanded={open}
+                aria-controls={open ? detailsId : undefined}
+                onClick={() => setOpen(!open)}
+              >
+                {open ? (
+                  <ChevronDownIcon aria-hidden="true" />
+                ) : (
+                  <ChevronRightIcon aria-hidden="true" />
+                )}
+                Run details
+              </Button>
+            ) : null}
           </>
         ) : (
           <CancelRequestButton request={request} />
         )}
       </div>
       {finished ? (
-        open ? (
+        expanded ? (
           <div id={detailsId} className="flex flex-col gap-3">
             {request.state === "failed" ? (
               <TurnFailure request={request} onRetried={ignoreRetried} />

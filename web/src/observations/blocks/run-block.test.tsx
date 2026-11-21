@@ -144,6 +144,15 @@ describe("RunBlock", () => {
     expect(screen.queryByText("Show steps")).toBeNull()
   })
 
+  it("keeps a run that was stopped open, with its link and no fold control", async () => {
+    stubRequest({ ...succeeded, status: "failed", state: "canceled" })
+    renderRun(runBlock([]))
+    expect(await screen.findByText("Observe Agent stopped")).toBeTruthy()
+    expect(screen.getByText("Show steps")).toBeTruthy()
+    expect(screen.getByRole("link", { name: "View the run" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Run details" })).toBeNull()
+  })
+
   it("keeps a run that is still working open, with no fold control", async () => {
     stubRequest(running)
     renderRun(runBlock([]))
@@ -184,11 +193,11 @@ describe("RunBlock", () => {
       retried_by: null,
       allowed_actions: [],
     })
-    const { user } = renderRun(runBlock([]))
+    renderRun(runBlock([]))
     expect(
       await screen.findByText("Observe Agent could not finish")
     ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Run details" }))
+    expect(screen.queryByRole("button", { name: "Run details" })).toBeNull()
     expect(screen.getByRole("alert").textContent).toContain(
       "The model provider is limiting requests"
     )
