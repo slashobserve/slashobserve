@@ -251,6 +251,7 @@ describe("Conversation", () => {
       })
     )
     expect(await screen.findByText("p99 rose after the deploy.")).toBeVisible()
+    expect(screen.getByText("Suggested change: Add a p99 panel")).toBeVisible()
     expect(
       screen.queryByRole("textbox", { name: "Message the agent" })
     ).toBeNull()

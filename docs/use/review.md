@@ -143,7 +143,7 @@ A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
 
 When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
-When the answer suggests a change to the dashboard, the card shows "Suggested change: `<change>`" and **Revise the dashboard**, which replies to the thread's agent with "Revise the dashboard: `<change>`".
+When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`", and someone who may reply in the thread also gets **Revise the dashboard**, which replies to the thread's agent with "Revise the dashboard: `<change>`".
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
 An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.

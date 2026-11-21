@@ -325,7 +325,7 @@ export function AnswerCard({
           <FindingMarkdown markdown={finding.markdown} />
         </Suspense>
       </div>
-      {change === null || revise === undefined ? null : (
+      {change === null ? null : (
         <p className="text-[13px] wrap-anywhere text-muted-foreground">
           Suggested change: {change}
         </p>

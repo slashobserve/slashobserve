@@ -205,7 +205,7 @@ describe("AnswerCard", () => {
     expect(onRevise).toHaveBeenCalledWith("Add a p99 latency panel")
   })
 
-  it("offers no revise without a suggested change or without the right to revise", async () => {
+  it("shows a suggested change to a reader who cannot revise, without the button", async () => {
     const view = renderCard({
       revise: { onRevise: vi.fn(), pending: false },
     })
@@ -216,7 +216,7 @@ describe("AnswerCard", () => {
     view.unmount()
     renderCard({ finding: finding({ suggested_change: "Add a panel" }) })
     await screen.findByText("doubled")
-    expect(screen.queryByText(/Suggested change/)).toBeNull()
+    expect(screen.getByText("Suggested change: Add a panel")).toBeVisible()
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
