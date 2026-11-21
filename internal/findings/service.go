@@ -396,14 +396,11 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	if err := s.showOnDashboard(ctx, by, f, dashboardID); err != nil {
+	pin, err := pinOf(f, dashboardID)
+	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	at := f.CreatedAt
-	if f.RequestTo != nil {
-		at = *f.RequestTo
-	}
-	a, err := s.annotations.Create(ctx, by, annotations.CreateInput{DashboardID: dashboardID, From: at, Text: PinText(f), Tags: []string{PinTag}})
+	a, err := s.annotations.Create(ctx, by, pin)
 	switch {
 	case errors.Is(err, annotations.ErrNotFound):
 		return annotations.Annotation{}, false, ErrNotFound
@@ -434,6 +431,19 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	}
 	a, err = s.pinned(ctx, winner)
 	return a, false, err
+}
+
+func pinOf(f Finding, dashboardID pgtype.UUID) (annotations.CreateInput, error) {
+	pin := annotations.CreateInput{DashboardID: dashboardID, From: f.CreatedAt, Text: PinText(f), Tags: []string{PinTag}}
+	if f.RequestTo != nil {
+		pin.From = *f.RequestTo
+	}
+	if f.AgentRequestID == "" {
+		return pin, nil
+	}
+	run, err := db.ParseUUID(f.AgentRequestID)
+	pin.AnswerOf = run
+	return pin, err
 }
 
 func (s *Service) pinned(ctx context.Context, f Finding) (annotations.Annotation, error) {
@@ -472,17 +482,6 @@ func (s *Service) SaveAsDashboard(ctx context.Context, by auth.Principal, id pgt
 		return dashboards.Dashboard{}, dashboards.Version{}, fmt.Errorf("encode evidence dashboard: %w", err)
 	}
 	return s.dashboards.Create(ctx, by, pgtype.UUID{}, raw, savedDashboardSummary)
-}
-
-func (s *Service) showOnDashboard(ctx context.Context, by auth.Principal, f Finding, dashboardID pgtype.UUID) error {
-	if !f.Restricted {
-		return nil
-	}
-	access, err := s.dashboardAccess(ctx, by, dashboardID)
-	if err != nil {
-		return err
-	}
-	return folders.ShowAnswer(f.Restricted, access.Folder.AdminsOnly)
 }
 
 type Placement struct {

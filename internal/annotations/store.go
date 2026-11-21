@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type store struct {
@@ -28,6 +29,9 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 	}
 	var created Annotation
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := placement.AnswerOnDashboard(ctx, q, in.AnswerOf, in.DashboardID); err != nil {
+			return err
+		}
 		row, err := q.InsertAnnotation(ctx, dbsqlc.InsertAnnotationParams{
 			DashboardID:   in.DashboardID,
 			PanelID:       in.PanelID,

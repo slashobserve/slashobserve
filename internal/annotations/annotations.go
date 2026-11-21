@@ -85,6 +85,7 @@ type CreateInput struct {
 	To          *time.Time
 	Text        string
 	Tags        []string
+	AnswerOf    pgtype.UUID
 }
 
 type CreateRequest struct {
