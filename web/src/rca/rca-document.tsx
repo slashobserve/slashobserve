@@ -17,7 +17,7 @@ import { zoneLabel } from "@/lib/date-format"
 import { formatDateTime } from "@/lib/time"
 import { frozenCaption } from "@/observations/blocks/block-data"
 import {
-  defaultBlockHeight,
+  blockHeight,
   packRows,
   rowGridClass,
   spanClass,
@@ -72,7 +72,7 @@ function FrozenPanel({
   item: Snapshot
   caption: string
 }) {
-  const height = defaultBlockHeight(item.width)
+  const height = blockHeight(item)
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })

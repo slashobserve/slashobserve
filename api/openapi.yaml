@@ -7514,6 +7514,11 @@ components:
               description: The stored `panel` of the snapshot, which has no `queries`.
             width:
               $ref: "#/components/schemas/ObservationBlockWidth"
+            height:
+              type: integer
+              minimum: 120
+              maximum: 960
+              description: Pixels the block was set to when published; absent when the height was automatic, and on revisions published before heights existed.
     ObservationRCA:
       type: object
       additionalProperties: false

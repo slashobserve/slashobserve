@@ -61,7 +61,7 @@ function json(body: unknown): Response {
   })
 }
 
-function mockServer(newest: number | null = null) {
+function mockServer(newest: number | null = null, height?: number) {
   const paths: string[] = []
   vi.stubGlobal(
     "fetch",
@@ -69,7 +69,13 @@ function mockServer(newest: number | null = null) {
       const path = new URL(request.url).pathname
       paths.push(path)
       if (path === `/api/v1/public/${token}/rca`) {
-        return Promise.resolve(json({ ...view, superseded_by: newest }))
+        const blocks =
+          height === undefined
+            ? view.blocks
+            : view.blocks.map((block) =>
+                block.kind === "snapshot" ? { ...block, height } : block
+              )
+        return Promise.resolve(json({ ...view, blocks, superseded_by: newest }))
       }
       if (path === `/api/v1/public/${token}/rca/snapshots/${snapshotId}`) {
         return Promise.resolve(json(frames))
@@ -115,6 +121,33 @@ describe("PublicRcaPage", () => {
     for (const path of paths) {
       expect(path.startsWith("/api/v1/public/")).toBe(true)
     }
+  })
+})
+
+describe("PublicRcaPage panel heights", () => {
+  it("draws a panel at the height it was published with and at the default for its width without one", async () => {
+    mockServer(null, 600)
+    const set = renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await set.findByText("Error rate")
+    expect(
+      set.container.querySelector('[style*="height: 600px"]')
+    ).not.toBeNull()
+    set.unmount()
+
+    mockServer()
+    const unset = renderWithProviders(
+      <Suspense fallback={null}>
+        <PublicRcaPage token={token} />
+      </Suspense>
+    )
+    await unset.findByText("Error rate")
+    expect(
+      unset.container.querySelector('[style*="height: 280px"]')
+    ).not.toBeNull()
   })
 })
 

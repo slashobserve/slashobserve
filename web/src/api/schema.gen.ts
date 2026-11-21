@@ -8005,6 +8005,8 @@ export interface components {
                 [key: string]: unknown;
             };
             width: components["schemas"]["ObservationBlockWidth"];
+            /** @description Pixels the block was set to when published; absent when the height was automatic, and on revisions published before heights existed. */
+            height?: number;
         };
         ObservationRCA: {
             /** Format: uuid */

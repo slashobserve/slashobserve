@@ -137,6 +137,31 @@ func TestRCABlocksKeepOrderWidthsAndTakeSnapshotTitlesFromThePanel(t *testing.T)
 	}
 }
 
+func TestRCABlocksCarryTheHeightOfAPanelAndLeaveTextAndAutomaticHeightsOut(t *testing.T) {
+	tall := block(2, KindPanel, BlockLive, 1, WidthFull, `{}`)
+	tall.Height = pgtype.Int4{Int32: 600, Valid: true}
+	text := block(1, KindText, BlockLive, 0, WidthFull, `{"markdown":"Started"}`)
+	automatic := block(3, KindSnapshot, BlockLive, 2, WidthHalf, `{}`)
+	refs := map[pgtype.UUID]snapshotRef{
+		uuidOf(2): {id: uuidOf(20), panel: json.RawMessage(`{"title":"Rate"}`)},
+		uuidOf(3): {id: uuidOf(30), panel: json.RawMessage(`{"title":"Errors"}`)},
+	}
+	got, err := rcaBlocks([]dbsqlc.ObservationBlock{text, tall, automatic}, refs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"kind":"text","markdown":"Started","width":"full"},` +
+		`{"kind":"snapshot","snapshot_id":"` + uuidOf(20).String() + `","title":"Rate","panel":{"title":"Rate"},"width":"full","height":600},` +
+		`{"kind":"snapshot","snapshot_id":"` + uuidOf(30).String() + `","title":"Errors","panel":{"title":"Errors"},"width":"half"}]`
+	if string(raw) != want {
+		t.Errorf("blocks\n got %s\nwant %s", raw, want)
+	}
+}
+
 func TestRCABlocksRefuseAPanelWithoutASnapshot(t *testing.T) {
 	live := []dbsqlc.ObservationBlock{block(2, KindPanel, BlockLive, 0, WidthFull, `{}`)}
 	if _, err := rcaBlocks(live, nil); err == nil {

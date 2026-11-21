@@ -69,11 +69,14 @@ export function blockRows(blocks: readonly Block[]): BlockRow[] {
   return packRows(sorted).map((row) => ({ key: row[0].id, blocks: row }))
 }
 
-export function defaultBlockHeight(width: BlockWidth): number {
+function defaultBlockHeight(width: BlockWidth): number {
   return width === "full" || width === "two_thirds" ? 280 : 220
 }
 
-export function blockHeight(block: Block): number {
+export function blockHeight(block: {
+  width: BlockWidth
+  height?: number | null
+}): number {
   return block.height ?? defaultBlockHeight(block.width)
 }
 

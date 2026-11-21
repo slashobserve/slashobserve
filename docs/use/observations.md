@@ -247,7 +247,9 @@ A revision freezes:
 - The title, summary, state and time range of the observation when it was published.
 - The `live` text blocks, as Markdown, in page order.
 - Every `snapshot` block with its frozen panel and data, and a new snapshot of every `live` panel block, taken in the same step.
-- Each block's width, but not its height.
+- Each block's width, and the height of a panel or snapshot block that was set by hand.
+
+A revision published before heights were kept has none, so its panels show at the default height for their width.
 
 A revision leaves out requested blocks, run blocks, and the query text of every panel: a published copy shows what the data was and never how to query your datasources.
 If a panel cannot be frozen, nothing is published and the answer is `panel_failed` with the block it names, so fix or remove that panel and publish again.
