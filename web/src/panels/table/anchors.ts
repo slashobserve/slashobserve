@@ -141,7 +141,9 @@ export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
       if (anchor.kind === "cell" && column === undefined) return null
       const row = drawnRow(layout, anchor)
       if (row === null)
-        return rowElsewhere(layout, anchor) === null ? null : bottomEdge(layout.body)
+        return rowElsewhere(layout, anchor) === null
+          ? null
+          : bottomEdge(layout.body)
       return column === undefined
         ? rowRect(layout, row)
         : columnRect(layout, column, row)
