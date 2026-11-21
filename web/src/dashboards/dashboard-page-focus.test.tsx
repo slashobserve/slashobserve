@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useLayoutStore } from "@/dashboards/edit/layout-store"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { routeTree } from "@/routeTree.gen"
 import { testQueryClient } from "@/test/render"
@@ -309,6 +310,42 @@ describe("dashboard page panel keys", () => {
     expect(
       screen.queryByRole("dialog", { name: "Comment on the canvas" })
     ).not.toBeInTheDocument()
+  })
+
+  it("closes the canvas composer while the layout has unsaved moves and brings it back with its text", async () => {
+    const { user } = renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    await user.hover(note)
+    await user.keyboard("c")
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "half a thought")
+    act(() =>
+      useLayoutStore
+        .getState()
+        .ensure(dashboardId, 1, envelope.version.spec as never)
+    )
+    const session = useLayoutStore.getState().session!
+    act(() =>
+      useLayoutStore
+        .getState()
+        .setLayout(
+          session.layout.map((item, index) =>
+            index === 0 ? { ...item, x: item.x + 1 } : item
+          )
+        )
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Comment on the canvas" })
+      ).not.toBeInTheDocument()
+    )
+    act(() => useLayoutStore.getState().setLayout(session.baseline))
+    expect(
+      await screen.findByRole("textbox", { name: "Write a comment" })
+    ).toHaveValue("half a thought")
+    useLayoutStore.getState().end()
   })
 
   it("enters Comment mode with c over no panel and leaves it with c again", async () => {

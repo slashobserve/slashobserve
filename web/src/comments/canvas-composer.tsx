@@ -70,7 +70,10 @@ export function targetChips(
   ]
 }
 
-export function useCanvasGate(canComment: boolean): GateInput {
+export function useCanvasGate(
+  canComment: boolean,
+  layoutEditing: boolean
+): GateInput {
   const pinned = useSearch({
     strict: false,
     select: (search: Record<string, unknown>) =>
@@ -80,7 +83,7 @@ export function useCanvasGate(canComment: boolean): GateInput {
     canComment,
     agentAvailable: useAgentInfo().data?.available,
     pinned,
-    layoutEditing: false,
+    layoutEditing,
   }
 }
 
@@ -100,6 +103,15 @@ function spotAnchor(surface: HTMLElement | null, at: Point | null) {
   }
 }
 
+const leavingReasons: ReadonlySet<string> = new Set([
+  "outside-press",
+  "focus-out",
+])
+
+function keepsTyping(reason: string, text: string): boolean {
+  return leavingReasons.has(reason) && text.trim() !== ""
+}
+
 type ComposerProps = {
   dashboardId: string
   panelTitle: string
@@ -116,7 +128,10 @@ export function CanvasComposer({
   gate,
 }: ComposerProps) {
   const posted = useCanvasTool((state) => state.posted)
+  const text = useCanvasTool((state) => state.text)
+  const setText = useCanvasTool((state) => state.setText)
   const model = useComposer({
+    draft: { value: text, onChange: setText },
     subject: { kind: "dashboard", id: dashboardId },
     place: { kind: "canvas", tool: draft.tool },
     target: {
@@ -138,9 +153,11 @@ export function CanvasComposer({
   return (
     <PopoverPrimitive.Root
       open
-      onOpenChange={(open) => {
+      onOpenChange={(open, details) => {
         const store = useCanvasTool.getState()
-        if (!open && store.draft === draft) store.close()
+        if (open || store.draft !== draft) return
+        if (keepsTyping(details.reason, store.text)) return
+        store.close()
       }}
     >
       <PopoverPrimitive.Portal>

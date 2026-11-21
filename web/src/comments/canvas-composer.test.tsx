@@ -8,7 +8,7 @@ import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
 import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders } from "@/test/render"
 
-import { CanvasComposer, targetChips } from "./canvas-composer"
+import { CanvasComposer, targetChips, useCanvasGate } from "./canvas-composer"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -105,11 +105,27 @@ beforeEach(() => {
     draft: null,
     openThreadId: null,
     postedThreadId: null,
+    text: "",
   })
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+function GateProbe({ layoutEditing }: { layoutEditing: boolean }) {
+  const gate = useCanvasGate(true, layoutEditing)
+  return <output>{gate.layoutEditing ? "editing" : "idle"}</output>
+}
+
+describe("useCanvasGate", () => {
+  it("passes on whether the layout has unsaved moves", async () => {
+    stubServer()
+    renderWithProviders(<GateProbe layoutEditing />, {
+      route: { path: "/", url: "/" },
+    })
+    expect(await screen.findByRole("status")).toHaveTextContent("editing")
+  })
 })
 
 describe("CanvasComposer", () => {
@@ -168,5 +184,45 @@ describe("CanvasComposer", () => {
     expect(
       within(popup).getByRole("list", { name: "Context" })
     ).toHaveTextContent("Latency, whole panel")
+  })
+
+  it("stays open with its text when you click outside after typing", async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "half a thought")
+    await user.click(document.body)
+    expect(
+      screen.getByRole("dialog", { name: "Comment on the canvas" })
+    ).toBeInTheDocument()
+    expect(field).toHaveValue("half a thought")
+    expect(useCanvasTool.getState().draft).toBe(clicked)
+  })
+
+  it("closes on a click outside while it is empty", async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    await screen.findByRole("textbox", { name: "Write a comment" })
+    await user.click(document.body)
+    await waitFor(() => expect(useCanvasTool.getState().draft).toBeNull())
+  })
+
+  it("keeps its text when it is mounted again for the same draft", async () => {
+    stubServer()
+    const user = userEvent.setup()
+    const view = renderDraft(clicked)
+    await user.type(
+      await screen.findByRole("textbox", { name: "Write a comment" }),
+      "half a thought"
+    )
+    view.unmount()
+    renderDraft(clicked)
+    expect(
+      await screen.findByRole("textbox", { name: "Write a comment" })
+    ).toHaveValue("half a thought")
   })
 })

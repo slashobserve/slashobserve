@@ -41,12 +41,18 @@ type CanvasToolState = {
   draft: CanvasDraft | null
   openThreadId: string | null
   postedThreadId: string | null
+  text: string
   setTool: (tool: CanvasTool) => void
   openDraft: (draft: CanvasDraft) => void
   openThread: (threadId: string) => void
   close: () => void
   posted: (threadId: string) => void
   settled: (threadId: string) => void
+  setText: (text: string) => void
+}
+
+function holdsText(state: CanvasToolState): boolean {
+  return state.draft !== null && state.text.trim() !== ""
 }
 
 export const useCanvasTool = create<CanvasToolState>()((set) => ({
@@ -54,15 +60,26 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   draft: null,
   openThreadId: null,
   postedThreadId: null,
-  setTool: (tool) => set({ tool, draft: null, openThreadId: null }),
-  openDraft: (draft) => set({ draft, openThreadId: null }),
-  openThread: (threadId) => set({ openThreadId: threadId, draft: null }),
-  close: () => set({ draft: null, openThreadId: null }),
-  posted: (threadId) => set({ draft: null, postedThreadId: threadId }),
+  text: "",
+  setTool: (tool) => set({ tool, draft: null, openThreadId: null, text: "" }),
+  openDraft: (draft) =>
+    set((state) =>
+      holdsText(state) ? state : { draft, openThreadId: null, text: "" }
+    ),
+  openThread: (threadId) =>
+    set((state) =>
+      holdsText(state)
+        ? state
+        : { openThreadId: threadId, draft: null, text: "" }
+    ),
+  close: () => set({ draft: null, openThreadId: null, text: "" }),
+  posted: (threadId) =>
+    set({ draft: null, postedThreadId: threadId, text: "" }),
   settled: (threadId) =>
     set((state) =>
       state.postedThreadId === threadId ? { postedThreadId: null } : {}
     ),
+  setText: (text) => set({ text }),
 }))
 
 export function openKeyDraft(panelId: string, tool: DraftTool) {

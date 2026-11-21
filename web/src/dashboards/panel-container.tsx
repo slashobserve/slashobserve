@@ -433,7 +433,7 @@ export const PanelContainer = memo(function PanelContainer({
   const draft = useCanvasTool((state) =>
     ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null
   )
-  const gateInput = useCanvasGate(canComment)
+  const gateInput = useCanvasGate(canComment, layoutSession)
   const shownWindow = useMemo(
     () => ({ from: rangeFrom, to: rangeTo }),
     [rangeFrom, rangeTo]
@@ -607,7 +607,10 @@ export const PanelContainer = memo(function PanelContainer({
           shownRange={shownWindow}
         />
       ) : null}
-      {draft !== null && onCanvas && dashboardId !== undefined ? (
+      {draft !== null &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
         <CanvasComposer
           key={`${draft.panelId}:${draft.at?.x ?? ""}:${draft.at?.y ?? ""}`}
           dashboardId={dashboardId}
