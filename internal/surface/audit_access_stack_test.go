@@ -304,7 +304,7 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 }
 
 func (s *stack) previewBody() string {
-	return fmt.Sprintf(`{"dashboard_id":%q,"version":1,"panel_id":"draft","panel":{"id":"draft","type":"stat","title":"draft","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":%q,"queries":[{"query":"action:dashboard.update"}]}}`, s.starters[0], auditUID)
+	return fmt.Sprintf(`{"dashboard_id":%q,"version":1,"panel_id":"draft","panel":{"id":"draft","type":"stat","title":"draft","gridPos":{"x":0,"y":200,"w":6,"h":4},"datasource":%q,"queries":[{"query":"action:dashboard.update"}]}}`, s.starters[0], auditUID)
 }
 
 type response struct {
