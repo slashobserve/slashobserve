@@ -621,7 +621,7 @@ describe("Conversation", () => {
 
   it("puts Ask again in the answer's own row of actions, before the menu", async () => {
     stubServer(chatAbout({ dashboard_id: dashboardId }))
-    renderConversation(answered())
+    renderConversation(answered({ kind: "build" }))
     const askAgain = await screen.findByRole("button", { name: "Ask again" })
     const menu = screen.getByRole("button", { name: "Answer actions" })
     const row = askAgain.parentElement
