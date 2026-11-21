@@ -283,7 +283,7 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 		t.Fatal(err)
 	}
 	s.controlDir = folder.ID.String()
-	spec := fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},"panels":[{"id":"p","type":"timeseries","title":"p","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":%q,"queries":[{"query":"up"}]}]}`, controlBoard, controlUID)
+	spec := fmt.Sprintf(`{"specVersion":"0","title":%q,"time":{"from":"now-15m","to":"now"},"panels":[{"id":"p","type":"text","title":"p","gridPos":{"x":0,"y":0,"w":12,"h":4},"content":"control"}]}`, controlBoard)
 	dash, _, err := dashboardsService.Create(ctx, provision.Principal, folder.ID, []byte(spec), "control")
 	if err != nil {
 		t.Fatal(err)
