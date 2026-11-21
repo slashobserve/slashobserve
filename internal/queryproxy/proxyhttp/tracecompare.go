@@ -101,12 +101,16 @@ func (h *Handler) traceCompare(c *gin.Context) {
 		return
 	}
 	defer releaseUpstream()
-	selected, err := source.TraceAttributes(ctx, datasource.TraceAttributesRequest{IDs: req.Selected, Range: rng, MaxSpans: datasource.CompareSpanBudget})
+	selectedRequest := datasource.TraceAttributesRequest{IDs: req.Selected, Range: rng, MaxSpans: datasource.CompareSpanBudget}
+	selected, err := source.TraceAttributes(ctx, selectedRequest)
+	datasource.NoteQuery(ctx, uid, selectedRequest.Text(), rng, len(selected))
 	if err != nil {
 		h.exploreFail(c, uid, err)
 		return
 	}
-	baseline, err := source.TraceAttributes(ctx, datasource.TraceAttributesRequest{IDs: req.Baseline, Range: rng, MaxSpans: datasource.CompareSpanBudget})
+	baselineRequest := datasource.TraceAttributesRequest{IDs: req.Baseline, Range: rng, MaxSpans: datasource.CompareSpanBudget}
+	baseline, err := source.TraceAttributes(ctx, baselineRequest)
+	datasource.NoteQuery(ctx, uid, baselineRequest.Text(), rng, len(baseline))
 	if err != nil {
 		h.exploreFail(c, uid, err)
 		return

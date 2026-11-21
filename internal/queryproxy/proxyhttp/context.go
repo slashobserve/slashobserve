@@ -123,6 +123,7 @@ func (h *Handler) readSide(ctx context.Context, datasourceUID string, source dat
 	}
 	defer release()
 	frames, err := source.Lines(ctx, req)
+	datasource.NoteQuery(ctx, datasourceUID, req.Query.Text, req.Range, datasource.FrameRows(frames))
 	if err != nil {
 		return empty, err
 	}

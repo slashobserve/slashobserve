@@ -99,11 +99,15 @@ func (r *Registry) compareTraces(ctx context.Context, input json.RawMessage) (Re
 		return datasourceFailure(step, err)
 	}
 	defer release()
-	selectedSets, err := source.TraceAttributes(ctx, datasource.TraceAttributesRequest{IDs: selected, Range: rng, MaxSpans: datasource.CompareSpanBudget})
+	selectedRequest := datasource.TraceAttributesRequest{IDs: selected, Range: rng, MaxSpans: datasource.CompareSpanBudget}
+	selectedSets, err := source.TraceAttributes(ctx, selectedRequest)
+	datasource.NoteQuery(ctx, inst.UID, selectedRequest.Text(), rng, len(selectedSets))
 	if err != nil {
 		return datasourceFailure(step, err)
 	}
-	baselineSets, err := source.TraceAttributes(ctx, datasource.TraceAttributesRequest{IDs: baseline, Range: rng, MaxSpans: datasource.CompareSpanBudget})
+	baselineRequest := datasource.TraceAttributesRequest{IDs: baseline, Range: rng, MaxSpans: datasource.CompareSpanBudget}
+	baselineSets, err := source.TraceAttributes(ctx, baselineRequest)
+	datasource.NoteQuery(ctx, inst.UID, baselineRequest.Text(), rng, len(baselineSets))
 	if err != nil {
 		return datasourceFailure(step, err)
 	}

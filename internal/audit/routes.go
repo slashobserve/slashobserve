@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -59,8 +60,8 @@ func (d Declaration) check() error {
 		return errors.New("it names neither an action nor none")
 	case d.Action != "" && d.None != "":
 		return errors.New("it names both an action and none")
-	case d.None != "" && d.Target != nil:
-		return errors.New("a none declaration takes no target")
+	case d.None != "" && d.Target != nil && d.Target.ID == "":
+		return errors.New("a none declaration's target must name the path parameter of the id a refused read is about")
 	case d.Target != nil && d.Target.Kind == "":
 		return errors.New("its target has no kind")
 	case d.Target != nil && d.Target.ID != "" && !strings.HasPrefix(d.Target.ID, pathSource):
@@ -83,13 +84,20 @@ var declaredRoutes = sync.OnceValues(func() (routeTable, error) {
 			if err != nil {
 				return nil, fmt.Errorf("%s %s: %s: %w", method, path, Extension, err)
 			}
-			if ok && d.Action != "" {
+			if ok && (d.Action != "" || d.Target != nil) {
 				routes[method+" "+APIPrefix+path] = d
 			}
 		}
 	}
 	return routes, nil
 })
+
+const codeNotFound = "not_found"
+
+func (d Declaration) hidesTarget(status int, code string) bool {
+	_, namesTarget := d.Target.PathParam()
+	return namesTarget && status == http.StatusNotFound && code == codeNotFound
+}
 
 func (t routeTable) lookup(method, template string) (Declaration, bool) {
 	d, ok := t[strings.ToUpper(method)+" "+template]

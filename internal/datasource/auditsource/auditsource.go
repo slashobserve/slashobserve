@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
@@ -43,7 +42,7 @@ var outcomeLevels = map[string]logvolume.Kind{
 type Store interface {
 	Rows(ctx context.Context, q filter.Query, w filter.Window, page filter.Page) ([]trail.Event, error)
 	Count(ctx context.Context, q filter.Query, w filter.Window, upTo int) (int64, error)
-	Aggregate(ctx context.Context, p trail.Prepared) (trail.Aggregation, error)
+	ReadAggregation(ctx context.Context, p trail.Prepared) (trail.Aggregation, error)
 }
 
 func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
@@ -58,7 +57,7 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 		MaxAggregations: maxAggregations,
 		KnownField:      filter.Known,
 		LevelKinds:      outcomeLevels,
-		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger, repeats: audit.NewRepeats()}},
+		HTTPClient:      &http.Client{Transport: &emulator{store: store, logger: logger}},
 	})
 	if err != nil {
 		return datasource.Instance{}, err
@@ -67,9 +66,8 @@ func Instance(store Store, logger *slog.Logger) (datasource.Instance, error) {
 }
 
 type emulator struct {
-	store   Store
-	logger  *slog.Logger
-	repeats *audit.Repeats
+	store  Store
+	logger *slog.Logger
 }
 
 func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -105,39 +103,6 @@ func (e *emulator) RoundTrip(req *http.Request) (*http.Response, error) {
 		ContentLength: int64(len(raw)),
 		Request:       req,
 	}, nil
-}
-
-func (e *emulator) noteRead(ctx context.Context, req searchRequest) {
-	scope, _ := audit.ScopeOf(ctx)
-	key, err := readKey(scope, req)
-	repeated := err == nil && e.repeats.SeenRecently(ctx, string(key), time.Now())
-	audit.NoteRead(ctx, audit.Read{Datasource: UID, From: req.window.From, To: req.window.To, Repeated: repeated})
-}
-
-func readKey(scope audit.Scope, req searchRequest) ([]byte, error) {
-	span := max(req.window.To.Sub(req.window.From).Round(time.Minute), time.Minute)
-	period := req.window.From.Truncate(span)
-	return json.Marshal([]any{scope.Method, scope.Route, req.clause, withoutBounds(req.aggs), req.size, req.from, req.ascending, span.String(), period.Unix()})
-}
-
-func withoutBounds(node any) any {
-	switch x := node.(type) {
-	case map[string]any:
-		out := make(map[string]any, len(x))
-		for key, child := range x {
-			if key != "extended_bounds" && key != "hard_bounds" {
-				out[key] = withoutBounds(child)
-			}
-		}
-		return out
-	case []any:
-		out := make([]any, len(x))
-		for i, child := range x {
-			out[i] = withoutBounds(child)
-		}
-		return out
-	}
-	return node
 }
 
 func (e *emulator) serve(ctx context.Context, method, path string, body []byte) (int, any, error) {

@@ -31,7 +31,7 @@ func (emptyTrail) Count(_ context.Context, q filter.Query, w filter.Window, upTo
 	return 0, nil
 }
 
-func (emptyTrail) Aggregate(_ context.Context, p trail.Prepared) (trail.Aggregation, error) {
+func (emptyTrail) ReadAggregation(_ context.Context, p trail.Prepared) (trail.Aggregation, error) {
 	agg, err := p.Query.Aggregate(p.Window)
 	if err != nil {
 		return trail.Aggregation{}, &trail.QueryRefused{Msg: err.Error()}

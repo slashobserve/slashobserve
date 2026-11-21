@@ -240,12 +240,13 @@ func (r *httpRig) reads(t *testing.T) []recordedRead {
 	return out
 }
 
-func TestOnlyASearchAndAnExportAreRecordedWithTheirQuery(t *testing.T) {
+func TestEveryReadOfTheTrailIsRecordedWithItsQueryAndView(t *testing.T) {
 	r := newHTTPRig(t)
 	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5), Actor: "secretname"}, trailtest.Event{At: r.at(-6)})
 	engine := r.engine(t, &admin)
 	const text = "actor_name:secretname"
-	aggs := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1s"},"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}}}`
+	unknown := trailtest.IDAt(r.base).String()
+	aggs := `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"10m"},"aggs":{"o":{"terms":{"field":"origin","size":1000}}}}}}`
 	for _, call := range []struct {
 		path  string
 		query url.Values
@@ -258,6 +259,10 @@ func TestOnlyASearchAndAnExportAreRecordedWithTheirQuery(t *testing.T) {
 		{"/audit/events", url.Values{"q": {"outcome:ok"}}},
 		{"/audit/export", url.Values{"q": {text}, "since": {"now-400d"}}},
 		{"/audit/aggregate", r.hourWindow(url.Values{"q": {aggs}})},
+		{"/audit/facets", r.hourWindow(url.Values{"q": {"outcome:ok"}, "field": {"origin"}})},
+		{"/audit/facets", r.hourWindow(url.Values{"field": {"nofield"}})},
+		{"/audit/events/" + unknown, nil},
+		{"/audit/fields", nil},
 	} {
 		r.get(t, engine, call.path, call.query)
 	}
@@ -265,19 +270,29 @@ func TestOnlyASearchAndAnExportAreRecordedWithTheirQuery(t *testing.T) {
 	since, until := r.base.Add(-time.Hour).Format(time.RFC3339Nano), r.base.Format(time.RFC3339Nano)
 	want := []recordedRead{
 		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "events", "row_count": 1.0}},
+		{"audit.search", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "view": "facets", "field": "origin", "row_count": 1.0}},
+		{"audit.search", "success", "", map[string]any{"form": "lucene", "since": since, "until": until, "query": "lucene: " + text, "view": "histogram", "row_count": 6.0}},
+		{"audit.search", "success", "", map[string]any{"form": "kql", "query": "id:" + ids[0], "view": "event", "row_count": 1.0}},
 		{"audit.export", "success", "", map[string]any{"form": "kql", "since": since, "until": until, "query": text, "format": "ndjson", "row_count": 1.0, "truncated": false}},
 		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
 		{"audit.export", "failed", "", map[string]any{"query": text}},
+		{"audit.search", "success", "", map[string]any{"form": "dsl", "since": since, "until": until, "query": aggs, "view": "aggregate"}},
+		{"audit.search", "failed", "", map[string]any{"query": "outcome:ok"}},
+		{"audit.search", "failed", "", map[string]any{"form": "kql", "since": since, "until": until, "view": "facets", "field": "nofield"}},
+		{"audit.search", "failed", "", map[string]any{"query": "id:" + unknown, "view": "event"}},
 	}
 	if len(reads) != len(want) {
 		t.Fatalf("recorded %d reads: %+v", len(reads), reads)
 	}
 	for i, got := range reads {
 		w := want[i]
-		gotData, _ := json.Marshal(got.data)
-		wantData, _ := json.Marshal(w.data)
-		if got.action != w.action || got.outcome != w.outcome || got.targetKind != w.targetKind || string(gotData) != string(wantData) {
+		if got.action != w.action || got.outcome != w.outcome || got.targetKind != w.targetKind {
 			t.Errorf("read %d = %+v, want %+v", i, got, w)
+		}
+		for key, value := range w.data {
+			if got.data[key] != value {
+				t.Errorf("read %d %s = %v, want %v in %+v", i, key, got.data[key], value, got)
+			}
 		}
 	}
 }
@@ -316,24 +331,64 @@ func TestARepeatedSearchIsRecordedOncePerActorAndQueryInTenMinutes(t *testing.T)
 	}
 }
 
-func TestFacetsHistogramAggregateFieldsAndEventReadsRecordNothing(t *testing.T) {
+func TestARepeatOfAFacetHistogramAggregateOrEventReadIsRecordedOncePerViewAndQuery(t *testing.T) {
 	r := newHTTPRig(t)
 	ids := trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5)})
+	clock := r.base
+	r.reader.now = func() time.Time { return clock }
 	engine := r.engine(t, &admin)
-	for _, path := range []string{"/audit/facets?field=origin", "/audit/histogram", "/audit/fields", "/audit/events/" + ids[0],
-		"/audit/aggregate?q=" + url.QueryEscape(`{"aggs":{"o":{"terms":{"field":"origin"}}}}`),
-		"/audit/facets?field=nofield", "/audit/histogram?q=outcome:ok", "/audit/events/" + ids[0] + "?q=x"} {
-		r.get(t, engine, path, r.hourWindow(nil))
+	aggs := url.QueryEscape(`{"aggs":{"o":{"terms":{"field":"origin"}}}}`)
+	paths := []string{"/audit/facets?field=origin", "/audit/facets?field=actor_name", "/audit/histogram", "/audit/events/" + ids[0], "/audit/aggregate?q=" + aggs, "/audit/events"}
+	for range 2 {
+		for _, path := range paths {
+			if rec := r.get(t, engine, path, r.hourWindow(nil)); rec.Code != http.StatusOK {
+				t.Fatalf("%s = %d %s", path, rec.Code, rec.Body)
+			}
+		}
+	}
+	clock = clock.Add(11 * time.Minute)
+	r.get(t, engine, "/audit/histogram", r.hourWindow(nil))
+	var views []string
+	for _, read := range r.reads(t) {
+		view, _ := read.data["view"].(string)
+		field, _ := read.data["field"].(string)
+		views = append(views, view+" "+field)
+	}
+	want := []string{"facets origin", "facets actor_name", "histogram ", "event ", "aggregate ", "events ", "histogram "}
+	if !slices.Equal(views, want) {
+		t.Fatalf("recorded %q, want %q", views, want)
+	}
+}
+
+func TestReadingTheFieldListRecordsNothing(t *testing.T) {
+	r := newHTTPRig(t)
+	engine := r.engine(t, &admin)
+	if rec := r.get(t, engine, "/audit/fields", nil); rec.Code != http.StatusOK {
+		t.Fatalf("fields = %d %s", rec.Code, rec.Body)
 	}
 	if reads := r.reads(t); len(reads) != 0 {
 		t.Fatalf("recorded %+v, want nothing", reads)
 	}
 }
 
+func TestAReadByAnotherAdminIsRecordedAgain(t *testing.T) {
+	r := newHTTPRig(t)
+	ada := r.engine(t, &admin)
+	other := admin
+	other.ID = "8e2d3b63-9d6f-4b64-8b4f-2e3e5d1b0c22"
+	grace := r.engine(t, &other)
+	for _, engine := range []*gin.Engine{ada, grace, ada} {
+		r.get(t, engine, "/audit/histogram", r.hourWindow(nil))
+	}
+	if reads := r.reads(t); len(reads) != 2 {
+		t.Fatalf("recorded %d reads, want one for each admin: %+v", len(reads), reads)
+	}
+}
+
 func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
 	r := newHTTPRig(t)
 	engine := r.engine(t, &admin)
-	text := "actor_name:" + strings.Repeat("a", 2*MaxRecordedQueryBytes)
+	text := "actor_name:" + strings.Repeat("a", 2*audit.MaxQueryBytes)
 	if rec := r.get(t, engine, "/audit/events", r.hourWindow(url.Values{"q": {text}})); rec.Code != http.StatusOK {
 		t.Fatalf("search = %d %s", rec.Code, rec.Body)
 	}
@@ -342,7 +397,7 @@ func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
 		t.Fatalf("recorded %+v", reads)
 	}
 	got, _ := reads[0].data["query"].(string)
-	if got != text[:MaxRecordedQueryBytes]+truncatedMark {
+	if got != text[:audit.MaxQueryBytes]+" [truncated]" {
 		t.Fatalf("recorded a %d byte query ending %q", len(got), got[max(0, len(got)-20):])
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -304,5 +305,47 @@ func TestAnMCPCallRefusedForTooManyRequestsIsRecordedWithTheMCPOriginAndItsKey(t
 	got := a.only(t, "request.refuse")
 	if got.outcome != "denied" || got.status != 429 || got.origin != "mcp" || got.authMethod != "api_key" || got.actorKind != "service_account" || got.credentialID != "key-1" {
 		t.Fatalf("event = %+v", got)
+	}
+}
+
+func TestAToolCallThatQueriedRecordsEachDatasourceAsAQueryRunWithItsTextAndFoldsARepeat(t *testing.T) {
+	f := newFixture(t)
+	long := strings.Repeat("a", 2*audit.MaxQueryBytes)
+	f.handler.(*handler).call = func(ctx context.Context, _ string, input json.RawMessage) (tools.Result, error) {
+		var in struct{ Query string }
+		if err := json.Unmarshal(input, &in); err != nil {
+			return tools.Result{}, err
+		}
+		from := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+		audit.NoteQuery(ctx, audit.Query{Datasource: "prom", Text: in.Query, From: from, To: from.Add(15 * time.Minute), Rows: 4})
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	a := mountAudited(t, f.handler)
+	a.call(t, oauthTakes, "query_range", map[string]string{"query": "up"})
+	a.call(t, oauthTakes, "query_range", map[string]string{"query": "up"})
+	a.call(t, oauthTakes, "query_range", map[string]string{"query": long})
+	events := a.events(t, "query.run")
+	if len(events) != 2 {
+		t.Fatalf("query.run events = %+v, want one for up and one for the long query, the repeat of up folded", events)
+	}
+	first := events[0]
+	if first.outcome != "success" || first.tool != "query_range" || first.origin != "mcp" || first.targetKind != "datasource" || first.targetID != "prom" || first.actorName != "Ada" {
+		t.Fatalf("event = %+v", first)
+	}
+	var data map[string]any
+	if err := json.Unmarshal([]byte(first.data), &data); err != nil {
+		t.Fatal(err)
+	}
+	if data["query"] != "up" || data["row_count"] != float64(4) || data["from"] != "2026-11-21T10:00:00Z" || data["to"] != "2026-11-21T10:15:00Z" {
+		t.Fatalf("data = %v", data)
+	}
+	if err := json.Unmarshal([]byte(events[1].data), &data); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := data["query"].(string); len(got) != audit.MaxQueryBytes+len(" [truncated]") {
+		t.Fatalf("a %d byte query was recorded as %d bytes", len(long), len(got))
+	}
+	if got := len(a.events(t, "agent.tool_call")); got != 3 {
+		t.Fatalf("tool calls = %d, want every call recorded", got)
 	}
 }

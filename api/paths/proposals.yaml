@@ -8,7 +8,7 @@ dashboards-id-proposals:
         format: uuid
   get:
     operationId: listProposals
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [list_proposals]
       cli: [observe proposals list]
@@ -68,7 +68,7 @@ proposals-id:
         format: uuid
   get:
     operationId: getProposal
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: proposal, id: path.id } }
     x-surfaces:
       mcp: [get_proposal]
       cli: [observe proposals show]

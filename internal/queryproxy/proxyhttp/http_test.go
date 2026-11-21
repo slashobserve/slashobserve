@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -302,6 +303,31 @@ type harness struct {
 	runner *queryproxy.Runner
 	id     pgtype.UUID
 	logs   *bytes.Buffer
+	notes  *queryNotes
+}
+
+type queryNotes struct {
+	mu        sync.Mutex
+	last      []audit.Query
+	concluded *audit.Result
+}
+
+func (n *queryNotes) set(q []audit.Query, concluded *audit.Result) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.last, n.concluded = q, concluded
+}
+
+func (hn *harness) concluded() *audit.Result {
+	hn.notes.mu.Lock()
+	defer hn.notes.mu.Unlock()
+	return hn.notes.concluded
+}
+
+func (hn *harness) noted() []audit.Query {
+	hn.notes.mu.Lock()
+	defer hn.notes.mu.Unlock()
+	return hn.notes.last
 }
 
 func newHarness(t *testing.T, opts ...queryproxy.RunnerOption) *harness {
@@ -349,7 +375,10 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 
 	router := gin.New()
 	api := router.Group("/api/v1")
+	notes := &queryNotes{}
 	api.Use(func(c *gin.Context) {
+		ctx := audit.Open(c.Request.Context(), audit.Scope{})
+		c.Request = c.Request.WithContext(ctx)
 		principal := c.GetHeader("X-Principal")
 		if principal == "" {
 			principal = "alice"
@@ -363,9 +392,15 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 			role = auth.RoleAdmin
 		}
 		signIn(c, auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal, Role: role})
+		c.Next()
+		var concluded *audit.Result
+		if r, ok := audit.Concluded(ctx); ok {
+			concluded = &r
+		}
+		notes.set(audit.Noted(ctx), concluded)
 	})
 	h.Register(auth.NewRoutes(api))
-	return &harness{t: t, access: access, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs}
+	return &harness{t: t, access: access, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs, notes: notes}
 }
 
 func (hn *harness) dashboardPath(suffix string) string {

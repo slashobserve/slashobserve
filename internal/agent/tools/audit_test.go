@@ -259,7 +259,7 @@ func TestAuditToolsReadFacetsHistogramAggregateAndOneEvent(t *testing.T) {
 	}
 }
 
-func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) {
+func TestEveryAuditToolReadIsRecordedAsThatToolOverMCP(t *testing.T) {
 	r := newAuditToolRig(t)
 	recorder := audit.New(audit.Config{DB: r.db.DB, Server: "test", Version: "test", Logger: slog.New(slog.DiscardHandler)})
 	audit.Install(recorder)
@@ -284,6 +284,7 @@ func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) 
 		{nameListAuditFacets, facets},
 		{nameGetAuditHistogram, r.window()},
 		{nameAggregateAuditEvents, aggregate},
+		{nameListAuditFields, map[string]any{}},
 	}
 	caller := origin.With(auth.WithPrincipal(t.Context(), adminCaller), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
 	for _, c := range calls {
@@ -297,7 +298,7 @@ func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) 
 	}
 	stop()
 	<-done
-	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT tool || ' ' || origin || ' ' || coalesce(origin_client, '') || ' ' || coalesce(actor_name, '') FROM audit_events WHERE action = 'audit.search' ORDER BY seq`)
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT tool || ' ' || origin || ' ' || coalesce(origin_client, '') || ' ' || coalesce(actor_name, '') || ' ' || (data->>'view') FROM audit_events WHERE action = 'audit.search' ORDER BY seq`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +314,14 @@ func TestOnlyTheAuditSearchToolReadIsRecordedAndAsThatToolOverMCP(t *testing.T) 
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{nameSearchAuditEvents + " mcp claude-code " + adminCaller.Name}
+	tag := " mcp claude-code " + adminCaller.Name + " "
+	want := []string{
+		nameSearchAuditEvents + tag + "events",
+		nameGetAuditEvent + tag + "event",
+		nameListAuditFacets + tag + "facets",
+		nameGetAuditHistogram + tag + "histogram",
+		nameAggregateAuditEvents + tag + "aggregate",
+	}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("recorded %q, want %q", got, want)
 	}

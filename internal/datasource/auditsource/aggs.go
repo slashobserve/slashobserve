@@ -93,7 +93,7 @@ func (e *emulator) aggregate(ctx context.Context, clause map[string]any, w filte
 		if err != nil {
 			return nil, err
 		}
-		agg, err := e.store.Aggregate(ctx, trail.Prepared{Query: q, Window: w})
+		agg, err := e.store.ReadAggregation(ctx, trail.Prepared{Query: q, Window: w})
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +229,7 @@ func (e *emulator) bucketGroup(ctx context.Context, clause map[string]any, w fil
 		if depth < len(chain)-1 {
 			prefix = filter.Query{Clause: clause, Aggs: []filter.Agg{prefixAgg(chain, depth)}}
 		}
-		agg, err := e.store.Aggregate(ctx, trail.Prepared{Query: prefix, Window: w})
+		agg, err := e.store.ReadAggregation(ctx, trail.Prepared{Query: prefix, Window: w})
 		if err != nil {
 			return nil, err
 		}

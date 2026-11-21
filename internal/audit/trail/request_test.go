@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -172,22 +171,6 @@ func TestBucketsStartWhereTheDatabaseBinsThem(t *testing.T) {
 	}
 	if got := binStart(now.Add(90*time.Minute), time.Hour); got != now.Add(time.Hour) {
 		t.Errorf("an hour bucket starts %s", got)
-	}
-}
-
-func TestARecordedQueryIsCutAtARuneBoundary(t *testing.T) {
-	if got := recordedQuery("outcome:denied"); got != "outcome:denied" {
-		t.Errorf("a short query became %q", got)
-	}
-	for _, char := range []string{"é", "€", "😀"} {
-		for lead := MaxRecordedQueryBytes - len(char); lead <= MaxRecordedQueryBytes; lead++ {
-			long := strings.Repeat("a", lead) + char + "tail"
-			got := recordedQuery(long)
-			kept := strings.TrimSuffix(got, truncatedMark)
-			if !utf8.ValidString(got) || len(got) > MaxRecordedQueryBytes+len(truncatedMark) || kept == got || !strings.HasPrefix(long, kept) || len(kept) < MaxRecordedQueryBytes-len(char)+1 {
-				t.Errorf("%q after %d bytes became %d bytes ending %q", char, lead, len(got), got[len(got)-20:])
-			}
-		}
 	}
 }
 

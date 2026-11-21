@@ -73,12 +73,13 @@ func TestAnOpenTailIsRecordedAsAStreamedQueryRun(t *testing.T) {
 	stop()
 	<-done
 
-	var action, outcome, targetID, data string
-	err = d.SQLDB(t).QueryRowContext(t.Context(), `SELECT action, outcome, target_id, data::text FROM audit_events`).Scan(&action, &outcome, &targetID, &data)
+	var action, outcome, targetID, stream, query, rows, from string
+	var to *string
+	err = d.SQLDB(t).QueryRowContext(t.Context(), `SELECT action, outcome, target_id, data->>'stream', data->>'query', data->>'row_count', data->>'from', data->>'to' FROM audit_events`).Scan(&action, &outcome, &targetID, &stream, &query, &rows, &from, &to)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if action != "query.run" || outcome != "success" || targetID != "logs" || data != `{"stream": true}` {
-		t.Fatalf("event = %s %s on %s with data %s, want a successful query.run on logs marked as a stream", action, outcome, targetID, data)
+	if action != "query.run" || outcome != "success" || targetID != "logs" || stream != "true" || query != `{app="shop"}` || rows != "1" || from == "" || to != nil {
+		t.Fatalf("event = %s %s on %s stream %s query %s rows %s from %s to %v, want a successful streamed query.run with its text, first rows and start", action, outcome, targetID, stream, query, rows, from, to)
 	}
 }

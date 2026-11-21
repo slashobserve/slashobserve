@@ -7,7 +7,7 @@ datasources-uid-metrics:
         type: string
   get:
     operationId: listDatasourceMetrics
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [list_metrics]
       cli: [observe datasources metrics]
@@ -76,7 +76,7 @@ datasources-uid-labels:
         type: string
   get:
     operationId: listDatasourceLabels
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [list_labels]
       cli: [observe datasources labels]
@@ -188,7 +188,7 @@ datasources-uid-labels-name-values:
         maxLength: 256
   get:
     operationId: listDatasourceLabelValues
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [list_label_values]
       cli: [observe datasources label-values]
@@ -295,7 +295,7 @@ datasources-uid-services:
         type: string
   get:
     operationId: listDatasourceServices
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [list_services]
       cli: [observe datasources services]

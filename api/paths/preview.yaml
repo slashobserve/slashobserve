@@ -13,6 +13,7 @@ datasources-uid-preview:
       The draft replaces the panel `panel_id` of the given version, or is added to it as a new top-level panel when the version has none with that id, the result is validated as a whole like a save (the draft must keep the id `panel_id`, and its datasource and every query's must be or resolve to the datasource in the path), and the draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows).
       Only signed-in users with Comment on the dashboard may call it, so a Commenter can see a draft while suggesting an edit: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`.
       Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Every call is recorded in the audit trail as `query.run` with the query text (cut at 4 KiB), the range and the row count, once per caller, datasource, query text and period in 10 minutes when it succeeds; a failed or refused call is recorded every time.
       `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data: `from` and `to` default to the version's `time`, `max_data_points` defaults to 1000 and is capped by the draft's `maxDataPoints`,
       and each variable lists its selected values, with `$__all` selecting All; a variable that is not given gets its default.
       Every query runs as a range query unless it sets `instant` or the panel is a table or logs panel.

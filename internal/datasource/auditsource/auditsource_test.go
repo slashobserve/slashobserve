@@ -50,7 +50,7 @@ func (f *fakeStore) Count(_ context.Context, q filter.Query, w filter.Window, up
 	return min(f.count, int64(upTo)), nil
 }
 
-func (f *fakeStore) Aggregate(_ context.Context, p trail.Prepared) (trail.Aggregation, error) {
+func (f *fakeStore) ReadAggregation(_ context.Context, p trail.Prepared) (trail.Aggregation, error) {
 	agg, err := p.Query.Aggregate(p.Window)
 	if err != nil {
 		return trail.Aggregation{}, &trail.QueryRefused{Msg: err.Error()}
