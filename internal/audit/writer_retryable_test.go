@@ -9,6 +9,17 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+func TestOnlyAUniqueViolationCountsAsAlreadyStored(t *testing.T) {
+	if !alreadyStored(fmt.Errorf("copy: %w", &pgconn.PgError{Code: "23505"})) {
+		t.Error("a unique violation was not read as already stored")
+	}
+	for _, err := range []error{&pgconn.PgError{Code: "23514"}, context.DeadlineExceeded, errors.New("unexpected")} {
+		if alreadyStored(err) {
+			t.Errorf("alreadyStored(%v) = true", err)
+		}
+	}
+}
+
 func TestWhichWriteFailuresAreRetried(t *testing.T) {
 	cases := []struct {
 		err  error

@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	uniqueViolation       = "23505"
 	lockNotAvailable      = "55P03"
 	connectionException   = "08"
 	insufficientResources = "53"
@@ -61,12 +62,28 @@ func (l writerLimits) orDefaults() writerLimits {
 	return l
 }
 
+type heldBatch struct {
+	rows []dbsqlc.InsertAuditEventParams
+	lost int64
+}
+
+func (h *heldBatch) events() int {
+	if h == nil {
+		return 0
+	}
+	if h.lost > 0 {
+		return weigh(h.rows) - 1
+	}
+	return weigh(h.rows)
+}
+
 type Writer struct {
 	recorder *Recorder
 	limits   writerLimits
 	queue    chan dbsqlc.InsertAuditEventParams
 	folds    *folds
 	lost     atomic.Int64
+	held     *heldBatch
 }
 
 func newWriter(r *Recorder, limits writerLimits) *Writer {
@@ -149,7 +166,8 @@ func (w *Writer) stop(ctx context.Context, batch []dbsqlc.InsertAuditEventParams
 func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) {
 	for {
 		if ctx.Err() != nil {
-			w.recorder.metrics.EventsDropped(DroppedWriteFailed, weigh(batch)+len(w.queue))
+			w.recorder.metrics.EventsDropped(DroppedWriteFailed, weigh(batch)+len(w.queue)+w.held.events())
+			w.held = nil
 			return
 		}
 		select {
@@ -160,6 +178,7 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 			}
 		default:
 			w.discard(w.flush(ctx, batch))
+			w.abandonHeld()
 			return
 		}
 	}
@@ -167,6 +186,9 @@ func (w *Writer) drain(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 
 func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) []dbsqlc.InsertAuditEventParams {
 	w.recorder.metrics.BufferedEvents(len(w.queue))
+	if !w.retryHeld(ctx) {
+		return batch
+	}
 	lost := w.lost.Swap(0)
 	rows := batch
 	if lost > 0 {
@@ -181,13 +203,46 @@ func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 	if err == nil {
 		return batch[:0]
 	}
-	w.lost.Add(lost)
 	w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
 	if retryable(err) {
-		return batch
+		w.held = &heldBatch{rows: slices.Clone(rows), lost: lost}
+		return batch[:0]
 	}
+	w.lost.Add(lost)
 	w.discard(batch)
 	return batch[:0]
+}
+
+func (w *Writer) retryHeld(ctx context.Context) bool {
+	if w.held == nil {
+		return true
+	}
+	err := w.write(ctx, w.held.rows)
+	switch {
+	case err == nil:
+	case alreadyStored(err):
+		w.recorder.logger.InfoContext(ctx, "audit batch was already stored by an earlier attempt")
+	case retryable(err):
+		w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
+		return false
+	default:
+		w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
+		w.abandonHeld()
+	}
+	w.held = nil
+	return true
+}
+
+func (w *Writer) abandonHeld() {
+	if w.held == nil {
+		return
+	}
+	events := w.held.events()
+	if events > 0 {
+		w.recorder.metrics.EventsDropped(DroppedWriteFailed, events)
+	}
+	w.lost.Add(int64(events) + w.held.lost)
+	w.held = nil
 }
 
 func (w *Writer) write(ctx context.Context, batch []dbsqlc.InsertAuditEventParams) error {
@@ -210,6 +265,11 @@ func (w *Writer) discard(batch []dbsqlc.InsertAuditEventParams) {
 	}
 	w.recorder.metrics.EventsDropped(DroppedWriteFailed, events)
 	w.lost.Add(int64(events))
+}
+
+func alreadyStored(err error) bool {
+	var failure *pgconn.PgError
+	return errors.As(err, &failure) && failure.Code == uniqueViolation
 }
 
 func retryable(err error) bool {
