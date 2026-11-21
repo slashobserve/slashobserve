@@ -28,6 +28,7 @@ const maxLinksPerObservation = 20
 
 var (
 	ErrRCAPersonalFolder = errors.New("an observation in My Dashboards cannot have a public link")
+	ErrRCAAdminsOnly     = errors.New("an observation in a folder only Admins can read cannot have a public link; move it to another folder first")
 	ErrRCAUserScoped     = errors.New("a snapshot in this RCA shows data that depends on who is viewing, so it cannot be shared publicly")
 	ErrTooManyRCALinks   = fmt.Errorf("an observation has at most %d public links; revoke one first", maxLinksPerObservation)
 )
@@ -84,16 +85,21 @@ type ResolvedRCA struct {
 }
 
 func (s *Service) manageRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID) error {
+	_, err := s.managedRCA(ctx, by, observationID)
+	return err
+}
+
+func (s *Service) managedRCA(ctx context.Context, by auth.Principal, observationID pgtype.UUID) (observations.Placement, error) {
 	placement, err := s.rcas.Access(ctx, by, observationID)
 	switch {
 	case err != nil:
-		return err
+		return observations.Placement{}, err
 	case placement.Personal:
-		return ErrRCAPersonalFolder
+		return observations.Placement{}, ErrRCAPersonalFolder
 	case !placement.Abilities.Manage:
-		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", placement.Title))
+		return observations.Placement{}, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", placement.Title))
 	}
-	return nil
+	return placement, nil
 }
 
 func rcaLinkOf(row dbsqlc.ListRCAPublicLinksRow, revision int, now time.Time) RCALink {
@@ -110,8 +116,12 @@ func rcaLinkOf(row dbsqlc.ListRCAPublicLinksRow, revision int, now time.Time) RC
 }
 
 func (s *Service) CreateRCALink(ctx context.Context, by auth.Principal, observationID pgtype.UUID, revision int, in CreateRCAInput) (CreatedRCA, error) {
-	if err := s.manageRCA(ctx, by, observationID); err != nil {
+	place, err := s.managedRCA(ctx, by, observationID)
+	if err != nil {
 		return CreatedRCA{}, err
+	}
+	if place.AdminsOnly {
+		return CreatedRCA{}, ErrRCAAdminsOnly
 	}
 	rca, err := s.rcas.GetRCA(ctx, by, observationID, revision)
 	if err != nil {

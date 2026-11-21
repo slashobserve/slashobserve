@@ -1860,6 +1860,10 @@ components:
                 type: string
               folder_title:
                 type: string
+        hidden:
+          type: integer
+          minimum: 1
+          description: How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none.
     DatasourceInUseError:
       type: object
       additionalProperties: false

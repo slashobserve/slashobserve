@@ -2984,7 +2984,7 @@ export interface paths {
         put?: never;
         /**
          * Save one dashboard file from a dashboards-as-code directory.
-         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), and 409 `version_conflict` when another save landed during the apply.
+         * @description Editors and Admins can call this endpoint; `observe dashboards apply` calls it once per file. `path` is the file's path relative to the applied directory, with `/` between directories: a file name, or a folder directory and a file name. The directory names the folder, with `%` written as `%25` and `/` as `%2F`, and a file at the root goes to General. A path that was applied before saves into the same dashboard. Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet. A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version. Apply never deletes a dashboard. It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), 409 `version_conflict` when another save landed during the apply, and 409 `restricted_content` when the dashboard reads a datasource only Admins can query and its folder is not one only Admins can read.
          */
         post: operations["applyDashboardFile"];
         delete?: never;
@@ -4784,6 +4784,8 @@ export interface components {
                 folder_id: string;
                 folder_title: string;
             }[];
+            /** @description How many more items that block a datasource change are in people's My Dashboards, which nobody else can open; absent when there are none. */
+            hidden?: number;
         };
         DatasourceInUseError: {
             error: string;
@@ -9366,13 +9368,13 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). */
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request carries credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -9740,6 +9742,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -9866,7 +9877,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description The request conflicts with existing state. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             500: components["responses"]["Internal"];
         };
     };
@@ -9969,7 +9988,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["VersionConflict"];
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -10039,7 +10066,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["VersionConflict"];
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -10137,7 +10172,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["VersionConflict"];
+            /** @description The parent version is no longer the latest; `latest_version` names the current one. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -10180,6 +10223,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -10310,7 +10362,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["ProposalForbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["ProposalMergeConflict"];
+            /** @description The dashboard has newer versions that changed the same panels, variables or settings (`version_conflict`, with `conflicts`), the proposal has a newer revision than the one named (`proposal_changed`), or the proposal is no longer open (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionConflict"] | components["schemas"]["ProposalChanged"] | components["schemas"]["InvalidTransition"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
@@ -11433,13 +11493,13 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). */
+            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, and `hidden` counts those in people's My Dashboards, which an Admin cannot open. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -13688,13 +13748,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -13733,13 +13793,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request has no answer to save (`no_answer`). */
+            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -14010,13 +14070,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). */
+            /** @description The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -14048,13 +14108,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The finding has no evidence panels (`finding_has_no_evidence`). */
+            /** @description The finding has no evidence panels (`finding_has_no_evidence`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["InvalidSpec"];
@@ -14355,7 +14415,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            409: components["responses"]["ObservationConflict"];
+            /** @description The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["InvalidTransition"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             500: components["responses"]["Internal"];
         };
@@ -14450,6 +14518,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description The refusals of `ObservationInvalid`, or a query of a snapshot's panel cannot run, with the codes of panel data (`query_invalid`, `query_forbidden`, `limit_exceeded`, `unknown_datasource`, `variable_empty`, `expression_error`). */
             422: {
@@ -14538,7 +14615,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["BlockWriteConflict"];
+            /** @description The block's version is not the one named (`version_conflict`, with the current block), or the action is not allowed in the block's state (`invalid_transition`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockConflict"] | components["schemas"]["InvalidTransition"] | components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             422: components["responses"]["ObservationInvalid"];
             500: components["responses"]["Internal"];
@@ -14582,13 +14667,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). */
+            /** @description The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];
@@ -14632,13 +14717,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation has no live panel block (`observation_has_no_panels`). */
+            /** @description The observation has no live panel block (`observation_has_no_panels`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             422: components["responses"]["InvalidSpec"];
@@ -14683,6 +14768,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictedContentError"];
+                };
+            };
             422: components["responses"]["InvalidSpec"];
             500: components["responses"]["Internal"];
         };
@@ -15056,7 +15150,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The observation already has the most links it may keep (`too_many_links`). */
+            /** @description The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -15169,6 +15263,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictedContentError"];
+                };
+            };
             413: components["responses"]["TooLarge"];
             /** @description A field breaks a rule (`invalid_saved_search`), the datasource does not exist (`unknown_datasource`), does not fit the kind (`unsupported_datasource`) or a key's query fails the lint check (`query_invalid`). */
             422: {
@@ -15235,13 +15338,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The target is a personal folder (`personal_folder`). */
+            /** @description The target is a personal folder (`personal_folder`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -15534,13 +15637,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). */
+            /** @description The caller can see a dashboard that already holds this Grafana uid and the body set `refuse_existing` (`already_imported`); `existing` names it and says whether the caller can update it. Or `update_dashboard` names a dashboard that was imported from another Grafana dashboard than the file (`grafana_uid_mismatch`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AlreadyImported"] | components["schemas"]["Error"];
+                    "application/json": components["schemas"]["AlreadyImported"] | components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
@@ -16860,7 +16963,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard is in My Dashboards (`personal_folder`); move it to a shared folder first. */
+            /** @description The dashboard is in My Dashboards (`personal_folder`) or in a folder only Admins can read (`admins_only_folder`); move it to a shared folder first. */
             409: {
                 headers: {
                     [name: string]: unknown;

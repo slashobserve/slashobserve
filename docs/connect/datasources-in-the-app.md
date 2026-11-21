@@ -29,6 +29,16 @@ Every other role, key and public link gets the same answer for it as for a datas
 A change that leaves the audience out keeps it, and `"audience": "everyone"` opens the datasource again.
 The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call, and the Datasources page does not show or change it yet.
 
+A dashboard, proposal, observation or saved search that reads an Admins-only datasource lives only in a [folder only Admins can read](../teams/folders.md).
+That counts a panel or query that names it, and a datasource variable whose default or fixed options name it, and a snapshot taken from such a panel.
+Saving, importing, applying or proposing one anywhere else is refused with `409 restricted_content`, which names the datasource and says to use a folder only Admins can read, and so is moving it out to another kind of folder.
+Every version of a dashboard and every revision of its proposals count for a move, because the history stays readable.
+The same answer reaches the web app, the agent, MCP tools, the CLI, files applied with `observe dashboards apply`, the provisioning directory and the Grafana import.
+
+Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
+`items` lists up to 20 of them with their kind, id, title and folder, so an Admin can move them first, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
+`observe datasources edit` prints the same list.
+
 ## Credentials are write-only
 
 A password, bearer token, API key or request header value is stored encrypted with `SLASHOBSERVE_SECRET_KEY` and is never shown again.

@@ -245,7 +245,7 @@ func (q *Queries) RCAHasUserScopedSnapshot(ctx context.Context, rcaID pgtype.UUI
 }
 
 const rCASnapshot = `-- name: RCASnapshot :one
-SELECT s.id, s.observation_id, s.panel, s.query, s.frames, s.user_scoped, s.time_from, s.time_to, s.created_by_kind, s.created_by_id, s.created_by_name, s.origin, s.origin_client, s.run_id, s.created_at FROM snapshots s WHERE s.id = $1 AND s.observation_id = $2
+SELECT s.id, s.observation_id, s.panel, s.query, s.frames, s.user_scoped, s.time_from, s.time_to, s.created_by_kind, s.created_by_id, s.created_by_name, s.origin, s.origin_client, s.run_id, s.created_at, s.datasource_uids FROM snapshots s WHERE s.id = $1 AND s.observation_id = $2
 `
 
 type RCASnapshotParams struct {
@@ -272,6 +272,7 @@ func (q *Queries) RCASnapshot(ctx context.Context, arg RCASnapshotParams) (Snaps
 		&i.OriginClient,
 		&i.RunID,
 		&i.CreatedAt,
+		&i.DatasourceUids,
 	)
 	return i, err
 }

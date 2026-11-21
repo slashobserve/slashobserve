@@ -365,7 +365,7 @@ func run() error {
 	activityStore := activity.NewStore(database, folderAccess)
 	searchService := search.New(database, folderAccess, cfg.PublicURL)
 	savedSearchesService := savedsearches.New(database, folderAccess, registry, cfg.PublicURL, logger)
-	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService))
+	observationsService := observations.New(database, folderAccess, proxyHandler, cfg.PublicURL, logger, observations.WithOutputs(dashboardsService, annotationsService), observations.WithPlacement(dashboardsService.Placement()))
 	findingsService, err := findings.New(database, folderAccess, annotationsService, dashboardsService, observationsService, logger)
 	if err != nil {
 		return described("findings_setup_failed", err)
@@ -522,7 +522,7 @@ func run() error {
 		DatasourceUsage: dashboardsService,
 		API: []server.Registrar{
 			dashboardsService,
-			folders.NewHandler(database, folderAccess, logger).SettleSharingWith(accessRequests.SettleFolder),
+			folders.NewHandler(database, folderAccess, logger).SettleSharingWith(accessRequests.SettleFolder).GuardOpeningWith(dashboardsService.Placement().OpeningGuard()),
 			accessrequests.NewHandler(accessRequests, logger),
 			proposals.NewHandler(proposalsService, folderAccess.RequireDashboard(folders.NeedView), logger),
 			imports.NewHandler(importsService, folderAccess),

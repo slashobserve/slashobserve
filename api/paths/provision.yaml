@@ -68,7 +68,7 @@ provision-apply:
       Otherwise the one dashboard in that folder whose title matches the Spec's title, compared case-insensitively, is adopted, and the path is bound to it; when no dashboard matches a new one is created, with the folder when it does not exist yet.
       A version is saved as the caller, with the summary `Applied from <path>`, only when the file changed since it was last applied and differs from the latest version.
       Apply never deletes a dashboard.
-      It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), and 409 `version_conflict` when another save landed during the apply.
+      It answers 409 `ambiguous` when more than one dashboard in the folder has the title, 409 `provisioned` when the dashboard comes from the server's provisioning directory, 409 `folder_exists` when the file's folder exists but the caller cannot see it (the same answer as creating a folder with that name), 409 `version_conflict` when another save landed during the apply, and 409 `restricted_content` when the dashboard reads a datasource only Admins can query and its folder is not one only Admins can read.
     requestBody:
       required: true
       content:

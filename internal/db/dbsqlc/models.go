@@ -772,21 +772,22 @@ type Session struct {
 }
 
 type Snapshot struct {
-	ID            pgtype.UUID
-	ObservationID pgtype.UUID
-	Panel         []byte
-	Query         []byte
-	Frames        []byte
-	UserScoped    bool
-	TimeFrom      pgtype.Timestamptz
-	TimeTo        pgtype.Timestamptz
-	CreatedByKind string
-	CreatedByID   pgtype.UUID
-	CreatedByName string
-	Origin        pgtype.Text
-	OriginClient  pgtype.Text
-	RunID         pgtype.UUID
-	CreatedAt     pgtype.Timestamptz
+	ID             pgtype.UUID
+	ObservationID  pgtype.UUID
+	Panel          []byte
+	Query          []byte
+	Frames         []byte
+	UserScoped     bool
+	TimeFrom       pgtype.Timestamptz
+	TimeTo         pgtype.Timestamptz
+	CreatedByKind  string
+	CreatedByID    pgtype.UUID
+	CreatedByName  string
+	Origin         pgtype.Text
+	OriginClient   pgtype.Text
+	RunID          pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	DatasourceUids []string
 }
 
 type Team struct {

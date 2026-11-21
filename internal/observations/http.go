@@ -852,6 +852,7 @@ func abortKnown(c *gin.Context, err error) bool {
 	var refusal *lifecycle.Refusal
 	var badSpec *dashboards.InvalidSpecError
 	switch {
+	case folders.AbortRestricted(c, err):
 	case errors.As(err, &badSpec):
 		httpapi.AbortInvalidSpec(c, "spec is invalid", badSpec.Issues)
 	case errors.As(err, &refusal):

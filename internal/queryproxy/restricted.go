@@ -13,26 +13,54 @@ func (r *Runner) UsesRestricted(d *spec.Dashboard) bool {
 }
 
 func DashboardUsesRestricted(d *spec.Dashboard, reg *datasource.Registry) bool {
+	_, found := FirstRestricted(DatasourceRefs(d), reg.AdminsOnly)
+	return found
+}
+
+func FirstRestricted(refs []string, adminsOnly func(uid string) bool) (string, bool) {
+	for _, ref := range refs {
+		if adminsOnly(ref) {
+			return ref, true
+		}
+	}
+	return "", false
+}
+
+func DatasourceRefs(d *spec.Dashboard) []string {
 	if d == nil {
-		return false
+		return nil
 	}
-	restricted := func(ref string) bool { return ref != "" && reg.AdminsOnly(ref) }
+	var refs []string
+	add := func(ref string) {
+		if _, variable := spec.DatasourceVariableName(ref); ref != "" && !variable && !slices.Contains(refs, ref) {
+			refs = append(refs, ref)
+		}
+	}
 	for _, v := range d.Variables {
-		if restricted(v.Datasource) {
-			return true
+		add(v.Datasource)
+		if v.Type != spec.DatasourceVariable {
+			continue
 		}
-		if v.Type == spec.DatasourceVariable && v.Default != nil && slices.ContainsFunc(v.Default.Values, restricted) {
-			return true
-		}
-	}
-	for _, e := range d.DataPanels() {
-		for j := range e.Panel.Queries {
-			if restricted(e.Panel.QueryDatasource(j)) {
-				return true
+		if v.Default != nil {
+			for _, value := range v.Default.Values {
+				add(value)
 			}
 		}
+		for _, o := range v.Options {
+			add(o.Value)
+		}
+		for _, o := range v.StaticOptions {
+			add(o.Value)
+		}
+		add(v.Value)
 	}
-	return false
+	for _, e := range d.AllPanels() {
+		add(e.Panel.Datasource)
+		for _, q := range e.Panel.Queries {
+			add(q.Datasource)
+		}
+	}
+	return refs
 }
 
 func (r *Runner) CheckPanelAccess(ctx context.Context, d *spec.Dashboard, panelID string, selections map[string]Selection) error {

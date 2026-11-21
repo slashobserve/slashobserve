@@ -49,6 +49,13 @@ dashboards:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -282,7 +289,15 @@ dashboards-id:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/Conflict"
+        description: >-
+          The request conflicts with existing state.
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
   delete:
@@ -457,7 +472,15 @@ dashboards-id-versions:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+        description: >-
+          The parent version is no longer the latest; `latest_version` names the current one.
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -576,7 +599,15 @@ dashboards-id-versions-version-restore:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+        description: >-
+          The parent version is no longer the latest; `latest_version` names the current one.
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -726,7 +757,15 @@ dashboards-id-panels:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/VersionConflict"
+        description: >-
+          The parent version is no longer the latest; `latest_version` names the current one.
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/VersionConflict"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -793,6 +832,13 @@ dashboards-id-duplicate:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":

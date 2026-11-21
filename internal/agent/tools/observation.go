@@ -230,6 +230,9 @@ func (r *Registry) observationFailure(step string, err error) (Result, error) {
 }
 
 func observationRefusal(err error) (Result, bool) {
+	if res, ok := restrictedRefusal(err); ok {
+		return res, true
+	}
 	var invalidInput *observations.InvalidInputError
 	var conflict *observations.ConflictError
 	var refusal *lifecycle.Refusal

@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/egress"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
@@ -171,6 +172,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusConflict, "secret_key_missing", err.Error())
 	case errors.As(err, &inUse):
 		h.failInUse(c, inUse)
+	case folders.AbortRestricted(c, err):
 	case errors.Is(err, ErrTooMany):
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_datasources", "at most 100 datasources can be added in the app")
 	case errors.Is(err, ErrAllowlistFull):

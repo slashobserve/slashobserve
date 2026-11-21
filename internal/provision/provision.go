@@ -278,6 +278,7 @@ func (p *Provisioner) clearRemovedErrors(ctx context.Context, present map[string
 
 func describe(err error) (message, code string) {
 	var invalid *dashboards.InvalidSpecError
+	var restricted *folders.RestrictedContentError
 	var conflict *dashboards.ConflictError
 	var pathErr *fs.PathError
 	switch {
@@ -285,6 +286,8 @@ func describe(err error) (message, code string) {
 		return issuesMessage(invalid.Issues), "invalid_spec"
 	case errors.As(err, &conflict):
 		return "the dashboard got a newer version while the file was saved; the next run saves it again", "version_conflict"
+	case errors.As(err, &restricted):
+		return restricted.Error(), CodeRestricted
 	case errors.As(err, &pathErr):
 		return "the file cannot be read", "file_unreadable"
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess), errors.Is(err, dashboards.ErrFolderNotFound), errors.Is(err, dashboards.ErrNotFound):

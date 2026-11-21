@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -125,23 +126,9 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 	}
 	var ref dashboards.ProposalRef
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		if err := lockSlot(ctx, q, in.DashboardID, cols); err != nil {
-			return err
-		}
-		locked, found, err := lockOpen(ctx, q, in.DashboardID, cols)
-		if err != nil {
-			return err
-		}
-		next := revisionContent{spec: raw, base: in.BaseVersion, summary: in.Summary}
-		if !found {
-			ref, err = insertProposal(ctx, q, in, next, who, cols)
-		} else {
-			ref, err = foldIntoOpen(ctx, q, in, saveBase, locked, next, who)
-		}
-		if err != nil || in.InTx == nil {
-			return err
-		}
-		return in.InTx(q)
+		var err error
+		ref, err = s.write(ctx, q, in, saveBase, revisionContent{spec: raw, base: in.BaseVersion, summary: in.Summary}, who, cols)
+		return err
 	})
 	switch {
 	case isForeignKey(err, dashboardForeignKey):
@@ -153,6 +140,29 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 		slog.String("actor_id", who.ID), slog.String("proposal_id", ref.ID), slog.String("dashboard_id", in.DashboardID.String()),
 		slog.Int("revision", ref.Revision), slog.Bool("opened", ref.Opened))
 	return ref, nil
+}
+
+func (s *Service) write(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, saveBase *spec.Dashboard, next revisionContent, who actor.Actor, cols actor.Columns) (dashboards.ProposalRef, error) {
+	if err := s.dashboards.Placement().SaveProposal(ctx, q, in.DashboardID, queryproxy.DatasourceRefs(in.Spec)); err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	if err := lockSlot(ctx, q, in.DashboardID, cols); err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	locked, found, err := lockOpen(ctx, q, in.DashboardID, cols)
+	if err != nil {
+		return dashboards.ProposalRef{}, err
+	}
+	var ref dashboards.ProposalRef
+	if !found {
+		ref, err = insertProposal(ctx, q, in, next, who, cols)
+	} else {
+		ref, err = foldIntoOpen(ctx, q, in, saveBase, locked, next, who)
+	}
+	if err != nil || in.InTx == nil {
+		return ref, err
+	}
+	return ref, in.InTx(q)
 }
 
 func foldIntoOpen(ctx context.Context, q *dbsqlc.Queries, in dashboards.ProposeInput, saveBase *spec.Dashboard, locked openProposal, next revisionContent, who actor.Actor) (dashboards.ProposalRef, error) {

@@ -44,6 +44,7 @@ const (
 var (
 	ErrNotFound        = errors.New("public link not found")
 	ErrPersonalFolder  = errors.New("a dashboard in My Dashboards cannot have a public link; move it to a shared folder first")
+	ErrAdminsOnly      = errors.New("a folder only Admins can read cannot have public links; move it to another folder first")
 	ErrUserScoped      = errors.New("the dashboard's queries read the viewer's identity, so it cannot be shared publicly")
 	ErrInvalidExpiry   = errors.New("expires_at must be in the future")
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")
@@ -138,17 +139,22 @@ func New(database *db.DB, access *folders.Access, dashboardService *dashboards.S
 }
 
 func (s *Service) manage(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {
+	_, err := s.managed(ctx, by, dashboardID)
+	return err
+}
+
+func (s *Service) managed(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) (folders.Folder, error) {
 	access, err := s.access.Dashboard(ctx, by, dashboardID)
 	if err != nil {
-		return err
+		return folders.Folder{}, err
 	}
 	if access.Folder.Personal {
-		return ErrPersonalFolder
+		return folders.Folder{}, ErrPersonalFolder
 	}
 	if !access.Abilities.Manage {
-		return forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", access.Folder.Title))
+		return folders.Folder{}, forbidden.Need(folders.ErrForbidden, forbidden.NeedsAccess("manage", access.Folder.Title))
 	}
-	return nil
+	return access.Folder, nil
 }
 
 func (s *Service) latest(ctx context.Context, dashboardID pgtype.UUID) (int, *spec.Dashboard, error) {
@@ -205,7 +211,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, dashboardID pgt
 	if !ok {
 		return Created{}, ErrInvalidLabel
 	}
-	if err := s.manage(ctx, by, dashboardID); err != nil {
+	if err := s.linkable(ctx, by, dashboardID); err != nil {
 		return Created{}, err
 	}
 	version, d, err := s.latest(ctx, dashboardID)
@@ -445,4 +451,15 @@ func cleanLabel(raw string) (string, bool) {
 		return "", false
 	}
 	return label, true
+}
+
+func (s *Service) linkable(ctx context.Context, by auth.Principal, dashboardID pgtype.UUID) error {
+	folder, err := s.managed(ctx, by, dashboardID)
+	if err != nil {
+		return err
+	}
+	if folder.AdminsOnly {
+		return ErrAdminsOnly
+	}
+	return nil
 }

@@ -234,7 +234,7 @@ observations-id-rcas-revision-public-links:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation already has the most links it may keep (`too_many_links`).
+        description: The observation already has the most links it may keep (`too_many_links`), or it is in a folder only Admins can read (`admins_only_folder`), which takes no public links.
         content:
           application/json:
             schema:

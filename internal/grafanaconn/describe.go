@@ -23,6 +23,7 @@ func describe(err error) string {
 	var unresolved *imports.UnresolvedError
 	var invalid *dashboards.InvalidSpecError
 	var badInput *InvalidError
+	var restricted *folders.RestrictedContentError
 	switch {
 	case errors.As(err, &badInput):
 		return badInput.Message
@@ -34,6 +35,8 @@ func describe(err error) string {
 		return fmt.Sprintf("%d datasources have no match; map them and import again.", unmatched(unresolved))
 	case errors.As(err, &invalid):
 		return fmt.Sprintf("The dashboard has %d issues that block saving it; later versions run every query, so the newer Grafana version was not saved.", len(invalid.Issues))
+	case errors.As(err, &restricted):
+		return fmt.Sprintf("The dashboard reads the datasource %q, which only Admins can query; import it into a folder only Admins can read.", restricted.Datasource)
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):
 		return "You cannot save this dashboard in its folder."
 	case errors.Is(err, dashboards.ErrNotFound), errors.Is(err, dashboards.ErrFolderNotFound), errors.Is(err, imports.ErrNotFound):

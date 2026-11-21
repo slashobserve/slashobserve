@@ -23,6 +23,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/links"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -49,10 +50,11 @@ type Service struct {
 
 	dashboards  Dashboards
 	annotations Annotations
+	guard       *placement.Guard
 }
 
 func New(database *db.DB, access *folders.Access, freezer Freezer, publicURL *url.URL, logger *slog.Logger, options ...Option) *Service {
-	s := &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger}
+	s := &Service{store: &store{db: database}, access: access, freezer: freezer, publicURL: publicURL, logger: logger, guard: placement.New(nil)}
 	for _, option := range options {
 		option(s)
 	}
@@ -162,7 +164,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 		if first == nil {
 			return nil
 		}
-		_, err = insertBlock(ctx, q, row, *first, BlockLive, who)
+		_, err = s.insertBlock(ctx, q, row, *first, BlockLive, who)
 		return err
 	})
 	switch {
@@ -496,6 +498,9 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 		if err := permit(Machine, State(row.State), ActionMove, can(abilities, false)); err != nil {
 			return err
 		}
+		if err := s.guard.MoveObservation(ctx, q, id, target.ID); err != nil {
+			return err
+		}
 		moved, err := q.MoveObservation(ctx, dbsqlc.MoveObservationParams{ID: id, FolderID: target.ID})
 		switch {
 		case db.IsForeignKeyViolation(err):
@@ -559,7 +564,7 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return Placement{}, err
 	}
-	return Placement{Folder: row.FolderID, Personal: folder.Personal, Title: folder.Title, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
+	return Placement{Folder: row.FolderID, Personal: folder.Personal, AdminsOnly: folder.AdminsOnly, Title: folder.Title, Abilities: abilities, Activity: activity.OnObservation(id)}, nil
 }
 
 func (s *Service) Snapshot(ctx context.Context, by auth.Principal, id pgtype.UUID) (Snapshot, error) {

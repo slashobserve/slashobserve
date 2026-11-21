@@ -270,7 +270,16 @@ observations-id-move:
             schema:
               $ref: "../openapi.yaml#/components/schemas/Error"
       "409":
-        $ref: "../openapi.yaml#/components/responses/ObservationConflict"
+        description: >-
+          The action is not allowed in the observation's state (`invalid_transition`), the target folder is My Dashboards (`personal_folder`), or an investigation is still running on the observation (`run_in_progress`, on delete).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "500":
@@ -398,6 +407,13 @@ observations-id-blocks:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -468,7 +484,16 @@ blocks-id:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        $ref: "../openapi.yaml#/components/responses/BlockWriteConflict"
+        description: >-
+          The block's version is not the one named (`version_conflict`, with the current block), or the action is not allowed in the block's state (`invalid_transition`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/BlockConflict"
+                - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
@@ -560,11 +585,15 @@ observations-id-pin:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`).
+        description: >-
+          The observation names no dashboard to pin to and none was given (`observation_has_no_dashboard`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 observations-id-dashboard:
@@ -620,11 +649,15 @@ observations-id-dashboard:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The observation has no live panel block (`observation_has_no_panels`).
+        description: >-
+          The observation has no live panel block (`observation_has_no_panels`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":
@@ -679,6 +712,13 @@ blocks-id-dashboard:
         $ref: "../openapi.yaml#/components/responses/Forbidden"
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: >-
+          The content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":

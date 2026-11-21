@@ -20,6 +20,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -102,7 +104,8 @@ type newVersion struct {
 }
 
 type store struct {
-	db *db.DB
+	db    *db.DB
+	guard *placement.Guard
 }
 
 func (st store) create(ctx context.Context, in newVersion) (Dashboard, Version, error) {
@@ -116,6 +119,9 @@ func (st store) createWith(ctx context.Context, in newVersion, inTx func(q *dbsq
 		authorID, err := db.ParseUUID(in.author.ID)
 		if err != nil {
 			return fmt.Errorf("author id: %w", err)
+		}
+		if err := st.guard.Save(ctx, q, folders.ContentDashboard, in.folder.ID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+			return err
 		}
 		originKind, originClient := in.origin.Columns()
 		via := viaDirect
@@ -167,6 +173,9 @@ func isFolderGone(err error) bool {
 
 func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Actor) error {
 	return st.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := st.guard.MoveDashboard(ctx, q, id, to); err != nil {
+			return err
+		}
 		moved, err := q.MoveDashboard(ctx, dbsqlc.MoveDashboardParams{ID: id, FolderID: to, FromFolderID: from})
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -264,6 +273,9 @@ func (st store) addVersionWith(ctx context.Context, in newVersion, inTx func(q *
 		}
 		if err != nil {
 			return fmt.Errorf("bump dashboard version: %w", err)
+		}
+		if err := st.guard.Save(ctx, q, folders.ContentDashboard, row.FolderID, queryproxy.DatasourceRefs(in.spec)); err != nil {
+			return err
 		}
 		meta, err := insertVersion(ctx, q, in, int(row.LatestVersion))
 		if err != nil {

@@ -384,6 +384,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 		if row, err = q.InsertDatasource(ctx, params); err != nil {
 			return err
 		}
+		if err := refuseSharedHolders(ctx, q, "", cand.def); err != nil {
+			return err
+		}
 		return recordCreated(ctx, q, by, row.ID, cand.def)
 	})
 	var pgErr *pgconn.PgError
@@ -454,6 +457,9 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 	save := func(q *dbsqlc.Queries) error {
 		var err error
 		if updated, err = q.UpdateDatasource(ctx, params); err != nil {
+			return err
+		}
+		if err := refuseSharedHolders(ctx, q, current.Definition.Audience, cand.def); err != nil {
 			return err
 		}
 		return recordUpdated(ctx, q, by, updated.ID, current.Definition, cand.def, !change.empty())

@@ -143,11 +143,15 @@ findings-id-pin:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`).
+        description: >-
+          The finding has no dashboard to pin to (`finding_has_no_dashboard`), or is the answer to a plain question that is not an observation yet (`finding_not_saved`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
 findings-id-dashboard:
@@ -190,11 +194,15 @@ findings-id-dashboard:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "409":
-        description: The finding has no evidence panels (`finding_has_no_evidence`).
+        description: >-
+          The finding has no evidence panels (`finding_has_no_evidence`).
+          Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`).
         content:
           application/json:
             schema:
-              $ref: "../openapi.yaml#/components/schemas/Error"
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/RestrictedContentError"
       "422":
         $ref: "../openapi.yaml#/components/responses/InvalidSpec"
       "500":

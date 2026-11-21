@@ -57,19 +57,20 @@ func (s *Service) insertRCA(ctx context.Context, q *dbsqlc.Queries, parent dbsql
 		case KindPanel:
 			snap := frozen[b.ID]
 			inserted, err := q.InsertSnapshot(ctx, dbsqlc.InsertSnapshotParams{
-				ObservationID: parent.ID,
-				Panel:         snap.panel,
-				Query:         snap.query,
-				Frames:        snap.frames,
-				UserScoped:    snap.userScoped,
-				TimeFrom:      pgtype.Timestamptz{Time: snap.from, Valid: true},
-				TimeTo:        pgtype.Timestamptz{Time: snap.to, Valid: true},
-				CreatedByKind: cols.Kind,
-				CreatedByID:   cols.ID,
-				CreatedByName: cols.Name,
-				Origin:        cols.Origin,
-				OriginClient:  cols.Client,
-				RunID:         cols.RunID,
+				ObservationID:  parent.ID,
+				Panel:          snap.panel,
+				Query:          snap.query,
+				Frames:         snap.frames,
+				UserScoped:     snap.userScoped,
+				DatasourceUids: snap.datasources,
+				TimeFrom:       pgtype.Timestamptz{Time: snap.from, Valid: true},
+				TimeTo:         pgtype.Timestamptz{Time: snap.to, Valid: true},
+				CreatedByKind:  cols.Kind,
+				CreatedByID:    cols.ID,
+				CreatedByName:  cols.Name,
+				Origin:         cols.Origin,
+				OriginClient:   cols.Client,
+				RunID:          cols.RunID,
 			})
 			if err != nil {
 				return dbsqlc.ObservationRca{}, fmt.Errorf("insert snapshot: %w", err)

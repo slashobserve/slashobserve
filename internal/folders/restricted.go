@@ -48,6 +48,7 @@ type ContentItem struct {
 type RestrictedContentError struct {
 	Datasource string
 	Items      []ContentItem
+	Hidden     int
 	message    string
 }
 
@@ -68,9 +69,12 @@ func RestrictedOpening(item ContentItem, datasource string) error {
 		"the %s %q in this folder reads the datasource %q, which only Admins can query; move it to another folder only Admins can read before you share this one", item.Kind.noun(), item.Title, datasource)}
 }
 
-func RestrictedAudience(datasource string, items []ContentItem) error {
-	return &RestrictedContentError{Datasource: datasource, Items: items, message: fmt.Sprintf(
-		"dashboards, observations or saved searches outside folders only Admins can read use the datasource %q; move them to a folder only Admins can read before you make it Admins only", datasource)}
+func RestrictedAudience(datasource string, items []ContentItem, hidden int) error {
+	message := fmt.Sprintf("dashboards, observations or saved searches outside folders only Admins can read use the datasource %q; move them to a folder only Admins can read before you make it Admins only", datasource)
+	if hidden > 0 {
+		message += fmt.Sprintf("; %d of them are in people's My Dashboards, which only their owners can open", hidden)
+	}
+	return &RestrictedContentError{Datasource: datasource, Items: items, Hidden: hidden, message: message}
 }
 
 type contentItemJSON struct {
@@ -93,6 +97,9 @@ func AbortRestricted(c *gin.Context, err error) bool {
 			items[i] = contentItemJSON(it)
 		}
 		body["items"] = items
+	}
+	if restricted.Hidden > 0 {
+		body["hidden"] = restricted.Hidden
 	}
 	c.AbortWithStatusJSON(http.StatusConflict, body)
 	return true

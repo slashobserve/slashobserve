@@ -117,9 +117,10 @@ WHERE id = @id AND state = ANY(@from_states::text[])
 
 -- name: InsertSnapshot :one
 INSERT INTO snapshots (observation_id, panel, query, frames, user_scoped, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client, run_id, datasource_uids)
 VALUES (@observation_id, @panel::jsonb, @query::jsonb, @frames::jsonb, @user_scoped, @time_from, @time_to,
-  @created_by_kind, @created_by_id, @created_by_name, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('run_id')::uuid)
+  @created_by_kind, @created_by_id, @created_by_name, sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('run_id')::uuid,
+  @datasource_uids::text[])
 RETURNING *;
 
 -- name: SnapshotByID :one

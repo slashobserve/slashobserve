@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -35,6 +36,7 @@ type frozenSnapshot struct {
 	panel, query, frames json.RawMessage
 	userScoped           bool
 	from, to             time.Time
+	datasources          []string
 }
 
 func validateWidth(w Width) error {
@@ -136,7 +138,7 @@ func (s *Service) freeze(ctx context.Context, by auth.Principal, observationID, 
 	if err != nil {
 		return frozenSnapshot{}, err
 	}
-	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to}, nil
+	return frozenSnapshot{panel: panel, query: query, frames: frozen.Data, userScoped: frozen.UserScoped, from: from, to: to, datasources: queryproxy.DatasourceRefs(d)}, nil
 }
 
 func splitQueries(panel json.RawMessage) (json.RawMessage, json.RawMessage, error) {
@@ -224,7 +226,7 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 		}
 		placed := prepared
 		placed.position = storedPosition(readableBlocks(rows, abilities, by), prepared.position)
-		if added, err = insertBlock(ctx, q, row, placed, state, by); err != nil {
+		if added, err = s.insertBlock(ctx, q, row, placed, state, by); err != nil {
 			return err
 		}
 		held, who = abilities, by
@@ -258,7 +260,10 @@ func readerPosition(shown []dbsqlc.ObservationBlock, stored int32) int {
 	return len(slices.DeleteFunc(slices.Clone(shown), func(b dbsqlc.ObservationBlock) bool { return b.Position >= stored }))
 }
 
-func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
+func (s *Service) insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, p preparedBlock, state BlockState, by actor.Actor) (dbsqlc.ObservationBlock, error) {
+	if err := s.placeBlock(ctx, q, parent, p.kind, p.body, p.snapshot); err != nil {
+		return dbsqlc.ObservationBlock{}, err
+	}
 	counts, err := q.CountBlocks(ctx, parent.ID)
 	if err != nil {
 		return dbsqlc.ObservationBlock{}, fmt.Errorf("count observation blocks: %w", err)
@@ -283,19 +288,20 @@ func insertBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observati
 	body, snapshotID := p.body, pgtype.UUID{}
 	if p.snapshot != nil {
 		snap, err := q.InsertSnapshot(ctx, dbsqlc.InsertSnapshotParams{
-			ObservationID: parent.ID,
-			Panel:         p.snapshot.panel,
-			Query:         p.snapshot.query,
-			Frames:        p.snapshot.frames,
-			UserScoped:    p.snapshot.userScoped,
-			TimeFrom:      pgtype.Timestamptz{Time: p.snapshot.from, Valid: true},
-			TimeTo:        pgtype.Timestamptz{Time: p.snapshot.to, Valid: true},
-			CreatedByKind: cols.Kind,
-			CreatedByID:   cols.ID,
-			CreatedByName: cols.Name,
-			Origin:        cols.Origin,
-			OriginClient:  cols.Client,
-			RunID:         cols.RunID,
+			ObservationID:  parent.ID,
+			Panel:          p.snapshot.panel,
+			Query:          p.snapshot.query,
+			Frames:         p.snapshot.frames,
+			UserScoped:     p.snapshot.userScoped,
+			DatasourceUids: p.snapshot.datasources,
+			TimeFrom:       pgtype.Timestamptz{Time: p.snapshot.from, Valid: true},
+			TimeTo:         pgtype.Timestamptz{Time: p.snapshot.to, Valid: true},
+			CreatedByKind:  cols.Kind,
+			CreatedByID:    cols.ID,
+			CreatedByName:  cols.Name,
+			Origin:         cols.Origin,
+			OriginClient:   cols.Client,
+			RunID:          cols.RunID,
 		})
 		if err != nil {
 			return dbsqlc.ObservationBlock{}, fmt.Errorf("insert snapshot: %w", err)
@@ -396,6 +402,9 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 		}
 		params, err := changedBlock(ctx, q, current, in)
 		if err != nil {
+			return err
+		}
+		if err := s.placeBlock(ctx, q, parent, Kind(current.Kind), params.Body, nil); err != nil {
 			return err
 		}
 		row, err := q.UpdateBlock(ctx, params)

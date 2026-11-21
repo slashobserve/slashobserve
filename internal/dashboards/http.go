@@ -527,7 +527,7 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	var patchErr *spec.PatchError
 	var invalidInput *InvalidInputError
 	var proposalRequired *ProposalRequiredError
-	if clientgone.Handle(c, s.logger, action, err) {
+	if clientgone.Handle(c, s.logger, action, err) || folders.AbortRestricted(c, err) {
 		return
 	}
 	switch {
@@ -556,14 +556,18 @@ func (s *Service) fail(c *gin.Context, action string, err error) {
 	case errors.Is(err, ErrBeingCreated):
 		httpapi.AbortError(c, http.StatusConflict, "dashboard_being_created", "the agent is still creating this dashboard; try again when it finishes")
 	default:
-		principal := httpapi.Caller(c)
-		attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}
-		if id, parseErr := db.ParseUUID(c.Param("id")); parseErr == nil {
-			attrs = append(attrs, slog.String("dashboard_id", id.String()))
-		}
-		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, attrs...)...)
+		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, failureAttrs(c)...)...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
+}
+
+func failureAttrs(c *gin.Context) []any {
+	principal := httpapi.Caller(c)
+	attrs := []any{slog.String("principal_kind", string(principal.Kind)), slog.String("principal_id", principal.ID)}
+	if id, parseErr := db.ParseUUID(c.Param("id")); parseErr == nil {
+		attrs = append(attrs, slog.String("dashboard_id", id.String()))
+	}
+	return attrs
 }
 
 func requireSpec(c *gin.Context, raw json.RawMessage) bool {
