@@ -100,6 +100,46 @@ function renderConversation(request: ObserveRequest = root) {
 
 afterEach(() => vi.unstubAllGlobals())
 
+const finding = {
+  id: "f1",
+  observation_id: null,
+  agent_request_id: rootId,
+  dashboard_id: null,
+  folder_id: null,
+  ask_on: null,
+  title: "p99 rose after the deploy",
+  markdown: "p99 rose after the deploy.",
+  evidence: [],
+  from: "2026-11-21T09:00:00Z",
+  to: "2026-11-21T10:00:00Z",
+  annotation_id: null,
+  created_by: { kind: "user", id: "u1", name: "Ada" },
+  actor: root.requested_by,
+  created_at: "2026-11-21T10:01:00Z",
+  url: null,
+  suggested_change: "Add a p99 panel",
+  observe_worthy: false,
+}
+
+function answered(patch: Partial<ObserveRequest> = {}) {
+  return {
+    ...root,
+    kind: "build",
+    result_kind: "answer",
+    finding,
+    shared_thread_id: null,
+    ...patch,
+  } as ObserveRequest
+}
+
+async function openAnswerMenu(
+  user: ReturnType<typeof renderConversation>["user"]
+) {
+  await user.click(
+    await screen.findByRole("button", { name: "Answer actions" })
+  )
+}
+
 describe("Conversation", () => {
   it("sends a follow-up in a dashboard chat as a read-only ask", async () => {
     const fetch = stubServer()
@@ -174,5 +214,31 @@ describe("Conversation", () => {
       observation_id: observationId,
     })
     expect(body).not.toHaveProperty("dashboard_id")
+  })
+
+  it("lets an Admin read another person's chat in full with no actions", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    const { user } = renderConversation(
+      answered({
+        read_only: true,
+        requested_by: { kind: "user", id: "u2", name: "Grace" },
+      })
+    )
+    expect(await screen.findByText("p99 rose after the deploy.")).toBeVisible()
+    expect(
+      screen.queryByRole("textbox", { name: "Message the agent" })
+    ).toBeNull()
+    expect(screen.queryByRole("button", { name: "Ask again" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+    await openAnswerMenu(user)
+    expect(
+      await screen.findByRole("menuitem", { name: /^Copy answer/ })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+    expect(screen.queryByRole("menuitem", { name: /^Withdraw/ })).toBeNull()
   })
 })
