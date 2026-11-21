@@ -68,17 +68,23 @@ func (l writerLimits) orDefaults() writerLimits {
 	return l
 }
 
+type statement struct {
+	rows   []dbsqlc.InsertAuditEventParams
+	handed bool
+}
+
 type Writer struct {
 	recorder *Recorder
 	limits   writerLimits
 	queue    chan dbsqlc.InsertAuditEventParams
 	folds    *folds
 	lost     atomic.Int64
-	held     [][]dbsqlc.InsertAuditEventParams
+	held     []*statement
 
-	mu      sync.Mutex
-	handed  []dbsqlc.InsertAuditEventParams
-	stopped bool
+	mu         sync.Mutex
+	handed     []dbsqlc.InsertAuditEventParams
+	handedRows int
+	stopped    bool
 }
 
 func newWriter(r *Recorder, limits writerLimits) *Writer {
@@ -109,18 +115,25 @@ func (w *Writer) enqueue(row dbsqlc.InsertAuditEventParams) {
 func (w *Writer) handOff(row dbsqlc.InsertAuditEventParams) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.stopped || len(w.handed) >= w.limits.buffer {
+	if w.stopped || w.handedRows >= w.limits.buffer {
 		return false
 	}
+	w.handedRows++
 	w.handed = append(w.handed, row)
 	return true
+}
+
+func (w *Writer) releaseHanded(rows int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.handedRows -= rows
 }
 
 func (w *Writer) holdHandedOff(closing bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	for _, row := range w.handed {
-		w.held = append(w.held, []dbsqlc.InsertAuditEventParams{row})
+		w.held = append(w.held, &statement{rows: []dbsqlc.InsertAuditEventParams{row}, handed: true})
 	}
 	w.handed = nil
 	w.stopped = w.stopped || closing
@@ -225,7 +238,7 @@ func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 	}
 	w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
 	if retryable(err) {
-		w.held = append(w.held, slices.Clone(rows))
+		w.held = append(w.held, &statement{rows: slices.Clone(rows)})
 	} else {
 		w.abandon(rows)
 	}
@@ -233,38 +246,64 @@ func (w *Writer) flush(ctx context.Context, batch []dbsqlc.InsertAuditEventParam
 }
 
 func (w *Writer) retryHeld(ctx context.Context) bool {
-	for len(w.held) > 0 {
-		rows := w.held[0]
-		err := w.write(ctx, rows)
+	for written := 0; len(w.held) > 0; written++ {
+		if written >= w.limits.batch {
+			return true
+		}
+		st := w.held[0]
+		err := w.write(ctx, st.rows)
 		switch {
 		case err == nil:
 		case alreadyStored(err):
 			w.recorder.logger.InfoContext(ctx, "audit batch was already stored by an earlier attempt")
 		case retryable(err):
 			w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
-			if tooSlow(err) && len(rows) > 1 {
-				half := len(rows) / 2
-				w.held = append([][]dbsqlc.InsertAuditEventParams{rows[:half], rows[half:]}, w.held[1:]...)
+			if w.tooBig(st, err) {
+				w.split(st)
 			}
 			return false
 		default:
 			w.recorder.logger.WarnContext(ctx, "audit batch not written", logattrs.Failure("audit_write_failed", err)...)
-			w.abandon(rows)
+			w.abandon(st.rows)
 		}
 		w.held = w.held[1:]
+		if st.handed {
+			w.releaseHanded(1)
+		}
 	}
 	w.held = nil
 	return true
 }
 
+func (w *Writer) tooBig(st *statement, err error) bool {
+	if len(st.rows) < 2 {
+		return false
+	}
+	if tooSlow(err) {
+		return true
+	}
+	return false
+}
+
+func (w *Writer) split(st *statement) {
+	half := len(st.rows) / 2
+	halves := []*statement{{rows: st.rows[:half]}, {rows: st.rows[half:]}}
+	w.held = append(halves, w.held[1:]...)
+}
+
 func (w *Writer) abandonAll(batch []dbsqlc.InsertAuditEventParams, queued int) {
 	events, lost := tally(batch)
-	for _, rows := range w.held {
-		heldEvents, heldLost := tally(rows)
+	handed := 0
+	for _, st := range w.held {
+		heldEvents, heldLost := tally(st.rows)
 		events += heldEvents
 		lost += heldLost
+		if st.handed {
+			handed++
+		}
 	}
 	w.held = nil
+	w.releaseHanded(handed)
 	events += queued
 	lost += int64(queued)
 	if events > 0 {

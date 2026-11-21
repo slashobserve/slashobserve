@@ -87,7 +87,7 @@ func TestOneRefusedHandedOffEventCostsOnlyItself(t *testing.T) {
 
 func TestARefusedHeldBatchDoesNotTakeHandedOffEventsWithIt(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: 20 * time.Millisecond}, 0)
-	s.recorder.writer.held = [][]dbsqlc.InsertAuditEventParams{{s.staleView(t)}}
+	s.recorder.writer.held = []*statement{{rows: []dbsqlc.InsertAuditEventParams{s.staleView(t)}}}
 	s.recorder.writer.handOff(s.views(t, 1)[0])
 	stop := s.run(t)
 	s.waitForEvents(t, 1)
@@ -203,14 +203,90 @@ func TestAHeldBatchTheServerCancelsIsSplitInHalf(t *testing.T) {
 	s.recorder.db = limited
 	release := s.stallWrites(t)
 	defer release()
-	s.recorder.writer.held = [][]dbsqlc.InsertAuditEventParams{s.views(t, 4)}
+	s.recorder.writer.held = []*statement{{rows: s.views(t, 4)}}
 	if s.recorder.writer.retryHeld(t.Context()) {
 		t.Fatal("a canceled statement was reported as written")
 	}
 	if got := len(s.recorder.writer.held); got != 2 {
 		t.Fatalf("held statements = %d, want 2 halves", got)
 	}
-	if a, b := len(s.recorder.writer.held[0]), len(s.recorder.writer.held[1]); a != 2 || b != 2 {
+	if a, b := len(s.recorder.writer.held[0].rows), len(s.recorder.writer.held[1].rows); a != 2 || b != 2 {
 		t.Fatalf("halves hold %d and %d rows, want 2 and 2", a, b)
+	}
+}
+
+func TestHeldHandedOffRowsCountAgainstTheHandOffLimit(t *testing.T) {
+	s := newStoreRig(t, writerLimits{buffer: 3, every: 10 * time.Millisecond, timeout: 50 * time.Millisecond}, 0)
+	release := s.stallWrites(t)
+	defer release()
+	stop := s.run(t)
+	defer stop()
+	for _, row := range s.views(t, 3) {
+		if !s.recorder.writer.handOff(row) {
+			t.Fatal("a hand off under the limit was refused")
+		}
+	}
+	for range 3 {
+		s.waitForBatch(t)
+	}
+	if s.recorder.writer.handOff(s.views(t, 1)[0]) {
+		t.Fatal("a hand off was accepted while the limit's worth of rows is still held")
+	}
+}
+
+func TestAHandOffIsAcceptedAgainOnceItsRowWasWritten(t *testing.T) {
+	s := newStoreRig(t, writerLimits{buffer: 1, every: 10 * time.Millisecond}, 0)
+	stop := s.run(t)
+	defer stop()
+	if !s.recorder.writer.handOff(s.views(t, 1)[0]) {
+		t.Fatal("the first hand off was refused")
+	}
+	s.waitForEvents(t, 1)
+	deadline := time.Now().Add(5 * time.Second)
+	for !s.recorder.writer.handOff(s.views(t, 1)[0]) {
+		if time.Now().After(deadline) {
+			t.Fatal("a hand off was still refused after the earlier row was written")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestReplayingHeldRowsLeavesRoomForTheNextBatch(t *testing.T) {
+	s := newStoreRig(t, writerLimits{batch: 2, every: time.Hour}, 0)
+	w := s.recorder.writer
+	for _, row := range s.views(t, 5) {
+		w.handOff(row)
+	}
+	next := s.views(t, 1)
+	w.flush(t.Context(), next)
+	if got := s.count(t, "action = 'dashboard.view'"); got != 3 {
+		t.Fatalf("stored views after one flush = %d, want 2 replayed rows and the new batch", got)
+	}
+	if got := len(w.held); got != 3 {
+		t.Fatalf("held statements = %d, want 3 left for the next flush", got)
+	}
+}
+
+func TestADroppedBatchIsCountedFromItsOwnRows(t *testing.T) {
+	s := newStoreRig(t, writerLimits{}, 0)
+	w := s.recorder.writer
+	views := s.views(t, 3)
+	w.abandon(views)
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 3 {
+		t.Fatalf("dropped %s = %d, want 3", DroppedWriteFailed, got)
+	}
+	if got := w.lost.Load(); got != 3 {
+		t.Fatalf("lost = %d, want 3 when the rows hold no gap row", got)
+	}
+	gap, err := s.recorder.row(t.Context(), Event{Action: ActionGap, Data: map[string]any{"lost": 4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.abandon(append(s.views(t, 2), gap))
+	if got := s.metrics.droppedFor(DroppedWriteFailed); got != 5 {
+		t.Fatalf("dropped %s = %d, want the gap's events left out of the count", DroppedWriteFailed, got)
+	}
+	if got := w.lost.Load(); got != 9 {
+		t.Fatalf("lost = %d, want the gap's 4 put back with the 2 events", got)
 	}
 }

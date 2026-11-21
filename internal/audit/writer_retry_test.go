@@ -107,7 +107,7 @@ func TestABatchStoredByAnEarlierAttemptIsNotDroppedOnItsRetry(t *testing.T) {
 	if err := s.recorder.writer.write(t.Context(), rows); err != nil {
 		t.Fatal(err)
 	}
-	s.recorder.writer.held = [][]dbsqlc.InsertAuditEventParams{rows}
+	s.recorder.writer.held = []*statement{{rows: rows}}
 	stop := s.run(t)
 	s.waitForBatch(t)
 	stop()
