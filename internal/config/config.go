@@ -108,6 +108,8 @@ const (
 	envSessionTTL         = "SLASHOBSERVE_SESSION_TTL"
 	envActivityRetention  = "SLASHOBSERVE_ACTIVITY_RETENTION"
 	envAuditRetention     = "SLASHOBSERVE_AUDIT_RETENTION"
+	envAuditOTLPEndpoint  = "SLASHOBSERVE_AUDIT_OTLP_ENDPOINT"
+	envAuditOTLPHeaders   = "SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE"
 	envAllowedEmailDomain = "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS"
 	envAuthProviderName   = "SLASHOBSERVE_AUTH_PROVIDER_NAME"
 
@@ -149,7 +151,7 @@ const (
 var serverEnvNames = []string{
 	envHTTPAddr, envDatabaseURL, envDatabaseDirectURL, envLogLevel, envLogFormat,
 	envPublicURL, envOIDCIssuerURL, envOIDCInternalURL, envOIDCClientID, envOIDCClientSecret,
-	envSessionTTL, envActivityRetention, envAuditRetention, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
+	envSessionTTL, envActivityRetention, envAuditRetention, envAuditOTLPEndpoint, envAuditOTLPHeaders, envAllowedEmailDomain, envAuthProviderName, envDatasourcesFile, envAPIContractCheck, envOutboundDomains,
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
@@ -199,6 +201,7 @@ type Config struct {
 	SessionTTL          time.Duration
 	ActivityRetention   time.Duration
 	AuditRetention      time.Duration
+	AuditExport         AuditExport
 	AllowedEmailDomains []string
 	AllowAnyEmailDomain bool
 	AuthProviderName    string
@@ -259,6 +262,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadActivityRetention(lookup, &cfg)...)
 	errs = append(errs, loadAuditRetention(lookup, &cfg)...)
+	errs = append(errs, loadAuditExport(lookup, &cfg)...)
 	errs = append(errs, loadEmailDomains(lookup, &cfg)...)
 	errs = append(errs, loadProviderName(lookup, &cfg)...)
 	errs = append(errs, loadAdminEmails(lookup, &cfg)...)
@@ -552,7 +556,7 @@ func loadLLM(lookup func(string) (string, bool), cfg *Config) []error {
 	llm.APIKey = datasource.NewSecret(key)
 
 	if v := get(lookup, envLLMBaseURL); v != "" {
-		if u, err := parseLLMBaseURL(v); err != nil {
+		if u, err := parseURLWithPath(v); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", envLLMBaseURL, err))
 		} else {
 			llm.BaseURL = u
@@ -714,7 +718,7 @@ func loadLLMAPIKey(lookup func(string) (string, bool), provider string) (string,
 	return key, nil
 }
 
-func parseLLMBaseURL(v string) (*url.URL, error) {
+func parseURLWithPath(v string) (*url.URL, error) {
 	u, err := url.Parse(v)
 	if err != nil || !isAbsoluteHTTP(u) {
 		return nil, errors.New("must be an absolute http or https URL")
