@@ -74,15 +74,23 @@ export function streamRefusal(
   }
 }
 
+export type LiveRows = { anchor: number; live: readonly AuditEvent[] }
+
 export function withLiveEvent(
-  live: readonly AuditEvent[],
+  current: LiveRows,
   event: AuditEvent,
-  loaded: ReadonlySet<string>
-): readonly AuditEvent[] {
-  if (loaded.has(event.id) || live.some((row) => row.id === event.id)) {
-    return live
+  loaded: ReadonlySet<string>,
+  now: number
+): LiveRows {
+  if (loaded.has(event.id) || current.live.some((row) => row.id === event.id)) {
+    return current
   }
-  return [event, ...live].slice(0, liveRowLimit)
+  const live = [event, ...current.live]
+  if (live.length <= liveRowLimit) return { anchor: current.anchor, live }
+  return {
+    anchor: now,
+    live: live.filter((row) => Date.parse(row.occurred_at) >= now),
+  }
 }
 
 export function notAStreamText(contentType: string): string {

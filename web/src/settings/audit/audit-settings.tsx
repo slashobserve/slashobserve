@@ -117,11 +117,13 @@ export function AuditSettings({
   const stream = useAuditStream({
     q: view.q,
     enabled: following,
-    onEvent: (event) =>
+    onEvent: (event) => {
+      const now = Date.now()
       setFrame((current) => ({
         ...current,
-        live: withLiveEvent(current.live, event, loadedIds),
-      })),
+        ...withLiveEvent(current, event, loadedIds, now),
+      }))
+    },
     onRestart: () => {
       refresh()
       setLiveNotice(restartedText)

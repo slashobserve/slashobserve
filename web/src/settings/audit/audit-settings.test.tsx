@@ -7,7 +7,7 @@ import { renderWithProviders } from "@/test/render"
 
 import { AuditSettings } from "./audit-settings"
 import type { AuditView } from "./search"
-import type { AuditEvent } from "./stream"
+import { type AuditEvent, liveRowLimit } from "./stream"
 import { FakeStream, refusedStream } from "./stream-fake"
 
 const fetchMock = vi.hoisted(() => vi.fn())
@@ -342,6 +342,40 @@ describe("AuditSettings", () => {
     const [, back] = listRequests()
     expect(back.searchParams.get("q")).toBe("origin:mcp")
     expect(untilOf(back) - opened).toBeGreaterThanOrEqual(hour)
+  })
+
+  it("folds the live rows into the list once they pass the live row limit", async () => {
+    let lists = 0
+    serve({
+      events: () => {
+        lists++
+        return json({
+          events: lists < 3 ? [] : [auditEvent("reloaded")],
+          next_cursor: null,
+          form: "kql",
+        })
+      },
+    })
+    const { user } = renderPage()
+    await screen.findByText("No audit events in the last 24 hours.")
+    await user.click(screen.getByRole("switch"))
+    await waitFor(() => expect(liveStream).not.toBe(null))
+    const stream = liveStream as unknown as FakeStream
+    act(() => {
+      stream.frame("ready", {})
+      for (let index = 0; index <= liveRowLimit; index++) {
+        stream.frame(
+          "audit",
+          auditEvent(`live-${index}`, { occurred_at: "2026-01-01T00:00:00Z" }),
+          `x-${index}`
+        )
+      }
+    })
+    await waitFor(() => expect(lists).toBe(3))
+    const table = await screen.findByRole("region", { name: "Audit events" })
+    await waitFor(() =>
+      expect(within(table).getAllByRole("row").slice(1)).toHaveLength(1)
+    )
   })
 
   it("says Live is off when the caller already holds five streams", async () => {

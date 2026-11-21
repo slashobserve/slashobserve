@@ -88,24 +88,38 @@ describe("streamRefusal", () => {
 })
 
 describe("withLiveEvent", () => {
+  const anchor = Date.parse("2026-11-21T06:00:00Z")
+  const later = Date.parse("2026-11-21T06:10:00Z")
+
+  function at(id: string, time: string): AuditEvent {
+    return { id, occurred_at: time } as AuditEvent
+  }
+
   test("puts a new event on top", () => {
-    expect(
-      withLiveEvent([event("a")], event("b"), new Set()).map((row) => row.id)
-    ).toEqual(["b", "a"])
+    const next = withLiveEvent(
+      { anchor, live: [event("a")] },
+      event("b"),
+      new Set(),
+      later
+    )
+    expect(next.anchor).toBe(anchor)
+    expect(next.live.map((row) => row.id)).toEqual(["b", "a"])
   })
 
   test("skips an event already shown", () => {
-    const live = [event("a")]
-    expect(withLiveEvent(live, event("a"), new Set())).toBe(live)
-    expect(withLiveEvent(live, event("p"), new Set(["p"]))).toBe(live)
+    const current = { anchor, live: [event("a")] }
+    expect(withLiveEvent(current, event("a"), new Set(), later)).toBe(current)
+    expect(withLiveEvent(current, event("p"), new Set(["p"]), later)).toBe(
+      current
+    )
   })
 
-  test("keeps at most the live row limit", () => {
+  test("past the live row limit, moves the anchor to now and keeps only rows after it", () => {
     const live = Array.from({ length: liveRowLimit }, (_, index) =>
       event(`e${index}`)
     )
-    const next = withLiveEvent(live, event("new"), new Set())
-    expect(next).toHaveLength(liveRowLimit)
-    expect(next[0].id).toBe("new")
+    const ahead = at("ahead", "2026-11-21T06:10:00.500Z")
+    const next = withLiveEvent({ anchor, live }, ahead, new Set(), later)
+    expect(next).toEqual({ anchor: later, live: [ahead] })
   })
 })
