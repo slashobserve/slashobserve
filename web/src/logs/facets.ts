@@ -67,7 +67,7 @@ export function facetsErrorText(error: unknown): {
   retry: boolean
 } {
   if (error instanceof ApiError && error.code === "query_invalid") {
-    return { text: "Fields need a log query.", retry: false }
+    return { text: error.message, retry: false }
   }
   if (error instanceof ApiError && error.code === "query_timeout") {
     return {
