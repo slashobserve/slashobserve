@@ -53,14 +53,44 @@ const envelope = {
   permissions: { edit: true, comment: true },
 }
 
-const replies: Record<string, unknown> = {
+const panelBlock = {
+  id: "b1",
+  observation_id: "o1",
+  kind: "panel",
+  state: "live",
+  position: 0,
+  width: "full",
+  version: 1,
+  body: {
+    panel: {
+      type: "timeseries",
+      title: "Errors",
+      datasource: "prom",
+      queries: [{ query: "up" }],
+    },
+  },
+  allowed_actions: ["update", "remove"],
+  created_by: author,
+  created_at: "2026-11-12T10:00:00Z",
+  updated_at: "2026-11-12T10:00:00Z",
+}
+
+let replies: Record<string, unknown> = {}
+
+const baseReplies: Record<string, unknown> = {
   "GET /api/v1/observations/o1": envelope,
   "GET /api/v1/observations/o1/rcas": { rcas: [] },
   "GET /api/v1/threads": { threads: [], messages: [], next_cursor: null },
   "GET /api/v1/dashboards": { dashboards: [], next_cursor: null },
+  "GET /api/v1/datasources": {
+    datasources: [
+      { uid: "prom", name: "Prometheus", type: "prometheus", health: "ok" },
+    ],
+  },
 }
 
 beforeEach(() => {
+  replies = { ...baseReplies }
   vi.stubGlobal("EventSource", QuietEventSource)
   vi.stubGlobal(
     "fetch",
@@ -102,9 +132,46 @@ describe("ObservationPage right dock", () => {
     expect(discussion.dataset.hidden).toBe("false")
 
     await user.click(await screen.findByRole("button", { name: "Panel" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "From a dashboard" })
+    )
 
     await waitFor(() => expect(discussion.dataset.hidden).toBe("true"))
     await user.click(screen.getByRole("button", { name: "Close" }))
     await waitFor(() => expect(discussion.dataset.hidden).toBe("false"))
+  })
+
+  it("opens the panel editor on a new query and gives the dock back on close", async () => {
+    const { user } = renderPage()
+    const discussion = await screen.findByTestId("discussion")
+
+    await user.click(await screen.findByRole("button", { name: "Panel" }))
+    await user.click(await screen.findByRole("menuitem", { name: "New query" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "New query" })
+    ).toBeTruthy()
+    expect(discussion.dataset.hidden).toBe("true")
+    await user.click(screen.getByRole("button", { name: "Close panel editor" }))
+    await waitFor(() => expect(discussion.dataset.hidden).toBe("false"))
+  })
+
+  it("opens the panel editor on a panel block from its menu", async () => {
+    replies["GET /api/v1/observations/o1"] = {
+      ...envelope,
+      observation: { ...envelope.observation, blocks: [panelBlock] },
+    }
+    const { user } = renderPage()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Panel menu: Errors" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Edit panel" })
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "Edit Errors" })
+    ).toBeTruthy()
   })
 })

@@ -82,8 +82,10 @@ The row offers four ways:
   **Add** or **Suggest** saves it, and `⌘Enter` or `Ctrl+Enter` does the same.
   `Esc` closes the box and keeps what you typed for when you open it again, and **Cancel** closes it and throws the text away.
   A word with no break in it, such as a hash or a long address, wraps inside the block instead of widening the page.
-- **Panel** opens a side panel where you search for a dashboard, then choose one of its data panels.
+- **Panel** offers **From a dashboard** and **New query**.
+  **From a dashboard** opens a side panel where you search for a dashboard, then choose one of its data panels.
   The block is a copy of the panel with its own query, and it stays live on the page over the observation's range, or over the last hour when the observation has none.
+  **New query** opens the panel editor on an empty panel with the first datasource, and is disabled when there is no datasource; **Add**, or **Suggest** for a commenter, saves it as a panel block that follows the page's range (see [Edit a panel block](#edit-a-panel-block)).
 - **Logs** opens the logs page with this observation preselected, so a search can be added from there (see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs)).
 - **Snapshot** lists the live panel blocks of the page and is disabled when there is none.
   Choosing one freezes that panel's data into a snapshot block placed right after it.
@@ -101,6 +103,20 @@ A block that carries variables shows a picker above the panel for each one with 
 A textbox, ad hoc filter or group by variable shows its stored value and cannot be changed on the block.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.
 A person who can only comment suggests that snapshot, as with any other block.
+
+### Edit a panel block
+
+A panel block's panel menu has **Edit panel** for an editor and **Suggest an edit** for a commenter.
+It opens the same panel editor as a dashboard panel, in the right pane in place of the discussion: the query, the display and the JSON view, with a preview of the draft over the block's window and with the block's variables.
+The preview runs with exactly the access the block's own data has, so it needs comment access to the observation and the datasource's access, and an Admins-only datasource runs only in an Admins-only folder.
+Nothing changes until you save, and `Esc`, **Close panel editor** or leaving the page asks first when the draft has changes.
+
+**Save** changes the block in place and keeps its width, height and window.
+A commenter's **Suggest edit** leaves the block as it is and adds the edited copy right after it as a requested block, which an editor keeps or discards like any other suggestion.
+When someone changed the block since you opened it, the editor says so and keeps your draft.
+A snapshot and a published RCA revision are frozen, so neither offers the editor.
+
+Over [MCP](mcp.md) `update_block` changes a panel block's `body`, and on the [CLI](cli.md#observations) `observe o edit-block <block-id> --panel-file <path>` does the same.
 
 ### Change blocks
 

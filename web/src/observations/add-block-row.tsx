@@ -9,8 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
+import { useDatasources } from "@/datasources/queries"
 import { isModEnter } from "@/lib/shortcuts"
 
+import {
+  addPanelTriggerId,
+  newQueryPanel,
+  useBlockEditor,
+} from "./block-editor"
 import { addProblemText, blockTitle } from "./block-rows"
 import { PanelPicker } from "./panel-picker"
 import { useAddBlock, type Block, type Observation } from "./queries"
@@ -164,6 +170,9 @@ export function AddBlockRow({
     onAdded,
     onProblem: setProblem,
   })
+  const editor = useBlockEditor()
+  const datasources = useDatasources()
+  const newPanel = newQueryPanel(datasources.data ?? [])
 
   function closeComposer(discard: boolean) {
     if (discard) setDraft("")
@@ -195,18 +204,40 @@ export function AddBlockRow({
         >
           Text
         </Button>
-        <Button
-          ref={panelButton}
-          variant="outline"
-          size="sm"
-          aria-expanded={picking}
-          onClick={() => {
-            setProblem(null)
-            onPickingChange(true)
-          }}
-        >
-          Panel
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                ref={panelButton}
+                id={addPanelTriggerId}
+                variant="outline"
+                size="sm"
+              />
+            }
+          >
+            Panel
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-48">
+            <DropdownMenuItem
+              onClick={() => {
+                setProblem(null)
+                onPickingChange(true)
+              }}
+            >
+              From a dashboard
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={editor === null || newPanel === null}
+              onClick={() => {
+                if (editor === null || newPanel === null) return
+                setProblem(null)
+                editor.open({ kind: "new", panel: newPanel })
+              }}
+            >
+              New query
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {dataPages.map((page) => (
           <Button
             key={page.label}

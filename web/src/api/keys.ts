@@ -164,6 +164,20 @@ export const editorKeys = {
     panelId: string,
     params: PreviewKeyParams
   ) => ["editor-preview", dashboardId, version, panelId, params] as const,
+  blockPreview: (
+    observationId: string,
+    blockId: string | null,
+    version: number,
+    params: PreviewKeyParams
+  ) =>
+    [
+      "editor-preview",
+      "observation",
+      observationId,
+      blockId,
+      version,
+      params,
+    ] as const,
   suggestion: (dashboardId: string, suggestionId: string) =>
     ["suggestions", dashboardId, suggestionId] as const,
 }

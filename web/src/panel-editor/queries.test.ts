@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError, NetworkError } from "@/api/errors"
+import type { DataPanel } from "@/spec"
 
-import { describeSuggestionError, suggestionQuery } from "./queries"
+import { testQueryClient } from "@/test/render"
+
+import {
+  blockPreviewQuery,
+  describeSuggestionError,
+  storedBlockPanel,
+  suggestionQuery,
+} from "./queries"
 
 describe("describeSuggestionError", () => {
   const rows: [number, string, string, string][] = [
@@ -139,5 +147,87 @@ describe("suggestionQuery polling", () => {
     expect(
       interval({ status: "error", error: new NetworkError("offline") })
     ).toBe(1000)
+  })
+})
+
+describe("blockPreviewQuery", () => {
+  const panel: DataPanel = {
+    id: "panel",
+    type: "timeseries",
+    title: "Errors",
+    datasource: "prom",
+    gridPos: { x: 0, y: 0, w: 24, h: 8 },
+    queries: [{ query: "up" }],
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function sentFor(blockId: string | null) {
+    const requests: Request[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        requests.push(request.clone())
+        return Response.json({ frames: [] })
+      })
+    )
+    await testQueryClient().fetchQuery(
+      blockPreviewQuery({
+        observationId: "o1",
+        blockId,
+        version: 3,
+        panel,
+        from: "2026-11-12T08:00:00Z",
+        to: "2026-11-12T09:00:00Z",
+        timezone: undefined,
+        selections: { env: ["prod"] },
+        maxDataPoints: 400,
+      })
+    )
+    const [request] = requests
+    return {
+      path: new URL(request.url).pathname,
+      body: (await request.json()) as Record<string, unknown>,
+    }
+  }
+
+  it("posts the draft with the block it edits to the observation", async () => {
+    const { path, body } = await sentFor("b1")
+    expect(path).toBe("/api/v1/observations/o1/blocks/preview")
+    expect(body).toEqual({
+      block_id: "b1",
+      panel: storedBlockPanel(panel),
+      from: "2026-11-12T08:00:00Z",
+      to: "2026-11-12T09:00:00Z",
+      max_data_points: 400,
+      variables: { env: ["prod"] },
+    })
+  })
+
+  it("names no block for a new query", async () => {
+    const { body } = await sentFor(null)
+    expect(body).not.toHaveProperty("block_id")
+  })
+})
+
+describe("storedBlockPanel", () => {
+  it("drops the editor's id and grid position", () => {
+    expect(
+      storedBlockPanel({
+        id: "panel",
+        type: "stat",
+        title: "Up",
+        datasource: "prom",
+        gridPos: { x: 0, y: 0, w: 24, h: 8 },
+        queries: [{ query: "up" }],
+      })
+    ).toEqual({
+      type: "stat",
+      title: "Up",
+      datasource: "prom",
+      queries: [{ query: "up" }],
+    })
   })
 })
