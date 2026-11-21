@@ -351,6 +351,33 @@ func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
 	}
 }
 
+func TestAStoppedBuildOnAStarterDashboardIsNotOfferedKeepBuild(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	stopped := submit(t, svc, dash, "fails with a build")
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", stopped.ID)
+	d.Exec(t, "INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)", dash.String())
+
+	rec := call(newRouterAs(svc, user), http.MethodGet, revisionsPath(dash)+"/"+stopped.ID, "")
+	var one struct {
+		Revision struct {
+			AllowedActions []string `json:"allowed_actions"`
+		} `json:"revision"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &one); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("get: %d %s", rec.Code, rec.Body)
+	}
+	if slices.Contains(one.Revision.AllowedActions, "keep_build") {
+		t.Fatalf("allowed_actions = %v, want no keep_build on a starter", one.Revision.AllowedActions)
+	}
+}
+
 func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)

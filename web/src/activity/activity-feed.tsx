@@ -31,6 +31,7 @@ import {
   readerNote,
   useLatestFolderTitle,
   useLatestPermissions,
+  useLatestProvisioned,
 } from "@/dashboards/permissions"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
@@ -283,7 +284,8 @@ export function ActivityFeed({
 
   const permissions = useLatestPermissions(dashboardId)
   const folderTitle = useLatestFolderTitle(dashboardId)
-  const mode = composerMode(permissions)
+  const provisioned = useLatestProvisioned(dashboardId)
+  const mode = composerMode(permissions, provisioned)
   const note = readerNote(mode, folderTitle ?? "this folder")
   const gate = sendToAgentState({
     canComment: permissions.comment,
@@ -292,6 +294,7 @@ export function ActivityFeed({
     layoutEditing,
     activeRequests: requests.filter((request) => isActive(request.status))
       .length,
+    provisioned,
   })
   const clientName = clientNameFrom(madeBy)
   const runningRequestId =
@@ -462,7 +465,11 @@ export function ActivityFeed({
           draft={draft}
           onDraftChange={onDraftChange}
           gate={gate}
-          canInvestigate={mayInvestigate(permissions, principal.role)}
+          canInvestigate={mayInvestigate(
+            permissions,
+            principal.role,
+            provisioned
+          )}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
@@ -473,7 +480,7 @@ export function ActivityFeed({
           range={range}
           timeZone={timeZone}
           notice={
-            mode === "comment-only" ? (
+            mode === "comment-only" || mode === "provisioned" ? (
               <RoleNote>{note}</RoleNote>
             ) : noModel && madeBy !== null ? (
               <ExternalAgentNote
