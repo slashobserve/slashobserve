@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -177,6 +179,26 @@ func TestListDatasourcesNamesTheAudienceOnlyForAnAdmin(t *testing.T) {
 		}
 		if tc.not != "" && strings.Contains(got, tc.not) {
 			t.Fatalf("%s: list_datasources = %s, want no %s", tc.who.Role, got, tc.not)
+		}
+	}
+}
+
+func TestTheSpecGuideTeachesTheAuditTrailOnlyToAnAdmin(t *testing.T) {
+	for _, who := range []auth.Principal{
+		{Kind: auth.KindUser, ID: "e", Role: auth.RoleEditor},
+		{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin},
+	} {
+		r, _ := adminsOnlyTools(t)
+		ctx := auth.WithPrincipal(t.Context(), who)
+		res, err := r.Call(ctx, nameGetSpecGuide, []byte(`{}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := strings.Contains(content(t, res), "The audit trail"), who.Role == auth.RoleAdmin; got != want {
+			t.Errorf("%s: the guide holds the audit section = %v, want %v", who.Role, got, want)
+		}
+		if got, want := r.DatasourceTypes(ctx), who.Role == auth.RoleAdmin; slices.Contains(got, prompts.AuditTrail) != want {
+			t.Errorf("%s: the observe prompt's types = %v", who.Role, got)
 		}
 	}
 }
