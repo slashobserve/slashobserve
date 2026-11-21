@@ -296,7 +296,7 @@ func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
 	}))
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
 	question := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs mention " + privateWord)})
-	failAllRuns(t, svc, d, question.String())
+	d.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', finished_at = now() WHERE id = $1::uuid`, question.String())
 	build := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("now build a dashboard of it"), ChatID: text(question.String())})
 	failAllRuns(t, svc, d, build.String())
 	if got := storedRun(t, svc, build.String()); !strings.Contains(got.ThreadContext.String, privateWord) {
