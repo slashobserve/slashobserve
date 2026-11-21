@@ -127,7 +127,9 @@ func (r *Registry) readLines(ctx context.Context, datasourceUID string, source d
 		return nil, err
 	}
 	defer release()
-	return source.Lines(ctx, req)
+	frames, err := source.Lines(ctx, req)
+	datasource.NoteQuery(ctx, datasourceUID, req.Query.Text, req.Range, datasource.FrameRows(frames))
+	return frames, err
 }
 
 type timedLine struct {

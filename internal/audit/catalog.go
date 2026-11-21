@@ -78,6 +78,7 @@ var (
 	overflowKeys = []string{"overflow"}
 	streamKeys   = []string{"stream"}
 	windowKeys   = []string{"from", "to"}
+	queryKeys    = []string{"query", "row_count"}
 	tokenKeys    = []string{"grant_type"}
 	deliverKeys  = []string{"event_type"}
 
@@ -183,7 +184,7 @@ var catalog = map[Action]Spec{
 	"run.archive":     change(CategoryAgent),
 	"agent.tool_call": access(CategoryAgent),
 
-	"query.run": access(CategoryQuery, streamKeys, windowKeys),
+	"query.run": access(CategoryQuery, streamKeys, windowKeys, queryKeys),
 
 	"user.role_change":           change(CategoryAdmin, personKeys),
 	"user.sign_out_everywhere":   change(CategoryAdmin, personKeys),

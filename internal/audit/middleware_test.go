@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +35,7 @@ func (s storeRig) engine(t *testing.T, handler gin.HandlerFunc) *gin.Engine {
 	api.GET("/dashboards/:id/versions/:version", handler)
 	api.GET("/dashboards", handler)
 	api.POST("/dashboards", handler)
+	api.POST("/datasources/:uid/query", handler)
 	return engine
 }
 
@@ -138,34 +141,137 @@ func TestADeclaredReadRecordsAnAccessEvent(t *testing.T) {
 	}
 }
 
-func TestARepeatedReadIsDroppedOnlyWhenItIsASuccessfulRead(t *testing.T) {
+type queryEvent struct {
+	outcome, datasource, targetID, query, rows, from, to string
+}
+
+func (s storeRig) queryEventsOf(t *testing.T, request uuid.UUID) []queryEvent {
+	t.Helper()
+	rows, err := s.db.SQLDB(t).QueryContext(t.Context(), `SELECT outcome, coalesce(datasource_uid, ''), coalesce(target_id, ''), coalesce(data->>'query', ''), coalesce(data->>'row_count', ''), coalesce(data->>'from', ''), coalesce(data->>'to', '')
+FROM audit_events WHERE request_id = $1 AND action = 'query.run' ORDER BY datasource_uid`, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var events []queryEvent
+	for rows.Next() {
+		var e queryEvent
+		if err := rows.Scan(&e.outcome, &e.datasource, &e.targetID, &e.query, &e.rows, &e.from, &e.to); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return events
+}
+
+func TestAQueryRunRecordsEachDatasourceTheRequestQueriedWithItsTextWindowAndRows(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
-	status, fresh := http.StatusOK, false
+	at := func(minute int) time.Time { return time.Date(2026, 11, 21, 10, minute, 0, 0, time.UTC) }
+	notes := []Query{
+		{Datasource: "prom", Text: "up", From: at(10), To: at(20), Rows: 3},
+		{Datasource: "loki", Text: `{app="a"}`, From: at(0), To: at(30), Rows: 7},
+		{Datasource: "prom", Text: "up", From: at(0), To: at(25), Rows: 4},
+		{Datasource: "prom", Text: "rate(x[1m])", From: at(15), To: at(30), Rows: 1},
+	}
+	status := http.StatusOK
 	engine := s.engine(t, func(c *gin.Context) {
-		NoteRead(c.Request.Context(), Read{Repeated: true})
-		if fresh {
-			NoteRead(c.Request.Context(), Read{})
+		for _, q := range notes {
+			NoteQuery(c.Request.Context(), q)
 		}
 		c.JSON(status, gin.H{})
 	})
-	_, read := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
-	_, change := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
-	fresh = true
-	_, mixed := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
-	fresh, status = false, http.StatusForbidden
-	_, refused := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	_, request := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	status = http.StatusBadGateway
+	_, failed := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
 	s.run(t)()
-	if got := s.eventsOf(t, read); len(got) != 0 {
-		t.Fatalf("a repeated read recorded %+v", got)
+	want := []queryEvent{
+		{"success", "loki", "loki", `{app="a"}`, "7", "2026-11-21T10:00:00Z", "2026-11-21T10:30:00Z"},
+		{"success", "prom", "prom", "up\nrate(x[1m])", "8", "2026-11-21T10:00:00Z", "2026-11-21T10:30:00Z"},
 	}
-	if got := s.eventsOf(t, mixed); len(got) != 1 || got[0].action != "dashboard.view" {
-		t.Fatalf("a request with one repeated and one new read recorded %+v, want its view", got)
+	if got := s.queryEventsOf(t, request); !slices.Equal(got, want) {
+		t.Fatalf("events = %+v, want %+v", got, want)
 	}
-	if got := s.eventsOf(t, change); len(got) != 1 || got[0].action != "dashboard.update" {
-		t.Fatalf("a change marked as a repeated read recorded %+v", got)
+	if got := s.queryEventsOf(t, failed); len(got) != 2 || got[0].outcome != "failed" || got[1].outcome != "failed" {
+		t.Fatalf("a failed request recorded %+v, want each queried datasource as failed", got)
 	}
-	if got := s.eventsOf(t, refused); len(got) != 1 || got[0].outcome != "denied" {
-		t.Fatalf("a refused repeated read recorded %+v", got)
+}
+
+func TestARepeatOfAQueryOverTheSamePeriodIsRecordedOnceInTenMinutes(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	base := time.Date(2026, 11, 21, 10, 0, 0, 0, time.UTC)
+	note := Query{Datasource: "prom", Text: "up", From: base, To: base.Add(15 * time.Minute)}
+	status := http.StatusOK
+	engine := s.engine(t, func(c *gin.Context) {
+		NoteQuery(c.Request.Context(), note)
+		c.JSON(status, gin.H{})
+	})
+	_, first := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	note.From, note.To = base.Add(time.Minute), base.Add(16*time.Minute)
+	_, refresh := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	note.From, note.To = base, base.Add(time.Hour)
+	_, wider := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	note.From, note.To, note.Text = base, base.Add(15*time.Minute), "up == 0"
+	_, other := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	note.Text, status = "up", http.StatusBadGateway
+	_, failed := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	s.run(t)()
+	for name, tc := range map[string]struct {
+		request uuid.UUID
+		want    int
+	}{"the first run": {first, 1}, "a refresh of it": {refresh, 0}, "a wider period": {wider, 1}, "another query": {other, 1}, "a failure of the repeat": {failed, 1}} {
+		if got := s.queryEventsOf(t, tc.request); len(got) != tc.want {
+			t.Errorf("%s recorded %+v, want %d events", name, got, tc.want)
+		}
+	}
+}
+
+func TestARecordedQueryIsCappedAndAStreamIsNeverFolded(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	long := strings.Repeat("a", 2*MaxQueryBytes)
+	stream := false
+	engine := s.engine(t, func(c *gin.Context) {
+		NoteQuery(c.Request.Context(), Query{Datasource: "loki", Text: long})
+		if stream {
+			Conclude(c.Request.Context(), Result{Outcome: OutcomeSuccess, Target: Target{Kind: "datasource", ID: "loki"}, Data: map[string]any{"stream": true}})
+		}
+		c.JSON(http.StatusOK, gin.H{})
+	})
+	_, request := serve(t, engine, http.MethodPost, "/api/v1/datasources/loki/query")
+	stream = true
+	_, first := serve(t, engine, http.MethodPost, "/api/v1/datasources/loki/query")
+	_, second := serve(t, engine, http.MethodPost, "/api/v1/datasources/loki/query")
+	s.run(t)()
+	got := s.queryEventsOf(t, request)
+	if len(got) != 1 || got[0].query != long[:MaxQueryBytes]+" [truncated]" {
+		t.Fatalf("recorded %d events, first query of %d bytes", len(got), len(got[0].query))
+	}
+	for _, id := range []uuid.UUID{first, second} {
+		if got := s.queryEventsOf(t, id); len(got) != 1 {
+			t.Errorf("a repeated stream recorded %+v, want one event each", got)
+		}
+	}
+}
+
+func TestQueriesNotedOnARouteThatIsNotAQueryRunAreNotRecordedAsOne(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	engine := s.engine(t, func(c *gin.Context) {
+		NoteQuery(c.Request.Context(), Query{Datasource: "prom", Text: "up"})
+		c.JSON(http.StatusOK, gin.H{})
+	})
+	_, view := serve(t, engine, http.MethodGet, "/api/v1/dashboards/"+dashboardID)
+	_, bare := serve(t, engine, http.MethodPost, "/api/v1/datasources/prom/query")
+	s.run(t)()
+	if got := s.queryEventsOf(t, view); len(got) != 0 {
+		t.Fatalf("a dashboard view recorded queries %+v", got)
+	}
+	if got := s.eventsOf(t, view); len(got) != 1 || got[0].action != "dashboard.view" {
+		t.Fatalf("a dashboard view recorded %+v", got)
+	}
+	if got := s.queryEventsOf(t, bare); len(got) != 1 || got[0].targetID != "prom" || got[0].query != "up" {
+		t.Fatalf("a noted query recorded %+v", got)
 	}
 }
 

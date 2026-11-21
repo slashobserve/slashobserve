@@ -200,10 +200,13 @@ func (h *Handler) volumeFromSource(c *gin.Context, uid string, source datasource
 		Step:    al.step,
 	})
 	if err != nil {
+		datasource.NoteQuery(ctx, uid, *req.Query, al.rng, 0)
 		h.exploreFail(c, uid, volumeProblem(err))
 		return
 	}
-	c.JSON(http.StatusOK, newVolumeJSON(hist.Volume()))
+	volume := hist.Volume()
+	datasource.NoteQuery(ctx, uid, *req.Query, al.rng, len(volume.Buckets))
+	c.JSON(http.StatusOK, newVolumeJSON(volume))
 }
 
 func foldClickHouseVolume(h *logvolume.Histogram, f datasource.Frame, _ time.Duration) bool {

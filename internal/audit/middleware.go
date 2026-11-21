@@ -131,25 +131,31 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		}
 		action = ActionRefuse
 	}
-	if len(inTx) == 0 && st.repeatsARead(action, outcome) {
+	base := Event{
+		Action:   action,
+		Outcome:  outcome,
+		Reason:   reason,
+		Status:   o.status,
+		Target:   target,
+		Data:     data,
+		Duration: o.took,
+	}
+	if action == ActionQueryRun && st.hasQueries() {
+		for _, e := range r.queryEvents(ctx, st, base, len(inTx) == 0 && concluded == nil) {
+			r.emit(ctx, e)
+		}
 		return
 	}
-	data = st.withReadWindow(action, data)
-	row, err := r.row(ctx, Event{
-		Action:     action,
-		Outcome:    outcome,
-		Reason:     reason,
-		Status:     o.status,
-		Target:     target,
-		Datasource: st.readDatasource(),
-		Data:       data,
-		Duration:   o.took,
-	})
+	r.emit(ctx, base)
+}
+
+func (r *Recorder) emit(ctx context.Context, e Event) {
+	row, err := r.row(ctx, e)
 	if err != nil {
 		r.logger.WarnContext(ctx, "audit request event not built", logattrs.Failure("audit_event_invalid", err)...)
 		return
 	}
-	if batched(action, outcome) {
+	if batched(e.Action, Outcome(row.Outcome)) {
 		r.writer.enqueue(row)
 		return
 	}

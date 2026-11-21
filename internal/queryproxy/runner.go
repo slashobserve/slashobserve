@@ -373,6 +373,7 @@ func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j
 		exemplars, status, err := r.fetchExemplars(ctx, panel.ID, ref, pq)
 		return fetched{frames: frames, exemplars: exemplars, status: status}, err
 	})
+	datasource.NoteQuery(ctx, pq.inst.UID, panel.Queries[j].Query, req.Range, datasource.FrameRows(out.frames))
 	if err != nil {
 		return fetched{}, err
 	}

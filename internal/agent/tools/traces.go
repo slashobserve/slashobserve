@@ -118,6 +118,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 	}
 	defer release()
 	f, err := source.Trace(ctx, in.TraceID, rng, datasource.TraceSpanBudget)
+	datasource.NoteQuery(ctx, inst.UID, "trace "+in.TraceID, rng, f.Rows())
 	if err != nil {
 		return datasourceFailure(step, err)
 	}
@@ -374,6 +375,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 	}
 	defer release()
 	stats, err := source.TraceStats(ctx, datasource.TraceStatsRequest{Query: *in.Query, Range: rng, Step: step, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal)})
+	datasource.NoteQuery(ctx, inst.UID, *in.Query, rng, len(stats.Buckets))
 	if err != nil {
 		return datasourceFailure(stepName, err)
 	}

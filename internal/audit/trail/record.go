@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
@@ -21,28 +20,14 @@ const (
 	viewHistogram = "histogram"
 	viewAggregate = "aggregate"
 	viewEvent     = "event"
-
-	MaxRecordedQueryBytes = 4096
-	truncatedMark         = " [truncated]"
 )
-
-func recordedQuery(text string) string {
-	if len(text) <= MaxRecordedQueryBytes {
-		return text
-	}
-	cut := MaxRecordedQueryBytes
-	for cut > 0 && !utf8.RuneStart(text[cut]) {
-		cut--
-	}
-	return text[:cut] + truncatedMark
-}
 
 func windowData(p Prepared) map[string]any {
 	return map[string]any{
 		"form":  string(p.Query.Form),
 		"since": p.Window.From.UTC().Format(time.RFC3339Nano),
 		"until": p.Window.To.UTC().Format(time.RFC3339Nano),
-		"query": recordedQuery(p.Text),
+		"query": audit.CapQuery(p.Text),
 	}
 }
 
@@ -52,7 +37,7 @@ func (r *Reader) Prepare(ctx context.Context, action audit.Action, req Request) 
 		if problem, ok := ProblemOf(err); ok {
 			r.write(ctx, audit.Event{
 				Action: action, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
-				Data: map[string]any{"query": recordedQuery(req.Text)},
+				Data: map[string]any{"query": audit.CapQuery(req.Text)},
 			})
 		}
 		return Prepared{}, err
@@ -100,7 +85,7 @@ func (r *Reader) readFailed(ctx context.Context, p Prepared, v read, err error) 
 func (r *Reader) writeFailed(ctx context.Context, v read, text string, err error) {
 	if problem, ok := ProblemOf(err); ok {
 		data := v.data()
-		data["query"] = recordedQuery(text)
+		data["query"] = audit.CapQuery(text)
 		r.write(ctx, audit.Event{Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status, Data: data})
 	}
 }

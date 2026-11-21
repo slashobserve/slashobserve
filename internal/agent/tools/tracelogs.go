@@ -69,14 +69,16 @@ func (r *Registry) logsForTrace(ctx context.Context, input json.RawMessage) (Res
 	}
 	defer release()
 	principal, _ := auth.FromContext(ctx)
-	frames, err := source.TraceLogs(ctx, datasource.TraceLogsRequest{
+	logsRequest := datasource.TraceLogsRequest{
 		TraceID: in.TraceID,
 		SpanID:  in.SpanID,
 		Service: in.Service,
 		Range:   rng,
 		Limit:   limit,
 		User:    queryproxy.UserFor(principal),
-	})
+	}
+	frames, err := source.TraceLogs(ctx, logsRequest)
+	datasource.NoteQuery(ctx, inst.UID, logsRequest.Text(), rng, datasource.FrameRows(frames))
 	if err != nil {
 		return datasourceFailure(step, err)
 	}

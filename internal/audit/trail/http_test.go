@@ -388,7 +388,7 @@ func TestAReadByAnotherAdminIsRecordedAgain(t *testing.T) {
 func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
 	r := newHTTPRig(t)
 	engine := r.engine(t, &admin)
-	text := "actor_name:" + strings.Repeat("a", 2*MaxRecordedQueryBytes)
+	text := "actor_name:" + strings.Repeat("a", 2*audit.MaxQueryBytes)
 	if rec := r.get(t, engine, "/audit/events", r.hourWindow(url.Values{"q": {text}})); rec.Code != http.StatusOK {
 		t.Fatalf("search = %d %s", rec.Code, rec.Body)
 	}
@@ -397,7 +397,7 @@ func TestARecordedQueryIsCappedAndMarked(t *testing.T) {
 		t.Fatalf("recorded %+v", reads)
 	}
 	got, _ := reads[0].data["query"].(string)
-	if got != text[:MaxRecordedQueryBytes]+truncatedMark {
+	if got != text[:audit.MaxQueryBytes]+" [truncated]" {
 		t.Fatalf("recorded a %d byte query ending %q", len(got), got[max(0, len(got)-20):])
 	}
 }

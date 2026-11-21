@@ -73,6 +73,7 @@ func (h *Handler) trace(c *gin.Context) {
 	started := time.Now()
 	f, err := source.Trace(ctx, id, rng, datasource.TraceSpanBudget)
 	elapsed := time.Since(started)
+	datasource.NoteQuery(ctx, uid, "trace "+id, rng, f.Rows())
 	switch {
 	case errors.Is(err, datasource.ErrNotFound):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), traceNotFoundMessage)

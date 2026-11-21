@@ -57,6 +57,8 @@ type Recorder struct {
 	logger    *slog.Logger
 	writer    *Writer
 	inflight  atomic.Int64
+
+	queryRepeats *Repeats
 }
 
 var installed atomic.Pointer[Recorder]
@@ -73,6 +75,8 @@ func New(cfg Config) *Recorder {
 		metrics:   cfg.Metrics,
 		retention: cfg.Retention,
 		logger:    cfg.Logger,
+
+		queryRepeats: NewRepeats(),
 	}
 	if r.server == "" {
 		r.server, _ = os.Hostname()

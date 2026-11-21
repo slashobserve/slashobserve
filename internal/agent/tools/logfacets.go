@@ -82,6 +82,7 @@ func (r *Registry) logFacets(ctx context.Context, input json.RawMessage) (Result
 		Limit:  limit,
 		Sample: defaultFacetSample,
 	})
+	datasource.NoteQuery(ctx, inst.UID, in.Query, rng, datasource.FacetValues(facets))
 	if err != nil {
 		return datasourceFailure("Counting facets on "+inst.UID, err)
 	}
