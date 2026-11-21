@@ -27,6 +27,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/threads"
@@ -135,7 +136,7 @@ func newAccessFixture(t *testing.T) *accessFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Findings: found, SavedSearches: savedsearches.New(database.DB, access, datasources, base, logger), Threads: commentThreads, Folders: access, Annotations: notes, Search: search.New(database.DB, access, base), PublicURL: base, Logger: logger})
+	reg := tools.New(tools.Deps{Datasources: datasources, Runner: runner, Dashboards: service, Findings: found, SavedSearches: savedsearches.New(database.DB, access, datasources, base, logger), Threads: commentThreads, Asks: threads.NewAsks(commentThreads, revisions.NewService(database.DB, logger, revisions.WithAccess(access)), false), Folders: access, Annotations: notes, Search: search.New(database.DB, access, base), PublicURL: base, Logger: logger})
 	authn := keyAuth{}
 	for _, p := range []auth.Principal{adminKey, editorKey, commenterKey, viewerKey, creatorKey} {
 		authn[bearer(p)] = Credential{Principal: p}

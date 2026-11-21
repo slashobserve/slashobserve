@@ -1,0 +1,125 @@
+chats:
+  get:
+    operationId: listChats
+    x-audit: { none: "list read; only scope=all is recorded, as chat.list from the service once per caller in 10 minutes" }
+    x-surfaces:
+      mcp: [list_chats]
+      cli: [observe chats list]
+    summary: "List your chats, the one most recently asked in first, or everyone's for an Admin."
+    description: >-
+      A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it.
+      With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403.
+      `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin.
+      A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes.
+      `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively.
+      Archived chats are left out.
+      `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
+    parameters:
+      - name: scope
+        in: query
+        schema:
+          type: string
+          enum: [mine, all]
+          default: mine
+      - name: q
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+      - name: pinned
+        in: query
+        schema:
+          type: boolean
+      - name: dashboard_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: observation_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+    responses:
+      "200":
+        description: One page of your chats.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ChatList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+chats-id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: getChat
+    x-audit: { action: chat.view, target: { kind: chat, id: path.id } }
+    x-surfaces:
+      mcp: [get_chat]
+      cli: [observe chats show]
+    summary: Read one of your chats, or as an Admin anyone's, with every turn, oldest first.
+    description: >-
+      Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps.
+      An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`.
+      A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404.
+      A read of someone else's chat is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`, once per reader and chat in 10 minutes; a refused read is recorded every time, and the owner's own reads are not recorded.
+    responses:
+      "200":
+        description: The chat and its turns.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ChatDetail"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: archiveChat
+    x-audit: { action: chat.delete, target: { kind: chat, id: path.id } }
+    x-surfaces:
+      cli: [observe chats archive]
+    summary: Archive one of your chats and every turn in it, so they leave your lists.
+    description: >-
+      Only the chat's owner may archive it; anyone else, an Admin included, gets 404 and nothing changes.
+      Its turns stay readable through `GET /observe/{id}`, and dashboards, versions and observations they made are kept.
+      A new request with this `chat_id` answers 404 afterwards.
+    responses:
+      "204":
+        description: The chat is archived; nothing is returned.
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

@@ -9,17 +9,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 )
 
 type Threads struct {
 	service *Service
-	runs    *MentionRuns
+	asks    *Asks
 }
 
-func NewThreads(service *Service, runs *MentionRuns) *Threads {
-	return &Threads{service: service, runs: runs}
+func NewThreads(service *Service, asks *Asks) *Threads {
+	return &Threads{service: service, asks: asks}
 }
 
 type targetJSON struct {
@@ -43,6 +45,15 @@ type threadJSON struct {
 	ResolvedActor     *actor.JSON          `json:"resolved_actor"`
 	ResolvedByVersion *int                 `json:"resolved_by_version"`
 	Revision          *commentRevisionJSON `json:"revision"`
+	Anchor            *anchor.Anchor       `json:"anchor"`
+	BlockID           *string              `json:"block_id"`
+	Agent             *threadAgentJSON     `json:"agent"`
+	AgentOff          bool                 `json:"agent_off"`
+}
+
+type threadAgentJSON struct {
+	Kind string  `json:"kind"`
+	ID   *string `json:"id"`
 }
 
 type messageJSON struct {
@@ -95,12 +106,22 @@ type threadMessageEnvelopeJSON struct {
 	Message messageJSON `json:"message"`
 }
 
+type sentEnvelopeJSON struct {
+	Thread   threadJSON  `json:"thread"`
+	Message  messageJSON `json:"message"`
+	To       string      `json:"to"`
+	Replayed bool        `json:"replayed"`
+}
+
 type openThreadRequest struct {
-	Target  string  `json:"target"`
-	Version *int    `json:"version"`
-	PanelID *string `json:"panel_id"`
-	BlockID *string `json:"block_id"`
-	Body    string  `json:"body"`
+	Target   string         `json:"target"`
+	Version  *int           `json:"version"`
+	PanelID  *string        `json:"panel_id"`
+	BlockID  *string        `json:"block_id"`
+	Anchor   *anchor.Anchor `json:"anchor"`
+	Body     string         `json:"body"`
+	To       string         `json:"to"`
+	ClientID *string        `json:"client_id"`
 
 	StartRuns bool `json:"start_runs"`
 }
@@ -113,7 +134,27 @@ type replyRequest struct {
 	Body      string  `json:"body"`
 	BlockID   *string `json:"block_id"`
 	ReplyToID *string `json:"reply_to_id"`
+	To        string  `json:"to"`
+	ClientID  *string `json:"client_id"`
 	StartRuns bool    `json:"start_runs"`
+}
+
+func deliveryOf(to string, startRuns bool) (To, error) {
+	if to == "" && startRuns {
+		return ToAgent, nil
+	}
+	return ParseTo(to)
+}
+
+func ParseClientID(raw *string) (pgtype.UUID, error) {
+	if raw == nil {
+		return pgtype.UUID{}, nil
+	}
+	id, err := db.ParseUUID(*raw)
+	if err != nil {
+		return pgtype.UUID{}, &InvalidInputError{Code: CodeInvalidClientID, Message: "client_id must be a UUID"}
+	}
+	return id, nil
 }
 
 type resolveThreadRequest struct {
@@ -217,14 +258,24 @@ func (th *Threads) open(c *gin.Context) {
 		th.fail(c, "open thread", err)
 		return
 	}
-	thread, message, run, refusal, err := th.runs.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
-		Target: target, Version: req.Version, PanelID: req.PanelID, BlockID: req.BlockID, Body: req.Body,
-	}, req.StartRuns)
+	to, err := deliveryOf(req.To, req.StartRuns)
 	if err != nil {
 		th.fail(c, "open thread", err)
 		return
 	}
-	th.respondWithMessage(c, http.StatusCreated, thread, withRun(newMessageJSON(message), run, refusal))
+	clientID, err := ParseClientID(req.ClientID)
+	if err != nil {
+		th.fail(c, "open thread", err)
+		return
+	}
+	sent, err := th.asks.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
+		Target: target, Version: req.Version, PanelID: req.PanelID, BlockID: req.BlockID, Anchor: req.Anchor, ClientID: clientID, Body: req.Body,
+	}, to)
+	if err != nil {
+		th.fail(c, "open thread", err)
+		return
+	}
+	th.respondSent(c, sent)
 }
 
 func (th *Threads) reply(c *gin.Context) {
@@ -236,12 +287,35 @@ func (th *Threads) reply(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
-	thread, message, run, refusal, err := th.runs.Reply(c.Request.Context(), httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID}, req.StartRuns)
+	to, err := deliveryOf(req.To, req.StartRuns)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
 		return
 	}
-	th.respondWithMessage(c, http.StatusCreated, thread, withRun(newMessageJSON(message), run, refusal))
+	clientID, err := ParseClientID(req.ClientID)
+	if err != nil {
+		th.fail(c, "reply to thread", err)
+		return
+	}
+	sent, err := th.asks.Reply(c.Request.Context(), httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID, ClientID: clientID}, to)
+	if err != nil {
+		th.fail(c, "reply to thread", err)
+		return
+	}
+	th.respondSent(c, sent)
+}
+
+func (th *Threads) respondSent(c *gin.Context, sent Sent) {
+	threads, err := th.threadsJSON(c, []Thread{sent.Thread})
+	if err != nil {
+		th.fail(c, "read thread", err)
+		return
+	}
+	status := http.StatusCreated
+	if sent.Replayed {
+		status = http.StatusOK
+	}
+	c.JSON(status, sentEnvelopeJSON{Thread: threads[0], Message: withRun(newMessageJSON(sent.Message), sent.Run, sent.Refusal), To: string(sent.To), Replayed: sent.Replayed})
 }
 
 func (th *Threads) edit(c *gin.Context) {
@@ -355,10 +429,7 @@ func (th *Threads) fail(c *gin.Context, action string, err error) {
 		return
 	}
 	var invalid *InvalidInputError
-	var exists *ObservationThreadExistsError
 	switch {
-	case errors.As(err, &exists):
-		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": exists.Error(), "code": CodeObservationThreadExists, "thread_id": exists.ThreadID.String()})
 	case errors.Is(err, ErrNotAuthor), errors.Is(err, ErrCannotDelete):
 		httpapi.AbortError(c, http.StatusForbidden, CodeNotAuthor, err.Error())
 	case errors.As(err, &invalid) && invalid.Code != "":
@@ -406,6 +477,14 @@ func newThreadJSON(t Thread) threadJSON {
 	if t.ResolvedBy != nil {
 		resolver := t.ResolvedBy.JSON()
 		out.ResolvedActor = &resolver
+	}
+	out.Anchor, out.BlockID, out.AgentOff = t.Anchor, httpapi.OptionalString(t.BlockID), t.AgentOff
+	if t.Agent != nil {
+		out.Agent = &threadAgentJSON{Kind: string(t.Agent.Kind)}
+		if t.Agent.ID.Valid {
+			id := t.Agent.ID.String()
+			out.Agent.ID = &id
+		}
 	}
 	return out
 }

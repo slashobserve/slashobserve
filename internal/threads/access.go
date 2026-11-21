@@ -86,7 +86,7 @@ func targetOf(row dbsqlc.Thread) Target {
 	return Target{Kind: KindAnnotation, ID: row.AnnotationID}
 }
 
-func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope) error {
+func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope, forRun bool) error {
 	if sc.dashboard.Valid {
 		if _, err := q.LockDashboardKeyShare(ctx, sc.dashboard); err != nil {
 			return lockFailure(err)
@@ -97,7 +97,11 @@ func lockTarget(ctx context.Context, q *dbsqlc.Queries, sc scope) error {
 	case KindAnnotation:
 		_, err = q.LockAnnotationKeyShare(ctx, sc.target.ID)
 	case KindObservation:
-		_, err = q.LockObservationKeyShare(ctx, sc.target.ID)
+		if forRun {
+			_, err = q.LockObservation(ctx, sc.target.ID)
+		} else {
+			_, err = q.LockObservationKeyShare(ctx, sc.target.ID)
+		}
 	case KindProposal:
 		_, err = q.LockProposalKeyShare(ctx, sc.target.ID)
 	}

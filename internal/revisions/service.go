@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -43,10 +44,11 @@ type Service struct {
 	principals   Principals
 	access       *folders.Access
 	leaseTTL     time.Duration
+	reads        *audit.Repeats
 }
 
 func NewService(database *db.DB, logger *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: database, logger: logger, leaseTTL: LeaseTTL, metrics: noMetrics{}}
+	s := &Service{db: database, logger: logger, leaseTTL: LeaseTTL, metrics: noMetrics{}, reads: audit.NewRepeats()}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -74,6 +76,15 @@ type EnqueueParams struct {
 	Trigger         string
 	ThreadMessageID pgtype.UUID
 	ThreadContext   string
+	Point           Point
+
+	chat     chatChoice
+	clientID pgtype.UUID
+}
+
+type Point struct {
+	Anchor  []byte
+	BlockID pgtype.UUID
 }
 
 func (s *Service) Submit(ctx context.Context, p EnqueueParams) (dbsqlc.AgentRequest, error) {
@@ -115,6 +126,10 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
+	slot, err := takeChat(ctx, q, p.By, p.chat, chatSubject{dashboard: p.DashboardID})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if err := q.LockAgentRequestsForDashboard(ctx, p.DashboardID); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("lock agent requests: %w", err)
 	}
@@ -127,6 +142,8 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	}
 	originKind, originClient := origin.From(ctx).Columns()
 	row, err := q.EnqueueAgentRequest(ctx, dbsqlc.EnqueueAgentRequestParams{
+		ID:               slot.turn,
+		ChatID:           slot.chat,
 		DashboardID:      p.DashboardID,
 		Source:           string(p.Source),
 		CommentID:        p.CommentID,
@@ -148,17 +165,30 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		Anchor:           p.Point.Anchor,
+		BlockID:          p.Point.BlockID,
+		ClientID:         p.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
 	return row, nil
+}
+
+func clientIDTaken(err error, clientID pgtype.UUID, what string) error {
+	if clientID.Valid && errors.Is(err, pgx.ErrNoRows) {
+		return errClientIDTaken
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }
 
 func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int) (latest, base int, err error) {
@@ -180,7 +210,7 @@ func (s *Service) baseVersionFor(ctx context.Context, dashboardID pgtype.UUID, b
 }
 
 func (s *Service) SubmitFollowUp(ctx context.Context, dashboardID pgtype.UUID, baseVersion *int, panelID string, prompt string, by auth.Principal) (dbsqlc.AgentRequest, error) {
-	return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, PanelID: panelID, Prompt: prompt, By: by}, baseVersion)
+	return s.submitFollowUp(ctx, EnqueueParams{DashboardID: dashboardID, PanelID: panelID, Prompt: prompt, By: by, chat: chatChoice{mode: dashboardChat}}, baseVersion)
 }
 
 func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersion *int) (dbsqlc.AgentRequest, error) {
@@ -197,11 +227,6 @@ func (s *Service) submitFollowUp(ctx context.Context, p EnqueueParams, baseVersi
 		}
 	}
 	p.Source, p.BaseVersion = SourcePrompt, base
-	if p.ThreadContext == "" {
-		if p.ThreadContext, err = s.chatTranscript(ctx, p.By, pgtype.UUID{}, p.DashboardID); err != nil {
-			return dbsqlc.AgentRequest{}, err
-		}
-	}
 	return s.submit(ctx, p)
 }
 
@@ -229,26 +254,16 @@ func (s *Service) SubmitForThread(ctx context.Context, dashboardID, commentID pg
 }
 
 func (s *Service) SubmitObserve(ctx context.Context, by auth.Principal, prompt string) (dbsqlc.AgentRequest, error) {
-	return s.submitObserve(ctx, by, prompt, observeChat{})
+	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chatChoice{mode: newChat}})
 }
 
-func (s *Service) SubmitObserveFollowUp(ctx context.Context, by auth.Principal, prompt string, followsID pgtype.UUID) (dbsqlc.AgentRequest, error) {
-	parent, err := s.GetObserve(ctx, followsID, by)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	if parent.DashboardID.Valid {
-		return dbsqlc.AgentRequest{}, ErrFollowsDashboard
-	}
-	chatID := chatRoot(parent.ID, parent.ChatID)
-	transcript, err := s.chatTranscript(ctx, by, chatID, pgtype.UUID{})
-	if err != nil {
-		return dbsqlc.AgentRequest{}, err
-	}
-	return s.submitObserve(ctx, by, prompt, observeChat{id: chatID, context: transcript})
+type observeTurn struct {
+	chat     chatChoice
+	retries  pgtype.UUID
+	clientID pgtype.UUID
 }
 
-func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt string, chat observeChat) (dbsqlc.AgentRequest, error) {
+func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt string, turn observeTurn) (dbsqlc.AgentRequest, error) {
 	if !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
 	}
@@ -258,18 +273,22 @@ func (s *Service) submitObserve(ctx context.Context, by auth.Principal, prompt s
 	var row dbsqlc.AgentRequest
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
-		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "", chat)
+		row, err = s.enqueueObserve(ctx, q, by, prompt, pgtype.UUID{}, "", turn)
 		return err
 	})
 	return row, err
 }
 
-func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string, chat observeChat) (dbsqlc.AgentRequest, error) {
+func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, prompt string, continuesID pgtype.UUID, note string, turn observeTurn) (dbsqlc.AgentRequest, error) {
 	requesterID, err := db.ParseUUID(by.ID)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
 	originKind, originClient := origin.From(ctx).Columns()
+	slot, err := takeChat(ctx, q, by, turn.chat, chatSubject{})
+	if err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if err := q.LockObserveRequests(ctx); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
 	}
@@ -288,6 +307,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		return dbsqlc.AgentRequest{}, ErrAgentBusy
 	}
 	row, err := q.EnqueueObserveRequest(ctx, dbsqlc.EnqueueObserveRequestParams{
+		ID:               slot.turn,
 		Prompt:           prompt,
 		RequestedByKind:  string(by.Kind),
 		RequestedByID:    requesterID,
@@ -297,15 +317,18 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		OriginClient:     originClient,
 		ContinuesID:      continuesID,
 		ContinueNote:     pgtype.Text{String: note, Valid: note != ""},
-		RetriesID:        chat.retries,
-		ChatID:           chat.id,
-		ThreadContext:    pgtype.Text{String: chat.context, Valid: chat.context != ""},
+		RetriesID:        turn.retries,
+		ChatID:           slot.chat,
 		TimeZone:         timeZoneColumn(ctx),
+		ClientID:         turn.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue observe request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, turn.clientID, "enqueue observe request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if err := recordChatTurn(ctx, q, slot, row); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
@@ -329,6 +352,11 @@ type InvestigateParams struct {
 	Trigger         string
 	ThreadMessageID pgtype.UUID
 	ThreadContext   string
+	Point           Point
+	Ask             bool
+
+	chat     chatChoice
+	clientID pgtype.UUID
 }
 
 func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -344,10 +372,13 @@ func (s *Service) SubmitInvestigate(ctx context.Context, p InvestigateParams) (d
 		row, err = s.enqueueInvestigate(ctx, q, p)
 		return err
 	})
-	if db.IsForeignKeyViolation(err) {
-		return dbsqlc.AgentRequest{}, ErrDashboardNotFound
+	switch db.ViolatedForeignKey(err) {
+	case "":
+		return row, err
+	case anchoredBlockForeignKey:
+		return dbsqlc.AgentRequest{}, ErrObservationNotFound
 	}
-	return row, err
+	return dbsqlc.AgentRequest{}, ErrDashboardNotFound
 }
 
 func (s *Service) EnqueueAssignedInvestigate(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -359,25 +390,23 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 	if err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("requester id: %w", err)
 	}
-	if err := q.LockObserveRequests(ctx); err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("lock observe requests: %w", err)
+	subject := chatSubject{dashboard: p.DashboardID}
+	if p.ObservationID.Valid {
+		subject = chatSubject{observation: p.ObservationID}
 	}
-	mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
+	slot, err := takeChat(ctx, q, p.By, p.chat, subject)
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations of requester: %w", err)
+		return dbsqlc.AgentRequest{}, err
 	}
-	if mine >= MaxActiveInvestigatePerPrincipal {
-		return dbsqlc.AgentRequest{}, ErrTooManyInvestigations
-	}
-	all, err := q.CountActiveInvestigateRequests(ctx)
-	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("count active investigations: %w", err)
-	}
-	if all >= MaxActiveInvestigate {
-		return dbsqlc.AgentRequest{}, ErrAgentBusy
+	if !p.Ask {
+		if err := checkInvestigateCaps(ctx, q, requesterID); err != nil {
+			return dbsqlc.AgentRequest{}, err
+		}
 	}
 	originKind, originClient := origin.From(ctx).Columns()
 	row, err := q.EnqueueInvestigateRequest(ctx, dbsqlc.EnqueueInvestigateRequestParams{
+		ID:               slot.turn,
+		ChatID:           slot.chat,
 		DashboardID:      p.DashboardID,
 		Prompt:           p.Prompt,
 		PanelID:          pgtype.Text{String: p.PanelID, Valid: p.PanelID != ""},
@@ -396,20 +425,50 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		Anchor:           p.Point.Anchor,
+		BlockID:          p.Point.BlockID,
+		ClientID:         p.clientID,
 	})
 	if err != nil {
-		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue investigate request: %w", err)
+		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
 	}
 	if err := recordRun(ctx, q, row, ActionEnqueue); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	if err := recordChatTurn(ctx, q, slot, row); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	if row, err = s.openObservation(ctx, q, row, p); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
+	if err := lockAnchoredBlock(ctx, q, p); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if err := q.NotifyEvent(ctx, dbsqlc.NotifyEventParams{Channel: WakeChannel, Payload: row.ID.String()}); err != nil {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("notify workers: %w", err)
 	}
 	return row, nil
+}
+
+func checkInvestigateCaps(ctx context.Context, q *dbsqlc.Queries, requesterID pgtype.UUID) error {
+	if err := q.LockObserveRequests(ctx); err != nil {
+		return fmt.Errorf("lock observe requests: %w", err)
+	}
+	mine, err := q.CountActiveInvestigateRequestsBy(ctx, requesterID)
+	if err != nil {
+		return fmt.Errorf("count active investigations of requester: %w", err)
+	}
+	if mine >= MaxActiveInvestigatePerPrincipal {
+		return ErrTooManyInvestigations
+	}
+	all, err := q.CountActiveInvestigateRequests(ctx)
+	if err != nil {
+		return fmt.Errorf("count active investigations: %w", err)
+	}
+	if all >= MaxActiveInvestigate {
+		return ErrAgentBusy
+	}
+	return nil
 }
 
 func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, p InvestigateParams) (dbsqlc.AgentRequest, error) {
@@ -430,6 +489,22 @@ func (s *Service) openObservation(ctx context.Context, q *dbsqlc.Queries, row db
 		return row, fmt.Errorf("link run to observation: %w", err)
 	}
 	return linked, nil
+}
+
+const anchoredBlockForeignKey = "agent_requests_block_id_fkey"
+
+func lockAnchoredBlock(ctx context.Context, q *dbsqlc.Queries, p InvestigateParams) error {
+	if !p.Point.BlockID.Valid {
+		return nil
+	}
+	_, err := q.LockObservationBlock(ctx, dbsqlc.LockObservationBlockParams{ID: p.Point.BlockID, ObservationID: p.ObservationID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return ErrObservationNotFound
+	case err != nil:
+		return fmt.Errorf("lock the anchored block: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) checkInvestigate(ctx context.Context, p InvestigateParams) error {
@@ -486,10 +561,13 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if row.Source == string(SourceSuggest) {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
-	if !row.DashboardID.Valid && (row.RequestedByKind != string(by.Kind) || row.RequestedByID.String() != by.ID) {
-		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	switch {
+	case sameActor(requesterOf(row), by), row.DashboardID.Valid:
+		return row, nil
+	case row.ObservationID.Valid:
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
 	}
-	return row, nil
+	return dbsqlc.AgentRequest{}, ErrRequestNotFound
 }
 
 func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, bool, error) {
@@ -498,6 +576,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err == nil {
+		s.recordRunView(ctx, row, by)
 		return row, false, nil
 	}
 	if !errors.Is(err, ErrRequestNotFound) || !by.Role.AtLeast(auth.RoleAdmin) {
@@ -510,6 +589,7 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	if row.Source == string(SourceSuggest) {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
+	s.recordRunView(ctx, row, by)
 	return row, true, nil
 }
 
@@ -696,6 +776,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		for i, row := range all {
 			rows[i] = dbsqlc.ListAgentRequestsByRow(row)
 		}
+		s.recordEveryonesList(ctx, actionRunList)
 	} else {
 		rows, err = s.db.Queries().ListAgentRequestsBy(ctx, dbsqlc.ListAgentRequestsByParams{
 			RequestedByKind: string(by.Kind),
@@ -807,8 +888,14 @@ func (s *Service) claim(ctx context.Context, c Claimant) (claimResult, bool, err
 		if err != nil {
 			return fmt.Errorf("claim agent request: %w", err)
 		}
-		claimed, found = claimResult{request: row.AgentRequest, firstClaim: row.FirstClaim}, true
-		return recordRun(ctx, q, row.AgentRequest, ActionClaim)
+		request := row.AgentRequest
+		if row.FirstClaim {
+			if request, err = withChatTranscript(ctx, q, request); err != nil {
+				return err
+			}
+		}
+		claimed, found = claimResult{request: request, firstClaim: row.FirstClaim}, true
+		return recordRun(ctx, q, request, ActionClaim)
 	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == runningDashboardIndex {

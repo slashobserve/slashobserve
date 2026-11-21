@@ -33,7 +33,7 @@ func TestEveryCatalogActionHasANameACategoryAndAClass(t *testing.T) {
 }
 
 func TestReadsAndQueriesAreAccessEvents(t *testing.T) {
-	for _, action := range []Action{"dashboard.view", "observation.view", "public_link.view", "audit.search", "audit.export", "query.run", "agent.tool_call"} {
+	for _, action := range []Action{"dashboard.view", "observation.view", "chat.view", "chat.list", "run.view", "run.list", "public_link.view", "audit.search", "audit.export", "query.run", "agent.tool_call"} {
 		spec, ok := Lookup(action)
 		if !ok || spec.Class != ClassAccess {
 			t.Errorf("%s: class %q (in catalog %v), want access", action, spec.Class, ok)

@@ -133,7 +133,7 @@ func (r *rig) callStatus(t *testing.T, who auth.Principal, method, path string) 
 	api := engine.Group("/api/v1", func(c *gin.Context) {
 		c.Request = c.Request.WithContext(datasource.WithAccess(auth.WithPrincipal(c.Request.Context(), who), datasource.Access{By: who}))
 	})
-	NewThreads(r.service, r.mentions).Register(auth.NewRoutes(api))
+	NewThreads(r.service, r.asks).Register(auth.NewRoutes(api))
 	rec := httptest.NewRecorder()
 	engine.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), method, "/api/v1"+path, nil))
 	return rec.Code

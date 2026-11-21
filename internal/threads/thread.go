@@ -2,11 +2,13 @@ package threads
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
@@ -35,6 +37,14 @@ type Thread struct {
 	ResolvedAt        *time.Time
 	ResolvedBy        *actor.Actor
 	ResolvedByVersion *int
+	Anchor            *anchor.Anchor
+	BlockID           string
+	Agent             *revisions.Assignee
+	AgentOff          bool
+}
+
+func (t Thread) recipientState() threadAgent {
+	return threadAgent{Agent: t.Agent, Off: t.AgentOff}
 }
 
 type Message struct {
@@ -116,6 +126,19 @@ func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, r rights) Thr
 		version := int(row.ResolvedByVersion.Int32)
 		t.ResolvedByVersion = &version
 	}
+	if len(row.Anchor) > 0 {
+		var at anchor.Anchor
+		if json.Unmarshal(row.Anchor, &at) == nil {
+			t.Anchor = &at
+		}
+	}
+	if row.BlockID.Valid {
+		t.BlockID = row.BlockID.String()
+	}
+	if row.AgentKind.Valid {
+		t.Agent = &revisions.Assignee{Kind: revisions.AssigneeKind(row.AgentKind.String), ID: row.AgentID}
+	}
+	t.AgentOff = row.AgentOff
 	return t
 }
 

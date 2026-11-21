@@ -38,6 +38,25 @@ type fakeRuns struct {
 	gotPinned   *bool
 	archivedID  pgtype.UUID
 	updateCalls int
+	chatFilter  revisions.ChatFilter
+}
+
+func (f *fakeRuns) Chats(_ context.Context, by auth.Principal, filter revisions.ChatFilter, limit int, cursor string) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.chatFilter, f.gotCursor = true, by, filter, cursor
+	f.gotLimits = append(f.gotLimits, limit)
+	if len(f.pages) > 0 {
+		page := f.pages[0]
+		if len(f.pages) > 1 {
+			f.pages = f.pages[1:]
+		}
+		return page, f.err
+	}
+	return f.raw, f.err
+}
+
+func (f *fakeRuns) Chat(_ context.Context, by auth.Principal, id pgtype.UUID) (json.RawMessage, error) {
+	f.invoked, f.gotBy, f.gotID = true, by, id
+	return f.raw, f.err
 }
 
 func (f *fakeRuns) List(_ context.Context, by auth.Principal, filter revisions.ListFilter, limit int, cursor string) (json.RawMessage, error) {
@@ -232,6 +251,17 @@ func TestStartRunPassesThePromptAndTheCallerAndReturnsTheRun(t *testing.T) {
 	}
 	if runs.gotBy.Role != auth.RoleViewer {
 		t.Fatalf("started as %+v", runs.gotBy)
+	}
+}
+
+func TestStartRunPassesTheAnchorTheTurnIsAbout(t *testing.T) {
+	runs := &fakeRuns{raw: json.RawMessage(`{"id":"` + runID + `","state":"queued"}`)}
+	res := callRunTool(t, runs, nameStartRun, `{"prompt":"why this spike","dashboard_id":"`+runID+`","anchor":{"kind":"position","pos":{"x":0.4,"y":0.3}}}`)
+	if res.IsError {
+		t.Fatalf("error result %+v", res.Content)
+	}
+	if got := runs.started; got == nil || got.Anchor == nil || got.Anchor.Kind != "position" || got.Anchor.Pos.X != 0.4 {
+		t.Fatalf("start request = %+v", got)
 	}
 }
 

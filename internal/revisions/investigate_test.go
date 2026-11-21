@@ -63,6 +63,24 @@ func TestInvestigateCapsEachRequester(t *testing.T) {
 	}
 }
 
+func TestAnInvestigationAskedInAThreadSkipsThePersonAndInstanceCaps(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	for range revisions.MaxActiveInvestigatePerPrincipal {
+		investigate(t, svc, revisions.InvestigateParams{})
+	}
+	for range revisions.MaxActiveInvestigate - revisions.MaxActiveInvestigatePerPrincipal {
+		d.Exec(t, `INSERT INTO agent_requests (prompt, requested_by_kind, requested_by_id, requested_by_name, source) VALUES ('why', 'user', gen_random_uuid(), 'Other', 'investigate')`)
+	}
+	ctx := reading(context.Background())
+	if _, err := svc.SubmitInvestigate(ctx, revisions.InvestigateParams{Prompt: "one more", By: user}); !errors.Is(err, revisions.ErrTooManyInvestigations) {
+		t.Fatalf("a fourth investigation of one person: %v", err)
+	}
+	row, err := svc.EnqueueAssignedInvestigate(ctx, d.Queries(), revisions.InvestigateParams{Prompt: "asked in a thread", By: user, Ask: true})
+	if err != nil || row.Source != "investigate" {
+		t.Fatalf("an asked investigation with both caps full: %+v, %v", row, err)
+	}
+}
+
 func TestInvestigateNeedsAnEditorAndAKnownPanel(t *testing.T) {
 	panels := &fakePanels{known: map[string]bool{"errors": true}}
 	svc, d := newPanelService(t, panels)

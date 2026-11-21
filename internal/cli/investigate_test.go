@@ -150,3 +150,30 @@ func TestStatusOfAnInvestigationPrintsItsFinding(t *testing.T) {
 		t.Errorf("--wait: code %d stdout %q stderr %q", code, stdout, stderr)
 	}
 }
+
+func TestInvestigatePayloadPointsAtASpotOfABlock(t *testing.T) {
+	at := `{"kind":"position","pos":{"x":0.4,"y":0.3}}`
+	got, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, block: investigationID, at: at, timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"anchor":` + at + `,"block_id":"` + investigationID + `","kind":"investigate","observation_id":"` + observationID + `","prompt":"why"}`
+	if raw, _ := json.Marshal(got); string(raw) != want {
+		t.Errorf("payload = %s\nwant %s", raw, want)
+	}
+	if _, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, at: `{"kind":"position"`, timeout: time.Hour}); err == nil || !strings.Contains(err.Error(), "--at") {
+		t.Errorf("a broken anchor: error = %v, want one naming --at", err)
+	}
+}
+
+func TestPromptPayloadCarriesTheAnchor(t *testing.T) {
+	at := `{"kind":"time","pos":{"x":0.5,"y":0.5},"from":"2026-11-20T23:56:00Z"}`
+	got, err := promptOptions{dashboard: repairID, at: at}.payload("why this spike")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"anchor":` + at + `,"dashboard_id":"` + repairID + `","prompt":"why this spike"}`
+	if raw, _ := json.Marshal(got); string(raw) != want {
+		t.Errorf("payload = %s\nwant %s", raw, want)
+	}
+}

@@ -65,6 +65,10 @@ const thread: Thread = {
   resolved_actor: null,
   resolved_by_version: null,
   revision: null,
+  anchor: null,
+  block_id: null,
+  agent: null,
+  agent_off: false,
 }
 
 const earlier = message("m1", grace, "2020-11-10T09:00:00Z")

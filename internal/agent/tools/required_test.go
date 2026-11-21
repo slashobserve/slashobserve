@@ -59,6 +59,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		t.Fatal(err)
 	}
 	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
+	queue := revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access))
 	registry := New(Deps{
 		Activity:       activity.NewStore(database.DB, access),
 		AccessRequests: accessrequests.New(database.DB, access),
@@ -66,6 +67,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Runner:         runner,
 		Dashboards:     service,
 		Threads:        commentThreads,
+		Asks:           threads.NewAsks(commentThreads, queue, true),
 		Imports:        imports.New(database.DB, service, access, datasources, logger),
 		Folders:        access,
 		Findings:       found,
@@ -77,7 +79,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Search:         search.New(database.DB, access, nil),
 		Viewers:        viewers.New(database.DB),
 		Provider:       &scriptedDraft{},
-		Runs:           revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
+		Runs:           revisions.NewRunDesk(queue, revisions.ObserveOptions{}),
 		Audit:          trail.NewReader(database.DB, logger),
 		Logger:         logger,
 	})

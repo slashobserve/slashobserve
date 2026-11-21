@@ -62,6 +62,7 @@ type ContentItem struct {
 type RestrictedContentError struct {
 	Datasource string
 	Items      []ContentItem
+	Unlisted   int
 	Hidden     int
 	message    string
 }
@@ -91,7 +92,7 @@ func RestrictedAudience(datasource string, items []ContentItem, unlisted, hidden
 	if hidden > 0 {
 		message += fmt.Sprintf("; %d of them are in people's My Dashboards, which only their owners can open", hidden)
 	}
-	return &RestrictedContentError{Datasource: datasource, Items: items, Hidden: hidden, message: message}
+	return &RestrictedContentError{Datasource: datasource, Items: items, Unlisted: unlisted, Hidden: hidden, message: message}
 }
 
 type contentItemJSON struct {
@@ -118,6 +119,7 @@ func AbortRestricted(c *gin.Context, err error) bool {
 			items[i] = contentItemJSON(it)
 		}
 		body["items"] = items
+		body["unlisted"] = restricted.Unlisted
 	}
 	if restricted.Hidden > 0 {
 		body["hidden"] = restricted.Hidden
