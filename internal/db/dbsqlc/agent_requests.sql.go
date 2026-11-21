@@ -2492,7 +2492,9 @@ func (q *Queries) SeedAgentRequestStep(ctx context.Context, arg SeedAgentRequest
 }
 
 const setRequestObservation = `-- name: SetRequestObservation :one
-UPDATE agent_requests SET observation_id = $1, subject_observation_id = NULL WHERE id = $2
+UPDATE agent_requests SET observation_id = $1,
+  subject_observation_id = CASE WHEN thread_message_id IS NOT NULL AND chat_id IS NULL THEN subject_observation_id END
+WHERE id = $2
 RETURNING id, dashboard_id, comment_id, prompt, panel_id, base_version, status, attempts, check_failures, lease_until, result_version, error, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, created_at, started_at, finished_at, steps, run_usage, origin, origin_client, draft, suggestion, failure_code, build_saved_at, cancel_requested_at, canceled_by_kind, canceled_by_id, canceled_by_name, continues_id, continue_note, context_from, context_to, title, pinned_at, archived_at, trigger, state, result_kind, assigned_kind, assigned_id, claimed_by, observation_id, thread_message_id, thread_context, chat_id, retries_id, time_zone, thread_replied_at, anchor, block_id, client_id, intent, kind, applies_finding_id, subject_observation_id
 `
 

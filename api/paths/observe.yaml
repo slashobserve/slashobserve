@@ -759,6 +759,7 @@ observe-id-retry:
       The original request is left as it was.
       An observe request starts a new build with the same prompt, an investigation starts again on the same dashboard, panel and window, and a prompt revision starts a revision of the same dashboard on its latest version.
       A comment or suggestion request cannot be retried, and neither can a request that something continues.
+      An ask from an observation thread whose answer was saved as an observation starts again in that thread for a caller who can comment on the thread's observation; anyone else gets a private ask of their own about the saved observation, with no thread and nothing posted in it.
       A failed or stopped request can be retried once by its requester: the new request is its `retried_by`, and a second call, including one racing the first or a continue, is refused instead of queuing a duplicate. Anyone else's retry is a request of their own and leaves the original retryable.
       A request that is not finished, or one of those, answers 409 `invalid_transition` with its `state` and the `allowed_actions` the caller has.
       A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`.

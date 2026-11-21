@@ -534,7 +534,9 @@ WHERE r.id = e.id
 RETURNING r.*;
 
 -- name: SetRequestObservation :one
-UPDATE agent_requests SET observation_id = @observation_id, subject_observation_id = NULL WHERE id = @id
+UPDATE agent_requests SET observation_id = @observation_id,
+  subject_observation_id = CASE WHEN thread_message_id IS NOT NULL AND chat_id IS NULL THEN subject_observation_id END
+WHERE id = @id
 RETURNING *;
 
 -- name: ListRunsAwaitingReply :many

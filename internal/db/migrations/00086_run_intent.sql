@@ -98,7 +98,7 @@ ALTER TABLE agent_requests
   ADD CONSTRAINT agent_requests_applies_finding_check CHECK (applies_finding_id IS NULL OR intent = 'apply') NOT VALID,
   ADD CONSTRAINT agent_requests_applies_finding_id_fkey FOREIGN KEY (applies_finding_id) REFERENCES findings (id) ON DELETE SET NULL NOT VALID,
   ADD CONSTRAINT agent_requests_subject_observation_check
-    CHECK (subject_observation_id IS NULL OR (intent = 'ask' AND observation_id IS NULL AND dashboard_id IS NULL)) NOT VALID,
+    CHECK (subject_observation_id IS NULL OR (intent = 'ask' AND dashboard_id IS NULL AND (observation_id IS NULL OR (thread_message_id IS NOT NULL AND chat_id IS NULL)))) NOT VALID,
   ADD CONSTRAINT agent_requests_subject_observation_id_fkey FOREIGN KEY (subject_observation_id) REFERENCES observations (id) ON DELETE CASCADE NOT VALID;
 
 ALTER TABLE agent_requests VALIDATE CONSTRAINT agent_requests_intent_check;

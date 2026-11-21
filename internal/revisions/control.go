@@ -376,12 +376,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:
-		private := PrivateAsk(row)
-		about := row.ObservationID
-		if !about.Valid {
-			about = row.SubjectObservationID
-		}
-		return s.SubmitInvestigate(ctx, InvestigateParams{
+		p := InvestigateParams{
 			Prompt:      row.Prompt,
 			By:          by,
 			DashboardID: row.DashboardID,
@@ -389,7 +384,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
 
-			ObservationID:    about,
+			ObservationID:    firstValid(row.ObservationID, row.SubjectObservationID),
 			ReuseObservation: true,
 			RetriesID:        retries,
 
@@ -397,10 +392,18 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			Ask:             threadMessage.Valid,
-			Private:         private,
+			Private:         PrivateAsk(row),
 
 			chat: againChat(row, by),
-		})
+		}
+		if threadMessage.Valid && row.SubjectObservationID.Valid {
+			inThread, err := s.mayComment(ctx, row.SubjectObservationID, by)
+			if err != nil {
+				return dbsqlc.AgentRequest{}, err
+			}
+			p = p.again(row, inThread)
+		}
+		return s.SubmitInvestigate(ctx, p)
 	default:
 		return s.submitFollowUp(ctx, EnqueueParams{
 			DashboardID:     row.DashboardID,
@@ -416,6 +419,25 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			chat: againChat(row, by),
 		}, nil)
 	}
+}
+
+func (p InvestigateParams) again(row dbsqlc.AgentRequest, inThread bool) InvestigateParams {
+	if inThread {
+		p.ObservationID = row.SubjectObservationID
+		return p
+	}
+	p.ThreadMessageID, p.ThreadContext, p.Ask = pgtype.UUID{}, "", false
+	p.Private, p.chat = true, chatChoice{mode: newChat}
+	return p
+}
+
+func firstValid(ids ...pgtype.UUID) pgtype.UUID {
+	for _, id := range ids {
+		if id.Valid {
+			return id
+		}
+	}
+	return pgtype.UUID{}
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {

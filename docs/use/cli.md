@@ -494,6 +494,7 @@ The reply reads "Observe Agent for <your name>" when the built-in agent took the
 The reply is a status line the server writes, not the model's text: `Saved version N of this dashboard.`, `Opened a proposal: <title>.`, `Answered: <title>.` for an answer not filed in an observation, which everyone who can read the thread can open, `Saved a finding: <title>.` or, in an observation thread, `Wrote the answer into this observation: <title>.`, the three followed by the first paragraph of the finding as plain text, cut at a word with `...` when it is long, `No agent picked this up within 10 minutes.`, `The run failed: <reason>.` or `The run was stopped before it finished.`
 The run's own page has the detail.
 A retry or a continuation of the run answers in the same thread and goes to the same agent; when that connected agent was revoked, has expired or is not yours, or the service account no longer takes runs, the command fails with `assignee_unavailable` and starts nothing.
+Someone who cannot comment on the observation of an observation thread, and retries an answer from it that was saved as an observation, gets a private ask of their own about the saved observation, and nothing is posted in the thread.
 
 Add `--json` to any of them to print the API response unchanged.
 
