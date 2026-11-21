@@ -135,7 +135,6 @@ type PanelContainerProps = {
   canComment: boolean
   canEdit: boolean
   canPropose: boolean
-  canInvestigate?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
   focusOnRender: boolean
@@ -182,7 +181,6 @@ export const PanelContainer = memo(function PanelContainer({
   canComment,
   canEdit,
   canPropose,
-  canInvestigate = false,
   onToggleResponsive,
   layoutActions,
   focusOnRender,
@@ -447,7 +445,6 @@ export const PanelContainer = memo(function PanelContainer({
       canComment={canComment}
       canEdit={canEdit}
       canPropose={canPropose}
-      canInvestigate={canInvestigate}
       onToggleResponsive={
         onToggleResponsive && !layoutSession
           ? () => onToggleResponsive(panel)
@@ -545,7 +542,6 @@ export const PanelContainer = memo(function PanelContainer({
         <PanelToolbar
           panel={panel}
           permissions={permissions}
-          canInvestigate={canInvestigate}
           composerRef={composerRef}
           from={rangeFrom}
           to={rangeTo}

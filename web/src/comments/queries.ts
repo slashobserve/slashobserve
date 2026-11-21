@@ -4,10 +4,8 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
-  type InfiniteData,
   type QueryKey,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
@@ -15,7 +13,6 @@ import { dashboardKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 
 export type Comment = components["schemas"]["Comment"]
-export type CommentStatus = Comment["status"]
 
 export type PanelThread = Comment & { parent_id: null; panel_id: string }
 
@@ -23,12 +20,9 @@ export function isPanelThread(comment: Comment): comment is PanelThread {
   return comment.parent_id === null && comment.panel_id !== null
 }
 
-type CommentsPage = { comments: Comment[]; next_cursor: string | null }
-type CommentsData = InfiniteData<CommentsPage, string | undefined>
-
 const pageSize = 500
 
-export function commentsQuery(id: string) {
+function commentsQuery(id: string) {
   return infiniteQueryOptions({
     queryKey: dashboardKeys.comments(id),
     queryFn: ({ pageParam, signal }) =>
@@ -80,69 +74,6 @@ export function useComments(id: string) {
     hasNextPage,
     fetchNextPage,
   }
-}
-
-function mapComment(
-  data: CommentsData | undefined,
-  commentId: string,
-  change: (comment: Comment) => Comment
-): CommentsData | undefined {
-  if (!data) return data
-  return {
-    ...data,
-    pages: data.pages.map((page) => ({
-      ...page,
-      comments: page.comments.map((comment) =>
-        comment.id === commentId ? change(comment) : comment
-      ),
-    })),
-  }
-}
-
-export function useSetCommentStatus(
-  id: string,
-  onSaved?: (status: CommentStatus) => void
-) {
-  const queryClient = useQueryClient()
-  const key = dashboardKeys.comments(id)
-  return useMutation({
-    mutationFn: (input: { commentId: string; status: CommentStatus }) =>
-      api
-        .PATCH("/dashboards/{id}/comments/{comment_id}", {
-          params: { path: { id, comment_id: input.commentId } },
-          body: { status: input.status },
-        })
-        .then(unwrap)
-        .then((body) => body.comment),
-    onSuccess: (comment, input) => {
-      queryClient.setQueryData<CommentsData>(key, (data) =>
-        mapComment(data, input.commentId, () => comment)
-      )
-      onSaved?.(input.status)
-    },
-    onError: () => toast.error("Could not update the comment"),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
-  })
-}
-
-export function useMarkThreadRead(id: string) {
-  const queryClient = useQueryClient()
-  const key = dashboardKeys.comments(id)
-  return useMutation({
-    mutationFn: (threadId: string) =>
-      api
-        .POST("/threads/{thread_id}/read", {
-          params: { path: { thread_id: threadId } },
-        })
-        .then(unwrap),
-    onSuccess: (_, threadId) =>
-      queryClient.setQueryData<CommentsData>(key, (data) =>
-        mapComment(data, threadId, (comment) => ({
-          ...comment,
-          unread: false,
-        }))
-      ),
-  })
 }
 
 export function useDeleteMessage(queryKey: QueryKey) {

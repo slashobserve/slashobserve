@@ -1,7 +1,6 @@
 import type { components } from "@/api/schema.gen"
-import { groupThreads, type Thread } from "@/comments/threads"
 import type { Annotation } from "@/annotations/queries"
-import type { Comment } from "@/comments/queries"
+import type { ThreadWithMessages } from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
 import type { VersionMeta } from "@/history/use-version-history"
 import type { RequestSummary } from "@/observe/queries"
@@ -33,9 +32,7 @@ export type TimelineEntry =
       key: string
       at: string
       panelId: string | null
-      thread: Thread
-      request: Revision | null
-      askedAgent: boolean
+      thread: ThreadWithMessages
     }
   | {
       kind: "request"
@@ -124,8 +121,6 @@ const kindOrder: Record<TimelineEntry["kind"], number> = {
   finding: 7,
 }
 
-const sameSendWindowMs = 2000
-
 function timeOf(iso: string): number {
   const time = Date.parse(iso)
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time
@@ -158,36 +153,6 @@ function sortEntries(entries: readonly TimelineEntry[]): TimelineEntry[] {
     .map(({ entry }) => entry)
 }
 
-function newestRequest(requests: readonly Revision[]): Revision | null {
-  let newest: Revision | null = null
-  let newestTime = Number.NEGATIVE_INFINITY
-  for (const request of requests) {
-    const time = timeOf(request.created_at)
-    if (
-      newest === null ||
-      time > newestTime ||
-      (time === newestTime && request.id > newest.id)
-    ) {
-      newest = request
-      newestTime = time
-    }
-  }
-  return newest
-}
-
-function askedAgentWithComment(
-  root: Comment,
-  requests: readonly Revision[]
-): boolean {
-  const rootTime = timeOf(root.created_at)
-  return requests.some(
-    (request) =>
-      request.requested_by.kind === root.author.kind &&
-      request.requested_by.id === root.author.id &&
-      Math.abs(timeOf(request.created_at) - rootTime) <= sameSendWindowMs
-  )
-}
-
 function runningAt(request: RunningRequest): string {
   const raw = request.started_at ?? request.created_at
   const start = Date.parse(raw)
@@ -205,7 +170,7 @@ function runningEntry(request: RunningRequest): TimelineEntry {
 }
 
 export function buildTimeline(input: {
-  comments: readonly Comment[]
+  threads: readonly ThreadWithMessages[]
   requests: readonly Revision[]
   versions: readonly VersionMeta[]
   imported?: ImportedDashboard | null
@@ -216,33 +181,23 @@ export function buildTimeline(input: {
 }): TimelineEntry[] {
   const entries: TimelineEntry[] = []
 
-  const byComment = new Map<string, Revision[]>()
-  for (const request of input.requests) {
-    if (request.comment_id === null) continue
-    const list = byComment.get(request.comment_id)
-    if (list === undefined) byComment.set(request.comment_id, [request])
-    else list.push(request)
-  }
-
-  const threads = groupThreads(input.comments)
-  for (const thread of threads) {
-    const requests = byComment.get(thread.root.id) ?? []
+  for (const thread of input.threads) {
+    if (thread.messages.length === 0) continue
     entries.push({
       kind: "thread",
-      key: `thread:${thread.root.id}`,
-      at: thread.root.created_at,
-      panelId: thread.root.panel_id,
+      key: `thread:${thread.thread.id}`,
+      at: thread.thread.created_at,
+      panelId: thread.thread.panel_id,
       thread,
-      request: newestRequest(requests),
-      askedAgent: askedAgentWithComment(thread.root, requests),
     })
   }
 
-  const threadIds = new Set(threads.map((thread) => thread.root.id))
+  const threadIds = new Set(input.threads.map((thread) => thread.thread.id))
   for (const request of input.requests) {
-    const hasThread =
+    const inThread =
       request.comment_id !== null && threadIds.has(request.comment_id)
-    if (requestOrigin(request) !== "observe" && !hasThread) {
+    if (inThread) continue
+    if (requestOrigin(request) !== "observe") {
       entries.push({
         kind: "request",
         key: `request:${request.id}`,
@@ -347,10 +302,10 @@ function matchesShow(entry: TimelineEntry, show: TimelineShow): boolean {
     case "open":
       return (
         entry.kind === "proposal" ||
-        (entry.kind === "thread" && entry.thread.root.status === "open")
+        (entry.kind === "thread" && entry.thread.thread.status === "open")
       )
     case "changes":
-      return entry.kind !== "thread" || entry.request !== null
+      return entry.kind !== "thread" || entry.thread.thread.revision !== null
   }
 }
 

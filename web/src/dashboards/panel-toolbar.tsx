@@ -36,14 +36,12 @@ import type { DashboardPermissions } from "./permissions"
 import { useSetDashboardSearch } from "./search"
 
 const flipBelowWithin = 48
-const askNeedsEditorLabel = "Ask @observe (needs the Editor role)"
 
 type Props = {
   panel: LayoutPanel
   permissions: Pick<DashboardPermissions, "comment" | "edit"> & {
     propose: boolean
   }
-  canInvestigate: boolean
   composerRef: RefObject<HTMLTextAreaElement | null>
   from: string | undefined
   to: string | undefined
@@ -94,7 +92,6 @@ function ToolbarButton({
   label,
   tooltip = label,
   disabled,
-  keepFocusable,
   onClick,
   children,
   buttonRef,
@@ -102,7 +99,6 @@ function ToolbarButton({
   label: string
   tooltip?: string
   disabled?: boolean
-  keepFocusable?: boolean
   onClick: () => void
   children: ReactNode
   buttonRef?: RefObject<HTMLButtonElement | null>
@@ -117,7 +113,6 @@ function ToolbarButton({
             size="icon-sm"
             aria-label={label}
             disabled={disabled}
-            focusableWhenDisabled={keepFocusable}
             onClick={onClick}
           />
         }
@@ -132,7 +127,6 @@ function ToolbarButton({
 export function PanelToolbar({
   panel,
   permissions,
-  canInvestigate,
   composerRef,
   from,
   to,
@@ -221,14 +215,11 @@ export function PanelToolbar({
           <MessageSquarePlusIcon aria-hidden="true" />
         </ToolbarButton>
       ) : null}
-      {(permissions.edit || canInvestigate) && data && agentAvailable ? (
+      {permissions.comment && data && agentAvailable ? (
         <ToolbarButton
-          label={canInvestigate ? "Ask @observe" : askNeedsEditorLabel}
-          tooltip={
-            canInvestigate ? finishFirst("Ask @observe") : askNeedsEditorLabel
-          }
-          disabled={!idle || !canInvestigate}
-          keepFocusable={!canInvestigate}
+          label="Ask @observe"
+          tooltip={finishFirst("Ask @observe")}
+          disabled={!idle}
           onClick={() => {
             askAboutPanel(setSearch, panel.id)
             focusComposerWhenShown(composerRef)

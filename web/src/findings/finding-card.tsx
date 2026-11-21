@@ -1,27 +1,16 @@
 import { lazy, Suspense, useMemo, type ReactNode } from "react"
-import { Link, useNavigate } from "@tanstack/react-router"
-import { toast } from "sonner"
+import { Link } from "@tanstack/react-router"
 
 import { CopyButton } from "@/components/copy-button"
 import { RelativeTime } from "@/components/relative-time"
-import { Button, buttonVariants } from "@/components/ui/button"
-import {
-  mayEditBesidesContent,
-  useLatestPermissions,
-  useLatestProvisioned,
-} from "@/dashboards/permissions"
-import { dashboardLink, observationLink } from "@/lib/links"
+import { buttonVariants } from "@/components/ui/button"
+import { observationLink } from "@/lib/links"
 import { describeRange } from "@/lib/time"
 import { cn } from "@/lib/utils"
-import { sentence, useSaveAnswer } from "@/observe/queries"
 
 import { EvidencePanel } from "./evidence-panel"
-import {
-  evidencePanels,
-  useMakeDashboard,
-  usePinFinding,
-  type Finding,
-} from "./queries"
+import { MakeDashboardAction, PinAction } from "./finding-actions"
+import { evidencePanels, type Finding } from "./queries"
 
 const FindingMarkdown = lazy(() =>
   import("./finding-markdown").then((module) => ({
@@ -30,114 +19,6 @@ const FindingMarkdown = lazy(() =>
 )
 
 const evidenceHeight = 220
-
-const linkClass =
-  "rounded-sm text-foreground underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
-
-function toastError(error: Error) {
-  toast.error(sentence(error.message))
-}
-
-function PinAction({ finding }: { finding: Finding }) {
-  if (finding.dashboard_id === null) return null
-  return <PinOnDashboard finding={finding} dashboardId={finding.dashboard_id} />
-}
-
-function PinOnDashboard({
-  finding,
-  dashboardId,
-}: {
-  finding: Finding
-  dashboardId: string
-}) {
-  const pin = usePinFinding(finding)
-  const mayPin = mayEditBesidesContent(
-    useLatestPermissions(dashboardId),
-    useLatestProvisioned(dashboardId)
-  )
-  if (pin.isSuccess || finding.annotation_id !== null) {
-    return (
-      <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
-        <span>Pinned to the dashboard</span>
-        <Link {...dashboardLink(dashboardId)} className={linkClass}>
-          Open dashboard
-        </Link>
-      </p>
-    )
-  }
-  if (!mayPin) return null
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={pin.isPending}
-      aria-busy={pin.isPending}
-      onClick={() => pin.mutate(undefined, { onError: toastError })}
-    >
-      {pin.isPending ? "Pinning" : "Pin to dashboard"}
-    </Button>
-  )
-}
-
-function MakeDashboardAction({
-  finding,
-  chatId,
-}: {
-  finding: Finding
-  chatId: string | undefined
-}) {
-  const navigate = useNavigate()
-  const make = useMakeDashboard(finding.id)
-  const busy = make.isPending || make.isSuccess
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={busy}
-      aria-busy={busy}
-      onClick={() =>
-        make.mutate(undefined, {
-          onSuccess: (saved) =>
-            void navigate({
-              ...dashboardLink(saved.dashboard.id, saved.dashboard.title),
-              search: chatId === undefined ? {} : { tab: "chat", chat: chatId },
-            }),
-          onError: toastError,
-        })
-      }
-    >
-      {busy ? "Making a dashboard" : "Make a dashboard"}
-    </Button>
-  )
-}
-
-function SaveAnswerAction({ requestId }: { requestId: string }) {
-  const save = useSaveAnswer(requestId)
-  if (save.isSuccess) {
-    return (
-      <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
-        <span>Saved as an observation</span>
-        <Link
-          {...observationLink(save.data.observation_id)}
-          className={linkClass}
-        >
-          Open observation
-        </Link>
-      </p>
-    )
-  }
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={save.isPending}
-      aria-busy={save.isPending}
-      onClick={() => save.mutate(undefined, { onError: toastError })}
-    >
-      {save.isPending ? "Saving" : "Save as observation"}
-    </Button>
-  )
-}
 
 const variants = {
   card: {
@@ -157,14 +38,12 @@ type FindingVariant = keyof typeof variants
 export function FindingCard({
   finding,
   showOpenLink,
-  saveAnswerOf,
   chatId,
   actions,
   variant = "card",
 }: {
   finding: Finding
   showOpenLink: boolean
-  saveAnswerOf?: string
   chatId?: string
   actions?: ReactNode
   variant?: FindingVariant
@@ -172,7 +51,6 @@ export function FindingCard({
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const layout = variants[variant]
   const observationId = finding.observation_id
-  const mayAct = observationId !== null || saveAnswerOf !== undefined
   return (
     <div className={cn("flex flex-col", layout.frame)}>
       <div className={layout.text}>
@@ -210,11 +88,8 @@ export function FindingCard({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {observationId !== null ? <PinAction finding={finding} /> : null}
-        {panels.length > 0 && mayAct ? (
+        {panels.length > 0 && observationId !== null ? (
           <MakeDashboardAction finding={finding} chatId={chatId} />
-        ) : null}
-        {observationId === null && saveAnswerOf !== undefined ? (
-          <SaveAnswerAction requestId={saveAnswerOf} />
         ) : null}
         <CopyButton
           text={finding.markdown}

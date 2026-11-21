@@ -78,7 +78,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool, useCanvasToolsShown } from "./canvas-tools"
+import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -118,7 +118,6 @@ import type { VariableSource } from "./panel-source"
 import {
   contentChange,
   mayEditBesidesContent,
-  mayInvestigate,
   type DashboardAccess,
 } from "./permissions"
 import {
@@ -260,11 +259,6 @@ function DashboardView({
   const { principal } = useRouteContext({ from: "/_authed" })
   const content = contentChange(permissions, provisioned)
   const besidesContent = mayEditBesidesContent(permissions, provisioned)
-  const canInvestigate = mayInvestigate(
-    permissions,
-    principal.role,
-    provisioned
-  )
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -450,7 +444,7 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
-  const toolsShown = useCanvasToolsShown(permissions, canInvestigate)
+  const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
     open,
@@ -871,7 +865,6 @@ function DashboardView({
       canComment={permissions.comment}
       canEdit={permissions.edit}
       canPropose={content === "propose"}
-      canInvestigate={canInvestigate}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }
@@ -1043,7 +1036,6 @@ function DashboardView({
                 {kiosk || editingPanel ? null : (
                   <CanvasTools
                     permissions={permissions}
-                    canInvestigate={canInvestigate}
                     idle={!editing}
                     composerRef={composerRef}
                   />

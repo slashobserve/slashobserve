@@ -12,20 +12,6 @@ vi.mock("./evidence-panel", () => ({
   ),
 }))
 
-const permissions = vi.hoisted(() => ({ edit: false, provisioned: false }))
-
-vi.mock("@/dashboards/permissions", () => ({
-  mayEditBesidesContent: (p: { edit: boolean }, provisioned: boolean) =>
-    p.edit || provisioned,
-  useLatestProvisioned: () => permissions.provisioned,
-  useLatestPermissions: () => ({
-    comment: true,
-    edit: permissions.edit,
-    manage: false,
-    create: false,
-  }),
-}))
-
 const text = "The error rate **doubled** at 10:02."
 
 function finding(): Finding {
@@ -73,17 +59,6 @@ function renderCard(variant?: "card" | "page", showOpenLink = false) {
   )
 }
 
-function renderUnsaved(saveAnswerOf?: string) {
-  return renderWithProviders(
-    <FindingCard
-      finding={{ ...finding(), observation_id: null, url: null }}
-      showOpenLink
-      saveAnswerOf={saveAnswerOf}
-    />,
-    { route: { path: "/", url: "/" } }
-  )
-}
-
 async function frameOf() {
   const range = await screen.findByText(/^(Found|Evidence from)/)
   return { range, frame: range.parentElement }
@@ -126,78 +101,6 @@ describe("FindingCard", () => {
     expect(range.textContent).toMatch(/^Evidence from .+\.$/)
   })
 
-  it("keeps an unsaved answer to the chat for a reader who did not ask", async () => {
-    renderUnsaved()
-    await frameOf()
-    expect(screen.queryByRole("link", { name: "Open observation" })).toBeNull()
-    expect(
-      screen.queryByRole("button", { name: "Save as observation" })
-    ).toBeNull()
-    expect(screen.queryByRole("button", { name: "Pin" })).toBeNull()
-  })
-
-  it("offers its requester to save the answer as an observation and then links to it", async () => {
-    const requested: string[] = []
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (request: Request) => {
-        requested.push(`${request.method} ${new URL(request.url).pathname}`)
-        return new Response(
-          JSON.stringify({
-            observation_id: "o5",
-            url: "/o/o5",
-            replayed: false,
-          }),
-          { status: 201, headers: { "Content-Type": "application/json" } }
-        )
-      })
-    )
-    renderUnsaved("r1")
-    const save = await screen.findByRole("button", {
-      name: "Save as observation",
-    })
-    save.click()
-    const link = await screen.findByRole("link", { name: "Open observation" })
-    expect(link).toHaveAttribute("href", "/o/o5")
-    expect(requested).toEqual(["POST /api/v1/observe/r1/observation"])
-    vi.unstubAllGlobals()
-  })
-
-  it("opens a made dashboard with its chat in the side panel", async () => {
-    const dashboardId = "33333333-3333-4333-8333-333333333333"
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              dashboard: { id: dashboardId, title: "Checkout errors" },
-            }),
-            { status: 201, headers: { "Content-Type": "application/json" } }
-          )
-      )
-    )
-    const { user, router } = renderWithProviders(
-      <FindingCard
-        finding={{ ...finding(), observation_id: null, url: null }}
-        showOpenLink
-        saveAnswerOf="r1"
-        chatId="c1"
-      />,
-      { route: { path: "/", url: "/" } }
-    )
-    await user.click(
-      await screen.findByRole("button", { name: "Make a dashboard" })
-    )
-    await vi.waitFor(() =>
-      expect(router?.state.location.pathname).toBe(
-        `/d/${dashboardId}/checkout-errors`
-      )
-    )
-    expect(router?.state.location.search).toEqual({ tab: "chat", chat: "c1" })
-    vi.unstubAllGlobals()
-  })
-
   it("puts extra answer actions in the same row as Copy answer", async () => {
     renderWithProviders(
       <FindingCard
@@ -211,59 +114,6 @@ describe("FindingCard", () => {
     expect(copy.parentElement).toContainElement(
       screen.getByRole("button", { name: "Ask again" })
     )
-  })
-
-  it("offers Pin to dashboard only with Edit on the dashboard", async () => {
-    const onDashboard = { ...finding(), dashboard_id: "d1" }
-    permissions.edit = false
-    const view = renderWithProviders(
-      <FindingCard finding={onDashboard} showOpenLink={false} />,
-      { route: { path: "/", url: "/" } }
-    )
-    await frameOf()
-    expect(
-      screen.queryByRole("button", { name: "Pin to dashboard" })
-    ).not.toBeInTheDocument()
-    view.unmount()
-    permissions.edit = true
-    renderWithProviders(
-      <FindingCard finding={onDashboard} showOpenLink={false} />,
-      { route: { path: "/", url: "/" } }
-    )
-    expect(
-      await screen.findByRole("button", { name: "Pin to dashboard" })
-    ).toBeVisible()
-  })
-
-  it("offers Pin to dashboard on a starter dashboard, where Edit is never shown", async () => {
-    permissions.edit = false
-    permissions.provisioned = true
-    try {
-      renderWithProviders(
-        <FindingCard
-          finding={{ ...finding(), dashboard_id: "d1" }}
-          showOpenLink={false}
-        />,
-        { route: { path: "/", url: "/" } }
-      )
-      expect(
-        await screen.findByRole("button", { name: "Pin to dashboard" })
-      ).toBeVisible()
-    } finally {
-      permissions.provisioned = false
-    }
-  })
-
-  it("still shows a pinned finding to someone who cannot pin", async () => {
-    permissions.edit = false
-    renderWithProviders(
-      <FindingCard
-        finding={{ ...finding(), dashboard_id: "d1", annotation_id: "a1" }}
-        showOpenLink={false}
-      />,
-      { route: { path: "/", url: "/" } }
-    )
-    expect(await screen.findByText("Pinned to the dashboard")).toBeVisible()
   })
 })
 

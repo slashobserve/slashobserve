@@ -19,17 +19,19 @@ vi.mock("./recent-chats", () => ({ RecentChats: () => null }))
 
 const mine = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const theirs = "9b1c5a42-1c9e-4d5e-9a67-3f8e2d1c0b44"
+const readOnly = "4e7a2b19-8c3d-4f5e-a6b7-1c2d3e4f5a6b"
 
 function dashboard(
   id: string,
   title: string,
   edit: boolean,
-  updatedBy = "someone-else"
+  updatedBy = "someone-else",
+  comment = true
 ) {
   return {
     id,
     title,
-    permissions: { comment: true, edit },
+    permissions: { comment, edit },
     updated_by: { kind: "user", id: updatedBy, name: "Someone" },
   }
 }
@@ -40,6 +42,7 @@ function render(
   titles = [
     dashboard(theirs, "Someone else's board", false),
     dashboard(mine, "Payments", true),
+    dashboard(readOnly, "Board", false, "someone-else", false),
   ]
 ) {
   const queryClient = testQueryClient()
@@ -119,7 +122,7 @@ describe("ChatHome", () => {
     expect(posts).toEqual([])
   })
 
-  it("shows the dashboard to revise as a chip that can be removed", async () => {
+  it("shows the dashboard to ask about as a chip that can be removed", async () => {
     const { user } = render({
       initialPrompt: "Add a latency row to Payments",
       dashboardId: mine,
@@ -137,15 +140,58 @@ describe("ChatHome", () => {
     })
   })
 
-  it("ignores a dashboard the person cannot edit", async () => {
-    render({ initialPrompt: "Add a row", dashboardId: theirs })
+  it("says why there is no chip for a dashboard the person cannot comment on", async () => {
+    render({ initialPrompt: "Add a row", dashboardId: readOnly })
     await screen.findByRole("textbox", { name: "Message the agent" })
     expect(
       screen.queryByRole("list", { name: "Context" })
     ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "You cannot ask about Board, because you cannot comment on it; this message asks without it."
+      )
+    ).toBeVisible()
   })
 
-  it("looks up a dashboard to revise that the title list does not hold", async () => {
+  it("shows a dashboard the person can comment on but not edit as a chip too", async () => {
+    render({ initialPrompt: "Add a row", dashboardId: theirs })
+    await screen.findByRole("textbox", { name: "Message the agent" })
+    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
+      "Someone else's board"
+    )
+  })
+
+  it("asks about the dashboard in the chip without changing it", async () => {
+    fetch.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ request: { id: "r1", prompt: "q" } }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        })
+    )
+    const { user } = render({
+      initialPrompt: "Add a latency row to Payments",
+      dashboardId: mine,
+    })
+    await user.type(
+      await screen.findByRole("textbox", { name: "Message the agent" }),
+      "{Enter}"
+    )
+    const post = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) => request.method === "POST"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await post.clone().json()).toMatchObject({
+      prompt: "Add a latency row to Payments",
+      kind: "ask",
+      dashboard_id: mine,
+    })
+  })
+
+  it("looks up a dashboard to ask about that the title list does not hold", async () => {
     const far = "5c1d9a40-7a3b-4e2f-8c55-0d9e6b2a1f33"
     fetch.mockImplementation(async (request) => {
       const path = new URL(request.url).pathname
@@ -165,7 +211,7 @@ describe("ChatHome", () => {
     expect(chips).toHaveTextContent("Archive")
   })
 
-  it("keeps the box closed while the dashboard to revise is being found", async () => {
+  it("keeps the box closed while the dashboard to ask about is being found", async () => {
     fetch.mockImplementation(() => new Promise<Response>(() => undefined))
     render({ initialPrompt: "Add a row", dashboardId: mine }, false)
     expect(

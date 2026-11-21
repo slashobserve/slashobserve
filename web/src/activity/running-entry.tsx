@@ -2,12 +2,13 @@ import { Link, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
 import { RunningFor } from "@/chat/run-duration"
-import { StepTimeline } from "@/chat/step-timeline"
+import { phaseLabels, StepTimeline } from "@/chat/step-timeline"
 import { announcePaneOpening } from "@/components/dock/dock-focus"
 import { observeAgentMark } from "@/lib/author"
 import { buildStatusText } from "@/observe/build"
 import { isTerminal, observeRequestQuery } from "@/observe/queries"
 import { CancelRequestButton } from "@/observe/request-actions"
+import { runWords } from "@/observe/run-words"
 import { useSettledRefresh } from "@/observe/use-settled-refresh"
 
 import { boxClass, EntryFrame } from "./entry-frame"
@@ -54,6 +55,7 @@ export function RunningEntry({ entry }: Props) {
   const last = steps.at(-1)
   const status = data?.status ?? request.status
   const canceling = data?.state === "canceling"
+  const words = data === undefined ? null : runWords(data)
   useSettledRefresh({
     active: !isTerminal(data),
     status,
@@ -72,7 +74,7 @@ export function RunningEntry({ entry }: Props) {
         })
       : last === undefined
         ? "Starting"
-        : `${last.message}, step ${currentStep(steps)}`
+        : `${words === null ? phaseLabels[last.phase] : last.message}, step ${currentStep(steps)}`
 
   return (
     <EntryFrame
@@ -111,6 +113,7 @@ export function RunningEntry({ entry }: Props) {
         reconnecting={false}
         latest={3}
         liveText={data?.live_text}
+        withMessages={words !== null}
       />
       {status === "running" ? (
         <RunningFor startedAt={data?.started_at ?? request.started_at} />

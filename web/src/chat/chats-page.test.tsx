@@ -167,6 +167,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe("ChatsPage rows", () => {
+  it("says who can see your chats", async () => {
+    stub([chat("c1", "Why did checkout errors rise")])
+    render()
+    expect(
+      await screen.findByText("Only you and Admins can see your chats.")
+    ).toBeVisible()
+  })
+
   it("lists one row per chat with its dashboard, turns and link", async () => {
     stub([
       chat("c1", "Why did checkout errors rise", {
