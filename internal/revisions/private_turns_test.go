@@ -112,6 +112,37 @@ func mustNotContain(t *testing.T, who, what, body string, ids ...string) {
 	}
 }
 
+var textlessRunData = []string{"attempt", "cost_usd", "failure_code", "source"}
+
+func keptRunEntries(t *testing.T, page, run string) []string {
+	t.Helper()
+	var body struct {
+		Activity []struct {
+			Type   string `json:"type"`
+			Target struct {
+				ID string `json:"id"`
+			} `json:"target"`
+			Data map[string]any `json:"data"`
+		} `json:"activity"`
+	}
+	if err := json.Unmarshal([]byte(page), &body); err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, e := range body.Activity {
+		if e.Target.ID != run {
+			continue
+		}
+		for key := range e.Data {
+			if !slices.Contains(textlessRunData, key) {
+				t.Errorf("the %s entry carries %q", e.Type, key)
+			}
+		}
+		kept = append(kept, e.Type)
+	}
+	return kept
+}
+
 func failAllRuns(t *testing.T, svc *revisions.Service, d *dbtest.Database, ids ...string) {
 	t.Helper()
 	stop := startWorker(t, svc, d, revisions.WorkerOptions{})
@@ -156,13 +187,17 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 		listed := w.http(tc.who, chats, http.StatusOK) + w.mcp(tc.who, "list_chats", chatsTool, false)
 		listedRuns := w.http(tc.who, runs, http.StatusOK) + w.mcp(tc.who, "list_runs", mcpRuns, false)
 		agents := w.http(tc.who, "/api/v1/agents/runs?kind=builtin", http.StatusOK)
-		feed := w.http(tc.who, "/api/v1/activity", http.StatusOK) + w.mcp(tc.who, "list_activity", `{}`, false)
+		page := w.http(tc.who, "/api/v1/activity", http.StatusOK)
+		feed := page + w.mcp(tc.who, "list_activity", `{}`, false)
 		inbox := w.http(tc.who, "/api/v1/inbox", http.StatusOK)
 		found := w.http(tc.who, "/api/v1/search?q="+privateWord, http.StatusOK)
 
 		w.http(tc.who, "/api/v1/observe/"+followUp.String(), http.StatusOK)
 		mustNotContain(t, name, "search", found, private...)
 		mustContain(t, name, "activity", feed, inv.String())
+		if kept := keptRunEntries(t, page, inv.String()); !slices.Equal(kept, []string{"run.failed", "run.started", "run.queued"}) {
+			t.Errorf("%s: the dashboard keeps the investigation's entries %v, want queued, started and failed", name, kept)
+		}
 
 		if tc.full {
 			mustContain(t, name, "the chat list", listed, homeChat, followUpChat)
