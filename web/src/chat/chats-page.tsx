@@ -1,20 +1,13 @@
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
-import { BookmarkPlusIcon, MessageSquareIcon, SearchIcon } from "lucide-react"
+import { MessageSquareIcon, PinIcon, SearchIcon } from "lucide-react"
 
-import { AuthorMark } from "@/components/author-mark"
 import { EmptyState } from "@/components/empty-state"
 import { FilterToolbar } from "@/components/filter-toolbar"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
-import { RelativeTime, useNow } from "@/components/relative-time"
+import { RelativeTime } from "@/components/relative-time"
+import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -26,22 +19,20 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useInView } from "@/dashboards/use-in-view"
-import { rowLinkClass, RowText } from "@/home/home-section"
-import { markOf } from "@/lib/author"
 import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
-import { useMyRequests, type RequestSummary } from "@/observe/queries"
-import { canSavePrompts } from "@/prompts/access"
-import { usePromptPanel } from "@/prompts/prompt-panel-store"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { groupChatsByDay } from "./chat-days"
-import { chatRoot, chatTurns, collapseChats } from "./chat-list"
 import { chatFooterText } from "./chat-footer"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
-import { canSaveAsPrompt, savePromptButtonId } from "./save-prompt-target"
-import { statesFor, type ChatStateFilter } from "./chat-state"
-import { ChatStatus } from "./chat-status"
+import {
+  dashboardChoices,
+  dashboardLabel,
+  noDashboardLabel,
+  pinnedFirst,
+  type DashboardTitles,
+} from "./chat-rows"
+import { useChats, useDashboardTitles, type Chat } from "./chats-queries"
 import type { ChatsSearch } from "./chats-search"
 
 type Props = {
@@ -52,19 +43,10 @@ type Props = {
 const pageSize = 30
 const searchDelayMs = 300
 const skeletonRows = 3
-const mineSubtitle =
-  "Your chats with Observe Agent, newest first. Only you and workspace admins can see them."
+const anyDashboard = "any"
+const mineSubtitle = "Only you can see your chats."
 const everyoneSubtitle =
   "Everyone's chats with Observe Agent. Only admins see this view."
-
-type StateItem = ChatStateFilter | "any"
-
-const stateItems: { value: StateItem; label: string }[] = [
-  { value: "any", label: "State: any" },
-  { value: "running", label: "State: running" },
-  { value: "stopped", label: "State: stopped" },
-  { value: "done", label: "State: done" },
-]
 
 const scopeButtonClass =
   "h-6 rounded-[4px] border border-transparent px-2.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-pressed:border-border aria-pressed:bg-card aria-pressed:font-medium aria-pressed:text-foreground narrow:h-11"
@@ -73,20 +55,18 @@ export function ChatsPage({ search, onSearch }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const admin = roleAtLeast(principal.role, "admin")
   const everyone = admin && search.scope === "all"
-  const filtered = search.q !== undefined || search.state !== undefined
-  const { requests, query } = useMyRequests(
+  const filtered = search.q !== undefined || search.dashboard !== undefined
+  const titles = useDashboardTitles()
+  const { chats, query } = useChats(
     {
       q: search.q,
-      states: search.state ? statesFor(search.state) : undefined,
+      dashboardId: search.dashboard,
       scope: everyone ? "all" : undefined,
     },
     pageSize
   )
-  const footer = chatFooterText(
-    collapseChats(requests).length,
-    query.data?.pages[0]?.summary?.people ?? null,
-    query.hasNextPage
-  )
+  const rows = useMemo(() => pinnedFirst(chats), [chats])
+  const footer = chatFooterText(chats.length, null, query.hasNextPage)
 
   const newChat = (
     <Link to="/" className={cn(buttonVariants())}>
@@ -138,25 +118,12 @@ export function ChatsPage({ search, onSearch }: Props) {
             </button>
           </div>
         ) : null}
-        <Select<StateItem>
-          items={stateItems}
-          value={search.state ?? "any"}
-          onValueChange={(next) => {
-            if (next === null) return
-            onSearch({ ...search, state: next === "any" ? undefined : next })
-          }}
-        >
-          <SelectTrigger aria-label="State" className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start">
-            {stateItems.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DashboardFilter
+          chats={chats}
+          titles={titles}
+          value={search.dashboard}
+          onChange={(dashboard) => onSearch({ ...search, dashboard })}
+        />
       </FilterToolbar>
       {query.isError && query.data === undefined ? (
         <LoadProblem
@@ -167,7 +134,7 @@ export function ChatsPage({ search, onSearch }: Props) {
         />
       ) : query.data === undefined ? (
         <ChatsSkeleton />
-      ) : requests.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="rounded-card border bg-background">
           {filtered ? (
             <EmptyState
@@ -179,14 +146,14 @@ export function ChatsPage({ search, onSearch }: Props) {
               }
             />
           ) : (
-            <EmptyState title="No requests yet" action={newChat}>
+            <EmptyState title="No chats yet" action={newChat}>
               Ask for a dashboard to start one.
             </EmptyState>
           )}
         </div>
       ) : (
         <>
-          <ChatGroups requests={requests} everyone={everyone} />
+          <ChatTable chats={rows} titles={titles} everyone={everyone} />
           {footer === null ? null : (
             <p className="mt-2 text-xs text-muted-foreground">{footer}</p>
           )}
@@ -200,6 +167,47 @@ export function ChatsPage({ search, onSearch }: Props) {
         </>
       )}
     </>
+  )
+}
+
+function DashboardFilter({
+  chats,
+  titles,
+  value,
+  onChange,
+}: {
+  chats: readonly Chat[]
+  titles: DashboardTitles | undefined
+  value: string | undefined
+  onChange: (dashboard: string | undefined) => void
+}) {
+  const items = [
+    { value: anyDashboard, label: "Dashboard: any" },
+    ...dashboardChoices(chats, titles, value).map((choice) => ({
+      value: choice.id,
+      label: `Dashboard: ${choice.label}`,
+    })),
+  ]
+  return (
+    <Select
+      items={items}
+      value={value ?? anyDashboard}
+      onValueChange={(next) => {
+        if (next === null) return
+        onChange(next === anyDashboard ? undefined : next)
+      }}
+    >
+      <SelectTrigger aria-label="Dashboard" className="w-56">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent alignItemWithTrigger={false} align="start">
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -247,54 +255,41 @@ function SearchField({
   )
 }
 
-function ChatGroups({
-  requests,
+function ChatTable({
+  chats,
+  titles,
   everyone,
 }: {
-  requests: readonly RequestSummary[]
+  chats: readonly Chat[]
+  titles: DashboardTitles | undefined
   everyone: boolean
 }) {
-  const id = useId()
-  const current = useNow()
-  const list = useRef<HTMLDivElement>(null)
-  const groups = useMemo(
-    () =>
-      groupChatsByDay(collapseChats(requests), new Date(current), !everyone),
-    [requests, current, everyone]
-  )
+  const table = useRef<HTMLDivElement>(null)
   return (
-    <div
-      ref={list}
-      tabIndex={-1}
-      className="overflow-hidden rounded-card border bg-card outline-none"
-    >
-      {groups.map((group, index) => (
-        <section
-          key={group.label}
-          aria-labelledby={`${id}-${index}`}
-          className="border-t first:border-t-0"
-        >
-          <h2
-            id={`${id}-${index}`}
-            className="bg-canvas px-4 pt-2.5 pb-1.5 text-xs font-normal text-muted-foreground"
-          >
-            {group.label}
-          </h2>
-          <ul>
-            {group.requests.map((request) => (
-              <li key={request.id} className="border-t">
-                <ChatRow
-                  request={request}
-                  turns={chatTurns(requests, request)}
-                  everyone={everyone}
-                  afterDelete={list}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
+    <TableCard ref={table} label="Chats" minWidth={560} stackOnNarrow>
+      <thead>
+        <tr>
+          <HeaderCell>Chat</HeaderCell>
+          <HeaderCell>Dashboard</HeaderCell>
+          <HeaderCell>Turns</HeaderCell>
+          <HeaderCell>Last message</HeaderCell>
+          <HeaderCell>
+            <span className="sr-only">Actions</span>
+          </HeaderCell>
+        </tr>
+      </thead>
+      <tbody>
+        {chats.map((chat) => (
+          <ChatRow
+            key={chat.id}
+            chat={chat}
+            titles={titles}
+            everyone={everyone}
+            afterDelete={table}
+          />
+        ))}
+      </tbody>
+    </TableCard>
   )
 }
 
@@ -302,104 +297,75 @@ const rowActionClass =
   "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100"
 
 function ChatRow({
-  request,
-  turns,
+  chat,
+  titles,
   everyone,
   afterDelete,
 }: {
-  request: RequestSummary
-  turns: readonly RequestSummary[]
+  chat: Chat
+  titles: DashboardTitles | undefined
   everyone: boolean
   afterDelete: RefObject<HTMLElement | null>
 }) {
-  const { principal } = useRouteContext({ from: "/_authed" })
-  const openPanel = usePromptPanel((state) => state.openPanel)
   const [renaming, setRenaming] = useState(false)
-  const own = request.requested_by.id === principal.id
-  const titleId = `chats-title-${request.id}`
-  const mine = turns.filter((turn) => turn.requested_by.id === principal.id)
-  const root = chatRoot(own ? mine : turns)
-  const savable = own && canSavePrompts(principal) && canSaveAsPrompt(root)
-
-  if (renaming) {
-    return (
-      <ChatRenameForm
-        request={root}
-        rowId={request.id}
-        onDone={() => setRenaming(false)}
-      />
-    )
-  }
+  const own = !chat.read_only
 
   return (
-    <div className="group/row relative">
-      <Link
-        id={chatRowId(request.id)}
-        to="/c/$requestId"
-        params={{ requestId: request.id }}
-        className={cn(rowLinkClass, own && (savable ? "pr-20" : "pr-11"))}
-      >
-        <RowText
-          title={request.title}
-          titleId={titleId}
-          meta={
-            <>
-              <ChatStatus request={request} />
-            </>
-          }
-        />
-        {everyone ? (
-          <span className="flex flex-none items-center gap-1.5 text-xs text-muted-foreground">
-            <AuthorMark
-              mark={markOf({
-                ...request.requested_by,
-                origin: null,
-                client: null,
-                run_id: null,
-              })}
-              size={20}
-            />
-            <span className="max-w-[16ch] truncate">
-              {request.requested_by.name}
-            </span>
-          </span>
-        ) : null}
-        <span className="flex-none text-xs text-muted-foreground">
-          <RelativeTime iso={request.created_at} />
-        </span>
-      </Link>
-      {own ? (
-        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center">
-          {savable ? (
-            <Button
-              id={savePromptButtonId(request.id)}
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Save prompt"
-              aria-describedby={titleId}
-              className={rowActionClass}
-              onClick={() =>
-                openPanel({
-                  kind: "create",
-                  body: root.prompt,
-                  returnFocusId: savePromptButtonId(request.id),
-                })
-              }
+    <tr className="group/row">
+      <Cell className="min-w-0">
+        {renaming ? (
+          <ChatRenameForm request={chat} onDone={() => setRenaming(false)} />
+        ) : (
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <Link
+              id={chatRowId(chat.id)}
+              to="/c/$requestId"
+              params={{ requestId: chat.id }}
+              className="flex min-w-0 items-center gap-1.5 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <BookmarkPlusIcon aria-hidden="true" />
-            </Button>
-          ) : null}
+              {chat.pinned_at !== null ? (
+                <PinIcon
+                  aria-label="Pinned"
+                  className="size-3.5 flex-none text-muted-foreground"
+                />
+              ) : null}
+              <span className="truncate">{chat.title}</span>
+            </Link>
+            {everyone ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {chat.owner.name}
+              </span>
+            ) : null}
+          </div>
+        )}
+      </Cell>
+      <Cell data-label="Dashboard" className="text-muted-foreground">
+        <span className="block max-w-[240px] truncate">
+          {dashboardLabel(chat.dashboard_id, titles) ?? noDashboardLabel}
+        </span>
+      </Cell>
+      <Cell data-label="Turns" className="text-muted-foreground">
+        {chat.turns.toLocaleString()}
+      </Cell>
+      <Cell
+        data-label="Last message"
+        className="whitespace-nowrap text-muted-foreground"
+      >
+        <RelativeTime iso={chat.last_turn_at} />
+      </Cell>
+      <Cell data-cell="action" className="w-10 py-1 text-right">
+        {own && !renaming ? (
           <ChatRowMenu
-            request={request}
-            turns={mine}
+            request={chat}
+            wholeChat
             current={false}
             onRename={() => setRenaming(true)}
             afterDelete={afterDelete}
             className={rowActionClass}
           />
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </Cell>
+    </tr>
   )
 }
 
@@ -412,7 +378,7 @@ function ChatsSkeleton() {
       {Array.from({ length: skeletonRows }, (_, index) => (
         <Skeleton
           key={index}
-          className={cn("h-14 rounded-none", index > 0 && "border-t")}
+          className={cn("h-11 rounded-none", index > 0 && "border-t")}
         />
       ))}
     </div>

@@ -325,23 +325,24 @@ The dashboard reloads the new version, and panels the version added fade in once
 
 ## Your chats
 
-Home's **Recent chats** lists your five newest chats, and **All chats** opens the Chats page at `/chats`.
-A conversation is one row, in Recent chats and on the Chats page: a dashboard's build, edits and questions, or the turns of a chat with no dashboard, show as the newest turn under the title of the first request.
-The Chats page lists all your chats, newest first, grouped Today, This week and Earlier, with chats you pinned first; each row shows the chat's state, Running, Stopped or Done, and what it left behind.
-Search finds chats whose title, prompt or answer contains the text, ignoring case, **State** keeps running, stopped or done chats, and older chats load as you scroll.
-An answer is searched only where you could read it: one kept in the chat while you can open the dashboard it is about, and one saved as an observation while you can see that observation's folder.
+Home's **Recent chats** lists the five chats you asked in most recently, and **All chats** opens the Chats page at `/chats`.
+A chat is one row however many turns it has: its title, how many turns it has, and the dashboard it is about, if any, with the time of its last message.
+The Ask page's Recent chats shows the same rows.
+The Chats page lists all your chats in a table with the columns Chat, Dashboard, Turns and Last message, the chat asked in most recently first, with chats you pinned ahead of the rest.
+A chat about no dashboard reads "No dashboard", and one about a dashboard you lost access to "A dashboard you cannot see".
+Search finds chats whose title or any of whose prompts contains the text, ignoring case, **Dashboard** keeps the chats about one dashboard, and older chats load as you scroll.
 Admins also get **Mine** and **Everyone**: Everyone lists every person's chats with who started each one, and opens someone else's chat read only, with no composer and no actions.
-The list ends with how many chats it shows, counting a conversation of several messages once, and on Everyone how many people started them; while older chats are still to load it says "so far".
+The list ends with how many chats it shows; while older chats are still to load it says "so far".
 
-Recent chats on the Ask page, Recent chats on Home, the Chats page and History all say the same thing for a chat: its state (Running, Stopped or Done) and then what it left behind.
+History says for each chat its state (Running, Stopped or Done) and then what it left behind.
 A row says what the chat left behind: "Saved <dashboard>", "Revised <dashboard>", "Answered, no dashboard" when you asked for a dashboard and the agent only answered, "Answered, dashboard unchanged" for a question about a dashboard, or "Nothing saved".
 A run that ended on a suggested panel or a proposal reads "Suggested a panel" or "Opened a proposal".
 An investigation reads "Answered in <title>" with the observation it was saved to, as long as you can open that observation's folder.
 
 An answer to a question stays in the chat, under the short title described above, and only you and an Admin can read it, and for a chat on a dashboard only while you can still open that dashboard.
 **Save as observation** files it in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation; saving twice files it once.
-On the Chats page, each of your chats has the same actions as in History: a **Save prompt** bookmark for Editors and Admins, and a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
-On a row that joins several turns, the actions apply to the whole conversation: Rename changes the title of its first request, which the row shows, Save prompt saves that first prompt, and Delete removes every one of your turns in it, with a dialog that says how many.
+On the Chats page, each of your chats has a menu with Rename, Pin and Delete, shown when you point at the row or focus it and always on a touch device.
+The actions apply to the whole chat: Rename changes the chat's title, Pin keeps it ahead of the rest, and Delete archives the chat with every turn in it, with a dialog that says how many messages go.
 Rows of other people's chats under Everyone have none.
 The **History** button beside a chat still lists older chats and Grafana imports.
 From a terminal, `observe requests list`, `pin`, `unpin`, `rename` and `archive` work the same chats, `observe save-answer <request-id>` is **Save as observation**, and over MCP `list_runs`, `pin_run`, `unpin_run`, `rename_run`, `archive_run` and `save_run_answer` do the same; see [CLI](cli.md#your-requests) and [MCP](mcp.md).
