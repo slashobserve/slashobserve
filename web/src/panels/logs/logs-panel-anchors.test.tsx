@@ -44,7 +44,8 @@ describe("log anchors", () => {
     const key = layout.lines[1].entry.key
     layout.reveal?.(key)
     expect(scroll).toHaveBeenCalledTimes(1)
-    expect((scroll.mock.contexts[0] as HTMLElement).dataset.key).toBe(key)
-    expect(view.container.contains(scroll.mock.contexts[0])).toBe(true)
+    const scrolled = scroll.mock.contexts[0] as HTMLElement
+    expect(scrolled.dataset.key).toBe(key)
+    expect(view.container.contains(scrolled)).toBe(true)
   })
 })

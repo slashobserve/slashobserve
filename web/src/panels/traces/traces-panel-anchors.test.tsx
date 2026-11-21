@@ -81,7 +81,8 @@ describe("trace anchors", () => {
     const layout = store.current()?.layout as SpanAnchorLayout
     layout.reveal?.("b")
     expect(scroll).toHaveBeenCalledTimes(1)
-    expect((scroll.mock.contexts[0] as HTMLElement).dataset.spanId).toBe("b")
-    expect(mounted.container.contains(scroll.mock.contexts[0])).toBe(true)
+    const scrolled = scroll.mock.contexts[0] as HTMLElement
+    expect(scrolled.dataset.spanId).toBe("b")
+    expect(mounted.container.contains(scrolled)).toBe(true)
   })
 })
