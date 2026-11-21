@@ -2,6 +2,7 @@ import { useId, useState } from "react"
 import { Share2Icon } from "lucide-react"
 
 import { CopyButton } from "@/components/copy-button"
+import { ScrollPane } from "@/components/scroll-pane"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -81,7 +82,7 @@ export function SharePane({
   }))
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto p-4">
+    <ScrollPane className="flex flex-1 flex-col gap-5 p-4">
       <section aria-labelledby={linkId} className="flex flex-col gap-2.5">
         <h3 id={linkId} className="text-[13px] font-semibold">
           Link to this dashboard
@@ -164,7 +165,7 @@ export function SharePane({
           vars={search.vars}
         />
       ) : null}
-    </div>
+    </ScrollPane>
   )
 }
 

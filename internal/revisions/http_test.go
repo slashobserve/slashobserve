@@ -16,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/db/dbtest"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -351,6 +353,33 @@ func TestRevisionsCarryTheActionsTheCallerMayTake(t *testing.T) {
 	}
 }
 
+func TestAStoppedBuildOnAStarterDashboardIsNotOfferedKeepBuild(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	stopped := submit(t, svc, dash, "fails with a build")
+	claimed, _ := claimOne(t, svc)
+	if _, err := d.Queries().UpsertAgentRequestBuild(reading(context.Background()), dbsqlc.UpsertAgentRequestBuildParams{
+		AgentRequestID: claimed.ID, DashboardID: dash, BaseVersion: pgtype.Int4{Int32: 1, Valid: true}, Spec: []byte(`{}`), Panels: 1, Attempt: claimed.Attempts,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	d.Exec(t, "UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'no_progress', error = 'stopped', lease_until = NULL, finished_at = now() WHERE id = $1", stopped.ID)
+	d.Exec(t, "INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)", dash.String())
+
+	rec := call(newRouterAs(svc, user), http.MethodGet, revisionsPath(dash)+"/"+stopped.ID, "")
+	var one struct {
+		Revision struct {
+			AllowedActions []string `json:"allowed_actions"`
+		} `json:"revision"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &one); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("get: %d %s", rec.Code, rec.Body)
+	}
+	if slices.Contains(one.Revision.AllowedActions, "keep_build") {
+		t.Fatalf("allowed_actions = %v, want no keep_build on a starter", one.Revision.AllowedActions)
+	}
+}
+
 func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	dash := seedDashboard(t, d, 1)
@@ -366,4 +395,44 @@ func TestAQueuedRevisionIsCreatedWithItsActions(t *testing.T) {
 	if want := []string{"cancel", "pin", "archive"}; !slices.Equal(body.Revision.AllowedActions, want) {
 		t.Errorf("allowed_actions = %v, want %v", body.Revision.AllowedActions, want)
 	}
+}
+
+func TestEveryRouteThatStartsAChangeOfAStarterAnswersProvisioned(t *testing.T) {
+	svc, d := newSuggestService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	failed := submit(t, svc, dash, "made before it became a starter")
+	setState(t, d, failed.ID, "failed")
+	d.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, dash.String())
+	editor := asRole(auth.RoleEditor)
+	r := gin.New()
+	api := auth.NewRoutes(r.Group("/api/v1", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), editor))
+	}))
+	svc.Register(api)
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(api)
+	before := runsOn(t, d, dash)
+
+	for name, tc := range map[string]struct{ path, body string }{
+		"a change through observe": {"/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`},
+		"a revision":               {revisionsPath(dash), `{"prompt":"go","base_version":1}`},
+		"a suggestion":             {"/api/v1/dashboards/" + dash.String() + "/suggestions", `{"version":1,"panel_id":"p1","prompt":"go"}`},
+		"a retry":                  {"/api/v1/observe/" + failed.ID + "/retry", ""},
+	} {
+		rec := call(r, http.MethodPost, tc.path, tc.body)
+		if rec.Code != http.StatusConflict || errorCode(t, rec) != folders.CodeProvisioned {
+			t.Errorf("%s answered %d %s, want 409 provisioned", name, rec.Code, rec.Body)
+		}
+	}
+	if after := runsOn(t, d, dash); after != before {
+		t.Fatalf("the starter has %d runs after the refusals, want %d", after, before)
+	}
+}
+
+func runsOn(t *testing.T, d *dbtest.Database, dash pgtype.UUID) int {
+	t.Helper()
+	var n int
+	if err := d.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM agent_requests WHERE dashboard_id = $1`, dash).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
 }

@@ -101,6 +101,9 @@ func repairTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID,
 	if !abilities.Edit {
 		return 0, "", repairs.ReasonForbidden, nil
 	}
+	if target.Provisioned {
+		return 0, "", repairs.ReasonProvisioned, nil
+	}
 	active, err := q.CountActiveAgentRequests(ctx, id)
 	if err != nil {
 		return 0, "", "", fmt.Errorf("count active agent requests: %w", err)

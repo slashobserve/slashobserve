@@ -30,9 +30,9 @@ export function mentionableAgents(input: {
   return [...agents.values()]
 }
 
-export function useMentionableAgents(): MentionAgent[] {
+export function useMentionableAgents(enabled = true): MentionAgent[] {
   const info = useAgentInfo()
-  const agents = useQuery(agentsQuery())
+  const agents = useQuery({ ...agentsQuery(), enabled })
   const available = info.data?.available === true
   const connected = agents.data?.connected
   const serviceAccounts = agents.data?.service_accounts

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { filterLines, statusLabel } from "@/import/report"
 import { countsText } from "@/import/record-summary"
 
-import type { AgentGate } from "./agent-gate"
+import type { AgentGate } from "@/conversation/delivery"
 import {
   boxClass,
   EntryAction,

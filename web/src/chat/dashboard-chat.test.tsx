@@ -20,11 +20,14 @@ vi.mock("./conversation", () => ({
   ),
 }))
 
-vi.mock("./chat-composer", () => ({
-  ChatComposer: (props: { dashboardId?: string }) => (
-    <div data-testid="composer" data-dashboard={props.dashboardId} />
-  ),
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useRouteContext: () => ({ principal: { id: "u1", role: "editor" } }),
 }))
+
+function composerBox() {
+  return screen.queryByRole("textbox", { name: "Message the agent" })
+}
 
 function chat(id: string, title: string, over: Partial<Chat> = {}): Chat {
   return {
@@ -41,6 +44,8 @@ function chat(id: string, title: string, over: Partial<Chat> = {}): Chat {
       id: `${id}-t2`,
       state: "succeeded",
       prompt: "x",
+      investigation: false,
+      subject_observation_id: null,
       anchor: null,
       block_id: null,
     },
@@ -155,7 +160,13 @@ describe("DashboardChat", () => {
     const { user } = renderAddress("c1")
     await screen.findByTestId("conversation")
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    expect(screen.getByTestId("composer").dataset.dashboard).toBe(dashboardId)
+    expect(composerBox()).toHaveAttribute(
+      "placeholder",
+      "Ask about Checkout health"
+    )
+    expect(
+      screen.getByText("Only you and Admins can see this chat.")
+    ).toBeVisible()
     expect(screen.queryByTestId("conversation")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled()
   })
@@ -184,13 +195,13 @@ describe("DashboardChat", () => {
     const { user } = renderAddress("c1")
     await screen.findByTestId("conversation")
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    expect(screen.getByTestId("composer")).toBeInTheDocument()
+    expect(composerBox()).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(screen.getByLabelText("Address")).toHaveTextContent("c1")
     expect((await screen.findByTestId("conversation")).dataset.request).toBe(
       "c1"
     )
-    expect(screen.queryByTestId("composer")).not.toBeInTheDocument()
+    expect(composerBox()).not.toBeInTheDocument()
   })
 
   it("says the chats did not load and loads them again on Retry", async () => {
@@ -248,7 +259,9 @@ describe("DashboardChat", () => {
   it("shows a composer when this dashboard has no chats", async () => {
     stub([])
     render(undefined)
-    expect(await screen.findByTestId("composer")).toBeInTheDocument()
+    expect(
+      await screen.findByRole("textbox", { name: "Message the agent" })
+    ).toBeInTheDocument()
   })
 
   it("sends a chat about another dashboard to the chat page", async () => {

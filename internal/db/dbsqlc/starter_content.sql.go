@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const latestVersionIsNotBy = `-- name: LatestVersionIsNotBy :one
+SELECT EXISTS (
+  SELECT 1 FROM dashboard_versions v JOIN dashboards d ON d.id = v.dashboard_id AND d.latest_version = v.version
+  WHERE v.dashboard_id = $1 AND NOT (v.author_kind = $2 AND v.author_id = $3)
+)::boolean
+`
+
+type LatestVersionIsNotByParams struct {
+	DashboardID pgtype.UUID
+	AuthorKind  string
+	AuthorID    pgtype.UUID
+}
+
+func (q *Queries) LatestVersionIsNotBy(ctx context.Context, arg LatestVersionIsNotByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, latestVersionIsNotBy, arg.DashboardID, arg.AuthorKind, arg.AuthorID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const provisionedAmong = `-- name: ProvisionedAmong :many
+SELECT ref FROM starter_content WHERE ref = ANY($1::uuid[])
+`
+
+func (q *Queries) ProvisionedAmong(ctx context.Context, ids []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, provisionedAmong, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var ref pgtype.UUID
+		if err := rows.Scan(&ref); err != nil {
+			return nil, err
+		}
+		items = append(items, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordStarterContent = `-- name: RecordStarterContent :exec
 INSERT INTO starter_content (key, ref) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING
 `
@@ -23,6 +67,51 @@ type RecordStarterContentParams struct {
 func (q *Queries) RecordStarterContent(ctx context.Context, arg RecordStarterContentParams) error {
 	_, err := q.db.Exec(ctx, recordStarterContent, arg.Key, arg.Ref)
 	return err
+}
+
+const replaceStarterContent = `-- name: ReplaceStarterContent :exec
+INSERT INTO starter_content (key, ref) VALUES ($1, $2)
+ON CONFLICT (key) DO UPDATE SET ref = EXCLUDED.ref, seeded_at = now()
+`
+
+type ReplaceStarterContentParams struct {
+	Key string
+	Ref pgtype.UUID
+}
+
+func (q *Queries) ReplaceStarterContent(ctx context.Context, arg ReplaceStarterContentParams) error {
+	_, err := q.db.Exec(ctx, replaceStarterContent, arg.Key, arg.Ref)
+	return err
+}
+
+const starterAdoptable = `-- name: StarterAdoptable :one
+SELECT d.id FROM dashboards d
+WHERE d.folder_id = $1 AND lower(d.title) = lower($2::text)
+  AND EXISTS (
+    SELECT 1 FROM dashboard_versions v
+    WHERE v.dashboard_id = d.id AND v.version = 1 AND v.author_kind = $3 AND v.author_id = $4
+  )
+ORDER BY d.id
+LIMIT 1
+`
+
+type StarterAdoptableParams struct {
+	FolderID   pgtype.UUID
+	Title      string
+	AuthorKind string
+	AuthorID   pgtype.UUID
+}
+
+func (q *Queries) StarterAdoptable(ctx context.Context, arg StarterAdoptableParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, starterAdoptable,
+		arg.FolderID,
+		arg.Title,
+		arg.AuthorKind,
+		arg.AuthorID,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const starterContent = `-- name: StarterContent :one

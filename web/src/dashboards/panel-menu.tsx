@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode, type RefObject } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
+  AtSignIcon,
   ChartLineIcon,
   CompassIcon,
   CopyPlusIcon,
@@ -15,7 +16,6 @@ import {
   NotebookTextIcon,
   PencilIcon,
   PinIcon,
-  SearchIcon,
   TableIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -65,7 +65,7 @@ type Props = {
   downloadsReady?: boolean
   canComment: boolean
   canEdit: boolean
-  canInvestigate: boolean
+  canPropose: boolean
   onToggleResponsive?: () => void
   layoutActions?: PanelLayoutActions
   composerRef: RefObject<HTMLTextAreaElement | null>
@@ -119,7 +119,7 @@ export function PanelMenu({
   downloadsReady = true,
   canComment,
   canEdit,
-  canInvestigate,
+  canPropose,
   onToggleResponsive,
   layoutActions,
   composerRef,
@@ -157,11 +157,11 @@ export function PanelMenu({
       onSelect: () => {},
     })
   }
-  if (onDashboard && canInvestigate && data && agentAvailable) {
+  if (onDashboard && canComment && data && agentAvailable) {
     items.push({
-      id: "investigate",
-      label: idle ? "Investigate" : "Investigate (finish the layout first)",
-      icon: <SearchIcon aria-hidden="true" />,
+      id: "ask",
+      label: idle ? "Ask" : "Ask (finish the layout first)",
+      icon: <AtSignIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
         returnFocusToComposerUntilInput()
@@ -180,7 +180,6 @@ export function PanelMenu({
       },
     })
   }
-  const canPropose = canComment && !canEdit
   if (onDashboard && (canEdit || canPropose) && isEditablePanel(panel)) {
     const name = canEdit ? "Edit" : "Suggest an edit"
     items.push({

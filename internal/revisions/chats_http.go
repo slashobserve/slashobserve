@@ -22,11 +22,13 @@ const (
 )
 
 type chatTurnJSON struct {
-	ID      string         `json:"id"`
-	State   State          `json:"state"`
-	Prompt  string         `json:"prompt"`
-	Anchor  *anchor.Anchor `json:"anchor"`
-	BlockID *string        `json:"block_id"`
+	ID                   string         `json:"id"`
+	State                State          `json:"state"`
+	Prompt               string         `json:"prompt"`
+	Investigation        bool           `json:"investigation"`
+	SubjectObservationID *string        `json:"subject_observation_id"`
+	Anchor               *anchor.Anchor `json:"anchor"`
+	BlockID              *string        `json:"block_id"`
 }
 
 type chatJSON struct {
@@ -74,9 +76,23 @@ func newChatJSON(c Chat) chatJSON {
 		ReadOnly:       c.ReadOnly,
 	}
 	if c.LastTurn != nil {
-		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Anchor: c.LastTurn.Anchor, BlockID: c.LastTurn.BlockID}
+		out.LastTurn = &chatTurnJSON{ID: c.LastTurn.ID.String(), State: c.LastTurn.State, Prompt: c.LastTurn.Prompt, Investigation: c.LastTurn.Investigation, SubjectObservationID: optionalUUID(c.LastTurn.Subject), Anchor: c.LastTurn.Anchor, BlockID: c.LastTurn.BlockID}
 	}
 	return out
+}
+
+func (r *RunDesk) shownChat(ctx context.Context, caller auth.Principal, c Chat) (chatJSON, error) {
+	out := newChatJSON(c)
+	var err error
+	if out.ObservationID, err = r.shownObservation(ctx, caller, out.ObservationID, c.ObservationID); err != nil {
+		return chatJSON{}, err
+	}
+	if out.LastTurn != nil {
+		if out.LastTurn.SubjectObservationID, err = r.shownObservation(ctx, caller, out.LastTurn.SubjectObservationID, c.LastTurn.Subject); err != nil {
+			return chatJSON{}, err
+		}
+	}
+	return out, nil
 }
 
 func (r *RunDesk) Chats(ctx context.Context, caller auth.Principal, filter ChatFilter, limit int, cursor string) (json.RawMessage, error) {
@@ -86,7 +102,9 @@ func (r *RunDesk) Chats(ctx context.Context, caller auth.Principal, filter ChatF
 	}
 	body := chatListJSON{Chats: make([]chatJSON, len(chats))}
 	for i, c := range chats {
-		body.Chats[i] = newChatJSON(c)
+		if body.Chats[i], err = r.shownChat(ctx, caller, c); err != nil {
+			return nil, err
+		}
 	}
 	if next != "" {
 		body.NextCursor = &next
@@ -99,7 +117,11 @@ func (r *RunDesk) Chat(ctx context.Context, caller auth.Principal, id pgtype.UUI
 	if err != nil {
 		return nil, err
 	}
-	body := chatDetailJSON{Chat: newChatJSON(chat), Turns: make([]agentRequestJSON, len(turns))}
+	shown, err := r.shownChat(ctx, caller, chat)
+	if err != nil {
+		return nil, err
+	}
+	body := chatDetailJSON{Chat: shown, Turns: make([]agentRequestJSON, len(turns))}
 	for i, turn := range turns {
 		if body.Turns[i], err = r.render(ctx, turn, caller, chat.ReadOnly); err != nil {
 			return nil, err

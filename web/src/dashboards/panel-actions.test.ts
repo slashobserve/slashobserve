@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
 
-import { planSend } from "@/chat/send-plan"
+import { threadPlace } from "@/conversation/delivery"
+import { planSend } from "@/conversation/send-plan"
 
 import { askAboutPanel, focusComment } from "./panel-actions"
 import type { DashboardSearch } from "./search"
@@ -64,27 +65,31 @@ describe("askAboutPanel", () => {
     return state
   }
 
-  function requestFor(state: DashboardSearch) {
-    const plan = planSend({
-      command: "investigate",
-      text: "why is this slow",
-      dashboardId: "dashboard",
-      panelId: state.panel,
-    })
-    if ("error" in plan) throw new Error(plan.error)
-    return plan.input
+  function sendFor(state: DashboardSearch) {
+    return planSend(
+      threadPlace(null),
+      { kind: "dashboard", id: "dashboard" },
+      { to: "agent", visibleTo: "everyone" },
+      {
+        body: "why is this slow",
+        clientId: "k1",
+        toChosen: true,
+        target: { panelId: state.panel },
+      }
+    )
   }
 
-  it("keeps the panel as the target of the investigation request", () => {
+  it("opens the activity on the panel, addressed to the agent, and asks about that panel", () => {
     useActivityStore.getState().setOpen(false)
-    useActivityStore.getState().setAgentKind("revise")
+    useActivityStore.getState().setAskingAgent(false)
     const state = asking({ vars: {}, edit: "query" }, "latency")
     expect(useActivityStore.getState().open).toBe(true)
-    expect(useActivityStore.getState().agentKind).toBe("investigate")
+    expect(useActivityStore.getState().askingAgent).toBe(true)
     expect(state).toMatchObject({ panel: "latency", edit: undefined })
-    expect(requestFor(state)).toMatchObject({
-      kind: "investigate",
-      dashboardId: "dashboard",
+    expect(sendFor(state)).toMatchObject({
+      via: "thread.open",
+      target: "dashboard:dashboard",
+      to: "agent",
       panelId: "latency",
     })
   })
@@ -96,6 +101,6 @@ describe("askAboutPanel", () => {
 
   it("moves the target when another panel is asked about next", () => {
     const state = asking(asking({ vars: {} }, "latency"), "errors")
-    expect(requestFor(state).panelId).toBe("errors")
+    expect(sendFor(state)).toMatchObject({ panelId: "errors" })
   })
 })

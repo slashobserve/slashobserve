@@ -144,21 +144,19 @@ describe("useOpenThread", () => {
     message: { ...message("t1", "t1", "2026-11-06T10:00:00Z"), ...extra },
   })
 
-  it("sends start_runs only when a run is asked for", async () => {
+  it("sends the recipient and the client id", async () => {
     const posts = stubPosts(() => json(sentBody()))
     const { wrapper } = withClient()
     const { result } = renderHook(() => useOpenThread("observation:o1"), {
       wrapper,
     })
+    await act(() => result.current.mutateAsync({ body: "one", to: "everyone" }))
     await act(() =>
-      result.current.mutateAsync({ body: "one", startRuns: false })
-    )
-    await act(() =>
-      result.current.mutateAsync({ body: "two", startRuns: true })
+      result.current.mutateAsync({ body: "two", to: "agent", clientId: "k1" })
     )
     expect(posts.map((post) => post.body)).toEqual([
-      { target: "observation:o1", body: "one" },
-      { target: "observation:o1", body: "two", start_runs: true },
+      { target: "observation:o1", body: "one", to: "everyone" },
+      { target: "observation:o1", body: "two", to: "agent", client_id: "k1" },
     ])
   })
 
@@ -171,7 +169,7 @@ describe("useOpenThread", () => {
     await act(() =>
       result.current.mutateAsync({
         body: "look",
-        startRuns: false,
+        to: "everyone",
         version: 3,
         panelId: "latency",
       })
@@ -179,14 +177,20 @@ describe("useOpenThread", () => {
     await act(() =>
       result.current.mutateAsync({
         body: "whole",
-        startRuns: false,
+        to: "everyone",
         version: 3,
         panelId: null,
       })
     )
     expect(posts.map((post) => post.body)).toEqual([
-      { target: "dashboard:d1", body: "look", version: 3, panel_id: "latency" },
-      { target: "dashboard:d1", body: "whole", version: 3 },
+      {
+        target: "dashboard:d1",
+        body: "look",
+        to: "everyone",
+        version: 3,
+        panel_id: "latency",
+      },
+      { target: "dashboard:d1", body: "whole", to: "everyone", version: 3 },
     ])
   })
 
@@ -201,7 +205,7 @@ describe("useOpenThread", () => {
       wrapper,
     })
     const sent = await act(() =>
-      result.current.mutateAsync({ body: "@observe go", startRuns: true })
+      result.current.mutateAsync({ body: "@observe go", to: "agent" })
     )
     expect(sent.run).toBeNull()
     expect(sent.runRefusal).toEqual(refusal)
@@ -221,7 +225,7 @@ describe("useOpenThread", () => {
       wrapper,
     })
     const sent = await act(() =>
-      result.current.mutateAsync({ body: "@observe go", startRuns: true })
+      result.current.mutateAsync({ body: "@observe go", to: "agent" })
     )
     expect(sent.run).toEqual(run)
     const keys = invalidated.mock.calls.map((call) => call[0]?.queryKey)
@@ -241,7 +245,7 @@ describe("useOpenThread", () => {
       wrapper,
     })
     const sent = await act(() =>
-      result.current.mutateAsync({ body: "note", startRuns: false })
+      result.current.mutateAsync({ body: "note", to: "everyone" })
     )
     expect(askedAgent(sent)).toBe(false)
     expect(invalidated.mock.calls.map((call) => call[0]?.queryKey)).toEqual([
@@ -260,7 +264,7 @@ describe("useOpenThread", () => {
     })
     const failure = await act(() =>
       result.current
-        .mutateAsync({ body: "@observe", startRuns: true })
+        .mutateAsync({ body: "@observe", to: "agent" })
         .catch((error: unknown) => error)
     )
     expect(failure).toBeInstanceOf(ApiError)
@@ -269,7 +273,7 @@ describe("useOpenThread", () => {
 })
 
 describe("useReplyToThread", () => {
-  it("sends start_runs only when asked and resolves with the run", async () => {
+  it("sends the recipient and resolves with the run", async () => {
     const run = { id: runId, status: "queued", assigned_kind: "grant" }
     const posts = stubPosts(() =>
       json({
@@ -285,17 +289,20 @@ describe("useReplyToThread", () => {
       result.current.mutateAsync({
         threadId: "t1",
         body: "a",
-        startRuns: false,
+        to: "everyone",
       })
     )
     const sent = await act(() =>
-      result.current.mutateAsync({ threadId: "t1", body: "b", startRuns: true })
+      result.current.mutateAsync({ threadId: "t1", body: "b", to: "agent" })
     )
     expect(posts).toEqual([
-      { path: "/api/v1/threads/t1/messages", body: { body: "a" } },
       {
         path: "/api/v1/threads/t1/messages",
-        body: { body: "b", start_runs: true },
+        body: { body: "a", to: "everyone" },
+      },
+      {
+        path: "/api/v1/threads/t1/messages",
+        body: { body: "b", to: "agent" },
       },
     ])
     expect(sent.run).toEqual(run)

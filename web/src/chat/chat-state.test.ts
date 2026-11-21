@@ -23,6 +23,7 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
     anchor: null,
     block_id: null,
     intent: "apply",
+    investigation: false,
     base_version: null,
     comment_id: null,
     trigger: "person",

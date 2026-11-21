@@ -134,6 +134,20 @@ func TestApplyRefusesAmbiguousAndProvisionedDashboards(t *testing.T) {
 	}
 }
 
+func TestApplyRefusesAStarterDashboard(t *testing.T) {
+	r := newApplyRig(t)
+	dash, _, err := r.dashboards.Create(reading(t.Context()), r.editor, r.folderID(t, "General"), []byte(specJSON("Starter", "up")), "by hand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO starter_content (key, ref) VALUES ('audit/dashboards/test', $1)`, dash.ID); err != nil {
+		t.Fatal(err)
+	}
+	if res := r.apply(t, r.editor, "starter.json", specJSON("Starter", "rate(up[1m])")); res.Outcome != provision.OutcomeFailed || res.Code != provision.CodeProvisioned {
+		t.Errorf("apply over a starter = %+v", res)
+	}
+}
+
 func TestApplyRefusesAFolderTheCallerCannotSeeAsTakenWithoutFilingTheDashboardElsewhere(t *testing.T) {
 	r := newApplyRig(t)
 	admin := auth.Principal{Kind: auth.KindUser, ID: r.editor.ID, Name: "root", Role: auth.RoleAdmin}

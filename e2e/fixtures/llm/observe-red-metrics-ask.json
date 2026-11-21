@@ -1,0 +1,17 @@
+{
+  "prompt": "can this show requests by pod?",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "Requests are not split by pod",
+            "markdown": "The dashboard shows requests by route and status, not by pod.\n\nA panel that groups the request rate by pod would show it.",
+            "suggested_change": "add a requests by pod panel"
+          }
+        }
+      ]
+    }
+  ]
+}

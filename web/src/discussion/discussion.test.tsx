@@ -173,7 +173,10 @@ describe("Discussion", () => {
       expect(posts).toEqual([
         {
           path: "/api/v1/threads/t1/messages",
-          body: { body: "Rolling back now" },
+          body: {
+            body: "Rolling back now",
+            client_id: expect.any(String),
+          },
         },
       ])
     )
@@ -187,7 +190,14 @@ describe("Discussion", () => {
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() =>
       expect(posts).toEqual([
-        { path: "/api/v1/threads", body: { target, body: "First" } },
+        {
+          path: "/api/v1/threads",
+          body: {
+            target,
+            body: "First",
+            client_id: expect.any(String),
+          },
+        },
       ])
     )
   })
@@ -229,7 +239,7 @@ describe("Discussion", () => {
     })
     const { user } = renderDiscussion()
     await screen.findByRole("list", { name: "Discussion" })
-    const status = screen.getByRole("status")
+    const status = screen.getAllByRole("status").at(-1)
     expect(status).toHaveTextContent("")
 
     sent = true
@@ -241,7 +251,7 @@ describe("Discussion", () => {
     )
   })
 
-  it("sends start_runs when the message mentions one agent and shows the working line with a link to the run", async () => {
+  it("asks the agent when the message mentions one agent and shows the working line with a link to the run", async () => {
     const runId = "6f1e2d3c-4b5a-4968-8776-655443322110"
     const posts = mockServer({
       threads: [thread],
@@ -261,7 +271,10 @@ describe("Discussion", () => {
       expect(posts).toEqual([
         {
           path: "/api/v1/threads/t1/messages",
-          body: { body: "@observe why did latency rise", start_runs: true },
+          body: {
+            body: "@observe why did latency rise",
+            client_id: expect.any(String),
+          },
         },
       ])
     )
@@ -297,7 +310,7 @@ describe("Discussion", () => {
     ).toBeVisible()
   })
 
-  it("sends no start_runs for a message that mentions only a person", async () => {
+  it("leaves the recipient of a message that mentions only a person to the server", async () => {
     const posts = mockServer({ threads: [thread], messages: () => [earlier] })
     const { user } = renderDiscussion()
     await screen.findByRole("list", { name: "Discussion" })
@@ -307,6 +320,7 @@ describe("Discussion", () => {
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
+      client_id: expect.any(String),
     })
   })
 })
@@ -389,7 +403,11 @@ describe("DiscussionFeed on an observation", () => {
       expect(posts).toEqual([
         {
           path: "/api/v1/threads/t1/messages",
-          body: { body: "Yes", reply_to_id: "m1" },
+          body: {
+            body: "Yes",
+            client_id: expect.any(String),
+            reply_to_id: "m1",
+          },
         },
       ])
     )
@@ -407,7 +425,10 @@ describe("DiscussionFeed on an observation", () => {
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toEqual({ body: "Hi" })
+    expect(posts[0].body).toEqual({
+      body: "Hi",
+      client_id: expect.any(String),
+    })
   })
 
   it("anchors a new message to the chosen block", async () => {
@@ -423,7 +444,12 @@ describe("DiscussionFeed on an observation", () => {
       expect(posts).toEqual([
         {
           path: "/api/v1/threads",
-          body: { target, body: "Why", block_id: "b1" },
+          body: {
+            target,
+            body: "Why",
+            client_id: expect.any(String),
+            block_id: "b1",
+          },
         },
       ])
     )
@@ -439,6 +465,9 @@ describe("DiscussionFeed on an observation", () => {
     await user.type(screen.getByRole("textbox", { name: "Message" }), "Hi")
     await user.click(screen.getByRole("button", { name: "Send" }))
     await waitFor(() => expect(posts).toHaveLength(1))
-    expect(posts[0].body).toEqual({ body: "Hi" })
+    expect(posts[0].body).toEqual({
+      body: "Hi",
+      client_id: expect.any(String),
+    })
   })
 })

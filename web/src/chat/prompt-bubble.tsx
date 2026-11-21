@@ -2,10 +2,22 @@ import { useId, useState } from "react"
 
 import { CopyButton } from "@/components/copy-button"
 import { cn } from "@/lib/utils"
+import { privateChatText } from "@/observe/run-words"
 
 import { isLongPrompt } from "./prompt-length"
 
-export function PromptBubble({ prompt }: { prompt: string }) {
+export function PromptBubble({ prompt }: { prompt: string | null }) {
+  if (prompt === null) {
+    return (
+      <div className="max-w-[80%] self-end rounded-xl border px-3.5 py-2.5 text-sm text-muted-foreground">
+        {privateChatText}
+      </div>
+    )
+  }
+  return <ReadablePrompt prompt={prompt} />
+}
+
+function ReadablePrompt({ prompt }: { prompt: string }) {
   const bodyId = useId()
   const [expanded, setExpanded] = useState(false)
   const long = isLongPrompt(prompt)
