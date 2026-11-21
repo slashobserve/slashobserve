@@ -10,16 +10,18 @@ import (
 
 func chatIDOfListedRun(t *testing.T, body, run string) *string {
 	t.Helper()
+	type listed struct {
+		ID     string  `json:"id"`
+		ChatID *string `json:"chat_id"`
+	}
 	var page struct {
-		Requests []struct {
-			ID     string  `json:"id"`
-			ChatID *string `json:"chat_id"`
-		} `json:"requests"`
+		Requests []listed `json:"requests"`
+		Runs     []listed `json:"runs"`
 	}
 	if err := json.Unmarshal([]byte(body), &page); err != nil {
 		t.Fatal(err)
 	}
-	for _, r := range page.Requests {
+	for _, r := range append(page.Requests, page.Runs...) {
 		if r.ID == run {
 			return r.ChatID
 		}
