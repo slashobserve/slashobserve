@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { inRect } from "../anchors"
 
 import {
+  hides,
   hitTest,
   locate,
   rangeTest,
@@ -136,5 +137,52 @@ describe("state timeline rangeTest", () => {
         to: new Date(6_000).toISOString(),
       })
     ).toBeNull()
+  })
+})
+
+describe("state timeline hides", () => {
+  const pos = { x: 0, y: 0 }
+  const iso = (ms: number) => new Date(ms).toISOString()
+
+  it("hides a point or a range outside the shown time range", () => {
+    expect(
+      hides(layout, {
+        kind: "point",
+        pos,
+        series: { name: "checkout" },
+        from: iso(3000),
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, {
+        kind: "point",
+        pos,
+        series: { name: "checkout" },
+        from: iso(-1),
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(2001), to: iso(3000) })
+    ).toBe(true)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(-500), to: iso(-1) })
+    ).toBe(true)
+  })
+
+  it("keeps what the range shows, wholly or partly, and what has no time", () => {
+    expect(
+      hides(layout, {
+        kind: "point",
+        pos,
+        series: { name: "checkout" },
+        from: iso(500),
+      })
+    ).toBe(false)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(1500), to: iso(3000) })
+    ).toBe(false)
+    expect(
+      hides(layout, { kind: "series", pos, series: { name: "gone" } })
+    ).toBe(false)
   })
 })

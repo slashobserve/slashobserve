@@ -129,3 +129,17 @@ export function locate(
   const right = Math.min(plot.width, timeShare(layout, segment.to))
   return { x: plot.x + left, y: top, width: right - left, height: rowHeight }
 }
+
+export function hides(layout: TimelineAnchorLayout, anchor: Anchor): boolean {
+  const { from, to } = layout.range
+  if (anchor.kind === "point") {
+    const at = Date.parse(anchor.from ?? "")
+    return at < from || at > to
+  }
+  if (anchor.kind === "range") {
+    return (
+      Date.parse(anchor.to ?? "") < from || Date.parse(anchor.from ?? "") > to
+    )
+  }
+  return false
+}

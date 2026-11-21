@@ -15,6 +15,7 @@ export type PieAnchorLayout = {
   outer: number
   inner: number
   slices: readonly Pick<Slice, "name" | "text" | "startAngle" | "endAngle">[]
+  hidden?: readonly string[]
 }
 
 const fullTurn = Math.PI * 2
@@ -72,4 +73,13 @@ export function locate(layout: PieAnchorLayout, anchor: Anchor): Rect | null {
     }))
   )
   return bounds(inner > 0 ? edge : [...edge, center])
+}
+
+export function hides(layout: PieAnchorLayout, anchor: Anchor): boolean {
+  if (anchor.kind !== "slice") return false
+  const named = ({ name }: { name: string }) => clip(name) === anchor.category
+  return (
+    !layout.slices.some(named) &&
+    (layout.hidden ?? []).some((name) => named({ name }))
+  )
 }

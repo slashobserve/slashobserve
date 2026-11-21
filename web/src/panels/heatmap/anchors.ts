@@ -137,3 +137,20 @@ export function locate(
     height,
   }
 }
+
+export function hides(layout: HeatmapAnchorLayout, anchor: Anchor): boolean {
+  const { xs } = layout.model
+  if (xs.length === 0) return false
+  const start = xs[0]
+  const end = xs.length > 1 ? edgeAt(xs, xs.length) : start
+  if (anchor.kind === "heat_cell") {
+    const at = Date.parse(anchor.from ?? "")
+    return at < start || at > end
+  }
+  if (anchor.kind === "range") {
+    return (
+      Date.parse(anchor.to ?? "") < start || Date.parse(anchor.from ?? "") > end
+    )
+  }
+  return false
+}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { inRect } from "../anchors"
 
-import { hitTest, locate, type PieAnchorLayout } from "./anchors"
+import { hides, hitTest, locate, type PieAnchorLayout } from "./anchors"
 
 const layout: PieAnchorLayout = {
   body: { width: 200, height: 200 },
@@ -94,5 +94,21 @@ describe("piechart locate", () => {
     const pos = { x: 0, y: 0 }
     expect(locate(layout, { kind: "slice", pos, category: "404" })).toBeNull()
     expect(locate(layout, { kind: "position", pos })).toBeNull()
+  })
+})
+
+describe("piechart hides", () => {
+  const pos = { x: 0, y: 0 }
+  const toggled = { ...layout, hidden: ["404"] }
+
+  it("hides a slice the legend has switched off", () => {
+    expect(hides(toggled, { kind: "slice", pos, category: "404" })).toBe(true)
+  })
+
+  it("keeps a slice that is drawn, one that is gone and a different kind", () => {
+    expect(hides(toggled, { kind: "slice", pos, category: "200" })).toBe(false)
+    expect(hides(toggled, { kind: "slice", pos, category: "503" })).toBe(false)
+    expect(hides(layout, { kind: "slice", pos, category: "404" })).toBe(false)
+    expect(hides(toggled, { kind: "position", pos })).toBe(false)
   })
 })

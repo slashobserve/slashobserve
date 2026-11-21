@@ -1,8 +1,9 @@
+import { act, fireEvent } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { panelOf, renderPublishing } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
-import type { PieAnchorLayout } from "./anchors"
+import { hides, type PieAnchorLayout } from "./anchors"
 import PiechartPanel from "./piechart-panel"
 
 function status(name: string, value: number): PreparedFrame {
@@ -52,5 +53,22 @@ describe("pie chart anchors", () => {
     )
     view.unmount()
     expect(store.current()).toBeNull()
+  })
+
+  it("names a slice the legend switched off as hidden, not drawn", () => {
+    const { store, view } = renderPublishing(
+      PiechartPanel,
+      panelOf("piechart"),
+      frames
+    )
+    act(() => {
+      fireEvent.click(view.getByRole("button", { name: /500/ }))
+    })
+    const layout = store.current()?.layout as PieAnchorLayout
+    expect(layout.slices.map(({ name }) => name)).toEqual(["200"])
+    expect(layout.hidden).toEqual(["500"])
+    expect(
+      hides(layout, { kind: "slice", pos: { x: 0, y: 0 }, category: "500" })
+    ).toBe(true)
   })
 })

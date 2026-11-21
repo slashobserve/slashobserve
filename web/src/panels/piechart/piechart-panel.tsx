@@ -317,6 +317,10 @@ const PiechartPanel: PanelRenderer = ({
     () => visibleSeries(storedHidden, keys, legendShown),
     [storedHidden, keys, legendShown]
   )
+  const hiddenNames = useMemo(
+    () => entries.filter(({ key }) => hidden.has(key)).map(({ name }) => name),
+    [entries, hidden]
+  )
   const model = useMemo(
     () => pieModel(orderSlices(entries, options.sliceOrder), hidden),
     [entries, options.sliceOrder, hidden]
@@ -364,8 +368,9 @@ const PiechartPanel: PanelRenderer = ({
       outer,
       inner: donut ? outer * donutRatio : 0,
       slices: model.slices,
+      hidden: hiddenNames,
     })
-  }, [publish, node, box, model.slices, donut, width, height])
+  }, [publish, node, box, model.slices, hiddenNames, donut, width, height])
   const textColors = useMemo(
     () => labelTextColors(model.slices, theme),
     [model.slices, theme]

@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { inRect } from "../anchors"
 
-import { hitTest, locate, rangeTest, type HeatmapAnchorLayout } from "./anchors"
+import {
+  hides,
+  hitTest,
+  locate,
+  rangeTest,
+  type HeatmapAnchorLayout,
+} from "./anchors"
 
 const layout: HeatmapAnchorLayout = {
   body: { width: 240, height: 140 },
@@ -154,5 +160,59 @@ describe("heatmap rangeTest", () => {
         to: new Date(400_000).toISOString(),
       })
     ).toBeNull()
+  })
+})
+
+describe("heatmap hides", () => {
+  const pos = { x: 0, y: 0 }
+  const iso = (ms: number) => new Date(ms).toISOString()
+
+  it("hides a cell or a range outside the shown time range", () => {
+    expect(
+      hides(layout, {
+        kind: "heat_cell",
+        pos,
+        from: iso(300_000),
+        category: "10ms",
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, {
+        kind: "heat_cell",
+        pos,
+        from: iso(-60_000),
+        category: "10ms",
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, {
+        kind: "range",
+        pos,
+        from: iso(300_000),
+        to: iso(400_000),
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(-9), to: iso(-1) })
+    ).toBe(true)
+  })
+
+  it("keeps a cell in range with a missing bucket, and a range partly shown", () => {
+    expect(
+      hides(layout, {
+        kind: "heat_cell",
+        pos,
+        from: iso(60_000),
+        category: "gone",
+      })
+    ).toBe(false)
+    expect(
+      hides(layout, {
+        kind: "range",
+        pos,
+        from: iso(200_000),
+        to: iso(400_000),
+      })
+    ).toBe(false)
   })
 })
