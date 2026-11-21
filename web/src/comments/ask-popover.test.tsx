@@ -20,6 +20,7 @@ import {
   noModelAskText,
   openChatOf,
   privateText,
+  reviseSharedText,
   type AskSpot,
 } from "./ask-popover"
 
@@ -381,9 +382,10 @@ describe("AskPopover", () => {
       await screen.findByText("Payments waits on the card network.")
     ).toBeVisible()
     expect(screen.queryByText("Looking into it")).toBeNull()
-    expect(
-      screen.getByRole("button", { name: "Revise the dashboard" })
-    ).toBeVisible()
+    const revise = screen.getByRole("button", { name: "Revise the dashboard" })
+    expect(revise).toBeVisible()
+    expect(revise).toHaveAccessibleDescription(reviseSharedText)
+    expect(screen.getByText(reviseSharedText)).toBeVisible()
     await user.click(screen.getByRole("button", { name: "Answer actions" }))
     expect(
       await screen.findByRole("menuitem", { name: /^Share to thread/ })

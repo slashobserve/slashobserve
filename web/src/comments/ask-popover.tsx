@@ -47,6 +47,8 @@ export type AskSpot = {
 type AskedTurn = { requestId: string; chatId: string }
 
 export const privateText = "Only you and Admins can see this."
+export const reviseSharedText =
+  "A revision is visible to everyone who can see the dashboard."
 export const noModelAskText =
   "No model is connected to this server, so the agent cannot answer."
 
@@ -241,6 +243,7 @@ function AgentPart({
         about={{ kind: "dashboard", id: dashboardId }}
         onRevised={async (next) => onAsked(next)}
         showToEveryone={false}
+        reviseNote={reviseSharedText}
       />
     </div>
   )

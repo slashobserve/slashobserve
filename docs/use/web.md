@@ -226,7 +226,7 @@ In the table view of a panel that is not a table, a click or drag in Ask mode as
 
 The question is a turn of the chat open in the dashboard's Chat tab, or of a new chat that the Chat tab then opens when none is.
 The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
-The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard.
+The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard; the line under it says that a revision is visible to everyone who can see the dashboard.
 The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.
 When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
 
