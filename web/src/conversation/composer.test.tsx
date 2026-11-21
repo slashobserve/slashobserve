@@ -55,7 +55,6 @@ function ChatComposer({
     gate: ungated,
     initialText,
     runningRequestId,
-    revises: true,
     onSent,
   })
   return (
@@ -170,7 +169,7 @@ describe("Composer in a chat", () => {
     expect(first.client_id).not.toBe(second.client_id)
   })
 
-  it("sends a change to the dashboard the chat is about", async () => {
+  it("asks about the dashboard the chat is about without changing it", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer({
       subject: { kind: "dashboard", id: dashboardId },
@@ -179,7 +178,7 @@ describe("Composer in a chat", () => {
     await user.type(await box(), "add a p99 panel{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(await sentBody(fetch)).toMatchObject({
-      kind: "revise",
+      kind: "ask",
       dashboard_id: dashboardId,
       chat_id: "c1",
     })

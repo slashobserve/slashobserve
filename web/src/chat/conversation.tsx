@@ -216,7 +216,6 @@ function ConversationComposer({
       dashboardId === null ? null : { kind: "dashboard", id: dashboardId },
     place: { kind: "chat", chatId },
     gate: ungated,
-    revises: true,
     runningRequestId,
     onSent: (sent) =>
       sent.via === "chat" ? onSent(sent.request, sent.opens) : undefined,
@@ -234,7 +233,7 @@ function ConversationComposer({
       }
       placeholder={
         dashboardId !== null
-          ? `Ask for another change to ${dashboardTitle ?? "this dashboard"}`
+          ? `Ask about ${dashboardTitle ?? "this dashboard"}`
           : "Ask a follow-up, or describe a dashboard to build"
       }
     />
@@ -420,7 +419,7 @@ function ConversationView({
           {!agentOff ? (
             <p className="mt-1.5 text-center text-xs text-muted-foreground">
               {hasDashboard
-                ? "Each change is saved as a new version of the dashboard."
+                ? "The dashboard changes only when you choose Revise the dashboard on an answer."
                 : waitingForAnswer
                   ? "Wait for the answer, or cancel the run, then ask a follow-up."
                   : "The agent sees the earlier messages of this chat."}

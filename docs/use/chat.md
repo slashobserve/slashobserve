@@ -11,7 +11,8 @@ For a first run, follow [Your first dashboard](../get-started/first-dashboard.md
 A question about your data such as "what logs are available?", a request to explain a dashboard or a panel, a why question, or something outside the server's data gets an answer instead of a dashboard: the agent reads the data and saves a short written answer in the chat.
 A request for the meaning of an observability term, such as "what does p99 mean", gets a definition of two or three lines tied to your data.
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead, and builds nothing.
-A request for a dashboard builds one, and a message in a dashboard's chat that asks for a change revises that dashboard; one that only asks a question gets an answer in the chat and leaves the dashboard as it is.
+A request for a dashboard builds one, and a message in a dashboard's chat is a question about that dashboard: it gets an answer in the chat and leaves the dashboard as it is, even when it asks for a change.
+The dashboard changes only when you choose **Revise the dashboard** on an answer.
 The answer stays in the chat, and no observation is created, until you choose **Create observation** on it; an `/investigate` request always opens an observation.
 
 On an answer in a chat about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment), and **Revise the dashboard** sends the suggested change as the next turn of the chat.
@@ -278,7 +279,8 @@ The run itself goes on server-side either way.
 
 ## Follow-ups
 
-Once the first dashboard exists, the box under the conversation reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
+Once the first dashboard exists, the box under the conversation reads "Ask about `<title>`", with the note "The dashboard changes only when you choose Revise the dashboard on an answer."
+A follow-up there, and **Ask again**, are questions about the dashboard: they get an answer and save no version.
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
 While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
@@ -287,7 +289,7 @@ A follow-up is a continuation of the chat.
 The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation: each earlier question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
 It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
 For a chat about a dashboard these are the earlier requests you sent on that dashboard; for a chat with no dashboard they are the earlier turns of that chat.
-Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
+Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
@@ -303,7 +305,7 @@ Without `chat_id` a new chat starts, except a `revise` on a dashboard, which joi
 `client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
 `GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats`, and MCP `list_chats` and `get_chat`.
 
-The agent revises the latest version of that dashboard and saves the result as the next version.
+A revise, which **Revise the dashboard** on an answer sends, works on the latest version of that dashboard and saves the result as the next version.
 It keeps panel ids, positions and everything else you did not ask to change, and it does not delete panels marked unverified unless you ask.
 It saves again only after the same checks as a new dashboard.
 If someone saves a version while it works, it restarts once from the newest one.
@@ -311,7 +313,7 @@ If someone saves a version while it works, it restarts once from the newest one.
 Requests for one dashboard run one at a time, in the order they were sent, and up to 5 can be queued or running.
 A sixth is refused with `too_many_revisions`.
 
-A follow-up needs Comment on the dashboard's folder, which Commenters, Editors and Admins have by default; with Comment but not Edit, the result is a [proposal](../concepts/proposals.md) that someone with Edit merges.
+A follow-up and a revise need Comment on the dashboard's folder, which Commenters, Editors and Admins have by default; with Comment but not Edit, a revise ends as a [proposal](../concepts/proposals.md) that someone with Edit merges.
 See [Roles](../teams/roles.md).
 It does not need to have been your dashboard.
 

@@ -32,7 +32,7 @@ export function AskAgainButton({
       { kind: "chat", chatId: chatId ?? null },
       dashboardId === undefined ? null : { kind: "dashboard", id: dashboardId },
       { to: "agent", visibleTo: "me" },
-      { body: prompt, clientId: crypto.randomUUID(), revises: true }
+      { body: prompt, clientId: crypto.randomUUID() }
     )
     if ("error" in plan || plan.via !== "chat.turn") return
     try {

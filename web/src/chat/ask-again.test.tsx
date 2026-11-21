@@ -60,7 +60,7 @@ describe("AskAgainButton", () => {
     expect(onSent).toHaveBeenCalledBefore(afterSent)
   })
 
-  it("sends it into the dashboard the chat is about", async () => {
+  it("asks it again about the dashboard the chat is about", async () => {
     const fetch = stubCreate()
     const { user, onSent } = render({ dashboardId: "d1" })
     await user.click(await screen.findByRole("button", { name: "Ask again" }))
@@ -71,7 +71,7 @@ describe("AskAgainButton", () => {
     >
     expect(sent).toMatchObject({
       prompt: "which logs exist",
-      kind: "revise",
+      kind: "ask",
       dashboard_id: "d1",
     })
     expect(sent).not.toHaveProperty("follows_id")
