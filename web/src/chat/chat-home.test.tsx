@@ -119,7 +119,7 @@ describe("ChatHome", () => {
     expect(posts).toEqual([])
   })
 
-  it("shows the dashboard to revise as a chip that can be removed", async () => {
+  it("shows the dashboard to ask about as a chip that can be removed", async () => {
     const { user } = render({
       initialPrompt: "Add a latency row to Payments",
       dashboardId: mine,
@@ -137,15 +137,45 @@ describe("ChatHome", () => {
     })
   })
 
-  it("ignores a dashboard the person cannot edit", async () => {
+  it("shows a dashboard the person can only view as a chip too", async () => {
     render({ initialPrompt: "Add a row", dashboardId: theirs })
     await screen.findByRole("textbox", { name: "Message the agent" })
-    expect(
-      screen.queryByRole("list", { name: "Context" })
-    ).not.toBeInTheDocument()
+    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
+      "Someone else's board"
+    )
   })
 
-  it("looks up a dashboard to revise that the title list does not hold", async () => {
+  it("asks about the dashboard in the chip without changing it", async () => {
+    fetch.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ request: { id: "r1", prompt: "q" } }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        })
+    )
+    const { user } = render({
+      initialPrompt: "Add a latency row to Payments",
+      dashboardId: mine,
+    })
+    await user.type(
+      await screen.findByRole("textbox", { name: "Message the agent" }),
+      "{Enter}"
+    )
+    const post = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) => request.method === "POST"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await post.clone().json()).toMatchObject({
+      prompt: "Add a latency row to Payments",
+      kind: "ask",
+      dashboard_id: mine,
+    })
+  })
+
+  it("looks up a dashboard to ask about that the title list does not hold", async () => {
     const far = "5c1d9a40-7a3b-4e2f-8c55-0d9e6b2a1f33"
     fetch.mockImplementation(async (request) => {
       const path = new URL(request.url).pathname
@@ -165,7 +195,7 @@ describe("ChatHome", () => {
     expect(chips).toHaveTextContent("Archive")
   })
 
-  it("keeps the box closed while the dashboard to revise is being found", async () => {
+  it("keeps the box closed while the dashboard to ask about is being found", async () => {
     fetch.mockImplementation(() => new Promise<Response>(() => undefined))
     render({ initialPrompt: "Add a row", dashboardId: mine }, false)
     expect(

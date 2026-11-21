@@ -81,7 +81,6 @@ export type ComposerInput = {
   people?: readonly MentionPerson[]
   replyToId?: string
   range?: { from: string; to: string }
-  revises?: boolean
   timeZone?: string
   runningRequestId?: string
   addressAgent?: boolean
@@ -433,7 +432,6 @@ export function useComposer(input: ComposerInput): ComposerModel {
       target: input.target,
       replyToId: input.replyToId,
       range: input.range,
-      revises: input.revises,
       toChosen: chosen.to !== undefined,
     })
     if ("error" in plan) {

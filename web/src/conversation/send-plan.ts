@@ -24,7 +24,6 @@ export type Draft = {
   target?: SpotTarget
   replyToId?: string
   range?: { from: string; to: string }
-  revises?: boolean
   toChosen?: boolean
 }
 
@@ -99,7 +98,12 @@ function spotFields(
   return fields
 }
 
-function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
+function chatTurn(
+  place: Place,
+  subject: Subject | null,
+  draft: Draft,
+  revises = false
+): Send {
   const chatId = place.kind === "chat" ? place.chatId : null
   const chat = chatId === null ? {} : { chatId }
   const opens: Opens = chatId === null && subject === null ? "chat" : "same"
@@ -125,7 +129,7 @@ function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
       return { via: "chat.turn", input, opens }
     }
     case null: {
-      if (draft.revises === true && subject?.kind === "dashboard") {
+      if (revises && subject?.kind === "dashboard") {
         return {
           via: "chat.turn",
           input: { ...base, ...chat, kind: "revise", dashboardId: subject.id },
@@ -230,5 +234,5 @@ export function planRevise(
   }
   const chat: Place =
     place.kind === "chat" ? place : { kind: "chat", chatId: null }
-  return chatTurn(chat, subject, { body, clientId, revises: true })
+  return chatTurn(chat, subject, { body, clientId }, true)
 }

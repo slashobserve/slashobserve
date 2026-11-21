@@ -36,7 +36,8 @@ From 3600 characters a counter such as "3650 of 4000" appears in the box's foote
 A long message of yours, over 600 characters or 6 lines, is shown cut to 6 lines in the conversation with a **Show the whole message** button.
 
 An address of `/ask?prompt=<text>` opens the box with that text already in it, up to 4000 characters, and sends nothing until you do; `/?prompt=<text>` redirects there.
-Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send revises it; the chip appears only for a dashboard you can edit, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
+Adding `dashboard=<id>` puts that dashboard in the box as a chip so the send asks about it: the agent answers without changing the dashboard, and when a change fits, the answer offers it with **Revise the dashboard**.
+The chip appears for any dashboard you can view, and the box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
 Links inside the app that ask the agent about something use it.
 
 The up arrow, with the cursor at the start of the box, recalls your earlier prompts, newest first, and the down arrow steps back toward what you were typing.

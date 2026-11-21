@@ -21,22 +21,20 @@ type Props = { initialPrompt?: string; dashboardId?: string }
 
 function HomeComposer({
   initialPrompt,
-  revising,
+  about,
   disabled,
   onRemoveDashboard,
 }: {
   initialPrompt?: string
-  revising: { id: string; title: string } | undefined
+  about: { id: string; title: string } | undefined
   disabled: boolean
   onRemoveDashboard: () => void
 }) {
   const model = useComposer({
-    subject:
-      revising === undefined ? null : { kind: "dashboard", id: revising.id },
+    subject: about === undefined ? null : { kind: "dashboard", id: about.id },
     place: { kind: "chat", chatId: null },
     gate: ungated,
     initialText: initialPrompt,
-    revises: true,
     onSent: useOpenSentTurn(),
   })
   return (
@@ -46,12 +44,12 @@ function HomeComposer({
       rows={3}
       disabled={disabled}
       contextChips={
-        revising === undefined
+        about === undefined
           ? []
           : [
               {
                 id: "dashboard",
-                label: revising.title,
+                label: about.title,
                 onRemove: onRemoveDashboard,
               },
             ]
@@ -88,9 +86,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
       : {
           id: lookup.data.dashboard.id,
           title: lookup.data.dashboard.title,
-          canEdit: lookup.data.dashboard.permissions.edit,
         })
-  const revising = found?.canEdit === true ? found : undefined
   const resolving =
     dashboardId !== undefined &&
     found === undefined &&
@@ -106,7 +102,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
         <HomeComposer
           key={initialPrompt ?? ""}
           initialPrompt={initialPrompt}
-          revising={revising}
+          about={found}
           disabled={resolving}
           onRemoveDashboard={() =>
             void navigate({ ...askLink(initialPrompt ?? ""), replace: true })
