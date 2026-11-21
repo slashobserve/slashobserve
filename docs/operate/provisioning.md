@@ -48,6 +48,7 @@ Each such change is recorded as `provision.apply`, and the threads, pins and vie
 A starter that someone edited before this behavior existed is kept as a separate dashboard named `<title> (your copy)`, and the starter takes the shipped content.
 The copy and the new version are saved together, so a failed update leaves no copy and the next start tries again.
 A starter that is deleted comes back at the next start; an Admin who wants a changed one duplicates it, and the copy is ordinary.
+A starter does not list a panel that returned no data as unverified, because the audit starters can be empty on a fresh install; its copy lists it like any dashboard.
 
 A save checks the file the way every save is checked: the Spec must be valid and every panel and variable query must run.
 Unlike a Grafana import, a provisioned file is never saved with failing queries.

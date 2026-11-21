@@ -3700,7 +3700,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels of dashboards.
-         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Send `dashboard_ids` to repair those dashboards, or `all` to repair every dashboard the list shows, in `folder_id` when it is set. Each dashboard gets one ordinary revision with source `prompt` and the fixed prompt "Repair every panel and variable listed as unverified so its query runs and returns data; keep every other panel unchanged and never delete an unverified panel." The agent never edits a placeholder panel, so a dashboard whose only problems are placeholders is skipped. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when it has no unverified panel or variable, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestRepairs"];
         delete?: never;
@@ -3981,7 +3981,7 @@ export interface paths {
         put?: never;
         /**
          * Queue the agent to repair the failing panels and variables the health check found.
-         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
+         * @description Editors and Admins can call this endpoint. Each dashboard gets one ordinary revision (`intent` `apply`) whose prompt starts "Repair the panels and variables the health check found failing" and then names each panel and variable with a `no_data`, `query_failed` or `variable_failed` problem from the last check. A dashboard is skipped with a reason: `active` when a revision is already queued or running on it, `nothing_to_repair` when its last check found no failing panel or variable or was of an older version than the latest, `not_found` when it does not exist or is in a folder the caller cannot see, `forbidden_role` when the caller cannot edit it, `provisioned` when it is a starter dashboard the server keeps current with each release, and `queue_full` when the caller already has 20 health repairs queued or running. Without a configured LLM provider the endpoint answers 503 `agent_unavailable`.
          */
         post: operations["requestHealthRepairs"];
         delete?: never;
@@ -5493,7 +5493,7 @@ export interface components {
             };
             unverified: components["schemas"]["Unverified"];
         };
-        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). */
+        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard. */
         Unverified: {
             panels: components["schemas"]["UnverifiedPanel"][];
             variables: components["schemas"]["UnverifiedVariable"][];
@@ -7622,7 +7622,7 @@ export interface components {
                 /** Format: uuid */
                 dashboard_id: string;
                 /** @enum {string} */
-                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "queue_full";
+                reason: "active" | "nothing_to_repair" | "not_found" | "forbidden_role" | "provisioned" | "queue_full";
             }[];
         };
         GrafanaResolved: {
@@ -7740,7 +7740,7 @@ export interface components {
             /** @description The dashboard's address in the web app. */
             url: string;
             folder: components["schemas"]["DashboardFolder"];
-            /** @description Whether the caller may edit the dashboard, and so ask for a repair. */
+            /** @description Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release. */
             can_edit: boolean;
             /**
              * @description The dashboard's health computed from the last check, whatever the `kind` filter. See `docs/reference/states.md`.
@@ -11397,7 +11397,7 @@ export interface operations {
                     title: string;
                     /**
                      * Format: uuid
-                     * @description The folder to create the dashboard in. Missing means the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
+                     * @description The folder to create the dashboard in. Missing means the source dashboard's folder when the caller can create there, else the caller's default folder: a person's My Dashboards, a service-account key's General. 404 when the folder does not exist or the caller cannot see it, 403 when they cannot create there.
                      */
                     folder_id?: string;
                 };

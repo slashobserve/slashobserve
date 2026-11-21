@@ -2627,6 +2627,7 @@ components:
         Panels and variables of this version whose queries failed when it was saved but were kept:
         a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged
         (see `POST /dashboards/{id}/versions`).
+        A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard.
       properties:
         panels:
           type: array
@@ -6719,7 +6720,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
     GrafanaResolved:
       type: object
       additionalProperties: false
@@ -6932,7 +6933,7 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         can_edit:
           type: boolean
-          description: Whether the caller may edit the dashboard, and so ask for a repair.
+          description: Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release.
         state:
           type: string
           enum: [unchecked, outdated, skipped, failing, healthy]

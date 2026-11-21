@@ -263,7 +263,7 @@ Both answer `folder_exists` for a taken title and `rename_folder` answers `gener
 `create_dashboard` takes an optional `folder_id` from that list; without it, a person's dashboard goes to their My Dashboards and a key's to General.
 A retry is safe: when the same caller already saved a dashboard with that title and an identical spec in that folder, `create_dashboard` returns it with `replayed` true instead of making a second one.
 A `folder_id` the key cannot create in returns `forbidden_role`, and an unknown one `not_found`.
-`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it.
+`list_dashboard_versions` and `diff_dashboard_versions` read a dashboard's history, `restore_dashboard_version` saves an earlier version as a new one with the same `parent_version` check as a save, `move_dashboard` moves a dashboard to another folder and `duplicate_dashboard` copies it into `folder_id`, by default the dashboard's own folder when you may create there, else your My Dashboards or General, as the web dialog does.
 No tool deletes a dashboard: people do that in the web app, through the HTTP API or with `observe dashboards delete`.
 A connection in propose mode cannot restore or move a dashboard directly and gets `proposal_required`; it can save the change with `update_dashboard`, which becomes a proposal.
 
@@ -411,6 +411,7 @@ It lists only the events of folders the key may see, plus the [admin changes](ac
 
 The six audit tools read the [audit trail](../reference/audit-queries.md) and need an Admin: `search_audit_events` (20 events a call by default, at most 100, paged with `next_cursor`), `get_audit_event` (one event with the events of its request and agent run), `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
 They take `query` in KQL, `lucene:` or a Query DSL body, and `since` and `until`, the last 24 hours by default and at most 366 days.
+An answer is at most 16 KiB, so a page can hold fewer events than `limit`; it then says `truncated: true` with a note, and `next_cursor` continues it, so an agent that counts events must follow the cursor until it is null.
 A `search_audit_events` call is recorded in the trail as `audit.search` (once per key and query text in 10 minutes, see [Audit queries](../reference/audit-queries.md)), the other audit tools record nothing, and none of them changes or deletes an event; the export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
 
 `list_inbox` lists the [inbox](inbox.md) of the person who signed in to the connected agent: what asks something of them, with the `reason` and whether it is `unread`, and `unread_count`.
