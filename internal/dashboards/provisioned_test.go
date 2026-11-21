@@ -294,3 +294,44 @@ func TestTheDashboardListMarksAStarterAndShowsItNotEditable(t *testing.T) {
 		t.Fatalf("the list holds %d of the 2 dashboards", seen)
 	}
 }
+
+func (r *rig) keepAnEmptyPanelUnverified(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	r.db.Exec(t, `UPDATE dashboard_versions SET unverified = '{"panels":[{"panel_id":"p0","issues":[{"path":"/panels/0/queries","code":"query_empty","message":"returned no data"}]}],"variables":[]}'::jsonb WHERE dashboard_id = $1`, id.String())
+}
+
+func unverifiedPanelsOver(t *testing.T, b boards, path string) int {
+	t.Helper()
+	rec := b.serve(adminUser, http.MethodGet, path, "")
+	var got struct {
+		Version struct {
+			Unverified struct{ Panels []struct{ PanelID string } }
+		}
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &got) != nil {
+		t.Fatalf("GET %s answered %d %s", path, rec.Code, rec.Body.String())
+	}
+	return len(got.Version.Unverified.Panels)
+}
+
+func TestAStarterDoesNotShowAnEmptyPanelAsUnverifiedButItsCopyDoes(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	id := r.starterDashboard(t)
+	r.keepAnEmptyPanelUnverified(t, id)
+
+	if n := unverifiedPanelsOver(t, b, "/dashboards/"+id.String()); n != 0 {
+		t.Errorf("the starter shows %d unverified panels, want none", n)
+	}
+	if n := unverifiedPanelsOver(t, b, "/dashboards/"+id.String()+"/versions/1"); n != 0 {
+		t.Errorf("version 1 of the starter shows %d unverified panels, want none", n)
+	}
+	rec := b.serve(adminUser, http.MethodPost, "/dashboards/"+id.String()+"/duplicate", `{"title":"Mine"}`)
+	var copied struct{ Dashboard struct{ ID string } }
+	if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &copied) != nil {
+		t.Fatalf("duplicate answered %d %s", rec.Code, rec.Body.String())
+	}
+	if n := unverifiedPanelsOver(t, b, "/dashboards/"+copied.Dashboard.ID); n != 1 {
+		t.Errorf("the copy shows %d unverified panels, want the 1 it inherited", n)
+	}
+}

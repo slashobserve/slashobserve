@@ -5412,7 +5412,7 @@ export interface components {
             };
             unverified: components["schemas"]["Unverified"];
         };
-        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). */
+        /** @description Panels and variables of this version whose queries failed when it was saved but were kept: a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged (see `POST /dashboards/{id}/versions`). A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard. */
         Unverified: {
             panels: components["schemas"]["UnverifiedPanel"][];
             variables: components["schemas"]["UnverifiedVariable"][];
