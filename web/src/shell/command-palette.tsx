@@ -30,6 +30,7 @@ import {
   MessageSquareIcon,
   NotebookTextIcon,
   PlusIcon,
+  ScrollTextIcon,
   SearchIcon,
   SettingsIcon,
   SunMoonIcon,
@@ -74,6 +75,7 @@ const pageIcons: Record<PagePath, LucideIcon> = {
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
+  "/audit": ScrollTextIcon,
   "/settings": SettingsIcon,
 }
 

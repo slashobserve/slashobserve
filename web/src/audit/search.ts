@@ -58,13 +58,6 @@ export function auditSearchOf(view: AuditView): AuditSearch {
   }
 }
 
-export const clearedAuditSearch = {
-  q: undefined,
-  from: undefined,
-  to: undefined,
-  event: undefined,
-} satisfies Record<keyof AuditSearch, undefined>
-
 export function followsNow(view: Pick<AuditView, "to">): boolean {
   return view.to === "now"
 }

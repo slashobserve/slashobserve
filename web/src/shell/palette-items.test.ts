@@ -36,6 +36,7 @@ describe("paletteGroups", () => {
       "Datasources",
       "API keys",
       "People",
+      "Audit",
       "Settings",
     ])
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(

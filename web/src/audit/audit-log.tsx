@@ -5,6 +5,7 @@ import { LoaderCircleIcon, TextSearchIcon } from "lucide-react"
 
 import type { AuditWindowKey } from "@/api/keys"
 import { EmptyState } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -15,7 +16,6 @@ import { quickRanges } from "@/lib/time"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 import { SettingsProblem } from "@/settings/settings-card"
-import { SettingsSection } from "@/settings/settings-section"
 
 import { AuditDetail } from "./audit-detail"
 import { ExportMenu, ExportNotice, useAuditExport } from "./audit-export"
@@ -63,7 +63,7 @@ function stamp(): number {
 
 const emptyWindow: AuditWindowKey = { q: "", since: "", until: "" }
 
-export function AuditSettings({
+export function AuditLog({
   view,
   onView,
 }: {
@@ -226,33 +226,34 @@ export function AuditSettings({
   }
 
   return (
-    <SettingsSection
-      title="Audit log"
-      description="Every sign-in, read and change on this server: who did it, through which tool, and how it went. Only Admins can see this."
-      action={
-        <div className="flex flex-wrap items-center gap-2">
-          <TimeRangeControl
-            value={{ from: applied.from, to: applied.to }}
-            onChange={(range) =>
-              search({ ...shownView, ...range, event: null })
-            }
-            quickRanges={auditRanges}
-          />
-          <Link
-            {...auditInLogsLink(applied)}
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            <TextSearchIcon aria-hidden="true" />
-            Open in Logs
-          </Link>
-          <ExportMenu
-            disabled={window === null || problem !== null}
-            pending={exporter.pending}
-            onExport={(format) => void exporter.start(format)}
-          />
-        </div>
-      }
-    >
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Audit log"
+        description="Every sign-in, read and change on this server: who did it, through which tool, and how it went. Only Admins can see this."
+        actions={
+          <>
+            <TimeRangeControl
+              value={{ from: applied.from, to: applied.to }}
+              onChange={(range) =>
+                search({ ...shownView, ...range, event: null })
+              }
+              quickRanges={auditRanges}
+            />
+            <Link
+              {...auditInLogsLink(applied)}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <TextSearchIcon aria-hidden="true" />
+              Open in Logs
+            </Link>
+            <ExportMenu
+              disabled={window === null || problem !== null}
+              pending={exporter.pending}
+              onExport={(format) => void exporter.start(format)}
+            />
+          </>
+        }
+      />
       <AuditFilterBar
         draft={draft.text}
         onDraft={(text) => setDraft({ applied: applied.q, text })}
@@ -424,6 +425,6 @@ export function AuditSettings({
           onClose={() => onView({ ...shownView, event: null })}
         />
       ) : null}
-    </SettingsSection>
+    </div>
   )
 }

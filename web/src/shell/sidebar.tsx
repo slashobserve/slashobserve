@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react"
 import {
-  Link,
   useLinkProps,
   useRouteContext,
   useRouterState,
@@ -28,6 +27,7 @@ import {
 } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
+import { AuditList, auditRows } from "./audit-list"
 import {
   subNavState,
   unreadBadge,
@@ -102,11 +102,17 @@ function NavLink({
   onNavigate?: () => void
 }) {
   const Icon = navIcons[item.to]
+  const linkProps = useLinkProps({
+    to: item.to,
+    activeOptions: { exact: true },
+  })
   return (
-    <Link
-      to={item.to}
-      onClick={onNavigate}
-      activeOptions={{ exact: true }}
+    <a
+      {...linkProps}
+      onClick={(event) => {
+        linkProps.onClick?.(event)
+        onNavigate?.()
+      }}
       aria-current={state === "current" ? "page" : undefined}
       aria-label={
         unread === null ? undefined : `${item.label}, ${unread} unread`
@@ -126,7 +132,7 @@ function NavLink({
         {item.label}
       </span>
       {unread === null ? null : <UnreadMark badge={unread} />}
-    </Link>
+    </a>
   )
 }
 
@@ -323,6 +329,12 @@ export function SidebarContent({
           currentId={currentId}
           onNavigate={onNavigate}
         />
+      ),
+    },
+    "/audit": {
+      rows: auditRows,
+      render: (currentId) => (
+        <AuditList currentId={currentId} onNavigate={onNavigate} />
       ),
     },
     "/explore/metrics": {

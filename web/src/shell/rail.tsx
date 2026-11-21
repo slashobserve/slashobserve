@@ -12,6 +12,7 @@ import {
   LogsIcon,
   NotebookTextIcon,
   PanelLeftOpenIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UsersIcon,
   type LucideIcon,
@@ -25,6 +26,7 @@ import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
+import { AuditFlyoutItems } from "./audit-list"
 import { CountBadge } from "./count-badge"
 import {
   countLabel,
@@ -56,6 +58,7 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
+  "/audit": ScrollTextIcon,
   "/settings": SettingsIcon,
 }
 
@@ -197,6 +200,7 @@ export function RailContent({ forced }: { forced: boolean }) {
   const metrics = useExploreSources("metrics").sources.length > 1
   const flyouts: Partial<Record<NavPath, ReactNode>> = {
     "/dashboards": <DashboardsFlyoutItems />,
+    "/audit": <AuditFlyoutItems />,
     ...(logs ? { "/logs": <SourceFlyoutItems kind="logs" /> } : {}),
     ...(traces ? { "/traces": <SourceFlyoutItems kind="traces" /> } : {}),
     ...(metrics

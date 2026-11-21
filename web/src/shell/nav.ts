@@ -1,3 +1,5 @@
+import { auditDatasourceUid } from "@/audit/audit-source"
+import { logsPath } from "@/lib/links"
 import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type NavPath =
@@ -12,6 +14,7 @@ export type NavPath =
   | "/datasources"
   | "/keys"
   | "/people"
+  | "/audit"
   | "/settings"
 
 export type NavItem = {
@@ -48,6 +51,7 @@ const navItems: readonly NavItem[] = [
   },
   { to: "/keys", label: "API keys", group: "workspace", minRole: "admin" },
   { to: "/people", label: "People", group: "workspace", minRole: "admin" },
+  { to: "/audit", label: "Audit", group: "workspace", minRole: "admin" },
   { to: "/settings", label: "Settings", group: "workspace", minRole: "viewer" },
 ]
 
@@ -56,6 +60,7 @@ export function visibleNavItems(role: Role): NavItem[] {
 }
 
 export function isNavItemActive(to: NavPath, pathname: string): boolean {
+  if (pathname === logsPath(auditDatasourceUid)) return to === "/audit"
   if (to === "/") return pathname === "/" || pathname === "/chats"
   if (to === "/traces" && pathname.startsWith("/t/")) return true
   if (to === "/observations" && pathname.startsWith("/o/")) return true

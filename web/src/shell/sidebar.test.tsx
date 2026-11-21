@@ -70,6 +70,14 @@ beforeEach(() => {
 
 const route = { path: "/d/$dashboardId/{-$slug}", url: "/d/d1" }
 
+function navLink(name: string): HTMLElement {
+  const link = screen
+    .getAllByRole("link", { name })
+    .find((candidate) => candidate.closest("ul") === null)
+  if (link === undefined) throw new Error(`no ${name} item`)
+  return link
+}
+
 function precedes(first: Element, second: Element): boolean {
   return Boolean(
     first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -81,11 +89,7 @@ describe("SidebarContent", () => {
     renderWithProviders(<SidebarContent />, { route })
     const group = await screen.findByRole("group", { name: "Workspace" })
     expect(group.closest(".overflow-y-auto")).toBeNull()
-    expect(
-      screen
-        .getByRole("link", { name: "Dashboards" })
-        .closest(".overflow-y-auto")
-    ).not.toBeNull()
+    expect(navLink("Dashboards").closest(".overflow-y-auto")).not.toBeNull()
   })
 
   it("lists API keys in the Workspace group for an Admin", async () => {
@@ -99,6 +103,10 @@ describe("SidebarContent", () => {
       ["Datasources", "/datasources"],
       ["API keys", "/keys"],
       ["People", "/people"],
+      ["Audit", "/audit"],
+      ["Log", "/audit"],
+      ["Dashboards", "/audit/dashboards"],
+      ["Explore", "/logs/slashobserve-audit"],
       ["Settings", "/settings"],
     ])
   })
@@ -111,7 +119,7 @@ describe("SidebarContent", () => {
       { name: "Checkout latency" },
       { timeout: 5000 }
     )
-    const dashboards = screen.getByRole("link", { name: "Dashboards" })
+    const dashboards = navLink("Dashboards")
     const logs = screen.getByRole("link", { name: "Logs" })
     expect(
       dashboards.compareDocumentPosition(pinned) &
@@ -131,7 +139,7 @@ describe("SidebarContent", () => {
       { name: "Checkout latency" },
       { timeout: 5000 }
     )
-    const dashboards = screen.getByRole("link", { name: "Dashboards" })
+    const dashboards = navLink("Dashboards")
     expect(pinned).toHaveAttribute("aria-current", "page")
     expect(dashboards).not.toHaveAttribute("aria-current")
     expect(dashboards.querySelector(".font-semibold")).not.toBeNull()
@@ -152,11 +160,7 @@ describe("SidebarContent", () => {
     expect(observation).toHaveAttribute("aria-current", "page")
     expect(observations).not.toHaveAttribute("aria-current")
     expect(observations.querySelector(".font-semibold")).not.toBeNull()
-    expect(
-      screen
-        .getByRole("link", { name: "Dashboards" })
-        .querySelector(".font-semibold")
-    ).toBeNull()
+    expect(navLink("Dashboards").querySelector(".font-semibold")).toBeNull()
   })
 
   it("on the Observations list highlights Observations itself and leaves it regular weight", async () => {
@@ -184,7 +188,7 @@ describe("SidebarContent", () => {
     const home = screen.getByRole("link", { name: "Home" })
     const inbox = screen.getByRole("link", { name: "Inbox" })
     const observations = screen.getByRole("link", { name: "Observations" })
-    const dashboards = screen.getByRole("link", { name: "Dashboards" })
+    const dashboards = navLink("Dashboards")
     expect(home).toHaveAttribute("href", "/")
     expect(precedes(home, inbox)).toBe(true)
     expect(screen.queryByRole("button", { name: "New" })).toBeNull()
@@ -268,5 +272,70 @@ describe("SidebarContent", () => {
         .getAllByRole("link")
         .map((link) => link.textContent)
     ).toEqual(["ClickHouseSQL", "ElasticsearchKQL", "LokiLogQL"])
+  })
+
+  it("lists Log, Dashboards and Explore under Audit with the log current on /audit", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/audit", url: "/audit" },
+    })
+
+    const list = await screen.findByRole("list", { name: "Audit" })
+    const audit = navLink("Audit")
+    expect(
+      within(list)
+        .getAllByRole("link")
+        .map((link) => [link.textContent, link.getAttribute("href")])
+    ).toEqual([
+      ["Log", "/audit"],
+      ["Dashboards", "/audit/dashboards"],
+      ["Explore", "/logs/slashobserve-audit"],
+    ])
+    expect(within(list).getByRole("link", { name: "Log" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+    expect(audit).not.toHaveAttribute("aria-current")
+    expect(audit.querySelector(".font-semibold")).not.toBeNull()
+    expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
+  })
+
+  it("on the audit dashboards highlights only that row, not Log", async () => {
+    renderWithProviders(<SidebarContent />, {
+      route: { path: "/audit/dashboards", url: "/audit/dashboards" },
+    })
+
+    const list = await screen.findByRole("list", { name: "Audit" })
+    expect(
+      within(list).getByRole("link", { name: "Dashboards" })
+    ).toHaveAttribute("aria-current", "page")
+    expect(within(list).getByRole("link", { name: "Log" })).not.toHaveAttribute(
+      "aria-current"
+    )
+    expect(navLink("Audit")).not.toHaveAttribute("aria-current")
+    expect(navLink("Audit").querySelector(".font-semibold")).not.toBeNull()
+    expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
+  })
+
+  it("keeps Audit as the parent of the audit explorer and Logs out of it", async () => {
+    datasources = [
+      source("loki", "loki", "Loki"),
+      source("slashobserve-audit", "opensearch", "Audit trail"),
+    ]
+    renderWithProviders(<SidebarContent />, {
+      route: {
+        path: "/logs/$datasourceUid",
+        url: "/logs/slashobserve-audit",
+      },
+    })
+
+    const list = await screen.findByRole("list", { name: "Audit" })
+    expect(within(list).getByRole("link", { name: "Explore" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+    expect(navLink("Audit").querySelector(".font-semibold")).not.toBeNull()
+    expect(navLink("Logs")).not.toHaveAttribute("aria-current")
+    expect(navLink("Logs").querySelector(".font-semibold")).toBeNull()
+    expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1)
   })
 })

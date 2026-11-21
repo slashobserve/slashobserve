@@ -1,9 +1,8 @@
 import { logsLink } from "@/lib/links"
 import { validQuery } from "@/logs/search"
 
+import { auditDatasourceUid } from "./audit-source"
 import type { AuditView } from "./search"
-
-export const auditDatasourceUid = "slashobserve-audit"
 
 export function auditInLogsLink(view: Pick<AuditView, "q" | "from" | "to">) {
   return logsLink(auditDatasourceUid, {
