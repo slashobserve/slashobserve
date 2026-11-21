@@ -37,6 +37,11 @@ const (
 	ActionGap    Action = "audit.gap"
 	ActionPrune  Action = "audit.prune"
 	ActionRefuse Action = "request.refuse"
+
+	ActionOAuthRegister  Action = "oauth.client_register"
+	ActionOAuthAuthorize Action = "oauth.authorize"
+	ActionOAuthExchange  Action = "oauth.token"
+	ActionOAuthRevoke    Action = "oauth.revoke"
 )
 
 var (
@@ -62,6 +67,11 @@ var (
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+	countKeys    = []string{"count"}
+	providerKeys = []string{"provider_error"}
+	overflowKeys = []string{"overflow"}
+	tokenKeys    = []string{"grant_type"}
+	deliverKeys  = []string{"event_type"}
 
 	renamedKeys    = []string{"from_title", "title"}
 	permissionKeys = []string{"added", "removed", "changed", "count_before", "count_after", "truncated"}
@@ -81,11 +91,11 @@ var catalog = map[Action]Spec{
 	"auth.logout":              change(CategoryAuth),
 	"oauth.client_register":    change(CategoryAuth),
 	"oauth.authorize":          change(CategoryAuth),
-	"oauth.token":              change(CategoryAuth),
+	"oauth.token":              change(CategoryAuth, tokenKeys),
 	"oauth.revoke":             change(CategoryAuth),
-	"auth.login_failed":        access(CategoryAuth),
-	"auth.credential_rejected": access(CategoryAuth),
-	"auth.csrf_rejected":       access(CategoryAuth),
+	"auth.login_failed":        access(CategoryAuth, countKeys, overflowKeys, providerKeys),
+	"auth.credential_rejected": access(CategoryAuth, countKeys, overflowKeys),
+	"auth.csrf_rejected":       access(CategoryAuth, countKeys, overflowKeys),
 	"request.refuse":           access(CategoryAccess),
 
 	"dashboard.view":   access(CategoryAccess),
@@ -211,10 +221,12 @@ var catalog = map[Action]Spec{
 	"migration.apply": change(CategorySystem),
 	"provision.apply": change(CategorySystem),
 	"job.run":         change(CategorySystem),
-	"webhook.deliver": access(CategorySystem),
+	"webhook.deliver": access(CategorySystem, deliverKeys),
 	ActionPrune:       change(CategorySystem, pruneKeys),
 	ActionGap:         change(CategorySystem, gapKeys),
 }
+
+var foldedActions = []Action{"auth.login_failed", "auth.credential_rejected", "auth.csrf_rejected"}
 
 func Lookup(a Action) (Spec, bool) {
 	s, ok := catalog[a]
