@@ -35,6 +35,7 @@ type Chat struct {
 
 type ChatOwner struct {
 	Kind string
+	ID   pgtype.UUID
 	Name string
 }
 
@@ -132,7 +133,7 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 			CreatedAt:     row.CreatedAt.Time.UTC(),
 			LastTurnAt:    row.LastTurnAt.Time.UTC(),
 			Turns:         int(row.Turns),
-			Owner:         ChatOwner{Kind: row.OwnerKind, Name: row.OwnerName},
+			Owner:         ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
 			ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
 		}
 		if row.LastTurnID.Valid {
@@ -170,7 +171,7 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 		LastTurnAt:    row.LastTurnAt.Time.UTC(),
 		Turns:         len(turns),
-		Owner:         ChatOwner{Kind: row.OwnerKind, Name: row.OwnerName},
+		Owner:         ChatOwner{Kind: row.OwnerKind, ID: row.OwnerID, Name: row.OwnerName},
 		ReadOnly:      !reader.owns(row.OwnerKind, row.OwnerID),
 	}
 	first := ""

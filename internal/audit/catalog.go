@@ -105,7 +105,7 @@ var catalog = map[Action]Spec{
 
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
-	"chat.view":        access(CategoryAccess),
+	"chat.view":        access(CategoryAccess, []string{"owner_id"}),
 	"public_link.view": access(CategoryAccess),
 	"audit.search":     access(CategoryAccess, readKeys, searchKeys),
 	"audit.export":     access(CategoryAccess, readKeys, exportKeys),

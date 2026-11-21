@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/agentsview"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -199,5 +201,70 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 		for _, body := range w.seen[name] {
 			mustNotContain(t, name, "a read", body, privateWord)
 		}
+	}
+}
+
+type chatView struct {
+	actorID, outcome, targetID, chatID, ownerID string
+}
+
+func TestEveryReadOfAChatIsRecordedWithItsOwner(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	chat := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	recorder := audit.New(audit.Config{DB: d.DB})
+	recorded, err := recorder.Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, stop := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		recorder.Run(ctx)
+	}()
+	for _, read := range []struct {
+		who  auth.Principal
+		want int
+	}{{user, http.StatusOK}, {bea, http.StatusOK}, {eve, http.StatusNotFound}} {
+		gin.SetMode(gin.TestMode)
+		engine := gin.New()
+		who := read.who
+		revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(engine.Group("/api/v1", recorded, func(c *gin.Context) {
+			ctx := auth.WithPrincipal(c.Request.Context(), who)
+			audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(who) })
+			c.Request = c.Request.WithContext(ctx)
+		})))
+		if rec := call(engine, http.MethodGet, "/api/v1/chats/"+chat, ""); rec.Code != read.want {
+			t.Fatalf("%s read the chat with %d: %s", who.Name, rec.Code, rec.Body)
+		}
+	}
+	stop()
+	<-done
+
+	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(actor_id::text, ''), outcome, coalesce(target_id, ''), coalesce(chat_id::text, ''), coalesce(data->>'owner_id', '')
+		FROM audit_events WHERE action = 'chat.view' AND target_kind = 'chat' ORDER BY occurred_at, id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []chatView
+	for rows.Next() {
+		var v chatView
+		if err := rows.Scan(&v.actorID, &v.outcome, &v.targetID, &v.chatID, &v.ownerID); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, v)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []chatView{
+		{userID, "success", chat, chat, userID},
+		{adminID, "success", chat, chat, userID},
+		{strangerID, "denied", chat, "", ""},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("chat.view events = %+v, want %+v", got, want)
 	}
 }

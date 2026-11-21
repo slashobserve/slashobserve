@@ -105,9 +105,10 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 	reason := o.code
 	target := o.declared.target(o.params)
 	var data map[string]any
+	var chat uuid.NullUUID
 	if concluded != nil {
 		action = cmp.Or(concluded.Action, action)
-		outcome, reason, target, data = concluded.Outcome, concluded.Reason, concluded.Target, concluded.Data
+		outcome, reason, target, chat, data = concluded.Outcome, concluded.Reason, concluded.Target, concluded.Chat, concluded.Data
 	}
 	if o.panicked {
 		outcome, reason = OutcomeFailed, "panic"
@@ -137,6 +138,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		Reason:   reason,
 		Status:   o.status,
 		Target:   target,
+		Chat:     chat,
 		Data:     data,
 		Duration: o.took,
 	})

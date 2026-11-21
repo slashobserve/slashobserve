@@ -8,8 +8,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -65,7 +67,7 @@ func newChatJSON(c Chat) chatJSON {
 		CreatedAt:     httpapi.FormatTime(c.CreatedAt),
 		LastTurnAt:    httpapi.FormatTime(c.LastTurnAt),
 		Turns:         c.Turns,
-		Owner:         chatOwnerJSON(c.Owner),
+		Owner:         chatOwnerJSON{Kind: c.Owner.Kind, Name: c.Owner.Name},
 		ReadOnly:      c.ReadOnly,
 	}
 	if c.LastTurn != nil {
@@ -90,17 +92,28 @@ func (r *RunDesk) Chats(ctx context.Context, caller auth.Principal, filter ChatF
 }
 
 func (r *RunDesk) Chat(ctx context.Context, caller auth.Principal, id pgtype.UUID) (json.RawMessage, error) {
+	_, raw, err := r.readChat(ctx, caller, id)
+	return raw, err
+}
+
+func (r *RunDesk) readChat(ctx context.Context, caller auth.Principal, id pgtype.UUID) (Chat, json.RawMessage, error) {
 	chat, turns, err := r.service.Chat(ctx, caller, id)
 	if err != nil {
-		return nil, err
+		return Chat{}, nil, err
 	}
 	body := chatDetailJSON{Chat: newChatJSON(chat), Turns: make([]agentRequestJSON, len(turns))}
 	for i, turn := range turns {
 		if body.Turns[i], err = r.render(ctx, turn, caller, chat.ReadOnly); err != nil {
-			return nil, err
+			return Chat{}, nil, err
 		}
 	}
-	return marshalChat(body)
+	raw, err := marshalChat(body)
+	return chat, raw, err
+}
+
+func concludeChatView(ctx context.Context, chat Chat) {
+	target := audit.Target{Kind: "chat", ID: chat.ID.String(), DashboardID: nullUUID(chat.DashboardID), ObservationID: nullUUID(chat.ObservationID)}
+	audit.Conclude(ctx, audit.Result{Action: actionChatView, Outcome: audit.OutcomeSuccess, Target: target, Chat: uuid.NullUUID{UUID: chat.ID.Bytes, Valid: true}, Data: map[string]any{"owner_id": chat.Owner.ID.String()}})
 }
 
 func (r *RunDesk) ArchiveChat(ctx context.Context, caller auth.Principal, id pgtype.UUID) error {
@@ -181,11 +194,12 @@ func (h *ObserveHandler) getChat(c *gin.Context) {
 	if !ok {
 		return
 	}
-	raw, err := h.runs.Chat(c.Request.Context(), httpapi.Caller(c), id)
+	chat, raw, err := h.runs.readChat(c.Request.Context(), httpapi.Caller(c), id)
 	if err != nil {
 		h.service.fail(c, "get chat", err, slog.String("chat_id", id.String()))
 		return
 	}
+	concludeChatView(c.Request.Context(), chat)
 	c.Data(http.StatusOK, "application/json; charset=utf-8", raw)
 }
 

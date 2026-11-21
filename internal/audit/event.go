@@ -109,6 +109,7 @@ type Result struct {
 	Outcome Outcome
 	Reason  string
 	Target  Target
+	Chat    uuid.NullUUID
 	Data    map[string]any
 }
 

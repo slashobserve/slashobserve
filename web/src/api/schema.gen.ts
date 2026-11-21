@@ -2225,7 +2225,7 @@ export interface paths {
         };
         /**
          * Read one of your chats, or as an Admin anyone's, with every turn, oldest first.
-         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. Each read is recorded in the audit trail as `chat.view` with the chat as its target.
+         * @description Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps. An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`. A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404. Every read, the owner's included, is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`.
          */
         get: operations["getChat"];
         put?: never;
