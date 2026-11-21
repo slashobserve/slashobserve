@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/audittest"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -41,6 +42,7 @@ func newPromptRig(t *testing.T) *promptRig {
 	mw, flush := audittest.Middleware(t, d)
 	r := &promptRig{t: t, db: d, engine: gin.New(), flush: flush}
 	api := r.engine.Group("/api/v1", mw, func(c *gin.Context) {
+		auth.Authenticated(c.Request.Context(), r.who, audit.AuthSession, "")
 		c.Request = c.Request.WithContext(auth.WithPrincipal(c.Request.Context(), r.who))
 	})
 	NewHandler(d.DB, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
@@ -67,7 +69,7 @@ func (r *promptRig) create(who auth.Principal, body string) string {
 func (r *promptRig) events() []string {
 	r.t.Helper()
 	r.flush()
-	rows, err := r.db.SQLDB(r.t).QueryContext(r.t.Context(), `SELECT action || ' ' || outcome || ' ' || coalesce(target_name, '') || ' ' || coalesce(data->>'changed', '-') || ' ' || coalesce(data->>'owner_id', '-')
+	rows, err := r.db.SQLDB(r.t).QueryContext(r.t.Context(), `SELECT action || ' ' || outcome || ' ' || coalesce(target_name, '') || ' ' || coalesce(data->>'changed', '-') || ' ' || coalesce(data->>'from_name', '-') || ' ' || coalesce(data->>'owner_id', '-') || ' ' || actor_name
 		FROM audit_events WHERE action LIKE 'saved_prompt.%' ORDER BY occurred_at, seq`)
 	if err != nil {
 		r.t.Fatal(err)
@@ -112,14 +114,28 @@ func TestOnlyChangesToASharedPromptAreRecorded(t *testing.T) {
 	}
 
 	want := []string{
-		"saved_prompt.create success team - " + callerID,
-		`saved_prompt.update success team ["body"] ` + callerID,
-		`saved_prompt.unshare success back ["name", "shared"] ` + callerID,
-		`saved_prompt.share success back ["shared"] ` + callerID,
-		"saved_prompt.delete success back - " + callerID,
+		"saved_prompt.create success team - - " + callerID + " Ada",
+		`saved_prompt.update success team ["body"] team ` + callerID + " Root",
+		`saved_prompt.unshare success team ["name", "shared"] - ` + callerID + " Ada",
+		`saved_prompt.share success back ["shared"] - ` + callerID + " Ada",
+		"saved_prompt.delete success back - - " + callerID + " Root",
 	}
 	got := r.events()
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("events:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestAFailedRequestOnAPrivatePromptIsRecordedWithoutItsNameOrText(t *testing.T) {
+	r := newPromptRig(t)
+	ada := auth.Principal{Kind: auth.KindUser, ID: callerID, Name: "Ada", Role: auth.RoleEditor}
+
+	if rec := r.call(ada, http.MethodPost, "", `{"name":"","body":"private text","shared":false}`); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("create answered %d: %s", rec.Code, rec.Body)
+	}
+	r.flush()
+	events := r.db.AuditEvents(t, "saved_prompt.create")
+	if len(events) != 1 || events[0].Outcome != "failed" || len(events[0].Data) != 0 {
+		t.Fatalf("events = %+v, want one failed create with no data", events)
 	}
 }

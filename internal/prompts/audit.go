@@ -35,23 +35,24 @@ func recordCreated(ctx context.Context, q *dbsqlc.Queries, now promptState) (boo
 }
 
 func recordChanged(ctx context.Context, q *dbsqlc.Queries, before, now promptState) (bool, error) {
-	var action audit.Action
+	changed := changedFields(before, now)
+	named, action := now, actionUpdate
+	data := map[string]any{"changed": changed}
 	switch {
 	case before.shared && now.shared:
-		action = actionUpdate
+		data["from_name"] = before.name
 	case now.shared:
 		action = actionShare
 	case before.shared:
-		action = actionUnshare
+		named, action = before, actionUnshare
 	default:
 		return false, nil
 	}
-	changed := changedFields(before, now)
 	reason := ""
 	if len(changed) == 0 {
 		reason = audit.ReasonNoChange
 	}
-	return true, recordEvent(ctx, q, action, now, reason, map[string]any{"changed": changed, "from_name": before.name})
+	return true, recordEvent(ctx, q, action, named, reason, data)
 }
 
 func recordDeleted(ctx context.Context, q *dbsqlc.Queries, before promptState) (bool, error) {
