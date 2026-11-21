@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -117,12 +118,21 @@ func newBuildJSON(v BuildView) buildJSON {
 	return out
 }
 
+var missing = []error{
+	ErrBuildNotFound, ErrRequestNotFound, ErrDashboardNotFound, ErrChatNotFound, folders.ErrNotFound,
+	ErrNotFound, ErrObservationNotFound, ErrCommentNotFound, ErrDashboardVersionNotFound,
+}
+
+func isMissing(err error) bool {
+	return slices.ContainsFunc(missing, func(target error) bool { return errors.Is(err, target) })
+}
+
 func ReplyFor(err error) (Reply, bool) {
 	var conflict *BuildConflictError
 	switch {
 	case errors.As(err, &conflict):
 		return Reply{Status: http.StatusConflict, Code: "version_conflict", Message: "dashboard has a newer version", Latest: conflict.Latest}, true
-	case errors.Is(err, ErrBuildNotFound), errors.Is(err, ErrRequestNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrChatNotFound), errors.Is(err, folders.ErrNotFound):
+	case isMissing(err):
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: err.Error()}, true
 	case errors.Is(err, ErrBuildRunning):
 		return Reply{Status: http.StatusConflict, Code: "build_running", Message: ErrBuildRunning.Error()}, true
@@ -130,8 +140,6 @@ func ReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusConflict, Code: "build_empty", Message: ErrBuildEmpty.Error()}, true
 	case errors.Is(err, ErrBuildNotSavable):
 		return Reply{Status: http.StatusConflict, Code: "build_not_savable", Message: ErrBuildNotSavable.Error()}, true
-	case errors.Is(err, ErrClientIDReused):
-		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: ErrClientIDReused.Error()}, true
 	case errors.Is(err, ErrNotContinuable):
 		return Reply{Status: http.StatusConflict, Code: "not_continuable", Message: ErrNotContinuable.Error()}, true
 	case errors.Is(err, ErrAssigneeUnavailable):
@@ -146,6 +154,29 @@ func ReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusNotFound, Code: "not_found", Message: ErrDashboardNotFound.Error()}, true
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, ErrForbidden):
 		return Reply{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.RoleMessage}, true
+	}
+	return startReplyFor(err)
+}
+
+func startReplyFor(err error) (Reply, bool) {
+	var invalid *StartError
+	switch {
+	case errors.As(err, &invalid):
+		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: invalid.Message}, true
+	case errors.Is(err, ErrFollowsDashboard):
+		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: err.Error()}, true
+	case errors.Is(err, ErrClientIDReused):
+		return Reply{Status: http.StatusUnprocessableEntity, Code: "client_id_reused", Message: ErrClientIDReused.Error()}, true
+	case errors.Is(err, ErrUnknownPanel):
+		return Reply{Status: http.StatusUnprocessableEntity, Code: "unknown_panel", Message: err.Error()}, true
+	case errors.Is(err, ErrTooManyRevisions):
+		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_revisions", Message: err.Error()}, true
+	case errors.Is(err, ErrTooManyRequests):
+		return Reply{Status: http.StatusTooManyRequests, Code: "too_many_requests", Message: err.Error()}, true
+	case errors.Is(err, ErrAgentBusy):
+		return Reply{Status: http.StatusTooManyRequests, Code: "agent_busy", Message: err.Error()}, true
+	case errors.Is(err, ErrUnavailable):
+		return Reply{Status: http.StatusServiceUnavailable, Code: "agent_unavailable", Message: err.Error()}, true
 	}
 	return Reply{}, false
 }

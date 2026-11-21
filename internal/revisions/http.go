@@ -260,32 +260,23 @@ func (s *Service) fail(c *gin.Context, action string, err error, idAttrs ...any)
 		return
 	}
 	switch {
-	case errors.Is(err, ErrNotFound), errors.Is(err, ErrDashboardNotFound), errors.Is(err, ErrObservationNotFound), errors.Is(err, ErrDashboardVersionNotFound), errors.Is(err, ErrCommentNotFound), errors.Is(err, ErrChatNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrChatReadOnly):
-		httpapi.AbortError(c, http.StatusForbidden, CodeChatReadOnly, err.Error())
 	case errors.Is(err, ErrForbidden):
 		c.AbortWithStatusJSON(http.StatusForbidden, forbidden.BodyOf(err))
-	case errors.Is(err, ErrUnknownPanel):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "unknown_panel", err.Error())
-	case errors.Is(err, ErrClientIDReused):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "client_id_reused", err.Error())
-	case errors.Is(err, ErrTooManyRevisions):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_revisions", err.Error())
-	case errors.Is(err, ErrTooManyRequests):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "too_many_requests", err.Error())
-	case errors.Is(err, ErrAgentBusy):
-		httpapi.AbortError(c, http.StatusTooManyRequests, "agent_busy", err.Error())
-	case errors.Is(err, ErrRequestNotFound):
-		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrUnavailable):
-		httpapi.AbortError(c, http.StatusServiceUnavailable, "agent_unavailable", err.Error())
-	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard):
+	case replied(c, err):
+	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	default:
 		s.logger.ErrorContext(ctx, action, logattrs.Failure("internal", err, append(idAttrs, principalAttrs(c)...)...)...)
 		httpapi.AbortError(c, http.StatusInternalServerError, "internal", "internal error")
 	}
+}
+
+func replied(c *gin.Context, err error) bool {
+	reply, ok := ReplyFor(err)
+	if ok {
+		httpapi.AbortError(c, reply.Status, reply.Code, reply.Message)
+	}
+	return ok
 }
 
 func principalAttrs(c *gin.Context) []any {
