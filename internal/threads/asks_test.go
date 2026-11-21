@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,6 +26,7 @@ type queuedRun struct {
 	AssignedID      string
 	CommentID       string
 	ObservationID   string
+	SubjectID       string
 	DashboardID     string
 	BaseVersion     string
 	ThreadMessageID string
@@ -36,7 +38,7 @@ type queuedRun struct {
 func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	t.Helper()
 	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, intent, kind, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
-		coalesce(observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
+		coalesce(observation_id::text, ''), coalesce(subject_observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
 		thread_context, prompt, requested_by_id::text FROM agent_requests ORDER BY created_at, id`)
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +47,7 @@ func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	var out []queuedRun
 	for rows.Next() {
 		var q queuedRun
-		if err := rows.Scan(&q.ID, &q.Intent, &q.Kind, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
+		if err := rows.Scan(&q.ID, &q.Intent, &q.Kind, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.SubjectID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
 			t.Fatal(err)
 		}
 		out = append(out, q)
@@ -162,6 +164,48 @@ func TestADashboardThreadAsksAnswerIsReadThroughTheThreadAndOpensNoObservation(t
 	}
 }
 
+func TestAnObservationThreadAskIsAnsweredInTheThreadAndWritesNothingOnThePage(t *testing.T) {
+	r := newShareRig(t)
+	observation := r.filedObservationIn(t, testUser, pgtype.UUID{})
+	blocks, listed := r.blockCount(t, observation), r.listedFindingsWith(t, testUser, observation)
+
+	thread, _, byCommenter, refusal := r.openWithRun(t, commenter, OpenInput{Target: target(KindObservation, observation), Body: "@observe what changed?"})
+	if byCommenter == nil || refusal != nil {
+		t.Fatalf("commenter run = %+v, refusal = %+v", byCommenter, refusal)
+	}
+	_, byEditor, refusal := r.replyWithRun(t, testUser, thread.ID, "@observe and the week before?")
+	if byEditor == nil || refusal != nil {
+		t.Fatalf("editor run = %+v, refusal = %+v", byEditor, refusal)
+	}
+	for _, asked := range []struct {
+		by  auth.Principal
+		run *StartedRun
+	}{{commenter, byCommenter}, {testUser, byEditor}} {
+		run, err := r.db.Queries().GetAgentRequestByID(reading(t.Context()), mustParse(t, asked.run.ID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if run.ObservationID.Valid || run.SubjectObservationID != observation {
+			t.Fatalf("%s's run is in observation %v about %v, want only about %v", asked.by.Name, run.ObservationID, run.SubjectObservationID, observation)
+		}
+		if f := r.answer(t, asked.by, findings.SaveInput{AgentRequestID: run.ID}); f.ObservationID != "" {
+			t.Fatalf("%s's answer was filed in observation %s", asked.by.Name, f.ObservationID)
+		}
+		if code := r.observeStatus(t, viewer, run.ID); code != http.StatusOK {
+			t.Fatalf("another reader of the observation reads %s's run with %d", asked.by.Name, code)
+		}
+		if _, err := r.findingOfRun(t, viewer, run.ID); err != nil {
+			t.Fatalf("another reader of the observation reads %s's answer: %v", asked.by.Name, err)
+		}
+	}
+	if got := r.blockCount(t, observation); got != blocks {
+		t.Fatalf("the observation has %d blocks after the asks, want %d", got, blocks)
+	}
+	if after := r.listedFindingsWith(t, testUser, observation); !slices.Equal(after, listed) {
+		t.Fatalf("the observation's folder lists %v after the asks, want %v", after, listed)
+	}
+}
+
 func TestAMentionStartsNothingWithoutStartRuns(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
@@ -195,7 +239,7 @@ func TestStartRunsWithoutAnAgentMentionStartsNothingAndKeepsTheMessage(t *testin
 	}
 }
 
-func TestMentioningObserveOnAnObservationThreadQueuesAnInvestigationIntoIt(t *testing.T) {
+func TestMentioningObserveOnAnObservationThreadQueuesAnAskAboutIt(t *testing.T) {
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 
@@ -208,7 +252,7 @@ func TestMentioningObserveOnAnObservationThreadQueuesAnInvestigationIntoIt(t *te
 		t.Fatalf("%d runs queued, want 1", len(queued))
 	}
 	got := queued[0]
-	if got.Intent != "ask" || got.Trigger != "mention" || got.ObservationID != id.String() || got.DashboardID != "" || got.CommentID != "" ||
+	if got.Intent != "ask" || got.Trigger != "mention" || got.ObservationID != "" || got.SubjectID != id.String() || got.DashboardID != "" || got.CommentID != "" ||
 		got.ThreadMessageID != first.ID || got.Prompt != "what changed at 09:10?" || got.ThreadContext.Valid {
 		t.Fatalf("run row = %+v", got)
 	}
@@ -346,7 +390,7 @@ func TestAConnectedAgentMentionOnAnObservationAssignsTheInvestigationToIt(t *tes
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
 	queued := r.queuedRuns(t)
-	if len(queued) != 1 || queued[0].AssignedID != grant.String() || queued[0].ObservationID != id.String() || queued[0].Prompt != "can  check the deploy log?" {
+	if len(queued) != 1 || queued[0].AssignedID != grant.String() || queued[0].SubjectID != id.String() || queued[0].Prompt != "can  check the deploy log?" {
 		t.Fatalf("runs = %+v", queued)
 	}
 }
@@ -588,79 +632,14 @@ func TestHTTPAsksByMentionUnlessToIsEveryoneAndAnswersTheRunOrTheRefusal(t *test
 	}
 }
 
-func TestOverMCPAnObservationThreadStoresTheMessageAndRefusesTheInvestigation(t *testing.T) {
-	r := newAgentRig(t, true)
-	id := r.createObservation(t, testUser, pgtype.UUID{})
-
-	thread, _, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe what changed at 09:10?"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts || !strings.Contains(refusal.Message, "web app or the CLI") {
-		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
-	}
-
-	_, _, run, refusal, err = r.askReply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the week before?"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts {
-		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
-	}
-	if n := r.messageCount(t); n != 2 {
-		t.Fatalf("%d messages stored, want 2", n)
-	}
-	if queued := r.queuedRuns(t); len(queued) != 0 {
-		t.Fatalf("%d runs queued over MCP on an observation, want 0", len(queued))
-	}
-}
-
-func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) {
-	r := newAgentRig(t, true)
-	id := r.createObservation(t, testUser, pgtype.UUID{})
-	account := r.serviceAccount(t, "ci-bot", true)
-
-	_, _, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindObservation, id), Body: accountToken(account) + " look"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run != nil || refusal == nil || refusal.Code != RefusalPersonStarts || len(r.queuedRuns(t)) != 0 {
-		t.Fatalf("run = %+v, refusal = %+v, runs = %+v", run, refusal, r.queuedRuns(t))
-	}
-}
-
-func TestOverMCPADashboardThreadStillStartsAnAsk(t *testing.T) {
-	r := newAgentRig(t, true)
-	dash := r.createDashboard(t)
-
-	thread, first, run, refusal, err := r.askOpen(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, dash), Body: "@observe fix the title"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run == nil || refusal != nil || run.AssignedKind != "builtin" {
-		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
-	}
-	_, _, run, refusal, err = r.askReply(reading(t.Context()), testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe and the legend"}, true, WithoutInvestigations())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if run == nil || refusal != nil {
-		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
-	}
-	queued := r.queuedRuns(t)
-	if len(queued) != 2 || queued[0].Intent != "ask" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "ask" {
-		t.Fatalf("runs = %+v", queued)
-	}
-}
-
-func TestHTTPStartsAnInvestigationOnAnObservationThread(t *testing.T) {
+func TestHTTPStartsAnAskOnAnObservationThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 
 	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "start_runs": true})
 	started.expect(t, http.StatusCreated, "")
 	queued := r.queuedRuns(t)
-	if len(queued) != 1 || queued[0].Intent != "ask" || queued[0].ObservationID != id.String() ||
+	if len(queued) != 1 || queued[0].Intent != "ask" || queued[0].SubjectID != id.String() ||
 		started.at(t, "message", "run", "id") != queued[0].ID || started.at(t, "message", "run_refusal") != nil {
 		t.Fatalf("answer %v, runs %+v", started.body, queued)
 	}

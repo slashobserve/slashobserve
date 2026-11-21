@@ -155,7 +155,7 @@ A finding's answer carries the start of its text, as plain text, so the thread s
 An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
 
 A discussion entry reads "asked the agent" only when the message started a run.
-A message that mentions an agent but started none, such as one sent over MCP on an observation, which only a person can ask to investigate, reads "mentioned the agent".
+A message that mentions an agent but started none, such as a comment for everyone, reads "mentioned the agent".
 
 A message can mention one agent when it asks for a run: with two, the form says "Mention one agent per message" and does not send.
 
