@@ -313,7 +313,8 @@ For a chat about a dashboard these are the earlier requests you sent on that das
 Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
-A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
+A request with neither a dashboard nor an observation is private the same way, and so is a question about a dashboard, asked in its Chat tab or with [Ask mode](web.md#ask-mode): only you and Admins read it.
+A request in a dashboard's comment thread, an investigation on a dashboard and a request that revises the dashboard are shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
 An Admin reads another person's chat read only.
 Every read of a chat or a request, yours included, in the web app, over MCP and with the CLI, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.
