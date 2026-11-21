@@ -455,8 +455,15 @@ Each chat carries `dashboard_title`, null when you cannot see its dashboard.
 A chat's owner and Admins read it and nobody else sees it; an Admin reads another person's chat read only, with `owner` and `read_only` saying so; archiving a chat is left to people, with `observe chats archive` or `DELETE /api/v1/chats/{id}`, and an Admin who passes its `chat_id` to `start_run` gets `chat_read_only`, not `not_found`.
 
 `list_runs`, `rename_run`, `pin_run`, `unpin_run` and `archive_run` work the runs the web app lists as chats, with the same rules as `GET /api/v1/observe`, `PATCH /api/v1/observe/{id}`, `DELETE /api/v1/observe/{id}` and `observe requests`, and are over MCP only.
-`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`; it does not carry the prompt, which `get_run` returns.
+`list_runs` lists the caller's runs newest first with pinned ones on top, 20 per page by default and at most 50, each with its `id`, `title`, `state`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`), `result_kind`, dashboard, observation, `pinned_at`, `created_at` and `allowed_actions`, and `anchor` and `block_id`; it does not carry the prompt, which `get_run` returns.
 It takes `state` (a list), `dashboard_id`, `pinned`, `scope` (`all` lists everyone's runs and needs the Admin role) and `q`, a word of the title, the prompt or an answer the caller may read, and pages with `next_cursor`.
+
+`observation_id` keeps the runs asked about that observation.
+`anchored: true` keeps the runs that point at a spot, and works only with the default `scope` of `mine`: with `scope: all` it answers `invalid_request`, even for an Admin.
+
+`anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it, and are filled only for the person who asked the run.
+They are `null` for anyone else, such as a reader of a shared answer or an Admin reading a private chat, and for a run that points at nothing.
+`get_run` and the turns of `get_chat` carry the same two fields under the same rule.
 The first page also carries `summary.total`, the number of runs that match, which counts a chat once per message.
 `rename_run` takes a `title` of 1 to 120 characters on one line, or `null` to take it back to the start of the prompt, `pin_run` and `unpin_run` move a run to the top of the list and back, and `archive_run` removes it from the list while `get_run` still reads it and everything it saved stays.
 An observation the run saved stays too, because no MCP tool deletes anything; a person deletes it with the chat in the web app, or with `observe requests archive <id> --delete-observation --yes`.
