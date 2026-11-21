@@ -31,11 +31,13 @@ import (
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
+	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
 	"github.com/slashobserve/slashobserve/internal/datasource/provision"
 	"github.com/slashobserve/slashobserve/internal/datasourceadmin"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -197,6 +199,19 @@ func warnExposedAppDatasources(ctx context.Context, q *dbsqlc.Queries, sources [
 	}
 }
 
+func checkDatabase(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource, logger *slog.Logger) error {
+	if err := checkFileAudiences(ctx, q, sources); err != nil {
+		return err
+	}
+	warnExposedAppDatasources(ctx, q, sources, logger)
+	instance, err := q.GetInstance(ctx)
+	if err != nil {
+		return withheld("instance_lookup_failed", err)
+	}
+	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
+	return nil
+}
+
 func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
 	err := placement.CheckFileAudiences(ctx, q, fileAdminsOnly(sources))
 	var misplaced *placement.MisplacedError
@@ -355,15 +370,9 @@ func run() error {
 	if err != nil {
 		return migrationExit(err)
 	}
-	if err := checkFileAudiences(ctx, database.Queries(), cfg.Datasources); err != nil {
+	if err := checkDatabase(ctx, database.Queries(), cfg.Datasources, logger); err != nil {
 		return err
 	}
-	warnExposedAppDatasources(ctx, database.Queries(), cfg.Datasources, logger)
-	instance, err := database.Queries().GetInstance(ctx)
-	if err != nil {
-		return withheld("instance_lookup_failed", err)
-	}
-	logger.Info("database ready", slog.String("instance_id", instance.ID.String()))
 
 	serverID := instanceID()
 	recorder := audit.New(audit.Config{
@@ -395,6 +404,10 @@ func run() error {
 
 	slots := queryproxy.NewSlots(maxConcurrentQueries(cfg.Datasources), membership.Share)
 	serverMetrics.DatasourceSlots(func() []metrics.SlotUsage { return slotUsage(slots) })
+	auditReader := trail.NewReader(database, logger)
+	if err := addAuditDatasource(registry, slots, auditReader, logger); err != nil {
+		return described("audit_datasource_failed", err)
+	}
 
 	runner := queryproxy.NewRunner(registry, logger, queryproxy.WithSlots(slots), queryproxy.WithMetrics(serverMetrics.Proxy()))
 	dashboardsService := dashboards.New(database, runner, folderAccess, logger)
@@ -455,7 +468,6 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
-	auditReader := trail.NewReader(database, logger)
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
 		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
@@ -515,6 +527,9 @@ func run() error {
 		stopHealthRuns()
 		healthHandler.Wait()
 	}()
+
+	stopAuditFolder := startInBackground(ctx, auditfolder.New(database, dashboardsService, folderAccess, dashprovision.Principal, logger).Start)
+	defer stopAuditFolder()
 
 	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
 	provisionCtx, stopProvisioning := context.WithCancel(ctx)
@@ -867,11 +882,39 @@ func maxConcurrentQueries(datasources []config.Datasource) map[string]int {
 	return totals
 }
 
+func startInBackground(ctx context.Context, work func(context.Context)) func() {
+	workCtx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		work(workCtx)
+	}()
+	return func() {
+		stop()
+		<-done
+	}
+}
+
+func addAuditDatasource(registry *datasource.Registry, slots *queryproxy.Slots, reader *trail.Reader, logger *slog.Logger) error {
+	in, err := auditsource.Instance(reader, logger)
+	if err != nil {
+		return err
+	}
+	if err := registry.AddBuiltIn(in); err != nil {
+		return fmt.Errorf("the audit datasource needs the uid %q, which the datasources file already uses: %w", auditsource.UID, err)
+	}
+	slots.SetTotal(auditsource.UID, auditsource.MaxConcurrentQueries)
+	return nil
+}
+
 func slotUsage(slots *queryproxy.Slots) []metrics.SlotUsage {
 	usage := slots.Usage()
-	out := make([]metrics.SlotUsage, len(usage))
-	for i, u := range usage {
-		out[i] = metrics.SlotUsage{Datasource: u.Datasource, InUse: u.InUse, Limit: u.Limit}
+	out := make([]metrics.SlotUsage, 0, len(usage))
+	for _, u := range usage {
+		if u.Datasource == auditsource.UID {
+			continue
+		}
+		out = append(out, metrics.SlotUsage{Datasource: u.Datasource, InUse: u.InUse, Limit: u.Limit})
 	}
 	return out
 }

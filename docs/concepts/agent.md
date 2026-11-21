@@ -17,6 +17,7 @@ An agent that reads the run over MCP or the CLI sees the same text as `live_text
 
 The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide and an example.
 The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki, Tempo, and one shared by Elasticsearch and OpenSearch, and the system text carries only the sections of the configured types.
+An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
 

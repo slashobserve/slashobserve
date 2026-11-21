@@ -26,6 +26,9 @@ var searchGuide string
 //go:embed guide/tempo.md
 var tempoGuide string
 
+//go:embed guide/audit.md
+var auditGuide string
+
 //go:embed system.md
 var system string
 
@@ -41,6 +44,16 @@ var sections = []struct {
 	{[]spec.DatasourceType{spec.Loki}, lokiGuide},
 	{[]spec.DatasourceType{spec.Tempo}, tempoGuide},
 	{[]spec.DatasourceType{spec.Elasticsearch, spec.OpenSearch}, searchGuide},
+	{[]spec.DatasourceType{AuditTrail}, auditGuide},
+}
+
+const AuditTrail spec.DatasourceType = "audit_trail"
+
+func GuideTypes(datasourceType string, builtIn bool) []spec.DatasourceType {
+	if builtIn {
+		return []spec.DatasourceType{spec.DatasourceType(datasourceType), AuditTrail}
+	}
+	return []spec.DatasourceType{spec.DatasourceType(datasourceType)}
 }
 
 func GuideFor(types []spec.DatasourceType) string {

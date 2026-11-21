@@ -28,7 +28,7 @@ func newAdminsOnlyRig(t *testing.T) rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: typed{}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: typed{}}); err != nil {
 		t.Fatal(err)
 	}
 	access := folders.NewAccess(r.db.DB)

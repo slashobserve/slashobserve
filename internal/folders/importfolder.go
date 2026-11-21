@@ -110,7 +110,7 @@ func (a *Access) createImportFolder(ctx context.Context, p auth.Principal, title
 	if err != nil {
 		return ImportFolder{}, false, err
 	}
-	row, err := a.insertFolder(ctx, p, principalID, title)
+	row, err := a.insertFolder(ctx, p, principalID, title, false)
 	if isPgError(err, uniqueViolation) {
 		return ImportFolder{}, true, nil
 	}

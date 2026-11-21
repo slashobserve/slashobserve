@@ -34,8 +34,10 @@ type Cursor struct {
 }
 
 type Page struct {
-	Limit int
-	After *Cursor
+	Limit     int
+	Offset    int
+	Ascending bool
+	After     *Cursor
 }
 
 type Compiled struct {
@@ -90,16 +92,42 @@ func (q Query) Rows(w Window, p Page) (Compiled, error) {
 	if err != nil {
 		return Compiled{}, err
 	}
+	if p.Offset < 0 {
+		return Compiled{}, errors.New("the offset cannot be negative")
+	}
+	direction, past := "DESC", "<"
+	if p.Ascending {
+		direction, past = "ASC", ">"
+	}
 	if p.After != nil {
 		id, err := uuid.Parse(p.After.ID)
 		if err != nil || p.After.OccurredAt.IsZero() {
 			return Compiled{}, errors.New("the cursor needs the occurred_at time and the id of the last row")
 		}
-		where += " AND (occurred_at, id) < (" + b.add(p.After.OccurredAt.UTC()) + ", " + b.add(id.String()) + "::uuid)"
+		where += " AND (occurred_at, id) " + past + " (" + b.add(p.After.OccurredAt.UTC()) + ", " + b.add(id.String()) + "::uuid)"
 	}
 	sql := "SELECT " + strings.Join(eventColumns, ", ") + " FROM " + tableName + " WHERE " + where +
-		" ORDER BY occurred_at DESC, id DESC LIMIT " + b.add(fetch)
+		" ORDER BY occurred_at " + direction + ", id " + direction + " LIMIT " + b.add(fetch)
+	if p.Offset > 0 {
+		sql += " OFFSET " + b.add(p.Offset)
+	}
 	return Compiled{SQL: sql, Args: b.args, Columns: eventColumns, Limit: limit}, nil
+}
+
+func (q Query) Count(w Window, upTo int) (Compiled, error) {
+	if upTo < 0 {
+		return Compiled{}, errors.New("the count limit cannot be negative")
+	}
+	b := &builder{}
+	where, err := b.where(q, w)
+	if err != nil {
+		return Compiled{}, err
+	}
+	matched := "SELECT 1 FROM " + tableName + " WHERE " + where
+	if upTo > 0 {
+		matched += " LIMIT " + b.add(upTo)
+	}
+	return Compiled{SQL: "SELECT count(*) FROM (" + matched + ") matched", Args: b.args, Columns: []string{"count"}, Limit: upTo}, nil
 }
 
 type Position struct {

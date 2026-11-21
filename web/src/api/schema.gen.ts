@@ -1585,14 +1585,14 @@ export interface paths {
         post?: never;
         /**
          * Remove a datasource added in the app.
-         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. A datasource that the latest version of a dashboard or a saved search uses is refused with 409 `datasource_in_use`, listing what uses it; change those to another datasource first. The list holds only what the caller can see, and `hidden` counts the rest. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         delete: operations["deleteDatasource"];
         options?: never;
         head?: never;
         /**
          * Change a datasource added in the app.
-         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. The body names only the fields to change; a field left out keeps its value, and a credential left out keeps what is stored. `uid` and `type` cannot change. `secrets` replaces the credentials it names and `clear_secrets` removes them. A new address passes the outbound allowlist check like adding one. The change applies at once on this server and within 15 seconds on the others. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         patch: operations["updateDatasource"];
         trace?: never;
@@ -1608,7 +1608,7 @@ export interface paths {
         };
         /**
          * Read the definition of a datasource added in the app.
-         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file answers 409 `datasource_read_only`.
+         * @description Only Admins can call this endpoint. The answer carries the address and login so a form can edit them, and `secrets_set` naming which credentials are stored; a credential's value is never returned. `GET /datasources` never carries an address. A datasource from the datasources file, and the built-in audit datasource, answer 409 `datasource_read_only`.
          */
         get: operations["getDatasourceConfig"];
         put?: never;
@@ -4841,10 +4841,10 @@ export interface components {
             type: string;
             name: string;
             /**
-             * @description `file` for an entry of the datasources file, which only the server's operator changes, and `app` for one an Admin added in the app.
+             * @description `file` for an entry of the datasources file, which only the server's operator changes, `app` for one an Admin added in the app, and `builtin` for the audit trail datasource every server has, which only Admins see and nobody changes or deletes.
              * @enum {string}
              */
-            source: "file" | "app";
+            source: "file" | "app" | "builtin";
             /** @description The index pattern an Elasticsearch or OpenSearch datasource reads; absent on other types. */
             index?: string;
             /** @description The time field of an Elasticsearch or OpenSearch datasource; absent on other types. */
@@ -12428,7 +12428,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description `base` names a datasource from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
+            /** @description `base` names a datasource from the file or the built-in audit datasource (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set (`secret_key_missing`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12471,7 +12471,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or something uses it (`datasource_in_use`). */
+            /** @description The datasource is from the file or built in (`datasource_read_only`), or something uses it (`datasource_in_use`). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12519,7 +12519,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
+            /** @description The datasource is from the file or built in (`datasource_read_only`), or `SLASHOBSERVE_SECRET_KEY` is not set and the request changes credentials (`secret_key_missing`). Or the audience is `admins` while dashboards, proposals, observations or saved searches that read the datasource sit in folders other people can read (`restricted_content`): `items` lists up to 20 of them so an Admin can move them first, `unlisted` counts the rest, and `hidden` counts those in people's My Dashboards, which an Admin cannot open and only their owners can move or remove. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12564,7 +12564,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The datasource is from the file (`datasource_read_only`). */
+            /** @description The datasource is from the file or built in (`datasource_read_only`). */
             409: {
                 headers: {
                     [name: string]: unknown;

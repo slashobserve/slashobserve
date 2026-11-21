@@ -59,7 +59,7 @@ func newObservationRig(t *testing.T) *observationRig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := datasources.AddAdminsOnly(datasource.Instance{UID: "audit", Name: "Audit", Datasource: ds}); err != nil {
+	if err := datasources.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: ds}); err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []auth.Principal{adminCaller, editorCaller, commenterCaller, viewerCaller} {

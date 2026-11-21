@@ -19,7 +19,7 @@ func newAdminsOnlyRig(t *testing.T) rig {
 	r := newRig(t)
 	r.db.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', 'ada', 'ada@example.com', 'Ada')`, admin.ID)
 	registry := newRegistry(t)
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Name: "Audit", Datasource: fakeSource{kind: "loki"}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Name: "Audit", Datasource: fakeSource{kind: "loki"}}); err != nil {
 		t.Fatal(err)
 	}
 	r.service = savedsearches.New(r.db.DB, folders.NewAccess(r.db.DB), registry, nil, slog.New(slog.DiscardHandler))

@@ -20,7 +20,7 @@ func TestASavedSearchOnAnAdminsOnlyDatasourceIsRefusedLikeAMissingOne(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := reg.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: typedOnly{typ: "prometheus"}}); err != nil {
+	if err := reg.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: typedOnly{typ: "prometheus"}}); err != nil {
 		t.Fatal(err)
 	}
 	s := &Service{sources: reg}

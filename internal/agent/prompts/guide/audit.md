@@ -1,0 +1,9 @@
+## The audit trail (`slashobserve-audit`)
+- `slashobserve-audit` is this server's own audit trail, served as an OpenSearch datasource that only Admins can read: one document per sign-in, read, change, agent tool call and refusal.
+- The time field is `occurred_at`, not `@timestamp`, and the line is `message`, such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; there is no `log.level`, so filter on `outcome` (`success`, `denied`, `failed`, `unknown`).
+- Fields are flat and lowercase: `action`, `category`, `outcome`, `reason`, `actor_name`, `actor_kind`, `initiator`, `agent_name`, `origin`, `origin_client`, `tool`, `client_ip`, `auth_method`, `target_kind`, `target_name`, `target_id` (a query's datasource uid), `status`, `duration_ms`; `list_labels` lists them all. Group with `terms` on these names directly, with no `.keyword`.
+- KQL reads `outcome:denied`, `action:auth.login_failed`, `action:dashboard.*` and `initiator:agent and action:agent.tool_call`; a range KQL query counts events per interval, so a `stat` of a count takes `display.reduce` `sum`.
+- A DSL histogram uses `occurred_at`: `{"aggs":{"over_time":{"date_histogram":{"field":"occurred_at","fixed_interval":"$__interval"},"aggs":{"by_outcome":{"terms":{"field":"outcome","size":5}}}}}}` with `legend` `{{outcome}}`.
+- It answers searches sorted by `occurred_at`, `date_histogram` and `terms` buckets, and the `cardinality`, `value_count`, `min`, `max`, `avg`, `sum` and `percentiles` metrics; anything else is refused with a message that names it, and one read returns at most 1,000 lines.
+- Everything that uses it must live in a folder only Admins can read, such as the Audit folder, which holds the starter dashboards Audit overview, Sign-ins and access, Agent and MCP activity and Data access; a save or a move anywhere else is refused.
+- Each query on it is recorded in the trail as `query.run`, so read what the question needs and no more.

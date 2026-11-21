@@ -22,7 +22,7 @@ func TestAProvisionedFileOnAnAdminsOnlyDatasourceOutsideAnAdminsOnlyFolderIsRefu
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := registry.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: promStub{}}); err != nil {
+	if err := registry.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: promStub{}}); err != nil {
 		t.Fatal(err)
 	}
 	access := folders.NewAccess(r.db.DB)

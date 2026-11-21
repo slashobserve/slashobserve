@@ -22,7 +22,7 @@ func TestAnMCPSaveOnAnAdminsOnlyDatasourceOutsideAnAdminsOnlyFolderAnswersRestri
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := datasources.AddAdminsOnly(datasource.Instance{UID: "audit", Datasource: promStub{}}); err != nil {
+	if err := datasources.AddBuiltIn(datasource.Instance{UID: "audit", Datasource: promStub{}}); err != nil {
 		t.Fatal(err)
 	}
 	runner := queryproxy.NewRunner(datasources, logger)

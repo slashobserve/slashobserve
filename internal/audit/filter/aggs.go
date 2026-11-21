@@ -41,6 +41,7 @@ type Agg struct {
 	Type     string
 	Field    string
 	Interval time.Duration
+	Zone     string
 	Size     int
 	Order    string
 	Percents []float64
@@ -169,7 +170,10 @@ func (a *Agg) dateHistogram(obj map[string]any) error {
 		return failOn(a.Name, "date_histogram can only bucket %s, not %q", occurredField, truncate(f))
 	}
 	if zone, ok := obj["time_zone"].(string); ok && !strings.EqualFold(zone, "UTC") {
-		return failOn(a.Name, "date_histogram supports only the UTC time zone")
+		if _, err := NamedZone(zone); err != nil {
+			return failOn(a.Name, "date_histogram time_zone must be UTC or a named zone such as Europe/Berlin, not %q", truncate(zone))
+		}
+		a.Zone = zone
 	}
 	text, _ := obj["fixed_interval"].(string)
 	if calendar, ok := obj["calendar_interval"].(string); ok && text == "" {
@@ -452,9 +456,23 @@ func keyNames(n int) []string {
 	return names
 }
 
+func NamedZone(name string) (*time.Location, error) {
+	if name == "" || name == "Local" || strings.ContainsFunc(name, func(r rune) bool { return !strings.ContainsRune(zoneRunes, r) }) {
+		return nil, fmt.Errorf("%q is not a named time zone", name)
+	}
+	return time.LoadLocation(name)
+}
+
+const zoneRunes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/_+-"
+
 func levelExpr(b *builder, l Agg) (expr, filter string) {
 	if l.Type == "date_histogram" {
 		secs := b.add(l.Interval.Seconds())
+		if l.Zone != "" {
+			zone := b.add(l.Zone)
+			origin := b.add("1970-01-01 00:00:00")
+			return "(date_bin(make_interval(secs => " + secs + "::double precision), occurred_at AT TIME ZONE " + zone + "::text, " + origin + "::timestamp) AT TIME ZONE " + zone + "::text)", ""
+		}
 		origin := b.add(time.Unix(0, 0).UTC())
 		return "date_bin(make_interval(secs => " + secs + "::double precision), occurred_at, " + origin + "::timestamptz)", ""
 	}

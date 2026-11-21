@@ -1,0 +1,202 @@
+{
+  "specVersion": "0",
+  "title": "Agent and MCP activity",
+  "description": "What agent runs and connected MCP clients did, from the built-in audit datasource.",
+  "tags": [
+    "audit"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "tool_calls",
+      "type": "stat",
+      "title": "Agent tool calls",
+      "description": "Tool calls made by agent runs and MCP clients.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:agent.tool_call"
+        }
+      ]
+    },
+    {
+      "id": "runs",
+      "type": "stat",
+      "title": "Runs finished",
+      "description": "Agent runs that ended, whatever their outcome.",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:run.finish"
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "stat",
+      "title": "MCP events",
+      "description": "Events that came in over MCP.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "origin:mcp"
+        }
+      ]
+    },
+    {
+      "id": "connects",
+      "type": "stat",
+      "title": "MCP clients connected",
+      "description": "Consents to connect a new MCP client.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:mcp_client.connect"
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "timeseries",
+      "title": "Tool calls by tool",
+      "description": "Agent and MCP tool calls per interval, by tool.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"action\":\"agent.tool_call\"}},\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_tool\":{\"terms\":{\"field\":\"tool\",\"size\":8}}}}}}",
+          "legend": "{{tool}}"
+        }
+      ]
+    },
+    {
+      "id": "origins",
+      "type": "timeseries",
+      "title": "Events by origin",
+      "description": "Audit events per interval, by where they came from.",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_origin\":{\"terms\":{\"field\":\"origin\",\"size\":8}}}}}}",
+          "legend": "{{origin}}"
+        }
+      ]
+    },
+    {
+      "id": "top_agents",
+      "type": "table",
+      "title": "Top agents",
+      "description": "Agents by events recorded.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"initiator\":\"agent\"}},\"aggs\":{\"by_agent_name\":{\"terms\":{\"field\":\"agent_name\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "top_clients",
+      "type": "table",
+      "title": "Top MCP clients",
+      "description": "Connected clients by events recorded.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"origin\":\"mcp\"}},\"aggs\":{\"by_origin_client\":{\"terms\":{\"field\":\"origin_client\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "agent_events",
+      "type": "logs",
+      "title": "Agent and MCP events",
+      "description": "The newest events started by an agent or a connected client.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "initiator:agent or origin:mcp"
+        }
+      ]
+    }
+  ]
+}

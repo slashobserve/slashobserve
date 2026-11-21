@@ -1,0 +1,228 @@
+{
+  "specVersion": "0",
+  "title": "Sign-ins and access",
+  "description": "Sign-ins, rejected credentials and refused requests, from the built-in audit datasource.",
+  "tags": [
+    "audit"
+  ],
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "sign_ins",
+      "type": "stat",
+      "title": "Sign-ins",
+      "description": "Successful sign-ins in the selected range.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:auth.login and outcome:success"
+        }
+      ]
+    },
+    {
+      "id": "failed_sign_ins",
+      "type": "stat",
+      "title": "Failed sign-ins",
+      "description": "Sign-ins the identity provider or the server turned down.",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:auth.login_failed"
+        }
+      ],
+      "thresholds": [
+        {
+          "color": "ok"
+        },
+        {
+          "value": 1,
+          "color": "warning"
+        }
+      ]
+    },
+    {
+      "id": "rejected",
+      "type": "stat",
+      "title": "Rejected credentials",
+      "description": "Requests with an expired, revoked or unknown session, key or token.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:auth.credential_rejected"
+        }
+      ],
+      "thresholds": [
+        {
+          "color": "ok"
+        },
+        {
+          "value": 1,
+          "color": "warning"
+        }
+      ]
+    },
+    {
+      "id": "refused",
+      "type": "stat",
+      "title": "Refused requests",
+      "description": "Signed-in requests refused for a missing role or permission.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:request.refuse or outcome:denied"
+        }
+      ],
+      "thresholds": [
+        {
+          "color": "ok"
+        },
+        {
+          "value": 1,
+          "color": "warning"
+        }
+      ]
+    },
+    {
+      "id": "sign_in_trend",
+      "type": "timeseries",
+      "title": "Sign-ins and failures",
+      "description": "Sign-in outcomes per interval.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"query\":{\"terms\":{\"action\":[\"auth.login\",\"auth.login_failed\",\"auth.credential_rejected\"]}},\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_action\":{\"terms\":{\"field\":\"action\",\"size\":3}}}}}}",
+          "legend": "{{action}}"
+        }
+      ]
+    },
+    {
+      "id": "failed_by_ip",
+      "type": "table",
+      "title": "Failures by address",
+      "description": "Addresses behind failed sign-ins and rejected credentials.",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"terms\":{\"action\":[\"auth.login_failed\",\"auth.credential_rejected\"]}},\"aggs\":{\"by_client_ip\":{\"terms\":{\"field\":\"client_ip\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "refusal_reasons",
+      "type": "table",
+      "title": "Refusals by reason",
+      "description": "The error codes of refused requests.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"outcome\":\"denied\"}},\"aggs\":{\"by_reason\":{\"terms\":{\"field\":\"reason\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "sign_in_methods",
+      "type": "table",
+      "title": "Requests by sign-in method",
+      "description": "How callers proved who they are: session, API key, OAuth or public link.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"aggs\":{\"by_auth_method\":{\"terms\":{\"field\":\"auth_method\",\"size\":5}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "auth_events",
+      "type": "logs",
+      "title": "Sign-in and access events",
+      "description": "The newest sign-in, sign-out, OAuth and refusal events.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "category:auth or outcome:denied"
+        }
+      ]
+    }
+  ]
+}

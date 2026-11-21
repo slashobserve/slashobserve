@@ -25,7 +25,7 @@ const (
 	closeGrace      = 30 * time.Second
 )
 
-var ErrFileOwned = errors.New("a datasource from the file already has this uid")
+var ErrServerOwned = errors.New("a datasource from the datasources file or built into the server already has this uid")
 
 const UIDPattern = `^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`
 
@@ -34,8 +34,9 @@ var uidPattern = regexp.MustCompile(UIDPattern)
 func ValidUID(uid string) bool { return uidPattern.MatchString(uid) }
 
 const (
-	SourceFile = "file"
-	SourceApp  = "app"
+	SourceFile    = "file"
+	SourceApp     = "app"
+	SourceBuiltin = "builtin"
 )
 
 type Instance struct {
@@ -143,9 +144,9 @@ func normalized(in Instance) (Instance, error) {
 	return in, nil
 }
 
-func (r *Registry) AddAdminsOnly(in Instance) error {
+func (r *Registry) AddBuiltIn(in Instance) error {
 	in.Audience = AudienceAdmins
-	in.Source = SourceFile
+	in.Source = SourceBuiltin
 	in, err := normalized(in)
 	if err != nil {
 		return err
@@ -168,9 +169,9 @@ func (r *Registry) Put(in Instance) error {
 	}
 	r.instancesMu.Lock()
 	old, exists := r.instances[in.UID]
-	if exists && old.Source == SourceFile {
+	if exists && old.Source != SourceApp {
 		r.instancesMu.Unlock()
-		return ErrFileOwned
+		return ErrServerOwned
 	}
 	in.generation = r.nextGenerationLocked()
 	r.instances[in.UID] = in
@@ -203,7 +204,7 @@ func (r *Registry) current(in Instance) bool {
 func (r *Registry) Remove(uid string) bool {
 	r.instancesMu.Lock()
 	old, exists := r.instances[uid]
-	if !exists || old.Source == SourceFile {
+	if !exists || old.Source != SourceApp {
 		r.instancesMu.Unlock()
 		return false
 	}

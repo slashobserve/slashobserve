@@ -58,7 +58,7 @@ func (a *Access) CreateFolder(ctx context.Context, caller auth.Principal, rawTit
 	if err != nil {
 		return Folder{}, Abilities{}, ErrForbidden
 	}
-	row, err := a.insertFolder(ctx, caller, callerID, title)
+	row, err := a.insertFolder(ctx, caller, callerID, title, false)
 	if isPgError(err, uniqueViolation) {
 		return Folder{}, Abilities{}, ErrFolderExists
 	}
@@ -69,7 +69,30 @@ func (a *Access) CreateFolder(ctx context.Context, caller auth.Principal, rawTit
 	return a.Folder(ctx, caller, row.ID)
 }
 
-func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtype.UUID, title string) (dbsqlc.Folder, error) {
+func (a *Access) CreateAdminsOnlyFolder(ctx context.Context, by auth.Principal, rawTitle string) (pgtype.UUID, error) {
+	title, err := titleOf(rawTitle)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	if by.Role != auth.RoleAdmin {
+		return pgtype.UUID{}, ErrForbidden
+	}
+	byID, err := principalUUID(by)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	row, err := a.insertFolder(ctx, by, byID, title, true)
+	if isPgError(err, uniqueViolation) {
+		return pgtype.UUID{}, ErrFolderExists
+	}
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	a.logger.InfoContext(ctx, "created a folder only Admins can read", slog.String("actor_id", by.ID), slog.String("folder_id", row.ID.String()))
+	return row.ID, nil
+}
+
+func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtype.UUID, title string, adminsOnly bool) (dbsqlc.Folder, error) {
 	var row dbsqlc.Folder
 	err := a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		var err error
@@ -81,6 +104,12 @@ func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtyp
 		})
 		if err != nil {
 			return err
+		}
+		if adminsOnly {
+			if err := q.SetFolderAdminsOnly(ctx, dbsqlc.SetFolderAdminsOnlyParams{ID: row.ID, AdminsOnly: true}); err != nil {
+				return err
+			}
+			row.AdminsOnly = true
 		}
 		return recordFolder(ctx, q, "folder.create", row.ID, row.Title, "", nil)
 	})

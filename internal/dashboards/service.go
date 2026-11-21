@@ -196,6 +196,28 @@ func (s *Service) create(ctx context.Context, by auth.Principal, folderID pgtype
 	return dash, ver, nil
 }
 
+func (s *Service) CreateStarter(ctx context.Context, by auth.Principal, folderID pgtype.UUID, rawSpec []byte, summary string, inTx func(q *dbsqlc.Queries, dash Dashboard) error) (Dashboard, error) {
+	target, err := s.creationTarget(ctx, by, folderID)
+	if err != nil {
+		return Dashboard{}, err
+	}
+	summary, parsed, canonical, err := validateSave(rawSpec, summary, defaultCreateSummary, nil)
+	if err != nil {
+		return Dashboard{}, err
+	}
+	unverified, err := s.verify(withAcceptedEmpty(ctx), by, nil, Unverified{}, parsed, false)
+	if err != nil {
+		return Dashboard{}, err
+	}
+	in := newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: unverified, folder: target.folder}
+	dash, _, err := s.store.createWith(ctx, in, func(q *dbsqlc.Queries, dash Dashboard, _ Version) error { return inTx(q, dash) })
+	if err != nil {
+		return Dashboard{}, err
+	}
+	dash.Abilities = target.abilities
+	return dash, nil
+}
+
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
 	access, err := s.need(ctx, by, id, folders.NeedEdit)
 	if err != nil {

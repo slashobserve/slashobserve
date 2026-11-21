@@ -229,3 +229,37 @@ func TestTermsPerTimeBucketCountTheBucketsInTheRowLimit(t *testing.T) {
 		t.Errorf("a terms level with no histogram: %v", err)
 	}
 }
+
+func TestDateHistogramBucketsInANamedZone(t *testing.T) {
+	q := mustParse(t, `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1d","time_zone":"Asia/Kolkata"}}}}`)
+	if q.Aggs[0].Zone != "Asia/Kolkata" {
+		t.Fatalf("zone = %q", q.Aggs[0].Zone)
+	}
+	agg, err := q.Aggregate(testWindow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "WITH matched AS (SELECT (date_bin(make_interval(secs => $3::double precision), occurred_at AT TIME ZONE $4::text, $5::timestamp) AT TIME ZONE $4::text) AS k1"
+	if !strings.HasPrefix(agg.SQL, want) {
+		t.Errorf("SQL\n got %s\nwant %s...", agg.SQL, want)
+	}
+	if agg.Args[3] != "Asia/Kolkata" || agg.Args[4] != "1970-01-01 00:00:00" {
+		t.Errorf("args = %#v", agg.Args)
+	}
+	assertSafeSQL(t, agg.SQL, agg.Args)
+	utc := mustParse(t, `{"aggs":{"t":{"date_histogram":{"field":"occurred_at","fixed_interval":"1d","time_zone":"utc"}}}}`)
+	if utc.Aggs[0].Zone != "" {
+		t.Errorf("UTC zone kept as %q", utc.Aggs[0].Zone)
+	}
+}
+
+func TestNamedZoneRefusesOffsetsAndTheServerZone(t *testing.T) {
+	for _, name := range []string{"", "Local", "+05:30", "Mars/Olympus", "Europe/Berlin'"} {
+		if _, err := NamedZone(name); err == nil {
+			t.Errorf("NamedZone(%q) accepted", name)
+		}
+	}
+	if loc, err := NamedZone("Europe/Berlin"); err != nil || loc.String() != "Europe/Berlin" {
+		t.Errorf("NamedZone(Europe/Berlin) = %v, %v", loc, err)
+	}
+}

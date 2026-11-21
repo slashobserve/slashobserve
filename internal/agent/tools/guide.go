@@ -51,8 +51,10 @@ func configuredTypes(ctx context.Context, reg *datasource.Registry) []spec.Datas
 	}
 	var types []spec.DatasourceType
 	for _, inst := range reg.Visible(ctx) {
-		if t := typeOf(inst); !slices.Contains(types, t) {
-			types = append(types, t)
+		for _, t := range prompts.GuideTypes(inst.Datasource.Type(), inst.Source == datasource.SourceBuiltin) {
+			if !slices.Contains(types, t) {
+				types = append(types, t)
+			}
 		}
 	}
 	return types

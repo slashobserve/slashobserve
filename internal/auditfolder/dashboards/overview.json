@@ -1,0 +1,220 @@
+{
+  "specVersion": "0",
+  "title": "Audit overview",
+  "description": "What people, agents and the server did in this workspace, from the built-in audit datasource.",
+  "tags": [
+    "audit"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "events",
+      "type": "stat",
+      "title": "Events",
+      "description": "Audit events recorded in the selected range.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "*"
+        }
+      ]
+    },
+    {
+      "id": "denied",
+      "type": "stat",
+      "title": "Refused",
+      "description": "Requests the server refused: a missing role, permission or sign-in.",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "outcome:denied"
+        }
+      ],
+      "thresholds": [
+        {
+          "color": "ok"
+        },
+        {
+          "value": 1,
+          "color": "warning"
+        }
+      ]
+    },
+    {
+      "id": "failed",
+      "type": "stat",
+      "title": "Failed",
+      "description": "Actions that were allowed but did not complete.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "outcome:failed"
+        }
+      ],
+      "thresholds": [
+        {
+          "color": "ok"
+        },
+        {
+          "value": 1,
+          "color": "warning"
+        }
+      ]
+    },
+    {
+      "id": "by_agents",
+      "type": "stat",
+      "title": "Done by agents",
+      "description": "Events an agent run or an MCP client acting for a person started.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "initiator:agent"
+        }
+      ]
+    },
+    {
+      "id": "by_category",
+      "type": "timeseries",
+      "title": "Events by category",
+      "description": "Audit events per interval, by kind of action.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_category\":{\"terms\":{\"field\":\"category\",\"size\":8}}}}}}",
+          "legend": "{{category}}"
+        }
+      ]
+    },
+    {
+      "id": "refusals",
+      "type": "timeseries",
+      "title": "Refused and failed",
+      "description": "Refused and failed events per interval, by outcome.",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"query\":{\"terms\":{\"outcome\":[\"denied\",\"failed\"]}},\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_outcome\":{\"terms\":{\"field\":\"outcome\",\"size\":2}}}}}}",
+          "legend": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": "top_actions",
+      "type": "table",
+      "title": "Top actions",
+      "description": "The actions recorded most often in the range.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"aggs\":{\"by_action\":{\"terms\":{\"field\":\"action\",\"size\":15}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "top_actors",
+      "type": "table",
+      "title": "Most active actors",
+      "description": "People, service accounts and the server, by events recorded.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"aggs\":{\"by_actor_name\":{\"terms\":{\"field\":\"actor_name\",\"size\":15}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "problems",
+      "type": "logs",
+      "title": "Refused and failed events",
+      "description": "The newest refused and failed events; open one to see its request, actor and reason.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "outcome:denied or outcome:failed"
+        }
+      ]
+    }
+  ]
+}

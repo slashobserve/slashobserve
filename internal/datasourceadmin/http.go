@@ -164,7 +164,7 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_datasource", err.Error())
 	case errors.Is(err, ErrNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrReadOnly):
+	case errors.Is(err, ErrReadOnly), errors.Is(err, ErrBuiltIn):
 		httpapi.AbortError(c, http.StatusConflict, "datasource_read_only", err.Error())
 	case errors.Is(err, ErrUIDTaken):
 		httpapi.AbortError(c, http.StatusConflict, "uid_taken", err.Error())
