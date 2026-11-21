@@ -2778,6 +2778,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/observations/{id}/blocks/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run an unsaved panel for a panel block of an observation and return its frames.
+         * @description The draft is the panel an edit of the block `block_id` would store, or a new panel block when `block_id` is absent, and it is checked like a panel block write. An edit keeps the block's variables and range; a new panel block has none of its own and uses the observation's range. Only signed-in users who may add a block, with Edit or Comment on the observation's folder, may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`. The draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and a datasource only Admins may query answers only in an Admins-only folder, as the block's own data does. Nothing is cached, and the call counts against the caller's 8 in-flight query requests. `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data, and the response has the shape of panel data, with `meta.cached` always false.
+         */
+        post: operations["previewObservationBlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/observations/{id}/layout": {
         parameters: {
             query?: never;
@@ -16138,6 +16160,116 @@ export interface operations {
                 };
             };
             /** @description A datasource did not answer within the query timeout (`query_timeout`). */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+        };
+    };
+    previewObservationBlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description The panel block being edited; absent for a new panel block.
+                     */
+                    block_id?: string;
+                    /** @description The draft panel, in the Spec's panel shape. */
+                    panel: {
+                        [key: string]: unknown;
+                    };
+                    from?: string;
+                    to?: string;
+                    tz?: string;
+                    /** @default 1000 */
+                    max_data_points?: number;
+                    variables?: {
+                        [key: string]: string[];
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description The frames the draft's queries returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelData"];
+                };
+            };
+            /** @description The request is malformed or fails validation. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description The caller is not a signed-in user (`user_session_required`), or may not add a block to the observation (`forbidden_role`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description There is no such observation, or no such panel block in it, for the caller (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The draft is not a valid panel block (`invalid_panel`, `invalid_block` or `variable_missing`, with `issues`), or a query or a variable cannot run, with the codes of panel data. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"] | components["schemas"]["PanelDataError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            /** @description The server failed to handle the request. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource is unavailable. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PanelDataError"];
+                };
+            };
+            /** @description A datasource did not answer within the draft's 15 second query timeout, or the request did not finish within 20 seconds. */
             504: {
                 headers: {
                     [name: string]: unknown;
