@@ -289,7 +289,12 @@ export function AuditSettings({
       >
         {window !== null && problem === null ? (
           <>
-            <AuditHistogram window={window} />
+            <AuditHistogram
+              window={window}
+              onRange={(range) =>
+                search({ ...shownView, ...range, event: null })
+              }
+            />
             <AuditFacets window={window} onQuery={run} />
           </>
         ) : null}
