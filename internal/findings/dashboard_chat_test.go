@@ -10,13 +10,14 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/findings"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 func (r rig) chatsOn(t *testing.T, by auth.Principal, dashboard pgtype.UUID, everyone bool) []revisions.Chat {
 	t.Helper()
-	service := revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler))
+	service := revisions.NewService(r.db.DB, slog.New(slog.DiscardHandler), revisions.WithAccess(folders.NewAccess(r.db.DB)))
 	chats, _, err := service.Chats(reading(t.Context()), by, revisions.ChatFilter{DashboardID: dashboard, Everyone: everyone}, 20, "")
 	if err != nil {
 		t.Fatal(err)
