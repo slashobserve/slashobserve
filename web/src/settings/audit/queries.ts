@@ -8,7 +8,7 @@ import { unwrapAudit } from "./query-problem"
 
 const pageSize = 100
 const histogramBuckets = 60
-const facetValues = 8
+export const facetValues = 8
 
 const retryOnce = (count: number, error: unknown) =>
   count < 1 && isRetryable(error)

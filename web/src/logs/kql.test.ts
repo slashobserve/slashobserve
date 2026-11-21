@@ -11,6 +11,7 @@ import {
   kqlFields,
   kqlText,
   parseKql,
+  parseKqlClauses,
   type KqlNode,
 } from "./kql"
 
@@ -220,5 +221,23 @@ describe("flatClauses", () => {
     "a:(x and not y)",
   ])("returns null for %s", (text) => {
     expect(flat(text)).toBeNull()
+  })
+})
+
+describe("parseKqlClauses", () => {
+  it("gives the source span of each top-level and clause", () => {
+    const text = 'a:1  and\n not b:"x y" c:2'
+    const spans = parseKqlClauses(text)?.map((c) => text.slice(c.start, c.end))
+    expect(spans).toEqual(["a:1", 'not b:"x y"', "c:2"])
+  })
+
+  it("keeps an or query and a lone clause whole", () => {
+    expect(parseKqlClauses("a:1 or b:2")).toHaveLength(1)
+    expect(parseKqlClauses("(a:1 or b:2) and c:3")).toHaveLength(2)
+  })
+
+  it("is empty for blank text and null for a syntax error", () => {
+    expect(parseKqlClauses("  ")).toEqual([])
+    expect(parseKqlClauses("a:(1")).toBe(null)
   })
 })

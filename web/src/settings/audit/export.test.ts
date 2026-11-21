@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest"
 
-import { auditExportUrl, exportLimitText, exportRowLimit } from "./export"
+import {
+  auditExportUrl,
+  downloadStartedText,
+  exportLimitText,
+  exportRowLimit,
+} from "./export"
 
 describe("auditExportUrl", () => {
   test("sends the query, the window and the format", () => {
@@ -46,6 +51,17 @@ describe("exportLimitText", () => {
   test("names the match count past the limit", () => {
     expect(exportLimitText(exportRowLimit + 1)).toBe(
       "1,000,001 events match; the export stops at 1,000,000."
+    )
+  })
+})
+
+describe("downloadStartedText", () => {
+  test("names the format that was chosen", () => {
+    expect(downloadStartedText("csv")).toBe(
+      "Download started: the audit log as CSV."
+    )
+    expect(downloadStartedText("ndjson")).toBe(
+      "Download started: the audit log as NDJSON."
     )
   })
 })

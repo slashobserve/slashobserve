@@ -8,6 +8,7 @@ import {
   markedQuery,
   markedSpan,
   queryProblemOf,
+  rejectionOf,
 } from "./query-problem"
 
 function response(status: number): Response {
@@ -95,5 +96,20 @@ describe("queryProblemOf", () => {
     expect(
       queryProblemOf(new ApiError(422, "query_timeout", "slow"), "a")
     ).toBe(null)
+  })
+})
+
+describe("rejectionOf", () => {
+  test("reports any refused query, marked only when the span is known", () => {
+    const slow = new AuditQueryError(
+      new ApiError(422, "query_too_expensive", "too slow"),
+      null
+    )
+    expect(rejectionOf(slow, "a")).toEqual({
+      message: "too slow",
+      marked: null,
+    })
+    expect(rejectionOf(new ApiError(500, "internal", "boom"), "a")).toBe(null)
+    expect(rejectionOf(null, "a")).toBe(null)
   })
 })

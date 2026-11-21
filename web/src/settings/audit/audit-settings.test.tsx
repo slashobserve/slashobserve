@@ -11,6 +11,9 @@ import { type AuditEvent, liveRowLimit } from "./stream"
 import { FakeStream, refusedStream } from "./stream-fake"
 
 const fetchMock = vi.hoisted(() => vi.fn())
+const toastSuccess = vi.hoisted(() => vi.fn())
+
+vi.mock("sonner", () => ({ toast: { success: toastSuccess } }))
 
 let liveStream: FakeStream | null = null
 let streamRequests: { url: string; init?: RequestInit }[] = []
@@ -151,6 +154,7 @@ function untilOf(url: URL): number {
 
 beforeEach(() => {
   fetchMock.mockReset()
+  toastSuccess.mockReset()
   liveStream = null
   streamRequests = []
   vi.stubGlobal("fetch", fetchMock)
@@ -228,10 +232,96 @@ describe("AuditSettings", () => {
     await user.click(
       await within(outcomes).findByRole("button", { name: "denied 2" })
     )
-    expect(onView).toHaveBeenCalledWith({
-      ...defaults,
-      q: 'origin:mcp and outcome:"denied"',
+    await waitFor(() =>
+      expect(onView).toHaveBeenCalledWith({
+        ...defaults,
+        q: 'origin:mcp and outcome:"denied"',
+      })
+    )
+    expect(listRequests()).toHaveLength(2)
+  })
+
+  it("never sends or writes a trailing newline of the query", async () => {
+    serve()
+    const { onView, user } = renderPage({ q: "origin:mcp\n" })
+    await screen.findByText("No audit events match these filters.")
+    await user.click(screen.getByRole("button", { name: /^Search/ }))
+    await waitFor(() =>
+      expect(onView).toHaveBeenCalledWith({ ...defaults, q: "origin:mcp" })
+    )
+    expect(listRequests().at(-1)?.searchParams.get("q")).toBe("origin:mcp")
+  })
+
+  it("stops dimming the results when the address moves on", async () => {
+    serve({
+      events: (url) =>
+        (url.searchParams.get("q") ?? "").includes("denied")
+          ? json(
+              { error: "cannot read this query", code: "query_invalid" },
+              422
+            )
+          : json({
+              events: [auditEvent("e1", { action: "dashboard.delete" })],
+              next_cursor: null,
+              form: "kql",
+            }),
     })
+    const { queryClient, rerender, user } = renderWithProviders(
+      <AuditSettings view={{ ...defaults, q: "origin:mcp" }} onView={vi.fn()} />
+    )
+    const outcomes = await screen.findByRole("group", {
+      name: "Outcome values",
+    })
+    await user.click(
+      await within(outcomes).findByRole("button", { name: "denied 2" })
+    )
+    await screen.findByText("cannot read this query")
+    const dimmed = () =>
+      screen
+        .getByRole("region", { name: "Audit events" })
+        .closest(".opacity-60")
+    expect(dimmed()).not.toBeNull()
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <AuditSettings
+          view={{ ...defaults, q: "origin:cli" }}
+          onView={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+    await waitFor(() => expect(dimmed()).toBeNull())
+    expect(screen.queryByText("cannot read this query")).toBeNull()
+  })
+
+  it("keeps the last good results and the address when the server rejects a query", async () => {
+    serve({
+      events: (url) =>
+        (url.searchParams.get("q") ?? "").includes("denied")
+          ? json(
+              { error: "cannot read this query", code: "query_invalid" },
+              422
+            )
+          : json({
+              events: [auditEvent("e1", { action: "dashboard.delete" })],
+              next_cursor: null,
+              form: "kql",
+            }),
+    })
+    const { onView, user } = renderPage({ q: "origin:mcp" })
+    const outcomes = await screen.findByRole("group", {
+      name: "Outcome values",
+    })
+    await user.click(
+      await within(outcomes).findByRole("button", { name: "denied 2" })
+    )
+    expect(
+      await screen.findByText("cannot read this query")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("region", { name: "Audit events" })
+    ).toHaveTextContent("dashboard.delete")
+    expect(screen.getByText(/42 events/)).toBeInTheDocument()
+    expect(onView).not.toHaveBeenCalled()
   })
 
   it("offers to clear filters when nothing matches", async () => {
@@ -295,6 +385,13 @@ describe("AuditSettings", () => {
       )
     })
     await within(table).findByText("auth.login")
+    expect(await screen.findByText(/43 events/)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole("group", { name: "Outcome values" })).getByRole(
+        "button",
+        { name: "success 41" }
+      )
+    ).toBeInTheDocument()
     const rows = within(table).getAllByRole("row").slice(1)
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("auth.login"),
@@ -395,8 +492,12 @@ describe("AuditSettings", () => {
       const { user } = renderPage({ q: "origin:mcp" })
       await screen.findByText("No audit events match these filters.")
       await user.click(screen.getByRole("button", { name: "Export" }))
+      expect(await screen.findByRole("menu")).toHaveClass("w-max")
       await user.click(await screen.findByRole("menuitem", { name: /^CSV/ }))
       await waitFor(() => expect(clicked).toHaveLength(1))
+      expect(toastSuccess).toHaveBeenCalledWith(
+        "Download started: the audit log as CSV."
+      )
       const url = new URL(clicked[0])
       expect(url.pathname).toBe("/api/v1/audit/export")
       expect(url.searchParams.get("q")).toBe("origin:mcp")
@@ -449,7 +550,7 @@ describe("AuditSettings", () => {
     await user.click(screen.getByRole("switch"))
     await waitFor(() => expect(streamRequests).toHaveLength(1))
     act(() => first.frame("audit", auditEvent("e9"), "x-9"))
-    await screen.findByText("dashboard.update")
+    await screen.findAllByText("dashboard.update")
     act(() => first.drop())
     await waitFor(() => expect(streamRequests).toHaveLength(3), {
       timeout: 3000,

@@ -1,3 +1,4 @@
+import { useRef, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { MinusIcon } from "lucide-react"
 
@@ -6,13 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
-import { auditFacetsQuery, auditFieldsQuery } from "./queries"
+import { liveFacetValues } from "./live-counts"
+import { auditFacetsQuery, auditFieldsQuery, facetValues } from "./queries"
 import {
   canEditTerms,
   termState,
-  toggleTerm,
+  toggleTermRemembering,
+  type WrapMemory,
   type FacetField,
 } from "./query-text"
+import type { AuditEvent } from "./stream"
 
 const facetFields = [
   { name: "actor_name", label: "Actor" },
@@ -24,13 +28,18 @@ const facetFields = [
 
 export function AuditFacets({
   window,
+  query,
+  live,
   onQuery,
 }: {
   window: AuditWindowKey
+  query: string
+  live: readonly AuditEvent[]
   onQuery: (q: string) => void
 }) {
   const fields = useQuery(auditFieldsQuery())
-  const editable = canEditTerms(window.q)
+  const wrapMemory = useRef<WrapMemory | null>(null)
+  const editable = canEditTerms(query)
   return (
     <div className="flex flex-col gap-2">
       {editable ? null : (
@@ -44,6 +53,7 @@ export function AuditFacets({
           <FacetGroup
             key={facet.name}
             window={window}
+            query={query}
             label={facet.label}
             field={{
               name: facet.name,
@@ -52,6 +62,8 @@ export function AuditFacets({
                   ?.alias ?? null,
             }}
             editable={editable}
+            live={live}
+            wrapMemoryRef={wrapMemory}
             onQuery={onQuery}
           />
         ))}
@@ -62,23 +74,43 @@ export function AuditFacets({
 
 function FacetGroup({
   window,
+  query,
   label,
   field,
   editable,
+  live,
+  wrapMemoryRef,
   onQuery,
 }: {
   window: AuditWindowKey
+  query: string
   label: string
   field: FacetField
   editable: boolean
+  live: readonly AuditEvent[]
+  wrapMemoryRef: RefObject<WrapMemory | null>
   onQuery: (q: string) => void
 }) {
   const facets = useQuery(auditFacetsQuery(window, field.name))
   if (facets.isError) return null
+  const values = liveFacetValues(
+    facets.data?.values ?? [],
+    live,
+    field.name,
+    facetValues
+  )
 
   function toggle(value: string, exclude: boolean) {
-    const next = toggleTerm(window.q, field, value, exclude)
-    if (next !== null) onQuery(next)
+    const next = toggleTermRemembering(
+      query,
+      field,
+      value,
+      exclude,
+      wrapMemoryRef.current
+    )
+    if (next === null) return
+    wrapMemoryRef.current = next.memory
+    onQuery(next.text)
   }
 
   return (
@@ -90,12 +122,12 @@ function FacetGroup({
       <span className="text-xs text-muted-foreground">{label}</span>
       {facets.data === undefined ? (
         <Skeleton className="h-6 w-32" />
-      ) : facets.data.values.length === 0 ? (
+      ) : values.length === 0 ? (
         <span className="text-xs text-muted-foreground">None</span>
       ) : (
         <ul className="flex flex-wrap gap-1.5">
-          {facets.data.values.map(({ value, count }) => {
-            const state = termState(window.q, field, value)
+          {values.map(({ value, count }) => {
+            const state = termState(query, field, value)
             return (
               <li
                 key={value}

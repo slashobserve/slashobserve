@@ -5,6 +5,7 @@ import {
   eventData,
   eventFields,
   originText,
+  targetPath,
   targetText,
 } from "./event-text"
 import type { AuditEvent } from "./stream"
@@ -76,5 +77,54 @@ describe("eventData", () => {
   test("prints data as JSON and skips an empty object", () => {
     expect(eventData(event({ data: { rows: 3 } }))).toBe('{\n  "rows": 3\n}')
     expect(eventData(event({ data: {} }))).toBe(null)
+  })
+})
+
+describe("targetPath", () => {
+  const dashboard = event({
+    target_kind: "dashboard",
+    target_id: "d1",
+    target_name: "Checkout API",
+  })
+
+  test("links a kind that has a page", () => {
+    expect(targetPath(dashboard)).toBe("/d/d1/checkout-api")
+    expect(targetPath({ ...dashboard, target_kind: "folder" })).toBe("/f/d1")
+    expect(targetPath({ ...dashboard, target_kind: "observation" })).toBe(
+      "/o/d1"
+    )
+    expect(targetPath({ ...dashboard, target_kind: "run" })).toBe("/c/d1")
+    expect(targetPath({ ...dashboard, target_kind: "service_account" })).toBe(
+      "/agents/sa-d1"
+    )
+  })
+
+  test("encodes the id in an agent link", () => {
+    expect(
+      targetPath({
+        ...dashboard,
+        target_kind: "service_account",
+        target_id: "a/b c?",
+      })
+    ).toBe("/agents/sa-a%2Fb%20c%3F")
+    expect(
+      targetPath({ ...dashboard, target_kind: "grant", target_id: "x#y" })
+    ).toBe("/agents/grant-x%23y")
+  })
+
+  test("has no link for a kind with no page, a missing id or a deleted target", () => {
+    expect(targetPath({ ...dashboard, target_kind: "datasource" })).toBe(null)
+    expect(targetPath({ ...dashboard, target_id: null })).toBe(null)
+    expect(targetPath({ ...dashboard, action: "dashboard.delete" })).toBe(null)
+  })
+
+  test("still links a target whose deletion was refused", () => {
+    expect(
+      targetPath({
+        ...dashboard,
+        action: "dashboard.delete",
+        outcome: "denied",
+      })
+    ).toBe("/d/d1/checkout-api")
   })
 })

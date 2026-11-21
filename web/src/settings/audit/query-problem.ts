@@ -69,3 +69,11 @@ export function queryProblemOf(
     marked: error.span === null ? null : markedQuery(text, error.span),
   }
 }
+
+export function rejectionOf(
+  error: unknown,
+  text: string
+): { message: string; marked: MarkedQuery | null } | null {
+  if (!(error instanceof AuditQueryError)) return null
+  return queryProblemOf(error, text) ?? { message: error.message, marked: null }
+}
