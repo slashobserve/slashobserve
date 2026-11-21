@@ -150,3 +150,50 @@ func TestDeletingADashboardKeepsAnAnswerSavedAsAnObservation(t *testing.T) {
 		t.Fatalf("%d observations left, want the one the answer was saved as", n)
 	}
 }
+
+func TestDeletingADashboardStillFlagsTheObservationItsRestrictedAnswerWasSavedAs(t *testing.T) {
+	tests := []struct {
+		name       string
+		withBlock  bool
+		wantCopied bool
+	}{
+		{"the answer's block carries the run", true, true},
+		{"only the finding names the run", false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newRig(t, true)
+			id := r.createDashboard(t)
+			sqlDB := r.db.SQLDB(t)
+			var run, observation string
+			if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO agent_requests (intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, dashboard_id, read_restricted)
+				VALUES ('ask', 'investigate', 'who changed it', 'user', $1, 'Ada', $2, true) RETURNING id`, testUser.ID, id.String()).Scan(&run); err != nil {
+				t.Fatal(err)
+			}
+			if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name, run_id)
+				VALUES (general_folder_id(), 'Who changed it', 'user', $1, 'Ada', $2) RETURNING id`, testUser.ID, run).Scan(&observation); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := sqlDB.ExecContext(t.Context(), `INSERT INTO findings (agent_request_id, dashboard_id, observation_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
+				VALUES ($1, $2, $3, 'Answer', 'Root changed it', now() - interval '1 hour', now(), 'user', $4, 'Ada')`, run, id.String(), observation, testUser.ID); err != nil {
+				t.Fatal(err)
+			}
+			if tt.withBlock {
+				if _, err := sqlDB.ExecContext(t.Context(), `INSERT INTO observation_blocks (observation_id, kind, position, body, created_by_kind, created_by_id, created_by_name, run_id)
+					VALUES ($1, 'text', 0, '{"markdown":"Root changed it"}', 'user', $2, 'Ada', $3)`, observation, testUser.ID, run); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := r.service.Delete(reading(t.Context()), testUser, id); err != nil {
+				t.Fatalf("delete: %v", err)
+			}
+			var copied bool
+			if err := sqlDB.QueryRowContext(t.Context(), `SELECT copied_restricted_answer FROM observations WHERE id = $1`, observation).Scan(&copied); err != nil {
+				t.Fatal(err)
+			}
+			if copied != tt.wantCopied {
+				t.Fatalf("copied_restricted_answer = %t, want %t", copied, tt.wantCopied)
+			}
+		})
+	}
+}
