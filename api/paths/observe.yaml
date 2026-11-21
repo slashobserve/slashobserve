@@ -22,7 +22,7 @@ agent:
 observe:
   get:
     operationId: listObserveRequests
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; only scope=all is recorded, as run.list from the service" }
     x-surfaces:
       mcp: [list_runs]
       cli: [observe requests list]
@@ -282,7 +282,7 @@ observe-id:
         format: uuid
   get:
     operationId: getObserveRequest
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { action: run.view, target: { kind: run, id: path.id } }
     x-surfaces:
       cli: [observe status]
       mcp: [get_run]
@@ -391,7 +391,7 @@ observe-id-build:
         format: uuid
   get:
     operationId: getObserveRequestBuild
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { action: run.view, target: { kind: run, id: path.id } }
     x-surfaces:
       mcp: [get_run_build]
       cli: [observe]

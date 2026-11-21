@@ -287,7 +287,8 @@ Say what to change in the message itself all the same, for example "only show 5x
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
 A request with no dashboard is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads.
 They read that one request only: its `chat_id` is null for them and the rest of the chat, the earlier questions the agent was given included, stays yours.
-An Admin reads another person's chat read only, and every read of a chat, the owner's included, is recorded in the audit trail as `chat.view` with the owner's id as `owner_id`.
+An Admin reads another person's chat read only, and every read of a chat or a request, the owner's included and over MCP too, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`.
+An Admin's list of every person's chats or requests (`scope=all`) is recorded as `chat.list` or `run.list` with `scope` in its data.
 
 Turns of one chat run one at a time in the order they were sent, and the earlier turns are read when a turn starts running, so a follow-up sent while the last one still runs sees its answer.
 Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of your chats, and every request carries its `chat_id`, the id of the chat's first request.

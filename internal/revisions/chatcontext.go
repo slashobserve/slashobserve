@@ -22,7 +22,6 @@ const (
 	actionChatCreate audit.Action = "chat.create"
 	actionChatTurn   audit.Action = "chat.turn"
 	actionChatDelete audit.Action = "chat.delete"
-	actionChatView   audit.Action = "chat.view"
 )
 
 const (

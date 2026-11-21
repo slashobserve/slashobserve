@@ -140,6 +140,9 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt}
 		}
 	}
+	if f.Everyone {
+		s.recordEveryonesList(ctx, actionChatList)
+	}
 	return chats, next, nil
 }
 
@@ -181,6 +184,7 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 		chat.LastTurn = &ChatTurn{ID: last.ID, State: State(last.State), Prompt: last.Prompt}
 	}
 	chat.Title = chatTitle(row.Title, first)
+	s.recordChatView(ctx, chat)
 	return chat, turns, nil
 }
 

@@ -225,15 +225,38 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 	}
 }
 
-type chatView struct {
-	actorID, outcome, targetID, chatID, ownerID string
+func recordedReads(t *testing.T, d *dbtest.Database) []string {
+	t.Helper()
+	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT concat_ws(' ', action, coalesce(actor_id::text, '-'), outcome, coalesce(nullif(target_id, ''), '-'), coalesce(chat_id::text, '-'), coalesce(data->>'owner_id', data->>'scope', '-'))
+		FROM audit_events WHERE action IN ('run.view', 'run.list', 'chat.view', 'chat.list')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var row string
+		if err := rows.Scan(&row); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, row)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(got)
+	return got
 }
 
-func TestEveryReadOfAChatIsRecordedWithItsOwner(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	chat := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+func TestEveryReadOfARunOrAChatIsRecordedWithItsOwner(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(&recordingBuilds{}))
+	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+	chat := run
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
-	recorder := audit.New(audit.Config{DB: d.DB})
+	recorder := audit.New(audit.Config{DB: d.DB, Logger: quietLogger()})
+	audit.Install(recorder)
+	t.Cleanup(func() { audit.Install(nil) })
 	recorded, err := recorder.Middleware()
 	if err != nil {
 		t.Fatal(err)
@@ -244,6 +267,7 @@ func TestEveryReadOfAChatIsRecordedWithItsOwner(t *testing.T) {
 		defer close(done)
 		recorder.Run(ctx)
 	}()
+	registry := tools.New(tools.Deps{Runs: revisions.NewRunDesk(svc, revisions.ObserveOptions{}), Logger: quietLogger()})
 	for _, read := range []struct {
 		who  auth.Principal
 		want int
@@ -256,37 +280,58 @@ func TestEveryReadOfAChatIsRecordedWithItsOwner(t *testing.T) {
 			audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(who) })
 			c.Request = c.Request.WithContext(ctx)
 		})))
-		if rec := call(engine, http.MethodGet, "/api/v1/chats/"+chat, ""); rec.Code != read.want {
-			t.Fatalf("%s read the chat with %d: %s", who.Name, rec.Code, rec.Body)
+		for _, path := range []string{"/api/v1/chats/" + chat, "/api/v1/observe/" + run, "/api/v1/observe/" + run + "/build"} {
+			if rec := call(engine, http.MethodGet, path, ""); rec.Code != read.want {
+				t.Fatalf("%s read %s with %d: %s", who.Name, path, rec.Code, rec.Body)
+			}
+		}
+		lists := []string{"/api/v1/chats", "/api/v1/observe"}
+		if who.Role.AtLeast(auth.RoleAdmin) {
+			lists = append(lists, "/api/v1/chats?scope=all", "/api/v1/observe?scope=all")
+		}
+		for _, path := range lists {
+			if rec := call(engine, http.MethodGet, path, ""); rec.Code != http.StatusOK {
+				t.Fatalf("%s listed %s with %d: %s", who.Name, path, rec.Code, rec.Body)
+			}
+		}
+		toolCtx := audit.Open(auth.WithPrincipal(t.Context(), who), audit.Scope{Actor: auth.AuditActor(who)})
+		calls := [][2]string{{"get_chat", `{"id":"` + chat + `"}`}, {"get_run", `{"id":"` + run + `"}`}, {"get_run_build", `{"id":"` + run + `"}`}, {"list_chats", `{}`}, {"list_runs", `{}`}}
+		if who.Role.AtLeast(auth.RoleAdmin) {
+			calls = append(calls, [2]string{"list_chats", `{"scope":"all"}`}, [2]string{"list_runs", `{"scope":"all"}`})
+		}
+		for _, c := range calls {
+			if _, err := registry.Call(toolCtx, c[0], []byte(c[1])); err != nil {
+				t.Fatalf("%s: %s: %v", who.Name, c[0], err)
+			}
 		}
 	}
 	stop()
 	<-done
 
-	rows, err := d.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(actor_id::text, ''), outcome, coalesce(target_id, ''), coalesce(chat_id::text, ''), coalesce(data->>'owner_id', '')
-		FROM audit_events WHERE action = 'chat.view' AND target_kind = 'chat' ORDER BY occurred_at, id`)
-	if err != nil {
-		t.Fatal(err)
+	want := []string{
+		"chat.list " + adminID + " success - - all",
+		"chat.list " + adminID + " success - - all",
+		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
+		"chat.view " + adminID + " success " + chat + " " + chat + " " + userID,
+		"chat.view " + strangerID + " denied " + chat + " - -",
+		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
+		"chat.view " + userID + " success " + chat + " " + chat + " " + userID,
+		"run.list " + adminID + " success - - all",
+		"run.list " + adminID + " success - - all",
+		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
+		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
+		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
+		"run.view " + adminID + " success " + run + " " + chat + " " + userID,
+		"run.view " + strangerID + " denied " + run + " - -",
+		"run.view " + strangerID + " denied " + run + " - -",
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
+		"run.view " + userID + " success " + run + " " + chat + " " + userID,
 	}
-	defer func() { _ = rows.Close() }()
-	var got []chatView
-	for rows.Next() {
-		var v chatView
-		if err := rows.Scan(&v.actorID, &v.outcome, &v.targetID, &v.chatID, &v.ownerID); err != nil {
-			t.Fatal(err)
-		}
-		got = append(got, v)
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatal(err)
-	}
-	want := []chatView{
-		{userID, "success", chat, chat, userID},
-		{adminID, "success", chat, chat, userID},
-		{strangerID, "denied", chat, "", ""},
-	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("chat.view events = %+v, want %+v", got, want)
+	slices.Sort(want)
+	if got := recordedReads(t, d); !slices.Equal(got, want) {
+		t.Fatalf("recorded reads =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }
 

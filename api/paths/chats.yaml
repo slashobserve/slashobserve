@@ -1,7 +1,7 @@
 chats:
   get:
     operationId: listChats
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; only scope=all is recorded, as chat.list from the service" }
     x-surfaces:
       mcp: [list_chats]
       cli: [observe chats list]

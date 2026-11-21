@@ -22,6 +22,8 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	"chat.create":       "the run funnel, in the transaction of a chat's first turn",
 	"chat.turn":         "the run funnel, in the transaction of every turn a chat takes",
 	"job.run":           "the scheduler, in the transaction that finishes a job run",
+	"run.list":          "the run list, when an Admin lists every person's runs",
+	"chat.list":         "the chat list, when an Admin lists every person's chats",
 
 	"agent.tool_call":          "the MCP handler, for each tool call except the claim tools",
 	"auth.credential_rejected": "authentication, for a bearer credential that matches no key or token",
