@@ -35,6 +35,20 @@ func (q *Queries) AdminsOnlyDatasourceUIDs(ctx context.Context) ([]string, error
 	return items, nil
 }
 
+const dashboardHoldsRestrictedAnswer = `-- name: DashboardHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = $1 AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = $1 AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = $1 AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = $1 AND r.read_restricted))::boolean
+`
+
+func (q *Queries) DashboardHoldsRestrictedAnswer(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, dashboardHoldsRestrictedAnswer, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const findingRun = `-- name: FindingRun :one
 SELECT agent_request_id FROM findings WHERE id = $1
 `
@@ -64,6 +78,19 @@ SELECT pg_advisory_xact_lock(hashtextextended('datasource_uid:' || $1::text, 0))
 func (q *Queries) LockDatasourceUID(ctx context.Context, uid string) error {
 	_, err := q.db.Exec(ctx, lockDatasourceUID, uid)
 	return err
+}
+
+const observationHoldsRestrictedAnswer = `-- name: ObservationHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = $1 AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = $1 AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = $1 AND r.read_restricted))::boolean
+`
+
+func (q *Queries) ObservationHoldsRestrictedAnswer(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, observationHoldsRestrictedAnswer, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const placementDashboardSpecs = `-- name: PlacementDashboardSpecs :many
@@ -398,6 +425,52 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 			&i.FolderPersonal,
 			&i.DatasourceUid,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const restrictedAnswerHolders = `-- name: RestrictedAnswerHolders :many
+SELECT 'dashboard'::text AS kind, d.id, d.title FROM dashboards d
+WHERE d.folder_id = $2 AND (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = d.id AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = d.id AND r.read_restricted))
+UNION ALL
+SELECT 'observation'::text AS kind, o.id, o.title FROM observations o
+WHERE o.folder_id = $2 AND (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = o.id AND r.read_restricted))
+ORDER BY kind, title, id
+LIMIT $1
+`
+
+type RestrictedAnswerHoldersParams struct {
+	RowLimit int32
+	FolderID pgtype.UUID
+}
+
+type RestrictedAnswerHoldersRow struct {
+	Kind  string
+	ID    pgtype.UUID
+	Title string
+}
+
+func (q *Queries) RestrictedAnswerHolders(ctx context.Context, arg RestrictedAnswerHoldersParams) ([]RestrictedAnswerHoldersRow, error) {
+	rows, err := q.db.Query(ctx, restrictedAnswerHolders, arg.RowLimit, arg.FolderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RestrictedAnswerHoldersRow
+	for rows.Next() {
+		var i RestrictedAnswerHoldersRow
+		if err := rows.Scan(&i.Kind, &i.ID, &i.Title); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

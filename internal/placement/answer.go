@@ -66,3 +66,36 @@ func readRestricted(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (
 	}
 	return restricted, nil
 }
+
+func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, holds func() (bool, error)) error {
+	folder, err := q.ShareFolderPlacement(ctx, to)
+	if err == nil && folder.AdminsOnly {
+		return nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("lock folder: %w", err)
+	}
+	held, err := holds()
+	if err != nil {
+		return fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
+	}
+	if held {
+		return folders.RestrictedAnswerMove(kind)
+	}
+	return nil
+}
+
+func restrictedAnswerOpening(ctx context.Context, q *dbsqlc.Queries, folderID pgtype.UUID) error {
+	rows, err := q.RestrictedAnswerHolders(ctx, dbsqlc.RestrictedAnswerHoldersParams{FolderID: folderID, RowLimit: MaxListed})
+	if err != nil {
+		return fmt.Errorf("list content holding answers that read Admin-only data: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	items := make([]folders.ContentItem, len(rows))
+	for i, r := range rows {
+		items[i] = folders.ContentItem{Kind: folders.ContentKind(r.Kind), ID: r.ID.String(), Title: r.Title, FolderID: folderID.String()}
+	}
+	return folders.RestrictedAnswerOpening(items)
+}

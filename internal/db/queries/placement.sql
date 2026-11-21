@@ -87,3 +87,28 @@ SELECT folder_id FROM dashboards WHERE id = @id FOR UPDATE;
 
 -- name: ShareDashboardPlacement :one
 SELECT folder_id FROM dashboards WHERE id = @id FOR SHARE;
+
+-- name: DashboardHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = @id AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = @id AND r.read_restricted))::boolean;
+
+-- name: ObservationHoldsRestrictedAnswer :one
+SELECT (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = @id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = @id AND r.read_restricted))::boolean;
+
+-- name: RestrictedAnswerHolders :many
+SELECT 'dashboard'::text AS kind, d.id, d.title FROM dashboards d
+WHERE d.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.dashboard_id = d.id AND f.annotation_id IS NOT NULL AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.dashboard_id = d.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE p.dashboard_id = d.id AND r.read_restricted))
+UNION ALL
+SELECT 'observation'::text AS kind, o.id, o.title FROM observations o
+WHERE o.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM observation_blocks b JOIN agent_requests r ON r.id = b.run_id WHERE b.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM findings f JOIN agent_requests r ON r.id = f.agent_request_id WHERE f.observation_id = o.id AND r.read_restricted)
+  OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = o.id AND r.read_restricted))
+ORDER BY kind, title, id
+LIMIT @row_limit;

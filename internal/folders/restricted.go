@@ -25,6 +25,26 @@ var (
 		"keep it in the private chat, or show it in a folder only Admins can read")
 )
 
+type restrictedAnswerError struct{ message string }
+
+func (e restrictedAnswerError) Error() string { return e.message }
+
+func (restrictedAnswerError) Is(target error) bool { return target == ErrRestrictedAnswer }
+
+func RestrictedAnswerMove(kind ContentKind) error {
+	return restrictedAnswerError{fmt.Sprintf(
+		"this %s holds an answer that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun())}
+}
+
+func RestrictedAnswerOpening(items []ContentItem) error {
+	first := items[0]
+	message := fmt.Sprintf("the %s %q in this folder holds an answer that read data only Admins can query, such as the audit trail; move it to another folder only Admins can read before you share this one", first.Kind.Noun(), first.Title)
+	if len(items) > 1 {
+		message = fmt.Sprintf("%d items in this folder, such as the %s %q, hold answers that read data only Admins can query, such as the audit trail; move them to another folder only Admins can read before you share this one", len(items), first.Kind.Noun(), first.Title)
+	}
+	return restrictedAnswerError{message}
+}
+
 func ShowAnswer(readRestricted, adminsOnly bool) error {
 	if readRestricted && !adminsOnly {
 		return ErrRestrictedAnswer
