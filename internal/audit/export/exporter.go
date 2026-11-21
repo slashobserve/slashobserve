@@ -21,6 +21,8 @@ const (
 	MinBackoff = time.Second
 	MaxBackoff = time.Minute
 
+	advanceTimeout = 10 * time.Second
+
 	DroppedRefused   = "refused"
 	DroppedRetention = "retention"
 )
@@ -215,7 +217,9 @@ func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {
 }
 
 func (x *Exporter) advance(ctx context.Context, last trail.Positioned) error {
-	return x.Cursor.Advance(ctx, last.At, occurredAt(last.Event))
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), advanceTimeout)
+	defer cancel()
+	return x.Cursor.Advance(writeCtx, last.At, occurredAt(last.Event))
 }
 
 func occurredAt(e trail.Event) time.Time {

@@ -60,6 +60,8 @@ type fakeCursor struct {
 	advanceErr error
 	advances   int
 	exportedAt []time.Time
+
+	advanceHadDeadline bool
 }
 
 func (c *fakeCursor) Load(context.Context) (Stored, error) {
@@ -71,7 +73,11 @@ func (c *fakeCursor) Oldest(context.Context) (time.Time, error) {
 	return c.oldest, c.oldestErr
 }
 
-func (c *fakeCursor) Advance(_ context.Context, at filter.Position, occurredAt time.Time) error {
+func (c *fakeCursor) Advance(ctx context.Context, at filter.Position, occurredAt time.Time) error {
+	_, c.advanceHadDeadline = ctx.Deadline()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if c.advanceErr != nil {
 		return c.advanceErr
 	}
@@ -580,5 +586,23 @@ func TestAFailedRetentionCheckIsRetriedLikeAFailedRead(t *testing.T) {
 	}
 	if len(r.waits) < 1 || r.waits[0] != time.Second || len(r.posts) != 1 {
 		t.Fatalf("waits %v posts %d", r.waits, len(r.posts))
+	}
+}
+
+func TestThePositionIsWrittenEvenWhenTheRunEndsRightAfterTheReceiverAnswered(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two")
+	r.post = func([]byte) error {
+		r.cancel()
+		return nil
+	}
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.cursor.at != (filter.Position{Xid: 102, Seq: 2}) {
+		t.Fatalf("cursor = %+v: the 2xx was not followed by the position write", r.cursor.at)
+	}
+	if !r.cursor.advanceHadDeadline {
+		t.Fatal("the position write has no deadline of its own")
 	}
 }

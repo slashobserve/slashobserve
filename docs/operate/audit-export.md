@@ -24,7 +24,8 @@ One server holds the export at a time, through the `audit_export` job described 
 It reads events in the order they were committed, from a position stored in the database, and posts up to 500 at a time as OTLP JSON.
 The position moves only after the receiver answers with a `2xx` status, so a failed post sends the same events again.
 A restart, or another server taking the job over, continues from the stored position.
-Delivery is at least once: an event can arrive twice when the server stopped between the receiver's answer and storing the position, and `slashobserve.audit.id` identifies it.
+Delivery is at least once: the position write that follows a `2xx` answer is not cut short when the job's lease ends, but a crash, a lost database connection or a failed write between the answer and the write sends that batch again, so a receiver can see up to 500 events twice.
+`slashobserve.audit.id` identifies an event, so a receiver or a query can drop the repeats.
 
 A receiver can answer `200` and still refuse some records in its `partialSuccess` answer, for example records that are too large or too old.
 The server treats those as final: it moves the position past them, adds their count to `slashobserve_audit_export_rejected_total` and logs the count and the receiver's message, cut to 200 characters.
