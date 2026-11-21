@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -18,7 +18,7 @@ import (
 const observationSessionRequiredMessage = "the data of an observation panel is for signed-in users; MCP clients and scripts use query_range"
 
 type ObservationPanels interface {
-	PanelDashboard(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (*spec.Dashboard, time.Time, time.Time, error)
+	PanelData(ctx context.Context, by auth.Principal, blockID pgtype.UUID) (*spec.Dashboard, folders.Folder, error)
 }
 
 type ObservationData struct {
@@ -68,9 +68,10 @@ func (d *ObservationData) load(c *gin.Context, principal auth.Principal) (loaded
 		d.h.fail(c, invalidf("id must be a UUID"))
 		return loadedVersion{}, false
 	}
-	dashboard, _, _, err := d.panels.PanelDashboard(ctx, principal, id)
+	dashboard, folder, err := d.panels.PanelData(ctx, principal, id)
 	switch {
 	case err == nil:
+		readingStored(c, folder)
 		return loadedVersion{dashboard: dashboard}, true
 	case errors.Is(err, observations.ErrNotFound):
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), "block not found")

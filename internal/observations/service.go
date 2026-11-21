@@ -122,7 +122,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	}
 	var first *preparedBlock
 	if in.FirstBlock != nil {
-		prepared, err := s.prepare(ctx, by, pgtype.UUID{}, *in.FirstBlock, anyBlock)
+		prepared, err := s.prepare(ctx, by, folders.Folder{}, pgtype.UUID{}, *in.FirstBlock, anyBlock)
 		if err != nil {
 			return Observation{}, err
 		}

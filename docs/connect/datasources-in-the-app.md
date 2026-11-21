@@ -36,6 +36,9 @@ Saving, importing, applying or proposing one anywhere else is refused with `409 
 Every version of a dashboard and every revision of its proposals count for a move, because the history stays readable.
 The same answer reaches the web app, the agent, MCP tools, the CLI, files applied with `observe dashboards apply`, the provisioning directory and the Grafana import.
 
+Content in any other folder is read as everyone reads it, by Admins too: a panel, variable, snapshot or RCA there never queries an Admins-only datasource, and a datasource variable with no default picks among the datasources everyone can query.
+Only content in a folder only Admins can read, the explore query, panel drafts and agent builds read with the Admin's own role.
+
 Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
 `items` lists up to 20 of them with their kind, id, title and folder, so an Admin can move them first, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
 `observe datasources edit` prints the same list.
