@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react"
+import { act, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -6,35 +6,12 @@ import { renderWithProviders } from "@/test/render"
 import { AuditSettings } from "./audit-settings"
 import type { AuditView } from "./search"
 import type { AuditEvent } from "./stream"
+import { FakeStream, refusedStream } from "./stream-fake"
 
 const fetchMock = vi.hoisted(() => vi.fn())
 
-class FakeEventSource {
-  static readonly CLOSED = 2
-  static instances: FakeEventSource[] = []
-  readyState = 0
-  closed = false
-  readonly url: string
-  private listeners = new Map<string, ((event: Event) => void)[]>()
-
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
-  }
-
-  addEventListener(name: string, listener: (event: Event) => void) {
-    this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener])
-  }
-
-  close() {
-    this.closed = true
-  }
-
-  send(name: string, data: unknown) {
-    const event = new MessageEvent(name, { data: JSON.stringify(data) })
-    for (const listener of this.listeners.get(name) ?? []) listener(event)
-  }
-}
+let liveStream: FakeStream | null = null
+let streamRequests: { url: string; init?: RequestInit }[] = []
 
 function auditEvent(id: string, fields: Partial<AuditEvent> = {}): AuditEvent {
   return {
@@ -66,61 +43,73 @@ function json(body: unknown, status = 200): Response {
 
 type Routes = {
   events?: (url: URL) => Response
+  stream?: () => Response
 }
 
 function serve(routes: Routes = {}) {
-  fetchMock.mockImplementation((request: Request) => {
-    const url = new URL(request.url)
-    switch (url.pathname) {
-      case "/api/v1/audit/events":
-        return Promise.resolve(
-          routes.events?.(url) ??
-            json({ events: [], next_cursor: null, form: "kql" })
-        )
-      case "/api/v1/audit/facets":
-        return Promise.resolve(
-          json({
-            field: url.searchParams.get("field"),
-            values:
-              url.searchParams.get("field") === "outcome"
-                ? [
-                    { value: "success", count: 40 },
-                    { value: "denied", count: 2 },
-                  ]
-                : [],
-            form: "kql",
-          })
-        )
-      case "/api/v1/audit/histogram":
-        return Promise.resolve(
-          json({
-            step_ms: 1_800_000,
-            total: 42,
-            buckets: [
-              { time: "2026-11-21T05:00:00Z", count: 40 },
-              { time: "2026-11-21T05:30:00Z", count: 2 },
-            ],
-            form: "kql",
-          })
-        )
-      case "/api/v1/audit/fields":
-        return Promise.resolve(
-          json({
-            fields: [
-              {
-                name: "outcome",
-                alias: null,
-                type: "enum",
-                description: "",
-                values: [],
-              },
-            ],
-          })
-        )
-      default:
-        return Promise.resolve(json({ error: "no", code: "not_found" }, 404))
+  fetchMock.mockImplementation(
+    (request: Request | string, init?: RequestInit) => {
+      const url = new URL(
+        typeof request === "string" ? request : request.url,
+        "http://localhost"
+      )
+      switch (url.pathname) {
+        case "/api/v1/audit/stream": {
+          streamRequests.push({ url: String(request), init })
+          if (routes.stream) return Promise.resolve(routes.stream())
+          liveStream = new FakeStream()
+          return Promise.resolve(liveStream.response)
+        }
+        case "/api/v1/audit/events":
+          return Promise.resolve(
+            routes.events?.(url) ??
+              json({ events: [], next_cursor: null, form: "kql" })
+          )
+        case "/api/v1/audit/facets":
+          return Promise.resolve(
+            json({
+              field: url.searchParams.get("field"),
+              values:
+                url.searchParams.get("field") === "outcome"
+                  ? [
+                      { value: "success", count: 40 },
+                      { value: "denied", count: 2 },
+                    ]
+                  : [],
+              form: "kql",
+            })
+          )
+        case "/api/v1/audit/histogram":
+          return Promise.resolve(
+            json({
+              step_ms: 1_800_000,
+              total: 42,
+              buckets: [
+                { time: "2026-11-21T05:00:00Z", count: 40 },
+                { time: "2026-11-21T05:30:00Z", count: 2 },
+              ],
+              form: "kql",
+            })
+          )
+        case "/api/v1/audit/fields":
+          return Promise.resolve(
+            json({
+              fields: [
+                {
+                  name: "outcome",
+                  alias: null,
+                  type: "enum",
+                  description: "",
+                  values: [],
+                },
+              ],
+            })
+          )
+        default:
+          return Promise.resolve(json({ error: "no", code: "not_found" }, 404))
+      }
     }
-  })
+  )
 }
 
 const defaults: AuditView = { q: "", from: "now-24h", to: "now", event: null }
@@ -135,10 +124,13 @@ function renderPage(view: Partial<AuditView> = {}) {
 
 beforeEach(() => {
   fetchMock.mockReset()
-  FakeEventSource.instances = []
+  liveStream = null
+  streamRequests = []
   vi.stubGlobal("fetch", fetchMock)
-  vi.stubGlobal("EventSource", FakeEventSource)
-  return () => vi.unstubAllGlobals()
+  return () => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  }
 })
 
 describe("AuditSettings", () => {
@@ -263,23 +255,75 @@ describe("AuditSettings", () => {
     const { user } = renderPage({ q: "origin:mcp" })
     const table = await screen.findByRole("region", { name: "Audit events" })
     await user.click(screen.getByRole("switch"))
-    const stream = FakeEventSource.instances[0]
-    expect(stream.url).toBe("/api/v1/audit/stream?q=origin%3Amcp")
+    await waitFor(() => expect(liveStream).not.toBe(null))
+    const stream = liveStream as unknown as FakeStream
+    expect(streamRequests[0].url).toBe("/api/v1/audit/stream?q=origin%3Amcp")
     act(() => {
-      stream.send("ready", {})
-      stream.send("audit", auditEvent("e9", { action: "auth.login" }))
-      stream.send("audit", auditEvent("e1", { action: "dashboard.delete" }))
+      stream.frame("ready", {})
+      stream.frame("audit", auditEvent("e9", { action: "auth.login" }), "x-1")
+      stream.frame(
+        "audit",
+        auditEvent("e1", { action: "dashboard.delete" }),
+        "x-2"
+      )
     })
+    await within(table).findByText("auth.login")
     const rows = within(table).getAllByRole("row").slice(1)
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("auth.login"),
       expect.stringContaining("dashboard.delete"),
     ])
-    act(() => stream.send("forbidden", { code: "forbidden_role" }))
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+    act(() => stream.frame("forbidden", { code: "forbidden_role" }))
     expect(
-      screen.getByText("Live stopped: only Admins can follow the audit log.")
+      await screen.findByText(
+        "Live stopped: only Admins can follow the audit log."
+      )
     ).toBeInTheDocument()
-    expect(stream.closed).toBe(true)
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+    expect(streamRequests[0].init?.signal?.aborted).toBe(true)
+  })
+
+  it("says Live is off when the caller already holds five streams", async () => {
+    serve({ stream: () => refusedStream(429, "too_many_streams") })
+    const { user } = renderPage()
+    await screen.findByText("No audit events in the last 24 hours.")
+    await user.click(screen.getByRole("switch"))
+    expect(
+      await screen.findByText(/already follow 5 audit streams/)
+    ).toBeInTheDocument()
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+  })
+
+  it("restarts Live with a note and reloads the list when a resume is refused", async () => {
+    const first = new FakeStream()
+    const fresh = new FakeStream()
+    const answers = [
+      first.response,
+      refusedStream(400, "invalid_request"),
+      fresh.response,
+    ]
+    let lists = 0
+    serve({
+      stream: () => answers.shift() as Response,
+      events: () => {
+        lists++
+        return json({ events: [], next_cursor: null, form: "kql" })
+      },
+    })
+    vi.spyOn(Math, "random").mockReturnValue(0)
+    const { user } = renderPage()
+    await screen.findByText("No audit events in the last 24 hours.")
+    await user.click(screen.getByRole("switch"))
+    await waitFor(() => expect(streamRequests).toHaveLength(1))
+    act(() => first.frame("audit", auditEvent("e9"), "x-9"))
+    await screen.findByText("dashboard.update")
+    act(() => first.drop())
+    await waitFor(() => expect(streamRequests).toHaveLength(3), {
+      timeout: 3000,
+    })
+    act(() => fresh.frame("ready", {}))
+    expect(await screen.findByText(/Live follow restarted/)).toBeInTheDocument()
+    await waitFor(() => expect(lists).toBe(2))
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true")
   })
 })

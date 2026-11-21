@@ -1,164 +1,168 @@
-import { act, renderHook } from "@testing-library/react"
+import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { FakeStream, lastEventIdOf, refusedStream } from "./stream-fake"
 import { useAuditStream } from "./use-audit-stream"
 
-type Listener = (event: Event) => void
-
-class FakeEventSource {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSED = 2
-  static instances: FakeEventSource[] = []
-  readyState = FakeEventSource.CONNECTING
-  closed = false
-  readonly url: string
-  private listeners = new Map<string, Listener[]>()
-
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
-  }
-
-  addEventListener(name: string, listener: Listener) {
-    this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener])
-  }
-
-  close() {
-    this.closed = true
-    this.readyState = FakeEventSource.CLOSED
-  }
-
-  send(name: string, data: unknown, lastEventId = "") {
-    this.readyState = FakeEventSource.OPEN
-    this.dispatch(
-      name,
-      new MessageEvent(name, { data: JSON.stringify(data), lastEventId })
-    )
-  }
-
-  drop(readyState: number) {
-    this.readyState = readyState
-    this.dispatch("error", new Event("error"))
-  }
-
-  private dispatch(name: string, event: Event) {
-    for (const listener of this.listeners.get(name) ?? []) listener(event)
-  }
-}
+vi.mock("@/dashboards/live/reconnect", () => ({ backoffDelay: () => 0 }))
 
 const fetchMock = vi.fn()
 
-function latest(): FakeEventSource {
-  return FakeEventSource.instances[FakeEventSource.instances.length - 1]
+function call(index: number): { url: string; init: RequestInit } {
+  const [url, init] = fetchMock.mock.calls[index] as [string, RequestInit]
+  return { url, init }
 }
 
 function mount() {
-  const handlers = { onEvent: vi.fn(), onGap: vi.fn(), onStop: vi.fn() }
+  const handlers = { onEvent: vi.fn(), onRestart: vi.fn(), onStop: vi.fn() }
   const hook = renderHook(() =>
     useAuditStream({ q: "outcome:denied", enabled: true, ...handlers })
   )
   return { ...handlers, hook }
 }
 
-function refused(status: number, code: string) {
-  return new Response(JSON.stringify({ error: "refused", code }), {
-    status,
-    headers: { "content-type": "application/json" },
-  })
-}
+const event = { id: "e1", occurred_at: "2026-11-21T06:00:00Z" }
 
 describe("useAuditStream", () => {
   beforeEach(() => {
-    FakeEventSource.instances = []
     fetchMock.mockReset()
-    vi.stubGlobal("EventSource", FakeEventSource)
     vi.stubGlobal("fetch", fetchMock)
-    vi.useFakeTimers()
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.unstubAllGlobals()
-  })
+  afterEach(() => vi.unstubAllGlobals())
 
-  it("follows the query and hands over each event", () => {
+  it("follows the query and hands over each event", async () => {
+    const stream = new FakeStream()
+    fetchMock.mockResolvedValueOnce(stream.response)
     const { onEvent, hook } = mount()
-    expect(latest().url).toBe("/api/v1/audit/stream?q=outcome%3Adenied")
-    act(() => latest().send("ready", {}))
-    expect(hook.result.current.connected).toBe(true)
-    act(() =>
-      latest().send(
-        "audit",
-        { id: "e1", occurred_at: "2026-11-21T06:00:00Z" },
-        "x-1-2"
+    expect(call(0).url).toBe("/api/v1/audit/stream?q=outcome%3Adenied")
+    expect(lastEventIdOf(call(0).init)).toBe(null)
+    act(() => stream.frame("ready", {}))
+    await waitFor(() => expect(hook.result.current.connected).toBe(true))
+    act(() => stream.frame("audit", event, "x-1"))
+    await waitFor(() =>
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "e1" })
       )
     )
-    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ id: "e1" }))
   })
 
-  it("leaves a dropped connection to the browser, which resumes it", () => {
-    const { onGap } = mount()
-    act(() => latest().send("ready", {}))
-    act(() => latest().drop(FakeEventSource.CONNECTING))
-    expect(FakeEventSource.instances).toHaveLength(1)
-    expect(fetchMock).not.toHaveBeenCalled()
-    act(() => latest().send("ready", {}))
-    expect(onGap).not.toHaveBeenCalled()
+  it("resumes a dropped connection from the last id it handled", async () => {
+    const first = new FakeStream()
+    const second = new FakeStream()
+    fetchMock
+      .mockResolvedValueOnce(first.response)
+      .mockResolvedValueOnce(second.response)
+    const { onEvent, onRestart } = mount()
+    act(() => {
+      first.frame("ready", {})
+      first.frame("audit", event, "x-2")
+    })
+    await waitFor(() => expect(onEvent).toHaveBeenCalled())
+    act(() => first.drop())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(lastEventIdOf(call(1).init)).toBe("x-2")
+    act(() => second.frame("ready", {}))
+    expect(onRestart).not.toHaveBeenCalled()
   })
 
-  it("turns itself off on a forbidden frame", () => {
+  it("reconnects after the server ends the stream, waiting the retry it sent", async () => {
+    const first = new FakeStream()
+    fetchMock
+      .mockResolvedValueOnce(first.response)
+      .mockResolvedValueOnce(new FakeStream().response)
+    mount()
+    act(() => {
+      first.write("retry: 5\n\n")
+      first.frame("audit", event, "x-3")
+      first.end()
+    })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(lastEventIdOf(call(1).init)).toBe("x-3")
+  })
+
+  it("turns itself off on a forbidden frame", async () => {
+    const stream = new FakeStream()
+    fetchMock.mockResolvedValueOnce(stream.response)
     const { onStop } = mount()
-    act(() => latest().send("forbidden", { code: "forbidden_role" }))
-    expect(onStop).toHaveBeenCalledWith(
-      "Live stopped: only Admins can follow the audit log."
-    )
-    expect(latest().closed).toBe(true)
-  })
-
-  it("turns itself off when the query is too expensive to follow", () => {
-    const { onStop } = mount()
-    act(() =>
-      latest().send("error", { error: "slow", code: "query_too_expensive" })
-    )
-    expect(onStop).toHaveBeenCalledWith(
-      expect.stringContaining("too slow to follow")
-    )
-  })
-
-  it("explains a refused connection and turns itself off on 429", async () => {
-    fetchMock.mockResolvedValue(refused(429, "too_many_streams"))
-    const { onStop } = mount()
-    act(() =>
-      latest().send(
-        "audit",
-        { id: "e1", occurred_at: "2026-11-21T06:00:00Z" },
-        "x-1-2"
+    act(() => stream.frame("forbidden", { code: "forbidden_role" }))
+    await waitFor(() =>
+      expect(onStop).toHaveBeenCalledWith(
+        "Live stopped: only Admins can follow the audit log."
       )
     )
-    await act(async () => latest().drop(FakeEventSource.CLOSED))
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(init.headers).toMatchObject({ "last-event-id": "x-1-2" })
-    expect(onStop).toHaveBeenCalledWith(
-      expect.stringContaining("already follow 5 audit streams")
-    )
-    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(call(0).init.signal?.aborted).toBe(true)
   })
 
-  it("starts over and reports a gap when the resume is too old", async () => {
-    fetchMock.mockResolvedValue(refused(400, "invalid_request"))
-    const { onGap, onStop } = mount()
-    await act(async () => latest().drop(FakeEventSource.CLOSED))
-    await act(async () => vi.runOnlyPendingTimersAsync())
-    expect(FakeEventSource.instances).toHaveLength(2)
-    act(() => latest().send("ready", {}))
-    expect(onGap).toHaveBeenCalledTimes(1)
+  it("turns itself off when the query is too expensive to follow", async () => {
+    const stream = new FakeStream()
+    fetchMock.mockResolvedValueOnce(stream.response)
+    const { onStop } = mount()
+    act(() =>
+      stream.frame("error", { error: "slow", code: "query_too_expensive" })
+    )
+    await waitFor(() =>
+      expect(onStop).toHaveBeenCalledWith(
+        expect.stringContaining("too slow to follow")
+      )
+    )
+  })
+
+  it.each([
+    [429, "too_many_streams", /already follow 5 audit streams/],
+    [403, "forbidden_role", /only Admins can follow/],
+    [422, "query_invalid", /Live stopped: refused query_invalid/],
+  ])(
+    "turns itself off on %i with its own message",
+    async (status, code, text) => {
+      fetchMock.mockResolvedValueOnce(refusedStream(status, code))
+      const { onStop } = mount()
+      await waitFor(() =>
+        expect(onStop).toHaveBeenCalledWith(expect.stringMatching(text))
+      )
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it("starts over without the id when the resume is too old, then reports it", async () => {
+    const first = new FakeStream()
+    const fresh = new FakeStream()
+    fetchMock
+      .mockResolvedValueOnce(first.response)
+      .mockResolvedValueOnce(refusedStream(400, "invalid_request"))
+      .mockResolvedValueOnce(fresh.response)
+    const { onEvent, onRestart, onStop } = mount()
+    act(() => first.frame("audit", event, "x-4"))
+    await waitFor(() => expect(onEvent).toHaveBeenCalled())
+    act(() => first.drop())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(lastEventIdOf(call(1).init)).toBe("x-4")
+    expect(lastEventIdOf(call(2).init)).toBe(null)
+    expect(onRestart).not.toHaveBeenCalled()
+    act(() => fresh.frame("ready", {}))
+    await waitFor(() => expect(onRestart).toHaveBeenCalledTimes(1))
     expect(onStop).not.toHaveBeenCalled()
   })
 
-  it("closes the stream when it unmounts", () => {
+  it("retries a server that is shutting down with the same id", async () => {
+    const first = new FakeStream()
+    fetchMock
+      .mockResolvedValueOnce(first.response)
+      .mockResolvedValueOnce(refusedStream(503, "shutting_down"))
+      .mockResolvedValueOnce(new FakeStream().response)
+    const { onEvent, onStop } = mount()
+    act(() => first.frame("audit", event, "x-5"))
+    await waitFor(() => expect(onEvent).toHaveBeenCalled())
+    act(() => first.drop())
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(lastEventIdOf(call(2).init)).toBe("x-5")
+    expect(onStop).not.toHaveBeenCalled()
+  })
+
+  it("aborts the request when it unmounts", () => {
+    fetchMock.mockResolvedValueOnce(new FakeStream().response)
     const { hook } = mount()
     hook.unmount()
-    expect(latest().closed).toBe(true)
+    expect(call(0).init.signal?.aborted).toBe(true)
   })
 })

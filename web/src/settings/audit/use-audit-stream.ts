@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { toApiError } from "@/api/errors"
 import { backoffDelay } from "@/dashboards/live/reconnect"
+import { readSse, type SseFrame } from "@/lib/sse"
 
 import {
   type AuditEvent,
@@ -15,123 +16,115 @@ type AuditStreamInput = {
   q: string
   enabled: boolean
   onEvent: (event: AuditEvent) => void
-  onGap: () => void
+  onRestart: () => void
   onStop: (message: string) => void
+}
+
+const defaultRetryMs = 3_000
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms)
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer)
+        resolve()
+      },
+      { once: true }
+    )
+  })
 }
 
 export function useAuditStream({
   q,
   enabled,
   onEvent,
-  onGap,
+  onRestart,
   onStop,
 }: AuditStreamInput): { connected: boolean } {
-  const handlers = useRef({ onEvent, onGap, onStop })
+  const handlers = useRef({ onEvent, onRestart, onStop })
   useEffect(() => {
-    handlers.current = { onEvent, onGap, onStop }
+    handlers.current = { onEvent, onRestart, onStop }
   })
   const [connected, setConnected] = useState(false)
 
   useEffect(() => {
     if (!enabled) return
     const url = auditStreamUrl(q)
-    let source: EventSource | undefined
-    let probe: AbortController | undefined
-    let retryTimer: ReturnType<typeof setTimeout> | undefined
-    let disposed = false
+    const controller = new AbortController()
+    const { signal } = controller
     let attempt = 0
-    let lastId = ""
-    let gapPending = false
+    let lastEventId = ""
+    let restarted = false
 
     const stop = (message: string) => {
-      source?.close()
-      source = undefined
+      controller.abort()
       setConnected(false)
       handlers.current.onStop(message)
     }
-    const reopen = (delay: number) => {
-      gapPending = true
-      lastId = ""
-      retryTimer = setTimeout(open, delay)
-    }
 
-    async function explain() {
-      const controller = new AbortController()
-      probe = controller
-      const headers: Record<string, string> = { accept: "text/event-stream" }
-      if (lastId !== "") headers["last-event-id"] = lastId
-      try {
-        const response = await fetch(url, {
-          headers,
-          signal: controller.signal,
-        })
-        if (response.ok) {
-          controller.abort()
-          if (!disposed) reopen(backoffDelay(attempt++))
+    function onFrame(frame: SseFrame) {
+      switch (frame.event) {
+        case "ready":
+          attempt = 0
+          setConnected(true)
+          if (restarted) {
+            restarted = false
+            handlers.current.onRestart()
+          }
+          return
+        case "audit": {
+          const event = parseAuditFrame(frame.data)
+          if (event !== null) handlers.current.onEvent(event)
           return
         }
-        const body: unknown = await response.json().catch(() => null)
-        if (disposed) return
-        const reason = toApiError(response, body)
+        case "forbidden":
+        case "error":
+          stop(stopFrameText(frame.event, frame.data))
+      }
+    }
+
+    async function follow() {
+      while (!signal.aborted) {
+        const read = await readSse(url, { lastEventId, signal, onFrame })
+        lastEventId = read.lastEventId
+        if (read.end.kind === "aborted") return
+        setConnected(false)
+        if (read.end.kind === "closed") {
+          await pause(read.retryMs ?? defaultRetryMs, signal)
+          continue
+        }
+        if (read.end.kind === "dropped") {
+          await pause(backoffDelay(attempt++), signal)
+          continue
+        }
+        const reason = toApiError(read.end.response, read.end.body)
         const refusal = streamRefusal(
           reason.status,
           reason.code,
           reason.message
         )
-        if (refusal.kind === "stop") stop(refusal.message)
-        else reopen(refusal.kind === "gap" ? 0 : backoffDelay(attempt++))
-      } catch {
-        if (!disposed) reopen(backoffDelay(attempt++))
+        if (refusal.kind === "stop") {
+          stop(refusal.message)
+          return
+        }
+        if (refusal.kind === "gap" && lastEventId !== "") {
+          lastEventId = ""
+          restarted = true
+          continue
+        }
+        if (refusal.kind === "gap") {
+          stop(`Live stopped: ${reason.message}`)
+          return
+        }
+        await pause(backoffDelay(attempt++), signal)
       }
     }
 
-    function open() {
-      retryTimer = undefined
-      if (disposed) return
-      const stream = new EventSource(url)
-      source = stream
-      stream.addEventListener("ready", () => {
-        if (source !== stream) return
-        attempt = 0
-        setConnected(true)
-        if (gapPending) {
-          gapPending = false
-          handlers.current.onGap()
-        }
-      })
-      stream.addEventListener("audit", (message) => {
-        if (source !== stream) return
-        const frame = message as MessageEvent<string>
-        const event = parseAuditFrame(frame.data)
-        if (event === null) return
-        if (frame.lastEventId !== "") lastId = frame.lastEventId
-        handlers.current.onEvent(event)
-      })
-      stream.addEventListener("forbidden", (message) => {
-        if (source !== stream) return
-        stop(stopFrameText("forbidden", (message as MessageEvent<string>).data))
-      })
-      stream.addEventListener("error", (event) => {
-        if (source !== stream) return
-        if (event instanceof MessageEvent) {
-          stop(stopFrameText("error", String(event.data)))
-          return
-        }
-        setConnected(false)
-        if (stream.readyState !== EventSource.CLOSED) return
-        stream.close()
-        source = undefined
-        void explain()
-      })
-    }
-
-    open()
+    void follow()
     return () => {
-      disposed = true
-      clearTimeout(retryTimer)
-      probe?.abort()
-      source?.close()
-      source = undefined
+      controller.abort()
       setConnected(false)
     }
   }, [q, enabled])

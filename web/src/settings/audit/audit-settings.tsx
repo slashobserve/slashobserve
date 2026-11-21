@@ -39,6 +39,9 @@ const auditRanges = [
   { label: "Last 365 days", from: "now-365d", to: "now" },
 ]
 
+const restartedText =
+  "Live follow restarted: the stream could not resume from the last event it showed, so the list was reloaded up to now."
+
 type Live = { key: string; rows: readonly AuditEvent[] }
 
 function viewKey(view: AuditView): string {
@@ -57,6 +60,7 @@ export function AuditSettings({
   const refresh = () => setAnchor(Date.now())
   const search = (next: AuditView) => {
     refresh()
+    setLiveNotice(null)
     onView(next)
   }
 
@@ -109,7 +113,10 @@ export function AuditSettings({
           loadedIds
         ),
       })),
-    onGap: refresh,
+    onRestart: () => {
+      refresh()
+      setLiveNotice(restartedText)
+    },
     onStop: (message) => {
       setLiveOn(false)
       setLiveNotice(message)
