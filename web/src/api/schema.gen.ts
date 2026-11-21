@@ -6636,7 +6636,7 @@ export interface components {
             can_cancel: boolean;
             /** @description True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it. */
             read_only: boolean;
-            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation and an answer shared into a thread are never redacted. */
+            /** @description True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation is never redacted, and an answer shared into a thread is not redacted for a caller who can read that thread; anyone else who reaches it, through its observation for example, reads it redacted. */
             redacted: boolean;
             /**
              * Format: uuid

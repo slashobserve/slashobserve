@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -168,6 +169,41 @@ func TestAReaderOfTheObservationAPrivateAnswerWasSavedIntoReadsTheRunWithoutItsQ
 	}
 	if redacted, prompt, _, _ := r.runSeenBy(t, otherEditor, run); redacted || !strings.Contains(prompt, sharedWord) {
 		t.Fatalf("after the share, a reader sees redacted %v and prompt %q, want the question it was asked in the thread", redacted, prompt)
+	}
+}
+
+func TestASharedPrivateAnswerStaysRedactedForAReaderOfItsObservationWhoCannotReadTheThread(t *testing.T) {
+	r := newShareRig(t)
+	about := r.filedObservationIn(t, testUser, foldertest.Open(t, r.db, "Shared"))
+	id := about.String()
+	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
+	saved := r.savedAsObservation(t, run, about)
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, saved, foldertest.Open(t, r.db, "Team"))
+	if _, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run}); err != nil {
+		t.Fatal(err)
+	}
+	r.db.Exec(t, `UPDATE observations SET folder_id = $2 WHERE id = $1`, about, foldertest.Restricted(t, r.db, "Payroll", "payroll-team"))
+
+	raw, err := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{}).Run(reading(t.Context()), run, otherEditor, 0)
+	if err != nil {
+		t.Fatalf("a reader of the saved answer reads the run: %v", err)
+	}
+	var shown struct {
+		Redacted       bool     `json:"redacted"`
+		ReadOnly       bool     `json:"read_only"`
+		Prompt         string   `json:"prompt"`
+		AllowedActions []string `json:"allowed_actions"`
+	}
+	if err := json.Unmarshal(raw, &shown); err != nil {
+		t.Fatal(err)
+	}
+	if !shown.Redacted || !shown.ReadOnly || shown.Prompt != "" || len(shown.AllowedActions) != 0 {
+		t.Fatalf("a reader of the saved answer who cannot read the thread sees %+v, want it redacted and read only", shown)
+	}
+	rec := httptest.NewRecorder()
+	r.observeEngine(otherEditor).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/observe/"+run.String()+"/retry", nil))
+	if rec.Code != http.StatusConflict || strings.Contains(rec.Body.String(), sharedWord) {
+		t.Fatalf("their retry answered %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
