@@ -253,7 +253,7 @@ func TestAnotherPersonsRunKeptWithAdminsIsListedOnlyForAdmins(t *testing.T) {
 		t.Fatal(err)
 	}
 	var subject string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name) VALUES ($1::uuid, 'Leadership notes', 'user', $2::uuid, 'Root') RETURNING id::text`, adminsOnly, root.ID).Scan(&subject); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name) VALUES ($1::uuid, 'Leadership notes', 'user', $2::uuid, 'Bob') RETURNING id::text`, adminsOnly, bob.ID).Scan(&subject); err != nil {
 		t.Fatal(err)
 	}
 	for _, caller := range []auth.Principal{ada, root} {
