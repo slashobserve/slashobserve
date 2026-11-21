@@ -153,7 +153,7 @@ func TestADuplicateWithoutAFolderGoesToTheSourcesFolderWhenTheCallerCanCreateThe
 	restricted(t, err, "audit")
 }
 
-func TestADuplicateWithoutAFolderGoesToTheCallersPersonalFolderWhenTheyCannotCreateInTheSourcesFolder(t *testing.T) {
+func TestADuplicateWithoutAFolderByAViewerOfTheSourcesFolderIsRefusedAndCreatesNothing(t *testing.T) {
 	r := newPlacementRig(t)
 	ctx := reading(t.Context())
 	open := r.folder(t, "Team", false)
@@ -164,17 +164,15 @@ func TestADuplicateWithoutAFolderGoesToTheCallersPersonalFolderWhenTheyCannotCre
 	source, _ := db.ParseUUID(dash.ID)
 	viewer := auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Role: auth.RoleViewer}
 
-	copied, _, err := r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
-	if err != nil {
-		t.Fatalf("duplicate without a folder: %v", err)
+	_, _, err = r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
+	if !errors.Is(err, folders.ErrForbidden) {
+		t.Fatalf("a Viewer's duplicate = %v, want ErrForbidden", err)
 	}
-
-	var personal string
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(),
-		`SELECT id::text FROM folders WHERE personal AND owner_id = $1`, testUserID).Scan(&personal); err != nil {
+	var count int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if got := r.folderOfDashboard(t, mustUUID(t, copied.ID)); got.String() != personal {
-		t.Fatalf("the copy is in folder %v, want the caller's personal folder %v", got, personal)
+	if count != 1 {
+		t.Fatalf("%d dashboards after the refused duplicate, want 1", count)
 	}
 }
