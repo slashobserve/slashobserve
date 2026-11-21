@@ -5,6 +5,7 @@ import {
   positionOf,
   type Anchor,
   type Point,
+  type Rect,
   type Size,
 } from "../anchors"
 import type { HeatmapModel } from "./heatmap-model"
@@ -41,4 +42,24 @@ export function hitTest(
     category: clip(model.rows[row].label),
     ...(value === null ? {} : { shown: clip(format(value)) }),
   })
+}
+
+export function locate(
+  { origin, plot, model }: HeatmapAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  if (anchor.kind !== "heat_cell") return null
+  const col = model.xs.findIndex((x) => msToIso(x) === anchor.from)
+  const row = model.rows.findIndex(
+    ({ label }) => clip(label) === anchor.category
+  )
+  if (col < 0 || row < 0) return null
+  const width = plot.width / model.xs.length
+  const height = plot.height / model.rows.length
+  return {
+    x: origin.x + col * width,
+    y: origin.y + (model.rows.length - 1 - row) * height,
+    width,
+    height,
+  }
 }

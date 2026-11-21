@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type HeatmapAnchorLayout } from "./anchors"
+import { inRect } from "../anchors"
+
+import { hitTest, locate, type HeatmapAnchorLayout } from "./anchors"
 
 const layout: HeatmapAnchorLayout = {
   body: { width: 240, height: 140 },
@@ -45,5 +47,33 @@ describe("heatmap hitTest", () => {
     expect(hitTest(layout, { x: 10, y: 50 })).toBeNull()
     const empty = { ...layout, model: { xs: [], rows: [], cells: [] } }
     expect(hitTest(empty, { x: 60, y: 50 })).toBeNull()
+  })
+})
+
+describe("heatmap locate", () => {
+  it("finds the cell a hit test named", () => {
+    const point = { x: 40 + 60, y: 10 + 75 }
+    const anchor = hitTest(layout, point)
+    expect(anchor).not.toBeNull()
+    const rect = locate(layout, anchor!)
+    expect(rect).toEqual({ x: 40 + 50, y: 10 + 50, width: 50, height: 50 })
+    expect(inRect(rect!, point)).toBe(true)
+  })
+
+  it("returns null when the bucket or the time step is gone", () => {
+    const at = new Date(60_000).toISOString()
+    const pos = { x: 0, y: 0 }
+    expect(
+      locate(layout, { kind: "heat_cell", pos, from: at, category: "1s" })
+    ).toBeNull()
+    expect(
+      locate(layout, {
+        kind: "heat_cell",
+        pos,
+        from: new Date(61_000).toISOString(),
+        category: "10ms",
+      })
+    ).toBeNull()
+    expect(locate(layout, { kind: "position", pos })).toBeNull()
   })
 })
