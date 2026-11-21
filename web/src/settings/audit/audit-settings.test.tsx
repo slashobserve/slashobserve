@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { act, screen, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -8,6 +8,33 @@ import type { AuditView } from "./search"
 import type { AuditEvent } from "./stream"
 
 const fetchMock = vi.hoisted(() => vi.fn())
+
+class FakeEventSource {
+  static readonly CLOSED = 2
+  static instances: FakeEventSource[] = []
+  readyState = 0
+  closed = false
+  readonly url: string
+  private listeners = new Map<string, ((event: Event) => void)[]>()
+
+  constructor(url: string) {
+    this.url = url
+    FakeEventSource.instances.push(this)
+  }
+
+  addEventListener(name: string, listener: (event: Event) => void) {
+    this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener])
+  }
+
+  close() {
+    this.closed = true
+  }
+
+  send(name: string, data: unknown) {
+    const event = new MessageEvent(name, { data: JSON.stringify(data) })
+    for (const listener of this.listeners.get(name) ?? []) listener(event)
+  }
+}
 
 function auditEvent(id: string, fields: Partial<AuditEvent> = {}): AuditEvent {
   return {
@@ -108,7 +135,9 @@ function renderPage(view: Partial<AuditView> = {}) {
 
 beforeEach(() => {
   fetchMock.mockReset()
+  FakeEventSource.instances = []
   vi.stubGlobal("fetch", fetchMock)
+  vi.stubGlobal("EventSource", FakeEventSource)
   return () => vi.unstubAllGlobals()
 })
 
@@ -220,5 +249,37 @@ describe("AuditSettings", () => {
     expect(
       screen.getByText("Live follows a time range that ends now.")
     ).toBeInTheDocument()
+  })
+
+  it("puts live events on top and turns Live off when the stream refuses", async () => {
+    serve({
+      events: () =>
+        json({
+          events: [auditEvent("e1", { action: "dashboard.delete" })],
+          next_cursor: null,
+          form: "kql",
+        }),
+    })
+    const { user } = renderPage({ q: "origin:mcp" })
+    const table = await screen.findByRole("region", { name: "Audit events" })
+    await user.click(screen.getByRole("switch"))
+    const stream = FakeEventSource.instances[0]
+    expect(stream.url).toBe("/api/v1/audit/stream?q=origin%3Amcp")
+    act(() => {
+      stream.send("ready", {})
+      stream.send("audit", auditEvent("e9", { action: "auth.login" }))
+      stream.send("audit", auditEvent("e1", { action: "dashboard.delete" }))
+    })
+    const rows = within(table).getAllByRole("row").slice(1)
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("auth.login"),
+      expect.stringContaining("dashboard.delete"),
+    ])
+    act(() => stream.send("forbidden", { code: "forbidden_role" }))
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+    expect(
+      screen.getByText("Live stopped: only Admins can follow the audit log.")
+    ).toBeInTheDocument()
+    expect(stream.closed).toBe(true)
   })
 })

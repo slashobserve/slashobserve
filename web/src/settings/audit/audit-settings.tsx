@@ -90,10 +90,13 @@ export function AuditSettings({
     () => new Set(loaded.map((event) => event.id)),
     [loaded]
   )
-  const shown = [...liveRows, ...loaded]
+  const shown = [
+    ...liveRows.filter((event) => !loadedIds.has(event.id)),
+    ...loaded,
+  ]
 
   const canFollow = followsNow(view) && window !== null
-  const following = liveOn && canFollow && events.isSuccess
+  const following = liveOn && canFollow && !events.isError
   const stream = useAuditStream({
     q: view.q,
     enabled: following,
