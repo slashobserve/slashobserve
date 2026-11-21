@@ -8,6 +8,7 @@ import {
   panelEditorShowsNewerVersion,
   parseAnnotationTags,
   searchFromState,
+  searchWithoutLegacyTab,
   validateBack,
   validateDashboardSearch,
   withVariables,
@@ -476,5 +477,25 @@ describe("thread", () => {
     ["an id longer than 64 characters", "a".repeat(65)],
   ])("drops %s", (_name, thread) => {
     expect(validateDashboardSearch({ thread })).toEqual({ vars: {} })
+  })
+})
+
+describe("searchWithoutLegacyTab", () => {
+  it.each(["chat", "activity"])("leaves a URL on the %s tab alone", (tab) => {
+    expect(searchWithoutLegacyTab(parseSearch(`?tab=${tab}`))).toBeUndefined()
+  })
+
+  it("leaves a URL without a tab alone", () => {
+    expect(searchWithoutLegacyTab(parseSearch("?panel=rps"))).toBeUndefined()
+  })
+
+  it("rewrites the legacy query tab to the editor", () => {
+    expect(searchWithoutLegacyTab(parseSearch("?panel=rps&tab=query"))).toEqual(
+      { panel: "rps", edit: "query" }
+    )
+  })
+
+  it("drops a tab it does not know", () => {
+    expect(searchWithoutLegacyTab(parseSearch("?tab=comments"))).toEqual({})
   })
 })
