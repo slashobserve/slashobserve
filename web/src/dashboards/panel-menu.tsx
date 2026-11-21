@@ -259,7 +259,7 @@ export function PanelMenu({
           inspectTab: undefined,
         }))
       },
-      shortcut: shortcutText("inspect"),
+      shortcut: onDashboard ? shortcutText("inspect") : undefined,
     })
   }
   if (data && (panel.type === "logs" || panel.type === "traces")) {

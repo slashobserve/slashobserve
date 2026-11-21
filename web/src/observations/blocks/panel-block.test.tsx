@@ -251,6 +251,12 @@ describe("PanelBlock", () => {
       expect(screen.getByRole("menuitem", { name })).toBeTruthy()
     }
 
+    for (const item of items) {
+      expect(item.querySelector('[data-slot="dropdown-menu-shortcut"]')).toBe(
+        null
+      )
+    }
+
     await user.click(screen.getByRole("menuitem", { name: "Inspect" }))
     expect(inspect.open).toHaveBeenCalledWith("b1")
   })
