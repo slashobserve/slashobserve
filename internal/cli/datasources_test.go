@@ -32,6 +32,20 @@ func TestDatasourcesListPrintsEveryDatasource(t *testing.T) {
 	}
 }
 
+func TestDatasourcesListShowsTheAudienceOnlyWhenTheServerSendsIt(t *testing.T) {
+	plain, _ := recordingServer(t, `{"datasources":[{"uid":"prom","type":"prometheus","name":"Prom","source":"app","healthy":true,"dashboard_count":3}]}`)
+	stdout, _, code := runWith(plain, "datasources", "list")
+	if code != 0 || strings.Contains(stdout, "AUDIENCE") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+	admin, _ := recordingServer(t, `{"datasources":[{"uid":"prom","type":"prometheus","name":"Prom","source":"app","audience":"everyone","healthy":true,"dashboard_count":3},{"uid":"pay","type":"loki","name":"Pay","source":"file","audience":"admins","healthy":true,"dashboard_count":0}]}`)
+	stdout, _, code = runWith(admin, "datasources", "list")
+	stdout = strings.Join(strings.Fields(stdout), " ")
+	if code != 0 || !strings.Contains(stdout, "SOURCE AUDIENCE DASHBOARDS") || !strings.Contains(stdout, "app everyone 3") || !strings.Contains(stdout, "file admins 0") {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
+	}
+}
+
 func TestMetricsSendsTheFiltersAndSaysWhenMoreExist(t *testing.T) {
 	server, seen := recordingServer(t, `{"datasource":"prom","metrics":[{"name":"http_requests_total","type":"counter","help":"Requests"}],"truncated":true}`)
 	stdout, stderr, code := runWith(server, "datasources", "metrics", "prom", "--search", "http", "--limit", "20")

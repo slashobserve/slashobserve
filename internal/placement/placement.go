@@ -133,19 +133,45 @@ func (g *Guard) MoveDashboard(ctx context.Context, q *dbsqlc.Queries, id, to pgt
 	if err := refuseLinkedMove(ctx, q, id, to); err != nil {
 		return err
 	}
+	refs, err := dashboardRefs(ctx, q, id)
+	if err != nil {
+		return err
+	}
+	return g.Move(ctx, q, folders.ContentDashboard, to, refs)
+}
+
+func dashboardRefs(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) ([]string, error) {
 	specs, err := q.PlacementDashboardSpecs(ctx, id)
 	if err != nil {
-		return fmt.Errorf("read dashboard specs: %w", err)
+		return nil, fmt.Errorf("read dashboard specs: %w", err)
 	}
 	var refs []string
 	for _, raw := range specs {
 		found, err := SpecRefs(raw)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		refs = union(refs, found)
 	}
-	return g.Move(ctx, q, folders.ContentDashboard, to, refs)
+	return refs, nil
+}
+
+func (g *Guard) DashboardDatasource(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (string, error) {
+	refs, err := dashboardRefs(ctx, q, id)
+	if err != nil {
+		return "", err
+	}
+	ds, _, err := g.Restricted(ctx, q, refs)
+	return ds, err
+}
+
+func (g *Guard) ObservationDatasource(ctx context.Context, q *dbsqlc.Queries, id pgtype.UUID) (string, error) {
+	refs, err := observationRefs(ctx, q, id)
+	if err != nil {
+		return "", err
+	}
+	ds, _, err := g.Restricted(ctx, q, refs)
+	return ds, err
 }
 
 func (g *Guard) MoveObservation(ctx context.Context, q *dbsqlc.Queries, id, to pgtype.UUID) error {

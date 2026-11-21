@@ -376,8 +376,8 @@ func (e *apiError) restrictedItemsHint() string {
 			Title       string `json:"title"`
 			FolderTitle string `json:"folder_title"`
 		} `json:"items"`
-		Unlisted int `json:"unlisted"`
 		Hidden   int `json:"hidden"`
+		Unlisted int `json:"unlisted"`
 	}
 	if json.Unmarshal(e.raw, &body) != nil || len(body.Items) == 0 && body.Hidden == 0 {
 		return ""
@@ -387,7 +387,7 @@ func (e *apiError) restrictedItemsHint() string {
 		lines = append(lines, fmt.Sprintf("  %s %s %q in folder %q", strings.ReplaceAll(it.Kind, "_", " "), it.ID, it.Title, it.FolderTitle))
 	}
 	if body.Unlisted > 0 {
-		lines = append(lines, fmt.Sprintf("  and %d more in folders other people can read", body.Unlisted))
+		lines = append(lines, fmt.Sprintf("  and %d more not listed", body.Unlisted))
 	}
 	if body.Hidden > 0 {
 		lines = append(lines, fmt.Sprintf("  and %d in people's My Dashboards", body.Hidden))
