@@ -32,6 +32,7 @@ const (
 	ReasonNotFound        = "not_found"
 	ReasonForbidden       = "forbidden_role"
 	ReasonQueueFull       = "queue_full"
+	ReasonProvisioned     = "provisioned"
 )
 
 const walkPageSize = 100
@@ -229,6 +230,9 @@ func checkTarget(ctx context.Context, q *dbsqlc.Queries, requester pgtype.UUID, 
 	}
 	if !abilities.Edit {
 		return 0, ReasonForbidden, nil
+	}
+	if target.Provisioned {
+		return 0, ReasonProvisioned, nil
 	}
 	active, err := q.CountActiveAgentRequests(ctx, id)
 	if err != nil {

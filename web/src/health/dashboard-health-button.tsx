@@ -9,10 +9,12 @@ import {
 
 import { CheckLine } from "./check-line"
 import {
+  awaitsRecheck,
   dashboardProblems,
   healthyLabel,
   isHealthy,
   problemCountText,
+  recheckPendingLabel,
   repairAction,
   repairLabel,
   repairStatus,
@@ -21,6 +23,7 @@ import {
   type SummaryLabel,
 } from "./health-labels"
 import { ProblemGroups } from "./problem-groups"
+import { RecheckNote, RecheckPending } from "./recheck-pending"
 import { RepairControl } from "./repair-control"
 import { useDashboardHealth } from "./use-dashboard-health"
 
@@ -53,29 +56,40 @@ export function DashboardHealthButton({
   const { item, agentAvailable, repair, pending } =
     useDashboardHealth(dashboardId)
   if (item === null) return null
-  if (isHealthy(item)) return <HealthyButton item={item} />
+  const awaiting = awaitsRecheck(item)
   const problems = dashboardProblems(item)
-  if (problems.length === 0 && item.repair === null) return null
   const status = repairStatus(repairAction(item, agentAvailable))
-  const label: SummaryLabel = (status?.tone === "running" ||
-  problems.length === 0
-    ? status
-    : null) ?? {
-    tone: worstTone(problems),
-    label: problemCountText(problems.length),
+  if (awaiting && problems.length === 0 && status === null) {
+    return <RecheckPending item={item} variant="ghost" size="sm" align="end" />
   }
+  if (isHealthy(item)) return <HealthyButton item={item} />
+  if (problems.length === 0 && item.repair === null) return null
+  const summary: SummaryLabel =
+    awaiting && problems.length === 0
+      ? { tone: "none", label: recheckPendingLabel }
+      : { tone: worstTone(problems), label: problemCountText(problems.length) }
+  const label: SummaryLabel =
+    (status?.tone === "running" || problems.length === 0 ? status : null) ??
+    summary
   return (
     <Popover>
       <PopoverTrigger
         render={<Button variant="outline" size="sm" aria-haspopup="dialog" />}
       >
         <StatusLabel tone={label.tone}>{label.label}</StatusLabel>
+        {awaiting && label.label !== recheckPendingLabel ? (
+          <span className="text-muted-foreground">{recheckPendingLabel}</span>
+        ) : null}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80">
         <PopoverTitle>Health</PopoverTitle>
-        <p className="text-xs text-muted-foreground">
-          <CheckLine item={item} />
-        </p>
+        {awaiting ? (
+          <RecheckNote item={item} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            <CheckLine item={item} />
+          </p>
+        )}
         <ProblemGroups problems={problems} />
         <div>
           <RepairControl

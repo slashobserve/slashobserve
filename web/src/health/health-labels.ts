@@ -87,8 +87,28 @@ export function problemSubject(problem: HealthProblem): string {
   return ""
 }
 
+const checkedKinds: ReadonlySet<HealthKind> = new Set([
+  "query_failed",
+  "variable_failed",
+  "no_data",
+])
+
+export const recheckPendingLabel = "Recheck pending"
+
+export const recheckPendingText =
+  "This dashboard changed since the last check and is waiting for a recheck."
+
+export function awaitsRecheck(item: HealthItem): boolean {
+  return item.state === "outdated"
+}
+
+export function currentProblems(item: HealthItem): HealthProblem[] {
+  if (item.state !== "outdated") return item.problems
+  return item.problems.filter((p) => !checkedKinds.has(p.kind))
+}
+
 export function dashboardProblems(item: HealthItem): HealthProblem[] {
-  return item.problems.filter((p) => p.kind !== "unopened")
+  return currentProblems(item).filter((p) => p.kind !== "unopened")
 }
 
 export function panelProblems(
@@ -128,7 +148,10 @@ export function worstTone(problems: readonly HealthProblem[]): StatusTone {
 }
 
 export function canRepair(item: HealthItem): boolean {
-  return item.can_edit && item.problems.some((p) => repairableKinds.has(p.kind))
+  return (
+    item.can_edit &&
+    currentProblems(item).some((p) => repairableKinds.has(p.kind))
+  )
 }
 
 export function repairLabel(problems: readonly HealthProblem[]): string {
@@ -164,7 +187,7 @@ export function groupProblems(
 export function healthCellText(
   item: HealthItem
 ): { group: ProblemGroup; more: number } | null {
-  const [group] = groupProblems(item.problems)
+  const [group] = groupProblems(currentProblems(item))
   if (group === undefined) return null
   const more = dashboardProblems(item).filter(
     (p) => p.kind !== group.kind || p.message !== group.message
@@ -178,6 +201,7 @@ export function isHealthy(item: HealthItem): boolean {
   return (
     item.checked_at !== null &&
     item.skipped === null &&
+    !awaitsRecheck(item) &&
     dashboardProblems(item).length === 0 &&
     !repairActive(item)
   )
@@ -283,6 +307,8 @@ const skipTexts: Record<RepairsQueued["skipped"][number]["reason"], string> = {
   nothing_to_repair: "The last check found nothing to repair.",
   not_found: "The dashboard no longer exists.",
   forbidden_role: "You cannot edit this dashboard.",
+  provisioned:
+    "This is a starter dashboard that releases keep current. Duplicate it to repair a copy.",
   queue_full:
     "You already have 20 repairs queued or running. Try again when some finish.",
 }
