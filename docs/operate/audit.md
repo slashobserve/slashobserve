@@ -18,6 +18,7 @@ Health checks and the static web files do not.
 | Changes | One event for each change, written in the same database transaction as the change, so the two commit or roll back together. |
 | Failed changes | When a request that should have recorded a change ends without a committed event, the recorder writes a `failed` event for it, with the reason `rolled_back` unless the request had a better one. |
 | Unconfirmed changes | When the recorder cannot confirm whether the event committed, it writes an `unknown` event with the reason `commit_check_failed`. |
+| Redirects | A redirect status (301, 302, 303, 307 or 308) on an audited route is recorded with the outcome `unknown`. |
 | Denied requests | A request answered with 401, 403 or 429, or with 404 on a route that names its target, is recorded as `denied`. A refused request on a route with no audit action is recorded as `request.refuse`. |
 | Repeated refusals | Repeated `auth.login_failed`, `auth.credential_rejected` and `auth.csrf_rejected` events are folded into one event a minute, with the count in `data.count`; see [Audit queries](../reference/audit-queries.md#fields). |
 | Tool calls | One `agent.tool_call` event for each MCP tool call, with the tool name, the outcome, the reason and the duration. The arguments and the result are not recorded. |
@@ -88,7 +89,7 @@ The activity log has its own period, `SLASHOBSERVE_ACTIVITY_RETENTION`; see [Act
 Events reach the table by one of two paths.
 
 A change writes its event inside the change's own transaction, so the buffer below never holds it.
-The request's own event, when it is not a read, a tool call, a query or `denied`, is written straight to the database with a 5 second limit.
+The request's own event is written straight to the database with a 5 second limit when its outcome is `unknown`, or when it is not a read, a tool call, a query or `denied`.
 If that write fails with an error a retry can fix, such as a timeout, a lost connection, a lock that was not available or a read-only database during a failover, the event is handed to the writer's retry and the server logs `audit event queued to be written again`.
 If the error cannot be fixed by a retry, or the retry queue is full, the event is lost, `slashobserve_audit_dropped_total{reason="record_failed"}` counts it and the server logs `audit request event not written` with the `error_code` `audit_record_failed`.
 
@@ -134,7 +135,11 @@ It exports no counts of events by action, person or outcome, because `/metrics` 
 
 Setting `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` makes one server at a time post the stored events to an OTLP/HTTP logs receiver, through the `audit_export` job.
 It reads events in the order they were committed, from a position kept in the `audit_export_cursor` table of the same database, and moves the position only after the receiver answers with a `2xx` status.
-So delivery is at least once and in order, and a receiver should drop repeats by `slashobserve.audit.id`.
+So delivery is at least once and in order for the events the receiver accepts, and a receiver should drop repeats by `slashobserve.audit.id`.
+Events the receiver refuses are not delivered.
+When it answers `400`, `413` or `422` for a single event, the exporter moves past that event and counts it in `slashobserve_audit_export_dropped_total{reason="refused"}`.
+Events it refuses in a partial success reply are counted in `slashobserve_audit_export_rejected_total` and are not sent again.
+Watch both counters when the copy must be complete.
 [Audit export](audit-export.md) has the retry rules, the record layout and the metrics.
 
 Three points for the operator:
@@ -161,7 +166,8 @@ Admins, and Admin service-account keys, read the trail.
 Every read of the trail is itself recorded, so the trail shows who searched it.
 A datasources file entry with the uid `slashobserve-audit` stops the server at start with the error code `audit_datasource_failed`.
 
-The server creates the Audit folder and its starters at start and brings them up to date at every start; see [Audit folder](../use/activity.md#audit-folder).
+The server creates the Audit folder once, at the first seeding, or adopts an existing folder named Audit that is Admins only.
+While the folder exists, it brings the starters up to date at every start, and a folder an Admin deletes is never created again; see [Audit folder](../use/activity.md#audit-folder).
 If a folder named Audit already exists and is not Admins only, the server logs a warning and adds no starters until the folder is made Admins only.
 If seeding fails, the server logs `could not add the Audit folder's starter dashboards` with the `error_code` `audit_folder_failed` and tries again at the next start.
 
