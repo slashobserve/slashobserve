@@ -537,3 +537,32 @@ func TestPrintRequestShowsTheTitleAndPrompt(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyPostsTheAnswerInPlaceOfAPrompt(t *testing.T) {
+	var posted string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		posted = string(data)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"build","intent":"apply","status":"queued","steps":[]}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	_, stderr, code := runCLI("--server", server.URL, "--token", "k", "--no-wait", "--revise", "--dashboard", askOnDashboardID, "--apply", investigationID)
+	if code != 0 {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if want := `{"applies_finding_id":"` + investigationID + `","dashboard_id":"` + askOnDashboardID + `","kind":"revise"}`; posted != want {
+		t.Errorf("posted %s, want %s", posted, want)
+	}
+	for _, args := range [][]string{
+		{"--revise", "--dashboard", askOnDashboardID, "--apply", investigationID, "add", "a", "panel"},
+		{"--dashboard", askOnDashboardID, "--apply", investigationID},
+		{"--revise", "--apply", investigationID},
+	} {
+		if _, _, code := runCLI(append([]string{"--server", server.URL, "--token", "k", "--no-wait"}, args...)...); code == 0 {
+			t.Errorf("observe %v succeeded", args)
+		}
+	}
+}
