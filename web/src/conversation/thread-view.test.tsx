@@ -279,11 +279,11 @@ describe("ThreadView", () => {
     ).toBeNull()
   })
 
-  it("asks the thread's agent for the suggested change with Revise the dashboard", async () => {
+  it("applies the suggested change in the thread with Revise the dashboard", async () => {
     const fetch = stubFetch({
-      "POST /api/v1/threads/t1/messages": {
+      "POST /api/v1/threads/t1/apply": {
         status: 201,
-        body: { thread: thread(), message: message("m3") },
+        body: { thread: thread(), message: message("m3"), replayed: false },
       },
     })
     const { user } = show(
@@ -302,14 +302,11 @@ describe("ThreadView", () => {
         true
       )
     )
-    const post = fetch.mock.calls.find(([input]) => input.method === "POST")
-    expect(post).toBeDefined()
-    const body = (await post![0].clone().json()) as Record<string, unknown>
-    expect(body).toMatchObject({
-      body: "Revise the dashboard: Add a p99 latency panel",
-      to: "agent",
-    })
-    expect(body).not.toHaveProperty("start_runs")
+    const posts = fetch.mock.calls.filter(([input]) => input.method === "POST")
+    expect(posts.map(([input]) => new URL(input.url).pathname)).toEqual([
+      "/api/v1/threads/t1/apply",
+    ])
+    expect(await posts[0][0].clone().json()).toEqual({ finding_id: "f1" })
   })
 
   it("slides in a message that arrives after the thread was drawn, not the ones already there", async () => {

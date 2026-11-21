@@ -49,6 +49,7 @@ export type Send =
       blockId?: string
       replyToId?: string
     }
+  | { via: "thread.apply"; threadId: string; findingId: string }
   | { via: "chat.turn"; input: ObserveInput; opens: Opens }
 
 export type Planned = Send | { error: string }
@@ -213,26 +214,26 @@ export function planSend(
 
 const reviseLead = "Revise the dashboard: "
 
+export type SuggestedChange = { change: string; findingId: string }
+
 export function planRevise(
   place: Place,
   subject: Subject | null,
-  change: string,
+  answer: SuggestedChange,
   clientId: string
 ): Planned {
   if (subject?.kind !== "dashboard") {
     return { error: "Only a dashboard can be revised." }
   }
-  const body = `${reviseLead}${change}`
   if (place.kind === "thread" && place.threadId !== null) {
     return {
-      via: "thread.reply",
+      via: "thread.apply",
       threadId: place.threadId,
-      body,
-      to: "agent",
-      clientId,
+      findingId: answer.findingId,
     }
   }
   const chat: Place =
     place.kind === "chat" ? place : { kind: "chat", chatId: null }
+  const body = `${reviseLead}${answer.change}`
   return chatTurn(chat, subject, { body, clientId }, true)
 }

@@ -99,6 +99,7 @@ function RunAnswer({
   const { deliver, pending } = useDeliver(subject)
   const finding = request.data?.finding ?? null
   if (finding === null || request.data === undefined) return null
+  const findingId = finding.id
   const mayRevise =
     subject?.kind === "dashboard" &&
     entry.thread.allowed_actions.includes("reply")
@@ -107,7 +108,7 @@ function RunAnswer({
     const plan = planRevise(
       threadPlace(entry.thread.id, entry.thread),
       subject,
-      change,
+      { change, findingId },
       crypto.randomUUID()
     )
     if ("error" in plan) {

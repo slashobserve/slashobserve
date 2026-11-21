@@ -226,6 +226,21 @@ export function useReplyToThread(target: string) {
   })
 }
 
+export function useApplySuggestedChange(target: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { threadId: string; findingId: string }) =>
+      api
+        .POST("/threads/{thread_id}/apply", {
+          params: { path: { thread_id: input.threadId } },
+          body: { finding_id: input.findingId },
+        })
+        .then(unwrap)
+        .then(sentMessage),
+    onSuccess: (sent) => refreshAfterSend(queryClient, target, sent),
+  })
+}
+
 function mapThread(
   data: InfiniteData<ThreadPage, string | undefined> | undefined,
   threadId: string,

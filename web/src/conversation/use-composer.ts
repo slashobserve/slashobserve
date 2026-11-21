@@ -25,6 +25,7 @@ import {
 import {
   askedAgent,
   useOpenThread,
+  useApplySuggestedChange,
   useReplyToThread,
   type SentMessage,
 } from "@/comments/thread-queries"
@@ -216,6 +217,7 @@ export function useDeliver(subject: Subject | null, timeZone?: string) {
   const target = subject === null ? "" : threadTargetOf(subject)
   const openThread = useOpenThread(target)
   const replyToThread = useReplyToThread(target)
+  const applyChange = useApplySuggestedChange(target)
   const createRequest = useCreateObserveRequest()
 
   async function deliver(send: Send): Promise<SentResult> {
@@ -244,6 +246,14 @@ export function useDeliver(subject: Subject | null, timeZone?: string) {
             replyToId: send.replyToId,
           }),
         }
+      case "thread.apply":
+        return {
+          via: "thread",
+          sent: await applyChange.mutateAsync({
+            threadId: send.threadId,
+            findingId: send.findingId,
+          }),
+        }
       case "chat.turn":
         return {
           via: "chat",
@@ -261,6 +271,7 @@ export function useDeliver(subject: Subject | null, timeZone?: string) {
     pending:
       openThread.isPending ||
       replyToThread.isPending ||
+      applyChange.isPending ||
       createRequest.isPending,
   }
 }

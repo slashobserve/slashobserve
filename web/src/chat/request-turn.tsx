@@ -117,7 +117,7 @@ function ChatAnswer({
     const plan = planRevise(
       { kind: "chat", chatId: request.chat_id },
       subject,
-      change,
+      { change, findingId: finding.id },
       crypto.randomUUID()
     )
     if ("error" in plan) {
