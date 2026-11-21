@@ -129,18 +129,19 @@ func (q *Queries) GetAuditBackfill(ctx context.Context) (pgtype.Timestamptz, err
 }
 
 const getAuditExportCursor = `-- name: GetAuditExportCursor :one
-SELECT xid, seq FROM audit_export_cursor
+SELECT xid, seq, occurred_at FROM audit_export_cursor
 `
 
 type GetAuditExportCursorRow struct {
-	Xid pgtype.Uint64
-	Seq int64
+	Xid        pgtype.Uint64
+	Seq        int64
+	OccurredAt pgtype.Timestamptz
 }
 
 func (q *Queries) GetAuditExportCursor(ctx context.Context) (GetAuditExportCursorRow, error) {
 	row := q.db.QueryRow(ctx, getAuditExportCursor)
 	var i GetAuditExportCursorRow
-	err := row.Scan(&i.Xid, &i.Seq)
+	err := row.Scan(&i.Xid, &i.Seq, &i.OccurredAt)
 	return i, err
 }
 
@@ -157,6 +158,17 @@ func (q *Queries) GetAuditExportLag(ctx context.Context) (float64, error) {
 	var lag_seconds float64
 	err := row.Scan(&lag_seconds)
 	return lag_seconds, err
+}
+
+const getOldestAuditEventAt = `-- name: GetOldestAuditEventAt :one
+SELECT min(occurred_at)::timestamptz AS oldest FROM audit_events
+`
+
+func (q *Queries) GetOldestAuditEventAt(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, getOldestAuditEventAt)
+	var oldest pgtype.Timestamptz
+	err := row.Scan(&oldest)
+	return oldest, err
 }
 
 const insertAuditEvent = `-- name: InsertAuditEvent :exec

@@ -97,7 +97,7 @@ func (r *databaseRig) insert(t *testing.T, actions ...string) {
 	}
 }
 
-func (r *databaseRig) runUntilIdle(t *testing.T, endpoint string) {
+func (r *databaseRig) runUntilIdle(t *testing.T, endpoint string) *counters {
 	t.Helper()
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -105,7 +105,8 @@ func (r *databaseRig) runUntilIdle(t *testing.T, endpoint string) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
-	x := New(trail.NewReader(r.db.DB, slog.New(slog.DiscardHandler)), NewCursor(r.db.Queries()), NewSender(u, nil).Send, &counters{}, slog.New(slog.DiscardHandler))
+	counted := &counters{}
+	x := New(trail.NewReader(r.db.DB, slog.New(slog.DiscardHandler)), NewCursor(r.db.Queries()), NewSender(u, nil).Send, counted, slog.New(slog.DiscardHandler))
 	x.Wait = func(context.Context, time.Duration) error {
 		cancel()
 		return context.Canceled
@@ -113,6 +114,7 @@ func (r *databaseRig) runUntilIdle(t *testing.T, endpoint string) {
 	if err := x.Run(ctx); err != nil {
 		t.Fatal(err)
 	}
+	return counted
 }
 
 func TestEventsAreExportedInOrderOnce(t *testing.T) {
@@ -140,8 +142,8 @@ func TestAFailedPostLeavesTheCursorAndTheNextRunSendsTheSameEvents(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if at.Xid != 0 || at.Seq != 0 {
-		t.Fatalf("cursor moved to %+v after a failed post", at)
+	if at.Exists {
+		t.Fatalf("cursor moved to %+v after a failed post", at.At)
 	}
 	rx.answer(http.StatusOK)
 	r.runUntilIdle(t, rx.server.URL)
@@ -174,7 +176,7 @@ func TestTheCursorNeverMovesBackward(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	earlier := last
+	earlier := last.At
 	earlier.Seq--
 	if err := c.Advance(t.Context(), earlier, r.base); err != nil {
 		t.Fatal(err)
@@ -241,5 +243,42 @@ func TestLagShowsEventsAnOpenTransactionHidesFromTheExport(t *testing.T) {
 	lag, err := NewCursor(r.db.Queries()).Lag(t.Context())
 	if err != nil || lag != 2*time.Minute {
 		t.Fatalf("lag = %v, %v, want 2m0s", lag, err)
+	}
+}
+
+func (r *databaseRig) deleteAsRetentionWould(t *testing.T, actions ...string) {
+	t.Helper()
+	for _, a := range actions {
+		r.db.Exec(t, `DO $$ BEGIN SET LOCAL session_replication_role = replica; DELETE FROM audit_events WHERE action = '`+a+`'; END $$`)
+	}
+}
+
+func TestEventsDeletedBeforeTheyWereExportedAreReportedAsAGap(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	r.insert(t, "a.one", "b.two")
+	r.runUntilIdle(t, rx.server.URL)
+	r.insert(t, "c.three", "d.four")
+	r.deleteAsRetentionWould(t, "a.one", "b.two", "c.three")
+	counted := r.runUntilIdle(t, rx.server.URL)
+	if counted.dropped[DroppedRetention] != 1 {
+		t.Fatalf("dropped = %v, want one gap", counted.dropped)
+	}
+	if got := rx.received(); !slices.Equal(got, []string{"a.one", "b.two", "d.four"}) {
+		t.Fatalf("received %v", got)
+	}
+	if counted := r.runUntilIdle(t, rx.server.URL); len(counted.dropped) != 0 {
+		t.Fatalf("a caught up export reported %v", counted.dropped)
+	}
+}
+
+func TestNoGapIsReportedWhileEveryEventAfterThePositionIsRetained(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	r.insert(t, "a.one", "b.two")
+	r.runUntilIdle(t, rx.server.URL)
+	r.insert(t, "c.three")
+	if counted := r.runUntilIdle(t, rx.server.URL); len(counted.dropped) != 0 {
+		t.Fatalf("dropped = %v", counted.dropped)
 	}
 }

@@ -53,18 +53,29 @@ func (s *fakeSource) add(actions ...string) {
 
 type fakeCursor struct {
 	at         filter.Position
+	storedAt   time.Time
+	oldest     time.Time
+	oldestErr  error
+	oldestRead int
 	advanceErr error
 	advances   int
 	exportedAt []time.Time
 }
 
-func (c *fakeCursor) Load(context.Context) (filter.Position, error) { return c.at, nil }
+func (c *fakeCursor) Load(context.Context) (Stored, error) {
+	return Stored{At: c.at, OccurredAt: c.storedAt, Exists: c.at != filter.Position{}}, nil
+}
+
+func (c *fakeCursor) Oldest(context.Context) (time.Time, error) {
+	c.oldestRead++
+	return c.oldest, c.oldestErr
+}
 
 func (c *fakeCursor) Advance(_ context.Context, at filter.Position, occurredAt time.Time) error {
 	if c.advanceErr != nil {
 		return c.advanceErr
 	}
-	c.at = at
+	c.at, c.storedAt = at, occurredAt
 	c.exportedAt = append(c.exportedAt, occurredAt)
 	c.advances++
 	return nil
@@ -456,5 +467,118 @@ func TestTheCursorStoresWhenTheLastExportedEventHappened(t *testing.T) {
 	want := time.Date(2026, 11, 21, 10, 30, 15, 123456789, time.UTC)
 	if len(r.cursor.exportedAt) != 1 || !r.cursor.exportedAt[0].Equal(want) {
 		t.Fatalf("stored times = %v, want %v", r.cursor.exportedAt, want)
+	}
+}
+
+var exportedBefore = time.Date(2026, 11, 20, 8, 0, 0, 0, time.UTC)
+
+func TestAPositionOlderThanTheOldestRetainedEventIsALoggedAndCountedGap(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two", "c.three")
+	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 101, Seq: 1}, exportedBefore
+	r.cursor.oldest = exportedBefore.Add(26 * time.Hour)
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.count.dropped[DroppedRetention] != 1 || len(r.count.dropped) != 1 {
+		t.Fatalf("dropped = %v", r.count.dropped)
+	}
+	logged := r.logs.String()
+	if !strings.Contains(logged, "gap=26h0m0s") || !strings.Contains(logged, "deleted before they were exported") {
+		t.Fatalf("log = %s", logged)
+	}
+	if got := r.delivered(); got != "b.two,c.three" {
+		t.Fatalf("delivered %s", got)
+	}
+}
+
+func TestAGapIsCountedOnceWhileTheSamePositionStaysStuck(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two")
+	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 101, Seq: 1}, exportedBefore
+	r.cursor.oldest = exportedBefore.Add(time.Hour)
+	r.post = func([]byte) error { return &StatusError{Status: 503} }
+	r.stopAt = func(r *rig) bool { return len(r.waits) == 4 }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	r.waits = nil
+	r.stopAt = func(r *rig) bool { return len(r.waits) == 2 }
+	r2ctx, cancel := context.WithCancel(t.Context())
+	r.cancel = cancel
+	r.x.Wait = func(ctx context.Context, d time.Duration) error {
+		r.waits = append(r.waits, d)
+		if r.stopAt(r) {
+			cancel()
+		}
+		return ctx.Err()
+	}
+	if err := r.x.Run(r2ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.count.dropped[DroppedRetention] != 1 {
+		t.Fatalf("dropped = %v, want one gap for the one stuck position", r.count.dropped)
+	}
+}
+
+func TestNoGapIsReportedWhenNothingWasLost(t *testing.T) {
+	tests := []struct {
+		name   string
+		at     filter.Position
+		stored time.Time
+		oldest time.Time
+	}{
+		{"the position is as new as the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore},
+		{"the position is newer than the oldest retained event", filter.Position{Xid: 101, Seq: 1}, exportedBefore, exportedBefore.Add(-time.Hour)},
+		{"nothing was exported yet", filter.Position{}, time.Time{}, exportedBefore.Add(time.Hour)},
+		{"no event is retained", filter.Position{Xid: 101, Seq: 1}, exportedBefore, time.Time{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, ctx := newRig(t)
+			r.source.add("a.one", "b.two")
+			r.cursor.at, r.cursor.storedAt, r.cursor.oldest = tt.at, tt.stored, tt.oldest
+			r.stopAt = func(*rig) bool { return true }
+			if err := r.x.Run(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if len(r.count.dropped) != 0 || strings.Contains(r.logs.String(), "deleted") {
+				t.Fatalf("dropped %v log %s", r.count.dropped, r.logs.String())
+			}
+		})
+	}
+}
+
+func TestTheRetentionCheckRunsAtTheStartAndAfterAFailureNotOnEveryPoll(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two", "c.three")
+	r.x.BatchSize = 1
+	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 100}, exportedBefore
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if r.cursor.oldestRead != 1 {
+		t.Fatalf("the oldest event was read %d times for 3 batches and one poll, want once", r.cursor.oldestRead)
+	}
+}
+
+func TestAFailedRetentionCheckIsRetriedLikeAFailedRead(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one")
+	r.cursor.at, r.cursor.storedAt = filter.Position{Xid: 100}, exportedBefore
+	r.cursor.oldestErr = errors.New("database down")
+	r.stopAt = func(r *rig) bool {
+		if len(r.waits) == 1 {
+			r.cursor.oldestErr = nil
+		}
+		return len(r.posts) == 1
+	}
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.waits) < 1 || r.waits[0] != time.Second || len(r.posts) != 1 {
+		t.Fatalf("waits %v posts %d", r.waits, len(r.posts))
 	}
 }

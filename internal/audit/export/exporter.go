@@ -30,7 +30,8 @@ type Source interface {
 }
 
 type Position interface {
-	Load(ctx context.Context) (filter.Position, error)
+	Load(ctx context.Context) (Stored, error)
+	Oldest(ctx context.Context) (time.Time, error)
 	Advance(ctx context.Context, at filter.Position, occurredAt time.Time) error
 }
 
@@ -49,6 +50,7 @@ type Exporter struct {
 	Logger  *slog.Logger
 
 	Wait       func(ctx context.Context, d time.Duration) error
+	gapSeen    filter.Position
 	BatchSize  int
 	PollEvery  time.Duration
 	MinBackoff time.Duration
@@ -93,11 +95,13 @@ func (x *Exporter) Run(ctx context.Context) error {
 	size := x.BatchSize
 	var failures int
 	var backoff time.Duration
+	checkRetention := true
 	for {
-		p, err := x.step(ctx, size)
+		p, err := x.step(ctx, size, checkRetention)
 		if ctx.Err() != nil {
 			return nil
 		}
+		checkRetention = err != nil
 		var delay time.Duration
 		switch {
 		case err != nil:
@@ -126,12 +130,17 @@ func (x *Exporter) Run(ctx context.Context) error {
 	}
 }
 
-func (x *Exporter) step(ctx context.Context, size int) (progress, error) {
-	at, err := x.Cursor.Load(ctx)
+func (x *Exporter) step(ctx context.Context, size int, checkRetention bool) (progress, error) {
+	stored, err := x.Cursor.Load(ctx)
 	if err != nil {
 		return progress{}, stage{"audit_export_cursor_read_failed", err}
 	}
-	events, err := x.Source.Since(ctx, at, size)
+	if checkRetention {
+		if err := x.checkRetention(ctx, stored); err != nil {
+			return progress{}, err
+		}
+	}
+	events, err := x.Source.Since(ctx, stored.At, size)
 	if err != nil {
 		return progress{}, stage{"audit_export_read_failed", err}
 	}
@@ -155,6 +164,24 @@ func (x *Exporter) step(ctx context.Context, size int) (progress, error) {
 	}
 	x.rejected(ctx, receipt)
 	return progress{moved: true}, nil
+}
+
+func (x *Exporter) checkRetention(ctx context.Context, stored Stored) error {
+	if !stored.Exists || stored.At == x.gapSeen {
+		return nil
+	}
+	oldest, err := x.Cursor.Oldest(ctx)
+	if err != nil {
+		return stage{"audit_export_retention_check_failed", err}
+	}
+	if oldest.IsZero() || !stored.OccurredAt.Before(oldest) {
+		return nil
+	}
+	x.gapSeen = stored.At
+	x.Metrics.ExportDropped(DroppedRetention, 1)
+	x.Logger.WarnContext(ctx, "audit export lost events that retention deleted before they were exported",
+		slog.Duration("gap", oldest.Sub(stored.OccurredAt)))
+	return nil
 }
 
 func (x *Exporter) refused(ctx context.Context, events []trail.Positioned, sendErr error) (progress, error) {

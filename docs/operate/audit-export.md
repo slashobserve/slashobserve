@@ -4,7 +4,7 @@ description: Send every audit event to an OpenTelemetry collector or any OTLP/HT
 ---
 
 The audit trail can be copied as it grows to a log pipeline you already run.
-Set `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` and the server posts each audit event as an OTLP log record, so a collector, a SIEM or a log store keeps a copy that outlives the audit retention.
+Set `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` and the server posts each audit event as an OTLP log record, so a collector, a SIEM or a log store can keep a copy of the trail.
 Nothing is sent while the setting is unset.
 
 ## Settings
@@ -22,7 +22,7 @@ Keep the headers file out of the image and mount it as a secret.
 
 One server holds the export at a time, through the `audit_export` job described in [Scheduler](../concepts/scheduler.md).
 It reads events in the order they were committed, from a position stored in the database, and posts up to 500 at a time as OTLP JSON.
-The position moves only after the receiver answers with a `2xx` status, so a failed post sends the same events again and no event is dropped.
+The position moves only after the receiver answers with a `2xx` status, so a failed post sends the same events again.
 A restart, or another server taking the job over, continues from the stored position.
 Delivery is at least once: an event can arrive twice when the server stopped between the receiver's answer and storing the position, and `slashobserve.audit.id` identifies it.
 
@@ -41,6 +41,16 @@ The first export starts at the oldest event the audit table still holds, so a ne
 
 The request goes out through the same dialer as the datasources, so the endpoint is an operator choice and is not held to the [outbound domain list](outbound-access.md).
 It does not follow redirects, and it refuses link-local addresses.
+
+## What is guaranteed
+
+While the receiver accepts events within the audit retention period (`SLASHOBSERVE_AUDIT_RETENTION`), every event is delivered at least once and in order.
+The export does not change retention: the daily `audit_partitions` job still deletes a partition once it is older than the retention period, whether or not its events were exported.
+When the receiver was down, or refused every request, for longer than that, events were deleted before they could be sent.
+The server notices when the stored position is older than the oldest event the table still holds, logs a warning with the size of the gap and adds one to `slashobserve_audit_export_dropped_total{reason="retention"}` for each gap, then continues with the oldest event that is left.
+The gap is found at the start of a run and after a failed attempt, so it can take a few minutes to show.
+Events the export gave up on in other ways are counted too, as `refused` and in `slashobserve_audit_export_rejected_total`.
+Alert on all three counters when the copy must be complete, and keep the retention period longer than the longest receiver outage you accept.
 
 ## The record
 

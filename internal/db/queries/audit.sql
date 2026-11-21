@@ -46,7 +46,7 @@ SELECT migrated_at FROM audit_backfill;
 SELECT audit_events_catch_up(@since::timestamptz, @by_server::text, @by_version::text, false)::bigint AS inserted;
 
 -- name: GetAuditExportCursor :one
-SELECT xid, seq FROM audit_export_cursor;
+SELECT xid, seq, occurred_at FROM audit_export_cursor;
 
 -- name: AdvanceAuditExportCursor :exec
 INSERT INTO audit_export_cursor (xid, seq, occurred_at) VALUES (@xid::xid8, @seq::bigint, @occurred_at::timestamptz)
@@ -59,3 +59,6 @@ FROM (
   SELECT (SELECT max(occurred_at) FROM audit_events) AS newest,
          COALESCE((SELECT occurred_at FROM audit_export_cursor), (SELECT min(occurred_at) FROM audit_events)) AS exported
 ) AS edge;
+
+-- name: GetOldestAuditEventAt :one
+SELECT min(occurred_at)::timestamptz AS oldest FROM audit_events;
