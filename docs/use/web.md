@@ -194,6 +194,7 @@ In Comment mode the pointer becomes a crosshair, a line above the tool bar says 
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
 On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
+
 The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
 A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
@@ -221,12 +222,14 @@ Ask mode is off while you have unsaved layout changes.
 It points like Comment mode: a crosshair, a line above the tool bar that says what a click does, and an outline on the part of the panel under the pointer.
 A click opens a small box at that spot with chips naming the panel, the part you clicked, the value under the pointer and the time window, and sends your question to the agent with all of them.
 Dragging across the time axis of a panel that takes a range, as in Comment mode, asks about the range you dragged over.
+In the table view of a panel that is not a table, a click or drag in Ask mode asks about the whole panel.
 
 The question is a turn of the chat open in the dashboard's Chat tab, or of a new chat that the Chat tab then opens when none is.
 The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
 The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard.
 The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.
 When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
+
 The box closes on its **Close** button or `Esc`, and the focus goes back to where it was.
 A click outside closes it only while it is empty: once you have typed a question, it stays open with your text, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the box is hidden, and it comes back with your text once the moves are saved or discarded.

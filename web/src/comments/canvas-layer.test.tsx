@@ -19,7 +19,11 @@ const layout: TimeseriesAnchorLayout = {
   series: [],
 }
 
-function renderLayer(extra?: ReactNode, wholePanel = false) {
+function renderLayer(
+  extra?: ReactNode,
+  wholePanel = false,
+  tool: "comment" | "ask" = "comment"
+) {
   const store = createAnchorLayoutStore()
   store.publish("timeseries", layout)
   const containerRef = createRef<HTMLDivElement>()
@@ -36,7 +40,7 @@ function renderLayer(extra?: ReactNode, wholePanel = false) {
         store={store}
         surfaceId="s1"
         panelId="p1"
-        tool="comment"
+        tool={tool}
         body={body}
         shownRange={{ from: "now-1h", to: "now" }}
         wholePanel={wholePanel}
@@ -213,5 +217,19 @@ describe("CanvasLayer", () => {
       fireEvent.pointerUp(plot, { button: 0, clientX: 300, clientY: 60 })
     })
     expect(useCanvasTool.getState().draft).toMatchObject({ anchor: null })
+  })
+
+  it("asks about the whole panel from a click in a panel's table view", () => {
+    useCanvasTool.setState({ tool: "ask" })
+    const plot = renderLayer(undefined, true, "ask")
+    act(() => {
+      fireEvent.pointerDown(plot, { button: 0, clientX: 100, clientY: 50 })
+      fireEvent.pointerUp(plot, { button: 0, clientX: 101, clientY: 50 })
+    })
+    expect(useCanvasTool.getState().draft).toMatchObject({
+      tool: "ask",
+      panelId: "p1",
+      anchor: null,
+    })
   })
 })
