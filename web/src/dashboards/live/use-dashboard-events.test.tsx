@@ -3,6 +3,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
+import { dashboardKeys } from "@/api/keys"
 import { testQueryClient } from "@/test/render"
 
 import { useDashboardEvents } from "./use-dashboard-events"
@@ -57,13 +58,13 @@ function openSources() {
   return FakeEventSource.instances.filter((source) => !source.closed)
 }
 
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <QueryClientProvider client={testQueryClient()}>
-      {children}
-    </QueryClientProvider>
-  )
+function wrapperWith(client = testQueryClient()) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  }
 }
+
+const wrapper = wrapperWith()
 
 beforeEach(() => {
   FakeEventSource.instances = []
@@ -87,4 +88,22 @@ it("closes the dashboard stream while the page sits in the back/forward cache an
   act(() => window.dispatchEvent(pageTransition("pageshow", true)))
   expect(openSources()).toHaveLength(1)
   expect(openSources()[0].url).toBe("/api/v1/dashboards/d1/events")
+})
+
+it("refetches the dashboard and the list when the dashboard moves to another folder", () => {
+  const client = testQueryClient()
+  const invalidate = vi.spyOn(client, "invalidateQueries")
+  renderHook(() => useDashboardEvents("d1", {}), {
+    wrapper: wrapperWith(client),
+  })
+  act(() =>
+    openSources()[0].send("dashboard.moved", {
+      type: "dashboard.moved",
+      dashboard_id: "d1",
+    })
+  )
+  const refetched = invalidate.mock.calls.map(([filters]) => filters?.queryKey)
+  expect(refetched).toEqual(
+    expect.arrayContaining([dashboardKeys.latest("d1"), dashboardKeys.list()])
+  )
 })

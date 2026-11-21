@@ -7,7 +7,6 @@ import type { ActivityEvent } from "./activity-match"
 
 type ActivityStreamInput = {
   folderId?: string | null
-  dashboardId?: string
   types?: readonly string[]
   enabled: boolean
   onEvent: (event: ActivityEvent) => void
@@ -31,12 +30,10 @@ export function useDocumentVisible(): boolean {
 
 function streamUrl(
   folderId: string | null | undefined,
-  dashboardId: string | undefined,
   types: readonly string[]
 ): string {
   const params = new URLSearchParams()
   if (folderId) params.set("folder_id", folderId)
-  if (dashboardId) params.set("dashboard_id", dashboardId)
   for (const type of types) params.append("type", type)
   const query = params.toString()
   return query === "" ? streamPath : `${streamPath}?${query}`
@@ -53,7 +50,6 @@ function parseActivity(data: string): ActivityEvent | null {
 
 export function useActivityStream({
   folderId,
-  dashboardId,
   types,
   enabled,
   onEvent,
@@ -71,11 +67,7 @@ export function useActivityStream({
       mayHaveMissed.current = true
       return
     }
-    const url = streamUrl(
-      folderId,
-      dashboardId,
-      typesKey === "" ? [] : typesKey.split(",")
-    )
+    const url = streamUrl(folderId, typesKey === "" ? [] : typesKey.split(","))
     let source: EventSource | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
@@ -134,5 +126,5 @@ export function useActivityStream({
       stopWatchingCache()
       close()
     }
-  }, [folderId, dashboardId, typesKey, enabled])
+  }, [folderId, typesKey, enabled])
 }

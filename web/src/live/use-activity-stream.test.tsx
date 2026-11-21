@@ -53,7 +53,6 @@ it("closes the stream while the page sits in the back/forward cache and catches 
   const onGap = vi.fn()
   renderHook(() =>
     useActivityStream({
-      dashboardId: "d1",
       enabled: true,
       onEvent: vi.fn(),
       onGap,

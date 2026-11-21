@@ -36,6 +36,7 @@ const eventNames = [
   "role.changed",
   "version.created",
   "dashboard.deleted",
+  "dashboard.moved",
   "comment.created",
   "comment.updated",
   "revision.updated",
@@ -224,6 +225,9 @@ export function useDashboardEvents(
             { id: `deleted-${dashboardId}` }
           )
           void checkDashboard({ deletedBy: event.authorName })
+          return
+        case "dashboard.moved":
+          invalidate(dashboardKeys.latest(dashboardId), dashboardKeys.list())
           return
         case "comment.created":
         case "comment.updated":

@@ -200,7 +200,8 @@ func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Act
 			Actor:    by,
 			Data:     movedActivityFields{Title: moved.Title, FromFolderID: from.String(), ToFolderID: to.String()},
 		}
-		_, err = activity.Append(ctx, q, entry, nil)
+		ev := movedEvent(id, Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name})
+		_, err = activity.Append(ctx, q, entry, &ev)
 		return err
 	})
 }
@@ -209,6 +210,14 @@ type movedActivityFields struct {
 	Title        string `json:"title"`
 	FromFolderID string `json:"from_folder_id"`
 	ToFolderID   string `json:"to_folder_id"`
+}
+
+func movedEvent(dashboardID pgtype.UUID, by Author) events.Event {
+	return events.Event{
+		Type:        events.TypeDashboardMoved,
+		DashboardID: dashboardID.String(),
+		Author:      events.NewAuthor(by.Kind, by.ID, by.Name),
+	}
 }
 
 func deletedEvent(dashboardID pgtype.UUID, by Author) events.Event {
