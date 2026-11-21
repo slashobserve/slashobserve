@@ -11,6 +11,7 @@ import {
 import {
   expectNoAnimations,
   expectPanelsReady,
+  expectSavedVersion,
   openDashboard,
   panel,
   selectPanel,
@@ -156,7 +157,7 @@ test("drags and resizes a panel and saves a new version", async ({
   )
 
   await saveLayout(page, 2, "Move panels")
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
   await expect(versionButton(page)).toHaveText(/v2$/)
 
@@ -189,7 +190,7 @@ test("moves and resizes with the keyboard", async ({ page, request }) => {
   )
 
   await saveLayout(page, 2)
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   await expect(moveHandle(page, errorRateTitle)).toBeFocused()
   const saved = await getDashboard(request, id)
   expect(gridPos(saved.spec, "error_rate")).toEqual({
@@ -475,7 +476,7 @@ test("keeps the other version's layout changes when a newer version arrives", as
   await expect(page.getByText("Updated to version 2")).toBeVisible()
 
   await saveLayout(page, 3)
-  await expect(page.getByText("Saved version 3")).toBeVisible()
+  await expectSavedVersion(page, 3)
 
   const saved = await getDashboard(request, id)
   expect(saved.latestVersion).toBe(3)
@@ -583,7 +584,7 @@ test("offers Try again when the server cannot check the layout right now", async
 
   await page.unroute(/\/versions$/)
   await dialog.getByRole("button", { name: "Try again" }).click()
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
 })
 
 test("lists each rejected layout issue once", async ({
@@ -698,7 +699,7 @@ test("saves a layout change on a dashboard with an expanded row", async ({
   await expect(moveHandle(page, "Log rows")).toBeFocused()
 
   await saveLayout(page, 2)
-  await expect(page.getByText("Saved version 2")).toBeVisible()
+  await expectSavedVersion(page, 2)
   const saved = await getDashboard(request, id)
   expect(gridPos(saved.spec, "p_logs")).toMatchObject({ x: 1, y: 0 })
   expect(gridPos(saved.spec, "p_note")).toMatchObject({ x: 12, y: 4 })
