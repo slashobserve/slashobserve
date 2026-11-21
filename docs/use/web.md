@@ -195,6 +195,7 @@ A click opens a small composer at that spot, with chips naming the panel and the
 On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
+**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Comment pins
 
@@ -203,9 +204,10 @@ A pin follows its data: when the series, bar or row moves, the pin moves with it
 A resolved thread's pin is grey.
 When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
 A table row that is on the panel but scrolled out of view points at the bottom edge of the table.
+
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
+Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.
 Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
-**Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
 
 ### Arrange panels
 
