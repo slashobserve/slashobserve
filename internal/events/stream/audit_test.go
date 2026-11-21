@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -256,5 +257,66 @@ func TestAuditStreamRefusesNonAdminsAndBadRequests(t *testing.T) {
 	}
 	if got := r.searches(t); len(got) != 2 || got[0] != "failed stream status:x" || got[1] != "failed stream " {
 		t.Fatalf("recorded searches %q", got)
+	}
+}
+
+func TestAuditStreamAnswers429BeyondFivePerCallerAndTwentyPerServer(t *testing.T) {
+	r := newAuditRig(t, admin)
+	r.handler.pollInterval = time.Hour
+	for range maxAuditStreamsPerUser {
+		r.open(t, "")
+	}
+	status, code := r.refused(t, "", "")
+	if status != http.StatusTooManyRequests || code != "too_many_streams" {
+		t.Fatalf("a sixth stream for one caller = %d %s", status, code)
+	}
+	for i := maxAuditStreamsPerUser; i < maxAuditStreamsPerProc; i++ {
+		other := auth.Principal{Kind: auth.KindServiceAccount, ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", i), Role: auth.RoleAdmin}
+		r.caller.Store(&other)
+		r.open(t, "")
+	}
+	last := auth.Principal{Kind: auth.KindUser, ID: viewerID, Role: auth.RoleAdmin}
+	r.caller.Store(&last)
+	resp, err := http.DefaultClient.Do(r.request(t, "", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var body struct{ Error, Code string }
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil || resp.StatusCode != http.StatusTooManyRequests || body.Code != "too_many_streams" || !strings.Contains(body.Error, "20") {
+		t.Fatalf("a stream past the server's limit = %d %+v (%v)", resp.StatusCode, body, err)
+	}
+}
+
+func TestAuditStreamEndsWhenItsPollTimesOutTwiceInARow(t *testing.T) {
+	r := newAuditRig(t, admin)
+	s := r.open(t, "outcome:denied")
+	lock, err := r.db.SQLDB(t).BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = lock.Rollback() }()
+	if _, err := lock.ExecContext(t.Context(), "LOCK TABLE audit_events IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-s.done:
+	case <-time.After(maxAuditPollTimeouts*trail.FollowTimeout + 3*waitTimeout):
+		t.Fatal("the stream outlived two poll timeouts")
+	}
+	_ = lock.Rollback()
+	var f frame
+	for len(s.lines) > 0 {
+		line := <-s.lines
+		switch {
+		case strings.HasPrefix(line, "event: "):
+			f.event = strings.TrimPrefix(line, "event: ")
+		case strings.HasPrefix(line, "data: "):
+			f.data = strings.TrimPrefix(line, "data: ")
+		}
+	}
+	var body struct{ Error, Code string }
+	if err := json.Unmarshal([]byte(f.data), &body); err != nil || f.event != "error" || body.Code != codeTooExpensive || !strings.Contains(body.Error, "too expensive to follow") {
+		t.Fatalf("last frame %+v (%v)", f, err)
 	}
 }

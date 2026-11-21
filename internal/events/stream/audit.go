@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -20,9 +21,16 @@ import (
 
 const (
 	maxAuditStreamsPerUser = 5
-	maxAuditStreamsPerProc = 100
+	maxAuditStreamsPerProc = 20
 	auditPollInterval      = 2 * time.Second
 	auditPingInterval      = 5 * time.Second
+	maxAuditPollTimeouts   = 2
+	codeTooExpensive       = "query_too_expensive"
+)
+
+var (
+	tooManyAuditStreams = fmt.Sprintf("too many open audit streams: a caller may hold %d and the server %d; close one and try again", maxAuditStreamsPerUser, maxAuditStreamsPerProc)
+	tooExpensive        = fmt.Sprintf("the query is too expensive to follow: %d polls in a row ran past %s; narrow it, or read the events with a search", maxAuditPollTimeouts, trail.FollowTimeout)
 )
 
 type AuditTrail interface {
@@ -62,7 +70,7 @@ func (h *AuditHandler) serve(c *gin.Context) {
 	principal, _ := auth.FromContext(ctx)
 	key := string(principal.Kind) + ":" + principal.ID
 	if status, code := h.slots.acquire(key); status != 0 {
-		abort(c, status, code, "too many open audit streams")
+		abort(c, http.StatusTooManyRequests, code, tooManyAuditStreams)
 		return
 	}
 	defer h.slots.release(key)
@@ -104,6 +112,14 @@ func (h *AuditHandler) refuse(c *gin.Context, err error) {
 	abort(c, http.StatusInternalServerError, "internal", "internal error")
 }
 
+type auditPump struct {
+	h            *AuditHandler
+	c            *gin.Context
+	follow       *trail.Follow
+	timeouts     int
+	failedChecks int
+}
+
 func (h *AuditHandler) pump(c *gin.Context, follow *trail.Follow, follower *events.Follower) {
 	poll := time.NewTicker(h.pollInterval)
 	defer poll.Stop()
@@ -111,28 +127,18 @@ func (h *AuditHandler) pump(c *gin.Context, follow *trail.Follow, follower *even
 	defer ping.Stop()
 	lifetime := time.NewTimer(h.lifetime)
 	defer lifetime.Stop()
-	failedChecks := 0
-	if !h.drain(c, follow) {
+	p := &auditPump{h: h, c: c, follow: follow}
+	if !p.poll() {
 		return
 	}
 	for {
 		select {
 		case <-poll.C:
-			if !h.drain(c, follow) {
+			if !p.poll() {
 				return
 			}
 		case <-ping.C:
-			still, failed := h.stillAdmin(c.Request)
-			if failed {
-				failedChecks++
-			} else {
-				failedChecks = 0
-			}
-			if !still {
-				writeEvent(c, "forbidden", forbidden.NeedsRole(string(auth.RoleAdmin)))
-				return
-			}
-			if failedChecks >= maxFailedChecks || !write(c, ": ping\n\n") {
+			if !p.ping() {
 				return
 			}
 		case <-lifetime.C:
@@ -145,24 +151,57 @@ func (h *AuditHandler) pump(c *gin.Context, follow *trail.Follow, follower *even
 	}
 }
 
-func (h *AuditHandler) drain(c *gin.Context, follow *trail.Follow) bool {
-	ctx := c.Request.Context()
+func (p *auditPump) poll() bool {
+	err := p.h.drain(p.c, p.follow)
+	switch {
+	case err == nil:
+		p.timeouts = 0
+		return true
+	case errors.Is(err, trail.ErrTimeout):
+		if p.timeouts++; p.timeouts < maxAuditPollTimeouts {
+			return true
+		}
+		writeEvent(p.c, "error", trail.Problem{Code: codeTooExpensive, Message: tooExpensive})
+	case errors.Is(err, errWriteFailed), p.c.Request.Context().Err() != nil:
+	default:
+		p.h.logger.ErrorContext(p.c.Request.Context(), "read audit stream", logattrs.Failure("audit_stream_failed", err)...)
+	}
+	return false
+}
+
+func (p *auditPump) ping() bool {
+	still, failed := p.h.stillAdmin(p.c.Request)
+	if failed {
+		p.failedChecks++
+	} else {
+		p.failedChecks = 0
+	}
+	if !still {
+		writeEvent(p.c, "forbidden", forbidden.NeedsRole(string(auth.RoleAdmin)))
+		return false
+	}
+	return p.failedChecks < maxFailedChecks && write(p.c, ": ping\n\n")
+}
+
+var errWriteFailed = errors.New("write audit stream frame")
+
+func (h *AuditHandler) drain(c *gin.Context, follow *trail.Follow) error {
 	for {
-		page, err := follow.Next(ctx)
+		page, err := follow.Next(c.Request.Context())
 		if err != nil {
-			if ctx.Err() == nil {
-				h.logger.ErrorContext(ctx, "read audit stream", logattrs.Failure("audit_stream_failed", err)...)
-			}
-			return false
+			return err
 		}
 		for _, f := range page {
 			body, err := json.Marshal(f.Event)
-			if err != nil || !write(c, "id: "+f.ID+"\nevent: audit\ndata: "+string(body)+"\n\n") {
-				return false
+			if err != nil {
+				return err
+			}
+			if !write(c, "id: "+f.ID+"\nevent: audit\ndata: "+string(body)+"\n\n") {
+				return errWriteFailed
 			}
 		}
 		if len(page) < trail.FollowBatch {
-			return true
+			return nil
 		}
 	}
 }

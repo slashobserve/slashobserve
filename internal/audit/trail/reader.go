@@ -27,14 +27,15 @@ const (
 )
 
 type Reader struct {
-	db      *db.DB
-	logger  *slog.Logger
-	now     func() time.Time
-	timeout time.Duration
+	db            *db.DB
+	logger        *slog.Logger
+	now           func() time.Time
+	timeout       time.Duration
+	followTimeout time.Duration
 }
 
 func NewReader(d *db.DB, logger *slog.Logger) *Reader {
-	return &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout}
+	return &Reader{db: d, logger: logger, now: time.Now, timeout: StatementTimeout, followTimeout: FollowTimeout}
 }
 
 func (r *Reader) Now() time.Time {
@@ -83,7 +84,11 @@ type Detail struct {
 }
 
 func (r *Reader) read(ctx context.Context, fn func(db.Rows) error) error {
-	err := r.db.ReadWithin(ctx, r.timeout, fn)
+	return r.readWithin(ctx, r.timeout, fn)
+}
+
+func (r *Reader) readWithin(ctx context.Context, timeout time.Duration, fn func(db.Rows) error) error {
+	err := r.db.ReadWithin(ctx, timeout, fn)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == queryCanceled && ctx.Err() == nil {
 		return ErrTimeout

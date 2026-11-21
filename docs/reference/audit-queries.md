@@ -112,6 +112,9 @@ An id the stream did not send answers 400 `invalid_request` too.
 Opening the stream records one `audit.search` event with the query, not one per event it delivers.
 The server checks every 5 seconds that the caller is still an Admin, and ends the stream with a `forbidden` frame (`forbidden_role`) once they are not; it also ends at shutdown and after 30 minutes, and a client reconnects from its last id.
 
+A caller may hold 5 audit streams and a server 20; one more answers 429 `too_many_streams`.
+Each stream reads the trail every 2 seconds, one read at a time, under a 5 second statement timeout, and a stream whose read times out twice in a row ends with an `error` frame (`query_too_expensive`) saying the query is too expensive to follow; narrow it or search instead.
+
 ## API, MCP and the CLI
 
 | Read | API | MCP | CLI |

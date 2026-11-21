@@ -830,7 +830,7 @@ bin/observe audit export --from now-30d --format csv --file audit.csv
 With `--file` it writes to `<file>.partial` and renames it to the name you gave once the export is complete; if the server or the connection ends the export early, it exits 1, says how many events arrived and leaves them in `<file>.partial`.
 
 `search --follow` reads `GET /api/v1/audit/stream` and prints each matching event recorded from then on, in the order it committed, until Ctrl-C; with `--json` it prints one event object per line.
-It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, and exits 1 when the key is no longer an Admin.
+It cannot be combined with `--all`, `--cursor`, `--limit`, `--from` or `--to`, and exits 1 when the key is no longer an Admin or the server ends the stream because the query is too expensive to follow.
 When the connection drops it reconnects from the last event it printed and prints every matching event committed since, down to 10 minutes before that event's time; when that event is more than 24 hours old it exits 1 and asks you to read the gap with `search --from`.
 
 ## Webhooks

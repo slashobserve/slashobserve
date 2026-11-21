@@ -479,7 +479,8 @@ audit-stream:
       A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends.
       The stream also ends when the server shuts down, and after 30 minutes; clients reconnect.
       Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one.
-      A caller may hold 5 streams and the process 100.
+      A caller may hold 5 audit streams and the process 20, and one more answers 429.
+      Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
     parameters:
       - name: q
         in: query
@@ -521,7 +522,7 @@ audit-stream:
             schema:
               $ref: "../openapi.yaml#/components/schemas/AuditQueryError"
       "429":
-        description: The caller already holds the maximum number of open streams (`too_many_streams`).
+        description: The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`).
         content:
           application/json:
             schema:
@@ -529,7 +530,7 @@ audit-stream:
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
       "503":
-        description: The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`).
+        description: The server is shutting down (`shutting_down`).
         content:
           application/json:
             schema:

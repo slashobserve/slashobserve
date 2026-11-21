@@ -16,6 +16,7 @@ import (
 const (
 	FollowSlack   = 10 * time.Minute
 	MaxResumeAge  = 24 * time.Hour
+	FollowTimeout = 5 * time.Second
 	followAhead   = time.Minute
 	FollowBatch   = 100
 	headStatement = "SELECT xid::text, seq FROM audit_events WHERE occurred_at >= $1 AND xid < pg_snapshot_xmin(pg_current_snapshot()) ORDER BY xid DESC, seq DESC LIMIT 1"
@@ -73,7 +74,7 @@ func (r *Reader) follow(ctx context.Context, text, lastEventID string) (*Follow,
 
 func (r *Reader) head(ctx context.Context, from time.Time) (filter.Position, error) {
 	var at filter.Position
-	err := r.read(ctx, func(tx db.Rows) error {
+	err := r.readWithin(ctx, r.followTimeout, func(tx db.Rows) error {
 		rows, err := tx.Query(ctx, headStatement, from)
 		if err != nil {
 			return err
@@ -99,7 +100,7 @@ func (f *Follow) Next(ctx context.Context) ([]Followed, error) {
 		return nil, refused(err)
 	}
 	out := []Followed{}
-	err = f.reader.read(ctx, func(tx db.Rows) error {
+	err = f.reader.readWithin(ctx, f.reader.followTimeout, func(tx db.Rows) error {
 		rows, err := tx.Query(ctx, c.SQL, c.Args...)
 		if err != nil {
 			return err

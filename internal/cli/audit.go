@@ -197,6 +197,15 @@ func auditFrames(out *output, asJSON bool) func(sseFrame) (string, error) {
 			return fr.id, nil
 		case "forbidden":
 			return "", errAuditStreamForbidden
+		case "error":
+			body, err := decode[struct {
+				Error string `json:"error"`
+				Code  string `json:"code"`
+			}]([]byte(fr.data))
+			if err != nil {
+				return "", err
+			}
+			return "", fmt.Errorf("the audit stream ended: %s (%s)", text(body.Error), text(body.Code))
 		}
 		return "", nil
 	}

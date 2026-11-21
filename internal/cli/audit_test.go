@@ -292,3 +292,12 @@ func TestAuditSearchFollowPrintsJSONLinesAndStopsWhenNoLongerAnAdmin(t *testing.
 		t.Errorf("opened %d streams, want 1", len(*opened))
 	}
 }
+
+func TestAuditSearchFollowStopsWithTheServersErrorFrame(t *testing.T) {
+	_, opened, url := auditStream(t, "event: ready\ndata: {}\n\nevent: error\ndata: {\"error\":\"the query is too expensive to follow\",\"code\":\"query_too_expensive\"}\n\n")
+	var stdout, stderr bytes.Buffer
+	code := Main([]string{"--server", url, "--token", "k", "audit", "search", "--follow"}, IO{In: strings.NewReader(""), Out: &stdout, Err: &stderr}, "test")
+	if code != 1 || !strings.Contains(stderr.String(), "the query is too expensive to follow (query_too_expensive)") || len(*opened) != 1 {
+		t.Fatalf("exit %d, stderr %q, opened %d", code, stderr.String(), len(*opened))
+	}
+}

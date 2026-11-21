@@ -687,7 +687,7 @@ export interface paths {
         };
         /**
          * Follow new audit events that match a query as Server-Sent Events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 streams and the process 100.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too. The stream starts with `retry: 3000` and an `event: ready` whose data is `{}`. Each event after that is a frame of `id: <position>`, `event: audit` and the event JSON of `listAuditEvents` as data, in the order the events were committed, for every new event that matches `q`. Without `Last-Event-ID` the stream sends only events committed after it opened, and never one that occurred more than 10 minutes before it opened. A frame's `id` is `<xid>-<seq>-<microseconds>`, its position in the trail and the event's time; a reconnecting client sends the `id` of the last frame it handled and the stream continues with every matching event committed after it whose time is at most 10 minutes before that event's, however long the client was away. A `Last-Event-ID` whose event is more than 24 hours old answers 400; read the gap with `listAuditEvents` and open a new stream. An event can arrive a few seconds after it was recorded, because the trail is written in batches and read every 2 seconds. A `: ping` comment arrives every 5 seconds; at each ping the server re-reads the caller's credentials and role, and a caller who is no longer an Admin, or whose credential is gone, gets an `event: forbidden` with the `forbidden_role` body and the stream ends. The stream also ends when the server shuts down, and after 30 minutes; clients reconnect. Opening the stream is recorded once as `audit.search` with the query as sent, its form and the start of what it can send; the events it delivers are not recorded one by one. A caller may hold 5 audit streams and the process 20, and one more answers 429. Each read of the trail runs under a 5 second statement timeout, one at a time; a stream whose read times out twice in a row sends an `event: error` with an `AuditQueryError` body of code `query_too_expensive` and ends.
          */
         get: operations["streamAuditEvents"];
         put?: never;
@@ -9796,7 +9796,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuditQueryError"];
                 };
             };
-            /** @description The caller already holds the maximum number of open streams (`too_many_streams`). */
+            /** @description The caller already holds 5 open audit streams, or the process 20 (`too_many_streams`). */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -9806,7 +9806,7 @@ export interface operations {
                 };
             };
             500: components["responses"]["Internal"];
-            /** @description The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`). */
+            /** @description The server is shutting down (`shutting_down`). */
             503: {
                 headers: {
                     [name: string]: unknown;
