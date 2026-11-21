@@ -376,8 +376,9 @@ func run() error {
 	}
 
 	serverID := instanceID()
+	auditMetrics := serverMetrics.Audit()
 	recorder := audit.New(audit.Config{
-		DB: database, Server: serverID, Version: version, Metrics: serverMetrics.Audit(), Retention: cfg.AuditRetention, Logger: logger,
+		DB: database, Server: serverID, Version: version, Metrics: auditMetrics, Retention: cfg.AuditRetention, Logger: logger,
 	})
 	audit.Install(recorder)
 	if err := recorder.PartitionJob()(ctx); err != nil {
@@ -515,7 +516,7 @@ func run() error {
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("audit_partitions", 24*time.Hour, recorder.PartitionJob())
-	registerAuditExport(jobs, cfg.AuditExport, auditReader, database, serverMetrics.Audit(), logger)
+	registerAuditExport(jobs, cfg.AuditExport, auditReader, database, auditMetrics, logger)
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))
