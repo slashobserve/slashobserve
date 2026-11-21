@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/accessrequests"
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/annotations"
+	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -77,6 +78,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Viewers:        viewers.New(database.DB),
 		Provider:       &scriptedDraft{},
 		Runs:           revisions.NewRunDesk(revisions.NewService(database.DB, logger, revisions.WithBuiltInAgent(), revisions.WithAccess(access)), revisions.ObserveOptions{}),
+		Audit:          trail.NewReader(database.DB, logger),
 		Logger:         logger,
 	})
 	ctx := auth.WithPrincipal(reading(context.Background()), placeholderUser)
@@ -133,6 +135,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"baseline":       json.RawMessage(`["fedcba9876543210fedcba9876543210"]`),
 		"anchor":         json.RawMessage(`"1700000000000000000"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
+		"field":          json.RawMessage(`"actor_name"`),
 	}
 
 	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}}
@@ -154,6 +157,9 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 				base[field] = sample
 			}
 			ctx := ctx
+			if tool.MinRole == auth.RoleAdmin {
+				ctx = auth.WithPrincipal(ctx, adminCaller)
+			}
 			if tool.AgentOnly {
 				ctx = WithRun(ctx, Run{Mode: ModeInvestigate})
 			}

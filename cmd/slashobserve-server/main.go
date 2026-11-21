@@ -30,6 +30,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/audit"
+	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -437,6 +438,7 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
+	auditReader := trail.NewReader(database, logger)
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
 		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
@@ -454,6 +456,7 @@ func run() error {
 		Health:         healthService,
 		Annotations:    annotationsService,
 		Activity:       activityStore,
+		Audit:          auditReader,
 		Runs:           revisions.NewRunDesk(revisionsService, observeOpts),
 		Claims:         claimsService,
 		RunSessions:    runSessions,
@@ -557,9 +560,11 @@ func run() error {
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
+			trail.NewHandler(auditReader, authService, logger),
 			agentsview.NewHandler(database, agentsview.Observe{Enabled: revisionsService.Available(), Provider: observeOpts.Provider, Model: observeOpts.Model}, logger),
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),
+			stream.NewAuditHandler(broker, auditReader, authService, logger),
 			threads.NewComments(threadsService, revisionsService),
 			threads.NewThreads(threadsService, mentionRuns),
 			revisionsService,

@@ -68,6 +68,9 @@ var (
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
+	readKeys     = []string{"form", "since", "until", "query", "row_count"}
+	searchKeys   = []string{"view", "field"}
+	exportKeys   = []string{"format", "truncated"}
 	jobKeys      = []string{"trigger", "duration_ms"}
 	importKeys   = []string{"connection_id"}
 	countKeys    = []string{"count"}
@@ -104,8 +107,8 @@ var catalog = map[Action]Spec{
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
 	"public_link.view": access(CategoryAccess),
-	"audit.search":     access(CategoryAccess),
-	"audit.export":     access(CategoryAccess),
+	"audit.search":     access(CategoryAccess, readKeys, searchKeys),
+	"audit.export":     access(CategoryAccess, readKeys, exportKeys),
 
 	"dashboard.create":          change(CategoryContent, versionKeys),
 	"dashboard.update":          change(CategoryContent, versionKeys),

@@ -272,13 +272,29 @@ func (c *client) stream(ctx context.Context, path string, query url.Values, last
 	if lastEventID != "" {
 		req.Header.Set("Last-Event-ID", lastEventID)
 	}
+	resp, err := c.open(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+func (c *client) download(ctx context.Context, path string, query url.Values, accept string) (*http.Response, error) {
+	req, err := c.newRequest(ctx, http.MethodGet, path, query, nil, accept)
+	if err != nil {
+		return nil, err
+	}
+	return c.open(ctx, req)
+}
+
+func (c *client) open(ctx context.Context, req *http.Request) (*http.Response, error) {
 	open := c.withTimeout(0)
 	resp, err := open.http.Do(req)
 	if err != nil {
 		return nil, open.transportError(ctx, err)
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return resp.Body, nil
+		return resp, nil
 	}
 	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
