@@ -60,11 +60,12 @@ func quotesRun(item InboxItem) bool {
 }
 
 type inboxTexts struct {
-	titles   map[objectRef]string
-	bodies   map[string]string
-	failures map[string]string
-	closes   map[string]string
-	notes    map[string]string
+	titles    map[objectRef]string
+	bodies    map[string]string
+	questions map[string]string
+	failures  map[string]string
+	closes    map[string]string
+	notes     map[string]string
 }
 
 func (t inboxTexts) excerptOf(item InboxItem) string {
@@ -90,6 +91,9 @@ func (s *Store) describeInbox(ctx context.Context, items []InboxItem) error {
 		item := &items[i]
 		item.TargetTitle = texts.titles[subjectOf(item.Event)]
 		item.Excerpt = texts.excerptOf(*item)
+		if item.Type == TypeThreadReplied {
+			item.Question = Excerpt(texts.questions[dataOf(item.Event).MessageID], inboxExcerptRunes)
+		}
 	}
 	return nil
 }
@@ -134,7 +138,7 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	q := s.db.Queries()
 	refs := inboxRefsOf(items)
 	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
-	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
+	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, questions: map[string]string{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
 	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
@@ -152,6 +156,13 @@ func (s *Store) loadInboxTexts(ctx context.Context, items []InboxItem) (inboxTex
 	}
 	for _, r := range messageRows {
 		texts.bodies[r.ID.String()] = r.Body
+	}
+	questionRows, err := q.InboxAnsweredQuestions(ctx, uuidsOf(messages))
+	if err != nil {
+		return inboxTexts{}, fmt.Errorf("list inbox answered questions: %w", err)
+	}
+	for _, r := range questionRows {
+		texts.questions[r.ID.String()] = r.Body
 	}
 	runRows, err := q.InboxRunTexts(ctx, uuidsOf(runs))
 	if err != nil {

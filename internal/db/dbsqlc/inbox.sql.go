@@ -40,6 +40,38 @@ func (q *Queries) InboxAccessRequestNotes(ctx context.Context, ids []pgtype.UUID
 	return items, nil
 }
 
+const inboxAnsweredQuestions = `-- name: InboxAnsweredQuestions :many
+SELECT m.id, q.body FROM thread_messages m
+JOIN agent_requests r ON r.id = m.run_id
+JOIN thread_messages q ON q.id = r.thread_message_id
+WHERE m.id = ANY($1::uuid[])
+`
+
+type InboxAnsweredQuestionsRow struct {
+	ID   pgtype.UUID
+	Body string
+}
+
+func (q *Queries) InboxAnsweredQuestions(ctx context.Context, ids []pgtype.UUID) ([]InboxAnsweredQuestionsRow, error) {
+	rows, err := q.db.Query(ctx, inboxAnsweredQuestions, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InboxAnsweredQuestionsRow
+	for rows.Next() {
+		var i InboxAnsweredQuestionsRow
+		if err := rows.Scan(&i.ID, &i.Body); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const inboxMessageBodies = `-- name: InboxMessageBodies :many
 SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY($1::uuid[])
 `

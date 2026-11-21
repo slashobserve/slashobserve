@@ -86,6 +86,12 @@ SELECT 'proposal', p.id, p.title FROM proposals p WHERE p.id = ANY(@proposal_ids
 -- name: InboxMessageBodies :many
 SELECT m.id, m.body FROM thread_messages m WHERE m.id = ANY(@ids::uuid[]);
 
+-- name: InboxAnsweredQuestions :many
+SELECT m.id, q.body FROM thread_messages m
+JOIN agent_requests r ON r.id = m.run_id
+JOIN thread_messages q ON q.id = r.thread_message_id
+WHERE m.id = ANY(@ids::uuid[]);
+
 -- name: InboxRunTexts :many
 SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt FROM agent_requests r WHERE r.id = ANY(@ids::uuid[]);
 

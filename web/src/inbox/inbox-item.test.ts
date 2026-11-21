@@ -39,6 +39,7 @@ function item(over: Partial<InboxItem> = {}): InboxItem {
     unread: false,
     target_title: null,
     excerpt: null,
+    question: null,
     ...over,
   }
 }
@@ -189,6 +190,71 @@ describe("itemText", () => {
         data: withData({ object: { kind: "observation", id: other } }),
       },
       text: { actor: "Ada", verb: "replied on", object: "an observation" },
+    },
+    {
+      name: "the built-in agent's reply names the question it answered",
+      over: {
+        type: "thread.replied",
+        target: { kind: "thread", id },
+        actor: {
+          kind: "user",
+          id: other,
+          name: "admin",
+          origin: "web",
+          client: null,
+          run_id: "r1",
+          label: "Observe Agent for admin",
+        },
+        question: "why did checkout slow down?",
+        target_title: "Checkout",
+        data: withData({ object: { kind: "dashboard", id: other } }),
+      },
+      text: {
+        actor: "Observe Agent",
+        verb: "answered",
+        object: "why did checkout slow down?",
+      },
+    },
+    {
+      name: "a connected agent's reply keeps its own label with the question",
+      over: {
+        type: "thread.replied",
+        target: { kind: "thread", id },
+        actor: {
+          kind: "user",
+          id: other,
+          name: "Ada",
+          origin: "mcp",
+          client: "Claude Code",
+          run_id: null,
+          label: "Ada (via Claude Code)",
+        },
+        question: "why did checkout slow down?",
+      },
+      text: {
+        actor: "Ada (via Claude Code)",
+        verb: "answered",
+        object: "why did checkout slow down?",
+      },
+    },
+    {
+      name: "the built-in agent's reply with no question names where it answered",
+      over: {
+        type: "thread.replied",
+        target: { kind: "thread", id },
+        actor: {
+          kind: "user",
+          id: other,
+          name: "admin",
+          origin: "web",
+          client: null,
+          run_id: "r1",
+          label: "Observe Agent for admin",
+        },
+        target_title: "Checkout",
+        data: withData({ object: { kind: "dashboard", id: other } }),
+      },
+      text: { actor: "Observe Agent", verb: "answered on", object: "Checkout" },
     },
     {
       name: "a reply with no object uses the target kind",

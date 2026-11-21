@@ -2205,7 +2205,7 @@ components:
     InboxItem:
       type: object
       additionalProperties: false
-      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt]
+      required: [seq, type, target, dashboard_id, folder_id, actor, data, created_at, reason, unread, target_title, excerpt, question]
       description: An activity event as `listActivity` returns it, with why it is in the inbox and whether it is unread.
       properties:
         seq:
@@ -2255,6 +2255,10 @@ components:
           type: string
           nullable: true
           description: The start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, or the note of an `access_request`, as plain text of at most 200 characters; null for other items.
+        question:
+          type: string
+          nullable: true
+          description: The start of the thread message an agent run answered, as plain text of at most 200 characters, on a `thread.replied` item the run wrote; null for every other item.
     InboxList:
       type: object
       additionalProperties: false

@@ -77,6 +77,7 @@ type InboxItem struct {
 	Unread      bool
 	TargetTitle string
 	Excerpt     string
+	Question    string
 }
 
 type InboxPage struct {

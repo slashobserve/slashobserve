@@ -252,6 +252,30 @@ func TestInboxListsRepliesInThreadsTheCallerWroteInAndRunAnswersForTheirRuns(t *
 	wantReasons(t, "with a run answer for Ola's run", r.inbox(t, mia, ViewForYou), ReasonReply, ReasonReply)
 }
 
+func TestInboxQuotesTheMessageARunAnsweredOnItsReplyOnly(t *testing.T) {
+	r := newRig(t)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	asked := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, 'why did checkout slow down?', 'user', $2::uuid, $3) RETURNING id::text`, thread.String(), mia.ID, mia.Name))
+	run := r.run(t, miaActor, "succeeded")
+	r.db.Exec(t, `UPDATE agent_requests SET thread_message_id = $1::uuid WHERE id = $2::uuid`, asked.String(), run.String())
+	answer := miaActor
+	answer.RunID = run.String()
+	reply := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1::uuid, 'the deploy at 10:02 did', 'user', $2::uuid, $3, $4::uuid, 'builtin') RETURNING id::text`, thread.String(), mia.ID, mia.Name, run.String()))
+	r.append(t, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: OnObservation(o), Actor: answer, Data: map[string]any{"message_id": reply.String()}})
+	r.reply(t, o, thread, ola)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "the run answer and a person's reply", page, ReasonReply, ReasonReply)
+	got := map[string]string{}
+	for _, item := range page.Items {
+		got[item.Actor.Name] = item.Question
+	}
+	if got["Mia"] != "why did checkout slow down?" || got["Ola"] != "" {
+		t.Fatalf("questions by author = %v, want the run answer to quote what it answered and a person's reply to quote nothing", got)
+	}
+}
+
 func TestInboxListsAFailedRunUntilItIsContinued(t *testing.T) {
 	r := newRig(t)
 	run, _ := r.failedRun(t, miaActor)
