@@ -241,7 +241,6 @@ func unsupportedOnAudit(row surfaceRow) surfaceRow {
 	return row
 }
 
-
 func datasourceRESTRows() []surfaceRow {
 	return []surfaceRow{
 		restSpec{method: http.MethodGet, path: "/datasources", proof: fixed(auditUID), control: fixed(controlUID), list: true, admin: servesData, member: absentFromList}.row("GET /datasources"),
@@ -308,7 +307,9 @@ func workspaceRESTRows() []surfaceRow {
 		dashboard("/versions", "/versions", `"version"`),
 		dashboard("/versions/{version}", "/versions/1", `"version"`),
 		restSpec{
-			method: http.MethodGet, target: func(s *stack) string { return "/dashboards/" + s.starters[0] + "/versions/1/panels/" + s.starterPanel + "/data" },
+			method: http.MethodGet, target: func(s *stack) string {
+				return "/dashboards/" + s.starters[0] + "/versions/1/panels/" + s.starterPanel + "/data"
+			},
 			hidden: starterID, proof: fixed(`"meta"`), admin: servesData, member: notFound,
 		}.row("GET /dashboards/{id}/versions/{version}/panels/{panel_id}/data"),
 		restSpec{method: http.MethodGet, path: "/search?" + queryOf("q", "audit"), proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /search"),
