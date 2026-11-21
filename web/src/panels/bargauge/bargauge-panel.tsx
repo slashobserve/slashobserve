@@ -1,4 +1,10 @@
-import { memo, useMemo, type CSSProperties } from "react"
+import {
+  memo,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from "react"
 import { ZapIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +31,8 @@ import { oneClickTarget, type FieldAction } from "../actions/field-actions"
 import type { FieldResolver, LinkScope } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { useAnchorPublisher } from "../anchor-layout"
+import { valueAnchorLayout } from "../value-layout"
 import {
   barActions,
   barLimits,
@@ -377,6 +385,27 @@ const BargaugePanel: PanelRenderer = ({
     () => bargaugeModel(frames, fields, display, zone),
     [frames, fields, display, zone]
   )
+  const regionRef = useRef<HTMLDivElement>(null)
+  const publish = useAnchorPublisher("bargauge")
+  useLayoutEffect(() => {
+    const region = regionRef.current
+    if (region === null) return
+    const measure = () =>
+      publish(
+        valueAnchorLayout(
+          region,
+          model.bars.map(({ name, frame, text }) => ({
+            name,
+            labels: frame.labels,
+            text,
+          })),
+          { width, height }
+        )
+      )
+    measure()
+    region.addEventListener("scroll", measure, { passive: true })
+    return () => region.removeEventListener("scroll", measure)
+  }, [publish, model.bars, width, height])
   const reducer = reducerOf(display)
   const orientation = orientationOf(display, { width, height })
   const vertical = orientation === "vertical"
@@ -402,6 +431,7 @@ const BargaugePanel: PanelRenderer = ({
   return (
     <>
       <div
+        ref={regionRef}
         role="region"
         aria-label={`${panel.title} values`}
         tabIndex={0}
