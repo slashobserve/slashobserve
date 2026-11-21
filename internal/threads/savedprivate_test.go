@@ -3,6 +3,7 @@ package threads
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -109,5 +110,20 @@ func TestASavedPrivateAnswerAboutADashboardStaysAPrivateAsk(t *testing.T) {
 	next := r.runRow(t, retriedOverHTTP(t, r.observeEngine(testUser), run))
 	if next.Investigation || !revisions.PrivateAsk(next) || next.DashboardID != dash || next.ChatID != r.runRow(t, run).ChatID {
 		t.Fatalf("retry %+v, want a private ask about dashboard %v in the same chat", next, dash)
+	}
+}
+
+func TestASharedSavedPrivateAnswerSaysItWasWrittenOntoThePage(t *testing.T) {
+	r := newShareRig(t)
+	_, run, _ := r.savedPrivateAnswer(t)
+
+	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	replies := r.runReplies(t, shared.Thread.ID)
+	if len(replies) != 1 || !strings.HasPrefix(replies[0].Body, "Wrote the answer into this observation: ") {
+		t.Fatalf("replies after the share = %+v", replies)
 	}
 }
