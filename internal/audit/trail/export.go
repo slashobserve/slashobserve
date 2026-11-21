@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
@@ -58,6 +59,7 @@ func newRowWriter(format string, out io.Writer) (rowWriter, error) {
 type Sink struct {
 	Begin func() io.Writer
 	Flush func()
+	Check func(context.Context) error
 }
 
 func (r *Reader) Export(ctx context.Context, p Prepared, format string, limit int, sink Sink) (Export, error) {
@@ -69,6 +71,9 @@ func (r *Reader) Export(ctx context.Context, p Prepared, format string, limit in
 		if problem, ok := ProblemOf(err); ok {
 			e.Status, e.Reason = problem.Status, problem.Code
 		}
+		if errors.Is(err, ErrNoLongerAdmin) {
+			e.Outcome = audit.OutcomeDenied
+		}
 	}
 	r.record(ctx, p, e)
 	return result, err
@@ -79,6 +84,11 @@ func (r *Reader) export(ctx context.Context, p Prepared, format string, limit in
 	var w rowWriter
 	page := p
 	for {
+		if page.after != nil && sink.Check != nil {
+			if err := sink.Check(ctx); err != nil {
+				return result, err
+			}
+		}
 		batch, err := r.events(ctx, page, min(exportPageRows, limit-result.Rows))
 		if err != nil {
 			return result, err

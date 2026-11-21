@@ -534,7 +534,7 @@ func run() error {
 			repairs.NewHandler(repairs.New(repairs.Deps{DB: database, Access: folderAccess, Revisions: revisionsService, PublicURL: cfg.PublicURL, Logger: logger})),
 			stream.NewHandler(broker, dashboardsService, authService, folderAccess, folderAccess.RequireDashboard(folders.NeedView), logger),
 			activity.NewHandler(activityStore, logger),
-			trail.NewHandler(auditReader, logger),
+			trail.NewHandler(auditReader, authService, logger),
 			agentsview.NewHandler(database, agentsview.Observe{Enabled: revisionsService.Available(), Provider: observeOpts.Provider, Model: observeOpts.Model}, logger),
 			search.NewHandler(searchService, logger),
 			stream.NewActivityHandler(broker, activityStore, authService, logger),

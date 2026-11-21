@@ -99,6 +99,7 @@ A search returns 100 events a page by default and at most 1,000, newest first by
 An export streams up to 1,000,000 events, the value of its `X-Export-Row-Limit` header, and stops there.
 A complete export ends with the HTTP trailer `X-Export-Truncated`: `true` when more matching events existed past the limit, `false` otherwise.
 When a read fails after the first rows were sent (a statement timeout, a lost database connection), the server cuts the connection off instead of ending the response, so the client sees an unexpected end of the body rather than a short file that looks complete; the failed export is recorded with its row count.
+Before each page after the first the server re-reads the caller's credentials and role, and an export whose caller is no longer an Admin is cut off the same way and recorded as denied with `forbidden_role`.
 
 ## Following new events
 

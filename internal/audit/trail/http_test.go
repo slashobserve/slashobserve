@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func (r *httpRig) engine(t *testing.T, principal *auth.Principal) *gin.Engine {
 		}
 		c.Next()
 	})
-	NewHandler(r.reader, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
+	NewHandler(r.reader, fromContext, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
 	return engine
 }
 
@@ -288,7 +289,16 @@ func (w *flushHook) Flush() {
 	w.after()
 }
 
-func (r *httpRig) serve(t *testing.T, reader *Reader, hook func()) *httptest.Server {
+type principalsFunc func(*http.Request) (auth.Principal, bool, error)
+
+func (f principalsFunc) RequestPrincipal(r *http.Request) (auth.Principal, bool, error) { return f(r) }
+
+var fromContext = principalsFunc(func(r *http.Request) (auth.Principal, bool, error) {
+	p, ok := auth.FromContext(r.Context())
+	return p, ok, nil
+})
+
+func (r *httpRig) serve(t *testing.T, reader *Reader, principals Principals, hook func()) *httptest.Server {
 	t.Helper()
 	mw, err := r.recorder.Middleware()
 	if err != nil {
@@ -300,23 +310,21 @@ func (r *httpRig) serve(t *testing.T, reader *Reader, hook func()) *httptest.Ser
 		c.Writer = &flushHook{ResponseWriter: c.Writer, after: hook}
 		c.Next()
 	})
-	NewHandler(reader, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
+	NewHandler(reader, principals, slog.New(slog.DiscardHandler)).Register(auth.NewRoutes(api))
 	server := httptest.NewServer(engine)
 	t.Cleanup(server.Close)
 	return server
 }
 
-func TestAnExportThatFailsAfterItsFirstPageIsCutOff(t *testing.T) {
-	r := newHTTPRig(t)
+func (r *httpRig) insertPages(t *testing.T) {
+	t.Helper()
 	r.db.Exec(t, `INSERT INTO audit_events (id, occurred_at, category, action, outcome, actor_kind, initiator, origin, server_id, server_version)
 SELECT gen_random_uuid(), $1::timestamptz - make_interval(secs => n), 'content', 'dashboard.update', 'success', 'user', 'person', 'web', 'test', 'test'
 FROM generate_series(1, $2::int) AS n`, r.base, exportPageRows+5)
-	second, err := db.Open(t.Context(), db.Config{URL: r.db.URL()}, slog.New(slog.DiscardHandler))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var once sync.Once
-	server := r.serve(t, NewReader(second, slog.New(slog.DiscardHandler)), func() { once.Do(second.Close) })
+}
+
+func (r *httpRig) exportCutOff(t *testing.T, server *httptest.Server) {
+	t.Helper()
 	resp, err := http.Get(server.URL + "/api/v1/audit/export?" + r.hourWindow(nil).Encode())
 	if err != nil {
 		t.Fatal(err)
@@ -326,6 +334,40 @@ FROM generate_series(1, $2::int) AS n`, r.base, exportPageRows+5)
 	if resp.StatusCode != http.StatusOK || !errors.Is(err, io.ErrUnexpectedEOF) || strings.Count(string(body), "\n") != exportPageRows {
 		t.Fatalf("export = %d, %d lines, read error %v; want the first page cut off", resp.StatusCode, strings.Count(string(body), "\n"), err)
 	}
+}
+
+func TestAnExportStopsWhenTheCallerIsNoLongerAnAdmin(t *testing.T) {
+	r := newHTTPRig(t)
+	r.insertPages(t)
+	var demoted atomic.Bool
+	principals := principalsFunc(func(req *http.Request) (auth.Principal, bool, error) {
+		p, ok := auth.FromContext(req.Context())
+		if demoted.Load() {
+			p.Role = auth.RoleEditor
+		}
+		return p, ok, nil
+	})
+	r.exportCutOff(t, r.serve(t, r.reader, principals, func() { demoted.Store(true) }))
+	reads := r.reads(t)
+	if len(reads) != 1 || reads[0].action != "audit.export" || reads[0].outcome != "denied" || reads[0].data["row_count"] != float64(exportPageRows) {
+		t.Fatalf("recorded %+v", reads)
+	}
+	var reason string
+	var status int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT reason, status FROM audit_events WHERE action = 'audit.export'`).Scan(&reason, &status); err != nil || reason != "forbidden_role" || status != http.StatusForbidden {
+		t.Fatalf("recorded reason %q status %d (%v)", reason, status, err)
+	}
+}
+
+func TestAnExportThatFailsAfterItsFirstPageIsCutOff(t *testing.T) {
+	r := newHTTPRig(t)
+	r.insertPages(t)
+	second, err := db.Open(t.Context(), db.Config{URL: r.db.URL()}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	r.exportCutOff(t, r.serve(t, NewReader(second, slog.New(slog.DiscardHandler)), fromContext, func() { once.Do(second.Close) }))
 	reads := r.reads(t)
 	if len(reads) != 1 || reads[0].action != "audit.export" || reads[0].outcome != "failed" || reads[0].data["row_count"] != float64(exportPageRows) {
 		t.Fatalf("recorded %+v", reads)
@@ -335,7 +377,7 @@ FROM generate_series(1, $2::int) AS n`, r.base, exportPageRows+5)
 func TestACompleteExportSaysWhetherRowsWereLeftOut(t *testing.T) {
 	r := newHTTPRig(t)
 	trailtest.Insert(t, r.db, trailtest.Event{At: r.at(-5)})
-	server := r.serve(t, r.reader, func() {})
+	server := r.serve(t, r.reader, fromContext, func() {})
 	resp, err := http.Get(server.URL + "/api/v1/audit/export?" + r.hourWindow(nil).Encode())
 	if err != nil {
 		t.Fatal(err)

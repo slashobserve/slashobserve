@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/slashobserve/slashobserve/internal/audit/filter"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
 const (
@@ -36,6 +37,8 @@ func ProblemOf(err error) (Problem, bool) {
 		return Problem{Status: http.StatusUnprocessableEntity, Code: CodeQueryInvalid, Message: refused.Msg}, true
 	case errors.Is(err, ErrTimeout):
 		return Problem{Status: http.StatusUnprocessableEntity, Code: CodeQueryTimeout, Message: ErrTimeout.Error()}, true
+	case errors.Is(err, ErrNoLongerAdmin):
+		return Problem{Status: http.StatusForbidden, Code: forbidden.Code, Message: forbidden.RoleMessage}, true
 	case errors.Is(err, ErrNotFound):
 		return Problem{Status: http.StatusNotFound, Code: CodeNotFound, Message: "no audit event has this id"}, true
 	}

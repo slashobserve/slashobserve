@@ -1,6 +1,8 @@
 package trail
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,12 +25,13 @@ const (
 )
 
 type Handler struct {
-	reader *Reader
-	logger *slog.Logger
+	reader     *Reader
+	principals Principals
+	logger     *slog.Logger
 }
 
-func NewHandler(reader *Reader, logger *slog.Logger) *Handler {
-	return &Handler{reader: reader, logger: logger}
+func NewHandler(reader *Reader, principals Principals, logger *slog.Logger) *Handler {
+	return &Handler{reader: reader, principals: principals, logger: logger}
 }
 
 func (h *Handler) Register(api auth.Routes) {
@@ -302,6 +305,13 @@ func (h *Handler) export(c *gin.Context) {
 			return c.Writer
 		},
 		Flush: c.Writer.Flush,
+		Check: func(context.Context) error {
+			still, err := StillAdmin(c.Request, h.principals)
+			if err == nil && !still {
+				err = ErrNoLongerAdmin
+			}
+			return err
+		},
 	}
 	result, err := h.reader.Export(c.Request.Context(), p, format, MaxExportRows, sink)
 	switch {
@@ -310,6 +320,8 @@ func (h *Handler) export(c *gin.Context) {
 	case !begun:
 		h.fail(c, "export audit events", err)
 	case clientgone.Is(c.Request.Context(), err):
+	case errors.Is(err, ErrNoLongerAdmin):
+		panic(http.ErrAbortHandler)
 	default:
 		h.logger.ErrorContext(c.Request.Context(), "export audit events failed", logattrs.Failure("audit_export_failed", err)...)
 		panic(http.ErrAbortHandler)

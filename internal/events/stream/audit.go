@@ -168,14 +168,12 @@ func (h *AuditHandler) drain(c *gin.Context, follow *trail.Follow) bool {
 }
 
 func (h *AuditHandler) stillAdmin(r *http.Request) (still, failed bool) {
-	ctx, cancel := context.WithTimeout(r.Context(), sessionCheckTimeout)
-	defer cancel()
-	principal, ok, err := h.principals.RequestPrincipal(r.WithContext(ctx))
+	still, err := trail.StillAdmin(r, h.principals)
 	if err != nil {
 		if r.Context().Err() == nil {
 			h.logger.WarnContext(r.Context(), "re-check audit stream credentials", logattrs.Failure("stream_auth_check_failed", err)...)
 		}
 		return r.Context().Err() == nil, true
 	}
-	return ok && principal.Role.AtLeast(auth.RoleAdmin), false
+	return still, false
 }
