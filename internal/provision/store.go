@@ -73,3 +73,9 @@ func (s store) errors(ctx context.Context) ([]dbsqlc.ProvisionError, error) {
 func (s store) clearError(ctx context.Context, path string) error {
 	return s.db.Queries().DeleteProvisionError(ctx, path)
 }
+
+func RecordApplied(ctx context.Context, q *dbsqlc.Queries, dashboardID pgtype.UUID) {
+	if err := audit.Record(ctx, q, audit.Event{Action: provisionAction, Target: dashboardTarget(dashboardID)}); err != nil {
+		audit.Dropped(audit.DroppedRecordFailed)
+	}
+}

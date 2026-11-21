@@ -7,6 +7,7 @@ describe("moreLabel", () => {
     expect(
       moreLabel({
         mayEdit: true,
+        mayDelete: true,
         canAddPanel: true,
         canDuplicate: true,
         folderTv: true,
@@ -20,6 +21,7 @@ describe("moreLabel", () => {
     expect(
       moreLabel({
         mayEdit: true,
+        mayDelete: true,
         canAddPanel: true,
         canDuplicate: true,
         folderTv: false,
@@ -31,6 +33,7 @@ describe("moreLabel", () => {
     expect(
       moreLabel({
         mayEdit: true,
+        mayDelete: true,
         canAddPanel: false,
         canDuplicate: true,
         folderTv: true,
@@ -42,6 +45,7 @@ describe("moreLabel", () => {
     expect(
       moreLabel({
         mayEdit: false,
+        mayDelete: false,
         canAddPanel: true,
         canDuplicate: false,
         folderTv: true,
@@ -49,5 +53,19 @@ describe("moreLabel", () => {
     ).toBe(
       "More: open on sign-in, export, dashboards as code, print, image, TV mode, TV mode for this folder, chart hover"
     )
+  })
+
+  it("keeps delete but not the content items on a starter dashboard", () => {
+    const label = moreLabel({
+      mayEdit: false,
+      mayDelete: true,
+      canAddPanel: true,
+      canDuplicate: true,
+      folderTv: false,
+    })
+    expect(label).toContain("duplicate")
+    expect(label).toContain("delete")
+    expect(label).not.toContain("edit details")
+    expect(label).not.toContain("add panel")
   })
 })

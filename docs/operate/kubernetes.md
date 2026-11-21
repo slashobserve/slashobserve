@@ -75,8 +75,9 @@ The chart sets the environment variables of the [configuration reference](../ref
 To enable the agent, set `llm.provider`, `llm.model` when the provider needs one, `llm.apiKey.existingSecret`, and `llm.effort` if you want a different effort level; see [LLM providers](../connect/llm-providers.md).
 The server starts `observe-agent` from the image whenever `llm.provider` is set, and that process makes the model calls from the pod, so the pod needs a network path to the provider.
 
-The chart also has `imagePullSecrets`, `logLevel`, `logFormat`, `outboundDomains`, `service.type` and `service.port`, `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` and `metrics.enabled`.
-`logLevel`, `logFormat`, `outboundDomains` and `metrics.enabled` set `SLASHOBSERVE_LOG_LEVEL`, `SLASHOBSERVE_LOG_FORMAT`, `SLASHOBSERVE_OUTBOUND_DOMAINS` and `SLASHOBSERVE_METRICS`.
+The chart also has `imagePullSecrets`, `logLevel`, `logFormat`, `outboundDomains`, `trustedProxies`, `service.type` and `service.port`, `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` and `metrics.enabled`.
+`logLevel`, `logFormat`, `outboundDomains`, `trustedProxies` and `metrics.enabled` set `SLASHOBSERVE_LOG_LEVEL`, `SLASHOBSERVE_LOG_FORMAT`, `SLASHOBSERVE_OUTBOUND_DOMAINS`, `SLASHOBSERVE_TRUSTED_PROXIES` and `SLASHOBSERVE_METRICS`.
+Set `trustedProxies` to the narrowest addresses or ranges your Ingress controller connects from, not the pod network, so the audit trail records the real client address; see [Put TLS in front](production.md#put-tls-in-front).
 
 ## Datasources
 

@@ -20,7 +20,11 @@ import {
   useDeletedBy,
   useDeletedDashboards,
 } from "@/dashboards/live/deleted-store"
-import { useLatestPermissions } from "@/dashboards/permissions"
+import {
+  contentChange,
+  useLatestPermissions,
+  useLatestProvisioned,
+} from "@/dashboards/permissions"
 import { usePatchPanels } from "@/dashboards/queries"
 import { saveToast } from "@/dashboards/save-outcome"
 import { useSetDashboardSearch } from "@/dashboards/search"
@@ -155,6 +159,7 @@ export function EditPane({
   useEffect(() => () => holdDraft(dashboardId, false), [dashboardId, holdDraft])
   const deletedBy = useDeletedBy(dashboardId)
   const permissions = useLatestPermissions(dashboardId)
+  const provisioned = useLatestProvisioned(dashboardId)
   const patch = usePatchPanels(dashboardId)
 
   useEffect(
@@ -198,7 +203,7 @@ export function EditPane({
     dashboardId,
     latestVersion,
     adding,
-    propose: !permissions.edit && permissions.comment,
+    propose: contentChange(permissions, provisioned) === "propose",
     deleted: deletedBy !== undefined,
     save: (input: PanelsSave) =>
       patch.mutateAsync(input).then((outcome) => {

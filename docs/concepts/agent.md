@@ -300,6 +300,8 @@ The save tools reject a document that creates or edits a placeholder panel, writ
 Each run carries an `intent`: `ask` reads and answers, `apply` changes a dashboard, and `suggest` proposes one panel.
 A new-dashboard request is an `ask` until it saves its dashboard, and then an `apply`.
 Run listings show the `intent` and the run's `kind`, `build` or `investigate`; a private ask lists as `investigate`.
+Each run also carries `investigation`, true when it was started as an investigation that opens or writes into an observation and false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation.
+It is set when the run is queued and never changes: saving, sharing, showing on a page or withdrawing an answer leaves it as it was.
 
 The agent acts as the person or key that asked.
 The server checks the request when it is queued and again when a worker starts it.
