@@ -479,4 +479,18 @@ describe("Conversation", () => {
     ).toBeNull()
     expect(screen.queryByRole("menuitem", { name: /^Withdraw/ })).toBeNull()
   })
+
+  it("puts Ask again in the answer's own row of actions, before the menu", async () => {
+    stubServer(chatAbout({ dashboard_id: dashboardId }))
+    renderConversation(answered())
+    const askAgain = await screen.findByRole("button", { name: "Ask again" })
+    const menu = screen.getByRole("button", { name: "Answer actions" })
+    const row = askAgain.parentElement
+    expect(row).toBe(menu.parentElement)
+    const children = Array.from(row!.children)
+    expect(children.indexOf(askAgain)).toBeLessThan(children.indexOf(menu))
+    expect(row!.parentElement).toContainElement(
+      screen.getByText("p99 rose after the deploy.")
+    )
+  })
 })
