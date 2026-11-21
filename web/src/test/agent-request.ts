@@ -53,6 +53,8 @@ export function redactedRun(patch: Partial<ObserveRequest>): ObserveRequest {
     observation_id: null,
     subject_observation_id: null,
     shared_thread_id: null,
+    anchor: null,
+    block_id: null,
     finding: null,
     ...patch,
   }

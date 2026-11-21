@@ -37,6 +37,8 @@ function chat(id: string, title: string, overrides: Partial<Chat> = {}): Chat {
       prompt: title,
       investigation: false,
       subject_observation_id: null,
+      anchor: null,
+      block_id: null,
     },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
