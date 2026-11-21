@@ -5,5 +5,6 @@ export const manifest: RendererManifest = {
   supported: true,
   minWidth: 300,
   minHeight: 300,
+  anchors: () => import("./anchors"),
   load: () => import("./table-panel"),
 }

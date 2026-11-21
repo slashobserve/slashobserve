@@ -260,6 +260,13 @@ func decodeStrict(data []byte, into any) error {
 }
 
 func Parse(text string) (Anchor, error) {
+	if !strings.HasPrefix(strings.TrimSpace(text), "{") {
+		a, err := parseShort(strings.TrimSpace(text), time.Now())
+		if err != nil {
+			return Anchor{}, fmt.Errorf("anchor: %w", err)
+		}
+		return a, nil
+	}
 	var a Anchor
 	if err := json.Unmarshal([]byte(text), &a); err != nil {
 		return Anchor{}, fmt.Errorf("anchor: %w", err)

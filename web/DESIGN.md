@@ -724,6 +724,26 @@ Emphasis uses a stronger border: a selected panel or the active composer takes a
 Round means an author (a person or an agent) or a count. A 6px corner means a control. Do not mix them.
 A dashed 1.5px border means "suggested, not saved yet". A solid border means saved.
 
+## Motion
+
+Motion is rare and always has a reason: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
+Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.
+Hover may change opacity only, in 120ms or less.
+
+There are two curves and two speeds.
+`--ease-out` is `cubic-bezier(0.23, 1, 0.32, 1)` and pairs with `--duration-fast`, 150ms, for things that appear.
+`--ease-panel` pairs with `--duration-panel`, 220ms, for panels and page handoffs.
+An exit is faster than its entrance, and nothing in the app runs longer than 300ms.
+
+Only `transform` and `opacity` animate, and height for a fold.
+Name the property every time; never `transition-all` or a bare `duration-*`.
+A popup grows from its trigger, starting at `scale(0.96)`, never from zero.
+Only what changed moves, so content present at first render appears without motion.
+All of it sits under `motion-safe:`: with reduced motion the fade stays and the movement goes.
+
+What does not move: switching between Select, Comment and Ask, the highlight under the pointer, anything opened by a key, streamed agent text, counts and badges, home's chips and lists, and every chart, table and value drawn from data.
+No shadows, no bounce.
+
 ## Components
 
 - **Buttons.** Three types. `button-primary` is the one main action of a page or a card. `button-outline` is every other action. `button-ghost` is for quiet actions in toolbars and rows. `button-danger` is an outline button with error-coloured text. Page actions sit in the top bar on the right.
