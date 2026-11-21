@@ -538,10 +538,7 @@ func (q *Queries) RestrictedAnswerHolders(ctx context.Context, arg RestrictedAns
 }
 
 const runAnswerKeptWithAdmins = `-- name: RunAnswerKeptWithAdmins :one
-SELECT (r.read_restricted
-  OR EXISTS (SELECT 1 FROM dashboards d JOIN folders f ON f.id = d.folder_id WHERE d.id = r.dashboard_id AND f.admins_only)
-  OR EXISTS (SELECT 1 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id IN (r.observation_id, r.subject_observation_id) AND f.admins_only))::boolean
-FROM agent_requests r WHERE r.id = $1
+SELECT run_answer_kept_with_admins(r.id, NULL)::boolean FROM agent_requests r WHERE r.id = $1
 `
 
 func (q *Queries) RunAnswerKeptWithAdmins(ctx context.Context, id pgtype.UUID) (bool, error) {
