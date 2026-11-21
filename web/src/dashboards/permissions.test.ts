@@ -28,7 +28,15 @@ describe("composerMode", () => {
     [{}, "read-only"],
     [{ manage: true, create: true }, "read-only"],
   ] as const)("maps %j to %s", (flags, expected) => {
-    expect(composerMode(permissions(flags))).toBe(expected)
+    expect(composerMode(permissions(flags), false)).toBe(expected)
+  })
+
+  it.each([
+    [{ comment: true }, "provisioned"],
+    [{ comment: true, edit: true }, "provisioned"],
+    [{}, "read-only"],
+  ] as const)("maps %j on a starter to %s", (flags, expected) => {
+    expect(composerMode(permissions(flags), true)).toBe(expected)
   })
 })
 
@@ -41,6 +49,12 @@ describe("readerNote", () => {
     expect(readerNote("comment-only", "Payments")).toBe(
       "You can view and comment in Payments. What the agent changes for you reaches the dashboard as a proposal that someone with Edit on this folder merges."
     )
+  })
+
+  it("says a starter is kept current by releases and can be duplicated", () => {
+    const note = readerNote("provisioned", "Audit")
+    expect(note).toContain("kept current by SlashObserve releases")
+    expect(note).toContain("Duplicate")
   })
 
   it("names the folder in the read-only note", () => {
