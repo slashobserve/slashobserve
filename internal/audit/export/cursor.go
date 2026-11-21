@@ -3,6 +3,7 @@ package export
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -30,9 +31,18 @@ func (c *Cursor) Load(ctx context.Context) (filter.Position, error) {
 	return filter.Position{Xid: row.Xid.Uint64, Seq: row.Seq}, nil
 }
 
-func (c *Cursor) Advance(ctx context.Context, at filter.Position) error {
+func (c *Cursor) Advance(ctx context.Context, at filter.Position, occurredAt time.Time) error {
 	return c.queries.AdvanceAuditExportCursor(ctx, dbsqlc.AdvanceAuditExportCursorParams{
-		Xid: pgtype.Uint64{Uint64: at.Xid, Valid: true},
-		Seq: at.Seq,
+		Xid:        pgtype.Uint64{Uint64: at.Xid, Valid: true},
+		Seq:        at.Seq,
+		OccurredAt: pgtype.Timestamptz{Time: occurredAt, Valid: true},
 	})
+}
+
+func (c *Cursor) Lag(ctx context.Context) (time.Duration, error) {
+	seconds, err := c.queries.GetAuditExportLag(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(seconds * float64(time.Second)).Round(time.Millisecond), nil
 }

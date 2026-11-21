@@ -60,6 +60,9 @@ The full list of fields is in [Audit queries](../reference/audit-queries.md#fiel
 
 ## Watching it
 
-`slashobserve_audit_export_lag_seconds` is the age of the oldest event waiting at the holding server's last attempt, and `0` when it is caught up or when that server does not hold the export.
-Alert when it stays high, which means the receiver refuses events or the job is not running.
+`slashobserve_audit_export_lag_seconds` is the time between the newest audit event in the database and the last event the export sent.
+Every server that has the export set reads it from the database every 15 seconds, whether or not it holds the job, so one scrape of any such server shows the real lag and it never reads `0` just because the job is not running.
+It stays above `0` when the receiver refuses events, when no server runs the `audit_export` job, and when a long-running transaction in the database hides newer events from the export until it ends.
+Alert on it staying high for several minutes.
+Before the first event is exported it is the span of the events the audit table holds.
 See [Metrics](metrics.md) for the other audit series.

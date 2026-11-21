@@ -516,7 +516,8 @@ func run() error {
 	jobs.Register(healthJob, time.Hour, healthService.Run)
 	jobs.Register("activity_prune", time.Hour, activity.PruneJob(database, cfg.ActivityRetention))
 	jobs.Register("audit_partitions", 24*time.Hour, recorder.PartitionJob())
-	registerAuditExport(jobs, cfg.AuditExport, auditReader, database, auditMetrics, logger)
+	stopAuditExport := registerAuditExport(ctx, jobs, cfg.AuditExport, auditReader, database, auditMetrics, logger)
+	defer stopAuditExport()
 	jobs.Register("webhook_deliveries_prune", time.Hour, webhooks.PruneJob(database))
 	jobs.Register("oauth_prune", time.Hour, mcpauth.PruneJob(database))
 	jobs.Register("run_tokens_prune", time.Hour, claims.PruneJob(database))
@@ -843,13 +844,15 @@ func reportedEffort(llm config.LLM) string {
 
 func poolFloor(workers int) int { return 2*workers + 8 }
 
-func registerAuditExport(jobs *scheduler.Scheduler, export config.AuditExport, reader *trail.Reader, database *db.DB, m metrics.Audit, logger *slog.Logger) {
+func registerAuditExport(ctx context.Context, jobs *scheduler.Scheduler, export config.AuditExport, reader *trail.Reader, database *db.DB, m metrics.Audit, logger *slog.Logger) func() {
 	if export.Endpoint == nil {
-		return
+		return func() {}
 	}
+	cursor := auditexport.NewCursor(database.Queries())
 	sender := auditexport.NewSender(export.Endpoint, export.Headers)
-	exporter := auditexport.New(reader, auditexport.NewCursor(database.Queries()), sender.Send, m, logger)
+	exporter := auditexport.New(reader, cursor, sender.Send, m, logger)
 	jobs.Register(auditexport.JobName, auditexport.JobEvery, exporter.Run)
+	return startBackground(ctx, "audit export lag", auditexport.NewLagWatcher(cursor, m, logger).Run, logger)
 }
 
 func startScheduler(ctx context.Context, jobs *scheduler.Scheduler, logger *slog.Logger) func() {

@@ -211,10 +211,11 @@ type AuditEvent struct {
 }
 
 type AuditExportCursor struct {
-	OnlyRow   bool
-	Xid       pgtype.Uint64
-	Seq       int64
-	UpdatedAt pgtype.Timestamptz
+	OnlyRow    bool
+	Xid        pgtype.Uint64
+	Seq        int64
+	OccurredAt pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type Chat struct {

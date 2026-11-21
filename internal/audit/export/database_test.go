@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -103,7 +105,7 @@ func (r *databaseRig) runUntilIdle(t *testing.T, endpoint string) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
 	defer cancel()
-	x := New(trail.NewReader(r.db.DB, slog.New(slog.DiscardHandler)), NewCursor(r.db.Queries()), NewSender(u, nil).Send, &lag{}, slog.New(slog.DiscardHandler))
+	x := New(trail.NewReader(r.db.DB, slog.New(slog.DiscardHandler)), NewCursor(r.db.Queries()), NewSender(u, nil).Send, &counters{}, slog.New(slog.DiscardHandler))
 	x.Wait = func(context.Context, time.Duration) error {
 		cancel()
 		return context.Canceled
@@ -174,7 +176,7 @@ func TestTheCursorNeverMovesBackward(t *testing.T) {
 	}
 	earlier := last
 	earlier.Seq--
-	if err := c.Advance(t.Context(), earlier); err != nil {
+	if err := c.Advance(t.Context(), earlier, r.base); err != nil {
 		t.Fatal(err)
 	}
 	after, err := c.Load(t.Context())
@@ -183,5 +185,61 @@ func TestTheCursorNeverMovesBackward(t *testing.T) {
 	}
 	if after != last {
 		t.Fatalf("cursor went from %+v to %+v", last, after)
+	}
+}
+
+func TestLagIsTheGapBetweenTheNewestEventAndTheLastExportedOne(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	c := NewCursor(r.db.Queries())
+	if lag, err := c.Lag(t.Context()); err != nil || lag != 0 {
+		t.Fatalf("lag with no events = %v, %v", lag, err)
+	}
+	r.insert(t, "a.one", "b.two", "c.three")
+	if lag, err := c.Lag(t.Context()); err != nil || lag != 2*time.Minute {
+		t.Fatalf("lag before the first export = %v, %v, want the span of the stored events", lag, err)
+	}
+	rx.answer(http.StatusServiceUnavailable)
+	r.runUntilIdle(t, rx.server.URL)
+	if lag, _ := c.Lag(t.Context()); lag != 2*time.Minute {
+		t.Fatalf("lag after a failed export = %v", lag)
+	}
+	rx.answer(http.StatusOK)
+	r.runUntilIdle(t, rx.server.URL)
+	if lag, err := c.Lag(t.Context()); err != nil || lag != 0 {
+		t.Fatalf("lag when caught up = %v, %v", lag, err)
+	}
+	r.insert(t, "d.four", "e.five")
+	if lag, _ := c.Lag(t.Context()); lag != 2*time.Minute {
+		t.Fatalf("lag with two events waiting = %v, want 2m0s", lag)
+	}
+}
+
+func TestLagShowsEventsAnOpenTransactionHidesFromTheExport(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	r.insert(t, "a.one")
+	r.runUntilIdle(t, rx.server.URL)
+	conn, err := pgx.Connect(t.Context(), r.db.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close(context.WithoutCancel(t.Context())) }()
+	tx, err := conn.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(t.Context())) }()
+	if _, err := tx.Exec(t.Context(), "SELECT pg_current_xact_id()"); err != nil {
+		t.Fatal(err)
+	}
+	r.insert(t, "b.two", "c.three")
+	r.runUntilIdle(t, rx.server.URL)
+	if got := rx.received(); !slices.Equal(got, []string{"a.one"}) {
+		t.Fatalf("received %v: the open transaction should hide the later events from the export", got)
+	}
+	lag, err := NewCursor(r.db.Queries()).Lag(t.Context())
+	if err != nil || lag != 2*time.Minute {
+		t.Fatalf("lag = %v, %v, want 2m0s", lag, err)
 	}
 }

@@ -24,18 +24,19 @@ func (q *Queries) AddAuditPartition(ctx context.Context, day pgtype.Date) (bool,
 }
 
 const advanceAuditExportCursor = `-- name: AdvanceAuditExportCursor :exec
-INSERT INTO audit_export_cursor (xid, seq) VALUES ($1::xid8, $2::bigint)
-ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, updated_at = now()
+INSERT INTO audit_export_cursor (xid, seq, occurred_at) VALUES ($1::xid8, $2::bigint, $3::timestamptz)
+ON CONFLICT (only_row) DO UPDATE SET xid = EXCLUDED.xid, seq = EXCLUDED.seq, occurred_at = EXCLUDED.occurred_at, updated_at = now()
 WHERE (audit_export_cursor.xid, audit_export_cursor.seq) < (EXCLUDED.xid, EXCLUDED.seq)
 `
 
 type AdvanceAuditExportCursorParams struct {
-	Xid pgtype.Uint64
-	Seq int64
+	Xid        pgtype.Uint64
+	Seq        int64
+	OccurredAt pgtype.Timestamptz
 }
 
 func (q *Queries) AdvanceAuditExportCursor(ctx context.Context, arg AdvanceAuditExportCursorParams) error {
-	_, err := q.db.Exec(ctx, advanceAuditExportCursor, arg.Xid, arg.Seq)
+	_, err := q.db.Exec(ctx, advanceAuditExportCursor, arg.Xid, arg.Seq, arg.OccurredAt)
 	return err
 }
 
@@ -141,6 +142,21 @@ func (q *Queries) GetAuditExportCursor(ctx context.Context) (GetAuditExportCurso
 	var i GetAuditExportCursorRow
 	err := row.Scan(&i.Xid, &i.Seq)
 	return i, err
+}
+
+const getAuditExportLag = `-- name: GetAuditExportLag :one
+SELECT COALESCE(GREATEST(EXTRACT(EPOCH FROM edge.newest - edge.exported), 0), 0)::float8 AS lag_seconds
+FROM (
+  SELECT (SELECT max(occurred_at) FROM audit_events) AS newest,
+         COALESCE((SELECT occurred_at FROM audit_export_cursor), (SELECT min(occurred_at) FROM audit_events)) AS exported
+) AS edge
+`
+
+func (q *Queries) GetAuditExportLag(ctx context.Context) (float64, error) {
+	row := q.db.QueryRow(ctx, getAuditExportLag)
+	var lag_seconds float64
+	err := row.Scan(&lag_seconds)
+	return lag_seconds, err
 }
 
 const insertAuditEvent = `-- name: InsertAuditEvent :exec

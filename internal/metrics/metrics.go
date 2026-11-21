@@ -294,7 +294,7 @@ func (r *Registry) Audit() Audit {
 		}),
 		exportLag: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "slashobserve_audit_export_lag_seconds",
-			Help: "Age of the oldest audit event waiting to be exported over OTLP at this server's last export attempt; 0 when caught up or when this server does not hold the export.",
+			Help: "Seconds between the newest audit event and the last one exported over OTLP, read from the database every 15 seconds by every server that has the export set; 0 when caught up.",
 		}),
 		exportRejected: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slashobserve_audit_export_rejected_total",

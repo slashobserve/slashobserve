@@ -31,13 +31,12 @@ type Source interface {
 
 type Position interface {
 	Load(ctx context.Context) (filter.Position, error)
-	Advance(ctx context.Context, at filter.Position) error
+	Advance(ctx context.Context, at filter.Position, occurredAt time.Time) error
 }
 
 type Post func(ctx context.Context, body []byte) (Receipt, error)
 
 type Metrics interface {
-	ExportLag(behind time.Duration)
 	ExportRejected(n int)
 	ExportDropped(reason string, n int)
 }
@@ -49,7 +48,6 @@ type Exporter struct {
 	Metrics Metrics
 	Logger  *slog.Logger
 
-	Now        func() time.Time
 	Wait       func(ctx context.Context, d time.Duration) error
 	BatchSize  int
 	PollEvery  time.Duration
@@ -60,7 +58,7 @@ type Exporter struct {
 func New(source Source, cursor Position, post Post, metrics Metrics, logger *slog.Logger) *Exporter {
 	return &Exporter{
 		Source: source, Cursor: cursor, Post: post, Metrics: metrics, Logger: logger,
-		Now: time.Now, Wait: wait,
+		Wait:      wait,
 		BatchSize: BatchSize, PollEvery: PollEvery, MinBackoff: MinBackoff, MaxBackoff: MaxBackoff,
 	}
 }
@@ -92,7 +90,6 @@ type progress struct {
 }
 
 func (x *Exporter) Run(ctx context.Context) error {
-	defer x.Metrics.ExportLag(0)
 	size := x.BatchSize
 	var failures int
 	var backoff time.Duration
@@ -139,10 +136,8 @@ func (x *Exporter) step(ctx context.Context, size int) (progress, error) {
 		return progress{}, stage{"audit_export_read_failed", err}
 	}
 	if len(events) == 0 {
-		x.Metrics.ExportLag(0)
 		return progress{}, nil
 	}
-	x.Metrics.ExportLag(x.behind(events[0].Event))
 	batch := make([]trail.Event, len(events))
 	for i, e := range events {
 		batch[i] = e.Event
@@ -155,7 +150,7 @@ func (x *Exporter) step(ctx context.Context, size int) (progress, error) {
 	if err != nil {
 		return x.refused(ctx, events, err)
 	}
-	if err := x.Cursor.Advance(ctx, events[len(events)-1].At); err != nil {
+	if err := x.advance(ctx, events[len(events)-1]); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
 	x.rejected(ctx, receipt)
@@ -170,7 +165,7 @@ func (x *Exporter) refused(ctx context.Context, events []trail.Positioned, sendE
 	if len(events) > 1 {
 		return progress{shrinkTo: len(events) / 2}, nil
 	}
-	if err := x.Cursor.Advance(ctx, events[0].At); err != nil {
+	if err := x.advance(ctx, events[0]); err != nil {
 		return progress{}, stage{"audit_export_cursor_write_failed", err}
 	}
 	x.Metrics.ExportDropped(DroppedRefused, 1)
@@ -192,12 +187,13 @@ func (x *Exporter) rejected(ctx context.Context, receipt Receipt) {
 		slog.Int64("rejected", receipt.Rejected), slog.String("receiver_message", receipt.Message))
 }
 
-func (x *Exporter) behind(oldest trail.Event) time.Duration {
-	at, err := time.Parse(time.RFC3339Nano, oldest.OccurredAt)
-	if err != nil {
-		return 0
-	}
-	return max(x.Now().Sub(at), 0)
+func (x *Exporter) advance(ctx context.Context, last trail.Positioned) error {
+	return x.Cursor.Advance(ctx, last.At, occurredAt(last.Event))
+}
+
+func occurredAt(e trail.Event) time.Time {
+	at, _ := time.Parse(time.RFC3339Nano, e.OccurredAt)
+	return at.UTC()
 }
 
 func (x *Exporter) nextBackoff(previous time.Duration, err error) time.Duration {

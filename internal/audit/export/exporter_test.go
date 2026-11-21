@@ -55,30 +55,29 @@ type fakeCursor struct {
 	at         filter.Position
 	advanceErr error
 	advances   int
+	exportedAt []time.Time
 }
 
 func (c *fakeCursor) Load(context.Context) (filter.Position, error) { return c.at, nil }
 
-func (c *fakeCursor) Advance(_ context.Context, at filter.Position) error {
+func (c *fakeCursor) Advance(_ context.Context, at filter.Position, occurredAt time.Time) error {
 	if c.advanceErr != nil {
 		return c.advanceErr
 	}
 	c.at = at
+	c.exportedAt = append(c.exportedAt, occurredAt)
 	c.advances++
 	return nil
 }
 
-type lag struct {
-	values   []time.Duration
+type counters struct {
 	rejected int
 	dropped  map[string]int
 }
 
-func (l *lag) ExportLag(d time.Duration) { l.values = append(l.values, d) }
+func (l *counters) ExportRejected(n int) { l.rejected += n }
 
-func (l *lag) ExportRejected(n int) { l.rejected += n }
-
-func (l *lag) ExportDropped(reason string, n int) {
+func (l *counters) ExportDropped(reason string, n int) {
 	if l.dropped == nil {
 		l.dropped = map[string]int{}
 	}
@@ -88,7 +87,7 @@ func (l *lag) ExportDropped(reason string, n int) {
 type rig struct {
 	source *fakeSource
 	cursor *fakeCursor
-	lag    *lag
+	count  *counters
 	posts  []string
 	waits  []time.Duration
 	post   func(body []byte) error
@@ -102,7 +101,7 @@ type rig struct {
 func newRig(t *testing.T) (*rig, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
-	r := &rig{source: &fakeSource{}, cursor: &fakeCursor{}, lag: &lag{}, logs: &bytes.Buffer{}, cancel: cancel}
+	r := &rig{source: &fakeSource{}, cursor: &fakeCursor{}, count: &counters{}, logs: &bytes.Buffer{}, cancel: cancel}
 	r.x = New(r.source, r.cursor, func(_ context.Context, body []byte) (Receipt, error) {
 		if r.post != nil {
 			if err := r.post(body); err != nil {
@@ -111,7 +110,7 @@ func newRig(t *testing.T) (*rig, context.Context) {
 		}
 		r.posts = append(r.posts, string(body))
 		return r.answer, nil
-	}, r.lag, slog.New(slog.NewTextHandler(r.logs, nil)))
+	}, r.count, slog.New(slog.NewTextHandler(r.logs, nil)))
 	r.x.Wait = func(ctx context.Context, d time.Duration) error {
 		r.waits = append(r.waits, d)
 		if r.stopAt != nil && r.stopAt(r) {
@@ -119,7 +118,7 @@ func newRig(t *testing.T) (*rig, context.Context) {
 		}
 		return ctx.Err()
 	}
-	r.x.Now = func() time.Time { return time.Date(2026, 11, 21, 10, 31, 15, 0, time.UTC) }
+
 	return r, ctx
 }
 
@@ -264,24 +263,6 @@ func TestACursorWriteFailureSendsTheBatchAgain(t *testing.T) {
 	}
 }
 
-func TestRunReportsTheLagOfTheOldestWaitingEventAndZeroWhenCaughtUp(t *testing.T) {
-	r, ctx := newRig(t)
-	r.source.add("a.one")
-	r.stopAt = func(*rig) bool { return true }
-	if err := r.x.Run(ctx); err != nil {
-		t.Fatal(err)
-	}
-	want := []time.Duration{time.Minute - 123456789*time.Nanosecond, 0, 0}
-	if len(r.lag.values) != len(want) {
-		t.Fatalf("lag = %v", r.lag.values)
-	}
-	for i, w := range want {
-		if r.lag.values[i] != w {
-			t.Fatalf("lag = %v, want %v", r.lag.values, want)
-		}
-	}
-}
-
 func TestRunEndsWithNoErrorWhenItsContextEnds(t *testing.T) {
 	r, ctx := newRig(t)
 	r.cancel()
@@ -316,8 +297,8 @@ func TestRejectedRecordsAreCountedLoggedAndPassed(t *testing.T) {
 	if r.cursor.at != (filter.Position{Xid: 102, Seq: 2}) {
 		t.Fatalf("cursor = %+v, want it past the rejected records", r.cursor.at)
 	}
-	if r.lag.rejected != 2 {
-		t.Fatalf("rejected counted = %d, want 2", r.lag.rejected)
+	if r.count.rejected != 2 {
+		t.Fatalf("rejected counted = %d, want 2", r.count.rejected)
 	}
 	logged := r.logs.String()
 	if !strings.Contains(logged, "rejected=2") || !strings.Contains(logged, `"records too old"`) {
@@ -332,8 +313,8 @@ func TestNothingIsCountedWhenTheReceiverRejectsNothing(t *testing.T) {
 	if err := r.x.Run(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if r.lag.rejected != 0 || strings.Contains(r.logs.String(), "rejected") {
-		t.Fatalf("rejected %d, log %s", r.lag.rejected, r.logs.String())
+	if r.count.rejected != 0 || strings.Contains(r.logs.String(), "rejected") {
+		t.Fatalf("rejected %d, log %s", r.count.rejected, r.logs.String())
 	}
 }
 
@@ -351,8 +332,8 @@ func TestRejectedRecordsOfABatchWhoseCursorWriteFailedAreCountedWhenItIsSentAgai
 	if err := r.x.Run(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if r.lag.rejected != 1 {
-		t.Fatalf("rejected counted = %d, want 1: counted only once the position moved", r.lag.rejected)
+	if r.count.rejected != 1 {
+		t.Fatalf("rejected counted = %d, want 1: counted only once the position moved", r.count.rejected)
 	}
 }
 
@@ -388,8 +369,8 @@ func TestABatchTheReceiverCallsTooLargeIsHalvedUntilItIsAccepted(t *testing.T) {
 	if want := []int{8, 2, 2, 2, 2}; !slices.Equal(r.source.limits[:5], want) {
 		t.Fatalf("batch sizes read = %v", r.source.limits)
 	}
-	if len(r.lag.dropped) != 0 || len(r.waits) != 1 || r.waits[0] != PollEvery {
-		t.Fatalf("dropped %v waits %v: halving is no failure", r.lag.dropped, r.waits)
+	if len(r.count.dropped) != 0 || len(r.waits) != 1 || r.waits[0] != PollEvery {
+		t.Fatalf("dropped %v waits %v: halving is no failure", r.count.dropped, r.waits)
 	}
 }
 
@@ -410,8 +391,8 @@ func TestAnEventTheReceiverRefusesAloneIsSkippedAndCounted(t *testing.T) {
 			if r.cursor.at != (filter.Position{Xid: 105, Seq: 5}) {
 				t.Fatalf("cursor = %+v", r.cursor.at)
 			}
-			if r.lag.dropped[DroppedRefused] != 1 || len(r.lag.dropped) != 1 {
-				t.Fatalf("dropped = %v", r.lag.dropped)
+			if r.count.dropped[DroppedRefused] != 1 || len(r.count.dropped) != 1 {
+				t.Fatalf("dropped = %v", r.count.dropped)
 			}
 			logged := r.logs.String()
 			if !strings.Contains(logged, "seq=3") || !strings.Contains(logged, "status="+strconv.Itoa(status)) {
@@ -449,8 +430,8 @@ func TestOtherStatusesAreRetriedWithTheSameBatchAndNeverSkipped(t *testing.T) {
 			if err := r.x.Run(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if r.cursor.advances != 0 || len(r.lag.dropped) != 0 {
-				t.Fatalf("advances %d dropped %v", r.cursor.advances, r.lag.dropped)
+			if r.cursor.advances != 0 || len(r.count.dropped) != 0 {
+				t.Fatalf("advances %d dropped %v", r.cursor.advances, r.count.dropped)
 			}
 			for _, l := range r.source.limits {
 				if l != 4 {
@@ -462,5 +443,18 @@ func TestOtherStatusesAreRetriedWithTheSameBatchAndNeverSkipped(t *testing.T) {
 				t.Fatalf("waits = %v, want %v", r.waits, want)
 			}
 		})
+	}
+}
+
+func TestTheCursorStoresWhenTheLastExportedEventHappened(t *testing.T) {
+	r, ctx := newRig(t)
+	r.source.add("a.one", "b.two")
+	r.stopAt = func(*rig) bool { return true }
+	if err := r.x.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 11, 21, 10, 30, 15, 123456789, time.UTC)
+	if len(r.cursor.exportedAt) != 1 || !r.cursor.exportedAt[0].Equal(want) {
+		t.Fatalf("stored times = %v, want %v", r.cursor.exportedAt, want)
 	}
 }
