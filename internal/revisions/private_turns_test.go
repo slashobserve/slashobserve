@@ -335,7 +335,7 @@ func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
 	if got := storedRun(t, svc, build.String()); !strings.Contains(got.ThreadContext.String, privateWord) {
 		t.Fatalf("the second turn stored no transcript of the first: %q", got.ThreadContext.String)
 	}
-	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid WHERE id = $1::uuid`, build.String(), seedDashboard(t, d, 1).String())
+	d.Exec(t, `UPDATE agent_requests SET intent = 'apply', dashboard_id = $2::uuid WHERE id = $1::uuid`, build.String(), seedDashboard(t, d, 1).String())
 
 	w := newPrivateWalk(t, svc, d)
 	for _, body := range []string{w.http(eve, "/api/v1/observe/"+build.String(), http.StatusOK), w.mcp(eve, "get_run", `{"id":"`+build.String()+`"}`, false)} {
@@ -361,7 +361,7 @@ func TestADashboardReaderOfAChatsFirstTurnIsNotToldTheChatsTitle(t *testing.T) {
 	svc, d := newService(t, succeedWith(2))
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
 	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("build a checkout dashboard")})
-	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid, title = $3 WHERE id = $1::uuid`, first.String(), seedDashboard(t, d, 1).String(), privateWord)
+	d.Exec(t, `UPDATE agent_requests SET intent = 'apply', dashboard_id = $2::uuid, title = $3 WHERE id = $1::uuid`, first.String(), seedDashboard(t, d, 1).String(), privateWord)
 	d.Exec(t, `UPDATE chats SET title = $2 WHERE id = $1::uuid`, first.String(), privateWord)
 
 	w := newPrivateWalk(t, svc, d)

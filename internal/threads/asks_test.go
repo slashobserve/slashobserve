@@ -258,16 +258,16 @@ func TestTwoAgentMentionsWithStartRunsAreRefusedAndWriteNothing(t *testing.T) {
 	}
 }
 
-func TestAnAuthorWhoMayNotStartTheRunStillPostsTheMessage(t *testing.T) {
+func TestACommenterAsksTheAgentInAnObservationThread(t *testing.T) {
 	r := newAgentRig(t, true)
 	id := r.createObservation(t, testUser, pgtype.UUID{})
 	tg := target(KindObservation, id)
 
 	thread, message, run, refusal := r.openWithRun(t, commenter, OpenInput{Target: tg, Body: "@observe look at this"})
-	if run != nil || refusal == nil || refusal.Code != RefusalForbidden {
+	if run == nil || refusal != nil {
 		t.Fatalf("run = %+v, refusal = %+v", run, refusal)
 	}
-	if message.ID == "" || thread.ID == "" || r.messageCount(t) != 1 || len(r.queuedRuns(t)) != 0 {
+	if message.ID == "" || thread.ID == "" || r.messageCount(t) != 1 || len(r.queuedRuns(t)) != 1 {
 		t.Fatalf("message = %+v, %d messages, %d runs", message, r.messageCount(t), len(r.queuedRuns(t)))
 	}
 }

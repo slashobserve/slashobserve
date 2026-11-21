@@ -111,6 +111,30 @@ func TestCancelOfAnExpiredRunWithASavedVersionSucceedsIt(t *testing.T) {
 	if got.Status != string(revisions.StatusSucceeded) || got.ResultVersion.Int32 != 2 || got.DashboardID != dash || got.Error.Valid || got.FailureCode.Valid || got.LeaseUntil.Valid || !got.FinishedAt.Valid {
 		t.Fatalf("canceled run with a saved version = %+v, want succeeded with version 2 on the dashboard", got)
 	}
+	if got.Intent != string(revisions.IntentApply) || revisions.SourceOf(got) != revisions.SourceObserve {
+		t.Fatalf("canceled create run that saved a dashboard: intent %q source %q, want apply and observe", got.Intent, revisions.SourceOf(got))
+	}
+}
+
+func TestAnExhaustedCreateRunThatSavedADashboardBecomesAnApply(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	row, err := svc.SubmitObserve(reading(context.Background()), user, "saved, then every attempt died")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimOne(t, svc)
+	saveVersionUnder(t, d, dash, row.ID, 2)
+	d.Exec(t, "UPDATE agent_requests SET attempts = 99, lease_until = clock_timestamp() - interval '1 second' WHERE id = $1", row.ID)
+
+	claimOne(t, svc)
+	got, err := svc.GetByID(reading(context.Background()), row.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.State != string(revisions.StateSucceeded) || got.DashboardID != dash || got.Intent != string(revisions.IntentApply) || revisions.SourceOf(got) != revisions.SourceObserve {
+		t.Fatalf("exhausted create run = state %s dashboard %v intent %q source %q, want a succeeded apply on the dashboard", got.State, got.DashboardID, got.Intent, revisions.SourceOf(got))
+	}
 }
 
 func TestClaimStillWorksWhenBuildRetentionCleanupFails(t *testing.T) {

@@ -32,7 +32,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 		"an ask about nothing":        {StartRequest{Prompt: ptr("x"), Kind: ptr("ask")}, "kind ask needs dashboard_id or observation_id"},
 		"an ask about two things":     {StartRequest{Prompt: ptr("x"), Kind: ptr("ask"), DashboardID: ptr("11111111-2222-3333-4444-555555555555"), ObservationID: ptr("11111111-2222-3333-4444-555555555555")}, "not both"},
 		"an ask with a version":       {StartRequest{Prompt: ptr("x"), Kind: ptr("ask"), BaseVersion: ptr(1)}, "not allowed for kind ask"},
-		"a bad observation of an ask": {StartRequest{Prompt: ptr("x"), ObservationID: ptr("o")}, "observation_id must be a UUID"},
+		"a bad observation of an ask": {StartRequest{Prompt: ptr("x"), Kind: ptr("ask"), ObservationID: ptr("o")}, "observation_id must be a UUID"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -386,7 +386,7 @@ func TestGetObserveHidesARequestWithoutADashboardFromOtherPrincipals(t *testing.
 	dash := seedDashboard(t, d, 2)
 	private := observeFor(t, svc, user, "private prompt")
 	shared := observeFor(t, svc, user, "shared prompt")
-	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
+	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_version = 2, intent = 'apply', dashboard_id = $2 WHERE id = $1", mustUUID(t, shared), dash)
 
 	for name, c := range map[string]struct {
 		id   string

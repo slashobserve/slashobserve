@@ -110,8 +110,6 @@ func checkStartText(ctx context.Context, req StartRequest) (context.Context, str
 
 func (s *Service) startKind(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
 	switch {
-	case req.Kind == nil && req.ObservationID != nil && req.DashboardID == nil:
-		return s.startInvestigation(ctx, by, req, prompt, turn, true)
 	case req.Kind == nil || *req.Kind == KindBuild:
 		return s.startBuild(ctx, by, req, prompt, turn)
 	case *req.Kind == KindInvestigate:
