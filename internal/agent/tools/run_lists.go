@@ -125,7 +125,7 @@ type runListItemOut struct {
 	DashboardTitle   *string          `json:"dashboard_title"`
 	ObservationID    *string          `json:"observation_id"`
 	ObservationTitle *string          `json:"observation_title"`
-	ChatID           string           `json:"chat_id"`
+	ChatID           *string          `json:"chat_id"`
 	PinnedAt         *string          `json:"pinned_at"`
 	CreatedAt        string           `json:"created_at"`
 	RequestedBy      runListAuthorOut `json:"requested_by"`

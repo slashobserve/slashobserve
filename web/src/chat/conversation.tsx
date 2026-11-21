@@ -402,10 +402,11 @@ export function Conversation({
     ...revisionsQuery(dashboardId ?? ""),
     enabled: readsDashboard,
   })
-  const readsChat = dashboardId === null && root.data !== undefined
+  const chatId = root.data?.chat_id ?? undefined
+  const readsChat = dashboardId === null && chatId !== undefined
   const { requests: chatRequests, query: chatQuery } = useMyRequests(
     {
-      chatId: root.data?.chat_id ?? undefined,
+      chatId,
       ...(readOnly ? { scope: "all" as const } : {}),
     },
     50,

@@ -383,3 +383,4 @@ A chat with two or more observations, a chat on a dashboard, a later turn's own 
 To ask a question about your data rather than build a dashboard, use [Investigate](investigate.md).
 To work on a dashboard in your own editor and model, use [MCP](mcp.md) or the [CLI](cli.md).
 To change one panel by hand, see [Edit a panel](edit-panel.md).
+A request an ask in a thread started belongs to no chat: its `chat_id` is null, `GET /chats/{id}` has nothing to open for it, and a further ask in the same thread is another request in that thread, which sees the thread's earlier messages.

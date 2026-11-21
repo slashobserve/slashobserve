@@ -6565,7 +6565,7 @@ export interface components {
             to: string | null;
             /**
              * Format: uuid
-             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Send it back as `chat_id` on the list to read every turn of the chat. Null for a run an ask in a thread started, which is shared work in that thread and belongs to no chat, and for anyone but the requester and Admins, who read the request only through the dashboard it is on and never the chat around it.
              */
             chat_id: string | null;
             /**
@@ -6710,9 +6710,9 @@ export interface components {
             observation_title: string | null;
             /**
              * Format: uuid
-             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id.
+             * @description The chat the request belongs to, the id of its first request; a request that follows no other has its own id. Null for a run an ask in a thread started, which belongs to no chat.
              */
-            chat_id: string;
+            chat_id: string | null;
             /** @enum {string|null} */
             origin: "web" | "cli" | "mcp" | "api" | null;
             origin_client: string | null;
