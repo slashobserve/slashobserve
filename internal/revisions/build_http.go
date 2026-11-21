@@ -185,6 +185,7 @@ func (h *ObserveHandler) getBuild(c *gin.Context) {
 	}
 	view, err := h.service.builds.ViewBuild(ctx, caller, row.ID)
 	if err != nil {
+		h.service.recordRefusedBuildRead(ctx, row.ID, err)
 		h.failBuild(c, "get agent request build", err, idAttr)
 		return
 	}

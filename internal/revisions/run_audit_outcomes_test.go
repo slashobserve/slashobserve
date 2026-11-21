@@ -39,6 +39,22 @@ func (s startsFailingWith) Start(context.Context, auth.Principal, revisions.Star
 	return nil, s.err
 }
 
+func recordedEngine(t *testing.T, svc *revisions.Service, recorder *audit.Recorder, who auth.Principal) *gin.Engine {
+	t.Helper()
+	recorded, err := recorder.Middleware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(engine.Group("/api/v1", recorded, func(c *gin.Context) {
+		ctx := auth.WithPrincipal(c.Request.Context(), who)
+		audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(who) })
+		c.Request = c.Request.WithContext(ctx)
+	})))
+	return engine
+}
+
 func recordingAudit(t *testing.T, d *dbtest.Database) (*audit.Recorder, func()) {
 	t.Helper()
 	recorder := audit.New(audit.Config{DB: d.DB, Logger: quietLogger()})
@@ -119,24 +135,13 @@ func TestARefusedStartOverMCPLeavesTheSameRunQueueEventAsOverHTTP(t *testing.T) 
 	dash := seedDashboard(t, d, 1).String()
 	chat := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
 	recorder, flush := recordingAudit(t, d)
-	recorded, err := recorder.Middleware()
-	if err != nil {
-		t.Fatal(err)
-	}
 	registry := tools.New(tools.Deps{Runs: revisions.NewRunDesk(svc, revisions.ObserveOptions{}), Logger: quietLogger()})
 	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
 	const noSuch = "00000000-0000-4000-8000-000000000009"
 
 	refuse := func(name string, who auth.Principal, body string, want int) {
 		t.Helper()
-		gin.SetMode(gin.TestMode)
-		engine := gin.New()
-		revisions.NewObserveHandler(svc, revisions.ObserveOptions{}).Register(auth.NewRoutes(engine.Group("/api/v1", recorded, func(c *gin.Context) {
-			ctx := auth.WithPrincipal(c.Request.Context(), who)
-			audit.Update(ctx, func(s *audit.Scope) { s.Actor = auth.AuditActor(who) })
-			c.Request = c.Request.WithContext(ctx)
-		})))
-		if rec := call(engine, http.MethodPost, "/api/v1/observe", body); rec.Code != want {
+		if rec := call(recordedEngine(t, svc, recorder, who), http.MethodPost, "/api/v1/observe", body); rec.Code != want {
 			t.Fatalf("%s: HTTP answered %d, want %d: %s", name, rec.Code, want, rec.Body)
 		}
 		res, err := registry.Call(mcpContext(t, who), "start_run", []byte(body))
@@ -158,6 +163,42 @@ func TestARefusedStartOverMCPLeavesTheSameRunQueueEventAsOverHTTP(t *testing.T) 
 	overHTTP, overMCP := queueEvents(t, d, false), queueEvents(t, d, true)
 	if len(overHTTP) != 6 || !slices.Equal(overHTTP, overMCP) {
 		t.Fatalf("run.queue events over HTTP = %+v, over MCP = %+v; want the same six", overHTTP, overMCP)
+	}
+}
+
+func TestAnAnswerOnlyRunsBuildOverHTTPIsNoRefusedReadAsOverMCP(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(buildsFailingWith{revisions.ErrNoBuild}))
+	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+	recorder, flush := recordingAudit(t, d)
+
+	for _, who := range []auth.Principal{user, bea} {
+		if rec := call(recordedEngine(t, svc, recorder, who), http.MethodGet, "/api/v1/observe/"+run+"/build", ""); rec.Code != http.StatusNotFound {
+			t.Fatalf("%s: GET build answered %d, want 404: %s", who.Name, rec.Code, rec.Body)
+		}
+	}
+	flush()
+
+	want := []string{"run.view " + adminID + " success " + run + " " + run + " " + userID}
+	if got := recordedReads(t, d); !slices.Equal(got, want) {
+		t.Fatalf("recorded reads = %q, want %q", got, want)
+	}
+}
+
+func TestARefusedBuildOverHTTPIsARefusedReadAsOverMCP(t *testing.T) {
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger(), revisions.WithBuilds(buildsFailingWith{revisions.ErrBuildNotFound}))
+	run := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs exist")}).String()
+	recorder, flush := recordingAudit(t, d)
+
+	if rec := call(recordedEngine(t, svc, recorder, user), http.MethodGet, "/api/v1/observe/"+run+"/build", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("GET build answered %d, want 404: %s", rec.Code, rec.Body)
+	}
+	flush()
+
+	want := []string{"run.view " + userID + " denied " + run + " - -"}
+	if got := recordedReads(t, d); !slices.Equal(got, want) {
+		t.Fatalf("recorded reads = %q, want %q", got, want)
 	}
 }
 
