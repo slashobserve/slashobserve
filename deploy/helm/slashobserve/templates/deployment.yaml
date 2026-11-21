@@ -113,6 +113,10 @@ spec:
             - name: SLASHOBSERVE_OUTBOUND_DOMAINS
               value: {{ join "," . | quote }}
             {{- end }}
+            {{- with .Values.trustedProxies }}
+            - name: SLASHOBSERVE_TRUSTED_PROXIES
+              value: {{ join "," . | quote }}
+            {{- end }}
             {{- if $datasources }}
             - name: SLASHOBSERVE_DATASOURCES_FILE
               value: /etc/slashobserve/datasources/{{ .Values.datasources.key }}
