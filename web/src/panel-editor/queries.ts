@@ -173,6 +173,69 @@ export function previewQuery({
   })
 }
 
+export type BlockPreviewArgs = Omit<PreviewArgs, "dashboardId"> & {
+  observationId: string
+  blockId: string | null
+}
+
+export function storedBlockPanel(
+  panel: EditablePanel
+): Record<string, unknown> {
+  const copy: Record<string, unknown> = { ...panel }
+  delete copy.id
+  delete copy.gridPos
+  return copy
+}
+
+export function blockPreviewQuery({
+  observationId,
+  blockId,
+  version,
+  panel,
+  from,
+  to,
+  timezone,
+  selections,
+  maxDataPoints,
+}: BlockPreviewArgs) {
+  const tz = requestZone(timezone)
+  return queryOptions<PanelDataResponse>({
+    queryKey: editorKeys.blockPreview(observationId, blockId, version, {
+      panel: stableJson(panel),
+      from,
+      to,
+      selections,
+      maxDataPoints,
+    }),
+    queryFn: ({ signal }) =>
+      panelRequestLimiter.run(
+        () =>
+          api
+            .POST("/observations/{id}/blocks/preview", {
+              params: { path: { id: observationId } },
+              body: {
+                ...(blockId !== null && { block_id: blockId }),
+                panel: storedBlockPanel(panel),
+                ...(from !== undefined && { from }),
+                ...(to !== undefined && { to }),
+                ...(tz !== undefined && { tz }),
+                ...(maxDataPoints !== undefined && {
+                  max_data_points: maxDataPoints,
+                }),
+                variables: selections,
+              },
+              signal,
+            })
+            .then(unwrap),
+        signal
+      ),
+    staleTime: 30_000,
+    gcTime: 60_000,
+    retry: retryTwice,
+    placeholderData: keepPreviousData,
+  })
+}
+
 export type CreateSuggestionVariables = {
   version: number
   panel_id: string

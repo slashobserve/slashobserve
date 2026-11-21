@@ -106,7 +106,7 @@ A value you set replaces the default, up or down; a ClickHouse settings profile 
 Each server allows its share, the total divided by the live servers and rounded up, and at most 32 datasource calls at once across all datasources.
 A panel waits for a slot until its deadline; the logs page, traces, label lists and the agent's tools wait up to 5 seconds and then answer 429 `too_many_requests`.
 
-The agent's and MCP's ad-hoc queries, the draft preview in the panel editor, the logs page, the trace view and `POST /api/v1/datasources/{uid}/query` use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
+The agent's and MCP's ad-hoc queries, the draft preview in the panel editor on dashboards and observations, the logs page, the trace view and `POST /api/v1/datasources/{uid}/query` use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
 
 For ClickHouse table results (the `table` and `logs` formats, and instant queries) each row counts as one point, so the row limit bounds them.
 A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo query returns at most the row limit of spans or traces.

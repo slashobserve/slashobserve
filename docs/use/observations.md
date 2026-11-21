@@ -82,8 +82,10 @@ The row offers four ways:
   **Add** or **Suggest** saves it, and `⌘Enter` or `Ctrl+Enter` does the same.
   `Esc` closes the box and keeps what you typed for when you open it again, and **Cancel** closes it and throws the text away.
   A word with no break in it, such as a hash or a long address, wraps inside the block instead of widening the page.
-- **Panel** opens a side panel where you search for a dashboard, then choose one of its data panels.
-  The block is a copy of the panel with its own query, and it stays live on the page over the observation's range, or over the last hour when the observation has none.
+- **Panel** offers **From a dashboard** and **New query**.
+  **From a dashboard** opens a side panel where you search for a dashboard, then choose one of its data panels.
+  The block is a copy of the panel with its own query, and it stays live on the page and follows the page's range, or the last hour when the observation has none.
+  **New query** opens the panel editor on an empty panel with the first datasource, and is disabled when there is no datasource; **Add**, or **Suggest** for a commenter, saves it as a panel block that follows the page's range (see [Edit a panel block](#edit-a-panel-block)).
 - **Logs** opens the logs page with this observation preselected, so a search can be added from there (see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs)).
 - **Snapshot** lists the live panel blocks of the page and is disabled when there is none.
   Choosing one freezes that panel's data into a snapshot block placed right after it.
@@ -92,6 +94,7 @@ An editor's block goes on the page as `live`.
 A commenter's block is `requested`: it shows with a dashed border and the caption "`<name>` suggests this block", or "Observe Agent suggests this block" when an agent run wrote it.
 **Keep** makes it live and **Discard** removes it.
 Both show to an editor, and only **Discard** shows to the person who asked for the block.
+When the block above a suggestion is a live panel block, the row also says that keeping it adds this block next to the one above and replaces nothing.
 Resolving does not close the page: a resolved observation still takes blocks from editors and suggestions from commenters, and the row says "This observation is resolved" so nobody is surprised; an editor who does not want more reopens it or discards the suggestion.
 
 A panel block's caption names its datasource and its window: "Last hour, live", the page's range, or "Pinned to" the block's own; a snapshot's caption says "Frozen" with the time range of its data.
@@ -101,6 +104,21 @@ A block that carries variables shows a picker above the panel for each one with 
 A textbox, ad hoc filter or group by variable shows its stored value and cannot be changed on the block.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.
 A person who can only comment suggests that snapshot, as with any other block.
+
+### Edit a panel block
+
+A panel block's panel menu has **Edit panel** for an editor and **Suggest an edit** for a commenter.
+It opens the same panel editor as a dashboard panel, in the right pane in place of the discussion: the query, the display and the JSON view, with a preview of the draft over the block's window and with the block's variables.
+The preview runs with exactly the access the block's own data has, so it needs comment access to the observation and the datasource's access, and an Admins-only datasource runs only in an Admins-only folder.
+Nothing changes until you save, and `Esc`, **Close panel editor**, leaving the page or opening another block, **New query** or **From a dashboard** asks first when the draft has changes; **Keep editing** keeps the editor and its draft.
+
+**Save** changes the block in place and keeps its width, height and window.
+A commenter's **Suggest edit** leaves the block as it is and adds the edited copy right after it as a requested block, which an editor keeps or discards like any other suggestion; keeping it adds a second block, so an editor who wants only the edit then deletes the original.
+When someone changed the block since you opened it, the editor says so and keeps your draft.
+When someone deletes the block while your draft has changes, the editor says so and keeps the draft: **Add as a new block**, or **Suggest as a new block** for a commenter, puts it back where the block was, and **Discard** throws it away.
+A snapshot and a published RCA revision are frozen, so neither offers the editor.
+
+Over [MCP](mcp.md) `update_block` changes a panel block's `body`, and on the [CLI](cli.md#observations) `observe o edit-block <block-id> --panel-file <path>` does the same.
 
 ### Change blocks
 
@@ -136,7 +154,7 @@ Anyone else sees the range without the picker.
 A panel block's panel menu offers **Pin to this window**, which keeps the window the block shows now, and **Pin to a window**, which opens a time range picker for that block.
 Dragging across a time series chart pins the block to the dragged range.
 A pinned block keeps its window when the page's range changes, and **Follow the page** releases it.
-A block added from a dashboard arrives pinned to the window it was taken from.
+A block added from a dashboard panel's menu arrives pinned to the window it was taken from, and one chosen with **Panel**, **From a dashboard** follows the page.
 Pinning needs edit access to the folder.
 
 Over [MCP](mcp.md) `update_observation` sets the page's range, and `update_block` sets a block's own `from` and `to` or releases them with `follow_page: true`.

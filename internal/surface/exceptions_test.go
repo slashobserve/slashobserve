@@ -132,7 +132,8 @@ var exceptions = map[string]exception{
 	"allowOutboundDomain":  {MCP: personOnly, CLI: personOnly},
 	"removeOutboundDomain": {MCP: personOnly, CLI: personOnly},
 
-	"previewDraftPanel": {MCP: personOnly, CLI: personOnly},
+	"previewDraftPanel":       {MCP: personOnly, CLI: personOnly},
+	"previewObservationBlock": {MCP: personOnly, CLI: personOnly},
 
 	"listSavedPrompts":  {MCP: notBuilt},
 	"createSavedPrompt": {MCP: personOnly, CLI: personOnly},

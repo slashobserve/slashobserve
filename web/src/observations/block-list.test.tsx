@@ -166,3 +166,53 @@ describe("arranging blocks from the keyboard", () => {
     expect(screen.queryByRole("button", { name: /^Move or resize/ })).toBeNull()
   })
 })
+
+describe("a requested block's keep row", () => {
+  const livePanel = block("p", 0, {
+    kind: "panel",
+    body: {
+      panel: {
+        type: "timeseries",
+        title: "Errors",
+        datasource: "prom",
+        queries: [{ query: "up" }],
+      },
+    },
+  })
+  const line =
+    "Keeping it adds this block next to the one above; it replaces nothing."
+
+  it("tells an editor that keeping a block after a live panel adds a second one", async () => {
+    stubLayout([])
+    show(
+      [
+        livePanel,
+        block("s", 1, {
+          state: "requested",
+          allowed_actions: ["keep", "discard"],
+        }),
+      ],
+      ["update"]
+    )
+    await screen.findByText("Text s")
+    expect(screen.getByText(line)).toBeTruthy()
+  })
+
+  it("says nothing more after a text block or to the person who asked", async () => {
+    stubLayout([])
+    show(
+      [
+        block("t", 0),
+        block("s", 1, {
+          state: "requested",
+          allowed_actions: ["keep", "discard"],
+        }),
+        { ...livePanel, id: "q", position: 2 },
+        block("r", 3, { state: "requested", allowed_actions: ["discard"] }),
+      ],
+      ["update"]
+    )
+    await screen.findByText("Text r")
+    expect(screen.queryByText(line)).toBeNull()
+  })
+})

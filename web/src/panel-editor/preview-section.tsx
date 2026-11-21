@@ -32,13 +32,16 @@ import {
   seriesCount,
   type PreviewStatus,
 } from "./preview-status"
-import { previewQuery } from "./queries"
+import { blockPreviewQuery, previewQuery } from "./queries"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
+export type PreviewTarget =
+  | { kind: "dashboard"; dashboardId: string; version: number }
+  | { kind: "block"; observationId: string; blockId: string | null }
+
 export type PreviewSectionProps = {
-  dashboardId: string
+  target: PreviewTarget
   spec: Dashboard
-  version: number
   baseVersion: number
   base: EditablePanel
   draft: EditablePanel
@@ -53,6 +56,7 @@ function chartHeightFor(width: number) {
   return width < 480 ? 140 : 200
 }
 const noSelections: Selections = {}
+const noSource: PanelSource = { kind: "version", dashboardId: "", version: 0 }
 
 function ignoreSelection() {}
 
@@ -69,6 +73,32 @@ function useContentWidth() {
     return () => observer.disconnect()
   }, [])
   return { ref, width }
+}
+
+function previewScope(target: PreviewTarget): string {
+  return target.kind === "dashboard"
+    ? target.dashboardId
+    : `${target.observationId}:${target.blockId ?? "new"}`
+}
+
+function savedSourceOf(
+  target: PreviewTarget,
+  baseVersion: number
+): PanelSource | null {
+  if (target.kind === "dashboard") {
+    return {
+      kind: "version",
+      dashboardId: target.dashboardId,
+      version: baseVersion,
+    }
+  }
+  if (target.blockId === null) return null
+  return {
+    kind: "block",
+    observationId: target.observationId,
+    blockId: target.blockId,
+    version: baseVersion,
+  }
 }
 
 function draftIsValid(
@@ -138,9 +168,8 @@ type DataPreviewProps = Omit<PreviewSectionProps, "draft"> & {
 }
 
 function DataPreview({
-  dashboardId,
+  target,
   spec,
-  version,
   baseVersion,
   base,
   draft,
@@ -162,17 +191,27 @@ function DataPreview({
   const chartHeight = chartHeightFor(width)
   const ready = selections !== null && width > 0
 
+  const request = {
+    panel: debounced,
+    from: timeRange.from,
+    to: timeRange.to,
+    timezone: spec.timezone,
+    selections: vars,
+    maxDataPoints,
+  }
   const preview = useQuery({
-    ...previewQuery({
-      dashboardId,
-      version,
-      panel: debounced,
-      from: timeRange.from,
-      to: timeRange.to,
-      timezone: spec.timezone,
-      selections: vars,
-      maxDataPoints,
-    }),
+    ...(target.kind === "dashboard"
+      ? previewQuery({
+          ...request,
+          dashboardId: target.dashboardId,
+          version: target.version,
+        })
+      : blockPreviewQuery({
+          ...request,
+          observationId: target.observationId,
+          blockId: target.blockId,
+          version: baseVersion,
+        })),
     enabled: valid && ready,
   })
 
@@ -185,16 +224,17 @@ function DataPreview({
   }, [blocksSave, onSaveBlockedChange])
   useEffect(() => () => onSaveBlockedChange(false), [onSaveBlockedChange])
 
+  const savedSource = useMemo(
+    () => savedSourceOf(target, baseVersion),
+    [target, baseVersion]
+  )
   const showGhost =
+    savedSource !== null &&
     isDataPanel(base) &&
     (!sameJson(base.queries, debounced.queries) ||
       base.datasource !== debounced.datasource)
-  const savedSource = useMemo<PanelSource>(
-    () => ({ kind: "version", dashboardId, version: baseVersion }),
-    [dashboardId, baseVersion]
-  )
   const saved = usePanelData({
-    source: savedSource,
+    source: savedSource ?? noSource,
     panel: base,
     from: timeRange.from,
     to: timeRange.to,
@@ -243,7 +283,7 @@ function DataPreview({
         ghost={showGhost ? saved.data : undefined}
         width={width}
         height={chartHeight}
-        stateScope={`preview:${dashboardId}`}
+        stateScope={`preview:${previewScope(target)}`}
         cursor={noSharedCursor}
         onTimeRangeSelect={ignoreSelection}
         vars={vars}
@@ -290,7 +330,7 @@ function DataPreview({
               aria-hidden="true"
               className="w-3.5 border-t-2 border-dotted border-ghost"
             />
-            Saved in v{baseVersion}
+            {target.kind === "dashboard" ? `Saved in v${baseVersion}` : "Saved"}
           </span>
         </div>
       ) : null}
@@ -299,9 +339,8 @@ function DataPreview({
 }
 
 export function PreviewSection({
-  dashboardId,
+  target,
   spec,
-  version,
   baseVersion,
   base,
   draft,
@@ -321,9 +360,8 @@ export function PreviewSection({
         </p>
       ) : (
         <DataPreview
-          dashboardId={dashboardId}
+          target={target}
           spec={spec}
-          version={version}
           baseVersion={baseVersion}
           base={base}
           draft={draft}

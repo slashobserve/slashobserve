@@ -11,7 +11,7 @@ type Props = {
   summary: string
   noteOpen: boolean
   note: string
-  onNoteOpen: () => void
+  onNoteOpen?: () => void
   onNoteChange: (note: string) => void
   saving: boolean
   canSave: boolean
@@ -81,7 +81,7 @@ export function EditorFooter({
         </p>
       )}
       <span className="mr-auto text-xs text-muted-foreground">{summary}</span>
-      {noteOpen ? null : (
+      {noteOpen || onNoteOpen === undefined ? null : (
         <Button
           variant="ghost"
           className="text-muted-foreground"
