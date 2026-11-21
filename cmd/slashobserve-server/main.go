@@ -185,6 +185,18 @@ func fileAdminsOnly(sources []config.Datasource) []string {
 	return uids
 }
 
+func warnExposedAppDatasources(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource, logger *slog.Logger) {
+	exposed, err := placement.ExposedAppDatasources(ctx, q, fileAdminsOnly(sources))
+	if err != nil {
+		logger.Warn("admins only datasources not checked", logattrs.Failure("datasource_audience_check_failed", err)...)
+		return
+	}
+	for _, e := range exposed {
+		logger.Warn("admins only datasource read outside admins only folders",
+			slog.String("datasource_uid", e.Datasource), slog.Int("shared_items", e.Shared), slog.Int("personal_items", e.Personal))
+	}
+}
+
 func checkFileAudiences(ctx context.Context, q *dbsqlc.Queries, sources []config.Datasource) error {
 	err := placement.CheckFileAudiences(ctx, q, fileAdminsOnly(sources))
 	var misplaced *placement.MisplacedError
@@ -346,6 +358,7 @@ func run() error {
 	if err := checkFileAudiences(ctx, database.Queries(), cfg.Datasources); err != nil {
 		return err
 	}
+	warnExposedAppDatasources(ctx, database.Queries(), cfg.Datasources, logger)
 	instance, err := database.Queries().GetInstance(ctx)
 	if err != nil {
 		return withheld("instance_lookup_failed", err)

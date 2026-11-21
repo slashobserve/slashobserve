@@ -3,6 +3,7 @@ package placement
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -40,4 +41,31 @@ func CheckFileAudiences(ctx context.Context, q *dbsqlc.Queries, adminsOnly []str
 		}
 	}
 	return nil
+}
+
+type Exposure struct {
+	Datasource string
+	Shared     int
+	Personal   int
+}
+
+func ExposedAppDatasources(ctx context.Context, q *dbsqlc.Queries, fileUIDs []string) ([]Exposure, error) {
+	stored, err := q.AdminsOnlyDatasourceUIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list Admins-only datasources: %w", err)
+	}
+	var exposed []Exposure
+	for _, uid := range stored {
+		if slices.Contains(fileUIDs, uid) {
+			continue
+		}
+		c, err := SharedCensus(ctx, q, uid)
+		if err != nil {
+			return nil, err
+		}
+		if c.Held() {
+			exposed = append(exposed, Exposure{Datasource: uid, Shared: c.Shared, Personal: c.Personal})
+		}
+	}
+	return exposed, nil
 }

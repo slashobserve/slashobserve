@@ -42,6 +42,7 @@ Only content in a folder only Admins can read, the explore query, panel drafts a
 Changing the audience from `everyone` to `admins` is refused with `409 restricted_content` while such content sits in a folder other people can read.
 `items` lists up to 20 of them outside people's My Dashboards with their kind, id, title and folder, so an Admin can move them first, the message says how many more are not listed, and `hidden` counts the ones in people's My Dashboards, which only their owners can move.
 `observe datasources edit` prints the same list.
+Each server checks every app datasource that is already `admins` when it starts, for content left outside such folders from before this rule: it logs one warning per datasource, `admins only datasource read outside admins only folders`, with the datasource uid and the number of items in shared folders and in people's My Dashboards, never their titles, and starts anyway.
 
 ## Credentials are write-only
 
