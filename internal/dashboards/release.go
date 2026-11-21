@@ -30,7 +30,7 @@ func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in R
 	if err != nil {
 		return SaveResult{}, err
 	}
-	return s.persist(withIgnoredEmpty(ctx), by, SaveInput{
+	return s.persist(withAcceptedEmpty(ctx), by, SaveInput{
 		DashboardID: in.DashboardID,
 		Parent:      in.Parent,
 		Spec:        in.Spec,

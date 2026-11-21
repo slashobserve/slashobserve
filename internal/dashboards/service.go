@@ -205,7 +205,7 @@ func (s *Service) CreateStarter(ctx context.Context, by auth.Principal, folderID
 	if err != nil {
 		return Dashboard{}, err
 	}
-	unverified, err := s.verify(withIgnoredEmpty(ctx), by, nil, Unverified{}, parsed, false)
+	unverified, err := s.verify(withAcceptedEmpty(ctx), by, nil, Unverified{}, parsed, false)
 	if err != nil {
 		return Dashboard{}, err
 	}
