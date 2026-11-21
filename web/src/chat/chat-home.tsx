@@ -86,7 +86,9 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
       : {
           id: lookup.data.dashboard.id,
           title: lookup.data.dashboard.title,
+          canComment: lookup.data.dashboard.permissions.comment,
         })
+  const about = found?.canComment === true ? found : undefined
   const resolving =
     dashboardId !== undefined &&
     found === undefined &&
@@ -102,7 +104,7 @@ export function ChatHome({ initialPrompt, dashboardId }: Props) {
         <HomeComposer
           key={initialPrompt ?? ""}
           initialPrompt={initialPrompt}
-          about={found}
+          about={about}
           disabled={resolving}
           onRemoveDashboard={() =>
             void navigate({ ...askLink(initialPrompt ?? ""), replace: true })

@@ -19,17 +19,19 @@ vi.mock("./recent-chats", () => ({ RecentChats: () => null }))
 
 const mine = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 const theirs = "9b1c5a42-1c9e-4d5e-9a67-3f8e2d1c0b44"
+const readOnly = "4e7a2b19-8c3d-4f5e-a6b7-1c2d3e4f5a6b"
 
 function dashboard(
   id: string,
   title: string,
   edit: boolean,
-  updatedBy = "someone-else"
+  updatedBy = "someone-else",
+  comment = true
 ) {
   return {
     id,
     title,
-    permissions: { comment: true, edit },
+    permissions: { comment, edit },
     updated_by: { kind: "user", id: updatedBy, name: "Someone" },
   }
 }
@@ -40,6 +42,7 @@ function render(
   titles = [
     dashboard(theirs, "Someone else's board", false),
     dashboard(mine, "Payments", true),
+    dashboard(readOnly, "Board", false, "someone-else", false),
   ]
 ) {
   const queryClient = testQueryClient()
@@ -137,7 +140,15 @@ describe("ChatHome", () => {
     })
   })
 
-  it("shows a dashboard the person can only view as a chip too", async () => {
+  it("shows no chip for a dashboard the person cannot comment on", async () => {
+    render({ initialPrompt: "Add a row", dashboardId: readOnly })
+    await screen.findByRole("textbox", { name: "Message the agent" })
+    expect(
+      screen.queryByRole("list", { name: "Context" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows a dashboard the person can comment on but not edit as a chip too", async () => {
     render({ initialPrompt: "Add a row", dashboardId: theirs })
     await screen.findByRole("textbox", { name: "Message the agent" })
     expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
