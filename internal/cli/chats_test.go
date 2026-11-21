@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -74,6 +75,21 @@ func TestChatsListShowsWhetherAChatIsPinnedAndItsDashboard(t *testing.T) {
 
 func TestChatsPinAndUnpinPatchTheChatsFirstRequest(t *testing.T) {
 	reply := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","steps":[]}}`
+	var patched string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		switch r.Method + " " + r.URL.Path {
+		case "GET /api/v1/chats/" + stoppedID:
+			_, _ = w.Write([]byte(`{"chat":{"id":"` + stoppedID + `","title":"T"},"turns":[]}`))
+		case "PATCH /api/v1/observe/" + stoppedID:
+			patched = string(body)
+			_, _ = w.Write([]byte(reply))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"no route","code":"not_found"}`))
+		}
+	}))
+	t.Cleanup(server.Close)
 	cases := []struct {
 		args []string
 		body string
@@ -83,21 +99,40 @@ func TestChatsPinAndUnpinPatchTheChatsFirstRequest(t *testing.T) {
 		{[]string{"chats", "unpin", stoppedID}, `{"pinned":false}`, "Unpinned chat " + stoppedID},
 	}
 	for _, tc := range cases {
-		call, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, tc.args...)
-		if code != 0 || call.method != http.MethodPatch || call.path != "/api/v1/observe/"+stoppedID || call.body != tc.body {
-			t.Fatalf("%v: exit %d, call %+v, stderr %q", tc.args, code, call, stderr)
+		patched = ""
+		stdout, stderr, code := runWith(server, tc.args...)
+		if code != 0 || patched != tc.body {
+			t.Fatalf("%v: exit %d, patched %q, stderr %q", tc.args, code, patched, stderr)
 		}
 		if !strings.Contains(stdout+stderr, tc.out) {
 			t.Fatalf("%v: stdout %q, stderr %q", tc.args, stdout, stderr)
 		}
 	}
-	_, stdout, _, code := runAgainst(t, http.StatusOK, reply, "--json", "chats", "pin", stoppedID)
+	stdout, _, code := runWith(server, "--json", "chats", "pin", stoppedID)
 	if code != 0 || !strings.Contains(stdout, `"request"`) {
 		t.Fatalf("--json: exit %d, stdout %q", code, stdout)
 	}
-	_, _, stderr, code := runAgainst(t, http.StatusOK, reply, "chats", "pin", "nope")
+	_, stderr, code := runWith(server, "chats", "pin", "nope")
 	if code != 2 || !strings.Contains(stderr, "not a valid id") {
 		t.Fatalf("bad id: exit %d, stderr %q", code, stderr)
+	}
+}
+
+func TestChatsPinAndUnpinRefuseAnIDThatIsNotAChat(t *testing.T) {
+	patched := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patched = true
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"chat not found","code":"not_found"}`))
+	}))
+	t.Cleanup(server.Close)
+	for _, verb := range []string{"pin", "unpin"} {
+		stdout, stderr, code := runWith(server, "chats", verb, stoppedID)
+		if code != 1 || patched || stdout != "" || !strings.Contains(stderr, stoppedID+" is not one of your chats") || !strings.Contains(stderr, "chats list") {
+			t.Fatalf("%s: exit %d, patched %v, stdout %q, stderr %q", verb, code, patched, stdout, stderr)
+		}
 	}
 }
 

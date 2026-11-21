@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -225,9 +226,9 @@ func (a *app) chatsShowCommand() *cobra.Command {
 }
 
 func (a *app) chatsPinCommand(pin bool) *cobra.Command {
-	use, short, long, done := "pin", "Pin one of your chats to the top of chats list", "pin keeps one of your chats at the top of chats list, as Pin does on the Chats page.\nPinning a pinned chat changes nothing.\nOnly the person who started the chat can pin it.", "Pinned"
+	use, short, long, done := "pin", "Pin one of your chats to the top of chats list", "pin keeps one of your chats at the top of chats list, as Pin does on the Chats page.\nPinning a pinned chat changes nothing.\nThe id must be a chat id from chats list; any other request id is refused.\nOnly the person who started the chat can pin it.", "Pinned"
 	if !pin {
-		use, short, long, done = "unpin", "Unpin one of your chats", "unpin returns one of your chats to its place by date in chats list.\nUnpinning an unpinned chat changes nothing.\nOnly the person who started the chat can unpin it.", "Unpinned"
+		use, short, long, done = "unpin", "Unpin one of your chats", "unpin returns one of your chats to its place by date in chats list.\nUnpinning an unpinned chat changes nothing.\nThe id must be a chat id from chats list; any other request id is refused.\nOnly the person who started the chat can unpin it.", "Unpinned"
 	}
 	return &cobra.Command{
 		Use:   use + " <chat-id>",
@@ -247,6 +248,9 @@ func (a *app) chatsPinCommand(pin bool) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if _, err := c.get(cmd.Context(), "chats/"+id, nil); err != nil {
+				return notAChat(err, id)
+			}
 			data, err := c.do(cmd.Context(), http.MethodPatch, "observe/"+id, nil, body)
 			if err != nil {
 				return err
@@ -260,6 +264,14 @@ func (a *app) chatsPinCommand(pin bool) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func notAChat(err error, id string) error {
+	var api *apiError
+	if errors.As(err, &api) && api.status == http.StatusNotFound {
+		return fmt.Errorf("%s is not one of your chats; use an id from observe chats list, the first request of a chat", id)
+	}
+	return err
 }
 
 func (a *app) chatsArchiveCommand() *cobra.Command {

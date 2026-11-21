@@ -136,6 +136,7 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 An Admin may show anyone's chat, read only; such a show is recorded in the audit trail as `chat.view` with the owner's id, and `--scope all` as `chat.list`, each once per reader in 10 minutes.
 
 `chats pin <chat-id>` and `chats unpin <chat-id>` pin a chat of yours to the top of the list and take it back, as Pin and Unpin do on the Chats page; pinning a pinned chat changes nothing, and only the chat's owner can do it.
+The id must be a chat id from `chats list`; the id of a later turn or of any other request is refused with `is not one of your chats`.
 `chats archive <chat-id> --yes` archives the chat and every request in it, which stay readable with `observe status`; dashboards and observations they made are kept.
 It needs `--yes` because nothing brings an archived chat back to the lists, and only the chat's owner can do it: an Admin who can read it gets `chat_read_only`.
 
