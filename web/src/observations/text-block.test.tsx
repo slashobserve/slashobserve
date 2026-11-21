@@ -62,7 +62,71 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+const paragraph = "Latency rose after the deploy. ".repeat(12).trim()
+
+function longAnswer(overrides: Partial<Block> = {}): Block {
+  return textBlock({
+    run_id: "run-1",
+    body: {
+      markdown: `## Checkout 5xx\n\nFirst paragraph.\n\n${paragraph}\n\nLast paragraph ${paragraph}`,
+    },
+    ...overrides,
+  })
+}
+
 describe("TextBlock", () => {
+  it("folds all but the first paragraph of a long answer behind a button", async () => {
+    const { user } = renderWithProviders(<TextBlock block={longAnswer()} />)
+    expect(screen.getByText("First paragraph.")).toBeInTheDocument()
+    expect(screen.queryByText(/^Last paragraph/)).toBeNull()
+
+    const control = screen.getByRole("button", {
+      name: "The rest of the answer",
+    })
+    expect(control).toHaveAttribute("aria-expanded", "false")
+    await user.click(control)
+
+    expect(control).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByText(/^Last paragraph/)).toBeInTheDocument()
+    expect(control).toHaveAttribute(
+      "aria-controls",
+      screen.getByText(/^Last paragraph/).closest("[id]")?.id
+    )
+
+    await user.click(control)
+    expect(screen.queryByText(/^Last paragraph/)).toBeNull()
+  })
+
+  it("never folds text a person wrote", () => {
+    renderWithProviders(<TextBlock block={longAnswer({ run_id: null })} />)
+    expect(screen.getByText(/^Last paragraph/)).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "The rest of the answer" })
+    ).toBeNull()
+  })
+
+  it("never folds a short answer", () => {
+    renderWithProviders(
+      <TextBlock
+        block={textBlock({
+          run_id: "run-1",
+          body: { markdown: "## Title\n\nOne.\n\nTwo." },
+        })}
+      />
+    )
+    expect(screen.getByText("Two.")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "The rest of the answer" })
+    ).toBeNull()
+  })
+
+  it("edits the whole text of a folded answer", async () => {
+    const { user } = renderWithProviders(<TextBlock block={longAnswer()} />)
+    await user.click(screen.getByRole("button", { name: "Edit" }))
+    const field = screen.getByRole("textbox", { name: "Text block" })
+    expect((field as HTMLTextAreaElement).value).toContain("Last paragraph")
+  })
+
   it("shows no Edit button without the update action", () => {
     renderWithProviders(
       <TextBlock block={textBlock({ allowed_actions: [] })} />

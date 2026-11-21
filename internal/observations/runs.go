@@ -79,7 +79,11 @@ func (s *Service) openForRun(ctx context.Context, q *dbsqlc.Queries, in RunOpen)
 	if err != nil {
 		return pgtype.UUID{}, fmt.Errorf("encode run block: %w", err)
 	}
-	_, err = s.insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull}, state, who)
+	under, err := positionUnder(ctx, q, parent.ID, in.Run.BlockID)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+	_, err = s.insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull, position: under}, state, who)
 	switch {
 	case errors.Is(err, ErrTooManyBlocks):
 		s.logger.WarnContext(ctx, "run block not added: the observation is full",
@@ -240,14 +244,18 @@ func (s *Service) writeConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, 
 	if !ok {
 		return folders.ErrForbidden
 	}
-	added, err := s.insertConclusionBlocks(ctx, q, parent, in, state, who)
+	under, err := conclusionPosition(ctx, q, parent.ID, in.runID)
+	if err != nil {
+		return err
+	}
+	added, err := s.insertConclusionBlocks(ctx, q, parent, in, state, who, under)
 	if err != nil || !in.runID.Valid {
 		return err
 	}
 	return citeBlocks(ctx, q, parent, in.runID, added, who)
 }
 
-func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, in conclusion, state BlockState, who actor.Actor) ([]string, error) {
+func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, in conclusion, state BlockState, who actor.Actor, under *int) ([]string, error) {
 	text, err := json.Marshal(TextBody{Markdown: cutRunes("## "+in.title+"\n\n"+in.markdown, MaxTextRunes)})
 	if err != nil {
 		return nil, fmt.Errorf("encode text block: %w", err)
@@ -255,7 +263,10 @@ func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries,
 	blocks := []preparedBlock{{kind: KindText, body: text, width: WidthFull}}
 	blocks = append(blocks, s.conclusionPanels(ctx, in)...)
 	var added []string
-	for _, b := range blocks {
+	for i, b := range blocks {
+		if under != nil {
+			b.position = new(*under + i)
+		}
 		row, err := s.insertBlock(ctx, q, parent, b, state, who)
 		switch {
 		case errors.Is(err, ErrTooManyPanels), errors.Is(err, ErrTooManyBlocks):
@@ -271,6 +282,46 @@ func (s *Service) insertConclusionBlocks(ctx context.Context, q *dbsqlc.Queries,
 		added = append(added, row.ID.String())
 	}
 	return added, nil
+}
+
+func positionUnder(ctx context.Context, q *dbsqlc.Queries, observationID, blockID pgtype.UUID) (*int, error) {
+	if !blockID.Valid {
+		return nil, nil
+	}
+	block, err := q.BlockByID(ctx, blockID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("read the block the run was asked on: %w", err)
+	case block.ObservationID != observationID:
+		return nil, nil
+	}
+	return new(int(block.Position) + 1), nil
+}
+
+func conclusionPosition(ctx context.Context, q *dbsqlc.Queries, observationID, runID pgtype.UUID) (*int, error) {
+	if !runID.Valid {
+		return nil, nil
+	}
+	run, err := q.GetAgentRequestByID(ctx, runID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("read run: %w", err)
+	}
+	if !run.BlockID.Valid && len(run.Anchor) == 0 {
+		return nil, nil
+	}
+	runBlock, err := q.RunBlockOfRun(ctx, dbsqlc.RunBlockOfRunParams{ObservationID: observationID, RunID: runID})
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return positionUnder(ctx, q, observationID, run.BlockID)
+	case err != nil:
+		return nil, fmt.Errorf("read run block: %w", err)
+	}
+	return new(int(runBlock.Position) + 1), nil
 }
 
 func (s *Service) conclusionPanels(ctx context.Context, in conclusion) []preparedBlock {
