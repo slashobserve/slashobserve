@@ -374,6 +374,11 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})
 	case SourceInvestigate:
+		private := PrivateAsk(row)
+		about := row.ObservationID
+		if private {
+			about = row.SubjectObservationID
+		}
 		return s.SubmitInvestigate(ctx, InvestigateParams{
 			Prompt:      row.Prompt,
 			By:          by,
@@ -382,13 +387,15 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
 
-			ObservationID:    row.ObservationID,
+			ObservationID:    about,
 			ReuseObservation: true,
 			RetriesID:        retries,
 
 			Assignee:        assignee,
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
+			Ask:             threadMessage.Valid,
+			Private:         private,
 
 			chat: againChat(row, by),
 		})

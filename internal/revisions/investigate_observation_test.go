@@ -235,3 +235,41 @@ func TestWithoutObservationsAnInvestigationNamesNone(t *testing.T) {
 		t.Errorf("POST: %d %s", rec.Code, rec.Body)
 	}
 }
+
+func TestARetriedPrivateAskStaysPrivateOnItsSubjectForWhoeverMayAskIt(t *testing.T) {
+	r := newObservationRig(t)
+	cy := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Cy", Role: auth.RoleCommenter}
+	for _, p := range []auth.Principal{user, cy} {
+		r.d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $3, $2)`, p.ID, p.Name, p.Name+"@example.com")
+	}
+	dash := seedDashboard(t, r.d, 1)
+	about := r.observation(t, user, pgtype.UUID{})
+	cases := []struct {
+		name string
+		by   auth.Principal
+		req  revisions.StartRequest
+	}{
+		{"an Editor's ask about a dashboard", user, revisions.StartRequest{Prompt: text("why"), DashboardID: text(dash.String())}},
+		{"an Editor's ask about an observation", user, revisions.StartRequest{Prompt: text("why"), ObservationID: text(about.ID)}},
+		{"a Commenter's ask about a dashboard", cy, revisions.StartRequest{Prompt: text("why"), DashboardID: text(dash.String())}},
+	}
+	for _, c := range cases {
+		first, err := r.svc.Start(reading(t.Context()), c.by, c.req)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		r.d.Exec(t, `UPDATE agent_requests SET state = 'failed', status = 'failed', failure_code = 'agent_error', error = 'x', finished_at = clock_timestamp() WHERE id = $1`, first.ID)
+		observations := r.count(t, "observations")
+		next, err := r.svc.Retry(reading(t.Context()), first.ID, c.by)
+		if err != nil {
+			t.Fatalf("%s: retry: %v", c.name, err)
+		}
+		if !revisions.PrivateAsk(next) || next.ChatID != first.ChatID || next.DashboardID != first.DashboardID || next.SubjectObservationID != first.SubjectObservationID || next.ObservationID.Valid {
+			t.Errorf("%s: retry = chat %v dashboard %v subject %v observation %v, want a private ask in chat %v on dashboard %v subject %v",
+				c.name, next.ChatID, next.DashboardID, next.SubjectObservationID, next.ObservationID, first.ChatID, first.DashboardID, first.SubjectObservationID)
+		}
+		if got := r.count(t, "observations"); got != observations {
+			t.Errorf("%s: observations = %d after the retry, want %d", c.name, got, observations)
+		}
+	}
+}
