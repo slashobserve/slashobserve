@@ -252,6 +252,47 @@ describe("AuditSettings", () => {
     expect(listRequests().at(-1)?.searchParams.get("q")).toBe("origin:mcp")
   })
 
+  it("stops dimming the results when the address moves on", async () => {
+    serve({
+      events: (url) =>
+        (url.searchParams.get("q") ?? "").includes("denied")
+          ? json(
+              { error: "cannot read this query", code: "query_invalid" },
+              422
+            )
+          : json({
+              events: [auditEvent("e1", { action: "dashboard.delete" })],
+              next_cursor: null,
+              form: "kql",
+            }),
+    })
+    const { queryClient, rerender, user } = renderWithProviders(
+      <AuditSettings view={{ ...defaults, q: "origin:mcp" }} onView={vi.fn()} />
+    )
+    const outcomes = await screen.findByRole("group", {
+      name: "Outcome values",
+    })
+    await user.click(
+      await within(outcomes).findByRole("button", { name: "denied 2" })
+    )
+    await screen.findByText("cannot read this query")
+    const dimmed = () =>
+      screen
+        .getByRole("region", { name: "Audit events" })
+        .closest(".opacity-60")
+    expect(dimmed()).not.toBeNull()
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <AuditSettings
+          view={{ ...defaults, q: "origin:cli" }}
+          onView={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+    await waitFor(() => expect(dimmed()).toBeNull())
+    expect(screen.queryByText("cannot read this query")).toBeNull()
+  })
+
   it("keeps the last good results and the address when the server rejects a query", async () => {
     serve({
       events: (url) =>

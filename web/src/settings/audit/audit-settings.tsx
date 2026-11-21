@@ -53,7 +53,7 @@ const auditRanges = [
 const restartedText =
   "Live follow restarted: the stream could not resume from the last event it showed, so the list was reloaded up to now."
 
-type Rejection = { q: string; error: AuditQueryError }
+type Rejection = { q: string; key: string; error: AuditQueryError }
 
 function stamp(): number {
   return Date.now()
@@ -125,7 +125,11 @@ export function AuditSettings({
       .catch((error: unknown) => error)
     if (ticket !== latestCheck.current) return
     if (outcome instanceof AuditQueryError) {
-      setRejection({ q: next.q, error: outcome })
+      setRejection({
+        q: next.q,
+        key: appliedKey(applied),
+        error: outcome,
+      })
       return
     }
     apply(next, anchor)
@@ -202,10 +206,16 @@ export function AuditSettings({
   const problem = queryProblemOf(events.error, applied.q)
   const filtered =
     applied.q !== "" || applied.from !== defaultFrom || applied.to !== defaultTo
+  const activeRejection =
+    rejection !== null &&
+    rejection.key === appliedKey(applied) &&
+    rejection.q === draft.text
+      ? rejection
+      : null
   const barProblem =
-    rejection !== null && draft.text === rejection.q
-      ? rejectionOf(rejection.error, rejection.q)
-      : problem
+    activeRejection === null
+      ? problem
+      : rejectionOf(activeRejection.error, activeRejection.q)
 
   function run(raw: string) {
     const q = raw.trimEnd()
@@ -285,7 +295,7 @@ export function AuditSettings({
       <div
         className={cn(
           "flex flex-col gap-4",
-          rejection !== null && "opacity-60"
+          activeRejection !== null && "opacity-60"
         )}
       >
         {window !== null && problem === null ? (
