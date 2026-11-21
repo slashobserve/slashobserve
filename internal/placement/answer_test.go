@@ -106,6 +106,16 @@ var answerHolders = map[string]answerHolder{
 			return g.MoveObservation(t.Context(), r.d.Queries(), id, to)
 		},
 	},
+	"a proposal a run opened": {
+		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
+			id := r.dashboard(t, folder, readsProm)
+			r.d.Exec(t, `INSERT INTO proposals (dashboard_id, title, author_kind, author_id, author_name, run_id) VALUES ($1::uuid, 'Add errors', 'user', gen_random_uuid(), 'Root', $2::uuid)`, id, run)
+			return id
+		},
+		move: func(g *Guard, r holdersRig, t *testing.T, id, to pgtype.UUID) error {
+			return g.MoveDashboard(t.Context(), r.d.Queries(), id, to)
+		},
+	},
 	"an observation block a run wrote": {
 		add: func(t *testing.T, r holdersRig, folder pgtype.UUID, run string) string {
 			id := r.observation(t, folder)
