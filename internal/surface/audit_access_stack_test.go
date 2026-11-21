@@ -38,8 +38,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/provision"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/internal/queryproxy/proxyhttp"
-	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/sealed"
+	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/server"
 	"github.com/slashobserve/slashobserve/internal/server/mcp"
 	"github.com/slashobserve/slashobserve/internal/tailhttp"
@@ -50,7 +50,7 @@ const (
 	controlUID        = "prom"
 	marker            = "audit-access-marker"
 	controlFolderName = "Team access control"
-	controlBoard      = "Team access control board"
+	controlBoard      = "Control audit access board"
 	sessionCookie     = "so_session"
 )
 
@@ -96,6 +96,7 @@ type stack struct {
 	personTokens map[string]string
 	auditFolder  string
 	starters     []string
+	starterTitle string
 	controlBoard string
 	controlDir   string
 	eventID      string
@@ -279,6 +280,9 @@ func (s *stack) seedAuditContent(database *dbtest.Database, dashboardsService *d
 	}
 	if len(s.starters) == 0 {
 		t.Fatal("the Audit folder holds no starter dashboard")
+	}
+	if err := database.SQLDB(t).QueryRowContext(ctx, `SELECT title FROM dashboards WHERE id = $1`, s.starters[0]).Scan(&s.starterTitle); err != nil {
+		t.Fatal(err)
 	}
 
 	folder, _, err := access.CreateFolder(ctx, provision.Principal, controlFolderName)

@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/api/apitest"
 )
 
 type outcome string
@@ -17,6 +21,12 @@ const (
 	forbiddenRole   outcome = "403 forbidden_role"
 	notFound        outcome = "404 not found"
 	unauthenticated outcome = "401"
+)
+
+const (
+	missingUID = "no-such-source"
+	missingID  = "00000000-0000-4000-8000-000000000000"
+	window     = `"from":"now-1h","to":"now"`
 )
 
 type observed struct {
@@ -64,12 +74,14 @@ func (o observed) classify(want string, list bool) outcome {
 }
 
 type surfaceRow struct {
-	name   string
-	send   func(s *stack, c caller) observed
-	proof  func(s *stack) string
-	list   bool
-	admin  outcome
-	member outcome
+	name    string
+	send    func(s *stack, c caller) observed
+	twin    func(s *stack, c caller) observed
+	proof   func(s *stack) string
+	control func(s *stack) string
+	list    bool
+	admin   outcome
+	member  outcome
 }
 
 func (r surfaceRow) expected(c caller) outcome {
@@ -82,21 +94,16 @@ func (r surfaceRow) expected(c caller) outcome {
 	return r.member
 }
 
-func restRow(name, method string, target func(s *stack) string, body func(s *stack) string, proof func(s *stack) string, list bool, admin, member outcome) surfaceRow {
-	return surfaceRow{
-		name: name,
-		send: func(s *stack, c caller) observed {
-			payload := ""
-			if body != nil {
-				payload = body(s)
-			}
-			return observeREST(s.rest(c, method, target(s), payload))
-		},
-		proof: proof, list: list, admin: admin, member: member,
-	}
-}
+type text func(s *stack) string
 
-func fixed(v string) func(*stack) string { return func(*stack) string { return v } }
+func fixed(v string) text { return func(*stack) string { return v } }
+
+var (
+	auditFolderID = func(s *stack) string { return s.auditFolder }
+	starterID     = func(s *stack) string { return s.starters[0] }
+	starterTitle  = func(s *stack) string { return s.starterTitle }
+	controlTitle  = fixed(controlBoard)
+)
 
 func queryOf(pairs ...string) string {
 	values := url.Values{}
@@ -106,13 +113,88 @@ func queryOf(pairs ...string) string {
 	return values.Encode()
 }
 
+type restSpec struct {
+	method  string
+	path    string
+	target  text
+	body    string
+	hidden  text
+	proof   text
+	control text
+	list    bool
+	admin   outcome
+	member  outcome
+}
+
+func (r restSpec) row(name string) surfaceRow {
+	target := r.target
+	if target == nil {
+		target = fixed(r.path)
+	}
+	send := func(resolve text) func(s *stack, c caller) observed {
+		return func(s *stack, c caller) observed {
+			return observeREST(s.rest(c, r.method, resolve(s), r.body))
+		}
+	}
+	row := surfaceRow{name: name, send: send(target), proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member}
+	if r.hidden != nil {
+		row.twin = send(func(s *stack) string {
+			replacement := missingID
+			if r.hidden(s) == auditUID {
+				replacement = missingUID
+			}
+			return strings.Replace(target(s), r.hidden(s), replacement, 1)
+		})
+	}
+	return row
+}
+
+type toolSpec struct {
+	tool    string
+	args    func(s *stack, hidden string) map[string]any
+	hidden  text
+	proof   text
+	control text
+	list    bool
+	admin   outcome
+	member  outcome
+}
+
+func (r toolSpec) row() surfaceRow {
+	send := func(replace func(s *stack) string) func(s *stack, c caller) observed {
+		return func(s *stack, c caller) observed {
+			args := map[string]any{}
+			if r.args != nil {
+				args = r.args(s, replace(s))
+			}
+			return observeTool(s.call(c, r.tool, args))
+		}
+	}
+	row := surfaceRow{name: "MCP " + r.tool, proof: r.proof, control: r.control, list: r.list, admin: r.admin, member: r.member}
+	row.send = send(func(s *stack) string {
+		if r.hidden == nil {
+			return ""
+		}
+		return r.hidden(s)
+	})
+	if r.hidden != nil {
+		row.twin = send(func(s *stack) string {
+			if r.hidden(s) == auditUID {
+				return missingUID
+			}
+			return missingID
+		})
+	}
+	return row
+}
+
 func auditRESTRows() []surfaceRow {
-	adminOnly := func(name, target string, proof string) surfaceRow {
-		return restRow(name, http.MethodGet, fixed(target), nil, fixed(proof), false, servesData, forbiddenRole)
+	adminOnly := func(name, path, proof string) surfaceRow {
+		return restSpec{method: http.MethodGet, path: path, proof: fixed(proof), admin: servesData, member: forbiddenRole}.row(name)
 	}
 	return []surfaceRow{
 		adminOnly("GET /audit/events", "/audit/events", marker),
-		restRow("GET /audit/events/{id}", http.MethodGet, func(s *stack) string { return "/audit/events/" + s.eventID }, nil, fixed(marker), false, servesData, forbiddenRole),
+		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/audit/events/" + s.eventID }, proof: fixed(marker), admin: servesData, member: forbiddenRole}.row("GET /audit/events/{id}"),
 		adminOnly("GET /audit/facets", "/audit/facets?"+queryOf("field", "actor_name"), "Ada"),
 		adminOnly("GET /audit/histogram", "/audit/histogram", `"form"`),
 		adminOnly("GET /audit/aggregate", "/audit/aggregate?"+queryOf("q", `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`), `"rows"`),
@@ -126,24 +208,204 @@ func auditRESTRows() []surfaceRow {
 	}
 }
 
+func onAuditDatasource(method, template, suffix, body, proof string) surfaceRow {
+	return restSpec{method: method, path: "/datasources/" + auditUID + suffix, body: body, hidden: fixed(auditUID), proof: fixed(proof), admin: servesData, member: notFound}.row(method + " /datasources/{uid}" + template)
+}
+
+func datasourceRESTRows() []surfaceRow {
+	return []surfaceRow{
+		restSpec{method: http.MethodGet, path: "/datasources", proof: fixed(auditUID), control: fixed(controlUID), list: true, admin: servesData, member: absentFromList}.row("GET /datasources"),
+		onAuditDatasource(http.MethodGet, "/config", "/config", "", auditUID),
+		onAuditDatasource(http.MethodPost, "/recheck", "/recheck", "", auditUID),
+		onAuditDatasource(http.MethodPost, "/query", "/query", `{"query":"actor_name:Ada","kind":"instant",`+window+`}`, "frames"),
+		onAuditDatasource(http.MethodPost, "/log-volume", "/log-volume", `{"query":"*",`+window+`}`, "buckets"),
+		onAuditDatasource(http.MethodPost, "/log-facets", "/log-facets", `{"query":"*",`+window+`}`, "facets"),
+		onAuditDatasource(http.MethodPost, "/log-patterns", "/log-patterns", `{"query":"*",`+window+`}`, "patterns"),
+		onAuditDatasource(http.MethodPost, "/log-context", "/log-context", `{"query":"*","anchor":"1700000000000000000"}`, "before"),
+		onAuditDatasource(http.MethodPost, "/lint", "/lint", `{"query":"outcome:denied"}`, "diagnostics"),
+		onAuditDatasource(http.MethodPost, "/trace-stats", "/trace-stats", `{"query":"*",`+window+`}`, "meta"),
+		onAuditDatasource(http.MethodPost, "/trace-compare", "/trace-compare", `{"selected":["0123456789abcdef"],"baseline":["fedcba9876543210"],`+window+`}`, "attributes"),
+		onAuditDatasource(http.MethodPost, "/trace-logs", "/trace-logs", `{"trace_id":"0123456789abcdef0123456789abcdef",`+window+`}`, "frames"),
+		onAuditDatasource(http.MethodPost, "/draft-query", "/draft-query", `{"question":"how many denied reads"}`, "query"),
+		onAuditDatasource(http.MethodPost, "/preview", "/preview", `{"query":"*",`+window+`}`, "frames"),
+		onAuditDatasource(http.MethodGet, "/schema", "/schema", "", "tables"),
+		onAuditDatasource(http.MethodGet, "/sample", "/sample", "", "rows"),
+		onAuditDatasource(http.MethodGet, "/metrics", "/metrics", "", "metrics"),
+		onAuditDatasource(http.MethodGet, "/labels", "/labels", "", "labels"),
+		onAuditDatasource(http.MethodGet, "/labels/{name}/values", "/labels/outcome/values", "", "values"),
+		onAuditDatasource(http.MethodGet, "/services", "/services", "", "services"),
+		onAuditDatasource(http.MethodGet, "/traces/{trace_id}", "/traces/0123456789abcdef0123456789abcdef", "", "frames"),
+		onAuditDatasource(http.MethodGet, "/tail", "/tail?"+queryOf("query", "*"), "", "event: ready"),
+	}
+}
+
+func datasourceMutationRows() []surfaceRow {
+	return []surfaceRow{
+		onAuditDatasource(http.MethodPatch, "", "", `{"name":"renamed"}`, auditUID),
+		onAuditDatasource(http.MethodDelete, "", "", "", auditUID),
+	}
+}
+
+func workspaceRESTRows() []surfaceRow {
+	dashboard := func(template, suffix, proof string) surfaceRow {
+		return restSpec{
+			method: http.MethodGet, target: func(s *stack) string { return "/dashboards/" + s.starters[0] + suffix },
+			hidden: starterID, proof: fixed(proof), admin: servesData, member: notFound,
+		}.row("GET /dashboards/{id}" + template)
+	}
+	return []surfaceRow{
+		restSpec{method: http.MethodGet, path: "/folders", proof: fixed(`"Audit"`), control: fixed(controlFolderName), list: true, admin: servesData, member: absentFromList}.row("GET /folders"),
+		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/folders/" + s.auditFolder }, hidden: auditFolderID, proof: fixed(`"Audit"`), admin: servesData, member: notFound}.row("GET /folders/{id}"),
+		restSpec{method: http.MethodGet, target: func(s *stack) string { return "/folders/" + s.auditFolder + "/permissions" }, hidden: auditFolderID, proof: fixed("grants"), admin: servesData, member: notFound}.row("GET /folders/{id}/permissions"),
+		restSpec{method: http.MethodGet, path: "/dashboards", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /dashboards"),
+		dashboard("", "", `"title"`),
+		dashboard("/versions", "/versions", `"version"`),
+		dashboard("/versions/{version}", "/versions/1", `"version"`),
+		dashboard("/events", "/events", `"events"`),
+		dashboard("/comments", "/comments", `"comments"`),
+		dashboard("/revisions", "/revisions", `"revisions"`),
+		restSpec{method: http.MethodGet, path: "/search?" + queryOf("q", "audit"), proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /search"),
+		restSpec{method: http.MethodGet, path: "/activity", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row("GET /activity"),
+	}
+}
+
+func mcpRows() []surfaceRow {
+	adminOnly := func(tool, proof string, args func(s *stack, _ string) map[string]any) surfaceRow {
+		return toolSpec{tool: tool, args: args, proof: fixed(proof), admin: servesData, member: forbiddenRole}.row()
+	}
+	onAudit := func(tool, proof string, extra map[string]any) surfaceRow {
+		return toolSpec{
+			tool: tool, hidden: fixed(auditUID), proof: fixed(proof), admin: servesData, member: notFound,
+			args: func(_ *stack, uid string) map[string]any {
+				args := map[string]any{"datasource": uid}
+				for k, v := range extra {
+					args[k] = v
+				}
+				return args
+			},
+		}.row()
+	}
+	byDashboard := func(tool string, proof text) surfaceRow {
+		return toolSpec{
+			tool: tool, hidden: starterID, proof: proof, admin: servesData, member: notFound,
+			args: func(_ *stack, id string) map[string]any { return map[string]any{"dashboard_id": id} },
+		}.row()
+	}
+	return []surfaceRow{
+		adminOnly("search_audit_events", marker, nil),
+		adminOnly("get_audit_event", marker, func(s *stack, _ string) map[string]any { return map[string]any{"id": s.eventID} }),
+		adminOnly("list_audit_facets", "Ada", func(*stack, string) map[string]any { return map[string]any{"field": "actor_name"} }),
+		adminOnly("get_audit_histogram", "buckets", nil),
+		adminOnly("aggregate_audit_events", "rows", func(*stack, string) map[string]any {
+			return map[string]any{"query": `{"aggs":{"by":{"terms":{"field":"actor_name"}}}}`}
+		}),
+		adminOnly("list_audit_fields", "actor_name", nil),
+		toolSpec{tool: "list_datasources", proof: fixed(auditUID), control: fixed(controlUID), list: true, admin: servesData, member: absentFromList}.row(),
+		onAudit("get_schema", "tables", nil),
+		onAudit("list_metrics", "metrics", nil),
+		onAudit("recheck_datasource", auditUID, nil),
+		onAudit("query_instant", "frames", map[string]any{"query": "actor_name:Ada", "from": "now-1h", "to": "now"}),
+		toolSpec{tool: "list_folders", proof: fixed("Audit"), control: fixed(controlFolderName), list: true, admin: servesData, member: absentFromList}.row(),
+		toolSpec{tool: "list_dashboards", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row(),
+		byDashboard("get_dashboard", starterTitle),
+		byDashboard("list_dashboard_versions", fixed("version")),
+		toolSpec{
+			tool: "search_workspace", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList,
+			args: func(*stack, string) map[string]any { return map[string]any{"q": "audit"} },
+		}.row(),
+		toolSpec{tool: "list_activity", proof: starterTitle, control: controlTitle, list: true, admin: servesData, member: absentFromList}.row(),
+		{
+			name: "MCP tools/list",
+			send: func(s *stack, c caller) observed {
+				return observeTool(s.mcpPost(c, []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)))
+			},
+			proof: fixed("search_audit_events"), admin: servesData, member: servesData,
+		},
+	}
+}
+
 func allRows() []surfaceRow {
-	return auditRESTRows()
+	return slices.Concat(auditRESTRows(), datasourceRESTRows(), workspaceRESTRows(), mcpRows(), datasourceMutationRows())
 }
 
 func TestAuditSurfacesByRoleAndCredential(t *testing.T) {
 	s := newStack(t)
+	got := map[string]map[string]outcome{}
 	for _, row := range allRows() {
+		got[row.name] = map[string]outcome{}
 		for _, c := range callers() {
 			t.Run(row.name+"/"+c.name, func(t *testing.T) {
 				s.t = t
-				got := row.send(s, c).classify(row.proof(s), row.list)
-				if want := row.expected(c); got != want {
-					if !c.admin() && got == servesData {
-						t.Fatalf("SECURITY: %s served audit data to %s", row.name, c.name)
+				seen := row.send(s, c)
+				result := seen.classify(row.proof(s), row.list)
+				got[row.name][c.name] = result
+				if want := row.expected(c); result != want {
+					if !c.admin() && result == servesData {
+						t.Fatalf("SECURITY: %s served audit data to %s: %.300s", row.name, c.name, seen.body)
 					}
-					t.Fatalf("%s as %s = %s, want %s", row.name, c.name, got, want)
+					t.Fatalf("%s as %s = %s, want %s; status %d code %q refusal %q body %.400s", row.name, c.name, result, want, seen.status, seen.code, seen.refusal, seen.body)
+				}
+				if row.control != nil && result != unauthenticated && result != forbiddenRole && !strings.Contains(seen.body, row.control(s)) {
+					t.Fatalf("%s as %s lacks the control %q, so a hidden result would pass as an empty one: %.300s", row.name, c.name, row.control(s), seen.body)
+				}
+				if row.twin != nil && result == notFound {
+					twin := row.twin(s, c)
+					if twin.status != seen.status || twin.refusal != seen.refusal || twin.code != seen.code {
+						t.Fatalf("%s as %s answers differently from a missing id: %d %q %q against %d %q %q", row.name, c.name, seen.status, seen.code, seen.refusal, twin.status, twin.code, twin.refusal)
+					}
 				}
 			})
+		}
+	}
+	logMatrix(t, got)
+}
+
+func logMatrix(t *testing.T, got map[string]map[string]outcome) {
+	names := make([]string, 0, len(got))
+	for name := range got {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	cs := callers()
+	var b strings.Builder
+	b.WriteString("\n| surface |")
+	for _, c := range cs {
+		b.WriteString(" " + c.name + " |")
+	}
+	b.WriteString("\n|---|")
+	for range cs {
+		b.WriteString("---|")
+	}
+	b.WriteString("\n")
+	for _, name := range names {
+		b.WriteString("| " + name + " |")
+		for _, c := range cs {
+			b.WriteString(" " + string(got[name][c.name]) + " |")
+		}
+		b.WriteString("\n")
+	}
+	t.Log(b.String())
+}
+
+var outOfScope = map[string]bool{
+	"POST /datasources":      true,
+	"POST /datasources/test": true,
+}
+
+func TestEveryAuditAndDatasourceOperationHasARow(t *testing.T) {
+	covered := map[string]bool{}
+	for _, row := range allRows() {
+		covered[row.name] = true
+	}
+	for path, item := range apitest.Load(t).Paths.Map() {
+		if !strings.HasPrefix(path, "/audit/") && !strings.HasPrefix(path, "/datasources") {
+			continue
+		}
+		for method := range item.Operations() {
+			name := method + " " + path
+			if !covered[name] && !outOfScope[name] {
+				t.Errorf("%s has no row in the audit access matrix", name)
+			}
 		}
 	}
 }
