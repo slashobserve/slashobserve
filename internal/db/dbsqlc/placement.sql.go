@@ -436,6 +436,27 @@ func (q *Queries) PlacementSavedSearches(ctx context.Context, arg PlacementSaved
 	return items, nil
 }
 
+const restrictedAnswerFolder = `-- name: RestrictedAnswerFolder :one
+SELECT COALESCE(
+  (SELECT f.id FROM agent_requests r
+    JOIN folders f ON f.id = COALESCE((SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id), (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))
+    WHERE r.id = $1 AND f.admins_only),
+  (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = $2 AND f.admins_only)
+)::uuid AS folder_id
+`
+
+type RestrictedAnswerFolderParams struct {
+	RunID          pgtype.UUID
+	AuditFolderKey string
+}
+
+func (q *Queries) RestrictedAnswerFolder(ctx context.Context, arg RestrictedAnswerFolderParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, restrictedAnswerFolder, arg.RunID, arg.AuditFolderKey)
+	var folder_id pgtype.UUID
+	err := row.Scan(&folder_id)
+	return folder_id, err
+}
+
 const restrictedAnswerHolders = `-- name: RestrictedAnswerHolders :many
 SELECT 'dashboard'::text AS kind, d.id, d.title FROM dashboards d
 WHERE d.folder_id = $2 AND (EXISTS (SELECT 1 FROM dashboard_versions v JOIN agent_requests r ON r.id = v.agent_request_id WHERE v.dashboard_id = d.id AND r.read_restricted)

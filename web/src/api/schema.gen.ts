@@ -2445,7 +2445,7 @@ export interface paths {
         put?: never;
         /**
          * Save the answer of an agent request as an observation.
-         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
          */
         post: operations["saveObserveRequestAnswer"];
         delete?: never;
@@ -15234,7 +15234,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the observation would not be in a folder only Admins can read (`restricted_answer`, saying why). */
+            /** @description The request has no answer to save (`no_answer`). Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and neither the folder of what it was about nor the built-in Audit folder is one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;

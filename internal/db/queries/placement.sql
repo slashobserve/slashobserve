@@ -114,3 +114,11 @@ WHERE o.folder_id = @folder_id AND (EXISTS (SELECT 1 FROM observation_blocks b J
   OR EXISTS (SELECT 1 FROM threads t JOIN thread_messages m ON m.thread_id = t.id JOIN agent_requests r ON r.id = m.run_id WHERE t.observation_id = o.id AND r.read_restricted))
 ORDER BY kind, title, id
 LIMIT @row_limit;
+
+-- name: RestrictedAnswerFolder :one
+SELECT COALESCE(
+  (SELECT f.id FROM agent_requests r
+    JOIN folders f ON f.id = COALESCE((SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id), (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))
+    WHERE r.id = @run_id AND f.admins_only),
+  (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = @audit_folder_key AND f.admins_only)
+)::uuid AS folder_id;

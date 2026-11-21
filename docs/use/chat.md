@@ -322,6 +322,7 @@ An answer whose run read such a datasource is marked `restricted`, and so is a r
 A restricted answer stays where only Admins read it.
 Sharing it in a thread or onto a page, saving it as an observation, pinning it, making it a dashboard, applying its suggested change and saving its build are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, and the message says why.
 The same refusal reaches MCP tools and the CLI.
+Saving a restricted answer as an observation files it in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
 Withdrawing a share and the privacy of chats are unchanged.
 
 ### In the dashboard's Chat tab

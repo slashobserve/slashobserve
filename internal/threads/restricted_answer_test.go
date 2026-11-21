@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -17,8 +18,13 @@ import (
 
 func (r *rig) adminsOnlyFolder(t *testing.T) pgtype.UUID {
 	t.Helper()
+	return r.adminsOnlyFolderNamed(t, "Audit")
+}
+
+func (r *rig) adminsOnlyFolderNamed(t *testing.T, title string) pgtype.UUID {
+	t.Helper()
 	var id pgtype.UUID
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title, admins_only) VALUES ('Audit', true) RETURNING id`).Scan(&id); err != nil {
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title, admins_only) VALUES ($1, true) RETURNING id`, title).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -158,10 +164,26 @@ func TestAnAnswerThatReadNoAdminOnlyDataSharesAsBefore(t *testing.T) {
 	}
 }
 
+func (r *rig) builtInAuditFolder(t *testing.T) pgtype.UUID {
+	t.Helper()
+	folder := r.adminsOnlyFolder(t)
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, auditfolder.FolderKey, folder)
+	return folder
+}
+
+func (r *rig) savedInto(t *testing.T, run pgtype.UUID) pgtype.UUID {
+	t.Helper()
+	var folder pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT o.folder_id FROM observations o JOIN findings f ON f.observation_id = o.id WHERE f.agent_request_id = $1`, run).Scan(&folder); err != nil {
+		t.Fatal(err)
+	}
+	return folder
+}
+
 func TestAnAdminsPrivateAskOnAnAuditDashboardSavesItsAnswerInTheAuditFolder(t *testing.T) {
 	r := newShareRig(t)
 	dash := r.createDashboard(t, "rps")
-	audit := r.adminsOnlyFolder(t)
+	audit := r.builtInAuditFolder(t)
 	r.moveInto(t, "dashboards", dash, audit)
 	id := dash.String()
 	run, _ := r.restrictedAnswer(t, admin, revisions.StartRequest{DashboardID: &id})
@@ -170,14 +192,58 @@ func TestAnAdminsPrivateAskOnAnAuditDashboardSavesItsAnswerInTheAuditFolder(t *t
 	if err != nil || !saved.Restricted {
 		t.Fatalf("save the answer as an observation: restricted %v, %v", saved.Restricted, err)
 	}
-	var folder pgtype.UUID
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT o.folder_id FROM observations o JOIN findings f ON f.observation_id = o.id WHERE f.agent_request_id = $1`, run).Scan(&folder); err != nil {
-		t.Fatal(err)
-	}
-	if folder != audit {
+	if folder := r.savedInto(t, run); folder != audit {
 		t.Fatalf("the observation is in folder %v, want the Audit folder %v", folder, audit)
 	}
 	if _, err := r.findingOfRun(t, otherEditor, run); err == nil {
 		t.Fatal("an Editor read the answer saved in the Audit folder")
+	}
+}
+
+func TestARestrictedAnswerIsSavedWhereItsSubjectIsElseInTheAuditFolder(t *testing.T) {
+	r := newShareRig(t)
+	audit := r.builtInAuditFolder(t)
+	other := r.adminsOnlyFolderNamed(t, "Payroll")
+	inOther := r.createDashboard(t, "rps")
+	r.moveInto(t, "dashboards", inOther, other)
+	shared := r.createDashboard(t, "errors")
+	cases := map[string]struct {
+		req  revisions.StartRequest
+		want pgtype.UUID
+	}{
+		"an ask with no subject":                              {revisions.StartRequest{}, audit},
+		"an ask on a dashboard in a shared folder":            {revisions.StartRequest{DashboardID: new(shared.String())}, audit},
+		"an ask on a dashboard in another Only Admins folder": {revisions.StartRequest{DashboardID: new(inOther.String())}, other},
+	}
+	for name, tc := range cases {
+		run, _ := r.restrictedAnswer(t, admin, tc.req)
+		if _, _, err := r.findings.SaveAsObservation(reading(t.Context()), admin, run); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if folder := r.savedInto(t, run); folder != tc.want {
+			t.Fatalf("%s: saved into %v, want %v", name, folder, tc.want)
+		}
+	}
+}
+
+func TestARestrictedAnswerWithNoOnlyAdminsFolderToGoToIsNotSaved(t *testing.T) {
+	r := newShareRig(t)
+	run, _ := r.restrictedAnswer(t, admin, revisions.StartRequest{})
+	if _, _, err := r.findings.SaveAsObservation(reading(t.Context()), admin, run); !errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("err = %v, want the restricted answer refusal", err)
+	}
+	r.assertNotShared(t, run)
+}
+
+func TestAnUnrestrictedAnswerIsSavedInTheDefaultFolderEvenWithAnAuditFolder(t *testing.T) {
+	r := newShareRig(t)
+	audit := r.builtInAuditFolder(t)
+	run, _ := r.restrictedAnswer(t, admin, revisions.StartRequest{})
+	r.db.Exec(t, `UPDATE agent_requests SET read_restricted = false WHERE id = $1`, run)
+	if _, _, err := r.findings.SaveAsObservation(reading(t.Context()), admin, run); err != nil {
+		t.Fatal(err)
+	}
+	if folder := r.savedInto(t, run); folder == audit {
+		t.Fatal("an unrestricted answer was saved into the Audit folder")
 	}
 }
