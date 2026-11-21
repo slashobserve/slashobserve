@@ -122,6 +122,21 @@ func TestCompileWarnsOnceForEachUnknownField(t *testing.T) {
 	}
 }
 
+func TestCompileKnowingAsksTheCallerWhichFieldsExist(t *testing.T) {
+	known := func(field string) bool { return field == "actor.name" }
+	got, err := kql.CompileKnowing("actor.name:a and log.level:b and log.*:c", demoFields, known)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []kql.Diagnostic{
+		{Severity: kql.SeverityWarning, Message: `unknown field "log.level"`, Start: 17, End: 26},
+		{Severity: kql.SeverityWarning, Message: `unknown field "log.*"`, Start: 33, End: 38},
+	}
+	if got.Query == nil || !slices.Equal(got.Diagnostics, want) {
+		t.Fatalf("query nil %v, diagnostics %+v, want %+v", got.Query == nil, got.Diagnostics, want)
+	}
+}
+
 func TestFieldsInListsEachFieldOnceInOrder(t *testing.T) {
 	for _, tc := range []struct {
 		text string

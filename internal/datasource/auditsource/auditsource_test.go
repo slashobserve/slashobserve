@@ -482,3 +482,23 @@ func TestTheLintAcceptsEveryAliasTheQueryAccepts(t *testing.T) {
 		t.Errorf("lint of an unknown field = %+v, want one unknown field warning", diags)
 	}
 }
+
+func TestTheLintWarnsOfAFieldPatternExactlyWhenTheQueryRefusesIt(t *testing.T) {
+	lintAgreesWithQuery(t, "actor.*", "target.*", "actor_*", "Actor_*", "mess*", "nosuch*", "actor.name", "message", "nosuch")
+}
+
+func lintAgreesWithQuery(t *testing.T, fields ...string) {
+	t.Helper()
+	ds := open(t, &fakeStore{})
+	for _, field := range fields {
+		text := field + ": alice"
+		diags, err := ds.Lint(t.Context(), text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, queryErr := ds.QueryInstant(t.Context(), datasource.Query{Text: text}, span)
+		if warned := len(diags) > 0; warned != (queryErr != nil) {
+			t.Errorf("%s: lint %+v, query error %v; the lint must warn exactly when the query refuses the field", field, diags, queryErr)
+		}
+	}
+}

@@ -78,13 +78,3 @@ func fieldCaps() map[string]any {
 	}
 	return map[string]any{"indices": []string{Index}, "fields": fields}
 }
-
-func fieldAliases() map[string]string {
-	aliases := map[string]string{}
-	for _, f := range filter.Fields() {
-		for _, alias := range f.Aliases {
-			aliases[alias] = f.Name
-		}
-	}
-	return aliases
-}

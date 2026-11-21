@@ -179,7 +179,7 @@ func compileUser(form Form, body string, m *Mapping) (userQuery, error) {
 		}
 		return userQuery{clause: luceneQuery(body)}, nil
 	}
-	compiled, err := kql.Compile(body, kqlFields(m))
+	compiled, err := kql.CompileKnowing(body, kqlFields(m), m.KnownField)
 	if err != nil {
 		offset := 0
 		if len(compiled.Diagnostics) > 0 {
@@ -213,23 +213,15 @@ var kqlKinds = map[FieldKind]kql.FieldKind{
 }
 
 func kqlFields(m *Mapping) kql.Fields {
-	fields := make(kql.Fields, len(m.Fields)+len(m.Aliases))
+	fields := make(kql.Fields, len(m.Fields))
 	for name, f := range m.Fields {
-		fields[name] = kqlKindOf(f)
-	}
-	for alias, name := range m.Aliases {
-		if f, ok := m.Fields[name]; ok {
-			fields[alias] = kqlKindOf(f)
+		kind, ok := kqlKinds[f.Kind]
+		if !ok {
+			kind = kql.Other
 		}
+		fields[name] = kind
 	}
 	return fields
-}
-
-func kqlKindOf(f Field) kql.FieldKind {
-	if kind, ok := kqlKinds[f.Kind]; ok {
-		return kind
-	}
-	return kql.Other
 }
 
 type dslProblem struct {

@@ -77,10 +77,10 @@ type Field struct {
 }
 
 type Mapping struct {
-	Fields    map[string]Field
-	Aliases   map[string]string
-	Truncated bool
-	Window    int
+	Fields     map[string]Field
+	KnownField func(string) bool
+	Truncated  bool
+	Window     int
 }
 
 func (m *Mapping) Names() []string {
@@ -200,7 +200,7 @@ func (d *Datasource) fetchMapping(ctx context.Context) (*Mapping, error) {
 		return nil, err
 	}
 	m.Window = d.resultWindow(ctx)
-	m.Aliases = d.opts.FieldAliases
+	m.KnownField = d.opts.KnownField
 	return m, nil
 }
 

@@ -197,6 +197,14 @@ func kqlFields() kql.Fields {
 	return out
 }
 
+func Known(name string) bool {
+	if strings.Contains(name, "*") {
+		return len(matchingFields(name)) > 0
+	}
+	_, ok := fieldIndex[name]
+	return ok
+}
+
 func matchingFields(pattern string) []*Field {
 	var out []*Field
 	for i := range fieldList {
