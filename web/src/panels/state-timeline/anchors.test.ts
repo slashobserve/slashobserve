@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { hitTest, type TimelineAnchorLayout } from "./anchors"
+import { inRect } from "../anchors"
+
+import { hitTest, locate, type TimelineAnchorLayout } from "./anchors"
 
 const layout: TimelineAnchorLayout = {
   body: { width: 300, height: 100 },
@@ -40,5 +42,52 @@ describe("state timeline hitTest", () => {
   it("returns null outside the plot and below the last row", () => {
     expect(hitTest(layout, { x: 20, y: 10 })).toBeNull()
     expect(hitTest(layout, { x: 150, y: 70 })).toBeNull()
+  })
+})
+
+describe("state timeline locate", () => {
+  it("finds the state a hit test named", () => {
+    const point = { x: 100 + 150, y: 10 }
+    const anchor = hitTest(layout, point)
+    expect(anchor).not.toBeNull()
+    const rect = locate(layout, anchor!)
+    expect(rect).toEqual({ x: 200, y: 0, width: 100, height: 30 })
+    expect(inRect(rect!, point)).toBe(true)
+  })
+
+  it("finds the row a series anchor named", () => {
+    const anchor = hitTest(layout, { x: 150, y: 40 })
+    expect(anchor).toMatchObject({ kind: "series" })
+    expect(locate(layout, anchor!)).toEqual({
+      x: 100,
+      y: 30,
+      width: 200,
+      height: 30,
+    })
+  })
+
+  it("returns null when the row or the state at that time is gone", () => {
+    const pos = { x: 0, y: 0 }
+    const from = new Date(1500).toISOString()
+    expect(
+      locate(layout, { kind: "point", pos, series: { name: "orders" }, from })
+    ).toBeNull()
+    expect(
+      locate(layout, {
+        kind: "point",
+        pos,
+        series: { name: "payments" },
+        from,
+      })
+    ).toBeNull()
+    expect(
+      locate(layout, {
+        kind: "point",
+        pos,
+        series: { name: "checkout" },
+        from: "not a time",
+      })
+    ).toBeNull()
+    expect(locate(layout, { kind: "position", pos })).toBeNull()
   })
 })

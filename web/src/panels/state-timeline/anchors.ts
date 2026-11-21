@@ -3,6 +3,7 @@ import {
   fit,
   inRect,
   msToIso,
+  namesLabels,
   positionOf,
   seriesLabels,
   type Anchor,
@@ -45,4 +46,37 @@ export function hitTest(
     from,
     ...(segment.text ? { shown: clip(segment.text) } : {}),
   })
+}
+
+function rowIndex(layout: TimelineAnchorLayout, anchor: Anchor): number {
+  return layout.rows.findIndex(({ name }) =>
+    namesLabels(anchor.series, seriesLabels(undefined, name))
+  )
+}
+
+function timeShare(layout: TimelineAnchorLayout, time: number): number {
+  const { range, plot } = layout
+  return ((time - range.from) / (range.to - range.from)) * plot.width
+}
+
+export function locate(
+  layout: TimelineAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  if (anchor.kind !== "point" && anchor.kind !== "series") return null
+  const { plot, range, rowHeight } = layout
+  const index = rowIndex(layout, anchor)
+  if (index < 0 || !(range.from < range.to)) return null
+  const top = plot.y + index * rowHeight
+  if (anchor.kind === "series") {
+    return { x: plot.x, y: top, width: plot.width, height: rowHeight }
+  }
+  const at = Date.parse(anchor.from ?? "")
+  const segment = Number.isNaN(at)
+    ? null
+    : segmentAt(layout.rows[index].segments, at)
+  if (segment === null) return null
+  const left = Math.max(0, timeShare(layout, segment.from))
+  const right = Math.min(plot.width, timeShare(layout, segment.to))
+  return { x: plot.x + left, y: top, width: right - left, height: rowHeight }
 }
