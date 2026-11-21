@@ -214,7 +214,8 @@ export function CanvasComposer({
 }
 
 const panelBody = "[data-canvas-surface]"
-const pinMarker = "[data-pin], [data-pin-stack]"
+const pinMarker =
+  "[data-pin], [data-pin-stack], [data-ask-pin], [data-ask-pin-stack]"
 const headerControls =
   'a, input, select, textarea, [role="menuitem"], [role="toolbar"], button:not([data-panel-title])'
 
