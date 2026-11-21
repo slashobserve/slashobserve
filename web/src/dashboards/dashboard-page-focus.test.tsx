@@ -268,7 +268,6 @@ describe("dashboard page panel keys", () => {
     })
     expect(composer).toHaveAttribute("data-opened-by", "key")
     expect(composer).toHaveTextContent("Note, whole panel")
-    expect(useActivityStore.getState().askingAgent).toBe(false)
   })
 
   it("comments on a repeated panel's copy in the activity pane, since copies take no canvas comments", async () => {
@@ -369,7 +368,6 @@ describe("dashboard page panel keys", () => {
         screen.getByRole("dialog", { name: "Ask about Latency, whole panel" })
       ).toHaveAttribute("data-opened-by", "key")
     })
-    expect(useActivityStore.getState().askingAgent).toBe(false)
   })
 
   it("asks about a repeated panel's copy in the Chat tab, since copies take no canvas questions", async () => {
@@ -462,7 +460,6 @@ describe("dashboard page panel keys", () => {
   })
 
   it("does not ask about a panel without data", async () => {
-    useActivityStore.setState({ askingAgent: false })
     const { user, router } = renderDashboard()
     const note = await screen.findByRole("article", { name: "Note" })
     await waitFor(() => expect(agentRequested()).toBe(true))

@@ -145,7 +145,6 @@ describe("acting on a panel and focusing the composer", () => {
   it("comments on the panel in the activity pane and focuses the composer off the canvas", () => {
     const queue = frames()
     const focus = vi.fn()
-    useActivityStore.getState().setAskingAgent(false)
     let search: DashboardSearch = { vars: {} }
     const place = commentOnThisPanel(
       (update: (current: DashboardSearch) => DashboardSearch) => {
@@ -157,7 +156,6 @@ describe("acting on a panel and focusing the composer", () => {
     )
     expect(place).toBe("pane")
     expect(search).toMatchObject({ tab: "activity", panel: "latency" })
-    expect(useActivityStore.getState().askingAgent).toBe(false)
     expect(useCanvasTool.getState().draft).toBeNull()
     queue.shift()?.()
     expect(focus).toHaveBeenCalledTimes(1)
