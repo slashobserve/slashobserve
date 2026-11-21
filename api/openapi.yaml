@@ -999,7 +999,7 @@ components:
     AgentRun:
       type: object
       additionalProperties: false
-      required: [id, intent, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
+      required: [id, intent, investigation, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
       properties:
         id:
           type: string
@@ -1008,6 +1008,9 @@ components:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         title:
           type: string
           description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word.
@@ -1098,7 +1101,7 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, intent, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
+            required: [id, intent, investigation, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
             properties:
               id:
                 type: string
@@ -1106,6 +1109,9 @@ components:
               intent:
                 type: string
                 enum: [ask, apply]
+              investigation:
+                type: boolean
+                description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
               state:
                 type: string
                 enum: [queued, running, canceling]
@@ -2404,7 +2410,7 @@ components:
     DashboardSummary:
       type: object
       additionalProperties: false
-      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions]
+      required: [id, title, tags, latest_version, created_at, updated_at, updated_by, creator, folder, permissions, provisioned]
       properties:
         id:
           type: string
@@ -2432,6 +2438,9 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        provisioned:
+          type: boolean
+          description: True for a starter dashboard the server keeps current with each release, such as those in the Audit folder. Its `permissions.edit` is false, every change to its content answers 409 `provisioned`, and duplicating it makes an ordinary editable dashboard.
     HomeDashboard:
       type: object
       additionalProperties: false
@@ -2466,7 +2475,7 @@ components:
     DashboardListItem:
       type: object
       additionalProperties: false
-      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions]
+      required: [id, title, description, tags, latest_version, created_at, updated_at, updated_by, creator, datasource_uids, open_comment_count, view_count, folder, permissions, provisioned]
       properties:
         id:
           type: string
@@ -2511,6 +2520,9 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         permissions:
           $ref: "#/components/schemas/Permissions"
+        provisioned:
+          type: boolean
+          description: True for a starter dashboard the server keeps current with each release. Its `permissions.edit` is false, so a list never offers to move or change it.
     VersionMeta:
       type: object
       additionalProperties: false
@@ -2615,6 +2627,7 @@ components:
         Panels and variables of this version whose queries failed when it was saved but were kept:
         a Grafana import keeps every failing panel and variable, and a later save keeps one only while it stays unchanged
         (see `POST /dashboards/{id}/versions`).
+        A starter dashboard leaves out the panels and variables that only returned no data, since its own panels are checked by people through health and an empty result there is not a defect; its copies list them like any dashboard.
       properties:
         panels:
           type: array
@@ -3295,7 +3308,7 @@ components:
       type: object
       additionalProperties: false
       required: [kind, pos]
-      description: One spot on a panel or an observation block, with the fields its kind needs.
+      description: One spot on a panel or an observation block, with the fields its kind needs. Text in it may not contain control, bidirectional override or hidden characters, the rule thread messages follow (400 `invalid_request`).
       properties:
         kind:
           type: string
@@ -4132,6 +4145,7 @@ components:
         - id
         - dashboard_id
         - intent
+        - investigation
         - comment_id
         - panel_id
         - prompt
@@ -4150,6 +4164,7 @@ components:
         - continued_by
         - retried_by
         - continue_note
+        - redacted
         - requested_by
         - origin
         - origin_client
@@ -4167,6 +4182,9 @@ components:
           type: string
           enum: [apply]
           description: "Always `apply`; the new-dashboard request that created the dashboard is the one with a null `base_version`, and it appears once it has succeeded."
+        investigation:
+          type: boolean
+          description: Always false; a version is saved by an apply run, never by an investigation.
         comment_id:
           type: string
           format: uuid
@@ -4178,7 +4196,7 @@ components:
           description: The panel the request is about (a comment's panel, or the panel a prompt was sent from); null for the whole dashboard.
         prompt:
           type: string
-          description: The follow-up text, or the comment body.
+          description: The follow-up text, or the comment body; empty when `redacted`.
         base_version:
           type: integer
           minimum: 1
@@ -4249,6 +4267,9 @@ components:
           type: string
           nullable: true
           description: The note given when continuing a stopped request, null when none was given or this request continues nothing.
+        redacted:
+          type: boolean
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin: `prompt` is then empty and `continue_note` and `error` null, while the status, times, requester, kind, `failure_code` and saved version stay."
         requested_by:
           $ref: "#/components/schemas/Author"
         origin:
@@ -4648,6 +4669,7 @@ components:
         - kind
         - title
         - intent
+        - investigation
         - trigger
         - prompt
         - dashboard_id
@@ -4674,6 +4696,7 @@ components:
         - canceled_by
         - can_cancel
         - read_only
+        - redacted
         - continues_id
         - continue_note
         - continued_by
@@ -4690,8 +4713,11 @@ components:
         - from
         - to
         - observation_id
+        - subject_observation_id
         - chat_id
         - shared_thread_id
+        - anchor
+        - block_id
         - finding
       properties:
         id:
@@ -4703,17 +4729,21 @@ components:
           description: "`investigate` for an investigation that ends with a finding, `build` for every other request, including one that answered a question with a finding."
         title:
           type: string
-          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none.
+          description: The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none; empty when `redacted`.
         intent:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
           description: "What started the run. `person`: the requester asked, through the web app, the CLI or the API. `mention`: a mention of the Observe Agent in a comment started the run. The other values are reserved for runs that a schedule, an inbound webhook or Slack will start. Clients must tolerate values they do not know."
         prompt:
           type: string
+          description: The requester's text; empty when `redacted`.
         dashboard_id:
           type: string
           format: uuid
@@ -4820,7 +4850,10 @@ components:
           description: Whether the caller may cancel this request now; the same as `cancel` in `allowed_actions`. Only the requester may, while it is queued, running or canceling, and never a suggestion.
         read_only:
           type: boolean
-          description: True when the caller sees this request only because it is an Admin; nothing may be done with it.
+          description: True when the caller sees this request only as an Admin, through a thread it was shared in, or `redacted`; nothing may be done with it.
+        redacted:
+          type: boolean
+          description: "True when the request came from someone's private chat and the caller is neither its requester nor an Admin, for example another Editor reading a dashboard change or an answer saved into an observation. `title`, `prompt` and every step `message` are then empty, and `live_text`, `continue_note` and `error` null; the status, times, requester, kind, `failure_code`, steps' tools and saved version stay. An investigation is never redacted, and an answer shared into a thread is not redacted for a caller who can read that thread; anyone else who reaches it, through its observation for example, reads it redacted."
         continues_id:
           type: string
           format: uuid
@@ -4910,11 +4943,26 @@ components:
           format: uuid
           nullable: true
           description: The observation an investigation writes into. Its run shows there as a block and its conclusion lands there when the finding is saved. Null for other runs, and when no folder allowed a new observation.
+        subject_observation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "The observation the run is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation. Null when the run is about no observation this way, when `redacted`, and when the caller cannot open that observation, as for `observation_id`."
         shared_thread_id:
           type: string
           format: uuid
           nullable: true
           description: The comment thread this private question's answer is shared in, from `POST /observe/{id}/share`. Shown only to the requester, and null for everyone else, for a run that was never shared and once the requester withdraws it with `DELETE /threads/{id}/share`.
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
         finding:
           nullable: true
           allOf:
@@ -4930,7 +4978,7 @@ components:
     ChatTurnSummary:
       type: object
       additionalProperties: false
-      required: [id, state, prompt]
+      required: [id, state, prompt, investigation, subject_observation_id, anchor, block_id]
       properties:
         id:
           type: string
@@ -4940,6 +4988,24 @@ components:
           enum: [queued, running, canceling, succeeded, failed, canceled]
         prompt:
           type: string
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
+        subject_observation_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "The observation the turn is about without writing into it, such as an ask from an observation's chat or thread; it stays set after the answer is saved into another observation, and is null otherwise or when the caller cannot open that observation."
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     Chat:
       type: object
       additionalProperties: false
@@ -4964,7 +5030,7 @@ components:
           type: string
           format: uuid
           nullable: true
-          description: The observation the chat is about.
+          description: The observation the chat is about, null when the caller cannot open it.
         pinned_at:
           type: string
           format: date-time
@@ -5028,6 +5094,7 @@ components:
         - title
         - pinned_at
         - intent
+        - investigation
         - trigger
         - prompt
         - status
@@ -5058,6 +5125,8 @@ components:
         - started_at
         - finished_at
         - requested_by
+        - anchor
+        - block_id
       properties:
         id:
           type: string
@@ -5068,6 +5137,9 @@ components:
           type: string
           enum: [ask, apply]
           description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
+        investigation:
+          type: boolean
+          description: "True when the run was started as an investigation that opens or writes into an observation, false for an ask from the Chat tab, the canvas, a thread or Ask this on an observation. Saving, sharing, showing on a page or withdrawing an answer never changes it."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
@@ -5201,6 +5273,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        anchor:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Anchor"
+          description: The spot on the dashboard or observation this question points at, as it was sent. Shown only to the person who asked it, and null for everyone else, including an Admin reading the chat and a reader of a thread the answer was shared in.
+        block_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The observation block `anchor` sits on. Shown only to the person who asked it, as `anchor` is.
     ContinueObserveRequest:
       type: object
       additionalProperties: false
@@ -6672,7 +6754,7 @@ components:
                 format: uuid
               reason:
                 type: string
-                enum: [active, nothing_to_repair, not_found, forbidden_role, queue_full]
+                enum: [active, nothing_to_repair, not_found, forbidden_role, provisioned, queue_full]
     GrafanaResolved:
       type: object
       additionalProperties: false
@@ -6885,7 +6967,7 @@ components:
           $ref: "#/components/schemas/DashboardFolder"
         can_edit:
           type: boolean
-          description: Whether the caller may edit the dashboard, and so ask for a repair.
+          description: Whether the caller may edit the dashboard, and so ask for a repair; false for a starter dashboard, which the server keeps current with each release.
         state:
           type: string
           enum: [unchecked, outdated, skipped, failing, healthy]

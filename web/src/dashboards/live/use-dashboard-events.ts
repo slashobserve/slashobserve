@@ -4,7 +4,7 @@ import { useRouter } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
-import { dashboardKeys, proposalKeys } from "@/api/keys"
+import { dashboardKeys, proposalKeys, threadKeys } from "@/api/keys"
 import { refreshSession } from "@/lib/auth"
 import { closeWhileCached } from "@/lib/page-cache"
 import { catchUpWithSession } from "@/lib/session-sync"
@@ -112,11 +112,13 @@ export function useDashboardEvents(
         void queryClient.invalidateQueries({ queryKey })
       }
     }
+    const threads = threadKeys.list(`dashboard:${dashboardId}`)
     const refetchAll = () =>
       invalidate(
         dashboardKeys.latest(dashboardId),
         dashboardKeys.history(dashboardId),
         dashboardKeys.comments(dashboardId),
+        threads,
         dashboardKeys.revisions(dashboardId),
         proposalKeys.all
       )
@@ -199,6 +201,7 @@ export function useDashboardEvents(
           if (reconnected) {
             invalidate(
               dashboardKeys.comments(dashboardId),
+              threads,
               dashboardKeys.revisions(dashboardId),
               proposalKeys.all
             )
@@ -235,10 +238,10 @@ export function useDashboardEvents(
           return
         case "comment.created":
         case "comment.updated":
-          invalidate(dashboardKeys.comments(dashboardId))
+          invalidate(dashboardKeys.comments(dashboardId), threads)
           return
         case "revision.updated":
-          invalidate(dashboardKeys.revisions(dashboardId))
+          invalidate(dashboardKeys.revisions(dashboardId), threads)
           return
         case "proposal.updated":
           invalidate(proposalKeys.all)

@@ -16,9 +16,10 @@ const panel: LayoutPanel = {
   queries: [{ query: "up" }],
 }
 
-const viewer = { comment: false, edit: false }
-const commenter = { comment: true, edit: false }
-const editor = { comment: true, edit: true }
+const viewer = { comment: false, edit: false, propose: false }
+const commenter = { comment: true, edit: false, propose: true }
+const editor = { comment: true, edit: true, propose: false }
+const starter = { comment: true, edit: false, propose: false }
 
 function serveAgent(available: boolean) {
   vi.stubGlobal(
@@ -33,14 +34,13 @@ function serveAgent(available: boolean) {
 }
 
 function renderToolbar(
-  permissions: { comment: boolean; edit: boolean },
-  over: { idle?: boolean; panel?: LayoutPanel; canInvestigate?: boolean } = {}
+  permissions: { comment: boolean; edit: boolean; propose: boolean },
+  over: { idle?: boolean; panel?: LayoutPanel } = {}
 ) {
   return renderWithProviders(
     <PanelToolbar
       panel={over.panel ?? panel}
       permissions={permissions}
-      canInvestigate={over.canInvestigate ?? true}
       composerRef={createRef<HTMLTextAreaElement>()}
       from={undefined}
       to={undefined}
@@ -105,6 +105,18 @@ describe("PanelToolbar", () => {
     ])
   })
 
+  it("lets a starter dashboard be commented on and asked about but never edited or suggested to", async () => {
+    serveAgent(true)
+    renderToolbar(starter)
+    await screen.findByRole("button", { name: "Ask @observe" })
+    expect(buttonNames()).toEqual([
+      "Comment",
+      "Ask @observe",
+      "Add to observation",
+      "More actions for Checkout latency",
+    ])
+  })
+
   it("shows an editor every action once the agent is available", async () => {
     serveAgent(true)
     renderToolbar(editor)
@@ -118,14 +130,12 @@ describe("PanelToolbar", () => {
     ])
   })
 
-  it("names the missing role on Ask for someone with Edit who is not an Editor", async () => {
+  it("offers Ask to a Commenter once the agent is available, since an ask needs only Comment", async () => {
     serveAgent(true)
-    renderToolbar(editor, { canInvestigate: false })
-    const ask = await screen.findByRole("button", {
-      name: "Ask @observe (needs the Editor role)",
-    })
-    expect(ask).toHaveAttribute("aria-disabled", "true")
-    expect(screen.queryByRole("button", { name: "Ask @observe" })).toBeNull()
+    renderToolbar(commenter)
+    expect(
+      await screen.findByRole("button", { name: "Ask @observe" })
+    ).toBeEnabled()
   })
 
   it("leaves out Ask while the agent is unavailable", async () => {

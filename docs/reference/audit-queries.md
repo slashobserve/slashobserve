@@ -43,7 +43,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `origin` | | enum | `web`, `cli`, `mcp`, `api`, `agent` (what the built-in agent does with its run key), `job`, `provision` or `unknown` (history copied from activity that recorded no origin) |
 | `origin_client` | | text | The connected client's name |
 | `tool` | | text | The MCP or agent tool |
-| `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16` |
+| `client_ip` | `ip` | ip | The caller's address; a query takes an address or a CIDR such as `10.4.0.0/16`. Behind a proxy it is the proxy's address unless `SLASHOBSERVE_TRUSTED_PROXIES` lists the proxy; see [Put TLS in front](../operate/production.md#put-tls-in-front) |
 | `user_agent` | | text | The request's user agent |
 | `request_id` | `request` | uuid | The request id, also the `X-Request-Id` response header |
 | `trace_id` | | text | The request's trace id, when one was sent |
@@ -181,6 +181,8 @@ No route or tool changes or deletes an audit event.
 Every server has the built-in datasource `slashobserve-audit`, named Audit trail, which serves this trail in the OpenSearch format so the Logs page, panels and the agent read it like an OpenSearch datasource.
 It is listed with type `opensearch` and source `builtin`, only Admins and Admin keys see or query it, and nobody can edit or remove it; see [Datasources in the app](../connect/datasources-in-the-app.md).
 A datasources file entry with the uid `slashobserve-audit` stops the server at start with `audit_datasource_failed`.
+
+The four starter dashboards in the Audit folder are read-only and the server brings each up to date with its release at every start; see [Audit folder](../use/activity.md#audit-folder).
 
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.

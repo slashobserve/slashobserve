@@ -7,13 +7,18 @@ import (
 )
 
 const (
+	codeProvisioned       = folders.CodeProvisioned
 	codeRestrictedContent = folders.CodeRestrictedContent
+	provisionedHint       = " (" + nameDuplicateDashboard + " makes an editable copy)"
 	restrictedContentHint = "; use a folder whose admins_only is true (see " + nameListFolders + "), or ask an Admin to set a folder to Only Admins with `observe folders permissions admins-only`"
 )
 
 func restrictedRefusal(err error) (Result, bool) {
 	if folders.LinkedRefusal(err) {
 		return toolError(folders.CodeAdminsOnlyFolder, err.Error()), true
+	}
+	if errors.Is(err, folders.ErrProvisioned) {
+		return failure("Save rejected: "+codeProvisioned, errorBody{Code: codeProvisioned, Message: err.Error() + provisionedHint}), true
 	}
 	var restricted *folders.RestrictedContentError
 	if !errors.As(err, &restricted) {

@@ -31,6 +31,20 @@ func (u Unverified) Empty() bool {
 	return len(u.Panels) == 0 && len(u.Variables) == 0
 }
 
+func (u Unverified) Shown(provisioned bool) Unverified {
+	if !provisioned {
+		return u
+	}
+	onlyEmpty := func(issues []spec.Issue) bool {
+		return slices.ContainsFunc(issues, func(is spec.Issue) bool { return is.Code == queryproxy.CodeQueryEmpty }) &&
+			!slices.ContainsFunc(issues, func(is spec.Issue) bool { return is.Code != queryproxy.CodeQueryEmpty })
+	}
+	return Unverified{
+		Panels:    slices.DeleteFunc(slices.Clone(u.Panels), func(p UnverifiedPanel) bool { return onlyEmpty(p.Issues) }),
+		Variables: slices.DeleteFunc(slices.Clone(u.Variables), func(v UnverifiedVariable) bool { return onlyEmpty(v.Issues) }),
+	}
+}
+
 func (u Unverified) withEmptyLists() Unverified {
 	out := Unverified{Panels: make([]UnverifiedPanel, len(u.Panels)), Variables: make([]UnverifiedVariable, len(u.Variables))}
 	for i, p := range u.Panels {

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
 type Kind string
@@ -213,6 +215,9 @@ func (a Anchor) validateSizes() error {
 		if utf8.RuneCountInString(t.value) > t.limit {
 			return fmt.Errorf("%s is longer than %d characters", t.name, t.limit)
 		}
+		if err := checkText(t.name, t.value, t.limit); err != nil {
+			return err
+		}
 	}
 	if a.Window != nil {
 		if a.Window.From == "" || a.Window.To == "" {
@@ -221,8 +226,20 @@ func (a Anchor) validateSizes() error {
 		if utf8.RuneCountInString(a.Window.From) > maxText || utf8.RuneCountInString(a.Window.To) > maxText {
 			return fmt.Errorf("window is longer than %d characters", maxText)
 		}
+		if err := checkText("window from", a.Window.From, maxText); err != nil {
+			return err
+		}
+		return checkText("window to", a.Window.To, maxText)
 	}
 	return nil
+}
+
+func checkText(name, value string, limit int) error {
+	err := usertext.Check(name, value, usertext.Text(limit))
+	if reason, ok := usertext.ReasonOf(err); ok && reason == usertext.ReasonEmpty {
+		return nil
+	}
+	return err
 }
 
 func validateLabels(name string, labels map[string]string) error {
@@ -235,6 +252,12 @@ func validateLabels(name string, labels map[string]string) error {
 		}
 		if utf8.RuneCountInString(k) > maxText || utf8.RuneCountInString(v) > maxText {
 			return fmt.Errorf("%s label is longer than %d characters", name, maxText)
+		}
+		if err := checkText(name+" label name", k, maxText); err != nil {
+			return err
+		}
+		if err := checkText(name+" label value", v, maxText); err != nil {
+			return err
 		}
 	}
 	return nil

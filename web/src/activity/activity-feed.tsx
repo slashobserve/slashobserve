@@ -1,23 +1,18 @@
 import {
   useCallback,
-  useEffect,
   useId,
   useMemo,
   useState,
   type ReactNode,
   type RefObject,
 } from "react"
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 
 import type { components } from "@/api/schema.gen"
-import { commentsQuery, useComments } from "@/comments/queries"
 import { RequestCommentAccess } from "@/access/request-comment-access"
 import { RoleNote } from "@/components/role-note"
+import { ScrollPane } from "@/components/scroll-pane"
 import {
   Select,
   SelectContent,
@@ -27,10 +22,10 @@ import {
 } from "@/components/ui/select"
 import {
   composerMode,
-  mayInvestigate,
   readerNote,
   useLatestFolderTitle,
   useLatestPermissions,
+  useLatestProvisioned,
 } from "@/dashboards/permissions"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVersionHistory } from "@/history/use-version-history"
@@ -43,13 +38,18 @@ import { useAgentInfo, useMyRequests } from "@/observe/queries"
 import { isActive, useRevisions } from "@/revisions/queries"
 import { allPanels, panelTitle, type Dashboard } from "@/spec"
 
+import { threadParticipants } from "@/comments/mentions"
+import { useThreads } from "@/comments/thread-queries"
+import { deliveryGate, type GateInput } from "@/conversation/delivery"
+import { ThreadView } from "@/conversation/thread-view"
+
 import {
   ActivityComposer,
   noPanelValue,
   panelItems,
+  type Replying,
   type Target,
 } from "./activity-composer"
-import { sendToAgentState } from "./agent-gate"
 import { useActivityStore, useDraft, useStoredTarget } from "./activity-store"
 import { clientNameFrom } from "./client-name"
 import { cn } from "@/lib/utils"
@@ -65,7 +65,6 @@ import {
   TimelineFilters,
   truncatingTriggerClass,
 } from "./show-filter"
-import { ThreadEntry } from "./thread-entry"
 import {
   buildTimeline,
   filterTimeline,
@@ -86,7 +85,6 @@ type Props = {
   dashboardId: string
   apiId: string
   spec: Dashboard
-  latestVersion: number
   pinned: boolean
   layoutEditing: boolean
   madeBy: string | null
@@ -96,8 +94,6 @@ type Props = {
   back: string | undefined
   composerRef: RefObject<HTMLTextAreaElement | null>
   focusedThreadId?: string
-  range: { from: string; to: string }
-  timeZone: string
 }
 
 type PanelRef = { id: string; title: string }
@@ -140,27 +136,19 @@ function useLatestUnverified(dashboardId: string): UnverifiedRef[] | undefined {
   }).data
 }
 
-let feedDashboardId: string | null = null
-
-function useResetAgentKindOnLeave(dashboardId: string) {
-  const setAgentKind = useActivityStore((state) => state.setAgentKind)
-  useEffect(() => {
-    feedDashboardId = dashboardId
-    return () => {
-      feedDashboardId = null
-      // StrictMode remounts a new feed once in development, so a remount of the same dashboard cancels the reset.
-      queueMicrotask(() => {
-        if (feedDashboardId !== dashboardId) setAgentKind("revise")
-      })
-    }
-  }, [dashboardId, setAgentKind])
+function replyLabel(
+  panelId: string | null,
+  titles: ReadonlyMap<string, string>
+): string {
+  if (panelId === null) return "the dashboard"
+  return titles.get(panelId) ?? "a removed panel"
 }
 
 function changeSignature(entry: TimelineEntry | undefined): string {
   if (entry === undefined) return ""
   switch (entry.kind) {
     case "thread":
-      return `${entry.key}:${entry.thread.root.status}:${entry.thread.replies.length}:${entry.request?.status ?? ""}`
+      return `${entry.key}:${entry.thread.thread.status}:${entry.thread.messages.length}`
     case "request":
     case "running":
       return `${entry.key}:${entry.request.status}`
@@ -180,7 +168,6 @@ export function ActivityFeed({
   dashboardId,
   apiId,
   spec,
-  latestVersion,
   pinned,
   layoutEditing,
   madeBy,
@@ -190,12 +177,8 @@ export function ActivityFeed({
   back,
   composerRef,
   focusedThreadId,
-  range,
-  timeZone,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
-  const comments = useComments(dashboardId)
-  const commentsData = useInfiniteQuery(commentsQuery(dashboardId)).data
   const revisions = useRevisions(dashboardId)
   const history = useVersionHistory(dashboardId)
   const agent = useAgentInfo()
@@ -219,11 +202,14 @@ export function ActivityFeed({
     dashboardId,
     states: ["queued", "running", "canceling"],
   }).requests
+  const threadTarget = `dashboard:${dashboardId}`
+  const threadsQuery = useThreads(threadTarget)
+  const threads = threadsQuery.threads
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const investigations = useMemo(
     () => activeRuns.filter((request) => request.kind === "investigate"),
     [activeRuns]
   )
-  useResetAgentKindOnLeave(dashboardId)
   const [show, setShow] = useState<TimelineShow>("everything")
   const scopeId = useId()
 
@@ -255,7 +241,7 @@ export function ActivityFeed({
     () =>
       filterTimeline(
         buildTimeline({
-          comments: comments.comments,
+          threads,
           requests,
           versions,
           imported,
@@ -268,7 +254,7 @@ export function ActivityFeed({
         scopePanelId
       ),
     [
-      comments.comments,
+      threads,
       requests,
       versions,
       imported,
@@ -283,16 +269,16 @@ export function ActivityFeed({
 
   const permissions = useLatestPermissions(dashboardId)
   const folderTitle = useLatestFolderTitle(dashboardId)
-  const mode = composerMode(permissions)
+  const provisioned = useLatestProvisioned(dashboardId)
+  const mode = composerMode(permissions, provisioned)
   const note = readerNote(mode, folderTitle ?? "this folder")
-  const gate = sendToAgentState({
+  const gateInput: GateInput = {
     canComment: permissions.comment,
     agentAvailable: agent.data?.available,
     pinned,
     layoutEditing,
-    activeRequests: requests.filter((request) => isActive(request.status))
-      .length,
-  })
+  }
+  const gate = deliveryGate(gateInput, { to: "agent", visibleTo: "everyone" })
   const clientName = clientNameFrom(madeBy)
   const runningRequestId =
     requests.find(
@@ -329,6 +315,30 @@ export function ActivityFeed({
     [setDraft, dashboardId, onTargetChange, composerRef]
   )
   const panelId = scopePanelId ?? storedTarget
+  const replied =
+    replyingTo === null
+      ? undefined
+      : threads.find((entry) => entry.thread.id === replyingTo)
+  const repliedThread = replied?.thread
+  const replying: Replying | null =
+    replyingTo === null
+      ? null
+      : {
+          threadId: replyingTo,
+          label: replyLabel(repliedThread?.panel_id ?? null, titles),
+          agent: repliedThread?.agent ?? null,
+          agentOff: repliedThread?.agent_off ?? false,
+          people: threadParticipants(
+            (replied?.messages ?? []).map((message) => message.actor)
+          ),
+        }
+  const replyHere = useCallback(
+    (threadId: string) => {
+      setReplyingTo(threadId)
+      requestAnimationFrame(() => composerRef.current?.focus())
+    },
+    [composerRef]
+  )
   const target: Target =
     panelId === null ? { kind: "dashboard" } : { kind: "panel", panelId }
 
@@ -342,14 +352,15 @@ export function ActivityFeed({
     switch (entry.kind) {
       case "thread":
         return (
-          <ThreadEntry
-            dashboardId={dashboardId}
-            entry={entry}
-            focused={entry.thread.root.id === focusedThreadId}
+          <ThreadView
+            entry={entry.thread}
+            target={threadTarget}
+            focused={entry.thread.thread.id === focusedThreadId}
             panelTitle={title}
             onSelectPanel={onSelectPanel}
             gate={gate}
             clientName={clientName}
+            onReplyHere={() => replyHere(entry.thread.thread.id)}
           />
         )
       case "request":
@@ -431,12 +442,12 @@ export function ActivityFeed({
           </SelectContent>
         </Select>
       </TimelineFilters>
-      <div ref={stickRef} className="min-h-0 flex-1 overflow-y-auto">
+      <ScrollPane ref={stickRef} className="flex-1">
         <TimelineList
           entries={entries}
-          loading={comments.isPending}
-          error={commentsData === undefined && comments.isError}
-          onRetry={() => void comments.refetch()}
+          loading={threadsQuery.isPending}
+          error={threads.length === 0 && threadsQuery.isError}
+          onRetry={() => void threadsQuery.refetch()}
           filtered={filtered}
           older={{
             available: history.hasNextPage && showsVersions(show, scopePanelId),
@@ -446,7 +457,7 @@ export function ActivityFeed({
           }}
           renderEntry={renderEntry}
         />
-      </div>
+      </ScrollPane>
       {mode === "read-only" ? (
         <div className="flex flex-col gap-2 border-t px-4 py-3">
           <RoleNote>{note}</RoleNote>
@@ -455,14 +466,14 @@ export function ActivityFeed({
       ) : (
         <ActivityComposer
           dashboardId={dashboardId}
-          latestVersion={latestVersion}
           panels={panelList}
           target={target}
           onTargetChange={onTargetChange}
+          replying={replying}
+          onLeaveThread={() => setReplyingTo(null)}
           draft={draft}
           onDraftChange={onDraftChange}
-          gate={gate}
-          canInvestigate={mayInvestigate(permissions, principal.role)}
+          gate={gateInput}
           placeholder={
             noModel
               ? "Leave a comment for the team and Claude Code"
@@ -470,10 +481,8 @@ export function ActivityFeed({
           }
           textareaRef={composerRef}
           runningRequestId={runningRequestId}
-          range={range}
-          timeZone={timeZone}
           notice={
-            mode === "comment-only" ? (
+            mode === "comment-only" || mode === "provisioned" ? (
               <RoleNote>{note}</RoleNote>
             ) : noModel && madeBy !== null ? (
               <ExternalAgentNote

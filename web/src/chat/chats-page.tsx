@@ -38,7 +38,7 @@ const pageSize = 30
 const searchDelayMs = 300
 const skeletonRows = 3
 const anyDashboard = "any"
-const mineSubtitle = "Only you can see your chats."
+const mineSubtitle = "Only you and Admins can see your chats."
 const everyoneSubtitle =
   "Everyone's chats with Observe Agent. Only admins see this view."
 

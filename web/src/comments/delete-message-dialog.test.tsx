@@ -1,10 +1,39 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { DeleteMessageButton } from "./delete-message-button"
+import { DeleteMessageDialog } from "./delete-message-dialog"
+
+function DeleteMessageButton({
+  messageId,
+  wholeThread,
+  queryKey,
+}: {
+  messageId: string
+  wholeThread: boolean
+  queryKey: readonly unknown[]
+}) {
+  const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  return (
+    <>
+      <button ref={trigger} type="button" onClick={() => setOpen(true)}>
+        Delete
+      </button>
+      <DeleteMessageDialog
+        open={open}
+        onOpenChange={setOpen}
+        messageId={messageId}
+        wholeThread={wholeThread}
+        queryKey={queryKey}
+        finalFocus={trigger}
+      />
+    </>
+  )
+}
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -27,7 +56,7 @@ function stub(status: number) {
   return sent
 }
 
-describe("DeleteMessageButton", () => {
+describe("DeleteMessageDialog", () => {
   it("asks first and deletes the message once confirmed", async () => {
     const sent = stub(204)
     const user = userEvent.setup()

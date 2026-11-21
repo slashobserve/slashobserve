@@ -436,6 +436,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ClientID:         p.clientID,
 
 		SubjectObservationID: p.subject(),
+		Investigation:        p.opensObservation(),
 	})
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue investigate request")
@@ -594,10 +595,16 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 		return row, nil
 	case PrivateAsk(row):
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	case AskedPrivately(row):
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
 	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:
-		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
+		err := s.checkObservationVisible(ctx, row.ObservationID, by)
+		if errors.Is(err, ErrRequestNotFound) && row.SubjectObservationID.Valid {
+			err = s.checkObservationVisible(ctx, row.SubjectObservationID, by)
+		}
+		return row, err
 	case row.SubjectObservationID.Valid:
 		return row, s.checkObservationVisible(ctx, row.SubjectObservationID, by)
 	}
@@ -683,12 +690,21 @@ const (
 )
 
 type ListFilter struct {
-	Scope       ListScope
-	DashboardID pgtype.UUID
-	ChatID      pgtype.UUID
-	Pinned      *bool
-	Query       string
-	States      []State
+	Scope         ListScope
+	DashboardID   pgtype.UUID
+	ObservationID pgtype.UUID
+	ChatID        pgtype.UUID
+	Pinned        *bool
+	Query         string
+	States        []State
+	Anchored      bool
+}
+
+func (f ListFilter) check() error {
+	if f.Anchored && f.Scope != ScopeMine {
+		return ErrAnchoredNeedsMine
+	}
+	return nil
 }
 
 func (f ListFilter) stateNames() []string {
@@ -725,6 +741,9 @@ type RequestCount struct {
 }
 
 func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter ListFilter) (RequestCount, error) {
+	if err := filter.check(); err != nil {
+		return RequestCount{}, err
+	}
 	if filter.Scope == ScopeAll && !by.Role.AtLeast(auth.RoleAdmin) {
 		return RequestCount{}, ErrForbidden
 	}
@@ -742,12 +761,13 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	match := filter.match()
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
-			Folders:     levels.Visible(),
-			DashboardID: filter.DashboardID,
-			ChatID:      filter.ChatID,
-			Pinned:      match.pinned,
-			Pattern:     match.pattern,
-			States:      match.states,
+			Folders:       levels.Visible(),
+			DashboardID:   filter.DashboardID,
+			ObservationID: filter.ObservationID,
+			ChatID:        filter.ChatID,
+			Pinned:        match.pinned,
+			Pattern:       match.pattern,
+			States:        match.states,
 		})
 		if err != nil {
 			return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -759,10 +779,12 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByID:   requesterID,
 		Folders:         levels.Visible(),
 		DashboardID:     filter.DashboardID,
+		ObservationID:   filter.ObservationID,
 		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
 		Pattern:         match.pattern,
 		States:          match.states,
+		Anchored:        filter.Anchored,
 	})
 	if err != nil {
 		return RequestCount{}, fmt.Errorf("count agent requests: %w", err)
@@ -771,6 +793,9 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 }
 
 func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter ListFilter, limit int, cursor string) ([]dbsqlc.ListAgentRequestsByRow, string, error) {
+	if err := filter.check(); err != nil {
+		return nil, "", err
+	}
 	afterPinned, after, ok := decodeListCursor(cursor)
 	if !ok {
 		return nil, "", ErrInvalidCursor
@@ -800,6 +825,7 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
@@ -822,10 +848,12 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
 			DashboardID:     filter.DashboardID,
+			ObservationID:   filter.ObservationID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
 			Pattern:         match.pattern,
 			States:          match.states,
+			Anchored:        filter.Anchored,
 			CursorCreatedAt: cursorAt,
 			CursorID:        cursorID,
 			CursorPinned:    afterPinned,
@@ -1131,22 +1159,24 @@ func (s *Service) runEnded(ctx context.Context, savepoint db.Savepoint, row dbsq
 
 func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
-		ID:           row.ID.String(),
-		DashboardID:  row.DashboardID.String(),
-		Intent:       Intent(row.Intent),
-		Source:       SourceOf(row),
-		Prompt:       row.Prompt,
-		Status:       Status(row.Status),
-		State:        State(row.State),
-		ResultKind:   ReportedResultKind(row.ResultKind, row.ObservationID),
-		Attempts:     int(row.Attempts),
-		Error:        row.Error.String,
-		RequestedBy:  requesterOf(row),
-		CreatedAt:    row.CreatedAt.Time.UTC(),
-		Origin:       row.Origin.String,
-		OriginClient: row.OriginClient.String,
-		AssignedKind: AssigneeKind(row.AssignedKind),
-		AssignedID:   row.AssignedID.String(),
+		ID:            row.ID.String(),
+		DashboardID:   row.DashboardID.String(),
+		Intent:        Intent(row.Intent),
+		Investigation: row.Investigation,
+		Source:        SourceOf(row),
+		Prompt:        row.Prompt,
+		Status:        Status(row.Status),
+		State:         State(row.State),
+		ResultKind:    ReportedResultKind(row.ResultKind, row.ObservationID),
+		Attempts:      int(row.Attempts),
+		Error:         row.Error.String,
+		RequestedBy:   requesterOf(row),
+		CreatedAt:     row.CreatedAt.Time.UTC(),
+		Origin:        row.Origin.String,
+		OriginClient:  row.OriginClient.String,
+		AssignedKind:  AssigneeKind(row.AssignedKind),
+		AssignedID:    row.AssignedID.String(),
+		audience:      audienceOf(row),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
@@ -78,20 +79,21 @@ const (
 )
 
 var (
-	ErrUnavailable      = errors.New("no agent is configured")
-	ErrTooManyRevisions = errors.New("too many revisions are queued or running for this dashboard")
-	ErrNotFound         = errors.New("revision not found")
-	ErrLeaseLost        = errors.New("the agent request no longer belongs to this attempt")
-	ErrInvalidCursor    = errors.New("invalid cursor")
-	ErrTooManyRequests  = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
-	ErrAgentBusy        = errors.New("the agent is busy; try again in a few minutes")
-	ErrRequestNotFound  = errors.New("agent request not found")
-	ErrFollowsDashboard = errors.New("follows_id names a request that has a dashboard; send dashboard_id to continue it")
-	ErrUnknownPanel     = errors.New("panel does not exist in the latest version of the dashboard")
-	ErrCommentNotFound  = errors.New("comment not found")
-	errNoThreads        = errors.New("comment threads are not configured")
-	ErrRequestFinished  = errors.New("the request already finished")
-	ErrNotContinuable   = errors.New("the request has no stopped build to continue")
+	ErrUnavailable       = errors.New("no agent is configured")
+	ErrTooManyRevisions  = errors.New("too many revisions are queued or running for this dashboard")
+	ErrNotFound          = errors.New("revision not found")
+	ErrLeaseLost         = errors.New("the agent request no longer belongs to this attempt")
+	ErrInvalidCursor     = errors.New("invalid cursor")
+	ErrAnchoredNeedsMine = errors.New("anchored needs scope mine")
+	ErrTooManyRequests   = fmt.Errorf("you already have %d new dashboard requests queued or running", MaxActiveObservePerPrincipal)
+	ErrAgentBusy         = errors.New("the agent is busy; try again in a few minutes")
+	ErrRequestNotFound   = errors.New("agent request not found")
+	ErrFollowsDashboard  = errors.New("follows_id names a request that has a dashboard; send dashboard_id to continue it")
+	ErrUnknownPanel      = errors.New("panel does not exist in the latest version of the dashboard")
+	ErrCommentNotFound   = errors.New("comment not found")
+	errNoThreads         = errors.New("comment threads are not configured")
+	ErrRequestFinished   = errors.New("the request already finished")
+	ErrNotContinuable    = errors.New("the request has no stopped build to continue")
 
 	ErrAssigneeUnavailable = errors.New("the agent this run was assigned to cannot take it again: its connection was revoked, expired or is not yours, or the service account no longer takes runs")
 
@@ -221,10 +223,11 @@ func WithMetrics(m Metrics) Option {
 }
 
 type Request struct {
-	ID          string
-	DashboardID string
-	Intent      Intent
-	Source      Source
+	ID            string
+	DashboardID   string
+	Intent        Intent
+	Source        Source
+	Investigation bool
 
 	ObservationID        string
 	SubjectObservationID string
@@ -242,6 +245,9 @@ type Request struct {
 	ContinueNote string
 
 	ThreadContext string
+
+	Anchor  *anchor.Anchor
+	BlockID string
 
 	From, To *time.Time
 
@@ -300,6 +306,7 @@ type Revision struct {
 	ID            string
 	DashboardID   string
 	Intent        Intent
+	Investigation bool
 	Source        Source
 	CommentID     string
 	PanelID       string
@@ -324,6 +331,8 @@ type Revision struct {
 	ContinueNote string
 	AssignedKind AssigneeKind
 	AssignedID   string
+
+	audience runAudience
 }
 
 func CheckPrompt(field, s string) (string, error) {

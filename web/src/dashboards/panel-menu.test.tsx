@@ -60,7 +60,8 @@ const dashboardRange = { from: "now-24h", to: "now" }
 function renderMenu(
   canComment = true,
   downloadsReady?: boolean,
-  shown: LayoutPanel = panel
+  shown: LayoutPanel = panel,
+  canPropose = false
 ) {
   const composer = createRef<HTMLTextAreaElement>()
   const view = renderWithProviders(
@@ -75,7 +76,7 @@ function renderMenu(
         viewing={false}
         canComment={canComment}
         canEdit={false}
-        canInvestigate={false}
+        canPropose={canPropose}
         composerRef={composer}
         onDownloadCsv={() => {}}
         onSavePng={() => {}}
@@ -124,6 +125,25 @@ afterEach(() => {
 })
 
 describe("PanelMenu", () => {
+  it.each([
+    [true, true],
+    [false, false],
+  ])(
+    "with canPropose %s, Suggest an edit is shown: %s",
+    async (canPropose, shown) => {
+      const { user } = renderMenu(true, undefined, panel, canPropose)
+      await user.click(
+        await screen.findByRole("button", {
+          name: "Panel menu: Checkout latency",
+        })
+      )
+      await screen.findByRole("menuitem", { name: "Comment" })
+      expect(
+        screen.queryByRole("menuitem", { name: "Suggest an edit" }) !== null
+      ).toBe(shown)
+    }
+  )
+
   it("puts the cursor in the comment box once the menu has closed after Comment", async () => {
     const { user } = renderMenu()
     await chooseComment(user)
@@ -172,6 +192,25 @@ describe("PanelMenu", () => {
     expect(
       await screen.findByRole("menuitem", { name: "Download CSV" })
     ).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("offers Ask to a Commenter once the agent is available", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ available: true }), {
+            headers: { "Content-Type": "application/json" },
+          })
+      )
+    )
+    const { user } = renderMenu()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Ask" })).toBeVisible()
   })
 
   it("shows Comment greyed with its reason when the person cannot comment", async () => {

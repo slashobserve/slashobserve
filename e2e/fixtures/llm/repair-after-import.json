@@ -4,47 +4,14 @@
     {
       "tool_calls": [
         {
-          "name": "lint_query",
+          "name": "save_finding",
           "input": {
-            "datasource": "prom",
-            "query": "sum(up)"
+            "title": "Missing reads a metric that does not exist",
+            "markdown": "The Missing panel queries slashobserve_e2e_missing_metric_total, which Prometheus does not have, so it returns no data.\n\nsum(up) returns data from the same datasource.",
+            "suggested_change": "Point the Missing panel at sum(up)"
           }
         }
       ]
-    },
-    {
-      "tool_calls": [
-        {
-          "name": "update_dashboard",
-          "input": {
-            "summary": "Point Missing at a metric that exists",
-            "spec": {
-              "specVersion": "0",
-              "title": "E2E unverified import",
-              "time": { "from": "now-6h", "to": "now" },
-              "panels": [
-                {
-                  "id": "p1",
-                  "type": "stat",
-                  "title": "Up",
-                  "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
-                  "datasource": "prom",
-                  "queries": [{ "query": "sum(up)" }]
-                },
-                {
-                  "id": "p2",
-                  "type": "stat",
-                  "title": "Missing",
-                  "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
-                  "datasource": "prom",
-                  "queries": [{ "query": "sum(up)" }]
-                }
-              ]
-            }
-          }
-        }
-      ],
-      "expect": [{ "is_error": false }]
     }
   ]
 }

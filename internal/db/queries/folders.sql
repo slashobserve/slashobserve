@@ -14,6 +14,10 @@ ORDER BY NOT f.personal, f.general, lower(f.title), f.id;
 -- name: DashboardFolder :one
 SELECT folder_id FROM dashboards WHERE id = @id;
 
+-- name: DashboardPlacement :one
+SELECT d.folder_id, EXISTS (SELECT 1 FROM starter_content s WHERE s.ref = d.id)::boolean AS provisioned
+FROM dashboards d WHERE d.id = @id;
+
 -- name: ListFolderDetails :many
 SELECT f.id, f.title, f.general, f.created_by_kind, f.created_by_id, f.created_by_name,
   (SELECT count(*) FROM dashboards d WHERE d.folder_id = f.id)::integer AS dashboard_count,
