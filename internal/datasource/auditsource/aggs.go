@@ -16,6 +16,7 @@ import (
 
 const (
 	maxFilledBuckets = 11000
+	maxAggregations  = 20
 	maxTermsSize     = 1000
 	dateHistogram    = "date_histogram"
 	terms            = "terms"
@@ -38,7 +39,38 @@ func numericFields() map[string]bool {
 	return out
 }
 
+type bucketBudget struct {
+	left int
+}
+
+func (b *bucketBudget) spend(n int) error {
+	b.left -= n
+	if b.left < 0 {
+		return refuse("the aggregations fill more than %d buckets in one request; use a larger interval or a shorter window", maxFilledBuckets)
+	}
+	return nil
+}
+
+func countAggs(tree map[string]any) int {
+	n := 0
+	for _, v := range tree {
+		n++
+		if def, ok := v.(map[string]any); ok {
+			for _, key := range []string{"aggs", "aggregations"} {
+				if sub, ok := def[key].(map[string]any); ok {
+					n += countAggs(sub)
+				}
+			}
+		}
+	}
+	return n
+}
+
 func (e *emulator) aggregate(ctx context.Context, clause map[string]any, w filter.Window, tree map[string]any) (map[string]any, error) {
+	if countAggs(tree) > maxAggregations {
+		return nil, refuse("a request may hold at most %d aggregations, nested ones included", maxAggregations)
+	}
+	budget := &bucketBudget{left: maxFilledBuckets}
 	out := map[string]any{}
 	metrics := map[string]any{}
 	for _, name := range slices.Sorted(maps.Keys(tree)) {
@@ -50,7 +82,7 @@ func (e *emulator) aggregate(ctx context.Context, clause map[string]any, w filte
 			metrics[name] = def
 			continue
 		}
-		rendered, err := e.bucketGroup(ctx, clause, w, name, def)
+		rendered, err := e.bucketGroup(ctx, clause, w, name, def, budget)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +186,7 @@ func deepCopy(def map[string]any) map[string]any {
 	return out
 }
 
-func (e *emulator) bucketGroup(ctx context.Context, clause map[string]any, w filter.Window, name string, def map[string]any) (map[string]any, error) {
+func (e *emulator) bucketGroup(ctx context.Context, clause map[string]any, w filter.Window, name string, def map[string]any, budget *bucketBudget) (map[string]any, error) {
 	def = deepCopy(def)
 	termsDefs, err := sizeTerms(def)
 	if err != nil {
@@ -207,7 +239,7 @@ func (e *emulator) bucketGroup(ctx context.Context, clause map[string]any, w fil
 		results[depth] = agg
 	}
 	roots := treeOf(results)
-	return renderLevel(chain, 0, roots, results[len(results)-1].Metrics)
+	return renderLevel(chain, 0, roots, results[len(results)-1].Metrics, budget)
 }
 
 func prefixAgg(chain []level, depth int) filter.Agg {
@@ -255,7 +287,7 @@ func treeOf(results []trail.Aggregation) []*bucketNode {
 	return roots
 }
 
-func renderLevel(chain []level, depth int, nodes []*bucketNode, metrics []filter.Metric) (map[string]any, error) {
+func renderLevel(chain []level, depth int, nodes []*bucketNode, metrics []filter.Metric, budget *bucketBudget) (map[string]any, error) {
 	l := chain[depth]
 	render := func(n *bucketNode, b map[string]any) error {
 		b["doc_count"] = n.docCount
@@ -263,7 +295,7 @@ func renderLevel(chain []level, depth int, nodes []*bucketNode, metrics []filter
 			maps.Copy(b, metricsOf(metrics, n.values))
 			return nil
 		}
-		child, err := renderLevel(chain, depth+1, n.children, metrics)
+		child, err := renderLevel(chain, depth+1, n.children, metrics, budget)
 		if err != nil {
 			return err
 		}
@@ -273,6 +305,9 @@ func renderLevel(chain []level, depth int, nodes []*bucketNode, metrics []filter
 	if l.agg.Type == dateHistogram {
 		filled, err := fillTimes(l, nodes)
 		if err != nil {
+			return nil, err
+		}
+		if err := budget.spend(len(filled)); err != nil {
 			return nil, err
 		}
 		buckets := make([]any, 0, len(filled))

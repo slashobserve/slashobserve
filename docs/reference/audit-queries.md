@@ -162,6 +162,7 @@ The time field is `occurred_at`, and the field list marks the fields that `terms
 
 It answers searches sorted by `occurred_at`, oldest or newest first, paged with `from` and `size` up to 10,000 events deep, with totals counted up to 10,000 and at most 1,000 events a read.
 It answers `date_histogram` and `terms` buckets, `date_histogram` with a `time_zone` as above, and the `cardinality`, `value_count`, `min`, `max`, `avg`, `sum` and `percentiles` metrics.
+A request holds at most 20 aggregations, nested ones included, and its `date_histogram` buckets, empty ones filled in, come to at most 11,000; a request over either is refused as an invalid query.
 Any other request, body key, sort field or aggregation is refused with 400 and a message that names it, which a panel shows as its query error.
 
 Reading through it is recorded as `query.run`, never as `audit.search`: the Logs page and the agent's queries record one event per query, with the datasource uid as its target, and a panel records nothing beyond the dashboard view.
