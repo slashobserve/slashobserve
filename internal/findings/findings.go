@@ -96,7 +96,7 @@ func Title(text string) string {
 }
 
 func TitleFrom(given string, investigation bool) string {
-	switch title := revisions.ShortTitle(given); {
+	switch title := usertext.ShortTitle(given); {
 	case title != "":
 		return title
 	case investigation:
