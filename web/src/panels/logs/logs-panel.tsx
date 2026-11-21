@@ -845,7 +845,7 @@ export function LogsView({
       const index = keys.indexOf(key)
       if (index < 0 || scrollElement === null) return
       if (windowed) {
-        scrollElement.scrollTop = offsets[index]
+        scrollElement.scrollTo({ top: offsets[index] })
         return
       }
       const row = Array.from(listRef.current?.children ?? []).find(

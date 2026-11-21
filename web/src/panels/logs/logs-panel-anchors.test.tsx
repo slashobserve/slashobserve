@@ -139,6 +139,27 @@ describe("log anchors", () => {
     expect(page).not.toHaveBeenCalled()
   })
 
+  it("scrolls a windowed panel's own scroller to a line by its offset", () => {
+    stubLines(20)
+    const page = vi.fn()
+    Element.prototype.scrollIntoView = page
+    const { store, view } = renderPublishing(
+      LogsPanel,
+      panelOf("logs"),
+      lines(5000)
+    )
+    const element = scroller(view.container)
+    const scrollTo = vi.fn()
+    element.scrollTo = scrollTo
+    const layout = store.current()?.layout as LogAnchorLayout
+    const key = (
+      view.container.querySelectorAll("li[data-key]")[3] as HTMLElement
+    ).dataset.key
+    layout.reveal?.(key ?? "")
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+    expect(page).not.toHaveBeenCalled()
+  })
+
   it("does no per-line work when a 5,000 line panel scrolls", () => {
     stubLines(20)
     const { store, view } = renderPublishing(

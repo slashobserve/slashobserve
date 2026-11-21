@@ -47,7 +47,7 @@ function hiddenKey(
   if (layout.lines.some(({ entry }) => clip(entry.key) === anchor.id)) {
     return undefined
   }
-  return layout.resolve?.(anchor.id)
+  return anchor.id === undefined ? undefined : layout.resolve?.(anchor.id)
 }
 
 export function locate(layout: LogAnchorLayout, anchor: Anchor): Rect | null {
