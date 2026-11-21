@@ -26,15 +26,17 @@ const facetFields = [
 
 export function AuditFacets({
   window,
+  query,
   live,
   onQuery,
 }: {
   window: AuditWindowKey
+  query: string
   live: readonly AuditEvent[]
   onQuery: (q: string) => void
 }) {
   const fields = useQuery(auditFieldsQuery())
-  const editable = canEditTerms(window.q)
+  const editable = canEditTerms(query)
   return (
     <div className="flex flex-col gap-2">
       {editable ? null : (
@@ -48,6 +50,7 @@ export function AuditFacets({
           <FacetGroup
             key={facet.name}
             window={window}
+            query={query}
             label={facet.label}
             field={{
               name: facet.name,
@@ -67,6 +70,7 @@ export function AuditFacets({
 
 function FacetGroup({
   window,
+  query,
   label,
   field,
   editable,
@@ -74,6 +78,7 @@ function FacetGroup({
   onQuery,
 }: {
   window: AuditWindowKey
+  query: string
   label: string
   field: FacetField
   editable: boolean
@@ -85,7 +90,7 @@ function FacetGroup({
   const values = liveFacetValues(facets.data?.values ?? [], live, field.name)
 
   function toggle(value: string, exclude: boolean) {
-    const next = toggleTerm(window.q, field, value, exclude)
+    const next = toggleTerm(query, field, value, exclude)
     if (next !== null) onQuery(next)
   }
 
@@ -103,7 +108,7 @@ function FacetGroup({
       ) : (
         <ul className="flex flex-wrap gap-1.5">
           {values.map(({ value, count }) => {
-            const state = termState(window.q, field, value)
+            const state = termState(query, field, value)
             return (
               <li
                 key={value}

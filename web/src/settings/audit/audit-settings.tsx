@@ -297,7 +297,12 @@ export function AuditSettings({
                 search({ ...shownView, ...range, event: null })
               }
             />
-            <AuditFacets window={window} live={freshLive} onQuery={run} />
+            <AuditFacets
+              window={window}
+              query={draft.text}
+              live={freshLive}
+              onQuery={run}
+            />
           </>
         ) : null}
         {window === null || problem !== null ? null : events.isError &&
