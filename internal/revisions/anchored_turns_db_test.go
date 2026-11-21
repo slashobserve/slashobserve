@@ -139,6 +139,8 @@ VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada
 	onObservation := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("this part?"), Kind: text("ask"), ObservationID: text(observation), Anchor: spot})
 	plainOnObservation := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("whole page"), Kind: text("ask"), ObservationID: text(observation)})
 	theirs := startTurn(t, svc, stranger, revisions.StartRequest{Prompt: text("their spot"), Kind: text("ask"), DashboardID: text(dash.String()), Anchor: spot})
+	saved := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("saved answer"), Kind: text("ask"), ObservationID: text(observation), Anchor: spot})
+	d.Exec(t, `UPDATE agent_requests SET observation_id = subject_observation_id, subject_observation_id = NULL WHERE id = $1::uuid`, saved.String())
 
 	owner := newDocumentedObserve(t, svc, user, nil)
 	admin := newDocumentedObserve(t, svc, bea, nil)
@@ -153,11 +155,11 @@ VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada
 		return in
 	}
 	for query, want := range map[string][]string{
-		"?anchored=true":                                            sorted(onDashboard.String(), onObservation.String()),
-		"?anchored=true&scope=mine":                                 sorted(onDashboard.String(), onObservation.String()),
+		"?anchored=true":                                            sorted(onDashboard.String(), onObservation.String(), saved.String()),
+		"?anchored=true&scope=mine":                                 sorted(onDashboard.String(), onObservation.String(), saved.String()),
 		"?anchored=true&dashboard_id=" + dash.String():              sorted(onDashboard.String()),
-		"?anchored=true&observation_id=" + observation:              sorted(onObservation.String()),
-		"?observation_id=" + observation:                            sorted(onObservation.String(), plainOnObservation.String()),
+		"?anchored=true&observation_id=" + observation:              sorted(onObservation.String(), saved.String()),
+		"?observation_id=" + observation:                            sorted(onObservation.String(), plainOnObservation.String(), saved.String()),
 		"?anchored=false&dashboard_id=" + dash.String():             sorted(onDashboard.String(), plainOnDashboard.String()),
 		"?anchored=true&state=queued&dashboard_id=" + dash.String(): sorted(onDashboard.String()),
 	} {
@@ -169,8 +171,8 @@ VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada
 		Summary struct {
 			Total int64 `json:"total"`
 		} `json:"summary"`
-	}](t, owner.call(t, http.MethodGet, "/api/v1/observe?anchored=true", "", http.StatusOK).Body.Bytes()).Summary.Total; got != 2 {
-		t.Errorf("the summary counts %d anchored turns, want 2", got)
+	}](t, owner.call(t, http.MethodGet, "/api/v1/observe?anchored=true", "", http.StatusOK).Body.Bytes()).Summary.Total; got != 3 {
+		t.Errorf("the summary counts %d anchored turns, want 3", got)
 	}
 
 	for _, who := range []*documentedObserve{owner, admin} {
@@ -180,6 +182,11 @@ VALUES ($1::uuid, general_folder_id(), 'Checkout errors', 'user', $2::uuid, 'Ada
 	}
 	if rec := call(observeRouterAs(svc, stranger), http.MethodGet, "/api/v1/observe?anchored=true&scope=all", ""); rec.Code != http.StatusBadRequest {
 		t.Errorf("a non-Admin asking for everyone's anchored turns: %d %s", rec.Code, rec.Body)
+	}
+	for _, r := range decodeInto[struct {
+		Requests []pointedTurn `json:"requests"`
+	}](t, call(observeRouterAs(svc, stranger), http.MethodGet, "/api/v1/observe?observation_id="+observation, "").Body.Bytes()).Requests {
+		t.Errorf("a second person listed the turn %s by an observation they did not ask about", r.ID)
 	}
 	for _, r := range decodeInto[struct {
 		Requests []pointedTurn `json:"requests"`

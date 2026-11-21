@@ -242,6 +242,7 @@ beforeEach(() => {
     openThreadId: null,
     postedThreadId: null,
     openTurn: null,
+    text: "",
   })
 })
 
@@ -417,6 +418,42 @@ describe("AskPopover", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     expect(useCanvasTool.getState().draft).toBeNull()
     expect(origin).toHaveFocus()
+  })
+
+  it("stays open with a typed question on a click outside, and closes when empty", async () => {
+    stubServer()
+    const { user } = renderAsk()
+    act(() => openDraft())
+    const field = await screen.findByRole("textbox", { name: "Ask about this" })
+    await user.type(field, "why the spike")
+    await user.click(document.body)
+    expect(field).toHaveValue("why the spike")
+    expect(useCanvasTool.getState().draft).not.toBeNull()
+    await user.clear(field)
+    await user.click(document.body)
+    await waitFor(() => expect(useCanvasTool.getState().draft).toBeNull())
+  })
+
+  it("keeps a typed follow-up when another spot or pin is opened", async () => {
+    stubServer([answered])
+    const queryClient = seeded()
+    queryClient.setQueryData(observeKeys.request("r2"), answered)
+    openTurn()
+    const { user } = renderAsk({ queryClient })
+    const field = await screen.findByRole("textbox", {
+      name: "Ask a follow-up",
+    })
+    await user.type(field, "and yesterday")
+    act(() => {
+      useCanvasTool.getState().openDraft({ tool: "ask", ...spot })
+      useCanvasTool
+        .getState()
+        .showTurn({ requestId: "r9", chatId: "c2", ...spot })
+    })
+    expect(useCanvasTool.getState().openTurn).toMatchObject({
+      requestId: "r2",
+    })
+    expect(field).toHaveValue("and yesterday")
   })
 
   it("says why it cannot ask when no model is connected", async () => {

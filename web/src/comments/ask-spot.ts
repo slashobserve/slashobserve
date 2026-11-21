@@ -1,17 +1,20 @@
 import type { ContextChip } from "@/chat/context-chips"
 import { anchorParts } from "@/conversation/anchor"
+import type { ObserveRequest, RequestSummary } from "@/observe/queries"
 import type { Anchor } from "@/panels/anchors"
 
-export type SpotTurn = {
-  id: string
-  prompt: string
-  chat_id: string | null
-  panel_id: string | null
-  anchor?: Anchor | null
-  requested_by: { id: string }
-  created_at: string
-  read_only?: boolean
-}
+export type PinTurn = Pick<
+  RequestSummary,
+  | "id"
+  | "prompt"
+  | "chat_id"
+  | "panel_id"
+  | "anchor"
+  | "requested_by"
+  | "created_at"
+>
+
+type ChatTurn = Pick<ObserveRequest, "id" | "anchor" | "created_at">
 
 export type PrivatePin = {
   key: string
@@ -36,21 +39,20 @@ export function spotKey(anchor: Anchor): string {
   return JSON.stringify(canonical(anchor))
 }
 
-function byTime(a: SpotTurn, b: SpotTurn): number {
+function byTime(a: ChatTurn, b: ChatTurn): number {
   return Date.parse(a.created_at) - Date.parse(b.created_at)
 }
 
 export function privatePins(
-  turns: readonly SpotTurn[],
+  turns: readonly PinTurn[],
   panelId: string,
   viewerId: string
 ): PrivatePin[] {
   const pins = new Map<string, PrivatePin>()
   for (const turn of [...turns].sort(byTime)) {
     const { anchor, chat_id: chatId } = turn
-    if (anchor == null || chatId === null) continue
+    if (anchor === null || chatId === null) continue
     if (turn.panel_id !== panelId || turn.requested_by.id !== viewerId) continue
-    if (turn.read_only === true) continue
     const key = `${chatId}:${spotKey(anchor)}`
     const pin = pins.get(key)
     if (pin === undefined) {
@@ -70,7 +72,7 @@ export function privatePins(
 }
 
 export function spotTurnIds(
-  turns: readonly SpotTurn[],
+  turns: readonly ChatTurn[],
   opened: { requestId: string; anchor: Anchor | null },
   askedHere: readonly string[]
 ): string[] {
@@ -80,7 +82,7 @@ export function spotTurnIds(
     .filter(
       (turn) =>
         turn.id === opened.requestId ||
-        (key !== null && turn.anchor != null && spotKey(turn.anchor) === key)
+        (key !== null && turn.anchor !== null && spotKey(turn.anchor) === key)
     )
     .map((turn) => turn.id)
   const ids = [...atSpot]

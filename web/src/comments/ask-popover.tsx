@@ -35,7 +35,7 @@ import {
   spotLabel,
   spotTurnIds,
 } from "./ask-spot"
-import { CanvasPopover } from "./canvas-composer"
+import { CanvasPopover, keepsTyping } from "./canvas-composer"
 
 export type AskSpot = {
   panelId: string
@@ -102,6 +102,18 @@ function closeAsk() {
   useCanvasTool.getState().close()
 }
 
+function leaveAsk(reason: string) {
+  const store = useCanvasTool.getState()
+  if (keepsTyping(reason, store.text)) return
+  store.close()
+}
+
+function useAskText() {
+  const value = useCanvasTool((state) => state.text)
+  const onChange = useCanvasTool((state) => state.setText)
+  return { value, onChange }
+}
+
 function disabledReasonOf(model: ComposerModel): string | null {
   return model.gate.kind === "no-model" ? noModelAskText : null
 }
@@ -124,6 +136,7 @@ function AskDraft({
   onChatStarted,
 }: Omit<Props, "turn" | "surfaceRef">) {
   const model = useComposer({
+    draft: useAskText(),
     subject: { kind: "dashboard", id: dashboardId },
     place: { kind: "canvas", tool: "ask", chatId: openChatId },
     target: {
@@ -269,6 +282,7 @@ function AskThread({
     )
   }
   const model = useComposer({
+    draft: useAskText(),
     subject: { kind: "dashboard", id: dashboardId },
     place: { kind: "canvas", tool: "ask", chatId: turn.chatId },
     target: {
@@ -342,7 +356,7 @@ export function AskPopover(props: Props) {
         document.getElementById(popupId)?.querySelector("textarea") ?? true
       }
       className="flex flex-col border-primary"
-      onClose={closeAsk}
+      onClose={leaveAsk}
     >
       {turn === null ? (
         <AskDraft {...props} />

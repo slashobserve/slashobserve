@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { commentKeyAction, type CommentKeyInput } from "./comment-key"
+import {
+  commentKeyAction,
+  takesCanvasComments,
+  type CanvasPlaceInput,
+  type CommentKeyInput,
+} from "./comment-key"
 
 const base: CommentKeyInput = {
   commenting: false,
@@ -47,5 +52,29 @@ describe("commentKeyAction", () => {
     expect(
       commentKeyAction({ ...base, canComment: false, panelId: "p1" })
     ).toEqual({ kind: "pane" })
+  })
+})
+
+describe("takesCanvasComments", () => {
+  const onGrid: CanvasPlaceInput = {
+    canComment: true,
+    onTv: false,
+    viewing: false,
+    editingPanel: false,
+    copy: false,
+  }
+
+  it("takes canvas comments on a panel in the dashboard grid", () => {
+    expect(takesCanvasComments(onGrid)).toBe(true)
+  })
+
+  it.each([
+    ["without Comment permission", { canComment: false }],
+    ["in TV mode", { onTv: true }],
+    ["in the full-size view", { viewing: true }],
+    ["while the panel's editor is open", { editingPanel: true }],
+    ["on a repeated panel's copy", { copy: true }],
+  ])("sends comments to the activity pane %s", (_, over) => {
+    expect(takesCanvasComments({ ...onGrid, ...over })).toBe(false)
   })
 })

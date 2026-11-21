@@ -16,7 +16,6 @@ import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { useComposer } from "@/conversation/use-composer"
 import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
-import { useIsDirty } from "@/dashboards/edit/layout-store"
 import { validateDashboardSearch } from "@/dashboards/search"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
@@ -58,15 +57,10 @@ export function targetChips(
   ]
 }
 
-export function useOnTv(): boolean {
-  return useSearch({
-    strict: false,
-    select: (search: Record<string, unknown>) =>
-      validateDashboardSearch(search).kiosk === true,
-  })
-}
-
-export function useCanvasGate(canComment: boolean): GateInput {
+export function useCanvasGate(
+  canComment: boolean,
+  layoutEditing: boolean
+): GateInput {
   const pinned = useSearch({
     strict: false,
     select: (search: Record<string, unknown>) =>
@@ -76,7 +70,7 @@ export function useCanvasGate(canComment: boolean): GateInput {
     canComment,
     agentAvailable: useAgentInfo().data?.available,
     pinned,
-    layoutEditing: useIsDirty(),
+    layoutEditing,
   }
 }
 
@@ -96,13 +90,22 @@ function spotAnchor(surface: HTMLElement | null, at: Point | null) {
   }
 }
 
+const leavingReasons: ReadonlySet<string> = new Set([
+  "outside-press",
+  "focus-out",
+])
+
+export function keepsTyping(reason: string, text: string): boolean {
+  return leavingReasons.has(reason) && text.trim() !== ""
+}
+
 type PopoverProps = {
   surfaceRef: RefObject<HTMLElement | null>
   at: Point | null
   label: string
   id?: string
   initialFocus?: PopoverPrimitive.Popup.Props["initialFocus"]
-  onClose: () => void
+  onClose: (reason: string) => void
   className?: string
   children: ReactNode
 }
@@ -125,8 +128,8 @@ export function CanvasPopover({
   return (
     <PopoverPrimitive.Root
       open
-      onOpenChange={(open) => {
-        if (!open) onClose()
+      onOpenChange={(open, details) => {
+        if (!open) onClose(details.reason)
       }}
     >
       <PopoverPrimitive.Portal>
@@ -176,7 +179,10 @@ export function CanvasComposer({
   gate,
 }: ComposerProps) {
   const posted = useCanvasTool((state) => state.posted)
+  const text = useCanvasTool((state) => state.text)
+  const setText = useCanvasTool((state) => state.setText)
   const model = useComposer({
+    draft: { value: text, onChange: setText },
     subject: { kind: "dashboard", id: dashboardId },
     place: { kind: "canvas", tool: "comment" },
     target: {
@@ -196,9 +202,11 @@ export function CanvasComposer({
       label={commentLabel}
       initialFocus={model.field}
       className="p-2"
-      onClose={() => {
+      onClose={(reason) => {
         const store = useCanvasTool.getState()
-        if (store.draft === draft) store.close()
+        if (store.draft !== draft) return
+        if (keepsTyping(reason, store.text)) return
+        store.close()
       }}
     >
       <Composer
@@ -230,6 +238,7 @@ type LayerProps = {
   tool: CanvasDraft["tool"]
   body: { width: number; height: number }
   shownRange: { from: string; to: string }
+  wholePanel?: boolean
 }
 
 function useSurface(store: AnchorLayoutStore): CanvasSurface {
@@ -262,12 +271,13 @@ export function CanvasLayer({
   tool,
   body,
   shownRange,
+  wholePanel = false,
 }: LayerProps) {
   const surface = useSurface(store)
   const [hover, setHover] = useState<Hover>(null)
-  const current = useRef({ surface, body, shownRange })
+  const current = useRef({ surface, body, shownRange, wholePanel })
   useLayoutEffect(() => {
-    current.current = { surface, body, shownRange }
+    current.current = { surface, body, shownRange, wholePanel }
   })
 
   useEffect(() => {
@@ -284,8 +294,9 @@ export function CanvasLayer({
     function targetOf(event: PointerEvent): Anchor | null {
       const element = surfaceRef.current
       if (element === null) return null
-      const { surface, body, shownRange } = current.current
+      const { surface, body, shownRange, wholePanel } = current.current
       const point = pointIn(element, event)
+      if (wholePanel && inBody(event)) return null
       const anchor = inBody(event)
         ? pointerAnchor(surface, point, body)
         : titleAnchor(point, body)
@@ -293,7 +304,7 @@ export function CanvasLayer({
     }
     let press: { at: Point; anchor: Anchor | null } | null = null
     function dragged(event: PointerEvent, element: HTMLElement) {
-      if (press === null) return null
+      if (press === null || current.current.wholePanel) return null
       const anchor = dragAnchor(
         current.current.surface,
         press.at,

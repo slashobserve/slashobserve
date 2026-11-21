@@ -30,10 +30,62 @@ beforeEach(() => {
     openThreadId: null,
     openTurn: null,
     postedThreadId: null,
+    text: "",
   })
 })
 
 describe("useCanvasTool", () => {
+  it("keeps a draft that has text when another spot or a thread is opened", () => {
+    const other = { ...draft, at: { x: 90, y: 90 } }
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("half a thought")
+    useCanvasTool.getState().openDraft(other)
+    useCanvasTool.getState().openThread("t1")
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft,
+      text: "half a thought",
+      openThreadId: null,
+    })
+  })
+
+  it("keeps a draft that has text when a pin's turn is opened", () => {
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("half a question")
+    useCanvasTool
+      .getState()
+      .showTurn({ requestId: "r1", chatId: "c1", ...draft })
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft,
+      openTurn: null,
+      text: "half a question",
+    })
+  })
+
+  it("keeps an open turn whose follow-up has text, and opens the next once it is empty", () => {
+    const turn = { requestId: "r1", chatId: "c1", ...draft }
+    useCanvasTool.getState().showTurn(turn)
+    useCanvasTool.getState().setText("and yesterday")
+    useCanvasTool.getState().openDraft(draft)
+    expect(useCanvasTool.getState()).toMatchObject({
+      openTurn: turn,
+      draft: null,
+    })
+    useCanvasTool.getState().setText("")
+    useCanvasTool.getState().openDraft(draft)
+    expect(useCanvasTool.getState()).toMatchObject({ openTurn: null, draft })
+  })
+
+  it("drops the text with the draft, and starts the next draft empty", () => {
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("half a thought")
+    useCanvasTool.getState().close()
+    expect(useCanvasTool.getState().text).toBe("")
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("again")
+    useCanvasTool.getState().setTool("select")
+    expect(useCanvasTool.getState().text).toBe("")
+  })
+
   it("keeps Comment mode on after a draft opens and closes", () => {
     const store = useCanvasTool.getState()
     store.setTool("comment")

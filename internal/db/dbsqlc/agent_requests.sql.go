@@ -454,7 +454,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND ($1::uuid IS NULL OR r.dashboard_id = $1::uuid)
   AND ($2::uuid IS NULL OR r.chat_id = $2::uuid OR r.id = $2::uuid)
-  AND ($3::uuid IS NULL OR r.subject_observation_id = $3::uuid)
+  AND ($3::uuid IS NULL OR r.subject_observation_id = $3::uuid OR r.observation_id = $3::uuid)
   AND ($4::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $4::boolean)
   AND ($5::text IS NULL OR r.title ILIKE $5::text OR r.prompt ILIKE $5::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -503,7 +503,7 @@ WHERE r.requested_by_kind = $1 AND r.requested_by_id = $2 AND r.intent <> 'sugge
   AND r.archived_at IS NULL
   AND ($3::uuid IS NULL OR r.dashboard_id = $3::uuid)
   AND ($4::uuid IS NULL OR r.chat_id = $4::uuid OR r.id = $4::uuid)
-  AND ($5::uuid IS NULL OR r.subject_observation_id = $5::uuid)
+  AND ($5::uuid IS NULL OR r.subject_observation_id = $5::uuid OR r.observation_id = $5::uuid)
   AND (NOT $6::boolean OR r.anchor IS NOT NULL)
   AND ($7::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $7::boolean)
   AND ($8::text IS NULL OR r.title ILIKE $8::text OR r.prompt ILIKE $8::text OR EXISTS (
@@ -1935,7 +1935,7 @@ WHERE r.intent <> 'suggest'
   AND r.archived_at IS NULL
   AND ($2::uuid IS NULL OR r.dashboard_id = $2::uuid)
   AND ($3::uuid IS NULL OR r.chat_id = $3::uuid OR r.id = $3::uuid)
-  AND ($4::uuid IS NULL OR r.subject_observation_id = $4::uuid)
+  AND ($4::uuid IS NULL OR r.subject_observation_id = $4::uuid OR r.observation_id = $4::uuid)
   AND ($5::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $5::boolean)
   AND ($6::text IS NULL OR r.title ILIKE $6::text OR r.prompt ILIKE $6::text OR EXISTS (
     SELECT 1 FROM findings sf
@@ -2097,7 +2097,7 @@ WHERE r.requested_by_kind = $2 AND r.requested_by_id = $3 AND r.intent <> 'sugge
   AND r.archived_at IS NULL
   AND ($4::uuid IS NULL OR r.dashboard_id = $4::uuid)
   AND ($5::uuid IS NULL OR r.chat_id = $5::uuid OR r.id = $5::uuid)
-  AND ($6::uuid IS NULL OR r.subject_observation_id = $6::uuid)
+  AND ($6::uuid IS NULL OR r.subject_observation_id = $6::uuid OR r.observation_id = $6::uuid)
   AND (NOT $7::boolean OR r.anchor IS NOT NULL)
   AND ($8::boolean IS NULL OR (r.pinned_at IS NOT NULL) = $8::boolean)
   AND ($9::text IS NULL OR r.title ILIKE $9::text OR r.prompt ILIKE $9::text OR EXISTS (
