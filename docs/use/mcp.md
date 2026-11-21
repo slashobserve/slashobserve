@@ -339,6 +339,7 @@ An observation is a page of blocks about one question: Markdown text, panels tha
 A panel that uses a variable with no value in `variables` is refused with `variable_missing`, and the message names the variable.
 `get_observation` shows a panel block's `variables` as the values it runs with.
 `update_block` takes `block_id`, the `version` you read and the new `markdown`, or the new `panel` with its range, and optionally `width` or `position`.
+`follow_page: true` drops a panel block's own `from` and `to`, so it shows the observation's range again; it goes without `panel`, `markdown`, `from` or `to`.
 `resolve_observation` closes an observation with a one-line `summary`.
 Every write answers with the ids, the `state` of what it changed, the block `version` and the `url`.
 

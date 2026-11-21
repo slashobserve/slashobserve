@@ -387,7 +387,7 @@ Keeping needs Edit on the observation's folder, and discarding is open to an edi
 
 Every subcommand takes `--json`, which prints the response of its API call unchanged, so `o discard --json` prints an empty line.
 The commands need the folder access the web app needs for the same work, and a refusal prints the server's message and exits 1.
-`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width) and `--position <n>` (which moves the blocks in between); it needs something to change.
+`bin/observe o edit-block <block-id> --version <n>` changes a live block with `--text` or `--text-file` (a text block), `--panel-file` (a panel block, with `--from` and `--to` for its own range), `--half` or `--full` (its width), `--position <n>` (which moves the blocks in between) and `--follow-page` (which drops a panel block's own range, so it shows the observation's range again); it needs something to change.
 `bin/observe o remove-block <block-id> --version <n>` deletes a live block and the blocks after it close the gap.
 Both need the block's current version from `o show`; a block that changed since answers `version_conflict`, so read it again and retry.
 A snapshot block's body cannot change, and a requested block is kept or discarded instead.

@@ -36,6 +36,7 @@ import {
   type Observation,
   type ObservationEnvelope,
 } from "./queries"
+import { PageRangeControl } from "./page-range-control"
 import { StateControl } from "./state-control"
 import { plainTitle } from "@/comments/plain-title"
 import { keptTitleNote } from "@/chat/shared-title"
@@ -198,6 +199,7 @@ export function ObservationHeader({
     <>
       <TopRowActions>
         <AuthorMark mark={markOf(observation.created_by)} size={24} />
+        <PageRangeControl observation={observation} />
         {extraActions}
         <Button
           variant="outline"

@@ -1,34 +1,43 @@
-import { useMemo, useState, type ReactNode } from "react"
-import { useContainerWidth } from "react-grid-layout"
-
 import {
-  panelBodySize,
-  PanelChrome,
-  type PanelState,
-} from "@/dashboards/panel-chrome"
-import { maxDataPointsFor } from "@/dashboards/use-panel-data"
-import { useDatasources } from "@/datasources/queries"
-import { isRenderable, isStaticPanel } from "@/panels"
-import { createFieldResolver } from "@/panels/field-config"
-import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
-import { panelHasData } from "@/panels/panel-has-data"
-import { createSharedCursor } from "@/panels/shared-cursor"
-import type { Block } from "@/observations/queries"
-import { isDataPanel, isRowPanel, type LayoutPanel } from "@/spec"
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
+import { useContainerWidth } from "react-grid-layout"
+import { CalendarClockIcon, PinIcon, PinOffIcon } from "lucide-react"
+import { toast } from "sonner"
 
-import { bakedSelections, variableCaption } from "../panel-input"
+import type { Selections } from "@/api/keys"
+import { PanelChrome } from "@/dashboards/panel-chrome"
+import { PanelContainer } from "@/dashboards/panel-container"
+import type { VariableState } from "@/dashboards/use-variables"
+import { VariableBox } from "@/dashboards/variable-controls/variable-box"
+import { VariablesBar } from "@/dashboards/variables-bar"
+import type { BlockMenuHost, MenuItem } from "@/dashboards/panel-menu"
+import type { PanelSource } from "@/dashboards/panel-source"
+import { TimeRangeControl } from "@/dashboards/time-range-picker"
+import { useDatasources } from "@/datasources/queries"
+import { createSharedCursor } from "@/panels/shared-cursor"
+import { useUpdateBlock, type Block } from "@/observations/queries"
+import { isDataPanel, isRowPanel, panelTitle, type LayoutPanel } from "@/spec"
+
+import { blockWriteProblem } from "../errors"
+import { blockVariableStates, variableCaption } from "../panel-input"
 import { BlockByline } from "./block-byline"
 import {
   blockPanelId,
   datasourceUidOf,
+  PageRangeContext,
   panelBlockBody,
-  useBlockPanelData,
+  pinnedBody,
+  resolveBlockRange,
+  type BlockWindow,
   type PanelBlockBody,
 } from "./block-data"
-
-const defaultFrom = "now-1h"
-
-const defaultTo = "now"
+import { useBlockInspect } from "./block-inspect"
 
 const unreadablePanel = {
   id: blockPanelId,
@@ -37,29 +46,63 @@ const unreadablePanel = {
   content: "",
 } as unknown as LayoutPanel
 
-function ignoreRangeSelect() {}
+const noAnnotations: never[] = []
+
+const noUnverified = new Map<string, string>()
+
+function ignore() {}
 
 type Props = { block: Block; height: number }
 
-function LiveCaption({
+function RangeCaption({
   datasource,
+  range,
   variables,
 }: {
   datasource: string | undefined
+  range: BlockWindow
   variables: string
 }) {
+  const live = range.refreshMs !== null
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
       <span
         aria-hidden="true"
-        className="size-1.5 flex-none rounded-full bg-status-ok"
+        className={
+          live
+            ? "size-1.5 flex-none rounded-full bg-status-ok"
+            : "size-1.5 flex-none rounded-full bg-muted-foreground"
+        }
       />
       <span className="truncate">
-        {[datasource === undefined ? "live" : `${datasource}, live`, variables]
+        {[datasource ?? "", range.caption, variables]
           .filter((part) => part !== "")
           .join(", ")}
       </span>
     </span>
+  )
+}
+
+function StoredVariable({ state }: { state: VariableState }) {
+  const id = useId()
+  return (
+    <VariableBox variable={state.variable} id={id}>
+      <output id={id} className="flex items-center px-[9px]">
+        {state.selected.length === 0 ? "None" : state.selected.join(", ")}
+      </output>
+    </VariableBox>
+  )
+}
+
+function StoredVariables({ states }: { states: VariableState[] }) {
+  const shown = states.filter((state) => state.variable.hide !== "variable")
+  if (shown.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
+      {shown.map((state) => (
+        <StoredVariable key={state.variable.name} state={state} />
+      ))}
+    </div>
   )
 }
 
@@ -92,35 +135,89 @@ function ReadablePanelBlock({
   body: PanelBlockBody
   height: number
 }) {
-  const { panel, from, to } = body
-  const vars = useMemo(() => bakedSelections(body.variables), [body.variables])
+  const { panel } = body
+  const page = useContext(PageRangeContext)
+  const range = useMemo(() => resolveBlockRange(page, body), [page, body])
+  const variables = useMemo(() => body.variables ?? [], [body.variables])
+  const [chosen, setChosen] = useState<Selections>({})
+  const { states, fixed, selections } = useMemo(
+    () => blockVariableStates(variables, chosen),
+    [variables, chosen]
+  )
   const { width, mounted, containerRef } = useContainerWidth({
     measureBeforeMount: true,
   })
   const [cursor] = useState(createSharedCursor)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const datasources = useDatasources()
+  const inspect = useBlockInspect()
+  const source = useMemo<PanelSource>(
+    () => ({
+      kind: "block",
+      observationId: block.observation_id,
+      blockId: block.id,
+      version: block.version,
+    }),
+    [block.observation_id, block.id, block.version]
+  )
+  const update = useUpdateBlock(block.observation_id)
+  const [choosingWindow, setChoosingWindow] = useState(false)
+  const canPin = block.allowed_actions.includes("update")
+
+  function write(change: { body?: Block["body"]; follow_page?: boolean }) {
+    if (update.isPending) return
+    update.mutate(
+      { blockId: block.id, version: block.version, ...change },
+      { onError: (error) => toast.error(blockWriteProblem(error).text) }
+    )
+  }
+
+  function pin(from: string, to: string) {
+    const next = pinnedBody(block.body, from, to, Date.now())
+    if (next !== null) write({ body: next })
+  }
+
+  const actions: MenuItem[] = canPin
+    ? [
+        ...(range.pinned
+          ? []
+          : [
+              {
+                id: "pin-now",
+                label: "Pin to this window",
+                icon: <PinIcon aria-hidden="true" />,
+                disabled: update.isPending,
+                onSelect: () => pin(range.from, range.to),
+              },
+            ]),
+        {
+          id: "pin-window",
+          label: "Pin to a window",
+          icon: <CalendarClockIcon aria-hidden="true" />,
+          disabled: update.isPending,
+          opensPopup: true,
+          onSelect: () => setChoosingWindow(true),
+        },
+        ...(range.pinned
+          ? [
+              {
+                id: "follow",
+                label: "Follow the page",
+                icon: <PinOffIcon aria-hidden="true" />,
+                disabled: update.isPending,
+                onSelect: () => write({ follow_page: true }),
+              },
+            ]
+          : []),
+      ]
+    : []
+  const blockMenu: BlockMenuHost = {
+    onInspect: inspect === null ? undefined : () => inspect.open(block.id),
+    range: { from: range.from, to: range.to },
+    vars: selections,
+    actions,
+  }
   const dataPanel = isDataPanel(panel) ? panel : undefined
-  const supported = !isRowPanel(panel) && isRenderable(panel.type)
-  const size = panelBodySize(Math.floor(width), Math.floor(height))
-  const query = useBlockPanelData({
-    blockId: block.id,
-    from,
-    to,
-    maxDataPoints: maxDataPointsFor(panel, size.width),
-    enabled: dataPanel !== undefined && supported && mounted,
-  })
-  const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel, vars) : undefined),
-    [dataPanel, vars]
-  )
-  const populated = useMemo(
-    () =>
-      dataPanel !== undefined &&
-      fields !== undefined &&
-      query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames, fields),
-    [dataPanel, fields, query.data]
-  )
   const datasourceUid = dataPanel ? datasourceUidOf(dataPanel) : undefined
   const datasourceName =
     datasourceUid === undefined
@@ -129,58 +226,84 @@ function ReadablePanelBlock({
         datasourceUid)
 
   if (isRowPanel(panel)) return null
-
-  let state: PanelState = "loading"
-  if (!supported) state = "unsupported"
-  else if (!dataPanel) state = "ready"
-  else if (query.data) state = populated ? "ready" : "empty"
-  else if (query.isError) state = "error"
+  const layoutPanel = panel as LayoutPanel
 
   return (
     <BlockFrame
       block={block}
       caption={
-        <LiveCaption
-          datasource={datasourceName}
-          variables={variableCaption(vars)}
-        />
+        choosingWindow ? (
+          <TimeRangeControl
+            value={{ from: range.from, to: range.to }}
+            defaultOpen
+            onDismiss={() => setChoosingWindow(false)}
+            onChange={(next) => {
+              setChoosingWindow(false)
+              pin(next.from, next.to)
+            }}
+          />
+        ) : (
+          <RangeCaption
+            datasource={datasourceName}
+            range={range}
+            variables={variableCaption(selections)}
+          />
+        )
       }
     >
+      <VariablesBar
+        states={states}
+        unverified={noUnverified}
+        onSelect={(name, values) =>
+          setChosen((current) => ({ ...current, [name]: values }))
+        }
+      />
+      <StoredVariables states={fixed} />
       <div ref={containerRef} style={{ height }} className="w-full">
         {mounted ? (
-          <PanelChrome
-            panel={panel}
-            state={state}
-            error={query.error}
-            refreshing={query.isFetching && query.data !== undefined}
-            onRetry={() => void query.refetch()}
-          >
-            {dataPanel && query.data ? (
-              <PanelBody
-                panel={dataPanel}
-                data={query.data}
-                width={size.width}
-                height={size.height}
-                stateScope={`block:${block.id}`}
-                cursor={cursor}
-                onTimeRangeSelect={ignoreRangeSelect}
-                vars={vars}
-                timezone={undefined}
-                from={from}
-                to={to}
-              />
-            ) : null}
-            {isStaticPanel(panel) && supported ? (
-              <StaticPanelBody
-                panel={panel}
-                width={size.width}
-                height={size.height}
-                vars={vars}
-                from={from ?? defaultFrom}
-                to={to ?? defaultTo}
-              />
-            ) : null}
-          </PanelChrome>
+          <PanelContainer
+            source={source}
+            cursor={cursor}
+            panel={layoutPanel}
+            reused={undefined}
+            variables={variables}
+            title={panelTitle(layoutPanel)}
+            repeatOf={undefined}
+            width={width}
+            height={height}
+            from={range.from}
+            to={range.to}
+            timezone={undefined}
+            rangeFrom={range.from}
+            rangeTo={range.to}
+            selections={selections}
+            selectionsReady
+            blockedBy={undefined}
+            onRetryBlocked={ignore}
+            refreshMs={range.refreshMs}
+            mixedDatasources={false}
+            editable={false}
+            layoutSession={false}
+            openComments={0}
+            unverifiedReason={undefined}
+            highlighted={false}
+            editingPanel={false}
+            canComment={false}
+            canEdit={false}
+            focusOnRender={false}
+            onFocused={ignore}
+            composerRef={composerRef}
+            annotations={noAnnotations}
+            inspected={inspect?.inspectedId === block.id}
+            onInspectTarget={inspect?.publish}
+            blockMenu={blockMenu}
+            onPinRange={
+              canPin
+                ? (fromMs, toMs) =>
+                    pin(String(Math.round(fromMs)), String(Math.round(toMs)))
+                : undefined
+            }
+          />
         ) : null}
       </div>
     </BlockFrame>
