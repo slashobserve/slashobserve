@@ -114,7 +114,13 @@ func (r *auditRig) refused(t *testing.T, q, lastEventID string) (int, string) {
 
 func (r *auditRig) open(t *testing.T, q string) *activityStream {
 	t.Helper()
-	resp, err := http.DefaultClient.Do(r.request(t, q, ""))
+	s, _ := r.openFrom(t, q, "")
+	return s
+}
+
+func (r *auditRig) openFrom(t *testing.T, q, lastEventID string) (*activityStream, string) {
+	t.Helper()
+	resp, err := http.DefaultClient.Do(r.request(t, q, lastEventID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +136,11 @@ func (r *auditRig) open(t *testing.T, q string) *activityStream {
 			s.lines <- scanner.Text()
 		}
 	}()
-	s.expectEvent(t, "ready")
-	return s
+	ready := s.nextFrame(t)
+	if ready.event != "ready" || ready.data != "{}" {
+		t.Fatalf("frame %+v, want ready with {}", ready)
+	}
+	return s, ready.id
 }
 
 func (r *auditRig) searches(t *testing.T) []string {
@@ -174,6 +183,26 @@ func TestAuditStreamSendsNewMatchingEventsAndRecordsOneSearch(t *testing.T) {
 	}
 	if got := r.searches(t); len(got) != 1 || got[0] != "success stream outcome:denied" {
 		t.Fatalf("recorded searches %q", got)
+	}
+}
+
+func TestAuditStreamReadyCarriesTheIDItResumesFromWithoutAGap(t *testing.T) {
+	r := newAuditRig(t, admin)
+	_, start := r.openFrom(t, "outcome:denied", "")
+	if strings.Count(start, "-") != 2 {
+		t.Fatalf("ready id %q, want xid-seq-micros", start)
+	}
+	ids := trailtest.Insert(t, r.db, trailtest.Event{At: time.Now().UTC(), Outcome: "denied", Status: 403})
+
+	resumed, again := r.openFrom(t, "outcome:denied", start)
+	if again != start {
+		t.Errorf("ready of a stream resumed from %q has id %q", start, again)
+	}
+	var got struct {
+		ID string `json:"id"`
+	}
+	if f := resumed.nextFrame(t); f.event != "audit" || json.Unmarshal([]byte(f.data), &got) != nil || got.ID != ids[0] {
+		t.Fatalf("resumed from the ready id and got %+v, want %s", f, ids[0])
 	}
 }
 

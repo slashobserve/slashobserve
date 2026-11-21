@@ -195,8 +195,6 @@ var workspaceTypes = []string{
 
 var knownTypes = slices.Concat(workspaceTypes, publicLinkTypes, accessRequestTypes, adminTypes)
 
-var auditTypes = slices.Concat(adminTypes, publicLinkTypes, accessRequestTypes)
-
 func Types() []string { return slices.Clone(knownTypes) }
 
 func AdminTypes() []string { return slices.Clone(adminTypes) }

@@ -106,10 +106,6 @@ func (h *ActivityHandler) serve(c *gin.Context) {
 		h.refuse(c, "read activity stream audience", err)
 		return
 	}
-	if filter.AdminOnly && !audience.Admin {
-		abort(c, http.StatusForbidden, forbidden.Code, activity.AdminScopeMessage)
-		return
-	}
 
 	header := c.Writer.Header()
 	header.Set("Content-Type", eventStreamContent)

@@ -163,3 +163,22 @@ func TestAStreamEventIDRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+func TestAStreamResumedFromItsStartSendsTheEventsRecordedBeforeItsFirstFrame(t *testing.T) {
+	r := newHTTPRig(t)
+	now := time.Now().UTC()
+	trailtest.Insert(t, r.db, trailtest.Event{At: now.Add(-time.Minute)})
+	f := r.follow(t, "", "")
+	if _, _, ok := parseEventID(f.Start()); !ok {
+		t.Fatalf("the start id %q is not a stream id", f.Start())
+	}
+	missed := trailtest.Insert(t, r.db, trailtest.Event{At: now})
+
+	resumed := r.follow(t, "", f.Start())
+	if got := followedIDs(next(t, resumed)); len(got) != 1 || got[0] != missed[0] {
+		t.Fatalf("resumed from the start and sent %v, want %v", got, missed)
+	}
+	if resumed.Start() != f.Start() {
+		t.Errorf("a stream resumed from %q starts at %q", f.Start(), resumed.Start())
+	}
+}

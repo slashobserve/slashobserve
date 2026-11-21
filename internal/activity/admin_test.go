@@ -1,7 +1,6 @@
 package activity
 
 import (
-	"errors"
 	"net/url"
 	"slices"
 	"testing"
@@ -46,8 +45,8 @@ func TestAdminTypesAreKnownAndNotWorkspaceTypes(t *testing.T) {
 
 func TestPeopleAndServiceAccountDeleteEventsAreAdministrative(t *testing.T) {
 	for _, typ := range []string{TypeUserInvited, TypeUserInviteUpdated, TypeUserInviteWithdrawn, TypeUserDeactivated, TypeUserReactivated, TypeUserRemoved, TypeServiceAccountDeleted} {
-		if !IsAdminType(typ) || !slices.Contains(auditTypes, typ) {
-			t.Errorf("%s is not an administrative audit type", typ)
+		if !IsAdminType(typ) {
+			t.Errorf("%s is not an administrative type", typ)
 		}
 	}
 }
@@ -112,27 +111,6 @@ func TestAdminEventsAreReadableByAdminsOnly(t *testing.T) {
 	}
 }
 
-func TestScopeAdminListsOnlyAdminEventsAndRefusesOthers(t *testing.T) {
-	r := newRig(t)
-	changed := r.appendAdmin(t, editorActor, TypeWebhookCreated)
-	r.append(t, Entry{Type: TypeFindingCreated})
-	filter := Filter{AdminOnly: true}
-
-	got, _, err := r.store.List(t.Context(), r.audience(t, admin), filter, "", 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(seqsOf(got), []int64{changed}) {
-		t.Fatalf("got %v, want [%d]", seqsOf(got), changed)
-	}
-	if _, _, err := r.store.List(t.Context(), r.audience(t, reader), filter, "", 100); !errors.Is(err, ErrAdminScope) {
-		t.Fatalf("list err = %v, want ErrAdminScope", err)
-	}
-	if _, _, _, err := r.store.Next(t.Context(), r.audience(t, reader), filter, At(0, 0), 100); !errors.Is(err, ErrAdminScope) {
-		t.Fatalf("next err = %v, want ErrAdminScope", err)
-	}
-}
-
 func TestListNarrowsByActorAndByTime(t *testing.T) {
 	r := newRig(t)
 	other := actor.Of(reader, origin.Origin{}, "")
@@ -166,24 +144,22 @@ func TestListNarrowsByActorAndByTime(t *testing.T) {
 	}
 }
 
-func TestParseFilterReadsTheAdminFilters(t *testing.T) {
+func TestParseFilterReadsTheActorAndUntilFilters(t *testing.T) {
 	f, err := ParseFilter(url.Values{
 		"actor_id": {"11111111-1111-4111-8111-111111111111"},
-		"scope":    {"admin"},
 		"until":    {"2026-11-02T10:00:00Z"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.ActorID.String() != "11111111-1111-4111-8111-111111111111" || !f.AdminOnly || !f.Until.Equal(time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)) {
+	if f.ActorID.String() != "11111111-1111-4111-8111-111111111111" || !f.Until.Equal(time.Date(2026, 11, 2, 10, 0, 0, 0, time.UTC)) {
 		t.Fatalf("got %+v", f)
 	}
 }
 
-func TestParseFilterRefusesBadAdminFilters(t *testing.T) {
+func TestParseFilterRefusesBadActorAndUntilFilters(t *testing.T) {
 	for name, q := range map[string]url.Values{
 		"actor":         {"actor_id": {"nope"}},
-		"scope":         {"scope": {"everything"}},
 		"until":         {"until": {"tomorrow"}},
 		"until no zone": {"until": {"2026-11-02T10:00:00"}},
 	} {

@@ -94,7 +94,7 @@ func (h *AuditHandler) serve(c *gin.Context) {
 	header.Set("X-Accel-Buffering", "no")
 	c.Status(http.StatusOK)
 	defer func() { _ = http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}) }()
-	if !write(c, fmt.Sprintf("retry: %d\n\n", retryMilliseconds)) || !writeEvent(c, "ready", struct{}{}) {
+	if !write(c, fmt.Sprintf("retry: %d\n\n", retryMilliseconds)) || !write(c, "id: "+follow.Start()+"\nevent: ready\ndata: {}\n\n") {
 		return
 	}
 	h.pump(c, follow, follower)
