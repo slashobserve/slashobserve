@@ -31,6 +31,8 @@ const (
 	LogFormatText LogFormat = "text"
 )
 
+const ipv4InIPv6Bits = 96
+
 const (
 	defaultActivityRetention = 4320 * time.Hour
 	minActivityRetention     = 24 * time.Hour
@@ -480,6 +482,14 @@ func parseProxyEntry(item string) (netip.Prefix, error) {
 	prefix, err := netip.ParsePrefix(item)
 	if err != nil || prefix.Addr().Zone() != "" {
 		return netip.Prefix{}, errNotAddress
+	}
+	bits := prefix.Bits()
+	if prefix.Addr().Is4In6() {
+		bits -= ipv4InIPv6Bits
+		prefix = netip.PrefixFrom(prefix.Addr().Unmap(), max(bits, 0))
+	}
+	if bits <= 0 {
+		return netip.Prefix{}, errors.New("a range with no network bits would trust every address")
 	}
 	return prefix.Masked(), nil
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -46,7 +47,7 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 			Initiator: InitiatorPerson,
 			Auth:      Auth{Method: AuthNone},
 			Origin:    Origin{Kind: unauthenticatedOrigin(c.Request)},
-			IP:        clientAddr(c.ClientIP()),
+			IP:        requestAddr(c),
 			UserAgent: c.Request.UserAgent(),
 			Method:    method,
 			Route:     template,
@@ -224,12 +225,23 @@ func unauthenticatedOrigin(r *http.Request) string {
 	return OriginWeb
 }
 
+func requestAddr(c *gin.Context) netip.Addr {
+	if resolved := c.ClientIP(); resolved != "" {
+		return clientAddr(resolved)
+	}
+	host, _, err := net.SplitHostPort(c.Request.RemoteAddr)
+	if err != nil {
+		host = c.Request.RemoteAddr
+	}
+	return clientAddr(host)
+}
+
 func clientAddr(address string) netip.Addr {
 	addr, err := netip.ParseAddr(address)
 	if err != nil {
 		return netip.Addr{}
 	}
-	return addr.Unmap()
+	return addr.WithZone("").Unmap()
 }
 
 func traceID(traceparent string) string {
