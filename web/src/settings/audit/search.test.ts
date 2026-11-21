@@ -6,6 +6,7 @@ import {
   auditWindow,
   followsNow,
   readAuditSearch,
+  sameSearchLater,
 } from "./search"
 
 const id = "0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"
@@ -94,5 +95,37 @@ describe("auditWindow", () => {
     expect(auditWindow("now", "now-1h", now, "UTC").problem).toMatch(
       /ends before it starts/
     )
+  })
+})
+
+describe("sameSearchLater", () => {
+  const day = {
+    q: "origin:mcp",
+    since: "2026-11-20T06:00:00.000Z",
+    until: "2026-11-21T06:00:00.000Z",
+  }
+
+  test("holds for the same query and span moved forward", () => {
+    expect(
+      sameSearchLater(day, {
+        ...day,
+        since: "2026-11-20T07:00:00.000Z",
+        until: "2026-11-21T07:00:00.000Z",
+      })
+    ).toBe(true)
+  })
+
+  test("does not hold for another query, span or an earlier window", () => {
+    expect(sameSearchLater(day, { ...day, q: "" })).toBe(false)
+    expect(
+      sameSearchLater(day, { ...day, since: "2026-11-14T06:00:00.000Z" })
+    ).toBe(false)
+    expect(
+      sameSearchLater(day, {
+        ...day,
+        since: "2026-11-20T05:00:00.000Z",
+        until: "2026-11-21T05:00:00.000Z",
+      })
+    ).toBe(false)
   })
 })

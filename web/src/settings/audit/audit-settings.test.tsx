@@ -1,6 +1,8 @@
 import { act, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { QueryClientProvider } from "@tanstack/react-query"
+
 import { renderWithProviders } from "@/test/render"
 
 import { AuditSettings } from "./audit-settings"
@@ -120,6 +122,30 @@ function renderPage(view: Partial<AuditView> = {}) {
     <AuditSettings view={{ ...defaults, ...view }} onView={onView} />
   )
   return { onView, user }
+}
+
+const hour = 3_600_000
+
+function shiftClock(): (by: number) => void {
+  const real = Date.now.bind(Date)
+  let shift = 0
+  vi.spyOn(Date, "now").mockImplementation(() => real() + shift)
+  return (by) => {
+    shift += by
+  }
+}
+
+function listRequests(): URL[] {
+  return fetchMock.mock.calls
+    .map(([request]) => {
+      const raw = typeof request === "string" ? request : request.url
+      return new URL(raw, "http://localhost")
+    })
+    .filter((url) => url.pathname === "/api/v1/audit/events")
+}
+
+function untilOf(url: URL): number {
+  return Date.parse(url.searchParams.get("until") ?? "")
 }
 
 beforeEach(() => {
@@ -283,6 +309,41 @@ describe("AuditSettings", () => {
     expect(streamRequests[0].init?.signal?.aborted).toBe(true)
   })
 
+  it("reloads the list up to now when Live turns on", async () => {
+    serve()
+    const advance = shiftClock()
+    const { user } = renderPage()
+    await screen.findByText("No audit events in the last 24 hours.")
+    const opened = untilOf(listRequests()[0])
+    advance(hour)
+    await user.click(screen.getByRole("switch"))
+    await waitFor(() => expect(listRequests()).toHaveLength(2))
+    expect(untilOf(listRequests()[1]) - opened).toBeGreaterThanOrEqual(hour)
+  })
+
+  it("reloads the list up to now when the view changes from outside", async () => {
+    serve()
+    const advance = shiftClock()
+    const { queryClient, rerender } = renderWithProviders(
+      <AuditSettings view={defaults} onView={vi.fn()} />
+    )
+    await screen.findByText("No audit events in the last 24 hours.")
+    const opened = untilOf(listRequests()[0])
+    advance(hour)
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <AuditSettings
+          view={{ ...defaults, q: "origin:mcp" }}
+          onView={vi.fn()}
+        />
+      </QueryClientProvider>
+    )
+    await waitFor(() => expect(listRequests()).toHaveLength(2))
+    const [, back] = listRequests()
+    expect(back.searchParams.get("q")).toBe("origin:mcp")
+    expect(untilOf(back) - opened).toBeGreaterThanOrEqual(hour)
+  })
+
   it("says Live is off when the caller already holds five streams", async () => {
     serve({ stream: () => refusedStream(429, "too_many_streams") })
     const { user } = renderPage()
@@ -323,7 +384,7 @@ describe("AuditSettings", () => {
     })
     act(() => fresh.frame("ready", {}))
     expect(await screen.findByText(/Live follow restarted/)).toBeInTheDocument()
-    await waitFor(() => expect(lists).toBe(2))
+    await waitFor(() => expect(lists).toBe(3))
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true")
   })
 })

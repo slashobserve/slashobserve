@@ -1,3 +1,4 @@
+import type { AuditWindowKey } from "@/api/keys"
 import { isTimeValue, requestZone, resolveTime } from "@/lib/time"
 
 export type AuditView = {
@@ -97,4 +98,19 @@ export function auditWindow(
     since: new Date(since).toISOString(),
     until: new Date(until).toISOString(),
   }
+}
+
+function spanOf(window: AuditWindowKey): number {
+  return Date.parse(window.until) - Date.parse(window.since)
+}
+
+export function sameSearchLater(
+  previous: AuditWindowKey,
+  next: AuditWindowKey
+): boolean {
+  return (
+    previous.q === next.q &&
+    spanOf(previous) === spanOf(next) &&
+    Date.parse(next.until) >= Date.parse(previous.until)
+  )
 }

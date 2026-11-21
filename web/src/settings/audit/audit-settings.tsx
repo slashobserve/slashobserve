@@ -28,6 +28,7 @@ import {
   defaultFrom,
   defaultTo,
   followsNow,
+  sameSearchLater,
   type AuditView,
 } from "./search"
 import { type AuditEvent, withLiveEvent } from "./stream"
@@ -42,7 +43,11 @@ const auditRanges = [
 const restartedText =
   "Live follow restarted: the stream could not resume from the last event it showed, so the list was reloaded up to now."
 
-type Live = { key: string; rows: readonly AuditEvent[] }
+type Frame = { key: string; anchor: number; live: readonly AuditEvent[] }
+
+function freshFrame(key: string): () => Frame {
+  return () => ({ key, anchor: Date.now(), live: [] })
+}
 
 function viewKey(view: AuditView): string {
   return JSON.stringify([view.q, view.from, view.to])
@@ -56,8 +61,10 @@ export function AuditSettings({
   onView: (next: AuditView) => void
 }) {
   const key = viewKey(view)
-  const [anchor, setAnchor] = useState(() => Date.now())
-  const refresh = () => setAnchor(Date.now())
+  const [frame, setFrame] = useState<Frame>(freshFrame(key))
+  if (frame.key !== key) setFrame(freshFrame(key))
+  const anchor = frame.anchor
+  const refresh = () => setFrame(freshFrame(key))
   const search = (next: AuditView) => {
     refresh()
     setLiveNotice(null)
@@ -76,15 +83,21 @@ export function AuditSettings({
   const [draft, setDraft] = useState({ applied: view.q, text: view.q })
   if (draft.applied !== view.q) setDraft({ applied: view.q, text: view.q })
 
-  const liveKey = `${key}@${anchor}`
   const [liveOn, setLiveOn] = useState(false)
   const [liveNotice, setLiveNotice] = useState<string | null>(null)
-  const [live, setLive] = useState<Live>({ key: liveKey, rows: [] })
-  const liveRows = live.key === liveKey ? live.rows : []
+  const liveRows = frame.key === key ? frame.live : []
 
   const events = useInfiniteQuery({
     ...auditEventsQuery(window ?? { q: "", since: "", until: "" }),
     enabled: window !== null,
+    placeholderData: (previous, previousQuery) => {
+      const before = previousQuery?.queryKey[2]
+      return window !== null &&
+        before !== undefined &&
+        sameSearchLater(before, window)
+        ? previous
+        : undefined
+    },
   })
   const loaded = useMemo(
     () => events.data?.pages.flatMap((page) => page.events) ?? [],
@@ -105,13 +118,9 @@ export function AuditSettings({
     q: view.q,
     enabled: following,
     onEvent: (event) =>
-      setLive((current) => ({
-        key: liveKey,
-        rows: withLiveEvent(
-          current.key === liveKey ? current.rows : [],
-          event,
-          loadedIds
-        ),
+      setFrame((current) => ({
+        ...current,
+        live: withLiveEvent(current.live, event, loadedIds),
       })),
     onRestart: () => {
       refresh()
@@ -166,6 +175,7 @@ export function AuditSettings({
             disabled={!canFollow}
             aria-describedby={`${liveId}-hint`}
             onCheckedChange={(next) => {
+              if (next) refresh()
               setLiveOn(next)
               setLiveNotice(null)
             }}
