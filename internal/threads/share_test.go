@@ -69,6 +69,34 @@ func (r *rig) blockCount(t *testing.T, observation pgtype.UUID) int {
 	return n
 }
 
+type auditLinks struct {
+	thread, run, finding string
+}
+
+func (r *rig) auditLinksOf(t *testing.T, action string) []auditLinks {
+	t.Helper()
+	rows, err := r.db.SQLDB(t).QueryContext(t.Context(), `SELECT coalesce(thread_id::text, ''),
+		CASE WHEN target_kind = 'run' THEN target_id ELSE coalesce(data->>'run_id', '') END,
+		CASE WHEN target_kind = 'finding' THEN target_id ELSE coalesce(data->>'finding_id', '') END
+		FROM audit_events WHERE action = $1 ORDER BY occurred_at, seq`, action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []auditLinks
+	for rows.Next() {
+		var l auditLinks
+		if err := rows.Scan(&l.thread, &l.run, &l.finding); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, l)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
 func (r *rig) findingOfRun(t *testing.T, by auth.Principal, run pgtype.UUID) (findings.Finding, error) {
 	t.Helper()
 	f, found, err := r.findings.ForRequest(reading(t.Context()), by, run)
@@ -126,14 +154,21 @@ func TestSharingAPrivateDashboardAnswerOpensAThreadThatTheDashboardsReadersRead(
 	if len(events) != 1 || events[0].TargetKind != "run" || events[0].TargetID != run.String() || events[0].ActorID != testUserID {
 		t.Fatalf("run.share events = %+v, want one for the run by its requester", events)
 	}
+	if links := r.auditLinksOf(t, "run.share"); len(links) != 1 || links[0] != (auditLinks{thread: shared.Thread.ID, run: run.String(), finding: f.ID}) {
+		t.Fatalf("run.share links = %+v, want the thread, the run and the finding %s", links, f.ID)
+	}
 }
 
 func TestSharingAPrivateObservationAnswerWritesItOntoThePage(t *testing.T) {
 	r := newShareRig(t)
 	observation := r.filedObservationIn(t, testUser, pgtype.UUID{})
 	id := observation.String()
+	before := r.blockCount(t, observation)
 	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
 	blocks := r.blockCount(t, observation)
+	if blocks != before {
+		t.Fatalf("the private ask and its answer changed the page from %d to %d blocks", before, blocks)
+	}
 
 	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
 	if err != nil {
@@ -141,6 +176,13 @@ func TestSharingAPrivateObservationAnswerWritesItOntoThePage(t *testing.T) {
 	}
 	if after := r.blockCount(t, observation); after != blocks+2 {
 		t.Fatalf("blocks %d -> %d, want the text and one evidence block", blocks, after)
+	}
+	var kinds string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT coalesce(string_agg(kind, ',' ORDER BY position), '') FROM observation_blocks WHERE observation_id = $1 AND run_id = $2`, observation, run).Scan(&kinds); err != nil {
+		t.Fatal(err)
+	}
+	if kinds != "text,panel" {
+		t.Fatalf("the shown answer wrote blocks %v, want its text and its evidence panel", kinds)
 	}
 	f, err := r.findingOfRun(t, testUser, run)
 	if err != nil || f.ObservationID != id {

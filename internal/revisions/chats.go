@@ -42,9 +42,10 @@ type ChatOwner struct {
 }
 
 type ChatTurn struct {
-	ID     pgtype.UUID
-	State  State
-	Prompt string
+	ID            pgtype.UUID
+	State         State
+	Prompt        string
+	Investigation bool
 }
 
 type ChatFilter struct {
@@ -167,7 +168,7 @@ func (s *Service) Chats(ctx context.Context, by auth.Principal, f ChatFilter, li
 			ReadOnly:       !reader.owns(row.OwnerKind, row.OwnerID),
 		}
 		if row.LastTurnID.Valid {
-			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt}
+			chats[i].LastTurn = &ChatTurn{ID: row.LastTurnID, State: State(row.LastTurnState), Prompt: row.LastTurnPrompt, Investigation: row.LastTurnInvestigation}
 		}
 	}
 	s.recordList(ctx, actionChatList, f.scope())
@@ -214,7 +215,7 @@ func (s *Service) Chat(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 	if len(turns) > 0 {
 		first = turns[0].Prompt
 		last := turns[len(turns)-1]
-		chat.LastTurn = &ChatTurn{ID: last.ID, State: State(last.State), Prompt: last.Prompt}
+		chat.LastTurn = &ChatTurn{ID: last.ID, State: State(last.State), Prompt: last.Prompt, Investigation: last.Investigation}
 	}
 	chat.Title = chatTitle(row.Title, first)
 	s.recordChatView(ctx, chat)

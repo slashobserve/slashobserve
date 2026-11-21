@@ -40,7 +40,12 @@ function chat(id: string, title: string, over: Partial<Chat> = {}): Chat {
     created_at: "2026-11-20T10:00:00Z",
     last_turn_at: "2026-11-20T10:05:00Z",
     turns: 2,
-    last_turn: { id: `${id}-t2`, state: "succeeded", prompt: "x" },
+    last_turn: {
+      id: `${id}-t2`,
+      state: "succeeded",
+      prompt: "x",
+      investigation: false,
+    },
     owner: { kind: "user", name: "Ada" },
     read_only: false,
     ...over,

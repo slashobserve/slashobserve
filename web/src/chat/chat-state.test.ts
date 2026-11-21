@@ -21,6 +21,7 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
       name: "Ada Lovelace",
     },
     intent: "apply",
+    investigation: false,
     base_version: null,
     comment_id: null,
     trigger: "person",

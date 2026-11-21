@@ -22,21 +22,22 @@ const (
 )
 
 type agentRequest struct {
-	ID          string        `json:"id"`
-	Kind        string        `json:"kind"`
-	Intent      string        `json:"intent"`
-	Trigger     string        `json:"trigger"`
-	Title       string        `json:"title"`
-	Prompt      string        `json:"prompt"`
-	DashboardID *string       `json:"dashboard_id"`
-	Status      string        `json:"status"`
-	State       string        `json:"state"`
-	ResultVer   *int          `json:"result_version"`
-	URL         *string       `json:"url"`
-	Error       *string       `json:"error"`
-	Steps       []agentStep   `json:"steps"`
-	LiveText    *string       `json:"live_text"`
-	Usage       *requestUsage `json:"usage"`
+	ID            string        `json:"id"`
+	Kind          string        `json:"kind"`
+	Intent        string        `json:"intent"`
+	Investigation bool          `json:"investigation"`
+	Trigger       string        `json:"trigger"`
+	Title         string        `json:"title"`
+	Prompt        string        `json:"prompt"`
+	DashboardID   *string       `json:"dashboard_id"`
+	Status        string        `json:"status"`
+	State         string        `json:"state"`
+	ResultVer     *int          `json:"result_version"`
+	URL           *string       `json:"url"`
+	Error         *string       `json:"error"`
+	Steps         []agentStep   `json:"steps"`
+	LiveText      *string       `json:"live_text"`
+	Usage         *requestUsage `json:"usage"`
 
 	QueuePosition *int            `json:"queue_position"`
 	FailureCode   *string         `json:"failure_code"`
@@ -285,6 +286,13 @@ func costText(usage *requestUsage) string {
 	}
 }
 
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
 func printRequest(out *output, req agentRequest) {
 	version := "-"
 	if req.ResultVer != nil {
@@ -295,6 +303,7 @@ func printRequest(out *output, req agentRequest) {
 		{"Status", text(req.Status)},
 		{"State", text(req.State)},
 		{"Intent", text(req.Intent)},
+		{"Investigation", yesNo(req.Investigation)},
 		{"Trigger", text(req.Trigger)},
 		{"Cost", costText(req.Usage)},
 		{"Dashboard", orDash(req.DashboardID)},
