@@ -29,6 +29,7 @@ type agentRequest struct {
 	Trigger       string        `json:"trigger"`
 	Title         string        `json:"title"`
 	Prompt        string        `json:"prompt"`
+	Redacted      bool          `json:"redacted"`
 	DashboardID   *string       `json:"dashboard_id"`
 	Status        string        `json:"status"`
 	State         string        `json:"state"`
@@ -286,6 +287,15 @@ func costText(usage *requestUsage) string {
 	}
 }
 
+const privateChatWords = "hidden, asked in a private chat"
+
+func wordsOf(req agentRequest, words string) string {
+	if req.Redacted {
+		return privateChatWords
+	}
+	return dash(words)
+}
+
 func yesNo(b bool) string {
 	if b {
 		return "yes"
@@ -310,8 +320,8 @@ func printRequest(out *output, req agentRequest) {
 		{"Version", version},
 		{"URL", orDash(req.URL)},
 		{"Error", orDash(req.Error)},
-		{"Title", dash(req.Title)},
-		{"Prompt", dash(req.Prompt)},
+		{"Title", wordsOf(req, req.Title)},
+		{"Prompt", wordsOf(req, req.Prompt)},
 	}
 	if req.Finding != nil {
 		fields = append(fields, [2]string{"Finding", text(req.Finding.Title)}, [2]string{"Finding URL", orDash(&req.Finding.URL)})

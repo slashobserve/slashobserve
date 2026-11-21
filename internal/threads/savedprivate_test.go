@@ -1,6 +1,7 @@
 package threads
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -125,5 +127,46 @@ func TestASharedSavedPrivateAnswerSaysItWasWrittenOntoThePage(t *testing.T) {
 	replies := r.runReplies(t, shared.Thread.ID)
 	if len(replies) != 1 || !strings.HasPrefix(replies[0].Body, "Wrote the answer into this observation: ") {
 		t.Fatalf("replies after the share = %+v", replies)
+	}
+}
+
+func (r *rig) runSeenBy(t *testing.T, who auth.Principal, run pgtype.UUID) (redacted bool, prompt, title, asker string) {
+	t.Helper()
+	raw, err := revisions.NewRunDesk(r.revisions, revisions.ObserveOptions{}).Run(reading(t.Context()), run, who, 0)
+	if err != nil {
+		t.Fatalf("%s reads run %v: %v", who.Name, run, err)
+	}
+	var shown struct {
+		Redacted    bool   `json:"redacted"`
+		Prompt      string `json:"prompt"`
+		Title       string `json:"title"`
+		RequestedBy struct {
+			Name string `json:"name"`
+		} `json:"requested_by"`
+	}
+	if err := json.Unmarshal(raw, &shown); err != nil {
+		t.Fatal(err)
+	}
+	return shown.Redacted, shown.Prompt, shown.Title, shown.RequestedBy.Name
+}
+
+func TestAReaderOfTheObservationAPrivateAnswerWasSavedIntoReadsTheRunWithoutItsQuestion(t *testing.T) {
+	r := newShareRig(t)
+	about := r.filedObservationIn(t, testUser, foldertest.Open(t, r.db, "Shared"))
+	id := about.String()
+	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
+	r.savedAsObservation(t, run, about)
+
+	if redacted, prompt, title, asker := r.runSeenBy(t, otherEditor, run); !redacted || prompt != "" || title != "" || asker != testUser.Name {
+		t.Fatalf("a reader of the saved answer sees redacted %v, prompt %q, title %q, asker %q", redacted, prompt, title, asker)
+	}
+	if redacted, prompt, _, _ := r.runSeenBy(t, testUser, run); redacted || !strings.Contains(prompt, sharedWord) {
+		t.Fatalf("the requester sees redacted %v and prompt %q", redacted, prompt)
+	}
+	if _, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run}); err != nil {
+		t.Fatal(err)
+	}
+	if redacted, prompt, _, _ := r.runSeenBy(t, otherEditor, run); redacted || !strings.Contains(prompt, sharedWord) {
+		t.Fatalf("after the share, a reader sees redacted %v and prompt %q, want the question it was asked in the thread", redacted, prompt)
 	}
 }

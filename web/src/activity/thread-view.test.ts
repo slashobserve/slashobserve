@@ -86,6 +86,7 @@ function request(overrides: Partial<Revision> = {}): Revision {
     continued_by: null,
     retried_by: null,
     continue_note: null,
+    redacted: false,
     ...overrides,
   }
 }

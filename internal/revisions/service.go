@@ -1155,6 +1155,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 		OriginClient:  row.OriginClient.String,
 		AssignedKind:  AssigneeKind(row.AssignedKind),
 		AssignedID:    row.AssignedID.String(),
+		audience:      audienceOf(row),
 	}
 	if row.CommentID.Valid {
 		rev.CommentID = row.CommentID.String()
