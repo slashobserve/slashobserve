@@ -25,6 +25,7 @@ export type Draft = {
   replyToId?: string
   range?: { from: string; to: string }
   revises?: boolean
+  toChosen?: boolean
 }
 
 export type Opens = "chat" | "same"
@@ -34,7 +35,7 @@ export type Send =
       via: "thread.open"
       target: string
       body: string
-      to: Delivery["to"]
+      to?: Delivery["to"]
       clientId: string
       anchor?: Anchor
       panelId?: string
@@ -44,7 +45,7 @@ export type Send =
       via: "thread.reply"
       threadId: string
       body: string
-      to: Delivery["to"]
+      to?: Delivery["to"]
       clientId: string
       blockId?: string
       replyToId?: string
@@ -143,18 +144,28 @@ function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
   }
 }
 
+function namedRecipient(
+  place: Place,
+  delivery: Delivery,
+  draft: Draft
+): { to?: Delivery["to"] } {
+  const serverDecides = place.kind === "thread" && draft.toChosen !== true
+  return serverDecides ? {} : { to: delivery.to }
+}
+
 function threadSend(
   place: Place,
   subject: Subject | null,
   delivery: Delivery,
   draft: Draft
 ): Planned {
+  const recipient = namedRecipient(place, delivery, draft)
   if (place.kind === "thread" && place.threadId !== null) {
     return {
       via: "thread.reply",
       threadId: place.threadId,
       body: draft.body,
-      to: delivery.to,
+      ...recipient,
       clientId: draft.clientId,
       ...(draft.target?.blockId === undefined
         ? {}
@@ -168,7 +179,7 @@ function threadSend(
     via: "thread.open",
     target: threadTargetOf(subject),
     body: draft.body,
-    to: delivery.to,
+    ...recipient,
     clientId: draft.clientId,
     ...(target.anchor === undefined ? {} : { anchor: target.anchor }),
     ...(subject.kind === "dashboard" && target.panelId !== undefined

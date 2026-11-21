@@ -131,7 +131,9 @@ With Comment but not Edit, what the agent builds becomes a [proposal](../concept
 - **From a thread.** Choose **Reply** on a comment: the box at the bottom of the card shows "Replying in" and the panel or dashboard, and **On** hides.
   Write the instruction with the mention, and send; the box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
   The agent gets the earlier messages of the thread as context.
-  The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention, unless the reply mentions a person or someone sent a message to everyone through the API, MCP or the CLI.
+  The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention.
+  A reply that mentions a person goes to the team and starts nothing, and the thread keeps its agent for the next reply.
+  A message someone sent to everyone, by turning the "To:" chip or through the API, MCP or the CLI, turns the thread's agent off until a message asks an agent again.
 
 Under the form the card says "Observe Agent is working on it" with a link to the run, "`<name>` was asked" for a connected agent, or why no run started, for example that the dashboard already has 5 runs waiting.
 The comment is saved in every case, and a refusal never loses it.

@@ -160,7 +160,7 @@ describe("ActivityComposer", () => {
     })
   })
 
-  it("posts a plain comment on a panel to everyone with a client id", async () => {
+  it("posts a plain comment on a panel with a client id and leaves the recipient to the server", async () => {
     const posts = stubServer()
     const { user } = renderComposer({
       target: { kind: "panel", panelId: "latency" },
@@ -173,7 +173,6 @@ describe("ActivityComposer", () => {
       body: {
         target: "dashboard:dashboard",
         body: "Raise the threshold",
-        to: "everyone",
         client_id: expect.any(String),
         panel_id: "latency",
       },
@@ -210,6 +209,20 @@ describe("ActivityComposer", () => {
     expect(posts[0].body).toMatchObject({ to: "agent" })
   })
 
+  it("keeps the thread's agent on when a person is mentioned in a reply", async () => {
+    const posts = stubServer()
+    const { user } = renderComposer({
+      draft:
+        "@[Alice](user:0b7e6a51-2c3d-4e5f-8a9b-0c1d2e3f4a5b) can you look?",
+      replying: { ...thread, agent: { kind: "builtin", id: null } },
+    })
+    expect(within(await form()).getByText("To: everyone here")).toBeVisible()
+    await user.click(within(await form()).getByRole("button", { name: "Send" }))
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].path).toBe("/api/v1/threads/t9/messages")
+    expect(posts[0].body).not.toHaveProperty("to")
+  })
+
   it("opens addressed to the agent when the agent is asked from a panel, and lets the person turn it back", async () => {
     stubServer()
     useActivityStore.getState().setAskingAgent(true)
@@ -243,8 +256,8 @@ describe("ActivityComposer", () => {
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toMatchObject({
       body: "@observe raise the threshold",
-      to: "agent",
     })
+    expect(posts[0].body).not.toHaveProperty("to")
     expect(
       await within(await form()).findByText(/Observe Agent is working on it/)
     ).toBeVisible()

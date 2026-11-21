@@ -69,6 +69,7 @@ describe("askAboutPanel", () => {
       {
         body: "why is this slow",
         clientId: "k1",
+        toChosen: true,
         target: { panelId: state.panel },
       }
     )

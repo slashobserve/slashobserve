@@ -123,10 +123,11 @@ describe("planSend into a chat", () => {
 })
 
 describe("planSend into a thread", () => {
-  it("replies in the open thread with the chosen recipient", () => {
+  it("replies in the open thread with the recipient the person chose", () => {
     expect(
       planSend(openThread, dashboard, toEveryone, {
         ...draft,
+        toChosen: true,
         replyToId: "m1",
         target: { blockId: "b1" },
       })
@@ -141,10 +142,34 @@ describe("planSend into a thread", () => {
     })
   })
 
+  it("leaves the recipient of a thread message to the server unless the person chose it", () => {
+    expect(planSend(openThread, dashboard, toEveryone, draft)).toEqual({
+      via: "thread.reply",
+      threadId: "t1",
+      body: "why",
+      clientId: "k1",
+    })
+    expect(planSend(newThread, dashboard, toAgent, draft)).not.toHaveProperty(
+      "to"
+    )
+  })
+
+  it("names the recipient of a canvas message, which has no thread rule", () => {
+    expect(
+      planSend(
+        { kind: "canvas", tool: "comment" },
+        dashboard,
+        toEveryone,
+        draft
+      )
+    ).toMatchObject({ via: "thread.open", to: "everyone" })
+  })
+
   it("opens a dashboard thread on a panel and spot", () => {
     expect(
       planSend(newThread, dashboard, toAgent, {
         ...draft,
+        toChosen: true,
         target: { panelId: "p1", anchor, blockId: "b1" },
       })
     ).toEqual({
@@ -168,7 +193,6 @@ describe("planSend into a thread", () => {
       via: "thread.open",
       target: "observation:o1",
       body: "why",
-      to: "everyone",
       clientId: "k1",
       blockId: "b1",
     })

@@ -434,6 +434,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
       replyToId: input.replyToId,
       range: input.range,
       revises: input.revises,
+      toChosen: chosen.to !== undefined,
     })
     if ("error" in plan) {
       fail({ text: plan.error, invalid: true })

@@ -163,7 +163,7 @@ export function useOpenThread(target: string) {
     networkMode: "always",
     mutationFn: (input: {
       body: string
-      to: "agent" | "everyone"
+      to?: "agent" | "everyone"
       clientId?: string
       version?: number
       panelId?: string | null
@@ -175,7 +175,7 @@ export function useOpenThread(target: string) {
           body: {
             target,
             body: input.body,
-            to: input.to,
+            ...(input.to === undefined ? {} : { to: input.to }),
             ...(input.clientId === undefined
               ? {}
               : { client_id: input.clientId }),
@@ -199,7 +199,7 @@ export function useReplyToThread(target: string) {
     mutationFn: (input: {
       threadId: string
       body: string
-      to: "agent" | "everyone"
+      to?: "agent" | "everyone"
       clientId?: string
       blockId?: string | null
       replyToId?: string | null
@@ -209,7 +209,7 @@ export function useReplyToThread(target: string) {
           params: { path: { thread_id: input.threadId } },
           body: {
             body: input.body,
-            to: input.to,
+            ...(input.to === undefined ? {} : { to: input.to }),
             ...(input.clientId === undefined
               ? {}
               : { client_id: input.clientId }),

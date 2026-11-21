@@ -175,7 +175,6 @@ describe("Discussion", () => {
           path: "/api/v1/threads/t1/messages",
           body: {
             body: "Rolling back now",
-            to: "everyone",
             client_id: expect.any(String),
           },
         },
@@ -196,7 +195,6 @@ describe("Discussion", () => {
           body: {
             target,
             body: "First",
-            to: "everyone",
             client_id: expect.any(String),
           },
         },
@@ -275,7 +273,6 @@ describe("Discussion", () => {
           path: "/api/v1/threads/t1/messages",
           body: {
             body: "@observe why did latency rise",
-            to: "agent",
             client_id: expect.any(String),
           },
         },
@@ -313,7 +310,7 @@ describe("Discussion", () => {
     ).toBeVisible()
   })
 
-  it("sends a message that mentions only a person to everyone", async () => {
+  it("leaves the recipient of a message that mentions only a person to the server", async () => {
     const posts = mockServer({ threads: [thread], messages: () => [earlier] })
     const { user } = renderDiscussion()
     await screen.findByRole("list", { name: "Discussion" })
@@ -323,7 +320,6 @@ describe("Discussion", () => {
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
-      to: "everyone",
       client_id: expect.any(String),
     })
   })
@@ -409,7 +405,6 @@ describe("DiscussionFeed on an observation", () => {
           path: "/api/v1/threads/t1/messages",
           body: {
             body: "Yes",
-            to: "everyone",
             client_id: expect.any(String),
             reply_to_id: "m1",
           },
@@ -432,7 +427,6 @@ describe("DiscussionFeed on an observation", () => {
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toEqual({
       body: "Hi",
-      to: "everyone",
       client_id: expect.any(String),
     })
   })
@@ -453,7 +447,6 @@ describe("DiscussionFeed on an observation", () => {
           body: {
             target,
             body: "Why",
-            to: "everyone",
             client_id: expect.any(String),
             block_id: "b1",
           },
@@ -474,7 +467,6 @@ describe("DiscussionFeed on an observation", () => {
     await waitFor(() => expect(posts).toHaveLength(1))
     expect(posts[0].body).toEqual({
       body: "Hi",
-      to: "everyone",
       client_id: expect.any(String),
     })
   })
