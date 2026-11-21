@@ -49,8 +49,9 @@ They fade in under a mouse or trackpad, and on a touch screen and while the keyb
 ## Observation page keys
 
 An observation page answers `c`, `a` and `Esc` for the canvas, as described in [Comment and ask on the blocks](observations.md#comment-and-ask-on-the-blocks).
-`c` and `a` open the composer or the ask box on the whole panel block under the pointer, or on the one that holds the keyboard focus; with no panel block there, they turn Comment or Ask mode on, and in that mode they turn it off.
-`Esc` closes an open composer or ask box first, and then leaves Comment or Ask mode for Select.
+`c` and `a` open the composer or the ask box on the whole block under the pointer, or on the one that holds the keyboard focus; with no block there, they turn Comment or Ask mode on, and in that mode they turn it off.
+`a` skips a panel block whose panel shows no data.
+`Esc` hides the **Comment** and **Ask** buttons under selected text first, then closes an open composer or ask box, and then leaves Comment or Ask mode for Select; when you have typed, it asks "Discard your draft?" before your text goes.
 The keys do nothing while you move or resize blocks, while you type in a field, and for a person who cannot comment.
 
 ## Two-key shortcuts

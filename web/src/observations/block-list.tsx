@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { CanvasTools } from "@/dashboards/canvas-tools"
+import { HeldDraft } from "@/dashboards/held-draft"
 import { dashboardLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 
@@ -48,12 +49,12 @@ import {
   observationModeTexts,
   takesBlockComments,
   useObservationCanvas,
-  type CanvasPlace,
 } from "./observation-canvas"
 import { RemoveBlockDialog } from "./remove-block-dialog"
 import { RequestedBlock } from "./requested-block"
 import { TextBlock } from "./text-block"
 import { useArrange, type Arrange } from "./use-arrange"
+import { WholeBlockCanvas } from "./whole-block-canvas"
 
 export type Reveal = { id: string; focus: boolean }
 
@@ -62,7 +63,6 @@ type Props = {
   blocks: readonly Block[]
   canAdd: boolean
   canComment: boolean
-  editingBlock?: string | null
   reveal: Reveal | null
   onRevealed: () => void
   onAdded: (blockId: string) => void
@@ -250,14 +250,20 @@ function BlockBody({
     case "panel":
       return <PanelBlock block={block} height={height} onCanvas={onCanvas} />
     case "snapshot":
-      return <SnapshotBlock block={block} height={height} />
+      return (
+        <WholeBlockCanvas block={block} onCanvas={onCanvas}>
+          <SnapshotBlock block={block} height={height} />
+        </WholeBlockCanvas>
+      )
     case "run":
       return (
-        <RunBlock
-          block={block}
-          blocks={blocks}
-          onCite={(id) => focusBlock(id, true)}
-        />
+        <WholeBlockCanvas block={block} onCanvas={onCanvas}>
+          <RunBlock
+            block={block}
+            blocks={blocks}
+            onCite={(id) => focusBlock(id, true)}
+          />
+        </WholeBlockCanvas>
       )
   }
 }
@@ -287,7 +293,7 @@ function BlockSection({
       id={sectionId(block.id)}
       data-block-id={block.id}
       aria-label={blockTitle(block)}
-      tabIndex={-1}
+      tabIndex={onCanvas && block.kind !== "panel" ? 0 : -1}
       className={`group/block relative min-w-0 rounded-card outline-none focus-visible:ring-2 focus-visible:ring-ring ${spanClass[block.width]} ${dragged ? "opacity-60" : ""}`}
     >
       {arrange === null ? null : (
@@ -325,7 +331,6 @@ export function BlockList({
   blocks,
   canAdd,
   canComment,
-  editingBlock = null,
   reveal,
   onRevealed,
   onAdded,
@@ -339,15 +344,11 @@ export function BlockList({
   const canArrange = observation.allowed_actions.includes("update")
   const arrange = canArrange ? arranging : null
   const shown = arrange === null ? blocks : arrange.blocks
-  const place: CanvasPlace = {
-    canComment,
-    arranging: arranging.arranging,
-    editingBlock,
-  }
   const canvasHost = useObservationCanvas({
     observationId: observation.id,
     blocks,
-    ...place,
+    canComment,
+    arranging: arranging.arranging,
   })
 
   useEffect(() => {
@@ -359,14 +360,17 @@ export function BlockList({
 
   if (blocks.length === 0) {
     return (
-      <p
-        id={blocksListId}
-        tabIndex={-1}
-        className="text-[13px] text-muted-foreground outline-none"
-      >
-        Nothing on this page yet. Add a block, or ask @observe in the
-        discussion.
-      </p>
+      <>
+        <p
+          id={blocksListId}
+          tabIndex={-1}
+          className="text-[13px] text-muted-foreground outline-none"
+        >
+          Nothing on this page yet. Add a block, or ask @observe in the
+          discussion.
+        </p>
+        <HeldDraft />
+      </>
     )
   }
 
@@ -390,7 +394,7 @@ export function BlockList({
                   blocks={shown}
                   arrange={arrange}
                   canAdd={canAdd}
-                  onCanvas={takesBlockComments(block, place)}
+                  onCanvas={takesBlockComments(block, canComment)}
                   onAdded={onAdded}
                 />
               ))}

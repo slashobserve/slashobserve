@@ -1,16 +1,12 @@
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { AtSignIcon, MessageSquarePlusIcon } from "lucide-react"
 
 import { AskPins } from "@/comments/ask-pins"
-import { useCanvasHost, type CanvasHost } from "@/comments/canvas-host"
+import {
+  blockSurfaceId,
+  useCanvasHost,
+  type CanvasHost,
+} from "@/comments/canvas-host"
 import { CanvasPins } from "@/comments/canvas-pins"
 import { CanvasSpots } from "@/comments/canvas-spots"
 import type { CanvasSurface } from "@/comments/canvas-target"
@@ -21,9 +17,10 @@ import {
   type DraftTool,
 } from "@/dashboards/canvas-tools"
 import { FindingMarkdown } from "@/findings/finding-markdown"
-import type { Point, Size } from "@/panels/anchors"
+import type { Point } from "@/panels/anchors"
 
 import { blockTitle } from "./block-rows"
+import { useSize } from "./use-size"
 import type { Block } from "./queries"
 import {
   quoteOf,
@@ -36,26 +33,6 @@ import {
 type Offer = { quote: string; at: Point }
 
 const textLayoutType = "observation-text"
-
-function useSize(ref: RefObject<HTMLElement | null>): Size {
-  const [size, setSize] = useState<Size>({ width: 0, height: 0 })
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (element === null) return
-    const measure = () =>
-      setSize((current) =>
-        current.width === element.offsetWidth &&
-        current.height === element.offsetHeight
-          ? current
-          : { width: element.offsetWidth, height: element.offsetHeight }
-      )
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [ref])
-  return size
-}
 
 function selectionOffer(
   selection: Selection | null,
@@ -115,7 +92,7 @@ function TextSurface({
 }) {
   const surfaceRef = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const surfaceId = useId()
+  const surfaceId = blockSurfaceId(block.id)
   const body = useSize(surfaceRef)
   const [layout, setLayout] = useState<TextLayout | null>(null)
   const [offer, setOffer] = useState<Offer | null>(null)
@@ -148,6 +125,18 @@ function TextSurface({
       document.removeEventListener("selectionchange", onSelectionChange)
   }, [])
 
+  useEffect(() => {
+    if (offer === null) return
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      setOffer(null)
+      document.getSelection()?.removeAllRanges()
+    }
+    document.addEventListener("keydown", onKeyDown, true)
+    return () => document.removeEventListener("keydown", onKeyDown, true)
+  }, [offer])
+
   const surface = useMemo<CanvasSurface>(
     () => ({
       module: textAnchors,
@@ -171,6 +160,7 @@ function TextSurface({
     const root = rootRef.current
     const element = surfaceRef.current
     if (root === null || element === null) return
+    if (host.gate.layoutEditing) return setOffer(null)
     const next = selectionOffer(document.getSelection(), root, element)
     if (next !== null && pointing !== "select") open(pointing, next)
     else setOffer(next)

@@ -42,6 +42,8 @@ function turn(
 ): PinTurn & { retried_by: string | null } {
   return {
     retried_by: null,
+    observation_id: null,
+    trigger: "person",
     prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",

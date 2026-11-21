@@ -204,7 +204,7 @@ export function CanvasComposer({
         const store = useCanvasTool.getState()
         if (store.draft !== draft) return
         if (keepsTyping(reason, store.text)) return
-        store.close()
+        store.leave("close")
       }}
     >
       <Composer

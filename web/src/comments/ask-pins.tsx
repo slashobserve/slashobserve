@@ -9,7 +9,12 @@ import { useMyRequests } from "@/observe/queries"
 import type { Point, Size } from "@/panels/anchors"
 
 import { pinName, privatePins, type PrivatePin } from "./ask-spot"
-import { askedHere, sitsOn, type CanvasSubject } from "./canvas-host"
+import {
+  askedHere,
+  isPrivateAsk,
+  sitsOn,
+  type CanvasSubject,
+} from "./canvas-host"
 import {
   placePin,
   revealAnchor,
@@ -163,7 +168,7 @@ export function AskPins({
       stackPins(
         privatePins(
           requests,
-          (turn) => sitsOn(subject, ownerId, turn),
+          (turn) => isPrivateAsk(turn) && sitsOn(subject, ownerId, turn),
           principal.id
         ).flatMap((pin) => {
           const placement = placePin(pin.anchor, body, surface, view)

@@ -129,13 +129,13 @@ function focusDropped(): boolean {
 }
 
 function closeAsk() {
-  useCanvasTool.getState().close()
+  useCanvasTool.getState().leave("close")
 }
 
 function leaveAsk(reason: string) {
   const store = useCanvasTool.getState()
   if (keepsTyping(reason, store.text)) return
-  store.close()
+  store.leave("close")
 }
 
 function useAskText() {

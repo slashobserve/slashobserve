@@ -28,6 +28,10 @@ export function useCanvasHost(): CanvasHost | null {
 
 type Placed = { panel_id?: string | null; block_id?: string | null }
 
+export function blockSurfaceId(blockId: string): string {
+  return `block:${blockId}`
+}
+
 export function ownerOf(subject: CanvasSubject, row: Placed): string | null {
   return (subject.kind === "dashboard" ? row.panel_id : row.block_id) ?? null
 }
@@ -46,6 +50,12 @@ export function isAbout(chat: About, subject: CanvasSubject): boolean {
   return subject.kind === "dashboard"
     ? chat.dashboard_id === subject.id
     : chat.observation_id === subject.id
+}
+
+type Asked = { observation_id: string | null; trigger: string }
+
+export function isPrivateAsk(request: Asked): boolean {
+  return request.observation_id === null && request.trigger === "person"
 }
 
 export function spotTarget(

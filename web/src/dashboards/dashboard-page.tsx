@@ -648,9 +648,9 @@ function DashboardView({
       })
       switch (action.kind) {
         case "leaveMode":
-          return useCanvasTool.getState().setTool("select")
+          return useCanvasTool.getState().leave("select")
         case "enterMode":
-          return useCanvasTool.getState().setTool("comment")
+          return useCanvasTool.getState().leave("comment")
         case "panel":
           commentOnThisPanel(setSearch, action.panelId, onCanvas, composerRef)
           return
@@ -673,9 +673,9 @@ function DashboardView({
       })
       switch (action.kind) {
         case "leaveMode":
-          return useCanvasTool.getState().setTool("select")
+          return useCanvasTool.getState().leave("select")
         case "enterMode":
-          return useCanvasTool.getState().setTool("ask")
+          return useCanvasTool.getState().leave("ask")
         case "panel":
           askAboutThisPanel(setSearch, action.panelId, onCanvas)
           return
@@ -702,7 +702,7 @@ function DashboardView({
         : kiosk
           ? leaveKiosk
           : tool !== "select"
-            ? () => useCanvasTool.getState().setTool("select")
+            ? () => useCanvasTool.getState().leave("select")
             : selectedId !== null
               ? () => useSelectionStore.getState().clear()
               : undefined,

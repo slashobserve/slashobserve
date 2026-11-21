@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { askedHere, isAbout, ownerOf, sitsOn, spotTarget } from "./canvas-host"
+import {
+  askedHere,
+  isAbout,
+  isPrivateAsk,
+  ownerOf,
+  sitsOn,
+  spotTarget,
+} from "./canvas-host"
 
 const dashboard = { kind: "dashboard", id: "d1" } as const
 const observation = { kind: "observation", id: "o1" } as const
@@ -42,6 +49,18 @@ describe("isAbout", () => {
     expect(
       isAbout({ ...onObservation, observation_id: "o2" }, observation)
     ).toBe(false)
+  })
+})
+
+describe("isPrivateAsk", () => {
+  it("takes a person's question that writes into no observation", () => {
+    expect(isPrivateAsk({ observation_id: null, trigger: "person" })).toBe(true)
+    expect(isPrivateAsk({ observation_id: "o1", trigger: "person" })).toBe(
+      false
+    )
+    expect(isPrivateAsk({ observation_id: null, trigger: "mention" })).toBe(
+      false
+    )
   })
 })
 

@@ -13,6 +13,8 @@ export type PinTurn = Pick<
   | "anchor"
   | "requested_by"
   | "created_at"
+  | "observation_id"
+  | "trigger"
 >
 
 type ChatTurn = Pick<

@@ -15,6 +15,7 @@ import type { ObserveRequest } from "@/observe/queries"
 import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
+import type { CanvasSubject } from "./canvas-host"
 import {
   AskPopover,
   noModelAskText,
@@ -158,14 +159,19 @@ function stubServer(turns: ObserveRequest[] = []) {
   return posts
 }
 
+const onDashboard: CanvasSubject = { kind: "dashboard", id: dashboardId }
+const onObservation: CanvasSubject = { kind: "observation", id: "o1" }
+
 function Harness({
   gate,
   openChatId,
   onChatStarted,
+  subject,
 }: {
   gate: GateInput
   openChatId: string | null
   onChatStarted: (chatId: string) => void
+  subject: CanvasSubject
 }) {
   const turn = useCanvasTool((state) => state.openTurn)
   const draft = useCanvasTool((state) => state.draft)
@@ -175,7 +181,7 @@ function Harness({
       <button type="button">Ask origin</button>
       {at === null ? null : (
         <AskPopover
-          subject={{ kind: "dashboard", id: dashboardId }}
+          subject={subject}
           panelTitle="Slow services"
           surfaceRef={createRef<HTMLElement>()}
           gate={gate}
@@ -210,17 +216,20 @@ function renderAsk({
   openChatId = null,
   onChatStarted = vi.fn(),
   queryClient = seeded(),
+  subject = onDashboard,
 }: {
   gate?: GateInput
   openChatId?: string | null
   onChatStarted?: (chatId: string) => void
   queryClient?: ReturnType<typeof testQueryClient>
+  subject?: CanvasSubject
 } = {}) {
   return renderWithProviders(
     <Harness
       gate={gate}
       openChatId={openChatId}
       onChatStarted={onChatStarted}
+      subject={subject}
     />,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -250,6 +259,8 @@ beforeEach(() => {
     postedThreadId: null,
     openTurn: null,
     text: "",
+    leaving: null,
+    detached: null,
   })
 })
 
@@ -437,6 +448,81 @@ describe("AskPopover", () => {
     expect(within(turns).getAllByRole("listitem")[1]).toHaveTextContent(
       "And yesterday?"
     )
+  })
+
+  it.each([
+    ["continues the open chat about this observation", "o1", "c1"],
+    [
+      "starts a new chat when the open one is about another observation",
+      "o2",
+      undefined,
+    ],
+  ])("on an observation block, %s", async (_name, about, chatId) => {
+    const posts = stubServer()
+    const queryClient = seeded()
+    const chat = chatOf([])
+    queryClient.setQueryData(chatKeys.detail("c1"), {
+      ...chat,
+      chat: { ...chat.chat, dashboard_id: null, observation_id: about },
+    })
+    useCanvasTool.setState({
+      tool: "ask",
+      draft: { tool: "ask", ...spot, ownerId: "b1" },
+      openTurn: null,
+    })
+    const { user } = renderAsk({
+      openChatId: "c1",
+      queryClient,
+      subject: onObservation,
+    })
+    await user.type(
+      await screen.findByRole("textbox", { name: "Ask about this" }),
+      "Why is payments slow?{Enter}"
+    )
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0]).toMatchObject({
+      observation_id: "o1",
+      kind: "ask",
+      block_id: "b1",
+      anchor: onRow,
+    })
+    expect(posts[0]).not.toHaveProperty("panel_id")
+    expect(posts[0].chat_id).toBe(chatId)
+  })
+
+  it("lists the turns asked at the same spot of the same observation block", async () => {
+    const onBlock = (id: string, blockId: string, prompt: string) =>
+      ({
+        ...answered,
+        id,
+        prompt,
+        dashboard_id: null,
+        panel_id: null,
+        block_id: blockId,
+        anchor: onRow,
+        retried_by: null,
+      }) as ObserveRequest
+    const turns = [
+      onBlock("r2", "b1", "Why is payments slow?"),
+      onBlock("r3", "b1", "And yesterday?"),
+      onBlock("r4", "b2", "And on the other block?"),
+    ]
+    stubServer(turns)
+    const queryClient = seeded()
+    for (const turn of turns) {
+      queryClient.setQueryData(observeKeys.request(turn.id), turn)
+    }
+    queryClient.setQueryData(chatKeys.detail("c1"), chatOf(turns))
+    openTurn({ ownerId: "b1" })
+    renderAsk({ queryClient, subject: onObservation })
+    const listed = await screen.findByRole("list", {
+      name: "Your chat on this spot",
+    })
+    await waitFor(() =>
+      expect(within(listed).getAllByRole("listitem")).toHaveLength(2)
+    )
+    expect(listed).toHaveTextContent("And yesterday?")
+    expect(listed).not.toHaveTextContent("And on the other block?")
   })
 
   it("closes on Close and clears the open turn", async () => {

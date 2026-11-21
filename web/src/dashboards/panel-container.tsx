@@ -16,7 +16,7 @@ import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
 import { CanvasLayer, useCanvasSurface } from "@/comments/canvas-composer"
 import { AskPins } from "@/comments/ask-pins"
-import { useCanvasHost } from "@/comments/canvas-host"
+import { blockSurfaceId, useCanvasHost } from "@/comments/canvas-host"
 import { CanvasPins } from "@/comments/canvas-pins"
 import { CanvasSpots } from "@/comments/canvas-spots"
 import { pinView } from "@/comments/canvas-target"
@@ -216,7 +216,9 @@ export const PanelContainer = memo(function PanelContainer({
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
-  const surfaceId = useId()
+  const mountId = useId()
+  const surfaceId =
+    source.kind === "block" ? blockSurfaceId(source.blockId) : mountId
   const [layoutStore] = useState(createAnchorLayoutStore)
   const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
