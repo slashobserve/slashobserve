@@ -31,7 +31,7 @@ func newShareRig(t *testing.T) *rig {
 	return r
 }
 
-func (r *rig) privateAnswer(t *testing.T, req revisions.StartRequest, datasourceUID string) pgtype.UUID {
+func (r *rig) privateAnswer(t *testing.T, req revisions.StartRequest, datasourceUID, panel string) pgtype.UUID {
 	t.Helper()
 	prompt := "why does " + sharedWord + " fail"
 	kind := "ask"
@@ -43,7 +43,7 @@ func (r *rig) privateAnswer(t *testing.T, req revisions.StartRequest, datasource
 	if !revisions.PrivateAsk(started.AgentRequest) {
 		t.Fatalf("run %+v is not a private ask", started.AgentRequest)
 	}
-	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = now() WHERE id = $1`, started.ID)
+	r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', result_kind = 'observation', finished_at = now(), panel_id = nullif($2, '') WHERE id = $1`, started.ID, panel)
 	evidence := spec.Panel{ID: "e1", Type: "stat", Title: "errors", Datasource: datasourceUID, Queries: []spec.Query{{Query: "up"}}}
 	_, _, err = r.findings.Save(reading(t.Context()), testUser, findings.SaveInput{
 		AgentRequestID: started.ID, AskDashboardID: started.DashboardID,
@@ -78,8 +78,7 @@ func TestSharingAPrivateDashboardAnswerOpensAThreadThatTheDashboardsReadersRead(
 	r := newShareRig(t)
 	dash := r.createDashboard(t, "rps", "errors")
 	id := dash.String()
-	panel := "errors"
-	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id, PanelID: &panel}, "prom")
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "errors")
 
 	if _, err := r.findingOfRun(t, otherEditor, run); !errors.Is(err, findings.ErrNotFound) {
 		t.Fatalf("another editor read the private answer before the share: %v", err)
@@ -129,7 +128,7 @@ func TestSharingAPrivateObservationAnswerWritesItOntoThePage(t *testing.T) {
 	r := newShareRig(t)
 	observation := r.filedObservationIn(t, testUser, pgtype.UUID{})
 	id := observation.String()
-	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom")
+	run := r.privateAnswer(t, revisions.StartRequest{ObservationID: &id}, "prom", "")
 	blocks := r.blockCount(t, observation)
 
 	shared, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
@@ -161,7 +160,7 @@ func TestAShareIsRefusedWhenTheEvidenceReadsAnAdminsOnlyDatasourceOutsideAnAdmin
 	r.db.Exec(t, `INSERT INTO datasources (uid, type, name, config, audience) VALUES ('audit', 'prometheus', 'Audit', '{}', 'admins')`)
 	dash := r.createDashboard(t)
 	id := dash.String()
-	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "audit")
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "audit", "")
 
 	_, err := r.service.ShareRun(reading(t.Context()), testUser, ShareInput{RunID: run})
 	var restricted *folders.RestrictedContentError
@@ -184,7 +183,7 @@ func TestAShareIntoAThreadMustBeOnTheSubjectAndOnlyAFinishedPrivateAskCanBeShare
 	r := newShareRig(t)
 	dash, other := r.createDashboard(t), r.createDashboard(t)
 	id := dash.String()
-	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom")
+	run := r.privateAnswer(t, revisions.StartRequest{DashboardID: &id}, "prom", "")
 	elsewhere, _, err := r.service.Open(reading(t.Context()), testUser, OpenInput{Target: target(KindDashboard, other), Body: "unrelated"}, nil)
 	if err != nil {
 		t.Fatal(err)

@@ -66,6 +66,8 @@ func (s *Service) ShareRun(ctx context.Context, by auth.Principal, in ShareInput
 		return Shared{}, fmt.Errorf("read agent request: %w", err)
 	case run.RequestedByKind != string(by.Kind) || run.RequestedByID.String() != by.ID:
 		return Shared{}, ErrRunNotFound
+	case !revisions.PrivateAsk(run):
+		return Shared{}, ErrNotShareable
 	}
 	if run.ThreadMessageID.Valid {
 		return s.sharedBefore(ctx, by, run)
@@ -88,9 +90,6 @@ func (s *Service) ShareRun(ctx context.Context, by auth.Principal, in ShareInput
 }
 
 func (s *Service) shareOf(ctx context.Context, by auth.Principal, run dbsqlc.AgentRequest, onTheSubject bool) (share, error) {
-	if !revisions.PrivateAsk(run) {
-		return share{}, ErrNotShareable
-	}
 	sh := share{by: by, run: run}
 	switch {
 	case run.DashboardID.Valid:
