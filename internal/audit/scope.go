@@ -15,11 +15,12 @@ type written struct {
 }
 
 type state struct {
-	mu        sync.Mutex
-	scope     Scope
-	inTx      []written
-	committed bool
-	result    *Result
+	mu           sync.Mutex
+	scope        Scope
+	inTx         []written
+	committed    bool
+	repeatedRead bool
+	result       *Result
 }
 
 type scopeKey struct{}
@@ -69,6 +70,14 @@ func Skip(ctx context.Context) {
 	}
 }
 
+func RepeatedRead(ctx context.Context) {
+	if st := stateOf(ctx); st != nil {
+		st.mu.Lock()
+		defer st.mu.Unlock()
+		st.repeatedRead = true
+	}
+}
+
 func (st *state) wroteInTx(w written) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -85,4 +94,12 @@ func (st *state) unsettled() (bool, []written, *Result) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	return st.committed, append([]written(nil), st.inTx...), st.result
+}
+
+func (st *state) repeatsARead(action Action, outcome Outcome) bool {
+	st.mu.Lock()
+	repeated := st.repeatedRead
+	st.mu.Unlock()
+	spec, known := Lookup(action)
+	return repeated && outcome == OutcomeSuccess && known && spec.Class == ClassAccess
 }

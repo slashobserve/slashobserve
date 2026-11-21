@@ -6,51 +6,60 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/slashobserve/slashobserve/internal/audit"
 )
 
 const (
-	searchMemoWindow = 10 * time.Minute
-	searchMemoLimit  = 10000
+	repeatWindow = 10 * time.Minute
+	repeatLimit  = 10000
 )
 
-type searchKey struct {
+type repeatKey struct {
 	actor audit.Actor
 	query [sha256.Size]byte
 }
 
-type searchMemo struct {
+type sighting struct {
+	at      time.Time
+	request uuid.UUID
+}
+
+type Repeats struct {
 	mu   sync.Mutex
-	seen map[searchKey]time.Time
+	now  func() time.Time
+	seen map[repeatKey]sighting
 }
 
-func newSearchMemo() *searchMemo {
-	return &searchMemo{seen: map[searchKey]time.Time{}}
+func NewRepeats(now func() time.Time) *Repeats {
+	return &Repeats{now: now, seen: map[repeatKey]sighting{}}
 }
 
-func (m *searchMemo) seenRecently(ctx context.Context, query string, now time.Time) bool {
+func (m *Repeats) Repeated(ctx context.Context, query string) bool {
 	scope, ok := audit.ScopeOf(ctx)
 	if !ok {
 		return false
 	}
-	key := searchKey{actor: audit.Actor{Kind: scope.Actor.Kind, ID: scope.Actor.ID}, query: sha256.Sum256([]byte(query))}
+	now := m.now()
+	key := repeatKey{actor: audit.Actor{Kind: scope.Actor.Kind, ID: scope.Actor.ID}, query: sha256.Sum256([]byte(query))}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if at, found := m.seen[key]; found && now.Sub(at) < searchMemoWindow {
-		return true
+	if last, found := m.seen[key]; found && now.Sub(last.at) < repeatWindow {
+		return last.request != scope.RequestID
 	}
-	if len(m.seen) >= searchMemoLimit {
+	if len(m.seen) >= repeatLimit {
 		m.forgetExpired(now)
 	}
-	if len(m.seen) < searchMemoLimit {
-		m.seen[key] = now
+	if len(m.seen) < repeatLimit {
+		m.seen[key] = sighting{at: now, request: scope.RequestID}
 	}
 	return false
 }
 
-func (m *searchMemo) forgetExpired(now time.Time) {
-	for key, at := range m.seen {
-		if now.Sub(at) >= searchMemoWindow {
+func (m *Repeats) forgetExpired(now time.Time) {
+	for key, last := range m.seen {
+		if now.Sub(last.at) >= repeatWindow {
 			delete(m.seen, key)
 		}
 	}
