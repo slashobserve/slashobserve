@@ -79,6 +79,9 @@ Only the fields an action declares are kept, and no event holds a message body, 
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model that ran and the tokens it used, as the run reported them, left out when the run reported none; the activity feed does not carry them |
 | `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The length of the message or prompt in characters, never its text, and the kind of point its thread or turn is anchored to, such as `series` or `position`, left out when there is none |
 
+Events carry no `visible_to` field.
+Who can see a run is recorded by the `run.share` and `run.withdraw` events instead.
+
 ## Query forms
 
 A query is KQL unless it starts with `lucene:` or `{`, and an empty query matches every event in the window.
