@@ -161,7 +161,7 @@ On a screen wider than 1200 px the chat is a pane on the left, which you can wid
 On a smaller screen the chat sits below the build.
 The pane holds the conversation with the status line, such as "Building, 12 of 40 panels", **Cancel run**, and, when the agent stops, **Save what was built** and **Continue**.
 Its heading links to the full chat page at `/c/<request id>`.
-The dashboard is saved once, as one version, and the build page then opens it.
+The dashboard is saved once, as one version, and the build page then opens it with the chat in the Chat tab of its side panel.
 
 If the agent stops before it finishes, the build page keeps what was built for 7 days.
 Choose **Save what was built** to keep it: for a new dashboard it becomes version 1 in the folder the request named, or in your My Dashboards, and for a follow-up it becomes the next version of the dashboard when nobody has saved a version since the build started.
@@ -173,7 +173,7 @@ The button shows only on the newest turn of the chat, so once you have asked for
 
 On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
-On the dashboard page, the running entry shows the same status line and, for you, a **Watch live** link.
+On the dashboard page, the running entry shows the same status line and, for you, an **Open chat** link that opens the request's chat in the Chat tab of the side panel.
 Every turn of the conversation keeps its card and buttons for as long as the build is kept, not only the latest ones.
 
 ### Queue position
@@ -263,6 +263,7 @@ Every request has an id, shown as "Request" and its first eight characters at th
 
 **Copy answer** under an answer puts its Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
 **Ask again** under the latest answer of your own chat sends the same question once more, in the same chat or in the same dashboard, so you can get a fresh answer without retyping it.
+An answer's actions sit in one row: **Make a dashboard**, **Save as observation**, **Copy answer** and **Ask again**, each where it applies.
 It is off while a run goes on.
 While a run works you see its live text, but the answer itself is written in one piece when the agent saves it, so there is nothing to copy until then.
 The model comes from the server's configuration and cannot be picked in the chat box.

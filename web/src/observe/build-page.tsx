@@ -179,15 +179,16 @@ export function BuildPage({ requestId }: { requestId: string }) {
   }
 
   const savedId = request === undefined ? null : savedDashboardId(request)
+  const chatId = request?.chat_id ?? requestId
   useEffect(() => {
     if (savedId === null) return
     void navigate({
       ...dashboardLink(savedId),
-      search: { chat: requestId },
+      search: { tab: "chat", chat: chatId },
       replace: true,
       viewTransition: true,
     })
-  }, [savedId, navigate, requestId])
+  }, [savedId, navigate, chatId])
 
   const answeredId =
     request === undefined
