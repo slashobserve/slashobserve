@@ -40,7 +40,11 @@ const FindingMarkdown = lazy(() =>
 const evidenceHeight = 220
 const threadLabelLength = 60
 
-type AnswerMenu = { shareTarget: string | null; sharedThreadId: string | null }
+type AnswerMenu = {
+  shareTarget: string | null
+  sharedThreadId: string | null
+  showToEveryone?: boolean
+}
 
 export type RevisionAsked = boolean
 
@@ -310,9 +314,11 @@ function AnswerMenuButton({
           </>
         ) : !shareable ? null : (
           <>
-            <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
-              <Choice title="Show to everyone" detail={showDetail(onPage)} />
-            </DropdownMenuItem>
+            {menu.showToEveryone === false ? null : (
+              <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
+                <Choice title="Show to everyone" detail={showDetail(onPage)} />
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={busy}>
                 <Choice
