@@ -56,6 +56,7 @@ type app struct {
 	health            healthOptions
 	investigating     investigateOptions
 	activity          activityOptions
+	audit             auditOptions
 	webhooks          webhooksOptions
 	people            peopleOptions
 	savedSearchList   savedSearchListOptions
@@ -163,7 +164,7 @@ func (a *app) command() *cobra.Command {
 	a.addPromptFlags(root)
 	a.addOpenFlag(root)
 
-	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.saveAnswerCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.metricsGroupCommand(), a.grafanaCommand(), a.activityCommand(), a.skillCommand(), a.webhooksCommand(), a.peopleCommand(), a.teamsCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand(), a.requestsCommand(), a.datasourcesCommand(), a.accessCommand())
+	root.AddCommand(a.completionCommand(), a.statusCommand(), a.cancelCommand(), a.continueCommand(), a.retryCommand(), a.saveAnswerCommand(), a.dashboardsCommand(), a.commentsCommand(), a.importCommand(), a.runCommand(), a.investigateCommand(), a.loginCommand(), a.logoutCommand(), a.versionCommand(), a.annotateCommand(), a.healthCommand(), a.openCommand(), a.doctorCommand(), a.logsCommand(), a.tracesCommand(), a.metricsGroupCommand(), a.grafanaCommand(), a.activityCommand(), a.auditCommand(), a.skillCommand(), a.webhooksCommand(), a.peopleCommand(), a.teamsCommand(), a.savedSearchesCommand(), a.searchCommand(), a.observationsCommand(), a.proposalsCommand(), a.requestsCommand(), a.datasourcesCommand(), a.accessCommand())
 	root.Long += quotedCommandsNote(root)
 	return root
 }

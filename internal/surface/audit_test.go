@@ -34,8 +34,6 @@ var nonHTTPAuditSources = map[audit.Action]string{
 }
 
 var pendingAuditActions = []audit.Action{
-	"audit.export",
-	"audit.search",
 	"chat.create",
 	"chat.delete",
 	"chat.turn",

@@ -3,6 +3,7 @@ package filter
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +100,28 @@ func (q Query) Rows(w Window, p Page) (Compiled, error) {
 	sql := "SELECT " + strings.Join(eventColumns, ", ") + " FROM " + tableName + " WHERE " + where +
 		" ORDER BY occurred_at DESC, id DESC LIMIT " + b.add(fetch)
 	return Compiled{SQL: sql, Args: b.args, Columns: eventColumns, Limit: limit}, nil
+}
+
+type Position struct {
+	Xid uint64
+	Seq int64
+}
+
+func (q Query) Follow(w Window, after Position, limit int) (Compiled, error) {
+	if limit < 1 || limit > MaxRows {
+		return Compiled{}, fmt.Errorf("a follow reads 1 to %d rows at a time", MaxRows)
+	}
+	b := &builder{}
+	where, err := b.where(q, w)
+	if err != nil {
+		return Compiled{}, err
+	}
+	columns := append(slices.Clone(eventColumns), "xid::text")
+	sql := "SELECT " + strings.Join(columns, ", ") + " FROM " + tableName + " WHERE " + where +
+		" AND xid < pg_snapshot_xmin(pg_current_snapshot())" +
+		" AND (xid, seq) > (" + b.add(strconv.FormatUint(after.Xid, 10)) + "::text::xid8, " + b.add(after.Seq) + "::bigint)" +
+		" ORDER BY xid, seq LIMIT " + b.add(limit)
+	return Compiled{SQL: sql, Args: b.args, Columns: columns, Limit: limit}, nil
 }
 
 func (q Query) Facets(w Window, field string, limit int) (Compiled, error) {
