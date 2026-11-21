@@ -1,7 +1,7 @@
 chats:
   get:
     operationId: listChats
-    x-audit: { none: "list read; only scope=all is recorded, as chat.list from the service" }
+    x-audit: { none: "list read; only scope=all is recorded, as chat.list from the service once per caller in 10 minutes" }
     x-surfaces:
       mcp: [list_chats]
       cli: [observe chats list]
@@ -10,6 +10,7 @@ chats:
       A chat is the run of requests one person sent about one thing, started by `POST /observe`; its owner and Admins read it, and nobody else sees it.
       With `scope=mine`, the default, only the caller's chats are listed; `scope=all` lists every person's chats and needs the Admin role, anyone else gets 403.
       `owner` names who started each chat, and `read_only` is true on a chat the caller reads only as an Admin.
+      A `scope=all` list is recorded as `chat.list` once per caller in 10 minutes.
       `dashboard_id` and `observation_id` keep the chats about that dashboard or observation, `pinned` keeps only pinned or only unpinned chats, and `q` matches the title and every prompt case-insensitively.
       Archived chats are left out.
       `title` is the one you gave the first request, else the first line of its prompt cut at a word to 60 characters.
@@ -85,7 +86,7 @@ chats-id:
       Each turn is the agent request it started, as `GET /observe/{id}` returns it without progress steps.
       An Admin reads another person's chat in full and read only: `read_only` is true and no turn has `allowed_actions`.
       A chat of someone else's for anyone but an Admin, an archived chat or an unknown id answers 404.
-      Every read, the owner's included, is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`.
+      A read of someone else's chat is recorded in the audit trail as `chat.view` with the chat as its target and the owner's id as `owner_id`, once per reader and chat in 10 minutes; a refused read is recorded every time, and the owner's own reads are not recorded.
     responses:
       "200":
         description: The chat and its turns.

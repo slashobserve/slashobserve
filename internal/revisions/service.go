@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -43,10 +44,11 @@ type Service struct {
 	principals   Principals
 	access       *folders.Access
 	leaseTTL     time.Duration
+	reads        *audit.Repeats
 }
 
 func NewService(database *db.DB, logger *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: database, logger: logger, leaseTTL: LeaseTTL, metrics: noMetrics{}}
+	s := &Service{db: database, logger: logger, leaseTTL: LeaseTTL, metrics: noMetrics{}, reads: audit.NewRepeats()}
 	for _, opt := range opts {
 		opt(s)
 	}
