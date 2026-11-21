@@ -35,20 +35,13 @@ var nonHTTPAuditSources = map[audit.Action]string{
 var pendingAuditActions = []audit.Action{
 	"audit.export",
 	"audit.search",
-	"block.add",
-	"block.edit",
-	"block.remove",
 	"chat.create",
 	"chat.delete",
 	"chat.turn",
-	"dashboard.export",
 	"finding.apply",
-	"folder.move",
-	"logs.export",
 	"observation.arrange",
 	"run.share",
 	"run.withdraw",
-	"settings.change",
 	"thread.agent_set",
 }
 
@@ -131,6 +124,17 @@ func TestEveryCatalogActionHasASource(t *testing.T) {
 	for _, action := range pendingAuditActions {
 		if _, ok := audit.Lookup(action); !ok {
 			t.Errorf("pending action %s is not in the catalog", action)
+		}
+	}
+}
+
+func TestFolderAndTeamActionsAreRecordedAndNotPending(t *testing.T) {
+	for _, action := range []audit.Action{"folder.create", "folder.rename", "folder.delete", "folder.permissions_change", "team.create", "team.delete", "team.member_add", "team.member_remove"} {
+		if _, ok := audit.Lookup(action); !ok {
+			t.Errorf("%s is not in the catalog", action)
+		}
+		if slices.Contains(pendingAuditActions, action) {
+			t.Errorf("%s is recorded inside its service's transaction and must not be pending", action)
 		}
 	}
 }

@@ -72,6 +72,10 @@ var (
 	overflowKeys = []string{"overflow"}
 	tokenKeys    = []string{"grant_type"}
 	deliverKeys  = []string{"event_type"}
+
+	renamedKeys    = []string{"from_title", "title"}
+	permissionKeys = []string{"added", "removed", "changed", "count_before", "count_after", "truncated"}
+	memberKeys     = []string{"user_id", "user_name"}
 )
 
 func change(c Category, data ...[]string) Spec {
@@ -97,8 +101,6 @@ var catalog = map[Action]Spec{
 	"dashboard.view":   access(CategoryAccess),
 	"observation.view": access(CategoryAccess),
 	"public_link.view": access(CategoryAccess),
-	"dashboard.export": access(CategoryAccess),
-	"logs.export":      access(CategoryAccess),
 	"audit.search":     access(CategoryAccess),
 	"audit.export":     access(CategoryAccess),
 
@@ -136,12 +138,8 @@ var catalog = map[Action]Spec{
 	"proposal.merge":            change(CategoryContent, proposalKeys),
 	"proposal.discard":          change(CategoryContent, proposalKeys),
 	"folder.create":             change(CategoryContent),
-	"folder.rename":             change(CategoryContent),
-	"folder.move":               change(CategoryContent),
+	"folder.rename":             change(CategoryContent, renamedKeys),
 	"folder.delete":             change(CategoryContent),
-	"block.add":                 change(CategoryContent),
-	"block.edit":                change(CategoryContent),
-	"block.remove":              change(CategoryContent),
 	"grafana_import.start":      change(CategoryContent),
 	"grafana_import.cancel":     change(CategoryContent),
 
@@ -211,12 +209,11 @@ var catalog = map[Action]Spec{
 	"public_link.revoke":         change(CategoryAdmin, linkKeys),
 	"access_request.open":        change(CategoryAdmin, accessKeys),
 	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin),
+	"folder.permissions_change":  change(CategoryAdmin, permissionKeys),
 	"team.create":                change(CategoryAdmin),
 	"team.delete":                change(CategoryAdmin),
-	"team.member_add":            change(CategoryAdmin),
-	"team.member_remove":         change(CategoryAdmin),
-	"settings.change":            change(CategoryAdmin),
+	"team.member_add":            change(CategoryAdmin, memberKeys),
+	"team.member_remove":         change(CategoryAdmin, memberKeys),
 	"action.run":                 change(CategoryAdmin),
 
 	"server.start":    change(CategorySystem),

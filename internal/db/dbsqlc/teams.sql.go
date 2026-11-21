@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addTeamMember = `-- name: AddTeamMember :exec
+const addTeamMember = `-- name: AddTeamMember :execrows
 INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
 
@@ -20,9 +20,12 @@ type AddTeamMemberParams struct {
 	UserID pgtype.UUID
 }
 
-func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) error {
-	_, err := q.db.Exec(ctx, addTeamMember, arg.TeamID, arg.UserID)
-	return err
+func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addTeamMember, arg.TeamID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const countTeams = `-- name: CountTeams :one
@@ -85,6 +88,17 @@ func (q *Queries) GetTeam(ctx context.Context, id pgtype.UUID) (Team, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUserName = `-- name: GetUserName :one
+SELECT coalesce(name, '')::text FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserName(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getUserName, id)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listTeamMembers = `-- name: ListTeamMembers :many

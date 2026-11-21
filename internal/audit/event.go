@@ -16,6 +16,8 @@ const (
 	OutcomeUnknown Outcome = "unknown"
 )
 
+const ReasonNoChange = "no_change"
+
 type ActorKind string
 
 const (

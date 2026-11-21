@@ -58,12 +58,7 @@ func (a *Access) CreateFolder(ctx context.Context, caller auth.Principal, rawTit
 	if err != nil {
 		return Folder{}, Abilities{}, ErrForbidden
 	}
-	row, err := a.db.Queries().CreateFolder(ctx, dbsqlc.CreateFolderParams{
-		Title:         title,
-		CreatedByKind: pgtype.Text{String: string(caller.Kind), Valid: true},
-		CreatedByID:   callerID,
-		CreatedByName: pgtype.Text{String: callerName(caller), Valid: true},
-	})
+	row, err := a.insertFolder(ctx, caller, callerID, title)
 	if isPgError(err, uniqueViolation) {
 		return Folder{}, Abilities{}, ErrFolderExists
 	}
@@ -72,6 +67,24 @@ func (a *Access) CreateFolder(ctx context.Context, caller auth.Principal, rawTit
 	}
 	a.logger.InfoContext(ctx, "created a folder", slog.String("actor_id", caller.ID), slog.String("folder_id", row.ID.String()))
 	return a.Folder(ctx, caller, row.ID)
+}
+
+func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtype.UUID, title string) (dbsqlc.Folder, error) {
+	var row dbsqlc.Folder
+	err := a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		var err error
+		row, err = q.CreateFolder(ctx, dbsqlc.CreateFolderParams{
+			Title:         title,
+			CreatedByKind: pgtype.Text{String: string(by.Kind), Valid: true},
+			CreatedByID:   byID,
+			CreatedByName: pgtype.Text{String: callerName(by), Valid: true},
+		})
+		if err != nil {
+			return err
+		}
+		return recordFolder(ctx, q, "folder.create", row.ID, row.Title, "", nil)
+	})
+	return row, err
 }
 
 func (a *Access) RenameFolder(ctx context.Context, caller auth.Principal, id pgtype.UUID, rawTitle string) (Folder, Abilities, error) {
@@ -89,7 +102,7 @@ func (a *Access) RenameFolder(ctx context.Context, caller auth.Principal, id pgt
 	if current.General {
 		return Folder{}, Abilities{}, ErrGeneralFolder
 	}
-	row, err := a.db.Queries().RenameFolder(ctx, dbsqlc.RenameFolderParams{ID: current.ID, Title: title})
+	row, err := a.renameInTx(ctx, current.ID, title)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		return Folder{}, Abilities{}, ErrNotFound
@@ -101,6 +114,22 @@ func (a *Access) RenameFolder(ctx context.Context, caller auth.Principal, id pgt
 	a.logger.InfoContext(ctx, "renamed a folder", slog.String("actor_id", caller.ID), slog.String("folder_id", row.ID.String()))
 	current.Title = row.Title
 	return current, abilities, nil
+}
+
+func (a *Access) renameInTx(ctx context.Context, id pgtype.UUID, title string) (dbsqlc.Folder, error) {
+	var row dbsqlc.Folder
+	err := a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		before, err := q.LockFolder(ctx, id)
+		if err != nil {
+			return err
+		}
+		row, err = q.RenameFolder(ctx, dbsqlc.RenameFolderParams{ID: id, Title: title})
+		if err != nil {
+			return err
+		}
+		return recordFolder(ctx, q, "folder.rename", row.ID, row.Title, noChangeReason(before.Title == row.Title), map[string]any{"from_title": before.Title, "title": row.Title})
+	})
+	return row, err
 }
 
 func isPgError(err error, code string) bool {

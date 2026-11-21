@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -141,7 +143,10 @@ func (h *Handler) createTeam(c *gin.Context) {
 			exists = true
 			return nil
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return recordTeam(ctx, q, "team.create", row.ID, row.Name)
 	})
 	switch {
 	case err != nil:
@@ -163,7 +168,7 @@ func (h *Handler) deleteTeam(c *gin.Context) {
 	if !ok {
 		return
 	}
-	n, err := h.db.Queries().DeleteTeam(c.Request.Context(), id)
+	n, err := h.deleteTeamRecorded(c.Request.Context(), id)
 	if err != nil {
 		h.fail(c, "delete team", err, slog.String("team_id", id.String()))
 		return
@@ -185,7 +190,9 @@ func (h *Handler) addTeamMember(c *gin.Context) {
 	if !ok {
 		return
 	}
-	err := h.db.Queries().AddTeamMember(c.Request.Context(), dbsqlc.AddTeamMemberParams{TeamID: id, UserID: userID})
+	err := h.changeMember(c.Request.Context(), "team.member_add", id, userID, func(q *dbsqlc.Queries) (int64, error) {
+		return q.AddTeamMember(c.Request.Context(), dbsqlc.AddTeamMemberParams{TeamID: id, UserID: userID})
+	})
 	if missing := missingReference(err); missing != "" {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", missing)
 		return
@@ -206,11 +213,50 @@ func (h *Handler) removeTeamMember(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if _, err := h.db.Queries().RemoveTeamMember(c.Request.Context(), dbsqlc.RemoveTeamMemberParams{TeamID: id, UserID: userID}); err != nil {
+	err := h.changeMember(c.Request.Context(), "team.member_remove", id, userID, func(q *dbsqlc.Queries) (int64, error) {
+		return q.RemoveTeamMember(c.Request.Context(), dbsqlc.RemoveTeamMemberParams{TeamID: id, UserID: userID})
+	})
+	if err != nil {
 		h.fail(c, "remove team member", err, slog.String("team_id", id.String()), slog.String("user_id", userID.String()))
 		return
 	}
 	h.memberChanged(c, "removed a team member", id, userID)
+}
+
+func (h *Handler) deleteTeamRecorded(ctx context.Context, id pgtype.UUID) (int64, error) {
+	var n int64
+	err := h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		team, err := q.GetTeam(ctx, id)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		n, err = q.DeleteTeam(ctx, id)
+		if err != nil || n == 0 {
+			return err
+		}
+		return recordTeam(ctx, q, "team.delete", id, team.Name)
+	})
+	return n, err
+}
+
+func (h *Handler) changeMember(ctx context.Context, action audit.Action, teamID, userID pgtype.UUID, change func(*dbsqlc.Queries) (int64, error)) error {
+	return h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		n, err := change(q)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return recordTeamMember(ctx, q, action, teamID, userID, "")
+		}
+		err = recordTeamMember(ctx, q, action, teamID, userID, audit.ReasonNoChange)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	})
 }
 
 func (h *Handler) memberChanged(c *gin.Context, msg string, id, userID pgtype.UUID) {
