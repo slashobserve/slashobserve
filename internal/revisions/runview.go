@@ -272,7 +272,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		Kind:        Kind(Source(row.Source)),
 		Source:      Source(row.Source),
 		Trigger:     row.Trigger,
-		Title:       requestTitle(row.Title, row.Prompt),
+		Title:       titleShownTo(row, caller),
 		Prompt:      row.Prompt,
 		Status:      Status(row.Status),
 		State:       State(row.State),
@@ -347,12 +347,23 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 	return out
 }
 
+func readsTheChat(row dbsqlc.AgentRequest, caller auth.Principal) bool {
+	return sameActor(requesterOf(row), caller) || caller.Role.AtLeast(auth.RoleAdmin)
+}
+
 func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
-	if !sameActor(requesterOf(row), caller) && !caller.Role.AtLeast(auth.RoleAdmin) {
+	if !readsTheChat(row, caller) {
 		return nil
 	}
 	chat := chatOf(row.ID, row.ChatID)
 	return &chat
+}
+
+func titleShownTo(row dbsqlc.AgentRequest, caller auth.Principal) string {
+	if row.ChatID == row.ID && !readsTheChat(row, caller) {
+		return requestTitle(pgtype.Text{}, row.Prompt)
+	}
+	return requestTitle(row.Title, row.Prompt)
 }
 
 func (r *RunDesk) liveText(row dbsqlc.AgentRequest) *string {

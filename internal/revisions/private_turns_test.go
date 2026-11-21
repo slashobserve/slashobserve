@@ -362,3 +362,17 @@ func TestAReaderOfTheDashboardAChatSavedSeesNothingElseOfTheChat(t *testing.T) {
 		}
 	}
 }
+
+func TestADashboardReaderOfAChatsFirstTurnIsNotToldTheChatsTitle(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	first := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("build a checkout dashboard")})
+	d.Exec(t, `UPDATE agent_requests SET dashboard_id = $2::uuid, title = $3 WHERE id = $1::uuid`, first.String(), seedDashboard(t, d, 1).String(), privateWord)
+	d.Exec(t, `UPDATE chats SET title = $2 WHERE id = $1::uuid`, first.String(), privateWord)
+
+	w := newPrivateWalk(t, svc, d)
+	for _, body := range []string{w.http(eve, "/api/v1/observe/"+first.String(), http.StatusOK), w.mcp(eve, "get_run", `{"id":"`+first.String()+`"}`, false)} {
+		mustNotContain(t, eve.Name, "the first turn", body, privateWord)
+	}
+	mustContain(t, user.Name, "the first turn", w.http(user, "/api/v1/observe/"+first.String(), http.StatusOK), privateWord)
+}
