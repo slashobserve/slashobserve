@@ -601,7 +601,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await box.fill("Please split this by route")
       await sendButton(page).click()
       await expect(composerForm(page).getByRole("alert")).toHaveText(
-        "The comment could not be posted right now. Try again."
+        "The message could not be sent right now. Try again."
       )
       await expect(box).toHaveValue("Please split this by route")
       await expect(box).toBeFocused()
@@ -737,23 +737,23 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       const { id } = await createOverview(request)
       await createComment(request, id, 1, "rps", "Looks high")
-      let patches = 0
+      let statusPosts = 0
       let release!: () => void
       const held = new Promise<void>((resolve) => (release = resolve))
       let reached!: () => void
-      const firstPatch = new Promise<void>((resolve) => (reached = resolve))
+      const firstPost = new Promise<void>((resolve) => (reached = resolve))
       await page.route(
-        `**/api/v1/dashboards/${id}/comments/*`,
+        /\/api\/v1\/threads\/[^/]+\/(resolve|reopen)$/,
         async (route) => {
-          if (route.request().method() !== "PATCH") {
+          if (route.request().method() !== "POST") {
             await route.fallback()
             return
           }
-          if (route.request().url().endsWith("/barrier")) {
+          if (route.request().url().includes("/threads/barrier/")) {
             await route.fulfill({ status: 200, json: {} })
             return
           }
-          patches++
+          statusPosts++
           reached()
           await held
           await route.continue()
@@ -767,22 +767,22 @@ for (const colorScheme of ["light", "dark"] as const) {
         exact: true,
       })
       await resolve.click()
-      await firstPatch
+      await firstPost
       await expect(resolve).toHaveAttribute("aria-disabled", "true")
       await resolve.focus()
       await page.keyboard.press("Enter")
       await page.evaluate(
-        (url) => fetch(url, { method: "PATCH" }),
-        `/api/v1/dashboards/${id}/comments/barrier`
+        (url) => fetch(url, { method: "POST" }),
+        "/api/v1/threads/barrier/resolve"
       )
       await expect(resolve).toBeFocused()
-      expect(patches).toBe(1)
+      expect(statusPosts).toBe(1)
 
       release()
       const reopen = entry.getByRole("button", { name: "Reopen", exact: true })
       await expect(reopen).toBeVisible()
       await expect(reopen).not.toHaveAttribute("aria-disabled", "true")
-      expect(patches).toBe(1)
+      expect(statusPosts).toBe(1)
     })
 
     test("stops paging when a later page keeps failing", async ({
