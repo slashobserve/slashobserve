@@ -404,7 +404,7 @@ func TestDuplicatingAStarterMakesAnEditableDashboardInTheAuditFolder(t *testing.
 		t.Fatal(err)
 	}
 	raw = []byte(strings.Replace(string(raw), "My data access", "Changed", 1))
-	if _, err := r.dashboards.Save(ctx, admin, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: raw, Summary: "Rename"}); err != nil {
+	if _, err := r.dashboards.Save(ctx, admin, dashboards.SaveInput{DashboardID: id, Parent: 1, Spec: raw, Summary: "Rename", Partial: true}); err != nil {
 		t.Fatalf("saving the copy: %v", err)
 	}
 	if _, err := r.dashboards.Save(ctx, admin, dashboards.SaveInput{DashboardID: starter, Parent: 1, Spec: raw, Summary: "Rename"}); !errors.Is(err, folders.ErrProvisioned) {
