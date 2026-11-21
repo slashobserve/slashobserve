@@ -179,10 +179,15 @@ func TestARecordedQueryIsCutAtARuneBoundary(t *testing.T) {
 	if got := recordedQuery("outcome:denied"); got != "outcome:denied" {
 		t.Errorf("a short query became %q", got)
 	}
-	long := strings.Repeat("a", MaxRecordedQueryBytes-1) + "é" + "tail"
-	got := recordedQuery(long)
-	if got != strings.Repeat("a", MaxRecordedQueryBytes-1)+truncatedMark || !utf8.ValidString(got) {
-		t.Errorf("a long query became %d bytes ending %q", len(got), got[len(got)-20:])
+	for _, char := range []string{"é", "€", "😀"} {
+		for lead := MaxRecordedQueryBytes - len(char); lead <= MaxRecordedQueryBytes; lead++ {
+			long := strings.Repeat("a", lead) + char + "tail"
+			got := recordedQuery(long)
+			kept := strings.TrimSuffix(got, truncatedMark)
+			if !utf8.ValidString(got) || len(got) > MaxRecordedQueryBytes+len(truncatedMark) || kept == got || !strings.HasPrefix(long, kept) || len(kept) < MaxRecordedQueryBytes-len(char)+1 {
+				t.Errorf("%q after %d bytes became %d bytes ending %q", char, lead, len(got), got[len(got)-20:])
+			}
+		}
 	}
 }
 
