@@ -12,6 +12,7 @@ A query that is refused is recorded every time, as a `failed` event with its rea
 
 A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded once per reader and subject in 10 minutes, the owner's own views included.
 A list of chats or requests is one `chat.list` or `run.list` event, recorded once per reader and scope in 10 minutes, never one per row.
+The Agents page's list of one agent's runs is a `run.list` with scope `workspace` for an Admin or `you`, and the connected agent or service account as its target.
 A refused view is recorded every time.
 
 ## Fields
