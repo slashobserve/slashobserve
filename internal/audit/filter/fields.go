@@ -271,13 +271,13 @@ func nearestFields(name string, candidates []string) []string {
 		distance int
 		style    int
 	}
-	var close []ranked
+	var nearby []ranked
 	add := func(c string, distance int) {
 		style := 0
 		if strings.Contains(c, ".") != dotted {
 			style = 1
 		}
-		close = append(close, ranked{c, distance, style})
+		nearby = append(nearby, ranked{c, distance, style})
 	}
 	for _, c := range candidates {
 		flatC := strings.ReplaceAll(c, ".", "_")
@@ -287,19 +287,19 @@ func nearestFields(name string, candidates []string) []string {
 			add(c, d)
 		}
 	}
-	if root, _, found := strings.Cut(flat, "_"); found && len(close) == 0 {
+	if root, _, found := strings.Cut(flat, "_"); found && len(nearby) == 0 {
 		for _, c := range candidates {
 			if strings.HasPrefix(strings.ReplaceAll(c, ".", "_"), root+"_") {
 				add(c, 1)
 			}
 		}
 	}
-	slices.SortStableFunc(close, func(a, b ranked) int {
+	slices.SortStableFunc(nearby, func(a, b ranked) int {
 		return cmp.Or(cmp.Compare(a.distance, b.distance), cmp.Compare(a.style, b.style))
 	})
 	out := make([]string, 0, maxFieldSuggestions)
 	named := map[string]bool{}
-	for _, r := range close {
+	for _, r := range nearby {
 		if f, ok := fieldIndex[r.name]; ok && !named[f.Name] && len(out) < maxFieldSuggestions {
 			named[f.Name] = true
 			out = append(out, r.name)

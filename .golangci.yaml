@@ -23,6 +23,8 @@ linters:
     misspell:
       ignore-rules:
         - andd
+        - adn
+        - nto
     gocyclo:
       min-complexity: 15
     sloglint:
