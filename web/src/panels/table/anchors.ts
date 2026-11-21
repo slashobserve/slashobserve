@@ -29,8 +29,11 @@ export type TableAnchorLayout = {
   header: Pick<Rect, "y" | "height"> | null
   columns: readonly AnchorColumn[]
   rows: readonly AnchorRow[]
-  elsewhere?: readonly (readonly string[])[]
+  elsewhere?: readonly HiddenRow[]
+  reveal?: (key: string) => void
 }
+
+export type HiddenRow = { key: string; cells: readonly string[] }
 
 function columnAt(
   layout: TableAnchorLayout,
@@ -118,9 +121,14 @@ function drawnRow(layout: TableAnchorLayout, anchor: Anchor): AnchorRow | null {
   )
 }
 
-function rowElsewhere(layout: TableAnchorLayout, anchor: Anchor): boolean {
-  return (layout.elsewhere ?? []).some((cells) =>
-    namesLabels(anchor.row, rowLabels(layout, { top: 0, height: 0, cells }))
+function rowElsewhere(
+  layout: TableAnchorLayout,
+  anchor: Anchor
+): HiddenRow | null {
+  return (
+    (layout.elsewhere ?? []).find(({ cells }) =>
+      namesLabels(anchor.row, rowLabels(layout, { top: 0, height: 0, cells }))
+    ) ?? null
   )
 }
 
@@ -143,7 +151,7 @@ export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
       if (anchor.kind === "cell" && column === undefined) return null
       const row = drawnRow(layout, anchor)
       if (row === null)
-        return rowElsewhere(layout, anchor) ? edge(layout) : null
+        return rowElsewhere(layout, anchor) === null ? null : edge(layout)
       return column === undefined
         ? rowRect(layout, row)
         : columnRect(layout, column, row)
@@ -151,4 +159,15 @@ export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
     default:
       return null
   }
+}
+
+export function reveal(layout: TableAnchorLayout, anchor: Anchor): boolean {
+  if (anchor.kind !== "row" && anchor.kind !== "cell") return false
+  if (layout.reveal === undefined || drawnRow(layout, anchor) !== null) {
+    return false
+  }
+  const hidden = rowElsewhere(layout, anchor)
+  if (hidden === null) return false
+  layout.reveal(hidden.key)
+  return true
 }

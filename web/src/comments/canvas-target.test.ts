@@ -8,6 +8,7 @@ import {
   outlineOf,
   placePin,
   pointerAnchor,
+  revealAnchor,
   titleAnchor,
   withWindow,
   type CanvasSurface,
@@ -171,5 +172,28 @@ describe("dragAnchor", () => {
       dragAnchor(surface({}), { x: 10, y: 50 }, { x: 90, y: 50 })
     ).toBeNull()
     expect(dragAnchor(blank, { x: 10, y: 50 }, { x: 90, y: 50 })).toBeNull()
+  })
+})
+
+describe("revealAnchor", () => {
+  it("asks the panel to bring the anchor's data into view", () => {
+    const asked: Anchor[] = []
+    const revealing: CanvasSurface = {
+      module: {
+        ...module,
+        reveal: ((_layout: unknown, anchor: Anchor) => {
+          asked.push(anchor)
+          return true
+        }) as NonNullable<AnchorsModule["reveal"]>,
+      },
+      published: { type: "table", layout: {} },
+    }
+    expect(revealAnchor(revealing, onBar)).toBe(true)
+    expect(asked).toEqual([onBar])
+  })
+
+  it("does nothing for a panel that cannot reveal", () => {
+    expect(revealAnchor(surface({}), onBar)).toBe(false)
+    expect(revealAnchor(blank, onBar)).toBe(false)
   })
 })

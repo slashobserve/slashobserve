@@ -73,6 +73,12 @@ export function outlineOf(
   return locatorOf(surface)?.(anchor) ?? null
 }
 
+export function revealAnchor(surface: CanvasSurface, anchor: Anchor): boolean {
+  const { module, published } = surface
+  if (module?.reveal === undefined || published === null) return false
+  return module.reveal(published.layout as never, anchor)
+}
+
 export function withWindow(
   anchor: Anchor,
   window: { from: string; to: string }

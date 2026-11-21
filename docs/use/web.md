@@ -203,7 +203,7 @@ A thread on a part of a panel shows as a pin with its author's mark at the spot 
 A pin follows its data: when the series, bar or row moves, the pin moves with it.
 A resolved thread's pin is grey.
 When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
-A table row that is on the panel but scrolled out of view points at the bottom edge of the table.
+A table row that is on the panel but scrolled out of view, or on another page of the table, points at the bottom edge of the table, and opening its pin scrolls or pages the table to that row.
 
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
 Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.

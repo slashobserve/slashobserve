@@ -851,13 +851,52 @@ const TablePanel: PanelRenderer = ({
   const rowCells = useMemo(
     () =>
       new Map(
-        sorted.map((row) => [
+        (paginate ? sorted : rows).map((row) => [
           row.key,
           views.map(({ column }) => cellOf(fields, column, row).text),
         ])
       ),
-    [sorted, views, fields]
+    [paginate, sorted, rows, views, fields]
   )
+  const revealing = useRef<string | null>(null)
+  const [, setRevealed] = useState(0)
+  const reveal = useCallback(
+    (key: string) => {
+      const region = regionRef.current
+      if (region === null) return
+      revealing.current = key
+      const index = rows.findIndex((row) => row.key === key)
+      if (index < 0) {
+        const at = sorted.findIndex((row) => row.key === key)
+        if (paginate && at >= 0) setPage(Math.floor(at / pageSize))
+      } else if (windowed) {
+        const height = measuredRowHeight ?? rowHeightPx(rowHeight)
+        region.scrollTop = Math.max(0, index * height - region.clientHeight / 2)
+      }
+      setRevealed((count) => count + 1)
+    },
+    [
+      regionRef,
+      rows,
+      sorted,
+      paginate,
+      pageSize,
+      windowed,
+      measuredRowHeight,
+      rowHeight,
+    ]
+  )
+  useLayoutEffect(() => {
+    const key = revealing.current
+    const region = regionRef.current
+    if (key === null || region === null) return
+    const row = Array.from(
+      region.querySelectorAll<HTMLElement>("[data-row-key]")
+    ).find((element) => element.dataset.rowKey === key)
+    if (row === undefined) return
+    revealing.current = null
+    row.scrollIntoView({ block: "nearest" })
+  })
   const publish = useAnchorPublisher("table")
   useLayoutEffect(() => {
     const region = regionRef.current
@@ -870,6 +909,7 @@ const TablePanel: PanelRenderer = ({
           showHeader,
           skipFirst: expandable,
           rowCells,
+          reveal,
         })
       )
     measure()
@@ -884,6 +924,7 @@ const TablePanel: PanelRenderer = ({
     showHeader,
     expandable,
     rowCells,
+    reveal,
     shown,
   ])
 
@@ -1075,12 +1116,14 @@ function tableAnchorLayout(
     showHeader,
     skipFirst,
     rowCells,
+    reveal,
   }: {
     body: { width: number; height: number }
     views: readonly ColumnView[]
     showHeader: boolean
     skipFirst: boolean
     rowCells: ReadonlyMap<string, readonly string[]>
+    reveal: (key: string) => void
   }
 ): TableAnchorLayout {
   const root = surfaceOf(region)
@@ -1121,7 +1164,7 @@ function tableAnchorLayout(
     rows.push({ top: rect.y, height: rect.height, cells })
   }
   const elsewhere = Array.from(rowCells).flatMap(([key, cells]) =>
-    drawn.has(key) ? [] : [cells]
+    drawn.has(key) ? [] : [{ key, cells }]
   )
   return {
     body,
@@ -1129,6 +1172,7 @@ function tableAnchorLayout(
     columns,
     rows,
     elsewhere,
+    reveal,
   }
 }
 

@@ -24,7 +24,7 @@ import {
   type AnchorLayoutStore,
 } from "@/panels/anchor-layout"
 
-import { placePin, type PinPlacement } from "./canvas-target"
+import { placePin, revealAnchor, type PinPlacement } from "./canvas-target"
 import { threadParticipants } from "./mentions"
 import { plainTitle } from "./plain-title"
 import {
@@ -141,17 +141,20 @@ function PinThread({
   )
 }
 
+type PinProps = {
+  dashboardId: string
+  panelTitle: string
+  gateInput: GateInput
+  onOpen: (anchor: Anchor) => void
+}
+
 function Pin({
   pin,
   dashboardId,
   panelTitle,
   gateInput,
-}: {
-  pin: PanelPin
-  dashboardId: string
-  panelTitle: string
-  gateInput: GateInput
-}) {
+  onOpen,
+}: PinProps & { pin: PanelPin }) {
   const id = pin.entry.thread.id
   const open = useCanvasTool((state) => state.openThreadId === id)
   const arriving = useCanvasTool((state) => state.postedThreadId === id)
@@ -163,8 +166,10 @@ function Pin({
       open={open}
       onOpenChange={(next) => {
         const store = useCanvasTool.getState()
-        if (next) store.openThread(id)
-        else if (store.openThreadId === id) store.close()
+        if (next) {
+          store.openThread(id)
+          onOpen(pin.anchor)
+        } else if (store.openThreadId === id) store.close()
       }}
     >
       <PopoverPrimitive.Trigger
@@ -243,12 +248,8 @@ function StackedPins({
   dashboardId,
   panelTitle,
   gateInput,
-}: {
-  stack: PinStack
-  dashboardId: string
-  panelTitle: string
-  gateInput: GateInput
-}) {
+  onOpen,
+}: PinProps & { stack: PinStack }) {
   const ids = stack.pins.map(({ entry }) => entry.thread.id)
   const openId = useCanvasTool((state) =>
     state.openThreadId !== null && ids.includes(state.openThreadId)
@@ -305,9 +306,10 @@ function StackedPins({
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-[13px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() =>
+                  onClick={() => {
                     useCanvasTool.getState().openThread(pin.entry.thread.id)
-                  }
+                    onOpen(pin.anchor)
+                  }}
                 >
                   <AuthorMark
                     mark={markOf(pin.entry.messages[0].actor)}
@@ -378,6 +380,9 @@ export function CanvasPins({
       ),
     [threads, panelId, body, module, published, dataShown]
   )
+  const onOpen = (anchor: Anchor) => {
+    revealAnchor({ module, published }, anchor)
+  }
   if (stacks.length === 0) return null
   return (
     <div className="pointer-events-none absolute inset-0 z-20 print:hidden">
@@ -389,6 +394,7 @@ export function CanvasPins({
             dashboardId={dashboardId}
             panelTitle={panelTitle}
             gateInput={gateInput}
+            onOpen={onOpen}
           />
         ) : (
           <StackedPins
@@ -397,6 +403,7 @@ export function CanvasPins({
             dashboardId={dashboardId}
             panelTitle={panelTitle}
             gateInput={gateInput}
+            onOpen={onOpen}
           />
         )
       )}
