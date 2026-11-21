@@ -175,6 +175,7 @@ describe("DashboardTopRow", () => {
         key="more"
         dashboardId="d1"
         mayEdit
+        mayDelete
         detailsBlockedBy={null}
         onAddPanel={null}
         onEditJson={onEditJson}

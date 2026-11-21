@@ -123,6 +123,10 @@
       "$ref": "#/definitions/stringList",
       "description": "SLASHOBSERVE_OUTBOUND_DOMAINS: empty lets Admins manage the list in Settings; [\"none\"] or a list of domains locks it."
     },
+    "trustedProxies": {
+      "$ref": "#/definitions/stringList",
+      "description": "SLASHOBSERVE_TRUSTED_PROXIES: addresses and CIDR ranges of the Ingress controller or load balancer in front of the server; empty keeps the socket peer as the client address."
+    },
     "env": {
       "type": "array",
       "description": "Extra container environment entries in Kubernetes EnvVar form, for any other SLASHOBSERVE_* setting and for the *Env passwords the datasources file references.",

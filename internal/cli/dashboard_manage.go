@@ -63,7 +63,7 @@ func (a *app) dashboardDuplicateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "duplicate <dashboard-id> --title <title> [--folder <folder-id>]",
 		Short: "Save a copy of a dashboard as a new dashboard",
-		Long:  "duplicate saves the latest version as version 1 of a new dashboard with the title you give.\nThe copy goes to --folder, by default General for a key.\nThe copy's queries are not run, and the versions and comments stay with the original.",
+		Long:  "duplicate saves the latest version as version 1 of a new dashboard with the title you give.\nThe copy goes to --folder, by default the dashboard's own folder when you can create there, else your default folder.\nThe copy's queries are not run, and the versions and comments stay with the original.",
 		Args:  exactArgs(1, "one dashboard id"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])

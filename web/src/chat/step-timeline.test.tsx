@@ -37,6 +37,21 @@ afterEach(() => {
 })
 
 describe("StepTimeline", () => {
+  it("shows each phase and its tools without the messages of a hidden run", () => {
+    render(
+      <StepTimeline
+        steps={steps.map((s) => ({ ...s, message: "" }))}
+        working={false}
+        reconnecting={false}
+        withMessages={false}
+      />
+    )
+    expect(screen.getByText("list_metrics 2")).toBeVisible()
+    expect(screen.getByText("update_panels")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /steps$/ })).toBeNull()
+    expect(screen.getAllByRole("listitem")).toHaveLength(2)
+  })
+
   it("shows the live text under the working row while working", () => {
     render(
       <StepTimeline

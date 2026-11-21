@@ -126,6 +126,7 @@ function BuildGrid({
           editingPanel={false}
           canComment={false}
           canEdit={false}
+          canPropose={false}
           focusOnRender={false}
           onFocused={ignoreFocus}
           composerRef={composerRef}

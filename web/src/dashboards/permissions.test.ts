@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import {
   composerMode,
+  contentChange,
+  mayEditBesidesContent,
   readerNote,
   type DashboardPermissions,
 } from "./permissions"
@@ -27,7 +29,15 @@ describe("composerMode", () => {
     [{}, "read-only"],
     [{ manage: true, create: true }, "read-only"],
   ] as const)("maps %j to %s", (flags, expected) => {
-    expect(composerMode(permissions(flags))).toBe(expected)
+    expect(composerMode(permissions(flags), false)).toBe(expected)
+  })
+
+  it.each([
+    [{ comment: true }, "provisioned"],
+    [{ comment: true, edit: true }, "provisioned"],
+    [{}, "read-only"],
+  ] as const)("maps %j on a starter to %s", (flags, expected) => {
+    expect(composerMode(permissions(flags), true)).toBe(expected)
   })
 })
 
@@ -42,9 +52,37 @@ describe("readerNote", () => {
     )
   })
 
+  it("says a starter is kept current by releases and can be duplicated", () => {
+    const note = readerNote("provisioned", "Audit")
+    expect(note).toContain("kept current by SlashObserve releases")
+    expect(note).toContain("Duplicate")
+  })
+
   it("names the folder in the read-only note", () => {
     expect(readerNote("read-only", "Payments")).toBe(
       "You can view dashboards in Payments. To comment, ask the people who manage this folder for Comment access."
+    )
+  })
+})
+
+describe("contentChange", () => {
+  it.each([
+    [{ edit: true, comment: true }, false, "edit"],
+    [{ comment: true }, false, "propose"],
+    [{}, false, "none"],
+    [{ edit: true, comment: true }, true, "none"],
+    [{ comment: true }, true, "none"],
+  ] as const)("maps %j, provisioned %s, to %s", (flags, provisioned, want) => {
+    expect(contentChange(permissions(flags), provisioned)).toBe(want)
+  })
+})
+
+describe("mayEditBesidesContent", () => {
+  it("stays true on a starter, where deleting, annotating and asking still work", () => {
+    expect(mayEditBesidesContent(permissions({ edit: true }), false)).toBe(true)
+    expect(mayEditBesidesContent(permissions({}), true)).toBe(true)
+    expect(mayEditBesidesContent(permissions({ comment: true }), false)).toBe(
+      false
     )
   })
 })

@@ -48,20 +48,21 @@ type requesterJSON struct {
 }
 
 type runJSON struct {
-	ID          string        `json:"id"`
-	Intent      string        `json:"intent"`
-	Title       string        `json:"title"`
-	State       string        `json:"state"`
-	ResultKind  string        `json:"result_kind"`
-	FailureCode *string       `json:"failure_code"`
-	CreatedAt   string        `json:"created_at"`
-	StartedAt   *string       `json:"started_at"`
-	FinishedAt  *string       `json:"finished_at"`
-	CostUSD     *float64      `json:"cost_usd"`
-	RequestedBy requesterJSON `json:"requested_by"`
-	Openable    bool          `json:"openable"`
-	Dashboard   *linkJSON     `json:"dashboard"`
-	Observation *linkJSON     `json:"observation"`
+	ID            string        `json:"id"`
+	Intent        string        `json:"intent"`
+	Investigation bool          `json:"investigation"`
+	Title         string        `json:"title"`
+	State         string        `json:"state"`
+	ResultKind    string        `json:"result_kind"`
+	FailureCode   *string       `json:"failure_code"`
+	CreatedAt     string        `json:"created_at"`
+	StartedAt     *string       `json:"started_at"`
+	FinishedAt    *string       `json:"finished_at"`
+	CostUSD       *float64      `json:"cost_usd"`
+	RequestedBy   requesterJSON `json:"requested_by"`
+	Openable      bool          `json:"openable"`
+	Dashboard     *linkJSON     `json:"dashboard"`
+	Observation   *linkJSON     `json:"observation"`
 }
 
 type runPageJSON struct {
@@ -206,16 +207,17 @@ func (h *Handler) runScope(ctx context.Context, caller auth.Principal, callerID 
 
 func newRunJSON(row dbsqlc.ListAgentRunsRow, callerID pgtype.UUID) runJSON {
 	out := runJSON{
-		ID:          row.ID.String(),
-		Intent:      row.Intent,
-		State:       row.State,
-		ResultKind:  string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
-		FailureCode: optionalText(row.FailureCode),
-		CreatedAt:   httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:   optionalTime(row.StartedAt),
-		FinishedAt:  optionalTime(row.FinishedAt),
-		RequestedBy: requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
-		Openable:    row.RequestedByKind == "user" && row.RequestedByID == callerID,
+		ID:            row.ID.String(),
+		Intent:        row.Intent,
+		Investigation: row.Investigation,
+		State:         row.State,
+		ResultKind:    string(revisions.ReportedResultKind(row.ResultKind, row.ObservationID)),
+		FailureCode:   optionalText(row.FailureCode),
+		CreatedAt:     httpapi.FormatTime(row.CreatedAt.Time),
+		StartedAt:     optionalTime(row.StartedAt),
+		FinishedAt:    optionalTime(row.FinishedAt),
+		RequestedBy:   requesterJSON{Kind: row.RequestedByKind, Name: row.RequestedByName},
+		Openable:      row.RequestedByKind == "user" && row.RequestedByID == callerID,
 	}
 	out.Title = runTitle(row.Title.String, row.Prompt, out.Intent)
 	if row.Priced {

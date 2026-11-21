@@ -27,7 +27,11 @@ import {
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
 import { useDeletedBy } from "@/dashboards/live/deleted-store"
-import { useLatestPermissions } from "@/dashboards/permissions"
+import {
+  contentChange,
+  useLatestPermissions,
+  useLatestProvisioned,
+} from "@/dashboards/permissions"
 import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { panelTitles } from "@/history/diff-groups"
@@ -151,7 +155,8 @@ export default function PanelEditor({
   const save = usePatchPanels(dashboardId)
   const navigate = useNavigate()
   const permissions = useLatestPermissions(dashboardId)
-  const propose = !permissions.edit && permissions.comment
+  const propose =
+    contentChange(permissions, useLatestProvisioned(dashboardId)) === "propose"
   const datasources = useDatasources()
   const [draft, dispatch] = useReducer(draftReducer, undefined, () =>
     startDraft(version, panel)
