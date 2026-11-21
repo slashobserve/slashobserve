@@ -94,7 +94,7 @@ function returnFocusToComposerUntilInput() {
   for (const type of personInput) document.addEventListener(type, stop, true)
 }
 
-type MenuItem = {
+export type MenuItem = {
   id: string
   label: string
   icon: ReactNode
@@ -102,12 +102,14 @@ type MenuItem = {
   disabled?: boolean
   destructive?: boolean
   shortcut?: string
+  opensPopup?: boolean
 }
 
 export type BlockMenuHost = {
   onInspect?: () => void
   range: { from: string | undefined; to: string | undefined }
   vars: Selections
+  actions: MenuItem[]
 }
 
 export function PanelMenu({
@@ -341,6 +343,7 @@ export function PanelMenu({
       }
     )
   }
+  if (block) items.push(...block.actions)
   return (
     <>
       <DropdownMenu>
@@ -385,7 +388,10 @@ export function PanelMenu({
               key={item.id}
               disabled={item.disabled}
               variant={item.destructive ? "destructive" : undefined}
-              onClick={item.onSelect}
+              onClick={() => {
+                if (item.opensPopup) focusAfterClose = "none"
+                item.onSelect()
+              }}
             >
               {item.icon}
               {item.label}

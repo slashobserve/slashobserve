@@ -1,11 +1,15 @@
+import { createContext } from "react"
 import { queryOptions } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
 import { formatDate, zoneLabel } from "@/lib/date-format"
+import { describeRange } from "@/lib/time"
 import type { Block } from "@/observations/queries"
 import type { DataPanel, Panel, Variable } from "@/spec"
+
+import { blockRange } from "../panel-input"
 
 export const blockPanelId = "block"
 
@@ -41,6 +45,68 @@ export function panelBlockBody(block: Block): PanelBlockBody | null {
   if (parsedFrom !== undefined) body.from = parsedFrom
   if (parsedTo !== undefined) body.to = parsedTo
   return body
+}
+
+export type PageRange = { from: string | null; to: string | null }
+
+export type BlockWindow = {
+  from: string
+  to: string
+  pinned: boolean
+  caption: string
+}
+
+export const liveHour = { from: "now-1h", to: "now" }
+
+export const liveHourLabel = "Last hour, live"
+
+export const PageRangeContext = createContext<PageRange>({
+  from: null,
+  to: null,
+})
+
+export function resolveBlockRange(
+  page: PageRange,
+  block: Pick<PanelBlockBody, "from" | "to">
+): BlockWindow {
+  if (block.from !== undefined && block.to !== undefined) {
+    return {
+      from: block.from,
+      to: block.to,
+      pinned: true,
+      caption: `Pinned to ${describeRange(block.from, block.to)}`,
+    }
+  }
+  if (page.from !== null && page.to !== null) {
+    return {
+      from: page.from,
+      to: page.to,
+      pinned: false,
+      caption: describeRange(page.from, page.to),
+    }
+  }
+  return { ...liveHour, pinned: false, caption: liveHourLabel }
+}
+
+export function pageRangeFor(
+  next: { from: string; to: string },
+  now: number
+): PageRange {
+  if (next.from === liveHour.from && next.to === liveHour.to) {
+    return { from: null, to: null }
+  }
+  return blockRange(next.from, next.to, now)
+}
+
+export function pinnedBody(
+  body: Block["body"],
+  from: string,
+  to: string,
+  now: number
+): Block["body"] | null {
+  const range = blockRange(from, to, now)
+  if (range.from === null || range.to === null) return null
+  return { ...body, from: range.from, to: range.to }
 }
 
 export function snapshotIdOf(block: Block): string | null {

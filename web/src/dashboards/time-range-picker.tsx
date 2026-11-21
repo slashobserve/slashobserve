@@ -51,6 +51,8 @@ type ControlProps = {
   quickRanges?: QuickRange[]
   zone?: string | null
   saveDefault?: SaveDefault
+  defaultOpen?: boolean
+  onDismiss?: () => void
 }
 
 export function TimeRangeControl({
@@ -59,6 +61,8 @@ export function TimeRangeControl({
   quickRanges = defaultQuickRanges,
   zone,
   saveDefault,
+  defaultOpen = false,
+  onDismiss,
 }: ControlProps) {
   const preferredTimeZone = usePreferences((state) => state.timeZone)
   const typedZone =
@@ -69,9 +73,13 @@ export function TimeRangeControl({
   const toId = useId()
   const fromRef = useRef<HTMLInputElement>(null)
   const toRef = useRef<HTMLInputElement>(null)
-  const [open, setOpen] = useState(false)
-  const [draftFrom, setDraftFrom] = useState("")
-  const [draftTo, setDraftTo] = useState("")
+  const [open, setOpen] = useState(defaultOpen)
+  const [draftFrom, setDraftFrom] = useState(() =>
+    defaultOpen ? zonedTimeValue(value.from, typedZone) : ""
+  )
+  const [draftTo, setDraftTo] = useState(() =>
+    defaultOpen ? zonedTimeValue(value.to, typedZone) : ""
+  )
   const [problem, setProblem] = useState<DraftProblem | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [picked, setPicked] = useState<DaySelection>(null)
@@ -88,6 +96,8 @@ export function TimeRangeControl({
       setProblem(null)
       setCalendarOpen(false)
       setPicked(null)
+    } else {
+      onDismiss?.()
     }
     setOpen(next)
   }

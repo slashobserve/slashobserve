@@ -145,6 +145,7 @@ type PanelContainerProps = {
   inspected?: boolean
   onInspectTarget?: (target: InspectTarget | null) => void
   blockMenu?: BlockMenuHost
+  onPinRange?: (fromMs: number, toMs: number) => void
 }
 
 export const PanelContainer = memo(function PanelContainer({
@@ -190,6 +191,7 @@ export const PanelContainer = memo(function PanelContainer({
   inspected = false,
   onInspectTarget,
   blockMenu,
+  onPinRange,
 }: PanelContainerProps) {
   const panel = useMemo(
     () =>
@@ -347,6 +349,7 @@ export const PanelContainer = memo(function PanelContainer({
   const sourceKind = source.kind
   const onTimeRangeSelect = useCallback(
     (fromMs: number, toMs: number) => {
+      if (sourceKind === "block") onPinRange?.(fromMs, toMs)
       if (sourceKind === "build" || sourceKind === "block") return
       setSearch((state) => ({
         ...state,
@@ -354,7 +357,7 @@ export const PanelContainer = memo(function PanelContainer({
         to: String(Math.round(toMs)),
       }))
     },
-    [setSearch, sourceKind]
+    [setSearch, sourceKind, onPinRange]
   )
 
   let state: PanelState = "loading"

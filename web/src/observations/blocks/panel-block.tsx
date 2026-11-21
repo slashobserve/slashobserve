@@ -1,30 +1,34 @@
-import { useMemo, useRef, useState, type ReactNode } from "react"
+import { useContext, useMemo, useRef, useState, type ReactNode } from "react"
 import { useContainerWidth } from "react-grid-layout"
+import { CalendarClockIcon, PinIcon, PinOffIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import type { Selections } from "@/api/keys"
 import { PanelChrome } from "@/dashboards/panel-chrome"
 import { PanelContainer } from "@/dashboards/panel-container"
 import { VariablesBar } from "@/dashboards/variables-bar"
-import type { BlockMenuHost } from "@/dashboards/panel-menu"
+import type { BlockMenuHost, MenuItem } from "@/dashboards/panel-menu"
 import type { PanelSource } from "@/dashboards/panel-source"
+import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import { useDatasources } from "@/datasources/queries"
 import { createSharedCursor } from "@/panels/shared-cursor"
-import type { Block } from "@/observations/queries"
+import { useUpdateBlock, type Block } from "@/observations/queries"
 import { isDataPanel, isRowPanel, panelTitle, type LayoutPanel } from "@/spec"
 
+import { blockWriteProblem } from "../errors"
 import { blockVariableStates, variableCaption } from "../panel-input"
 import { BlockByline } from "./block-byline"
 import {
   blockPanelId,
   datasourceUidOf,
+  PageRangeContext,
   panelBlockBody,
+  pinnedBody,
+  resolveBlockRange,
+  type BlockWindow,
   type PanelBlockBody,
 } from "./block-data"
 import { useBlockInspect } from "./block-inspect"
-
-const defaultFrom = "now-1h"
-
-const defaultTo = "now"
 
 const unreadablePanel = {
   id: blockPanelId,
@@ -41,21 +45,28 @@ function ignore() {}
 
 type Props = { block: Block; height: number }
 
-function LiveCaption({
+function RangeCaption({
   datasource,
+  range,
   variables,
 }: {
   datasource: string | undefined
+  range: BlockWindow
   variables: string
 }) {
+  const live = !range.pinned && range.to === "now"
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
       <span
         aria-hidden="true"
-        className="size-1.5 flex-none rounded-full bg-status-ok"
+        className={
+          live
+            ? "size-1.5 flex-none rounded-full bg-status-ok"
+            : "size-1.5 flex-none rounded-full bg-muted-foreground"
+        }
       />
       <span className="truncate">
-        {[datasource === undefined ? "live" : `${datasource}, live`, variables]
+        {[datasource ?? "", range.caption, variables]
           .filter((part) => part !== "")
           .join(", ")}
       </span>
@@ -92,7 +103,9 @@ function ReadablePanelBlock({
   body: PanelBlockBody
   height: number
 }) {
-  const { panel, from, to } = body
+  const { panel } = body
+  const page = useContext(PageRangeContext)
+  const range = useMemo(() => resolveBlockRange(page, body), [page, body])
   const variables = useMemo(() => body.variables ?? [], [body.variables])
   const [chosen, setChosen] = useState<Selections>({})
   const { states, selections } = useMemo(
@@ -115,16 +128,62 @@ function ReadablePanelBlock({
     }),
     [block.observation_id, block.id, block.version]
   )
-  const open = inspect?.open
-  const blockId = block.id
-  const blockMenu = useMemo<BlockMenuHost>(
-    () => ({
-      onInspect: open === undefined ? undefined : () => open(blockId),
-      range: { from, to },
-      vars: selections,
-    }),
-    [open, blockId, from, to, selections]
-  )
+  const update = useUpdateBlock(block.observation_id)
+  const [choosingWindow, setChoosingWindow] = useState(false)
+  const canPin = block.allowed_actions.includes("update")
+
+  function write(change: { body?: Block["body"]; follow_page?: boolean }) {
+    update.mutate(
+      { blockId: block.id, version: block.version, ...change },
+      { onError: (error) => toast.error(blockWriteProblem(error).text) }
+    )
+  }
+
+  function pin(from: string, to: string) {
+    const next = pinnedBody(block.body, from, to, Date.now())
+    if (next !== null) write({ body: next })
+  }
+
+  const actions: MenuItem[] = canPin
+    ? [
+        ...(range.pinned
+          ? []
+          : [
+              {
+                id: "pin-now",
+                label: "Pin to this window",
+                icon: <PinIcon aria-hidden="true" />,
+                disabled: update.isPending,
+                onSelect: () => pin(range.from, range.to),
+              },
+            ]),
+        {
+          id: "pin-window",
+          label: "Pin to a window",
+          icon: <CalendarClockIcon aria-hidden="true" />,
+          disabled: update.isPending,
+          opensPopup: true,
+          onSelect: () => setChoosingWindow(true),
+        },
+        ...(range.pinned
+          ? [
+              {
+                id: "follow",
+                label: "Follow the page",
+                icon: <PinOffIcon aria-hidden="true" />,
+                disabled: update.isPending,
+                onSelect: () => write({ follow_page: true }),
+              },
+            ]
+          : []),
+      ]
+    : []
+  const blockMenu: BlockMenuHost = {
+    onInspect: inspect === null ? undefined : () => inspect.open(block.id),
+    range: { from: range.from, to: range.to },
+    vars: selections,
+    actions,
+  }
   const dataPanel = isDataPanel(panel) ? panel : undefined
   const datasourceUid = dataPanel ? datasourceUidOf(dataPanel) : undefined
   const datasourceName =
@@ -140,10 +199,23 @@ function ReadablePanelBlock({
     <BlockFrame
       block={block}
       caption={
-        <LiveCaption
-          datasource={datasourceName}
-          variables={variableCaption(selections)}
-        />
+        choosingWindow ? (
+          <TimeRangeControl
+            value={{ from: range.from, to: range.to }}
+            defaultOpen
+            onDismiss={() => setChoosingWindow(false)}
+            onChange={(next) => {
+              setChoosingWindow(false)
+              pin(next.from, next.to)
+            }}
+          />
+        ) : (
+          <RangeCaption
+            datasource={datasourceName}
+            range={range}
+            variables={variableCaption(selections)}
+          />
+        )
       }
     >
       <VariablesBar
@@ -165,11 +237,11 @@ function ReadablePanelBlock({
             repeatOf={undefined}
             width={width}
             height={height}
-            from={from}
-            to={to}
+            from={range.from}
+            to={range.to}
             timezone={undefined}
-            rangeFrom={from ?? defaultFrom}
-            rangeTo={to ?? defaultTo}
+            rangeFrom={range.from}
+            rangeTo={range.to}
             selections={selections}
             selectionsReady
             blockedBy={undefined}
@@ -191,6 +263,12 @@ function ReadablePanelBlock({
             inspected={inspect?.inspectedId === block.id}
             onInspectTarget={inspect?.publish}
             blockMenu={blockMenu}
+            onPinRange={
+              canPin
+                ? (fromMs, toMs) =>
+                    pin(String(Math.round(fromMs)), String(Math.round(toMs)))
+                : undefined
+            }
           />
         ) : null}
       </div>
