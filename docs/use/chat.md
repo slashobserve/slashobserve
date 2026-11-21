@@ -285,6 +285,7 @@ For a chat about a dashboard these are the earlier requests you sent on that das
 Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
+A request with no dashboard, and an investigation that no comment asked for, are private the same way, even to people who can see the dashboard; a dashboard's activity still lists the investigation's run events, which carry no prompt text.
 An Admin reads another person's chat read only, and each read of a chat is recorded in the audit trail as `chat.view`.
 Turns of one chat run one at a time in the order they were sent, and the earlier turns are read when a turn starts running, so a follow-up sent while the last one still runs sees its answer.
 Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of your chats, and every request carries its `chat_id`, the id of the chat's first request.
