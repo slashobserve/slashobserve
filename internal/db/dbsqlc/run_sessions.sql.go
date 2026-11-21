@@ -67,7 +67,8 @@ SELECT
     FROM thread_messages m
     JOIN threads t ON t.id = m.thread_id
     LEFT JOIN proposals p ON p.id = t.proposal_id
-    LEFT JOIN dashboards d ON d.id = COALESCE(t.dashboard_id, p.dashboard_id)
+    LEFT JOIN annotations n ON n.id = t.annotation_id
+    LEFT JOIN dashboards d ON d.id = COALESCE(t.dashboard_id, p.dashboard_id, n.dashboard_id)
     LEFT JOIN observations o ON o.id = t.observation_id
     JOIN folders f ON f.id = COALESCE(d.folder_id, o.folder_id)
     WHERE m.id = r.thread_message_id

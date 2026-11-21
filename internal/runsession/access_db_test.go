@@ -24,10 +24,28 @@ func (r *rig) folder(adminsOnly bool) pgtype.UUID {
 
 func (r *rig) askInThread(req revisions.Request) {
 	r.t.Helper()
-	var thread, message pgtype.UUID
+	var thread pgtype.UUID
 	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO threads (dashboard_id, dashboard_version) VALUES ($1, 1) RETURNING id`, r.dash).Scan(&thread); err != nil {
 		r.t.Fatal(err)
 	}
+	r.askIn(req, thread)
+}
+
+func (r *rig) askInAnnotationThread(req revisions.Request) {
+	r.t.Helper()
+	var annotation, thread pgtype.UUID
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO annotations (dashboard_id, time_from, text, created_by) VALUES ($1, now(), 'deploy', $2) RETURNING id`, r.dash, mustUUID(r.t, userID)).Scan(&annotation); err != nil {
+		r.t.Fatal(err)
+	}
+	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO threads (annotation_id) VALUES ($1) RETURNING id`, annotation).Scan(&thread); err != nil {
+		r.t.Fatal(err)
+	}
+	r.askIn(req, thread)
+}
+
+func (r *rig) askIn(req revisions.Request, thread pgtype.UUID) {
+	r.t.Helper()
+	var message pgtype.UUID
 	if err := r.d.SQLDB(r.t).QueryRow(`INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1, 'q', 'user', $2, 'Ada') RETURNING id`,
 		thread, mustUUID(r.t, userID)).Scan(&message); err != nil {
 		r.t.Fatal(err)
@@ -59,6 +77,7 @@ func asRole(req revisions.Request, role auth.Role) revisions.Request {
 
 func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing.T) {
 	inThread := func(r *rig) revisions.Request { req := r.revise(); r.askInThread(req); return req }
+	onAnnotation := func(r *rig) revisions.Request { req := r.investigate(); r.askInAnnotationThread(req); return req }
 	cases := []struct {
 		name       string
 		start      func(r *rig) revisions.Request
@@ -79,6 +98,8 @@ func TestTheScopeOfARunReadsAsItsRequesterForTheReadersOfWhatItWrites(t *testing
 		{"an Admin's suggestion on a dashboard only Admins read", (*rig).suggest, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
 		{"an Admin's thread apply on a dashboard in a shared folder", inThread, false, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
 		{"an Admin's thread apply on a dashboard only Admins read", inThread, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
+		{"an Admin's ask in a thread on an annotation of a dashboard in a shared folder", onAnnotation, false, false, auth.RoleAdmin, datasource.AudienceEveryone, false},
+		{"an Admin's ask in a thread on an annotation of a dashboard only Admins read", onAnnotation, false, true, auth.RoleAdmin, datasource.AudienceAdmins, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
