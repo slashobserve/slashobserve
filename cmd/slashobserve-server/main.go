@@ -31,6 +31,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/assets"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
+	"github.com/slashobserve/slashobserve/internal/auditfolder"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
@@ -527,6 +528,9 @@ func run() error {
 		healthHandler.Wait()
 	}()
 
+	stopAuditFolder := startInBackground(ctx, auditfolder.New(database, dashboardsService, folderAccess, dashprovision.Principal, logger).Start)
+	defer stopAuditFolder()
+
 	provisioner := dashprovision.New(logger, dashboardsService, folderAccess, database, cfg.ProvisionDir)
 	provisionCtx, stopProvisioning := context.WithCancel(ctx)
 	provisionDone := make(chan struct{})
@@ -876,6 +880,19 @@ func maxConcurrentQueries(datasources []config.Datasource) map[string]int {
 		totals[ds.UID] = ds.MaxConcurrentQueries
 	}
 	return totals
+}
+
+func startInBackground(ctx context.Context, work func(context.Context)) func() {
+	workCtx, stop := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		work(workCtx)
+	}()
+	return func() {
+		stop()
+		<-done
+	}
 }
 
 func addAuditDatasource(registry *datasource.Registry, slots *queryproxy.Slots, reader *trail.Reader, logger *slog.Logger) error {

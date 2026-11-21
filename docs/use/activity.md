@@ -103,6 +103,13 @@ An export stops at 1,000,000 events; when more match, the page says how many bef
 The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a panel's CSV, are assembled in the browser from reads that are each recorded, so they have no separate export event.
 `observe audit search` and the `search_audit_events` tool read the same trail; see [Audit queries](../reference/audit-queries.md#api-mcp-and-the-cli).
 
+## Audit folder
+
+At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
+Admins change, move or delete them like any dashboard, and a restart never adds a dashboard back or changes one; a panel that had no data when the server saved it is marked unverified until a later save.
+When a folder named Audit already exists, the server fills it only if it is Admins only and otherwise logs a warning and leaves it alone, and after an Admin deletes the Audit folder it is not created again.
+A dashboard, observation or saved search that reads the audit datasource can live only in a folder that only Admins can read.
+
 ## Who sees an event
 
 You see an event when any of these holds:

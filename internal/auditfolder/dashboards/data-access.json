@@ -1,0 +1,202 @@
+{
+  "specVersion": "0",
+  "title": "Data access",
+  "description": "Who read which dashboards, queries and audit data, from the built-in audit datasource.",
+  "tags": [
+    "audit"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": "queries",
+      "type": "stat",
+      "title": "Queries run",
+      "description": "Queries run outside saved panels: the Logs page, trace view, drafts and agent tools.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:query.run"
+        }
+      ]
+    },
+    {
+      "id": "views",
+      "type": "stat",
+      "title": "Dashboard views",
+      "description": "Dashboards opened.",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:dashboard.view"
+        }
+      ]
+    },
+    {
+      "id": "audit_reads",
+      "type": "stat",
+      "title": "Audit trail reads",
+      "description": "Searches and exports of the audit trail.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:audit.search or action:audit.export"
+        }
+      ]
+    },
+    {
+      "id": "public_views",
+      "type": "stat",
+      "title": "Public link views",
+      "description": "Dashboards and RCAs read through a public link.",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "decimals": 0,
+      "display": {
+        "reduce": "sum"
+      },
+      "queries": [
+        {
+          "query": "action:public_link.view"
+        }
+      ]
+    },
+    {
+      "id": "by_datasource",
+      "type": "timeseries",
+      "title": "Queries by datasource",
+      "description": "Queries run per interval, by datasource.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"action\":\"query.run\"}},\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_target_id\":{\"terms\":{\"field\":\"target_id\",\"size\":8}}}}}}",
+          "legend": "{{target_id}}"
+        }
+      ]
+    },
+    {
+      "id": "reads",
+      "type": "timeseries",
+      "title": "Reads by action",
+      "description": "Recorded reads per interval, by action.",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "unit": "short",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"category\":\"access\"}},\"aggs\":{\"over_time\":{\"date_histogram\":{\"field\":\"occurred_at\",\"fixed_interval\":\"$__interval\"},\"aggs\":{\"by_action\":{\"terms\":{\"field\":\"action\",\"size\":8}}}}}}",
+          "legend": "{{action}}"
+        }
+      ]
+    },
+    {
+      "id": "top_dashboards",
+      "type": "table",
+      "title": "Most viewed dashboards",
+      "description": "Dashboards by views in the range.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"action\":\"dashboard.view\"}},\"aggs\":{\"by_target_name\":{\"terms\":{\"field\":\"target_name\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "top_queriers",
+      "type": "table",
+      "title": "Who queried most",
+      "description": "People and service accounts by queries run.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "{\"query\":{\"term\":{\"action\":\"query.run\"}},\"aggs\":{\"by_actor_name\":{\"terms\":{\"field\":\"actor_name\",\"size\":10}}}}",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": "audit_access",
+      "type": "logs",
+      "title": "Audit trail reads",
+      "description": "The newest searches, exports and queries of the audit trail.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": "slashobserve-audit",
+      "queries": [
+        {
+          "query": "action:audit.* or (action:query.run and target_id:slashobserve-audit)"
+        }
+      ]
+    }
+  ]
+}
