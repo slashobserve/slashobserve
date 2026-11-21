@@ -83,9 +83,14 @@ describe("askAboutThisPanel", () => {
     useCanvasTool.getState().close()
   })
 
-  it("opens the Chat tab off the canvas, keeping the open chat", () => {
+  it("opens the Chat tab off the canvas on the panel, keeping the open chat", () => {
     useActivityStore.getState().setOpen(false)
-    let search: DashboardSearch = { vars: {}, tab: "activity", chat: "c1" }
+    let search: DashboardSearch = {
+      vars: {},
+      tab: "activity",
+      chat: "c1",
+      edit: "query",
+    }
     const place = askAboutThisPanel(
       (update) => {
         search = update(search)
@@ -95,7 +100,8 @@ describe("askAboutThisPanel", () => {
     )
     expect(place).toBe("pane")
     expect(useActivityStore.getState().open).toBe(true)
-    expect(search).toMatchObject({ tab: "chat", chat: "c1" })
+    expect(search).toMatchObject({ tab: "chat", chat: "c1", panel: "latency" })
+    expect(search.edit).toBeUndefined()
     expect(useCanvasTool.getState().draft).toBeNull()
   })
 })

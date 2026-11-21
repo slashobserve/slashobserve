@@ -92,7 +92,12 @@ export function askAboutThisPanel(
     return "canvas"
   }
   useActivityStore.getState().setOpen(true)
-  setSearch((state) => ({ ...state, tab: "chat" }))
+  setSearch((state) => ({
+    ...state,
+    tab: "chat",
+    panel: panelId,
+    edit: undefined,
+  }))
   return "pane"
 }
 

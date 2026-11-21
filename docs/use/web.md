@@ -180,7 +180,7 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, opens the composer on the whole panel, as `c`, the panel menu's **Comment** and the **Comment** button in the panel's header do; in the full-size view and TV mode it starts the comment in the activity pane instead.
-- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the [ask box](#ask-mode) on the whole panel, as `a`, the panel menu's **Ask** and the **Ask** button in the panel's header do; in the full-size view and TV mode it opens the dashboard's Chat tab instead.
+- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the [ask box](#ask-mode) on the whole panel, as `a`, the panel menu's **Ask** and the **Ask** button in the panel's header do; in the full-size view and TV mode it opens the dashboard's Chat tab instead, with the cursor in its box and a chip naming the panel, so the question is about that panel until you remove the chip.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
@@ -233,7 +233,7 @@ When no model is connected the box says so and cannot send, and while you view a
 The box closes on its **Close** button or `Esc`, and the focus goes back to where it was.
 A click outside closes it only while it is empty: once you have typed a question, it stays open with your text, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the box is hidden, and it comes back with your text once the moves are saved or discarded.
-The copies of a repeated panel take no canvas questions: Ask mode does nothing on a copy, and **Ask** or `a` on a copy opens the dashboard's Chat tab.
+The copies of a repeated panel take no canvas questions: Ask mode does nothing on a copy, and **Ask** or `a` on a copy opens the dashboard's Chat tab on that panel.
 
 Each spot you asked about shows a teal pin that only you see, named "Your question on" and the spot; choose it, or Tab to it and press Enter, to open the box on that chat again.
 Your pins that would overlap stack into one teal marker with their count, "N of your questions here", which lists them; choose one to open its box.
