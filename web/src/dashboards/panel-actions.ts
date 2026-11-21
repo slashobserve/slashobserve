@@ -1,6 +1,8 @@
 import type { RefObject } from "react"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useAgentInfo } from "@/observe/queries"
+import { isDataPanel, type LayoutPanel } from "@/spec"
 
 import type { DashboardSearch, useSetDashboardSearch } from "./search"
 
@@ -12,12 +14,30 @@ function onActivityTab(state: DashboardSearch): DashboardSearch {
   return state.tab === "activity" ? state : { ...state, tab: "activity" }
 }
 
-export function focusComment(
-  setSearch: SetSearch,
-  field: RefObject<HTMLTextAreaElement | null>
-) {
-  useActivityStore.getState().setOpen(true)
-  setSearch(onActivityTab)
+type Composer = RefObject<HTMLTextAreaElement | null>
+
+export type ConversationActions = { comment: boolean; ask: boolean }
+
+export function conversationActionsFor(
+  panel: LayoutPanel,
+  canComment: boolean,
+  agentAvailable: boolean
+): ConversationActions {
+  return {
+    comment: canComment,
+    ask: canComment && isDataPanel(panel) && agentAvailable,
+  }
+}
+
+export function useConversationActions(
+  panel: LayoutPanel,
+  canComment: boolean
+): ConversationActions {
+  const agentAvailable = useAgentInfo().data?.available === true
+  return conversationActionsFor(panel, canComment, agentAvailable)
+}
+
+function focusWhenMounted(field: Composer) {
   function attempt(framesLeft: number) {
     if (field.current !== null) {
       field.current.focus()
@@ -28,6 +48,12 @@ export function focusComment(
   requestAnimationFrame(() => attempt(focusFrames))
 }
 
+export function focusComment(setSearch: SetSearch, field: Composer) {
+  useActivityStore.getState().setOpen(true)
+  setSearch(onActivityTab)
+  focusWhenMounted(field)
+}
+
 export function commentOnPanel(setSearch: SetSearch, panelId: string) {
   useActivityStore.getState().setOpen(true)
   setSearch((state) => ({
@@ -35,6 +61,15 @@ export function commentOnPanel(setSearch: SetSearch, panelId: string) {
     panel: panelId,
     edit: undefined,
   }))
+}
+
+export function commentOnPanelAndFocus(
+  setSearch: SetSearch,
+  panelId: string,
+  field: Composer
+) {
+  commentOnPanel(setSearch, panelId)
+  focusWhenMounted(field)
 }
 
 function askTheAgent() {
@@ -50,6 +85,15 @@ export function askAboutPanel(setSearch: SetSearch, panelId: string) {
     panel: panelId,
     edit: undefined,
   }))
+}
+
+export function askAboutPanelAndFocus(
+  setSearch: SetSearch,
+  panelId: string,
+  field: Composer
+) {
+  askAboutPanel(setSearch, panelId)
+  focusWhenMounted(field)
 }
 
 export function editPanelQuery(setSearch: SetSearch, panelId: string) {

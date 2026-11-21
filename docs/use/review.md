@@ -62,9 +62,9 @@ A mention of an agent turns the chip to that agent's name.
 Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
 A comment is 1 to 4000 characters; a counter appears from 3500.
 
-To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
+To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, or open its menu ("Panel menu: `<title>`") and choose **Comment**.
 The card opens scoped to that panel with the cursor in the box.
-**Ask** in the same menu, on a data panel when you can edit the dashboard and a model is connected, opens it the same way with the "To:" chip on Observe Agent.
+**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens it the same way with the "To:" chip on Observe Agent.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
