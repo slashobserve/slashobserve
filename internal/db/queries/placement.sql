@@ -119,7 +119,12 @@ LIMIT @row_limit;
 -- name: RestrictedAnswerFolder :one
 SELECT COALESCE(
   (SELECT f.id FROM agent_requests r
-    JOIN folders f ON f.id = COALESCE((SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id), (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))
-    WHERE r.id = @run_id AND f.admins_only),
+    CROSS JOIN LATERAL (VALUES
+      (1, (SELECT d.folder_id FROM dashboards d WHERE d.id = r.dashboard_id)),
+      (2, (SELECT o.folder_id FROM observations o WHERE o.id = r.observation_id)),
+      (3, (SELECT o.folder_id FROM observations o WHERE o.id = r.subject_observation_id))) AS subject(rank, folder_id)
+    JOIN folders f ON f.id = subject.folder_id
+    WHERE r.id = @run_id AND f.admins_only
+    ORDER BY subject.rank LIMIT 1),
   (SELECT f.id FROM starter_content s JOIN folders f ON f.id = s.ref WHERE s.key = @audit_folder_key AND f.admins_only)
 )::uuid AS folder_id;

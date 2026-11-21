@@ -336,7 +336,7 @@ A run about a dashboard that files into an observation, both in folders only Adm
 
 A run asked in a thread that ends with a `restricted` answer, when people who are not Admins read that thread, replies there with a fixed text that says the answer is not shown, and only whoever asked and Admins read it, in the run.
 A `restricted` run answers `404 not_found` to anyone who is neither its requester nor an Admin, wherever a run is returned, and the revision history leaves it out for them.
-Saving a restricted answer as an observation files it in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
+Saving a restricted answer as an observation files it in the first folder only Admins can read among those of the dashboard it was about, the observation its run files into and the observation it was asked about, else in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)); when neither is Admins only, the save is refused.
 Withdrawing a share and the privacy of chats are unchanged.
 
 ### In the dashboard's Chat tab
