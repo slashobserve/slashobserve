@@ -10,7 +10,7 @@ import {
   spotKey,
   spotLabel,
   spotTurnIds,
-  type SpotTurn,
+  type PinTurn,
 } from "./ask-spot"
 
 const row: Anchor = {
@@ -36,13 +36,13 @@ const point: Anchor = {
   from: "2026-11-21T14:02:00Z",
 }
 
-function turn(fields: Partial<SpotTurn> & { id: string }): SpotTurn {
+function turn(fields: Partial<PinTurn> & { id: string }): PinTurn {
   return {
     prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",
     anchor: row,
-    requested_by: { id: "me" },
+    requested_by: { id: "me", kind: "user", name: "Me" },
     created_at: "2026-11-21T14:31:00Z",
     ...fields,
   }
@@ -76,8 +76,10 @@ describe("privatePins", () => {
     expect(
       privatePins(
         [
-          turn({ id: "r1", requested_by: { id: "other" } }),
-          turn({ id: "r2", read_only: true }),
+          turn({
+            id: "r1",
+            requested_by: { id: "other", kind: "user", name: "Other" },
+          }),
         ],
         "p1",
         "me"
@@ -90,7 +92,6 @@ describe("privatePins", () => {
       privatePins(
         [
           turn({ id: "r1", anchor: null }),
-          turn({ id: "r2", anchor: undefined }),
           turn({ id: "r3", panel_id: "p2" }),
           turn({ id: "r4", chat_id: null }),
         ],
