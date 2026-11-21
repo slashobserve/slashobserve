@@ -84,7 +84,7 @@ The row offers four ways:
   A word with no break in it, such as a hash or a long address, wraps inside the block instead of widening the page.
 - **Panel** offers **From a dashboard** and **New query**.
   **From a dashboard** opens a side panel where you search for a dashboard, then choose one of its data panels.
-  The block is a copy of the panel with its own query, and it stays live on the page over the observation's range, or over the last hour when the observation has none.
+  The block is a copy of the panel with its own query, and it stays live on the page and follows the page's range, or the last hour when the observation has none.
   **New query** opens the panel editor on an empty panel with the first datasource, and is disabled when there is no datasource; **Add**, or **Suggest** for a commenter, saves it as a panel block that follows the page's range (see [Edit a panel block](#edit-a-panel-block)).
 - **Logs** opens the logs page with this observation preselected, so a search can be added from there (see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs)).
 - **Snapshot** lists the live panel blocks of the page and is disabled when there is none.
@@ -152,7 +152,7 @@ Anyone else sees the range without the picker.
 A panel block's panel menu offers **Pin to this window**, which keeps the window the block shows now, and **Pin to a window**, which opens a time range picker for that block.
 Dragging across a time series chart pins the block to the dragged range.
 A pinned block keeps its window when the page's range changes, and **Follow the page** releases it.
-A block added from a dashboard arrives pinned to the window it was taken from.
+A block added from a dashboard panel's menu arrives pinned to the window it was taken from, and one chosen with **Panel**, **From a dashboard** follows the page.
 Pinning needs edit access to the folder.
 
 Over [MCP](mcp.md) `update_observation` sets the page's range, and `update_block` sets a block's own `from` and `to` or releases them with `follow_page: true`.

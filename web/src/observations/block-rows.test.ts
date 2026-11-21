@@ -216,7 +216,7 @@ describe("newPanelBody", () => {
     queries: [{ query: "up" }],
   } as unknown as DataPanel
 
-  it("strips the dashboard placement and carries the observation range", () => {
+  it("strips the dashboard placement and carries the range it is given", () => {
     const body = newPanelBody(panel, {
       from: "2026-11-12T09:00:00Z",
       to: "2026-11-12T10:00:00Z",
