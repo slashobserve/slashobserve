@@ -159,17 +159,25 @@ func (s *Seeder) dashboard(ctx context.Context, folderID pgtype.UUID, st Starter
 	case !errors.Is(err, pgx.ErrNoRows):
 		return err
 	}
-	same, err := q.ApplyCandidates(ctx, dbsqlc.ApplyCandidatesParams{FolderID: folderID, Title: st.Title})
+	by, err := s.principalID()
 	if err != nil {
 		return err
 	}
-	if len(same) == 0 {
+	adoptable, err := q.StarterAdoptable(ctx, dbsqlc.StarterAdoptableParams{FolderID: folderID, Title: st.Title, AuthorKind: string(s.by.Kind), AuthorID: by})
+	if errors.Is(err, pgx.ErrNoRows) {
 		return s.create(ctx, folderID, st)
 	}
-	if err := q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: st.Key, Ref: same[0]}); err != nil {
+	if err != nil {
 		return err
 	}
-	return s.keepCurrent(ctx, folderID, st, same[0])
+	if err := q.RecordStarterContent(ctx, dbsqlc.RecordStarterContentParams{Key: st.Key, Ref: adoptable}); err != nil {
+		return err
+	}
+	return s.keepCurrent(ctx, folderID, st, adoptable)
+}
+
+func (s *Seeder) principalID() (pgtype.UUID, error) {
+	return db.ParseUUID(s.by.ID)
 }
 
 func (s *Seeder) create(ctx context.Context, folderID pgtype.UUID, st Starter) error {
@@ -201,14 +209,17 @@ func (s *Seeder) keepCurrent(ctx context.Context, folderID pgtype.UUID, st Start
 	if err != nil || current {
 		return err
 	}
-	if err := s.keepEditsAsCopy(ctx, folderID, id); err != nil {
+	suffix, err := s.copySuffixIfEdited(ctx, id)
+	if err != nil {
 		return err
 	}
-	_, err = s.dashboards.UpdateProvisioned(ctx, s.by, dashboards.SaveInput{
-		DashboardID: id,
-		Parent:      latest,
-		Spec:        st.Spec,
-		Summary:     releaseSummary,
+	_, err = s.dashboards.UpdateProvisioned(ctx, s.by, dashboards.ReleaseUpdate{
+		DashboardID:      id,
+		Parent:           latest,
+		Spec:             st.Spec,
+		Summary:          releaseSummary,
+		Home:             folderID,
+		EditedCopySuffix: suffix,
 		InTx: func(q *dbsqlc.Queries, _ int) error {
 			provision.RecordApplied(ctx, q, id)
 			return nil
@@ -217,29 +228,20 @@ func (s *Seeder) keepCurrent(ctx context.Context, folderID pgtype.UUID, st Start
 	if err != nil {
 		return err
 	}
-	s.logger.InfoContext(ctx, "updated a starter audit dashboard to this release", slog.String("dashboard_id", id.String()))
+	s.logger.InfoContext(ctx, "updated a starter audit dashboard to this release", slog.String("dashboard_id", id.String()), slog.Bool("kept_edits_as_copy", suffix != ""))
 	return nil
 }
 
-func (s *Seeder) keepEditsAsCopy(ctx context.Context, folderID, id pgtype.UUID) error {
-	by, err := db.ParseUUID(s.by.ID)
+func (s *Seeder) copySuffixIfEdited(ctx context.Context, id pgtype.UUID) (string, error) {
+	by, err := s.principalID()
 	if err != nil {
-		return err
+		return "", err
 	}
 	edited, err := s.db.Queries().LatestVersionIsNotBy(ctx, dbsqlc.LatestVersionIsNotByParams{DashboardID: id, AuthorKind: string(s.by.Kind), AuthorID: by})
 	if err != nil || !edited {
-		return err
+		return "", err
 	}
-	stored, _, err := s.dashboards.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	copied, _, err := s.dashboards.Duplicate(ctx, s.by, id, folderID, stored.Title+copySuffix)
-	if err != nil {
-		return err
-	}
-	s.logger.InfoContext(ctx, "kept an Admin's edited starter audit dashboard as a separate dashboard before updating it", slog.String("dashboard_id", id.String()), slog.String("copy_id", copied.ID))
-	return nil
+	return copySuffix, nil
 }
 
 func (s *Seeder) Start(ctx context.Context) {

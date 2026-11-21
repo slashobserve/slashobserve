@@ -31,6 +31,30 @@ func (q *Queries) LatestVersionIsNotBy(ctx context.Context, arg LatestVersionIsN
 	return column_1, err
 }
 
+const provisionedAmong = `-- name: ProvisionedAmong :many
+SELECT ref FROM starter_content WHERE ref = ANY($1::uuid[])
+`
+
+func (q *Queries) ProvisionedAmong(ctx context.Context, ids []pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, provisionedAmong, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var ref pgtype.UUID
+		if err := rows.Scan(&ref); err != nil {
+			return nil, err
+		}
+		items = append(items, ref)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordStarterContent = `-- name: RecordStarterContent :exec
 INSERT INTO starter_content (key, ref) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING
 `
@@ -58,6 +82,36 @@ type ReplaceStarterContentParams struct {
 func (q *Queries) ReplaceStarterContent(ctx context.Context, arg ReplaceStarterContentParams) error {
 	_, err := q.db.Exec(ctx, replaceStarterContent, arg.Key, arg.Ref)
 	return err
+}
+
+const starterAdoptable = `-- name: StarterAdoptable :one
+SELECT d.id FROM dashboards d
+WHERE d.folder_id = $1 AND lower(d.title) = lower($2::text)
+  AND EXISTS (
+    SELECT 1 FROM dashboard_versions v
+    WHERE v.dashboard_id = d.id AND v.version = 1 AND v.author_kind = $3 AND v.author_id = $4
+  )
+ORDER BY d.id
+LIMIT 1
+`
+
+type StarterAdoptableParams struct {
+	FolderID   pgtype.UUID
+	Title      string
+	AuthorKind string
+	AuthorID   pgtype.UUID
+}
+
+func (q *Queries) StarterAdoptable(ctx context.Context, arg StarterAdoptableParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, starterAdoptable,
+		arg.FolderID,
+		arg.Title,
+		arg.AuthorKind,
+		arg.AuthorID,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const starterContent = `-- name: StarterContent :one

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/slashobserve/slashobserve/internal/audit/trail"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -336,7 +337,7 @@ func (r seedRig) editAsAdmin(t *testing.T, id, title string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.dashboards.UpdateProvisioned(ctx, admin, dashboards.SaveInput{DashboardID: parsed, Parent: 1, Spec: raw, Summary: "Rename"}); err != nil {
+	if _, err := r.dashboards.UpdateProvisioned(ctx, admin, dashboards.ReleaseUpdate{DashboardID: parsed, Parent: 1, Spec: raw, Summary: "Rename", Home: r.folderID(t)}); err != nil {
 		t.Fatalf("an Admin's edit made before starters were read-only: %v", err)
 	}
 }
@@ -446,5 +447,148 @@ func TestAnAuditFolderAnAdminMadeIsUsedOnlyWhenItIsAdminsOnly(t *testing.T) {
 		if n := r.count(t, `SELECT count(*) FROM folders WHERE title = 'Audit'`); n != 1 {
 			t.Errorf("admins only %v: %d Audit folders, want only the Admin's", adminsOnly, n)
 		}
+	}
+}
+
+func (r seedRig) folderID(t *testing.T) pgtype.UUID {
+	t.Helper()
+	id, _ := r.auditFolder(t)
+	parsed, err := db.ParseUUID(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return parsed
+}
+
+func (r seedRig) exec(t *testing.T, query string, args ...any) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), query, args...); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAReleaseThatResizesAPanelAddsOneVersionOverTwoStarts(t *testing.T) {
+	r := newSeedRig(t)
+	r.seed(t)
+	overview := r.starterID(t, "Audit overview")
+	starters, err := Starters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, st := range starters {
+		if st.Title != "Audit overview" {
+			continue
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(st.Spec, &doc); err != nil {
+			t.Fatal(err)
+		}
+		pos := doc["panels"].([]any)[0].(map[string]any)["gridPos"].(map[string]any)
+		pos["w"] = pos["w"].(float64) + 2
+		if starters[i].Spec, err = json.Marshal(doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	release := func() ([]Starter, error) { return starters, nil }
+
+	r.seedRelease(t, release)
+	r.seedRelease(t, release)
+	r.seedRelease(t, release)
+
+	if n := r.latestVersion(t, overview); n != 2 {
+		t.Fatalf("the resized starter is at version %d, want 2", n)
+	}
+}
+
+func (r seedRig) moveToOpsAsEdited(t *testing.T, id string) string {
+	t.Helper()
+	var ops string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(),
+		`INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name) VALUES ('Ops', 'user', $1, 'Ada') RETURNING id::text`, admin.ID).Scan(&ops); err != nil {
+		t.Fatal(err)
+	}
+	plain := `{"specVersion":0,"title":"Audit overview","tags":[],"panels":[]}`
+	r.exec(t, `UPDATE dashboard_versions SET author_kind = 'user', author_id = $2, spec = $3::jsonb WHERE dashboard_id = $1 AND version = 1`, id, admin.ID, plain)
+	r.exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, id, ops)
+	return ops
+}
+
+func TestAnEditedStarterMovedToAnotherFolderComesBackToAuditAndItsCopyStaysWhereItWas(t *testing.T) {
+	r := newSeedRig(t)
+	r.seed(t)
+	folderID, _ := r.auditFolder(t)
+	overview := r.starterID(t, "Audit overview")
+	ops := r.moveToOpsAsEdited(t, overview)
+
+	r.seed(t)
+	r.seed(t)
+	r.seed(t)
+
+	if got := r.count(t, `SELECT count(*) FROM dashboards WHERE id = $1 AND folder_id = $2`, overview, folderID); got != 1 {
+		t.Fatal("the starter is not back in the Audit folder")
+	}
+	if n := r.latestVersion(t, overview); n != 2 {
+		t.Fatalf("the starter is at version %d, want 2", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE title = 'Audit overview (your copy)'`); n != 1 {
+		t.Fatalf("%d copies, want 1", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE title = 'Audit overview (your copy)' AND folder_id = $1`, ops); n != 1 {
+		t.Fatal("the copy is not in the folder the Admin had moved the starter to")
+	}
+}
+
+func TestAnEditedStarterMovedToAnotherFolderWithAdminOnlyContentKeepsItsCopyInAudit(t *testing.T) {
+	r := newSeedRig(t)
+	r.seed(t)
+	folderID, _ := r.auditFolder(t)
+	overview := r.starterID(t, "Audit overview")
+	ops := r.moveToOpsAsEdited(t, overview)
+	r.exec(t, `UPDATE dashboard_versions SET spec = $2::jsonb WHERE dashboard_id = $1 AND version = 1`, overview,
+		`{"specVersion":0,"title":"Audit overview","tags":[],"panels":[{"id":"events","type":"stat","title":"Events","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"slashobserve-audit","queries":[{"query":"*"}]}]}`)
+
+	r.seed(t)
+	r.seed(t)
+
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE title = 'Audit overview (your copy)' AND folder_id = $1`, folderID); n != 1 {
+		t.Fatalf("%d copies in the Audit folder, want 1", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE folder_id = $1`, ops); n != 0 {
+		t.Fatalf("%d dashboards left in the other folder, want 0", n)
+	}
+}
+
+func TestAnAdminsOwnDashboardWithAStarterTitleIsNotTakenOver(t *testing.T) {
+	r := newSeedRig(t)
+	var folderID string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(),
+		`INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name, admins_only) VALUES ('Audit', 'user', $1, 'Ada', true) RETURNING id::text`, admin.ID).Scan(&folderID); err != nil {
+		t.Fatal(err)
+	}
+	parentFolder, err := db.ParseUUID(folderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := datasource.WithAccess(t.Context(), datasource.Access{By: admin})
+	created, _, err := r.dashboards.Create(ctx, admin, parentFolder, []byte(`{"specVersion":0,"title":"Audit overview","tags":[],"panels":[]}`), "mine")
+	if err != nil {
+		t.Fatal(err)
+	}
+	own := created.ID
+
+	r.seed(t)
+	r.seed(t)
+
+	if n := r.count(t, `SELECT count(*) FROM starter_content WHERE ref = $1`, own); n != 0 {
+		t.Fatal("the Admin's own dashboard was taken over as a starter")
+	}
+	if n := r.latestVersion(t, own); n != 1 {
+		t.Fatalf("the Admin's own dashboard is at version %d, want 1", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM dashboards WHERE title = 'Audit overview'`); n != 2 {
+		t.Fatalf("%d dashboards titled Audit overview, want the Admin's and the starter", n)
+	}
+	if n := r.count(t, `SELECT count(*) FROM starter_content`); n != 5 {
+		t.Fatalf("%d starter rows, want 5", n)
 	}
 }

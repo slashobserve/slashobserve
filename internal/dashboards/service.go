@@ -218,10 +218,6 @@ func (s *Service) CreateStarter(ctx context.Context, by auth.Principal, folderID
 	return dash, nil
 }
 
-func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {
-	return s.persist(withAcceptedEmpty(ctx), by, in)
-}
-
 func (s *Service) Restore(ctx context.Context, by auth.Principal, id pgtype.UUID, from, parent int, summary string) (Dashboard, Version, error) {
 	access, err := s.need(ctx, by, id, folders.NeedContent)
 	if err != nil {
@@ -372,6 +368,23 @@ type ListPage struct {
 	Total      int
 }
 
+func (s *Service) markProvisioned(ctx context.Context, items []ListItem, levels folders.Levels) error {
+	ids := make([]string, len(items))
+	for i, item := range items {
+		ids[i] = item.ID
+	}
+	provisioned, err := s.store.provisionedAmong(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		access := folders.DashboardAccess{Abilities: levels.Of(items[i].Folder.ID), Provisioned: provisioned[items[i].ID]}
+		items[i].Abilities = access.Shown()
+		items[i].Provisioned = access.Provisioned
+	}
+	return nil
+}
+
 const madeByMessage = "made_by must be me, agent, mcp, mcp:<client>, user:<id> or service_account:<id>"
 
 func ParseMadeBy(raw string, caller auth.Principal) (MadeBy, error) {
@@ -427,8 +440,8 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	if err != nil {
 		return ListPage{}, err
 	}
-	for i := range items {
-		items[i].Abilities = levels.Of(items[i].Folder.ID)
+	if err := s.markProvisioned(ctx, items, levels); err != nil {
+		return ListPage{}, err
 	}
 	page := ListPage{Items: items}
 	if !p.SkipTotal {
@@ -836,4 +849,8 @@ func decodeVersionCursor(cursor string) (int, error) {
 		return 0, ErrInvalidCursor
 	}
 	return n, nil
+}
+
+func (s *Service) UpdateProvisioned(ctx context.Context, by auth.Principal, in SaveInput) (SaveResult, error) {
+	return s.persist(withAcceptedEmpty(ctx), by, in)
 }

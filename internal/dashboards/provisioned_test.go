@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -138,7 +140,7 @@ func TestAStarterDashboardRefusesSavesAndProposalsFromTheService(t *testing.T) {
 			t.Errorf("%s: save err = %v, want the provisioned refusal", by.Name, err)
 		}
 	}
-	if _, err := r.service.UpdateProvisioned(ctx, adminUser, SaveInput{DashboardID: id, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "release"}); err != nil {
+	if _, err := r.service.UpdateProvisioned(ctx, adminUser, ReleaseUpdate{DashboardID: id, Parent: 1, Spec: panelsSpec("t", "rps", "p99"), Summary: "release", Home: r.generalFolder(t)}); err != nil {
 		t.Fatalf("the release update: %v", err)
 	}
 	if n := r.latestVersion(t, id.String()); n != 2 {
@@ -157,5 +159,138 @@ func TestAStarterDashboardTakesNoAgentRunThatChangesIt(t *testing.T) {
 	}
 	if err := r.revisions.CheckRun(ctx, revisions.SourceInvestigate, id, adminUser); err != nil {
 		t.Errorf("investigate: %v, want an investigation of a starter to be allowed", err)
+	}
+}
+
+func (r *rig) dashboardsIn(t *testing.T, folder pgtype.UUID, title string) int {
+	t.Helper()
+	var n int
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards WHERE folder_id = $1 AND title = $2`, folder.String(), title).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestAFailedReleaseUpdateLeavesNoCopyAndDoesNotMoveTheStarter(t *testing.T) {
+	r := newRig(t, false)
+	ops := r.folder(t, "Ops", false)
+	home := r.folder(t, "Audit", true)
+	created, _, err := r.service.Create(reading(t.Context()), adminUser, ops, panelsSpec("Overview", "rps"), "by hand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.markStarter(t, id)
+	failure := errors.New("the update failed after the copy")
+	for range 3 {
+		_, err = r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+			DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
+			InTx: func(*dbsqlc.Queries, int) error { return failure },
+		})
+		if !errors.Is(err, failure) {
+			t.Fatalf("err = %v, want the failure", err)
+		}
+	}
+	if n := r.dashboardsIn(t, ops, "Overview (your copy)") + r.dashboardsIn(t, home, "Overview (your copy)"); n != 0 {
+		t.Fatalf("%d copies after three failed updates, want 0", n)
+	}
+	if n := r.dashboardsIn(t, ops, "Overview"); n != 1 {
+		t.Fatal("the starter left its folder although the update failed")
+	}
+}
+
+func TestAReleaseUpdateMovesTheStarterBackAndKeepsTheEditedCopyWhereItWas(t *testing.T) {
+	r := newRig(t, false)
+	ops := r.folder(t, "Ops", false)
+	home := r.folder(t, "Audit", true)
+	created, _, err := r.service.Create(reading(t.Context()), adminUser, ops, panelsSpec("Overview", "rps"), "by hand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.markStarter(t, id)
+
+	if _, err := r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+		DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.dashboardsIn(t, home, "Overview"); n != 1 {
+		t.Fatal("the starter is not back in the Audit folder")
+	}
+	if n := r.dashboardsIn(t, ops, "Overview (your copy)"); n != 1 {
+		t.Fatal("the edited copy is not in the folder the starter was in")
+	}
+}
+
+func TestAReleaseUpdateWhoseCopyCannotStayPutsTheCopyInTheHomeFolder(t *testing.T) {
+	r := newRig(t, false)
+	ops := r.folder(t, "Ops", false)
+	home := r.folder(t, "Audit", true)
+	created, _, err := r.service.Create(reading(t.Context()), adminUser, home, auditSpec("Overview"), "by hand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := db.ParseUUID(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, id.String(), ops.String()); err != nil {
+		t.Fatal(err)
+	}
+	r.markStarter(t, id)
+
+	if _, err := r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+		DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.dashboardsIn(t, home, "Overview (your copy)"); n != 1 {
+		t.Fatal("a copy that holds Admin-only content is not in the Audit folder")
+	}
+	if n := r.dashboardsIn(t, ops, "Overview (your copy)"); n != 0 {
+		t.Fatal("a copy that holds Admin-only content was left in a folder others read")
+	}
+}
+
+func TestTheDashboardListMarksAStarterAndShowsItNotEditable(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	starter := r.starterDashboard(t).String()
+	ordinary := r.createDashboard(t).String()
+	rec := b.serve(adminUser, http.MethodGet, "/dashboards", "")
+	var list struct {
+		Dashboards []struct {
+			ID          string
+			Provisioned bool
+			Permissions struct{ Edit bool }
+		}
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &list) != nil {
+		t.Fatalf("list answered %d %s", rec.Code, rec.Body.String())
+	}
+	seen := 0
+	for _, item := range list.Dashboards {
+		switch item.ID {
+		case starter:
+			seen++
+			if !item.Provisioned || item.Permissions.Edit {
+				t.Errorf("starter item = %+v, want provisioned and not editable", item)
+			}
+		case ordinary:
+			seen++
+			if item.Provisioned || !item.Permissions.Edit {
+				t.Errorf("ordinary item = %+v, want editable", item)
+			}
+		}
+	}
+	if seen != 2 {
+		t.Fatalf("the list holds %d of the 2 dashboards", seen)
 	}
 }

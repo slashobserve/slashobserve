@@ -76,6 +76,12 @@ dashboards-id-revisions:
           application/json:
             schema:
               $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: The dashboard is a starter the server keeps current with each release (`provisioned`); duplicate it to get a dashboard an agent can change.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
       "413":
         $ref: "../openapi.yaml#/components/responses/TooLarge"
       "422":
