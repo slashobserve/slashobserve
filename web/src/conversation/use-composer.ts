@@ -9,11 +9,7 @@ import {
   usePromptHistory,
   type HistoryCursor,
 } from "@/chat/prompt-history"
-import {
-  emptyPromptText,
-  promptCounter,
-  type PromptCounter,
-} from "@/chat/prompt-length"
+import { emptyPromptText } from "@/chat/prompt-length"
 import {
   chatCommands,
   commandLabels,
@@ -117,7 +113,6 @@ export type ComposerModel = {
   announcement: { text: string; count: number }
   pending: boolean
   sendBlock: string | null
-  counter: PromptCounter | null
   runningRequestId: string | undefined
   field: RefObject<HTMLTextAreaElement | null>
   submit: () => Promise<void>
@@ -325,7 +320,6 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const delivery = chosenDelivery(place, wire, chosen)
   const gate = deliveryGate(input.gate, delivery)
   const sendBlock = sendBlockOf(wire, delivery, gate)
-  const counter = promptCounter(wire)
   const pending = sending || delivering.pending
 
   function announce(next: string) {
@@ -431,7 +425,7 @@ export function useComposer(input: ComposerInput): ComposerModel {
       }
       return
     }
-    if (counter?.over === true) {
+    if ([...wire].length > maxPromptLength) {
       fail({
         text: `Use at most ${maxPromptLength} characters.`,
         invalid: true,
@@ -519,7 +513,6 @@ export function useComposer(input: ComposerInput): ComposerModel {
     announcement,
     pending,
     sendBlock,
-    counter,
     runningRequestId: input.runningRequestId,
     field,
     submit,
