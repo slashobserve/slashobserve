@@ -41,7 +41,9 @@ Failures are logged with a fixed message and a code, never with the URL or the e
 The first export starts at the oldest event the audit table still holds, so a new setting sends the existing history before the new events.
 
 The request goes out through the same dialer as the datasources, so the endpoint is an operator choice and is not held to the [outbound domain list](outbound-access.md).
-It does not follow redirects, and it refuses link-local addresses.
+It does not follow redirects.
+A direct connection to a link-local address, such as a cloud metadata address, is refused.
+The request honours `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` like the datasources do, so a collector behind a proxy can be reached; when a proxy is used, the server connects only to the proxy and the proxy decides which addresses it will reach.
 
 ## What is guaranteed
 
