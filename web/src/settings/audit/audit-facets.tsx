@@ -1,3 +1,4 @@
+import { useRef, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { MinusIcon } from "lucide-react"
 
@@ -11,7 +12,8 @@ import { auditFacetsQuery, auditFieldsQuery } from "./queries"
 import {
   canEditTerms,
   termState,
-  toggleTerm,
+  toggleTermRemembering,
+  type WrapMemory,
   type FacetField,
 } from "./query-text"
 import type { AuditEvent } from "./stream"
@@ -36,6 +38,7 @@ export function AuditFacets({
   onQuery: (q: string) => void
 }) {
   const fields = useQuery(auditFieldsQuery())
+  const wrapMemory = useRef<WrapMemory | null>(null)
   const editable = canEditTerms(query)
   return (
     <div className="flex flex-col gap-2">
@@ -60,6 +63,7 @@ export function AuditFacets({
             }}
             editable={editable}
             live={live}
+            wrapMemoryRef={wrapMemory}
             onQuery={onQuery}
           />
         ))}
@@ -75,6 +79,7 @@ function FacetGroup({
   field,
   editable,
   live,
+  wrapMemoryRef,
   onQuery,
 }: {
   window: AuditWindowKey
@@ -83,6 +88,7 @@ function FacetGroup({
   field: FacetField
   editable: boolean
   live: readonly AuditEvent[]
+  wrapMemoryRef: RefObject<WrapMemory | null>
   onQuery: (q: string) => void
 }) {
   const facets = useQuery(auditFacetsQuery(window, field.name))
@@ -90,8 +96,16 @@ function FacetGroup({
   const values = liveFacetValues(facets.data?.values ?? [], live, field.name)
 
   function toggle(value: string, exclude: boolean) {
-    const next = toggleTerm(query, field, value, exclude)
-    if (next !== null) onQuery(next)
+    const next = toggleTermRemembering(
+      query,
+      field,
+      value,
+      exclude,
+      wrapMemoryRef.current
+    )
+    if (next === null) return
+    wrapMemoryRef.current = next.memory
+    onQuery(next.text)
   }
 
   return (

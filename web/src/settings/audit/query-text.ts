@@ -151,6 +151,35 @@ export function toggleTerm(
   return prefix + removeCopies(flipped, field, value, first)
 }
 
+export type WrapMemory = { before: string; after: string }
+
+function wrapsOnAdd(text: string): boolean {
+  const source = readKql(text)
+  if (source === null) return false
+  const trimmed = source.body.trim()
+  return trimmed !== "" && parseKql(trimmed).node?.kind === "or"
+}
+
+export function toggleTermRemembering(
+  text: string,
+  field: FacetField,
+  value: string,
+  exclude: boolean,
+  memory: WrapMemory | null
+): { text: string; memory: WrapMemory | null } | null {
+  const next = toggleTerm(text, field, value, exclude)
+  if (next === null) return null
+  if (
+    memory !== null &&
+    memory.after === text &&
+    toggleTerm(memory.before, field, value, exclude) === text
+  ) {
+    return { text: memory.before, memory: null }
+  }
+  const wrapped = termState(text, field, value) === null && wrapsOnAdd(text)
+  return { text: next, memory: wrapped ? { before: text, after: next } : null }
+}
+
 export function requestQuery(requestId: string): string {
   return `request_id:${escapeKql(requestId)}`
 }

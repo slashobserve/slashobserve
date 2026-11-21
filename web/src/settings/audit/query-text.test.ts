@@ -7,6 +7,7 @@ import {
   runQuery,
   targetQuery,
   termState,
+  toggleTermRemembering,
   toggleTerm,
 } from "./query-text"
 import type { AuditEvent } from "./stream"
@@ -192,5 +193,53 @@ describe("actor and target filters", () => {
     expect(targetQuery({ ...base, target_id: null, target_kind: null })).toBe(
       null
     )
+  })
+})
+
+describe("toggleTermRemembering", () => {
+  const typed = "origin:mcp or origin:cli"
+
+  test("takes back the parentheses a chip added with the chip", () => {
+    const on = toggleTermRemembering(typed, outcome, "denied", false, null)
+    expect(on?.text).toBe('(origin:mcp or origin:cli) and outcome:"denied"')
+    const off = toggleTermRemembering(
+      on?.text as string,
+      outcome,
+      "denied",
+      false,
+      on?.memory ?? null
+    )
+    expect(off?.text).toBe(typed)
+    expect(off?.memory).toBe(null)
+  })
+
+  test("keeps parentheses the person typed", () => {
+    const text = "(origin:mcp or origin:cli)"
+    const on = toggleTermRemembering(text, outcome, "denied", false, null)
+    expect(on?.memory).toBe(null)
+    expect(
+      toggleTermRemembering(on?.text as string, outcome, "denied", false, null)
+        ?.text
+    ).toBe(text)
+  })
+
+  test("keeps the parentheses once the text was edited after the chip", () => {
+    const on = toggleTermRemembering(typed, outcome, "denied", false, null)
+    const edited = (on?.text as string) + " and actor:bob"
+    const off = toggleTermRemembering(
+      edited,
+      outcome,
+      "denied",
+      false,
+      on?.memory ?? null
+    )
+    expect(off?.text).toBe("(origin:mcp or origin:cli) and actor:bob")
+  })
+
+  test("does not remember anything for a query that needs no parentheses", () => {
+    expect(
+      toggleTermRemembering("origin:mcp", outcome, "denied", false, null)
+        ?.memory
+    ).toBe(null)
   })
 })
