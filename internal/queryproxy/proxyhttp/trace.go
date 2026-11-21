@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -76,6 +77,7 @@ func (h *Handler) trace(c *gin.Context) {
 	datasource.NoteQuery(ctx, uid, "trace "+id, rng, f.Rows())
 	switch {
 	case errors.Is(err, datasource.ErrNotFound):
+		audit.Conclude(c.Request.Context(), audit.Result{Outcome: audit.OutcomeFailed, Reason: string(queryproxy.CodeNotFound), Target: audit.Target{Kind: "datasource", ID: uid}})
 		abortError(c, http.StatusNotFound, string(queryproxy.CodeNotFound), traceNotFoundMessage)
 		return
 	case err != nil:

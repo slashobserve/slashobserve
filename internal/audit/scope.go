@@ -64,6 +64,19 @@ func Conclude(ctx context.Context, r Result) {
 	st.result = &r
 }
 
+func Concluded(ctx context.Context) (Result, bool) {
+	st := stateOf(ctx)
+	if st == nil {
+		return Result{}, false
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.result == nil {
+		return Result{}, false
+	}
+	return *st.result, true
+}
+
 func Skip(ctx context.Context) {
 	if st := stateOf(ctx); st != nil {
 		st.markCommitted()

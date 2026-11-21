@@ -18,6 +18,7 @@ The Agents page's list of one agent's runs is a `run.list` with scope `workspace
 A refused view is recorded every time.
 A call that answers 404 `not_found` for an id the caller cannot see is recorded every time too, as a denied `request.refuse` or the route's own view action, with the kind and id the caller asked for as its target and `not_found` as its reason; this holds for every route that names the id, whatever its method, including the dashboard versions, a diff, a folder, the datasource schema and a presence ping, so probing for hidden ids leaves a trace.
 Any other 404 under a visible object, such as a dashboard that was never imported or a version that does not exist, is not recorded.
+An unknown trace id on a datasource the caller can read is a failed `query.run`, not a denial.
 
 ## Fields
 

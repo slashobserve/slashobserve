@@ -441,3 +441,17 @@ func TestARefusedCallThatNamesAHiddenIdIsRecordedOnEveryMethodButOnlyForANotFoun
 		}
 	}
 }
+
+func TestAConcludedFailureOnANotFoundIsFailedNotDenied(t *testing.T) {
+	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
+	engine := s.engine(t, func(c *gin.Context) {
+		Conclude(c.Request.Context(), Result{Outcome: OutcomeFailed, Reason: "not_found", Target: Target{Kind: "datasource", ID: "tempo"}})
+		c.JSON(http.StatusNotFound, gin.H{"error": "trace not found", "code": "not_found"})
+	})
+	_, request := serve(t, engine, http.MethodPost, "/api/v1/datasources/tempo/query")
+	s.run(t)()
+	want := []queryEvent{{outcome: "failed", datasource: "tempo", targetID: "tempo"}}
+	if got := s.queryEventsOf(t, request); !slices.Equal(got, want) {
+		t.Fatalf("recorded %+v, want %+v", got, want)
+	}
+}

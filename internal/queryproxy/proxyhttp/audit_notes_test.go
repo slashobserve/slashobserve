@@ -166,3 +166,18 @@ func TestEveryQueryPathNotesTheQueryItRanWithItsWindowAndRows(t *testing.T) {
 		}
 	})
 }
+
+func TestAnUnknownTraceIdOnAVisibleDatasourceIsAFailedReadNotADenial(t *testing.T) {
+	hn, tempoDS := newTraceHarness(t)
+	tempoDS.onTrace = func(context.Context, string, datasource.TimeRange, int) (datasource.Frame, error) {
+		return datasource.Frame{}, datasource.Errorf(datasource.ErrNotFound, "trace not found")
+	}
+	rec := hn.trace(auth.KindUser, "tempo", traceFixtureID, "?from=now-6h&to=now")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	got := hn.concluded()
+	if got == nil || got.Outcome != audit.OutcomeFailed || got.Target != (audit.Target{Kind: "datasource", ID: "tempo"}) {
+		t.Fatalf("concluded %+v, want a failed read of datasource tempo", got)
+	}
+}

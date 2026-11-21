@@ -307,14 +307,21 @@ type harness struct {
 }
 
 type queryNotes struct {
-	mu   sync.Mutex
-	last []audit.Query
+	mu        sync.Mutex
+	last      []audit.Query
+	concluded *audit.Result
 }
 
-func (n *queryNotes) set(q []audit.Query) {
+func (n *queryNotes) set(q []audit.Query, concluded *audit.Result) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.last = q
+	n.last, n.concluded = q, concluded
+}
+
+func (hn *harness) concluded() *audit.Result {
+	hn.notes.mu.Lock()
+	defer hn.notes.mu.Unlock()
+	return hn.notes.concluded
 }
 
 func (hn *harness) noted() []audit.Query {
@@ -386,7 +393,11 @@ func buildHarness(t *testing.T, other *fakeDatasource, opts ...queryproxy.Runner
 		}
 		signIn(c, auth.Principal{Kind: auth.PrincipalKind(c.GetHeader("X-Kind")), ID: principal, Email: email, Name: principal, Role: role})
 		c.Next()
-		notes.set(audit.Noted(ctx))
+		var concluded *audit.Result
+		if r, ok := audit.Concluded(ctx); ok {
+			concluded = &r
+		}
+		notes.set(audit.Noted(ctx), concluded)
 	})
 	h.Register(auth.NewRoutes(api))
 	return &harness{t: t, access: access, h: h, router: router, ds: ds, other: other, specs: specs, runner: runner, id: id, logs: logs, notes: notes}
