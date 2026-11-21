@@ -18,9 +18,9 @@ import {
   CanvasComposer,
   CanvasLayer,
   useCanvasGate,
-  useOnTv,
 } from "@/comments/canvas-composer"
 import { CanvasPins } from "@/comments/canvas-pins"
+import { pinView } from "@/comments/canvas-target"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { PanelHealthBadge } from "@/health/panel-health-badge"
@@ -158,6 +158,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  onCanvas?: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
   focusOnRender: boolean
@@ -203,6 +204,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  onCanvas = false,
   onToggleResponsive,
   layoutActions,
   focusOnRender,
@@ -407,8 +409,8 @@ export const PanelContainer = memo(function PanelContainer({
 
   const panelId = panel.id
   const onPointerEnter = useCallback(
-    () => useHoveredPanel.getState().enter(panelId),
-    [panelId]
+    () => useHoveredPanel.getState().enter(panelId, repeatOf !== undefined),
+    [panelId, repeatOf]
   )
   const onPointerLeave = useCallback(
     () => useHoveredPanel.getState().leave(panelId),
@@ -427,19 +429,11 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
-  const onTv = useOnTv()
-  const onCanvas =
-    dashboardId !== undefined &&
-    sourceKind === "version" &&
-    canComment &&
-    !onTv &&
-    !viewing &&
-    !editingPanel
   const commenting = onCanvas && commentTool && !layoutSession
   const draft = useCanvasTool((state) =>
     ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null
   )
-  const gateInput = useCanvasGate(canComment)
+  const gateInput = useCanvasGate(canComment, layoutSession)
   const shownWindow = useMemo(
     () => ({ from: rangeFrom, to: rangeTo }),
     [rangeFrom, rangeTo]
@@ -594,7 +588,7 @@ export const PanelContainer = memo(function PanelContainer({
                 panelTitle={panelName}
                 store={layoutStore}
                 body={body}
-                dataShown={state !== "empty"}
+                view={pinView(state, tableView)}
                 gateInput={gateInput}
               />
             ) : null}
@@ -613,7 +607,10 @@ export const PanelContainer = memo(function PanelContainer({
           shownRange={shownWindow}
         />
       ) : null}
-      {draft !== null && onCanvas && dashboardId !== undefined ? (
+      {draft !== null &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
         <CanvasComposer
           key={`${draft.panelId}:${draft.at?.x ?? ""}:${draft.at?.y ?? ""}`}
           dashboardId={dashboardId}

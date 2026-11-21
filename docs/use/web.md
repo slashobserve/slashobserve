@@ -194,15 +194,21 @@ In Comment mode the pointer becomes a crosshair, a line above the tool bar says 
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
 On a time series, a heatmap, a state timeline or a status history, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
-The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
 **Ask** shows when a model is connected and opens the activity pane for the whole dashboard with the "To:" chip on Observe Agent.
+
+The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
+A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
+While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
+The copies of a repeated panel take no canvas comments: Comment mode does nothing on a copy, **Comment** or `c` on a copy starts the comment in the activity pane, and pins show only on the first panel.
 
 ### Comment pins
 
 A thread on a part of a panel shows as a pin with its author's mark at the spot it names.
 A pin follows its data: when the series, bar or row moves, the pin moves with it.
 A resolved thread's pin is grey.
-When the data is no longer on the panel, for example after the time range or a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
+A pin on a moment, a point or a range outside the shown time range is not drawn until the range shows it again, and a range partly in view keeps its pin on the part that shows.
+A pin on a series hidden in the legend is not drawn either, and while the panel shows an error, is loading or is in its table view only pins on its title are drawn.
+When the series, row or cell is no longer on the panel while its time is in view, for example after a filter changed, the pin stays where it was placed, is faded, and its thread says that its data is no longer on the panel.
 A table row, log line, span or alert that is on the panel but scrolled out of view, or a table row on another page, points at the bottom edge of the panel, and opening its pin scrolls or pages the panel to it.
 
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.

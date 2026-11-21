@@ -57,6 +57,7 @@ import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
 import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
+  shortcutTarget,
   useDashboardShortcuts,
 } from "@/shortcuts/use-dashboard-shortcuts"
 import {
@@ -85,7 +86,7 @@ import {
   useCursorSyncShortcut,
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
-import { commentKeyAction } from "./comment-key"
+import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -611,10 +612,18 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
-      const onCanvas = !kiosk && viewed === undefined
+      const target = shortcutTarget()
+      const panelId = layoutPanelOf(spec, target?.id ?? undefined)?.id
+      const onCanvas = takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing: viewed !== undefined,
+        editingPanel: editingPanel && panelId === search.panel,
+        copy: target?.copy === true,
+      })
       const action = commentKeyAction({
         commenting: commentTool,
-        panelId: shortcutPanel()?.id,
+        panelId,
         canComment: permissions.comment,
         editing,
         onCanvas,
@@ -895,6 +904,13 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      onCanvas={takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing,
+        editingPanel: editingPanel && item.panel.id === search.panel,
+        copy: item.key !== item.panel.id,
+      })}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }

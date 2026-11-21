@@ -64,6 +64,7 @@ import {
   type TooltipView,
 } from "./plugins"
 import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import { seriesLabels } from "../anchors"
 import type { AnchorSeries, TimeseriesAnchorLayout } from "./anchors"
 import { scaleDistribution } from "./axis-scale"
 import { breakingGaps, shapeNulls } from "./gaps"
@@ -1141,10 +1142,14 @@ function timeseriesAnchorLayout(
 ): TimeseriesAnchorLayout {
   const plot = rectWithin(u.over, surfaceOf(u.over))
   const xs = (u.data[0] ?? []) as number[]
+  const hidden: Record<string, string>[] = []
   const drawn: AnchorSeries[] = series.flatMap((entry, index) => {
     const options = u.series[first + index]
     const data = u.data[first + index]
     const tooltip = entries[index]
+    if (options?.show !== true && tooltip) {
+      hidden.push(seriesLabels(frameLabels.get(entry.key), tooltip.label))
+    }
     if (options?.show !== true || data === undefined || !tooltip) return []
     const scale = options.scale ?? "y"
     return [
@@ -1169,5 +1174,6 @@ function timeseriesAnchorLayout(
     xMax: u.scales.x?.max ?? NaN,
     xs,
     series: drawn,
+    hidden,
   }
 }

@@ -102,7 +102,7 @@ const reply = message("m2", {
   created_at: "2026-11-06T09:02:00Z",
 })
 
-function finding(): Finding {
+function finding(patch: Partial<Finding> = {}): Finding {
   return {
     id: "f1",
     observation_id: null,
@@ -124,6 +124,7 @@ function finding(): Finding {
     url: null,
     suggested_change: "Add a p99 latency panel",
     observe_worthy: false,
+    ...patch,
   }
 }
 
@@ -162,10 +163,12 @@ function Harness({
   initial,
   later,
   gate = { kind: "allowed" },
+  on = target,
 }: {
   initial: ThreadWithMessages
   later?: Message
   gate?: AgentGate
+  on?: string
 }) {
   const [entry, setEntry] = useState(initial)
   return (
@@ -182,7 +185,7 @@ function Harness({
       )}
       <ThreadView
         entry={entry}
-        target={target}
+        target={on}
         panelTitle={null}
         gate={gate}
         clientName="Claude Code"
@@ -196,11 +199,12 @@ function show(
   entry: ThreadWithMessages,
   seed?: (client: ReturnType<typeof testQueryClient>) => void,
   later?: Message,
-  gate?: AgentGate
+  gate?: AgentGate,
+  on?: string
 ) {
   const queryClient = testQueryClient()
   seed?.(queryClient)
-  const harness = <Harness initial={entry} later={later} gate={gate} />
+  const harness = <Harness initial={entry} later={later} gate={gate} on={on} />
   const view = renderWithProviders(harness, {
     queryClient,
     route: { path: "/", url: "/" },
@@ -338,6 +342,51 @@ describe("ThreadView", () => {
       )
     }
   )
+
+  it("offers to file a new observation for an answer asked in an observation's discussion", async () => {
+    const fetch = stubFetch({
+      [`POST /api/v1/observe/${runId}/observation`]: {
+        status: 201,
+        body: { observation_id: "o-new" },
+      },
+    })
+    const { user } = show(
+      {
+        thread: thread({
+          target: { kind: "observation", id: "o1" },
+          dashboard_id: null,
+          version: null,
+        }),
+        messages: [question, reply],
+      },
+      (client) =>
+        client.setQueryData(
+          observeKeys.request(runId),
+          request({
+            finding: finding({ dashboard_id: null, observe_worthy: true }),
+          })
+        ),
+      undefined,
+      undefined,
+      "observation:o1"
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Create observation" })
+    )
+    expect(
+      screen.queryByRole("link", { name: "Open the observation" })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).toBeNull()
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.map(
+          ([sent]) => `${sent.method} ${new URL(sent.url).pathname}`
+        )
+      ).toContain(`POST /api/v1/observe/${runId}/observation`)
+    )
+  })
 
   it("applies the suggested change in the thread with Revise the dashboard", async () => {
     const fetch = stubFetch({

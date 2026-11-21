@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  hides,
   hitTest,
   locate,
   pointRadius,
@@ -188,5 +189,50 @@ describe("timeseries locate", () => {
         series: { service: "payments" },
       })
     ).toMatchObject({ x: 240 - pointRadius, y: 30 - pointRadius })
+  })
+})
+
+describe("timeseries hides", () => {
+  const iso = (seconds: number) => new Date(seconds * 1000).toISOString()
+  const pos = { x: 0, y: 0 }
+  const legendHid = { ...layout, hidden: [{ service: "search" }] }
+
+  it("hides a moment, a point or a whole range outside the shown time", () => {
+    expect(hides(layout, { kind: "time", pos, from: iso(900) })).toBe(true)
+    expect(
+      hides(layout, {
+        kind: "point",
+        pos,
+        from: iso(1400),
+        series: { service: "checkout" },
+      })
+    ).toBe(true)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(1301), to: iso(1500) })
+    ).toBe(true)
+  })
+
+  it("shows a moment in view and a range that overlaps it", () => {
+    expect(hides(layout, { kind: "time", pos, from: iso(1100) })).toBe(false)
+    expect(
+      hides(layout, { kind: "range", pos, from: iso(900), to: iso(1050) })
+    ).toBe(false)
+  })
+
+  it("hides a series the legend hid, and not a series that is missing", () => {
+    expect(
+      hides(legendHid, { kind: "series", pos, series: { service: "search" } })
+    ).toBe(true)
+    expect(
+      hides(legendHid, {
+        kind: "point",
+        pos,
+        from: iso(1100),
+        series: { service: "search" },
+      })
+    ).toBe(true)
+    expect(
+      hides(legendHid, { kind: "series", pos, series: { service: "gone" } })
+    ).toBe(false)
   })
 })
