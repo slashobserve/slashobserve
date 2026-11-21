@@ -1,4 +1,11 @@
-import { useContext, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { useContainerWidth } from "react-grid-layout"
 import { CalendarClockIcon, PinIcon, PinOffIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -6,6 +13,8 @@ import { toast } from "sonner"
 import type { Selections } from "@/api/keys"
 import { PanelChrome } from "@/dashboards/panel-chrome"
 import { PanelContainer } from "@/dashboards/panel-container"
+import type { VariableState } from "@/dashboards/use-variables"
+import { VariableBox } from "@/dashboards/variable-controls/variable-box"
 import { VariablesBar } from "@/dashboards/variables-bar"
 import type { BlockMenuHost, MenuItem } from "@/dashboards/panel-menu"
 import type { PanelSource } from "@/dashboards/panel-source"
@@ -74,6 +83,29 @@ function RangeCaption({
   )
 }
 
+function StoredVariable({ state }: { state: VariableState }) {
+  const id = useId()
+  return (
+    <VariableBox variable={state.variable} id={id}>
+      <output id={id} className="flex items-center px-[9px]">
+        {state.selected.length === 0 ? "None" : state.selected.join(", ")}
+      </output>
+    </VariableBox>
+  )
+}
+
+function StoredVariables({ states }: { states: VariableState[] }) {
+  const shown = states.filter((state) => state.variable.hide !== "variable")
+  if (shown.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 pr-2.5 pb-2.5 pl-4">
+      {shown.map((state) => (
+        <StoredVariable key={state.variable.name} state={state} />
+      ))}
+    </div>
+  )
+}
+
 function BlockFrame({
   block,
   caption,
@@ -108,7 +140,7 @@ function ReadablePanelBlock({
   const range = useMemo(() => resolveBlockRange(page, body), [page, body])
   const variables = useMemo(() => body.variables ?? [], [body.variables])
   const [chosen, setChosen] = useState<Selections>({})
-  const { states, selections } = useMemo(
+  const { states, fixed, selections } = useMemo(
     () => blockVariableStates(variables, chosen),
     [variables, chosen]
   )
@@ -225,6 +257,7 @@ function ReadablePanelBlock({
           setChosen((current) => ({ ...current, [name]: values }))
         }
       />
+      <StoredVariables states={fixed} />
       <div ref={containerRef} style={{ height }} className="w-full">
         {mounted ? (
           <PanelContainer

@@ -89,10 +89,25 @@ function bakedValues(variable: Variable): string[] {
 
 function ignoreRetry() {}
 
+function takesFreeEntry(variable: Variable): boolean {
+  return (
+    variable.type === "textbox" ||
+    variable.type === "adhoc" ||
+    variable.type === "groupby"
+  )
+}
+
 export function blockVariableStates(
   variables: readonly Variable[],
   chosen: Selections
-): { states: VariableState[]; selections: Selections } {
+): { states: VariableState[]; fixed: VariableState[]; selections: Selections } {
+  const picked = Object.fromEntries(
+    Object.entries(chosen).filter(([name]) =>
+      variables.some(
+        (variable) => variable.name === name && !takesFreeEntry(variable)
+      )
+    )
+  )
   const displays = variables.map((variable) =>
     variableDisplay(variable, {
       data: { values: bakedValues(variable), truncated: false },
@@ -106,8 +121,8 @@ export function blockVariableStates(
   variables.forEach((variable, index) => {
     options[variable.name] = displays[index].selectable
   })
-  const { selections } = resolveSelections([...variables], chosen, options)
-  const states = variables.map((variable, index) => ({
+  const { selections } = resolveSelections([...variables], picked, options)
+  const all = variables.map((variable, index) => ({
     variable,
     options: displays[index].shown?.values,
     texts: displays[index].shown?.texts,
@@ -116,7 +131,11 @@ export function blockVariableStates(
     selected: selections[variable.name] ?? [],
     retry: ignoreRetry,
   }))
-  return { states, selections }
+  return {
+    states: all.filter((state) => !takesFreeEntry(state.variable)),
+    fixed: all.filter((state) => takesFreeEntry(state.variable)),
+    selections,
+  }
 }
 
 export function variableCaption(selections: Selections): string {

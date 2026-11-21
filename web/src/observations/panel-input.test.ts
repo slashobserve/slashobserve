@@ -222,4 +222,31 @@ describe("blockVariableStates", () => {
     })
     expect(states[0].selected).toEqual(["cart", "search"])
   })
+
+  it("keeps free-entry variables at their stored value and out of the pickers", () => {
+    const stored = [
+      ...variables,
+      { name: "svc", type: "textbox", default: "checkout" },
+      { name: "filters", type: "adhoc", datasource: "prom" },
+      { name: "by", type: "groupby", datasource: "prom", default: ["pod"] },
+    ] as unknown as Variable[]
+    const { states, fixed, selections } = blockVariableStates(stored, {
+      svc: ['.+"} or up{x="'],
+      filters: ["job=api"],
+      by: ["node"],
+    })
+    expect(states.map((state) => state.variable.name)).toEqual([
+      "service",
+      "pod",
+      "step",
+    ])
+    expect(fixed.map((state) => state.variable.name)).toEqual([
+      "svc",
+      "filters",
+      "by",
+    ])
+    expect(selections.svc).toEqual(["checkout"])
+    expect(selections.by).toEqual(["pod"])
+    expect(selections.filters ?? []).toEqual([])
+  })
 })

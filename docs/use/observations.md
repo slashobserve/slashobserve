@@ -97,7 +97,8 @@ Resolving does not close the page: a resolved observation still takes blocks fro
 A panel block's caption names its datasource and its window: "Last hour, live", the page's range, or "Pinned to" the block's own; a snapshot's caption says "Frozen" with the time range of its data.
 A panel block is drawn as a dashboard panel, and its panel menu has **View as table**, **Inspect**, **Download CSV** and **Save as PNG**, plus **Open in Logs** or **Open in Traces** on a logs or traces panel.
 **Inspect** opens the panel's data and query in the right pane in place of the discussion, and closing it brings the discussion back.
-A block that carries variables shows a picker for each above the panel, starting at the values it was added with; a choice changes only what you see and is not saved.
+A block that carries variables shows a picker above the panel for each one with stored options, starting at the values it was added with; a choice changes only what you see and is not saved.
+A textbox, ad hoc filter or group by variable shows its stored value and cannot be changed on the block.
 A panel block can be frozen from its own menu too, with **Freeze as snapshot**.
 A person who can only comment suggests that snapshot, as with any other block.
 

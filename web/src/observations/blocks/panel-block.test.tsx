@@ -425,4 +425,26 @@ describe("PanelBlock", () => {
       ])
     )
   })
+
+  it("shows a free-entry variable's stored value without a field to type into", async () => {
+    const fetch = stubData(() => json({ frames: [], meta: {} }, 200))
+    renderBlock(
+      panelBlock({
+        panel: {
+          type: "timeseries",
+          title: "Errors",
+          datasource: "prom-prod",
+          queries: [{ query: 'up{service="$svc"}' }],
+        },
+        variables: [{ name: "svc", type: "textbox", default: "checkout" }],
+      })
+    )
+
+    expect(await screen.findByText("checkout")).toBeTruthy()
+    expect(screen.queryByRole("textbox")).toBeNull()
+    await waitFor(() => expect(dataRequests(fetch)).toHaveLength(1))
+    expect(dataRequests(fetch)[0].searchParams.getAll("var-svc")).toEqual([
+      "checkout",
+    ])
+  })
 })
