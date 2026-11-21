@@ -250,16 +250,19 @@ bin/observe folders permissions show <folder-id>
 bin/observe folders permissions grant <folder-id> --email ada@example.com --level edit
 bin/observe folders permissions revoke <folder-id> --group payments
 bin/observe folders permissions open <folder-id> --yes
+bin/observe folders permissions admins-only <folder-id> --yes
 ```
 
 `list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)` and your My Dashboards `(yours)`.
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`; a title that another folder uses answers `folder_exists`.
 `rename` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id, and the General folder answers `general_folder`.
 `delete` works only on an empty folder, asks for no `--yes`, and answers `folder_not_empty` when anything is still filed in it.
+
 `permissions show` lists who the folder is restricted to, users first and then groups, or says the folder is open to everyone by role.
 `permissions grant` adds a person (`--user <id>` or `--email <address>`) or a group (`--group <name>`) at a `--level` of `view`, `comment`, `edit` or `admin`, or changes the level of the entry that names the same person or group, and keeps every other entry; the first grant restricts the folder.
 `permissions revoke` removes one entry and keeps the others; it answers that the name is not on the list when it is not, and needs `--yes` when it removes the last entry, because the folder is then open to everyone by role again.
 `permissions open --yes` clears the whole list in one step.
+`permissions admins-only --yes` clears the list and lets only Admins read the folder, its creator included; it needs an Admin key, and `permissions show` then says so.
 
 Changing the list needs Manage on the folder, which an Admin key has on every folder except another person's personal one, and the General folder cannot be restricted.
 Each command is one read followed by one replace of the whole list, so two people changing the same folder at once can overwrite each other.

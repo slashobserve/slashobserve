@@ -27,9 +27,10 @@ const (
 )
 
 var (
-	errFolderGone    = errors.New("folder is gone")
-	errGeneralFolder = errors.New("general folder")
-	errDuplicateUser = errors.New("duplicate user")
+	errFolderGone         = errors.New("folder is gone")
+	errGeneralFolder      = errors.New("general folder")
+	errPersonalAdminsOnly = errors.New("personal folder cannot be admins only")
+	errDuplicateUser      = errors.New("duplicate user")
 )
 
 type unknownUserError struct {
@@ -41,11 +42,14 @@ func (e *unknownUserError) Error() string { return "unknown user" }
 
 type SharingSettler func(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, folderID pgtype.UUID) error
 
+type OpeningGuard func(ctx context.Context, q *dbsqlc.Queries, folder dbsqlc.Folder) error
+
 type Handler struct {
-	db     *db.DB
-	access *Access
-	logger *slog.Logger
-	settle SharingSettler
+	db      *db.DB
+	access  *Access
+	logger  *slog.Logger
+	settle  SharingSettler
+	opening OpeningGuard
 }
 
 func NewHandler(database *db.DB, access *Access, logger *slog.Logger) *Handler {
@@ -54,6 +58,11 @@ func NewHandler(database *db.DB, access *Access, logger *slog.Logger) *Handler {
 
 func (h *Handler) SettleSharingWith(settle SharingSettler) *Handler {
 	h.settle = settle
+	return h
+}
+
+func (h *Handler) GuardOpeningWith(guard OpeningGuard) *Handler {
+	h.opening = guard
 	return h
 }
 
@@ -226,12 +235,22 @@ func (h *Handler) permissions(c *gin.Context) {
 }
 
 func (h *Handler) respondPermissions(c *gin.Context, id pgtype.UUID) {
-	rows, err := h.db.Queries().ListFolderPermissions(c.Request.Context(), id)
+	ctx := c.Request.Context()
+	folder, err := h.db.Queries().GetFolder(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
+		return
+	}
 	if err != nil {
 		h.fail(c, "list folder permissions", err)
 		return
 	}
-	c.JSON(http.StatusOK, permissionsBody(rows))
+	rows, err := h.db.Queries().ListFolderPermissions(ctx, id)
+	if err != nil {
+		h.fail(c, "list folder permissions", err)
+		return
+	}
+	c.JSON(http.StatusOK, permissionsBody(folder, rows))
 }
 
 type grant struct {
@@ -278,7 +297,12 @@ func resolveGrants(ctx context.Context, q *dbsqlc.Queries, entries []entry) ([]g
 	return grants, nil
 }
 
-func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, folderID, grantedBy pgtype.UUID, entries []entry) error {
+type sharing struct {
+	entries    []entry
+	adminsOnly bool
+}
+
+func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, folderID, grantedBy pgtype.UUID, next sharing) error {
 	return h.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		folder, err := q.LockFolder(ctx, folderID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -290,8 +314,11 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 		if folder.General {
 			return errGeneralFolder
 		}
-		grants, err := resolveGrants(ctx, q, entries)
+		grants, err := resolveGrants(ctx, q, next.entries)
 		if err != nil {
+			return err
+		}
+		if err := h.setAdminsOnly(ctx, q, folder, next.adminsOnly); err != nil {
 			return err
 		}
 		if err := q.DeleteFolderPermissions(ctx, folderID); err != nil {
@@ -312,6 +339,23 @@ func (h *Handler) replacePermissions(ctx context.Context, by auth.Principal, fol
 	})
 }
 
+func (h *Handler) setAdminsOnly(ctx context.Context, q *dbsqlc.Queries, folder dbsqlc.Folder, adminsOnly bool) error {
+	if adminsOnly && folder.Personal {
+		return errPersonalAdminsOnly
+	}
+	if AdminsOnly(folder) && !adminsOnly && h.opening != nil {
+		if err := h.opening(ctx, q, folder); err != nil {
+			return err
+		}
+	}
+	if folder.AdminsOnly != adminsOnly {
+		if err := q.SetFolderAdminsOnly(ctx, dbsqlc.SetFolderAdminsOnlyParams{ID: folder.ID, AdminsOnly: adminsOnly}); err != nil {
+			return err
+		}
+	}
+	return recordSharing(ctx, q, folder, adminsOnly)
+}
+
 func abortPermissionsRefusal(c *gin.Context, err error) bool {
 	var unknown *unknownUserError
 	switch {
@@ -319,10 +363,13 @@ func abortPermissionsRefusal(c *gin.Context, err error) bool {
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", "folder not found")
 	case errors.Is(err, errGeneralFolder):
 		httpapi.AbortError(c, http.StatusConflict, "general_folder", "the General folder is open to everyone and cannot be restricted")
+	case errors.Is(err, errPersonalAdminsOnly):
+		httpapi.AbortError(c, http.StatusConflict, "personal_folder", "My Dashboards belongs to one person and cannot be made a folder only Admins can read")
 	case errors.Is(err, errDuplicateUser):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "a user can appear only once")
 	case errors.As(err, &unknown):
 		abortUnknownUser(c, unknown)
+	case AbortRestricted(c, err):
 	default:
 		return false
 	}
@@ -331,7 +378,8 @@ func abortPermissionsRefusal(c *gin.Context, err error) bool {
 
 func (h *Handler) setPermissions(c *gin.Context) {
 	var req struct {
-		Entries []entryBody `json:"entries"`
+		Entries    []entryBody `json:"entries"`
+		AdminsOnly bool        `json:"admins_only"`
 	}
 	if !httpapi.DecodeBody(c, &req, maxBodyBytes) {
 		return
@@ -345,21 +393,29 @@ func (h *Handler) setPermissions(c *gin.Context) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	if req.AdminsOnly && len(entries) > 0 {
+		httpapi.AbortError(c, http.StatusUnprocessableEntity, "invalid_request", "a folder only Admins can read has no entries; send admins_only with an empty list")
+		return
+	}
 	ctx := c.Request.Context()
 	caller := httpapi.Caller(c)
+	if req.AdminsOnly && caller.Role != auth.RoleAdmin {
+		httpapi.AbortError(c, http.StatusForbidden, "forbidden", "only an Admin can make a folder only Admins can read")
+		return
+	}
 	folderID := folderFrom(c).Folder.ID
 	var grantedBy pgtype.UUID
 	if caller.Kind == auth.KindUser {
 		grantedBy, _ = db.ParseUUID(caller.ID)
 	}
-	if err := h.replacePermissions(ctx, caller, folderID, grantedBy, entries); err != nil {
+	if err := h.replacePermissions(ctx, caller, folderID, grantedBy, sharing{entries: entries, adminsOnly: req.AdminsOnly}); err != nil {
 		if !abortPermissionsRefusal(c, err) {
 			h.fail(c, "set folder permissions", err)
 		}
 		return
 	}
 	h.logger.InfoContext(ctx, "set folder permissions",
-		slog.String("actor_id", caller.ID), slog.String("folder_id", folderID.String()), slog.Int("entry_count", len(entries)))
+		slog.String("actor_id", caller.ID), slog.String("folder_id", folderID.String()), slog.Int("entry_count", len(entries)), slog.Bool("admins_only", req.AdminsOnly))
 	h.respondPermissions(c, folderID)
 }
 

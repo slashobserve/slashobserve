@@ -11,6 +11,7 @@ function folder(id: string, extra: Partial<Folder> = {}): Folder {
     general: false,
     personal: false,
     restricted: false,
+    admins_only: false,
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,
@@ -80,6 +81,7 @@ describe("publishAudience", () => {
         folder("Payments", {
           title: "Payments",
           restricted: true,
+          admins_only: false,
           grantees: ["Ada", "sre"],
           grantee_count: 2,
         })
@@ -89,12 +91,27 @@ describe("publishAudience", () => {
     )
   })
 
+  it("says only Admins can open an Admins-only folder", () => {
+    expect(
+      publishAudience(
+        folder("Payroll", {
+          title: "Payroll",
+          restricted: true,
+          admins_only: true,
+          grantees: [],
+          grantee_count: 0,
+        })
+      )
+    ).toBe("Payroll is Admins only, so only instance admins can open it.")
+  })
+
   it("counts the entries it does not name", () => {
     expect(
       publishAudience(
         folder("Payments", {
           title: "Payments",
           restricted: true,
+          admins_only: false,
           grantees: ["a", "b", "c", "d", "e"],
           grantee_count: 8,
         })

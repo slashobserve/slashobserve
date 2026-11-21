@@ -369,6 +369,7 @@ type Folder struct {
 	UpdatedAt     pgtype.Timestamptz
 	Personal      bool
 	OwnerID       pgtype.UUID
+	AdminsOnly    bool
 }
 
 type FolderPermission struct {

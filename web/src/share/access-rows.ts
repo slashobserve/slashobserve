@@ -83,6 +83,7 @@ export function accessRows(
   providerName: string | null
 ): AccessRow[] {
   if (!permissions.restricted) return [everyone, instanceAdmins]
+  if (permissions.admins_only) return [instanceAdmins]
   const rows = permissions.entries.map((entry) =>
     entryRow(entry, me.id, providerName)
   )

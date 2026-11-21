@@ -717,7 +717,7 @@ export interface paths {
         get: operations["getFolderPermissions"];
         /**
          * Replace the people and groups a folder is restricted to.
-         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone. The General folder is never restricted.
+         * @description Needs the Manage permission on the folder. The entries replace every existing row in one transaction. An empty `entries` list makes the folder open to everyone by instance role again. Each entry names exactly one of `user_id`, `email` (matched without regard to case against people who have signed in) and `group` (an OIDC group name, matched exactly), at most 50 entries and no repeated person or group. A person whose entries match the folder gets the higher of their instance role's level and the highest of those entries on the folder and its dashboards: an entry can lift a Viewer or Commenter (Edit lets them change and create dashboards there, Admin lets them manage the folder) and never lowers anyone. The General folder is never restricted. `admins_only: true` with an empty `entries` list makes the folder one only Admins can read, its creator included; only an Admin can set it, never on a personal folder, and any other change clears it. A folder that holds content reading an Admins-only datasource cannot be opened or given entries (409 `restricted_content`, with that content in `items`).
          */
         put: operations["setFolderPermissions"];
         post?: never;
@@ -4495,8 +4495,10 @@ export interface components {
             general: boolean;
             /** @description True for the caller's own My Dashboards folder, which only they see, Admins included. It is never restricted, renamed or shared, takes new dashboards but no moves, and lists first. */
             personal: boolean;
-            /** @description True when the folder lists people or groups; false means open to everyone by instance role. */
+            /** @description True when the folder lists people or groups or only Admins can read it; false means open to everyone by instance role. */
             restricted: boolean;
+            /** @description True when only Admins can read the folder, whoever made it. Such a folder lists no people or groups, and only such a folder can hold content that reads an Admins-only datasource. */
+            admins_only: boolean;
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
             dashboard_count: number;
             /** @description The names of up to 5 listed people, then groups. */
@@ -4528,6 +4530,8 @@ export interface components {
         };
         FolderPermissions: {
             restricted: boolean;
+            /** @description True when only Admins can read the folder; `entries` is then empty. */
+            admins_only: boolean;
             entries: components["schemas"]["FolderPermissionEntry"][];
         };
         SavedPrompt: {
@@ -4762,6 +4766,23 @@ export interface components {
             fields: {
                 field: string;
                 message: string;
+            }[];
+        };
+        RestrictedContentError: {
+            /** @description Names the datasource and says to use a folder only Admins can read. */
+            error: string;
+            /** @enum {string} */
+            code: "restricted_content";
+            /** @description The uid of the Admins-only datasource the content reads. */
+            datasource: string;
+            /** @description The content that blocks the change, when the change is to a folder or a datasource rather than to one piece of content. */
+            items?: {
+                /** @enum {string} */
+                kind: "dashboard" | "observation" | "saved_search" | "proposal";
+                id: string;
+                title: string;
+                folder_id: string;
+                folder_title: string;
             }[];
         };
         DatasourceInUseError: {
@@ -9581,6 +9602,8 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description True to make the folder one only Admins can read; `entries` must then be empty. */
+                    admins_only?: boolean;
                     entries: {
                         /** Format: uuid */
                         user_id?: string;
@@ -9605,17 +9628,17 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The folder is General (`general_folder`). */
+            /** @description The folder is General (`general_folder`), `admins_only` was sent for a personal folder (`personal_folder`), or the folder holds content that reads an Admins-only datasource and the change would let others read it (`restricted_content`). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             413: components["responses"]["TooLarge"];
-            /** @description No signed-in person matches an entry (`unknown_user`), or an email belongs to more than one person. `email` is set when the entry was an email. */
+            /** @description No signed-in person matches an entry (`unknown_user`), an email belongs to more than one person, or `admins_only` came with entries (`invalid_request`). `email` is set when the entry was an email. */
             422: {
                 headers: {
                     [name: string]: unknown;

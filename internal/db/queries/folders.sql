@@ -1,7 +1,7 @@
 -- name: FolderFacts :many
-SELECT f.id, f.title, f.general, f.personal,
+SELECT f.id, f.title, f.general, f.personal, f.admins_only,
   coalesce(f.owner_id = sqlc.narg('user_id')::uuid, false)::boolean AS owner,
-  EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id) AS restricted,
+  (f.admins_only OR EXISTS (SELECT 1 FROM folder_permissions p WHERE p.folder_id = f.id))::boolean AS restricted,
   ARRAY(
     SELECT p.level FROM folder_permissions p
     WHERE p.folder_id = f.id AND (p.user_id = sqlc.narg('user_id')::uuid OR p.group_name = ANY(@groups::text[]))
@@ -75,6 +75,9 @@ FROM folder_permissions p
 LEFT JOIN users u ON u.id = p.user_id
 WHERE p.folder_id = @folder_id
 ORDER BY (p.group_name IS NOT NULL), lower(coalesce(nullif(u.name, ''), u.email, p.group_name)), p.created_at;
+
+-- name: SetFolderAdminsOnly :exec
+UPDATE folders SET admins_only = @admins_only, updated_at = now() WHERE id = @id;
 
 -- name: DeleteFolderPermissions :exec
 DELETE FROM folder_permissions WHERE folder_id = @folder_id;
