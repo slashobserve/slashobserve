@@ -153,26 +153,44 @@ func TestADuplicateWithoutAFolderGoesToTheSourcesFolderWhenTheCallerCanCreateThe
 	restricted(t, err, "audit")
 }
 
-func TestADuplicateWithoutAFolderByAViewerOfTheSourcesFolderIsRefusedAndCreatesNothing(t *testing.T) {
-	r := newPlacementRig(t)
-	ctx := reading(t.Context())
-	open := r.folder(t, "Team", false)
-	dash, _, err := r.service.Create(ctx, placementAdmin, open, panelsSpec("Latency", "rps"), "create")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, _ := db.ParseUUID(dash.ID)
-	viewer := auth.Principal{Kind: auth.KindUser, ID: testUserID, Name: "Ada", Role: auth.RoleViewer}
+func TestADuplicateWithoutAFolderGoesToMyDashboardsWhenTheCallerOnlyViewsTheSourcesFolderAndToTheSourcesFolderWhenTheyCanEditIt(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		grant   string
+		wantOwn bool
+	}{
+		{"a View grant", "view", true},
+		{"an Edit grant", "edit", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := newPlacementRig(t)
+			ctx := reading(t.Context())
+			shared := r.folder(t, "Team", false)
+			dash, _, err := r.service.Create(ctx, placementAdmin, shared, panelsSpec("Latency", "rps"), "create")
+			if err != nil {
+				t.Fatal(err)
+			}
+			source, _ := db.ParseUUID(dash.ID)
+			person := r.addPerson(t, "vera")
+			viewer := person.principal
+			viewer.Role = auth.RoleViewer
+			if _, err := r.db.SQLDB(t).ExecContext(t.Context(),
+				`INSERT INTO folder_permissions (folder_id, user_id, level) VALUES ($1, $2, $3)`, shared, viewer.ID, c.grant); err != nil {
+				t.Fatal(err)
+			}
 
-	_, _, err = r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
-	if !errors.Is(err, folders.ErrForbidden) {
-		t.Fatalf("a Viewer's duplicate = %v, want ErrForbidden", err)
-	}
-	var count int
-	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT count(*) FROM dashboards`).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatalf("%d dashboards after the refused duplicate, want 1", count)
+			copied, _, err := r.service.Duplicate(ctx, viewer, source, pgtype.UUID{}, "Latency copy")
+			if err != nil {
+				t.Fatalf("duplicate without a folder: %v", err)
+			}
+
+			want := shared
+			if c.wantOwn {
+				want = person.personal
+			}
+			if got := r.folderOfDashboard(t, mustUUID(t, copied.ID)); got != want {
+				t.Fatalf("the copy is in folder %v, want %v", got, want)
+			}
+		})
 	}
 }
