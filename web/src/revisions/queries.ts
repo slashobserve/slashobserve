@@ -8,7 +8,6 @@ import type { components } from "@/api/schema.gen"
 export type Revision = components["schemas"]["Revision"]
 export type RevisionStatusValue = Revision["status"]
 
-export const maxQueuedRevisions = 5
 export const maxPromptLength = 4000
 
 const pageSize = 50

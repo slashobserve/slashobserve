@@ -1,5 +1,4 @@
 import { agentMentionsIn, mentionSegments } from "@/comments/mentions"
-import { maxQueuedRevisions } from "@/revisions/queries"
 
 export type Delivery = {
   to: "agent" | "everyone"
@@ -92,7 +91,6 @@ export type GateInput = {
   agentAvailable: boolean | undefined
   pinned: boolean
   layoutEditing: boolean
-  activeApplyRuns: number
 }
 
 export const ungated: GateInput = {
@@ -100,7 +98,6 @@ export const ungated: GateInput = {
   agentAvailable: undefined,
   pinned: false,
   layoutEditing: false,
-  activeApplyRuns: 0,
 }
 
 export const pinnedText =
@@ -108,18 +105,11 @@ export const pinnedText =
 export const layoutEditingText =
   "Finish editing the layout to send this to the agent."
 
-export function queueFullText(limit: number): string {
-  return `${limit} changes are already waiting for the agent. Send this when one finishes.`
-}
-
 export function deliveryGate(input: GateInput, delivery: Delivery): AgentGate {
   if (!input.canComment) return { kind: "hidden" }
   if (delivery.to === "everyone") return { kind: "allowed" }
   if (input.agentAvailable === false) return { kind: "no-model" }
   if (input.pinned) return { kind: "blocked", reason: pinnedText }
   if (input.layoutEditing) return { kind: "blocked", reason: layoutEditingText }
-  if (input.activeApplyRuns >= maxQueuedRevisions) {
-    return { kind: "blocked", reason: queueFullText(maxQueuedRevisions) }
-  }
   return { kind: "allowed" }
 }

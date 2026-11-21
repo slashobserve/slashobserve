@@ -161,8 +161,7 @@ The agent reads the latest version, your message and the panel you chose.
 A mention does not start a run, and the form says why, when:
 
 - you are viewing an older version: "You are viewing an older version. Open the latest version to send changes to the agent.";
-- you are editing the layout: "Finish editing the layout to send changes to the agent.";
-- 5 requests are already queued or running for this dashboard: "5 requests are already waiting for the agent. Send this when one finishes."
+- you are editing the layout: "Finish editing the layout to send changes to the agent."
 
 When the server has no model, the box reads "Leave a comment for the team and Claude Code", and a comment that mentions `@observe` is saved with a line saying no run started.
 An external agent can pick the comment up over [MCP](mcp.md).

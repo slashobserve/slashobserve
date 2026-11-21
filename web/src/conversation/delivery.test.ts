@@ -7,7 +7,6 @@ import {
   flips,
   layoutEditingText,
   pinnedText,
-  queueFullText,
   storeOf,
   type Delivery,
   type Place,
@@ -129,7 +128,6 @@ describe("deliveryGate", () => {
     agentAvailable: true,
     pinned: false,
     layoutEditing: false,
-    activeApplyRuns: 0,
   }
   const toAgent: Delivery = { to: "agent", visibleTo: "everyone" }
   const toEveryone: Delivery = { to: "everyone", visibleTo: "everyone" }
@@ -140,14 +138,11 @@ describe("deliveryGate", () => {
     })
   })
 
-  it("allows a message to the agent with room in the queue", () => {
+  it("allows a message to the agent", () => {
     expect(deliveryGate(open, toAgent)).toEqual({ kind: "allowed" })
     expect(
       deliveryGate({ ...open, agentAvailable: undefined }, toAgent)
     ).toEqual({ kind: "allowed" })
-    expect(deliveryGate({ ...open, activeApplyRuns: 4 }, toAgent)).toEqual({
-      kind: "allowed",
-    })
   })
 
   it("reports no model only for a message to the agent", () => {
@@ -159,7 +154,6 @@ describe("deliveryGate", () => {
   it.each([
     ["a pinned version", { pinned: true }, pinnedText],
     ["a layout being edited", { layoutEditing: true }, layoutEditingText],
-    ["a full queue of changes", { activeApplyRuns: 5 }, queueFullText(5)],
   ])(
     "blocks the agent on %s and lets a comment through",
     (_name, patch, reason) => {

@@ -274,8 +274,6 @@ export function ActivityFeed({
     agentAvailable: agent.data?.available,
     pinned,
     layoutEditing,
-    activeApplyRuns: requests.filter((request) => isActive(request.status))
-      .length,
   }
   const gate = deliveryGate(gateInput, { to: "agent", visibleTo: "everyone" })
   const clientName = clientNameFrom(madeBy)
