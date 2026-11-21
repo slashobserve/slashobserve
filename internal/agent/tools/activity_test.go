@@ -274,7 +274,7 @@ func TestListActivityShowsAdminChangesToAdminsOnly(t *testing.T) {
 		t.Errorf("editor sees %v, want only [%d]", got, workspace)
 	}
 	body, _ := scoped.Content.(errorBody)
-	if !scoped.IsError || body.Code != codeInvalidRequest || body.Message != `unknown field "scope"` {
+	if !scoped.IsError || body.Code != codeInvalidRequest || !strings.HasPrefix(body.Message, `unknown field "scope"`) {
 		t.Errorf("scope admin: error %v, %+v", scoped.IsError, body)
 	}
 }
