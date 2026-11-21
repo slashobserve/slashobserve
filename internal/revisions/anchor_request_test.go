@@ -24,4 +24,8 @@ func TestRequestOfCarriesTheStoredAnchorAndBlock(t *testing.T) {
 	if broken := revisions.RequestOf(dbsqlc.AgentRequest{Anchor: []byte(`{"kind":`)}); broken.Anchor != nil {
 		t.Fatalf("an unreadable anchor was carried: %+v", broken.Anchor)
 	}
+	stored := []byte(`{"kind":"text","pos":{"x":0.4,"y":0.3},"quote":"pay\u202eed"}`)
+	if hidden := revisions.RequestOf(dbsqlc.AgentRequest{Anchor: stored}); hidden.Anchor != nil {
+		t.Fatalf("a stored anchor with a bidi override was carried: %+v", hidden.Anchor)
+	}
 }
