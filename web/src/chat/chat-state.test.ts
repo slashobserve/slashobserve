@@ -20,6 +20,7 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
       id: "00000000-0000-4000-8000-0000000000a1",
       name: "Ada Lovelace",
     },
+    intent: "ask",
     source: "observe",
     trigger: "person",
     prompt: "checkout health",

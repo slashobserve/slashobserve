@@ -174,6 +174,8 @@ function finding(id: string, createdAt: string): Finding {
     dashboard_id: "d1",
     folder_id: null,
     ask_on: null,
+    suggested_change: null,
+    observe_worthy: false,
     title: "Checkout errors rose after the deploy",
     markdown: "The error rate doubled at 10:02.",
     evidence: [],

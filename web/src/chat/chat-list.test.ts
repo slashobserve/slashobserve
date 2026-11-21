@@ -14,6 +14,7 @@ function summary(
   overrides: Partial<RequestSummary> & { id: string }
 ): RequestSummary {
   return {
+    intent: "ask",
     source: "observe",
     trigger: "person",
     prompt: "Show checkout latency",
