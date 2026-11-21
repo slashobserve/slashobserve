@@ -110,10 +110,13 @@ func (q *Queries) GetRunTokenDeadline(ctx context.Context, arg GetRunTokenDeadli
 }
 
 const getRunTokenRun = `-- name: GetRunTokenRun :one
-SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode
+SELECT r.id, r.dashboard_id, r.source, r.comment_id, r.prompt, r.panel_id, r.base_version, r.status, r.attempts, r.check_failures, r.lease_until, r.result_version, r.error, r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.requested_by_email, r.created_at, r.started_at, r.finished_at, r.steps, r.run_usage, r.origin, r.origin_client, r.draft, r.suggestion, r.failure_code, r.build_saved_at, r.cancel_requested_at, r.canceled_by_kind, r.canceled_by_id, r.canceled_by_name, r.continues_id, r.continue_note, r.context_from, r.context_to, r.title, r.pinned_at, r.archived_at, r.trigger, r.state, r.result_kind, r.assigned_kind, r.assigned_id, r.claimed_by, r.observation_id, r.thread_message_id, r.thread_context, r.chat_id, r.retries_id, r.time_zone, r.thread_replied_at, r.anchor, r.block_id, r.client_id, t.expires_at AS token_expires_at, coalesce(g.mode, 'direct')::text AS grant_mode,
+  coalesce(c.name, s.name, '')::text AS assignee_name
 FROM run_tokens t
 JOIN agent_requests r ON r.id = t.agent_request_id
 LEFT JOIN oauth_grants g ON r.assigned_kind = 'grant' AND g.id = r.assigned_id
+LEFT JOIN oauth_clients c ON c.id = g.client_id
+LEFT JOIN service_accounts s ON r.assigned_kind = 'service_account' AND s.id = r.assigned_id
 WHERE t.token_hash = $1
   AND g.revoked_at IS NULL
   AND t.attempt = r.attempts
@@ -126,6 +129,7 @@ type GetRunTokenRunRow struct {
 	AgentRequest   AgentRequest
 	TokenExpiresAt pgtype.Timestamptz
 	GrantMode      string
+	AssigneeName   string
 }
 
 func (q *Queries) GetRunTokenRun(ctx context.Context, tokenHash []byte) (GetRunTokenRunRow, error) {
@@ -189,6 +193,7 @@ func (q *Queries) GetRunTokenRun(ctx context.Context, tokenHash []byte) (GetRunT
 		&i.AgentRequest.ClientID,
 		&i.TokenExpiresAt,
 		&i.GrantMode,
+		&i.AssigneeName,
 	)
 	return i, err
 }

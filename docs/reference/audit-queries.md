@@ -31,7 +31,7 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 | `actor_email` | `actor.email` | text | The current email address of the user who acted, read from the user and not stored in the event; a service account has none; a query can match it but not count it |
 | `actor_role` | `actor.role` | text | The actor's role when the event happened |
 | `initiator` | | enum | Who started it: `person`, `agent` or `system` |
-| `agent_id`, `agent_name` | | uuid, text | The agent that acted |
+| `agent_id`, `agent_name` | | uuid, text | The agent that took the run, on every event of its run session: `Observe Agent` with no id, a connected agent's grant id and client name, or a service account's id and name; empty outside a run |
 | `run_id` | `run` | uuid | The agent run that made the event |
 | `auth_method` | | enum | `session`, `api_key`, `oauth`, `public_link` or `none` |
 | `credential_id` | | text | The session, key, grant or public link used, never the secret |
