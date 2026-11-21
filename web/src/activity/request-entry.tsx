@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router"
 import { tookText } from "@/chat/turn-model"
 import { versionChangesSearch } from "@/history/search"
 import { markOfAuthor } from "@/lib/author"
+import { privateChatText, runWords } from "@/observe/run-words"
 
 import {
   EntryBody,
@@ -97,7 +98,7 @@ export function RequestEntry({
       panel={panel}
       at={request.created_at}
     >
-      <EntryBody>{request.prompt}</EntryBody>
+      <EntryBody>{runWords(request) ?? privateChatText}</EntryBody>
       <EntryMeta>
         {state}
         {took !== undefined ? <MetaState>Took {took}</MetaState> : null}

@@ -75,7 +75,6 @@ function renderMenu(
         viewing={false}
         canComment={canComment}
         canEdit={false}
-        canInvestigate={false}
         composerRef={composer}
         onDownloadCsv={() => {}}
         onSavePng={() => {}}
@@ -172,6 +171,25 @@ describe("PanelMenu", () => {
     expect(
       await screen.findByRole("menuitem", { name: "Download CSV" })
     ).not.toHaveAttribute("aria-disabled", "true")
+  })
+
+  it("offers Ask to a Commenter once the agent is available", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ available: true }), {
+            headers: { "Content-Type": "application/json" },
+          })
+      )
+    )
+    const { user } = renderMenu()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Panel menu: Checkout latency",
+      })
+    )
+    expect(await screen.findByRole("menuitem", { name: "Ask" })).toBeVisible()
   })
 
   it("shows Comment greyed with its reason when the person cannot comment", async () => {

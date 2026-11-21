@@ -1,18 +1,14 @@
-export type SlashCommand = "investigate" | "import" | "revise"
+export type SlashCommand = "investigate" | "import"
 
 export const commandLabels: Record<SlashCommand, string> = {
   investigate: "Investigate",
   import: "Import",
-  revise: "Revise",
 }
 
 export const commandHints: Record<SlashCommand, string> = {
   investigate: "asks a question and answers with a finding",
   import: "imports a Grafana dashboard from a link or its JSON",
-  revise: "changes this dashboard",
 }
-
-const allCommands: readonly SlashCommand[] = ["investigate", "import", "revise"]
 
 function isAvailable(
   name: string,
@@ -46,14 +42,6 @@ export function withCommand(
   return command === null ? text : `/${command} ${text}`
 }
 
-export function availableCommands(input: {
-  hasDashboard: boolean
-  surface: "chat" | "activity"
-  canInvestigate: boolean
-}): SlashCommand[] {
-  return allCommands.filter((name) => {
-    if (name === "investigate") return input.canInvestigate
-    if (name === "import") return input.surface === "chat"
-    return input.hasDashboard
-  })
+export function chatCommands(canInvestigate: boolean): SlashCommand[] {
+  return canInvestigate ? ["investigate", "import"] : ["import"]
 }

@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router"
 
 import { askLink } from "@/lib/links"
 
-import { useSendExample } from "./chat-composer"
+import { useSendExample } from "./open-sent"
 import type { Example } from "./examples"
 
 export function useChooseExample() {

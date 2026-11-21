@@ -20,11 +20,16 @@ The Activity tab holds comments, agent requests, proposals, annotations and save
 Entries are sorted by time, grouped under a heading for each day ("Today", "Yesterday" or a date), and each shows its author's mark and the time of day, such as 14:32, or "Just now" for the first minute; hover the time for the full date.
 They come in six kinds:
 
-- **Comment threads** show "`<name>` commented" and, when the comment is about a panel, "on `<panel>`".
+- **Comment threads** show the author's name with no verb and, when the comment is about a panel, "on `<panel>`".
   The name is the same label versions use, so a comment written through an MCP client reads "Ishan (via Claude Code)", and a thread the agent resolved after a request reads "Resolved by Observe Agent for Ishan".
   Choosing the panel name scrolls to the panel and highlights it.
   A comment on a panel that no longer exists reads "on a removed panel".
-- **Agent requests** show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  Replies sit under the first message, each with its author's name and no verb, and an agent's reply speaks as the agent, such as "Observe Agent for Ishan".
+  A message that arrives while the card is open slides in; the ones already there stay put.
+- **Agent requests** sent from a comment show inside their thread, as one status line per run under the message that asked: "Observe Agent is working on it · View the run" while it works, "`<name>` was asked" for a connected agent, and the agent's reply once it ends.
+  **View the run** opens the run's conversation at `/c/<id>`, and the agent's reply carries the same link for whoever can open that run; anyone else sees the reply's text alone.
+- **Agent requests** that no loaded thread holds show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
+  A request from someone else's private chat reads "Asked in a private chat" in place of its message.
   A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
   While the agent works, the entry reads "Agent is working on it" with its latest step and the step number, "Queued, position N" while it is queued, or "Canceling" after its requester cancels it.
   **Details** opens the full conversation at `/c/<id>` in a new tab.
@@ -50,13 +55,17 @@ Filters that match nothing say "No activity matches these filters."
 At the bottom of the card, the form "Add to the activity" has an **On** menu with "The whole dashboard" and every panel title, and a box labelled "Comment or request".
 Write the comment and press Enter, or choose **Send** (the up arrow); Shift+Enter adds a line, and on a touch device Enter adds a line and **Send** sends.
 Cmd+Enter (Ctrl+Enter elsewhere) also sends.
-The reply boxes in a thread, in an observation's discussion and in the inbox take the same keys.
-A comment that mentions no agent goes to the team and starts nothing, and while you type one the box says so and says how to ask the agent.
+The boxes in an observation's discussion and in the inbox take the same keys.
+
+Above the box, a "To:" chip says who reads the message and a "Visible to:" chip says who sees it.
+A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
+A mention of an agent turns the chip to that agent's name.
 Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
-A comment is 1 to 4000 characters; a counter appears from 3500.
+A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
 To start from a panel, open its menu ("Panel menu: `<title>`") and choose **Comment**.
 The card opens scoped to that panel with the cursor in the box.
+**Ask** in the same menu, on a data panel when you can edit the dashboard and a model is connected, opens it the same way with the "To:" chip on Observe Agent.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
@@ -69,11 +78,12 @@ See [Roles](../teams/roles.md) and [Folders](../teams/folders.md).
 
 ## Edit a comment and mention people
 
-Your own comments and replies have an **Edit** button while you can still comment on the dashboard.
+Each message you may change has a menu, **Comment actions** (**Thread actions** on the first message of a thread), that shows when you hover or focus the message and always shows on a touch screen.
+Your own comments and replies have **Edit** in it while you can still comment on the dashboard.
 It opens the text in place; **Save**, Enter or Cmd+Enter (Ctrl+Enter elsewhere) keeps the change, Shift+Enter adds a new line, and **Cancel** or Escape drops it.
 An edited comment shows "edited" beside its time.
 Saving the text unchanged does nothing.
-An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** button for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
+An agent's reply, such as "Saved version 3 of this dashboard.", has no **Edit** for anyone, including the person who asked for it, and the server refuses an edit of one with 403 `not_author`.
 Editing never reopens a resolved thread and never changes who wrote the comment.
 
 The @ button next to a comment box, or typing `@` at the start of the box or after a space, opens a list of the built-in agent (Observe Agent, `@observe`), your own connected agents and the people who can see what the comment is about.
@@ -102,11 +112,11 @@ Text an agent wrote, a reply from a run or a message from a connected agent or s
 
 ## Delete a comment
 
-You can delete your own comment or reply while you can still comment, and **Delete** asks for confirmation.
+You can delete your own comment or reply while you can still comment: **Delete** in the message's menu asks for confirmation.
 The first comment of a thread can be deleted only while nobody else has written in the thread, and deleting it deletes the thread.
 Someone with Manage on the folder can delete any comment, including an agent's reply and the first comment of a thread that others have answered, which deletes the thread; nobody else can delete an agent's reply.
 The dialog reads "Delete this comment?", or "Delete this thread?" when it removes the whole thread, and says it cannot be undone.
-**Delete** is on comments in the Activity card, in an observation's discussion and in the Inbox pane.
+**Delete** is in the menu of comments in the Activity card, in an observation's discussion and in the Inbox pane.
 An agent's reply that someone deleted is not posted again when its run is retried.
 The server refuses anything else with 403 `not_author`, and `observe comments delete` does the same from the [CLI](cli.md).
 A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
@@ -120,15 +130,29 @@ The agent answers in the thread and changes nothing: it reads the dashboard and 
 - **From the form.** Write your question, mention `@observe`, and send.
   Pick a panel in **On** to tell the agent which panel you mean.
   The comment is attached to the latest version and the panel you chose.
-- **From a thread.** Choose **Reply** on a comment, write the instruction with the mention, and send.
+- **From a thread.** Choose **Reply** on a comment: the box at the bottom of the card shows "Replying in" and the panel or dashboard, and **On** hides.
+  Write the instruction with the mention, and send; the box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
   The agent gets the earlier messages of the thread as context.
-  The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention, unless the reply mentions a person or someone sent a message to everyone through the API, MCP or the CLI.
+  The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention.
+  A reply that mentions a person goes to the team and starts nothing, and the thread keeps its agent for the next reply.
+  A message someone sent to everyone, by turning the "To:" chip or through the API, MCP or the CLI, turns the thread's agent off until a message asks an agent again.
 
 Under the form the card says "Observe Agent is working on it" with a link to the run, "`<name>` was asked" for a connected agent, or why no run started, for example that the dashboard already has 5 runs waiting.
 The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
 A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+
+When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
+When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`", and someone who may reply in the thread also gets **Revise the dashboard**.
+It posts "Revise the dashboard: `<change>`" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
+Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for** and is off until you reload the page; asking again while that run is waiting or running, or after it succeeded, posts nothing more.
+A refusal, such as five revisions already waiting on the dashboard, shows the server's reason and leaves the button as it was.
+While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
+
+The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
+An answer already in an observation links to it with **Open the observation**.
 A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
 An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
 When the asker later saves that answer as an observation, everyone who can read the thread still opens it from the thread, and someone who cannot see the new observation reads the answer without it.
@@ -142,9 +166,8 @@ The agent reads the latest version, your message and the panel you chose.
 
 A mention does not start a run, and the form says why, when:
 
-- you are viewing an older version: "You are viewing an older version. Open the latest version to send changes to the agent.";
-- you are editing the layout: "Finish editing the layout to send changes to the agent.";
-- 5 requests are already queued or running for this dashboard: "5 requests are already waiting for the agent. Send this when one finishes."
+- you are viewing an older version: "You are viewing an older version. Open the latest version to send this to the agent.";
+- you are editing the layout: "Finish editing the layout to send this to the agent."
 
 When the server has no model, the box reads "Leave a comment for the team and Claude Code", and a comment that mentions `@observe` is saved with a line saying no run started.
 An external agent can pick the comment up over [MCP](mcp.md).
@@ -175,6 +198,7 @@ Over the API `GET /api/v1/dashboards/{id}/viewers` returns the list, `list_dashb
 ## Resolve and reopen
 
 A thread has **Resolve** and, once resolved, **Reopen**.
+A resolved thread folds to its first line with the number of replies, such as "2 replies"; **Show thread** unfolds it and **Hide thread** folds it again.
 A resolved thread reads "Resolved by version N" when the agent or an MCP client resolved it with the version that fixed it, and "Resolved by `<name>`" when a person did.
 The buttons are hidden while a request tied to the thread is waiting or running.
 A Commenter sees **Resolve** only on a thread they started and the server refuses any other with 403 `not_starter`; an Editor or an Admin resolves any thread, and every commenter may reopen one.
@@ -182,7 +206,6 @@ Over the API and MCP each thread carries `allowed_actions`, the actions the call
 A thread can also be on a [proposal](../concepts/proposals.md), written `proposal:<id>` as the target of the threads API.
 It has no panel or version and follows the proposal's dashboard: View reads it and Comment writes to it.
 
-Replies sit under the comment they answer.
 With no model on the server, an open thread reads "Open, waiting for `<client>`", so the person or tool that will act on it is clear.
 
 Resolving and replying need the same access as commenting.

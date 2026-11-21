@@ -270,7 +270,7 @@ test("follows up in the same chat", async ({ page }) => {
   await expect(page).toHaveURL(conversationUrl)
   await expect(promptBar).toHaveAttribute(
     "placeholder",
-    "Ask for another change to Demo shop RED metrics"
+    "Ask about Demo shop RED metrics"
   )
 })
 

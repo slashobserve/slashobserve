@@ -5,11 +5,11 @@ import { renderWithProviders } from "@/test/render"
 
 import { AskOnDashboard } from "./ask-on-dashboard"
 
-const permissions = vi.hoisted(() => ({ edit: true }))
+const permissions = vi.hoisted(() => ({ comment: true, edit: false }))
 
 vi.mock("@/dashboards/permissions", () => ({
   useLatestPermissions: () => ({
-    comment: true,
+    comment: permissions.comment,
     edit: permissions.edit,
     manage: false,
     create: false,
@@ -43,14 +43,16 @@ function renderAsk() {
 describe("AskOnDashboard", () => {
   afterEach(() => {
     vi.unstubAllGlobals()
-    permissions.edit = true
+    permissions.comment = true
   })
 
-  it("asks the same request on the named dashboard and opens the new run", async () => {
+  it("asks the same request about the named dashboard, without Edit, and opens the new run", async () => {
     const fetch = stubCreate()
     const { user, router } = renderAsk()
     expect(
-      await screen.findByText(/This change is made on the dashboard Checkout/)
+      await screen.findByText(
+        "This request is about the dashboard Checkout. Ask there and the agent answers about it; a change it suggests is made only when you choose Revise the dashboard."
+      )
     ).toBeVisible()
     await user.click(
       screen.getByRole("button", { name: "Ask this on Checkout" })
@@ -61,17 +63,21 @@ describe("AskOnDashboard", () => {
     expect(await sent.json()).toEqual({
       prompt,
       dashboard_id: askOn.dashboard_id,
-      kind: "revise",
+      kind: "ask",
       time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
     await waitFor(() => expect(router?.state.location.pathname).toBe("/c/r2"))
   })
 
-  it("links to the dashboard and offers no ask to someone who cannot edit it", async () => {
-    permissions.edit = false
+  it("links to the dashboard and offers no ask to someone who cannot comment on it", async () => {
+    permissions.comment = false
     const fetch = stubCreate()
     renderAsk()
-    expect(await screen.findByText(/which you cannot edit/)).toBeVisible()
+    expect(
+      await screen.findByText(
+        "This request is about the dashboard Checkout, where you cannot ask the agent."
+      )
+    ).toBeVisible()
     expect(
       screen.queryByRole("button", { name: /Ask this on/ })
     ).not.toBeInTheDocument()

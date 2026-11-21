@@ -64,14 +64,15 @@ It lists the saved version, with the agent's one-sentence summary, next to any c
 
 ## Ask for a change
 
-Go back to the conversation, or use the activity card, and ask for another change.
-In the conversation the box now reads "Ask for another change to `<title>`", with the note "Each change is saved as a new version of the dashboard."
+Go back to the conversation and ask for another change.
+In the conversation the box now reads "Ask about `<title>`", with the note "The dashboard changes only when you choose Revise the dashboard on an answer."
 
 ```text
 add a panel with memory usage by pod, and show the last 12h
 ```
 
-The agent revises the latest version of the same dashboard instead of starting a new one.
+The agent answers in the chat and leaves the dashboard as it is; when a change fits, the answer ends with **Revise the dashboard** and a one-line description of the change.
+Choose it, and the agent revises the latest version of the same dashboard instead of starting a new one.
 It keeps every panel you did not ask it to change.
 When the run finishes the result card says "Saved as version 2".
 

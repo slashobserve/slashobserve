@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { maxPromptLength } from "@/prompts/rules"
 
-import { useSendExample } from "./chat-composer"
+import { useSendExample } from "./open-sent"
 import { OpenDashboardLink } from "./turn-failure"
 
 export function plannedPanels(summary: string | undefined): number | null {

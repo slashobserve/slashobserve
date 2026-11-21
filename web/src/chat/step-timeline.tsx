@@ -29,6 +29,7 @@ type Props = {
   liveText?: string | null
   requestId?: string
   pane?: boolean
+  withMessages?: boolean
 }
 
 function toolText(tools: readonly ToolCount[]): string {
@@ -78,10 +79,12 @@ function PhaseItem({
   run,
   expanded,
   onToggle,
+  withMessages,
 }: {
   run: TimelinePhase
   expanded: boolean
   onToggle: () => void
+  withMessages: boolean
 }) {
   const listId = useId()
   const count = run.steps.length
@@ -103,12 +106,12 @@ function PhaseItem({
           <span className="min-w-0 wrap-anywhere text-muted-foreground">
             {toolText(run.tools)}
           </span>
-          {single ? (
+          {single && withMessages ? (
             <span className="min-w-0 wrap-anywhere text-muted-foreground">
               {run.steps[0].message}
             </span>
           ) : null}
-          {!single && !alwaysOpen ? (
+          {withMessages && !single && !alwaysOpen ? (
             <button
               type="button"
               aria-expanded={expanded}
@@ -120,7 +123,7 @@ function PhaseItem({
             </button>
           ) : null}
         </span>
-        {alwaysOpen || (!single && expanded) ? (
+        {withMessages && (alwaysOpen || (!single && expanded)) ? (
           <StepMessages id={listId} steps={run.steps} />
         ) : null}
       </span>
@@ -136,6 +139,7 @@ export function StepTimeline({
   liveText,
   requestId,
   pane = false,
+  withMessages = true,
 }: Props) {
   const [expanded, setExpanded] = useState(noneExpanded)
   const [showAll, setShowAll] = useState(false)
@@ -166,6 +170,7 @@ export function StepTimeline({
             run={run}
             expanded={expanded.has(run.key)}
             onToggle={() => toggle(run.key)}
+            withMessages={withMessages}
           />
         ))}
         {working ? (

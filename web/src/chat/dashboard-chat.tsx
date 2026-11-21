@@ -19,10 +19,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { truncatingTriggerClass } from "@/activity/show-filter"
 import { ApiError } from "@/api/errors"
+import { Composer } from "@/conversation/composer"
+import { ungated } from "@/conversation/delivery"
+import { useComposer } from "@/conversation/use-composer"
 import { observeRequestQuery, type ObserveRequest } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { ChatComposer } from "./chat-composer"
 import { chatOptionMeta } from "./chat-rows"
 import { useChat, useChats, type Chat } from "./chats-queries"
 import { Conversation } from "./conversation"
@@ -191,20 +193,31 @@ function NewChat({
   dashboardTitle: string
   onSent: (request: ObserveRequest) => void
 }) {
+  const model = useComposer({
+    subject: { kind: "dashboard", id: dashboardId },
+    place: { kind: "chat", chatId: null },
+    gate: ungated,
+    onSent: (sent) => (sent.via === "chat" ? onSent(sent.request) : undefined),
+  })
   return (
     <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 pb-1">
       <p className="text-[13px] text-muted-foreground">
-        Ask the agent about {dashboardTitle}, or for a change to it. Only you
-        can see this chat.
+        Ask the agent about {dashboardTitle}. When a change fits, the answer
+        offers it with Revise the dashboard.
       </p>
-      <ChatComposer
-        rows={2}
-        autoFocus
-        dashboardId={dashboardId}
-        dashboardTitle={dashboardTitle}
-        placeholder={`Ask about ${dashboardTitle}, or for a change to it`}
-        onSent={onSent}
-      />
+      <div>
+        <Composer
+          model={model}
+          layout="page"
+          rows={2}
+          autoFocus
+          contextChips={[{ id: "dashboard", label: dashboardTitle }]}
+          placeholder={`Ask about ${dashboardTitle}`}
+        />
+        <p className="mt-1.5 text-center text-xs text-muted-foreground">
+          Only you and Admins can see this chat.
+        </p>
+      </div>
     </div>
   )
 }

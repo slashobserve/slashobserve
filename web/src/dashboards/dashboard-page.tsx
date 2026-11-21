@@ -78,7 +78,7 @@ import {
   savedCursorSync,
   useCursorSyncShortcut,
 } from "./cursor-sync"
-import { CanvasTools, useCanvasTool, useCanvasToolsShown } from "./canvas-tools"
+import { CanvasTools, useCanvasTool } from "./canvas-tools"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -115,7 +115,7 @@ import { PanelContainer } from "./panel-container"
 import { ProposalsButton } from "./proposals-button"
 import { mixesDatasources } from "./panel-datasources"
 import type { VariableSource } from "./panel-source"
-import { mayInvestigate, type DashboardAccess } from "./permissions"
+import type { DashboardAccess } from "./permissions"
 import {
   asDashboardSpec,
   dashboardVersionQuery,
@@ -253,7 +253,6 @@ function DashboardView({
   const setSearch = useSetDashboardSearch()
   const { permissions } = access
   const { principal } = useRouteContext({ from: "/_authed" })
-  const canInvestigate = mayInvestigate(permissions, principal.role)
   const { comments } = useComments(dashboardId)
   const openByPanel = useMemo(() => openThreadsByPanel(comments), [comments])
   const openTotal = useMemo(() => openThreadCount(comments), [comments])
@@ -439,7 +438,7 @@ function DashboardView({
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
   const commentTool = useCanvasTool((state) => state.tool === "comment")
-  const toolsShown = useCanvasToolsShown(permissions)
+  const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
     open,
@@ -858,7 +857,6 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
-      canInvestigate={canInvestigate}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined
       }
@@ -1030,7 +1028,6 @@ function DashboardView({
                 {kiosk || editingPanel ? null : (
                   <CanvasTools
                     permissions={permissions}
-                    canInvestigate={canInvestigate}
                     idle={!editing}
                     composerRef={composerRef}
                   />

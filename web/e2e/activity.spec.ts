@@ -37,7 +37,7 @@ const p99Prompt = fixturePrompt("followup-p99-panel.json")
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
 const threadsPostApi = /\/api\/v1\/threads$/
 const olderVersionNote =
-  "You are viewing an older version. Open the latest version to send changes to the agent."
+  "You are viewing an older version. Open the latest version to send this to the agent."
 const internalError = JSON.stringify({ error: "boom", code: "internal" })
 
 async function createOverview(request: APIRequestContext) {
@@ -168,9 +168,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       const entry = entryWith(page, "Latency looks high")
       await expect(entry).toHaveCount(1)
       await expect(entry.getByText(you, { exact: true })).toBeVisible()
+      await expect(entry.getByText("on", { exact: true })).toBeVisible()
       await expect(
         entry.getByText("commented on", { exact: true })
-      ).toBeVisible()
+      ).toHaveCount(0)
       await expect(entry.getByRole("button", { name: rpsTitle })).toBeVisible()
       await expect(entry.getByText("Open", { exact: true })).toBeVisible()
       await expect(composerBox(page)).toHaveValue("")
@@ -213,7 +214,7 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       const entry = entryWith(page, "Overall this looks healthy")
       await expect(entry).toHaveCount(1)
-      await expect(entry.getByText("commented", { exact: true })).toBeVisible()
+      await expect(entry.getByText("commented", { exact: true })).toHaveCount(0)
       await expect(entry.locator("p button")).toHaveCount(0)
       await expect(box).toHaveValue("")
       await expect(
@@ -227,26 +228,25 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openCard(page, id)
 
       const entry = entryWith(page, "Check the dip")
-      const reply = entry.getByRole("button", { name: "Reply", exact: true })
-      await reply.click()
-      const form = entry.getByRole("form", { name: "Reply to this comment" })
-      const box = form.getByRole("textbox", { name: "Reply" })
-      await expect(box).toBeFocused()
-      await box.fill("Agreed, looking now")
-      await box.press("Control+Enter")
+      await entry.getByRole("button", { name: "Reply", exact: true }).click()
+      const replying = composerForm(page).getByText(/^Replying in /)
+      await expect(replying).toBeVisible()
+      await expect(composerBox(page)).toBeFocused()
+      await composerBox(page).fill("Agreed, looking now")
+      await composerBox(page).press("Control+Enter")
 
-      await expect(form).toHaveCount(0)
       const nested = entry.getByRole("list").locator("> li")
       await expect(nested).toHaveCount(1)
       await expect(nested).toContainText("Agreed, looking now")
-      await expect(nested.getByText("replied", { exact: true })).toBeVisible()
-      await expect(reply).toBeFocused()
+      await expect(nested.getByText("replied", { exact: true })).toHaveCount(0)
+      await expect(composerBox(page)).toHaveValue("")
+      await expect(replying).toBeVisible()
 
-      await reply.click()
-      await expect(form.getByRole("textbox", { name: "Reply" })).toBeFocused()
-      await page.keyboard.press("Escape")
-      await expect(form).toHaveCount(0)
-      await expect(reply).toBeFocused()
+      await composerForm(page)
+        .getByRole("button", { name: /^Remove Replying in / })
+        .click()
+      await expect(replying).toHaveCount(0)
+      await expect(composerBox(page)).toBeFocused()
     })
 
     test("resolves and reopens a thread", async ({ page, request }) => {
@@ -403,15 +403,14 @@ for (const colorScheme of ["light", "dark"] as const) {
         await askAgentButton(page).click()
 
         const entry = entryWith(page, perRoutePrompt).filter({
-          has: page.getByText("asked the agent on", { exact: true }),
+          has: page.getByText("on", { exact: true }),
         })
         await expect(entry).toHaveCount(1)
         await expect(
           entry.getByRole("button", { name: /^Requests per second/ })
         ).toBeVisible()
-        await expect(entry.getByText("Sent to the agent")).toBeVisible()
-        const running = entries(page).filter({
-          has: page.getByText("is working on it", { exact: true }),
+        const running = entry.getByRole("status").filter({
+          hasText: "Observe Agent is working on it · View the run",
         })
         await expect(running).toHaveCount(1)
 
@@ -443,11 +442,8 @@ for (const colorScheme of ["light", "dark"] as const) {
           hasNot: page.getByText("Version 2", { exact: true }),
         })
         await thread.getByRole("button", { name: "Reply", exact: true }).click()
-        const form = thread.getByRole("form", { name: "Reply to this comment" })
-        await form
-          .getByRole("textbox", { name: "Reply" })
-          .fill(`@observe ${p99Prompt}`)
-        await form
+        await composerBox(page).fill(`@observe ${p99Prompt}`)
+        await composerForm(page)
           .getByRole("button", { name: "Send and ask Observe Agent" })
           .click()
 
@@ -459,7 +455,6 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(
           thread.getByText("Saved version 2 of this dashboard.")
         ).toBeVisible({ timeout: agentTimeout })
-        await expect(thread.getByText("Observe Agent finished.")).toBeVisible()
         await expect(promptEntries).toHaveCount(1)
         await expect(
           entryWith(page, 'Added "p99 latency"').filter({
@@ -476,16 +471,15 @@ for (const colorScheme of ["light", "dark"] as const) {
         await composerBox(page).fill(`@observe ${unanswerablePrompt}`)
         await askAgentButton(page).click()
 
-        const details = card(page).getByRole("link", {
-          name: /Details of the running agent request/,
-        })
+        const entry = entryWith(page, unanswerablePrompt)
+        const details = entry
+          .getByRole("status")
+          .getByRole("link", { name: "View the run" })
         await expect(details).toHaveAttribute("href", /\/c\/[0-9a-f-]{36}$/)
 
         finish()
-        const entry = entryWith(page, unanswerablePrompt)
-        const failure = entry.locator('[data-status="critical"]')
+        const failure = entry.getByText(/^The run failed: /)
         await expect(failure).toBeVisible({ timeout: agentTimeout })
-        await expect(failure).toContainText("The agent could not finish")
         await expect(failure).toContainText("no replay fixture")
       })
     })
@@ -557,9 +551,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         entry.getByText("Open, waiting for Claude Code")
       ).toBeVisible()
       await entry.getByRole("button", { name: "Reply", exact: true }).click()
-      await expect(
-        entry.getByRole("form", { name: "Reply to this comment" })
-      ).toBeVisible()
+      await expect(composerForm(page).getByText(/^Replying in /)).toBeVisible()
       await expect(askAgentButton(page)).toHaveCount(0)
     })
 
