@@ -387,7 +387,7 @@ export function SidebarContent({
       <div
         role="group"
         aria-labelledby={workspaceId}
-        className="flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto pb-1"
+        className="-m-[3px] flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-[3px] pb-[7px]"
       >
         <div
           id={workspaceId}
