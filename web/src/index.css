@@ -401,18 +401,18 @@ main[tabindex="-1"]:focus {
 
 .react-grid-layout > .react-grid-item > span.react-resizable-handle-e {
   top: 16px;
-  right: -7px;
+  right: -8px;
   bottom: 18px;
-  width: 14px;
+  width: 12px;
   height: auto;
 }
 
 .react-grid-layout > .react-grid-item > span.react-resizable-handle-s {
   right: 18px;
-  bottom: -7px;
+  bottom: -8px;
   left: 16px;
   width: auto;
-  height: 14px;
+  height: 12px;
 }
 
 .react-grid-layout > .react-grid-item > span.react-resizable-handle-e::after,
