@@ -172,10 +172,10 @@ func (r *rig) dashboardsIn(t *testing.T, folder pgtype.UUID, title string) int {
 }
 
 func TestAFailedReleaseUpdateLeavesNoCopyAndDoesNotMoveTheStarter(t *testing.T) {
-	r := newRig(t, false)
+	r := newPlacementRig(t)
 	ops := r.folder(t, "Ops", false)
 	home := r.folder(t, "Audit", true)
-	created, _, err := r.service.Create(reading(t.Context()), adminUser, ops, panelsSpec("Overview", "rps"), "by hand")
+	created, _, err := r.service.Create(reading(t.Context()), placementAdmin, ops, panelsSpec("Overview", "rps"), "by hand")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestAFailedReleaseUpdateLeavesNoCopyAndDoesNotMoveTheStarter(t *testing.T) 
 	r.markStarter(t, id)
 	failure := errors.New("the update failed after the copy")
 	for range 3 {
-		_, err = r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+		_, err = r.service.UpdateProvisioned(reading(t.Context()), placementAdmin, ReleaseUpdate{
 			DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
 			InTx: func(*dbsqlc.Queries, int) error { return failure },
 		})
@@ -203,10 +203,10 @@ func TestAFailedReleaseUpdateLeavesNoCopyAndDoesNotMoveTheStarter(t *testing.T) 
 }
 
 func TestAReleaseUpdateMovesTheStarterBackAndKeepsTheEditedCopyWhereItWas(t *testing.T) {
-	r := newRig(t, false)
+	r := newPlacementRig(t)
 	ops := r.folder(t, "Ops", false)
 	home := r.folder(t, "Audit", true)
-	created, _, err := r.service.Create(reading(t.Context()), adminUser, ops, panelsSpec("Overview", "rps"), "by hand")
+	created, _, err := r.service.Create(reading(t.Context()), placementAdmin, ops, panelsSpec("Overview", "rps"), "by hand")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestAReleaseUpdateMovesTheStarterBackAndKeepsTheEditedCopyWhereItWas(t *tes
 	}
 	r.markStarter(t, id)
 
-	if _, err := r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+	if _, err := r.service.UpdateProvisioned(reading(t.Context()), placementAdmin, ReleaseUpdate{
 		DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
 	}); err != nil {
 		t.Fatal(err)
@@ -230,10 +230,10 @@ func TestAReleaseUpdateMovesTheStarterBackAndKeepsTheEditedCopyWhereItWas(t *tes
 }
 
 func TestAReleaseUpdateWhoseCopyCannotStayPutsTheCopyInTheHomeFolder(t *testing.T) {
-	r := newRig(t, false)
+	r := newPlacementRig(t)
 	ops := r.folder(t, "Ops", false)
 	home := r.folder(t, "Audit", true)
-	created, _, err := r.service.Create(reading(t.Context()), adminUser, home, auditSpec("Overview"), "by hand")
+	created, _, err := r.service.Create(reading(t.Context()), placementAdmin, home, auditSpec("Overview"), "by hand")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +246,7 @@ func TestAReleaseUpdateWhoseCopyCannotStayPutsTheCopyInTheHomeFolder(t *testing.
 	}
 	r.markStarter(t, id)
 
-	if _, err := r.service.UpdateProvisioned(reading(t.Context()), adminUser, ReleaseUpdate{
+	if _, err := r.service.UpdateProvisioned(reading(t.Context()), placementAdmin, ReleaseUpdate{
 		DashboardID: id, Parent: 1, Spec: auditSpec("Overview"), Summary: "release", Home: home, EditedCopySuffix: " (your copy)",
 	}); err != nil {
 		t.Fatal(err)
@@ -260,11 +260,11 @@ func TestAReleaseUpdateWhoseCopyCannotStayPutsTheCopyInTheHomeFolder(t *testing.
 }
 
 func TestTheDashboardListMarksAStarterAndShowsItNotEditable(t *testing.T) {
-	r := newRig(t, false)
+	r := newPlacementRig(t)
 	b := boards{rig: r}
 	starter := r.starterDashboard(t).String()
 	ordinary := r.createDashboard(t).String()
-	rec := b.serve(adminUser, http.MethodGet, "/dashboards", "")
+	rec := b.serve(placementAdmin, http.MethodGet, "/dashboards", "")
 	var list struct {
 		Dashboards []struct {
 			ID          string

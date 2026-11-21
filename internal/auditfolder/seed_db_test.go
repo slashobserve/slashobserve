@@ -483,8 +483,9 @@ func TestAReleaseThatResizesAPanelAddsOneVersionOverTwoStarts(t *testing.T) {
 		if err := json.Unmarshal(st.Spec, &doc); err != nil {
 			t.Fatal(err)
 		}
-		pos := doc["panels"].([]any)[0].(map[string]any)["gridPos"].(map[string]any)
-		pos["w"] = pos["w"].(float64) + 2
+		panels := doc["panels"].([]any)
+		pos := panels[len(panels)-1].(map[string]any)["gridPos"].(map[string]any)
+		pos["h"] = pos["h"].(float64) + 2
 		if starters[i].Spec, err = json.Marshal(doc); err != nil {
 			t.Fatal(err)
 		}
@@ -507,7 +508,7 @@ func (r seedRig) moveToOpsAsEdited(t *testing.T, id string) string {
 		`INSERT INTO folders (title, created_by_kind, created_by_id, created_by_name) VALUES ('Ops', 'user', $1, 'Ada') RETURNING id::text`, admin.ID).Scan(&ops); err != nil {
 		t.Fatal(err)
 	}
-	plain := `{"specVersion":0,"title":"Audit overview","tags":[],"panels":[]}`
+	plain := `{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[]}`
 	r.exec(t, `UPDATE dashboard_versions SET author_kind = 'user', author_id = $2, spec = $3::jsonb WHERE dashboard_id = $1 AND version = 1`, id, admin.ID, plain)
 	r.exec(t, `UPDATE dashboards SET folder_id = $2 WHERE id = $1`, id, ops)
 	return ops
@@ -545,7 +546,7 @@ func TestAnEditedStarterMovedToAnotherFolderWithAdminOnlyContentKeepsItsCopyInAu
 	overview := r.starterID(t, "Audit overview")
 	ops := r.moveToOpsAsEdited(t, overview)
 	r.exec(t, `UPDATE dashboard_versions SET spec = $2::jsonb WHERE dashboard_id = $1 AND version = 1`, overview,
-		`{"specVersion":0,"title":"Audit overview","tags":[],"panels":[{"id":"events","type":"stat","title":"Events","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"slashobserve-audit","queries":[{"query":"*"}]}]}`)
+		`{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[{"id":"events","type":"stat","title":"Events","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"slashobserve-audit","queries":[{"query":"*"}]}]}`)
 
 	r.seed(t)
 	r.seed(t)
@@ -570,7 +571,7 @@ func TestAnAdminsOwnDashboardWithAStarterTitleIsNotTakenOver(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := datasource.WithAccess(t.Context(), datasource.Access{By: admin})
-	created, _, err := r.dashboards.Create(ctx, admin, parentFolder, []byte(`{"specVersion":0,"title":"Audit overview","tags":[],"panels":[]}`), "mine")
+	created, _, err := r.dashboards.Create(ctx, admin, parentFolder, []byte(`{"specVersion":"0","time":{"from":"now-15m","to":"now"},"title":"Audit overview","tags":[],"panels":[]}`), "mine")
 	if err != nil {
 		t.Fatal(err)
 	}
