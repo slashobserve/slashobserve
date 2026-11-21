@@ -361,6 +361,9 @@ func (s *Service) logout(c *gin.Context) {
 		return
 	}
 	if cookie, err := c.Request.Cookie(s.sessionCookie); err == nil && cookie.Value != "" {
+		if row, ok, err := s.sessionRow(c.Request); err == nil && ok {
+			s.sessionPrincipalOf(c.Request.Context(), row)
+		}
 		if err := s.queries.DeleteSession(c.Request.Context(), opaquetoken.Hash(cookie.Value)); err != nil {
 			if clientgone.Handle(c, s.logger, "delete session", err) {
 				return

@@ -565,7 +565,7 @@ export interface paths {
         };
         /**
          * Search the audit trail, newest first.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise. Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages. Every call is itself recorded as `audit.search` with the query as sent (cut at 4 KiB), its form, the window and the row count, and a refused query as a failed `audit.search`.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the audit events in the window that match `q`, newest first by `occurred_at` and then `id`, 100 a page unless `limit` or a Query DSL `size` says otherwise. Page with `next_cursor`: the pages of one search never repeat or skip an event, and events recorded after the first page do not move later pages. A search is itself recorded as `audit.search` with the query as sent (cut at 4 KiB), its form, the window and the row count, once per caller and query text in 10 minutes, so paging through or refreshing one search adds no events; a refused query is recorded as a failed `audit.search` every time.
          */
         get: operations["listAuditEvents"];
         put?: never;
@@ -587,7 +587,7 @@ export interface paths {
         };
         /**
          * Read one audit event with the other events of its request and its agent run.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself. Recorded as `audit.search` with the event as its target.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `same_request` holds up to 50 events with the same `request_id` within an hour of the event, and `same_run` up to 50 events with the same `run_id` within a day of it, newest first; each list includes the event itself. Not recorded.
          */
         get: operations["getAuditEvent"];
         put?: never;
@@ -607,7 +607,7 @@ export interface paths {
         };
         /**
          * Count the top values of one field among the matching audit events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted. Recorded as `audit.search`.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Returns the most frequent values of `field` among the events in the window that match `q`, most frequent first, ties by value; events where the field is empty are not counted. Not recorded.
          */
         get: operations["listAuditFacets"];
         put?: never;
@@ -627,7 +627,7 @@ export interface paths {
         };
         /**
          * Count the matching audit events over time.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first. Recorded as `audit.search`.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Splits the window into buckets of one step, the smallest of 1s, 5s, 10s, 30s, 1m, 5m, 10m, 30m, 1h, 3h, 6h, 12h and 1d that gives at most `buckets` buckets, and counts the matching events in each; empty buckets are included, oldest first. Not recorded.
          */
         get: operations["getAuditHistogram"];
         put?: never;
@@ -647,7 +647,7 @@ export interface paths {
         };
         /**
          * Run the aggs of a Query DSL body over the matching audit events.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level. Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`. An aggregation that would produce more than 100,000 rows is refused with its reason. Recorded as `audit.search`.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. `q` must be a Query DSL body with `aggs`: `date_histogram`, `terms`, `cardinality`, `value_count`, `count`, `min`, `max`, `avg`, `sum` and `percentiles`, up to three levels, one bucket aggregation per level. Each row holds one key per level, in `levels` order (a time for `date_histogram`, a value for `terms`), the `doc_count` of the bucket and one value per entry of `metrics`. An aggregation that would produce more than 100,000 rows is refused with its reason. Not recorded.
          */
         get: operations["aggregateAuditEvents"];
         put?: never;
@@ -667,7 +667,7 @@ export interface paths {
         };
         /**
          * List the fields an audit query can use.
-         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Each field has its name, an optional shorter alias, its type, what it holds and, for an enum, its values, for autocomplete and for agents writing a query.
+         * @description Only Admins can call this endpoint, and an Admin service-account key can too; an agent run reaches it only when its requester is an Admin. Each field has its name, its aliases, its type, what it holds and, for an enum, its values, for autocomplete and for agents writing a query.
          */
         get: operations["listAuditFields"];
         put?: never;
@@ -7945,6 +7945,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditEventDetail: {
             event: components["schemas"]["AuditEvent"];
@@ -7973,6 +7975,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditHistogram: {
             /**
@@ -8009,6 +8013,8 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditAggregation: {
             levels: {
@@ -8046,11 +8052,16 @@ export interface components {
              * @description The resolved end of the window, exclusive.
              */
             until: string;
+            /** @description Things that make the query probably not mean what it says, such as a misspelled `and`, `or` or `not`, or a Lucene operator in lower case, that is searched as text; empty when there are none. */
+            warnings: string[];
         };
         AuditFieldList: {
             fields: {
                 name: string;
+                /** @description The first of `aliases`, kept for older clients. */
                 alias: string | null;
+                /** @description The other names a query can use for the field, such as `actor` and `actor.name` for `actor_name`. */
+                aliases: string[];
                 /** @enum {string} */
                 type: "text" | "enum" | "int" | "uuid" | "ip" | "date" | "target";
                 description: string;

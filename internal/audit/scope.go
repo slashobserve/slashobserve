@@ -63,6 +63,12 @@ func Conclude(ctx context.Context, r Result) {
 	st.result = &r
 }
 
+func Skip(ctx context.Context) {
+	if st := stateOf(ctx); st != nil {
+		st.markCommitted()
+	}
+}
+
 func (st *state) wroteInTx(w written) {
 	st.mu.Lock()
 	defer st.mu.Unlock()

@@ -25,10 +25,16 @@ type luceneLeaf struct {
 }
 
 type luceneParser struct {
-	src    string
-	pos    int
-	depth  int
-	leaves []luceneLeaf
+	src      string
+	pos      int
+	depth    int
+	leaves   []luceneLeaf
+	warnings []string
+}
+
+type sequenceItem struct {
+	word     string
+	joinedBy bool
 }
 
 func parseLucene(body string, offset int) (Query, error) {
@@ -43,7 +49,7 @@ func parseLucene(body string, offset int) (Query, error) {
 		}
 		return Query{}, err
 	}
-	q := Query{Form: FormLucene}
+	q := Query{Form: FormLucene, Warnings: p.warnings}
 	if clause != nil {
 		if q.Clause, err = normalizeClause(clause); err != nil {
 			return Query{}, &Error{Pos: offset, End: offset + len(body), Msg: err.Error()}
@@ -124,15 +130,20 @@ func (p *luceneParser) take(words ...string) (string, bool) {
 
 func (p *luceneParser) orExpr(field string) (map[string]any, error) {
 	var must, mustNot, should []any
+	var sequence []sequenceItem
+	explicitOr := false
 	for {
 		p.skipSpace()
 		if p.done() || p.peek() == ')' {
 			break
 		}
+		seen := len(p.leaves)
 		item, mod, err := p.andGroup(field)
 		if err != nil {
 			return nil, err
 		}
+		sequence = append(sequence, sequenceItem{word: p.bareWord(seen, mod), joinedBy: explicitOr})
+		explicitOr = false
 		switch mod {
 		case modMust:
 			must = append(must, item)
@@ -147,9 +158,33 @@ func (p *luceneParser) orExpr(field string) (map[string]any, error) {
 			if p.done() || p.peek() == ')' {
 				return nil, p.fail(at, at+len(w), "%s needs a clause after it", w)
 			}
+			explicitOr = true
 		}
 	}
+	p.warnAboutOperatorTypos(sequence)
 	return orClause(must, mustNot, should), nil
+}
+
+func (p *luceneParser) bareWord(seen int, mod modifier) string {
+	if mod != modNone || len(p.leaves) != seen+1 {
+		return ""
+	}
+	leaf := p.leaves[seen]
+	if leaf.field != "" || leaf.wild || leaf.start >= leaf.end || strings.IndexByte(`"([{`, p.src[leaf.start]) >= 0 {
+		return ""
+	}
+	return p.src[leaf.start:leaf.end]
+}
+
+func (p *luceneParser) warnAboutOperatorTypos(sequence []sequenceItem) {
+	for i := 1; i < len(sequence)-1; i++ {
+		if sequence[i].word == "" || sequence[i].joinedBy || sequence[i+1].joinedBy {
+			continue
+		}
+		if warning, typo := operatorTypo(sequence[i].word, luceneOperators); typo {
+			p.warnings = append(p.warnings, warning)
+		}
+	}
 }
 
 func orClause(must, mustNot, should []any) map[string]any {

@@ -68,6 +68,7 @@ CREATE TABLE audit_events (
   PRIMARY KEY (occurred_at, id)
 ) PARTITION BY RANGE (occurred_at);
 CREATE TABLE audit_events_p PARTITION OF audit_events FOR VALUES FROM ('2000-01-01') TO ('2100-01-01');
+CREATE TABLE users (id uuid PRIMARY KEY, email text NOT NULL);
 `
 
 const runID = "5b1e0a52-0b7c-4f08-9b1f-6a1d3d6a9a10"

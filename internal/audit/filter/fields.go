@@ -1,8 +1,10 @@
 package filter
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/kql"
@@ -22,12 +24,21 @@ const (
 
 type Field struct {
 	Name        string
-	Alias       string
+	Aliases     []string
 	Type        Type
 	Description string
 	Values      []string
 	column      string
+	email       emailMatch
 }
+
+type emailMatch int
+
+const (
+	emailNone emailMatch = iota
+	emailOrName
+	emailOnly
+)
 
 const (
 	tableName      = "audit_events"
@@ -38,11 +49,11 @@ const (
 
 var (
 	categoryValues   = []string{"auth", "access", "content", "conversation", "agent", "query", "admin", "system"}
-	outcomeValues    = []string{"success", "denied", "failed"}
+	outcomeValues    = []string{"success", "denied", "failed", "unknown"}
 	actorKindValues  = []string{"user", "service_account", "anonymous", "system"}
 	initiatorValues  = []string{"person", "agent", "system"}
 	authMethodValues = []string{"session", "api_key", "oauth", "public_link", "none"}
-	originValues     = []string{"web", "cli", "mcp", "api", "agent", "job", "provision"}
+	originValues     = []string{"web", "cli", "mcp", "api", "agent", "job", "provision", "unknown"}
 )
 
 var fieldList = []Field{
@@ -50,39 +61,40 @@ var fieldList = []Field{
 	{Name: "id", Type: TypeUUID, column: "id", Description: "Event id"},
 	{Name: "category", Type: TypeEnum, column: "category", Values: categoryValues, Description: "Kind of action: auth, access, content, conversation, agent, query, admin or system"},
 	{Name: "action", Type: TypeText, column: "action", Description: "What was attempted, such as dashboard.update; end with * for a prefix such as dashboard.*"},
-	{Name: "outcome", Type: TypeEnum, column: "outcome", Values: outcomeValues, Description: "success, denied or failed"},
+	{Name: "outcome", Type: TypeEnum, column: "outcome", Values: outcomeValues, Description: "success, denied, failed or unknown (a redirect or an unconfirmed commit)"},
 	{Name: "reason", Type: TypeText, column: "reason", Description: "API error code of a refusal or failure, such as forbidden_role"},
 	{Name: "status", Type: TypeInt, column: "status", Description: "HTTP status of the request"},
-	{Name: durationField, Alias: "duration", Type: TypeInt, column: durationField, Description: "How long the action took, in milliseconds"},
-	{Name: "actor_kind", Type: TypeEnum, column: "actor_kind", Values: actorKindValues, Description: "Whose permissions were used: user, service_account, anonymous or system"},
-	{Name: "actor_id", Type: TypeUUID, column: "actor_id", Description: "Id of the user or service account"},
-	{Name: "actor_name", Alias: "actor", Type: TypeText, column: "actor_name", Description: "Name of the actor when the event happened"},
-	{Name: "actor_role", Type: TypeText, column: "actor_role", Description: "Role of the actor when the event happened"},
+	{Name: durationField, Aliases: []string{"duration"}, Type: TypeInt, column: durationField, Description: "How long the action took, in milliseconds"},
+	{Name: "actor_kind", Aliases: []string{"actor.kind"}, Type: TypeEnum, column: "actor_kind", Values: actorKindValues, Description: "Whose permissions were used: user, service_account, anonymous or system"},
+	{Name: "actor_id", Aliases: []string{"actor.id"}, Type: TypeUUID, column: "actor_id", Description: "Id of the user or service account"},
+	{Name: "actor_name", Aliases: []string{"actor", "actor.name"}, Type: TypeText, column: "actor_name", Description: "Name of the actor when the event happened; the short name actor also matches the actor's current email address"},
+	{Name: "actor_email", Aliases: []string{"actor.email"}, Type: TypeText, column: "actor_id", email: emailOnly, Description: "Current email address of the user who acted, read from the user and never stored in the event; service accounts have none"},
+	{Name: "actor_role", Aliases: []string{"actor.role"}, Type: TypeText, column: "actor_role", Description: "Role of the actor when the event happened"},
 	{Name: "initiator", Type: TypeEnum, column: "initiator", Values: initiatorValues, Description: "Who started it: person, agent or system"},
 	{Name: "agent_id", Type: TypeUUID, column: "agent_id", Description: "Id of the agent that acted"},
 	{Name: "agent_name", Type: TypeText, column: "agent_name", Description: "Name of the agent that acted"},
-	{Name: "run_id", Alias: "run", Type: TypeUUID, column: "run_id", Description: "Agent run that made the event"},
+	{Name: "run_id", Aliases: []string{"run"}, Type: TypeUUID, column: "run_id", Description: "Agent run that made the event"},
 	{Name: "auth_method", Type: TypeEnum, column: "auth_method", Values: authMethodValues, Description: "How the caller proved who they are: session, api_key, oauth, public_link or none"},
 	{Name: "credential_id", Type: TypeText, column: "credential_id", Description: "Id of the session, key, grant or public link used, never the secret"},
-	{Name: "origin", Type: TypeEnum, column: "origin", Values: originValues, Description: "Where it came from: web, cli, mcp, api, agent, job or provision"},
+	{Name: "origin", Type: TypeEnum, column: "origin", Values: originValues, Description: "Where it came from: web, cli, mcp, api, agent (a run's own tool calls), job, provision or unknown (an event whose origin was never recorded)"},
 	{Name: "origin_client", Type: TypeText, column: "origin_client", Description: "Name of the connected client"},
 	{Name: "tool", Type: TypeText, column: "tool", Description: "MCP or agent tool name"},
-	{Name: "client_ip", Alias: "ip", Type: TypeIP, column: "client_ip", Description: "Address of the caller; accepts an address or a CIDR such as 10.4.0.0/16"},
+	{Name: "client_ip", Aliases: []string{"ip"}, Type: TypeIP, column: "client_ip", Description: "Address of the caller; accepts an address or a CIDR such as 10.4.0.0/16"},
 	{Name: "user_agent", Type: TypeText, column: "user_agent", Description: "User agent header of the request"},
-	{Name: "request_id", Alias: "request", Type: TypeUUID, column: "request_id", Description: "Request id, also returned as X-Request-Id"},
+	{Name: "request_id", Aliases: []string{"request"}, Type: TypeUUID, column: "request_id", Description: "Request id, also returned as X-Request-Id"},
 	{Name: "trace_id", Type: TypeText, column: "trace_id", Description: "Trace id of the request, when one was sent"},
 	{Name: "http_method", Type: TypeText, column: "http_method", Description: "HTTP method of the request"},
 	{Name: "route", Type: TypeText, column: "route", Description: "Route template of the request"},
 	{Name: targetFieldKey, Type: TypeTarget, Description: "What the event was about as kind/id, such as dashboard/8f3c; kind alone and kind/id* also work"},
-	{Name: "target_kind", Type: TypeText, column: "target_kind", Description: "Kind of the target, such as dashboard"},
-	{Name: "target_id", Type: TypeText, column: "target_id", Description: "Id of the target"},
-	{Name: "target_name", Type: TypeText, column: "target_name", Description: "Name of the target when the event happened"},
+	{Name: "target_kind", Aliases: []string{"target.kind"}, Type: TypeText, column: "target_kind", Description: "Kind of the target, such as dashboard"},
+	{Name: "target_id", Aliases: []string{"target.id"}, Type: TypeText, column: "target_id", Description: "Id of the target"},
+	{Name: "target_name", Aliases: []string{"target.name"}, Type: TypeText, column: "target_name", Description: "Name of the target when the event happened"},
 	{Name: "folder_id", Type: TypeUUID, column: "folder_id", Description: "Folder the target lives in"},
 	{Name: "dashboard_id", Type: TypeUUID, column: "dashboard_id", Description: "Dashboard the event touched"},
 	{Name: "observation_id", Type: TypeUUID, column: "observation_id", Description: "Observation the event touched"},
 	{Name: "thread_id", Type: TypeUUID, column: "thread_id", Description: "Comment thread the event touched"},
 	{Name: "chat_id", Type: TypeUUID, column: "chat_id", Description: "Chat the event touched"},
-	{Name: "datasource_uid", Alias: "datasource", Type: TypeText, column: "datasource_uid", Description: "Datasource a query ran on"},
+	{Name: "datasource_uid", Aliases: []string{"datasource"}, Type: TypeText, column: "datasource_uid", Description: "Datasource a query ran on"},
 	{Name: "server_id", Type: TypeText, column: "server_id", Description: "Server replica that recorded the event"},
 	{Name: "server_version", Type: TypeText, column: "server_version", Description: "Build of the server that recorded the event"},
 }
@@ -97,7 +109,7 @@ var eventColumns = []string{
 }
 
 var (
-	fieldIndex = indexFields(fieldList)
+	fieldIndex = withEmailMatching(indexFields(fieldList))
 	fieldNames = knownNames(fieldList)
 )
 
@@ -105,20 +117,28 @@ func Fields() []Field {
 	out := make([]Field, len(fieldList))
 	for i, f := range fieldList {
 		f.Values = slices.Clone(f.Values)
+		f.Aliases = slices.Clone(f.Aliases)
 		out[i] = f
 	}
 	return out
 }
 
 func indexFields(list []Field) map[string]*Field {
-	index := make(map[string]*Field, 2*len(list))
+	index := make(map[string]*Field, 3*len(list))
 	for i := range list {
 		f := &list[i]
 		index[f.Name] = f
-		if f.Alias != "" {
-			index[f.Alias] = f
+		for _, alias := range f.Aliases {
+			index[alias] = f
 		}
 	}
+	return index
+}
+
+func withEmailMatching(index map[string]*Field) map[string]*Field {
+	either := *index["actor_name"]
+	either.email = emailOrName
+	index["actor"] = &either
 	return index
 }
 
@@ -126,9 +146,7 @@ func knownNames(list []Field) []string {
 	var names []string
 	for _, f := range list {
 		names = append(names, f.Name)
-		if f.Alias != "" {
-			names = append(names, f.Alias)
-		}
+		names = append(names, f.Aliases...)
 	}
 	return names
 }
@@ -139,7 +157,7 @@ func lookupField(name string) (*Field, bool) {
 }
 
 func (f *Field) groupable() bool {
-	return f.Type != TypeTarget
+	return f.Type != TypeTarget && f.email != emailOnly
 }
 
 func (f *Field) textExpr() string {
@@ -242,9 +260,66 @@ func editDistance(a, b string) int {
 	return prev[len(b)]
 }
 
-func unknownFieldMessage(name string) string {
-	if suggestion := nearest(name, fieldNames); suggestion != "" {
-		return fmt.Sprintf("unknown field %q; did you mean %q?", name, suggestion)
+const maxFieldSuggestions = 3
+
+func nearestFields(name string, candidates []string) []string {
+	name = strings.ToLower(name)
+	flat := strings.NewReplacer(".", "_").Replace(name)
+	dotted := strings.Contains(name, ".")
+	type ranked struct {
+		name     string
+		distance int
+		style    int
 	}
-	return fmt.Sprintf("unknown field %q", name)
+	var nearby []ranked
+	add := func(c string, distance int) {
+		style := 0
+		if strings.Contains(c, ".") != dotted {
+			style = 1
+		}
+		nearby = append(nearby, ranked{c, distance, style})
+	}
+	for _, c := range candidates {
+		flatC := strings.ReplaceAll(c, ".", "_")
+		if len(flat) >= 3 && strings.HasPrefix(flatC, flat) {
+			add(c, 0)
+		} else if d := editDistance(flat, flatC); d <= max(2, len(flat)/4) {
+			add(c, d)
+		}
+	}
+	if root, _, found := strings.Cut(flat, "_"); found && len(nearby) == 0 {
+		for _, c := range candidates {
+			if strings.HasPrefix(strings.ReplaceAll(c, ".", "_"), root+"_") {
+				add(c, 1)
+			}
+		}
+	}
+	slices.SortStableFunc(nearby, func(a, b ranked) int {
+		return cmp.Or(cmp.Compare(a.distance, b.distance), cmp.Compare(a.style, b.style))
+	})
+	out := make([]string, 0, maxFieldSuggestions)
+	named := map[string]bool{}
+	for _, r := range nearby {
+		if f, ok := fieldIndex[r.name]; ok && !named[f.Name] && len(out) < maxFieldSuggestions {
+			named[f.Name] = true
+			out = append(out, r.name)
+		}
+	}
+	return out
+}
+
+func unknownFieldMessage(name string) string {
+	suggestions := nearestFields(name, fieldNames)
+	switch len(suggestions) {
+	case 0:
+		return fmt.Sprintf("unknown field %q", name)
+	case 1:
+		return fmt.Sprintf("unknown field %q; did you mean %q?", name, suggestions[0])
+	}
+	last := len(suggestions) - 1
+	quoted := make([]string, last)
+	for i, s := range suggestions[:last] {
+		quoted[i] = strconv.Quote(s)
+	}
+	return fmt.Sprintf("unknown field %q; did you mean %s or %q?", name, strings.Join(quoted, ", "), suggestions[last])
 }

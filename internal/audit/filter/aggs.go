@@ -244,7 +244,10 @@ func termsOrder(name string, v any) (string, error) {
 func (a *Agg) groupField(obj map[string]any) (*Field, error) {
 	name, _ := obj["field"].(string)
 	f, ok := lookupField(name)
-	if !ok || !f.groupable() {
+	if ok && !f.groupable() {
+		return nil, failOn(a.Name, "%s %q needs a field with values to group by, not %s", a.Type, truncate(a.Name), name)
+	}
+	if !ok {
 		return nil, failOn(a.Name, "%s %q needs a field: %s", a.Type, truncate(a.Name), unknownFieldMessage(name))
 	}
 	return f, nil
