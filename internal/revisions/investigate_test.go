@@ -33,10 +33,13 @@ func investigate(t *testing.T, svc *revisions.Service, p revisions.InvestigatePa
 
 func insertFindingFor(t *testing.T, d *dbtest.Database, requestID pgtype.UUID) {
 	t.Helper()
-	d.Exec(t, `WITH o AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
-  VALUES (general_folder_id(), 'why', 'user', $2::uuid, 'Ada') RETURNING id)
+	d.Exec(t, `WITH run AS (SELECT observation_id, intent FROM agent_requests WHERE id = $1),
+made AS (INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name)
+  SELECT general_folder_id(), 'why', 'user', $2::uuid, 'Ada' FROM run WHERE run.observation_id IS NULL AND run.intent = 'apply' RETURNING id),
+linked AS (UPDATE agent_requests SET observation_id = made.id FROM made WHERE agent_requests.id = $1)
 INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, time_from, time_to, created_by_kind, created_by_id, created_by_name)
-SELECT o.id, o.id, $1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada' FROM o`, requestID, userID)
+SELECT coalesce(run.observation_id, (SELECT id FROM made), gen_random_uuid()), coalesce(run.observation_id, (SELECT id FROM made)),
+  $1, 'why', 'checkout-0 errors', now() - interval '1 hour', now(), 'user', $2::uuid, 'Ada' FROM run`, requestID, userID)
 }
 
 func TestInvestigateStoresItsWindow(t *testing.T) {

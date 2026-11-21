@@ -241,7 +241,7 @@ func storedFinding(t *testing.T, d *dbtest.Database, row dbsqlc.AgentRequest) (s
 	insertFindingFor(t, d, row.ID)
 	d.Exec(t, "UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', attempts = 1, started_at = now(), finished_at = now() WHERE id = $1", row.ID)
 	var findingID, observationID string
-	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT id::text, observation_id::text FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
+	if err := d.SQLDB(t).QueryRowContext(reading(t.Context()), "SELECT id::text, coalesce(observation_id::text, '') FROM findings WHERE agent_request_id = $1", row.ID).Scan(&findingID, &observationID); err != nil {
 		t.Fatal(err)
 	}
 	finding := func(_ context.Context, _ auth.Principal, requestID pgtype.UUID) (json.RawMessage, bool, error) {
@@ -321,7 +321,7 @@ func TestAnAnsweredObserveRequestShowsItsFindingAsTheDocumentSays(t *testing.T) 
 		t.Fatal(err)
 	}
 	r := got.Request
-	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "/o/"+findingID || r.DashboardID != nil || r.ResultVersion != nil {
+	if r.Kind != "build" || r.Finding == nil || r.Finding.ID != findingID || r.URL != "" || r.DashboardID != nil || r.ResultVersion != nil {
 		t.Fatalf("GET of an answered observe request: %s", rec.Body)
 	}
 }

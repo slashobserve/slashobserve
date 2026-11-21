@@ -232,7 +232,7 @@ func TestDeletingARunKeepsWhatItWrote(t *testing.T) {
 	d := dbtest.New(t)
 	f := seedObservation(t, d, "")
 	sqlDB := d.SQLDB(t)
-	d.Exec(t, `INSERT INTO agent_requests (id, prompt, requested_by_kind, requested_by_id, requested_by_name, source) VALUES ($1::uuid, 'p', 'user', $2::uuid, 'Ada', 'investigate')`, obsRequest, f.user)
+	d.Exec(t, `INSERT INTO agent_requests (id, prompt, requested_by_kind, requested_by_id, requested_by_name, intent) VALUES ($1::uuid, 'p', 'user', $2::uuid, 'Ada', 'ask')`, obsRequest, f.user)
 	d.Exec(t, `UPDATE observations SET run_id = $1::uuid WHERE id = $2::uuid`, obsRequest, f.observation)
 	d.Exec(t, `UPDATE observation_blocks SET run_id = $1::uuid WHERE id = $2::uuid`, obsRequest, f.block)
 	d.Exec(t, `INSERT INTO snapshots (observation_id, panel, query, frames, time_from, time_to, created_by_kind, created_by_id, created_by_name, run_id)

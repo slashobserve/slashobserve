@@ -224,7 +224,8 @@ func TestRetryByAnotherPersonFallsBackToANewObservation(t *testing.T) {
 }
 
 func TestWithoutObservationsAnInvestigationNamesNone(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
+	d := dbtest.New(t)
+	svc := newTestService(d.DB, succeedWith(2), quietLogger())
 	row := investigate(t, svc, revisions.InvestigateParams{DashboardID: seedDashboard(t, d, 1)})
 	if row.ObservationID.Valid {
 		t.Errorf("the run names %v", row.ObservationID)
