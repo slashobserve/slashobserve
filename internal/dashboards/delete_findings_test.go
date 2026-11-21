@@ -95,3 +95,26 @@ func TestDeletingADashboardLeavesAnotherDashboardsRunThatRevisedFromItsAnswer(t 
 		t.Fatalf("applies_finding_id = %s, want it cleared with the answer", applies.String)
 	}
 }
+
+func TestDeletingAUserDeletesTheAnswerOfARunOnTheirPersonalDashboard(t *testing.T) {
+	r := newRig(t, true)
+	sqlDB := r.db.SQLDB(t)
+	var user, personal string
+	if err := sqlDB.QueryRowContext(t.Context(), `INSERT INTO users (oidc_issuer, oidc_subject, email, name) VALUES ('https://idp', 'grace', 'grace@example.com', 'Grace') RETURNING id::text`).Scan(&user); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.QueryRowContext(t.Context(), `SELECT id::text FROM folders WHERE owner_id = $1`, user).Scan(&personal); err != nil {
+		t.Fatal(err)
+	}
+	id := r.createDashboard(t)
+	if _, err := sqlDB.ExecContext(t.Context(), `UPDATE dashboards SET folder_id = $1 WHERE id = $2`, personal, id.String()); err != nil {
+		t.Fatal(err)
+	}
+	seeded := r.seedAnswerRunScannedBeforeTheRunThatAppliesIt(t, id.String(), nil)
+	if _, err := sqlDB.ExecContext(t.Context(), `DELETE FROM users WHERE id = $1`, user); err != nil {
+		t.Fatalf("delete user: %v", err)
+	}
+	if n := r.rowCount(t, `SELECT count(*) FROM agent_requests WHERE id IN ($1, $2)`, seeded.answerRun, seeded.applyRun); n != 0 {
+		t.Fatalf("%d runs left for a deleted personal dashboard", n)
+	}
+}
