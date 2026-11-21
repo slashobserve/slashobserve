@@ -314,7 +314,8 @@ func run() error {
 	defer database.Close()
 	serverMetrics.Pool(database.Stat)
 
-	if err := database.Migrate(ctx); err != nil {
+	appliedMigrations, err := database.Migrate(ctx)
+	if err != nil {
 		return migrationExit(err)
 	}
 	instance, err := database.Queries().GetInstance(ctx)
@@ -334,6 +335,7 @@ func run() error {
 	untilServed := context.WithoutCancel(ctx)
 	stopAudit := startBackground(untilServed, "audit writer", recorder.Run, logger)
 	defer stopAudit()
+	recordMigrations(ctx, logger, appliedMigrations)
 	membership := fleet.New(database, serverID, version, logger)
 	serverMetrics.Fleet(membership.Live)
 	stopFleet := startFleet(ctx, membership, logger)
@@ -413,9 +415,9 @@ func run() error {
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, Logger: logger,
 	})
 	auditReader := trail.NewReader(database, logger)
-	var startHealthRun func()
+	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
-		StartHealthRun: func() { startHealthRun() },
+		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
 		Datasources:    registry,
 		Runner:         runner,
 		Dashboards:     dashboardsService,
@@ -589,10 +591,7 @@ func run() error {
 	if err != nil {
 		return described("http_setup_failed", err)
 	}
-	if err := serve(ctx, logger, cfg.HTTPAddr, handler, broker.Close); err != nil {
-		return described("http_server_failed", err)
-	}
-	return nil
+	return serveRecorded(ctx, logger, cfg.HTTPAddr, serverID, handler, broker.Close)
 }
 
 func savedFindingURL(publicURL *url.URL) func(findings.Finding) string {
@@ -871,12 +870,11 @@ func newLogger(cfg config.Config) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stderr, opts))
 }
 
-func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.Handler, onShutdown ...func()) error {
+func serve(ctx context.Context, logger *slog.Logger, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
 	requests, cutRequests := context.WithCancel(context.Background())
 	defer cutRequests()
 	// WriteTimeout is deliberately unset: a write deadline would cut SSE streams.
 	srv := &http.Server{
-		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
@@ -889,8 +887,8 @@ func serve(ctx context.Context, logger *slog.Logger, addr string, handler http.H
 	}
 	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info("listening", slog.String("addr", addr))
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Info("listening", slog.String("addr", listener.Addr().String()))
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serveErr <- err
 		}
 	}()

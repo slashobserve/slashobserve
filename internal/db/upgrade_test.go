@@ -25,7 +25,7 @@ func TestUpgradeFromV010BackfillsItsData(t *testing.T) {
 	d.Exec(t, `INSERT INTO agent_requests (dashboard_id, source, prompt, base_version, requested_by_kind, requested_by_id, requested_by_name)
 VALUES ($1::uuid, 'prompt', 'p', 1, 'user', $2::uuid, 'Ada')`, dashboard, named)
 
-	if err := d.Migrate(ctx); err != nil {
+	if _, err := d.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
 

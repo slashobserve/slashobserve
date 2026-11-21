@@ -109,6 +109,7 @@ type Result struct {
 	Outcome Outcome
 	Reason  string
 	Target  Target
+	Data    map[string]any
 }
 
 type Event struct {

@@ -18,28 +18,30 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	audit.ActionPrune:   "the audit_partitions job, when it removes old partitions",
 	audit.ActionRefuse:  "the request middleware, for a 401, 403 or 429 on a route that declares no action",
 	"auth.login_failed": "the OIDC callback, when it refuses a sign-in",
+	"job.run":           "the scheduler, in the transaction that finishes a job run",
+
+	"agent.tool_call":          "the MCP handler, for each tool call except the claim tools",
+	"auth.credential_rejected": "authentication, for a bearer credential that matches no key or token",
+	"auth.csrf_rejected":       "authentication, for a cookie request refused by the cross-origin check",
+	"migration.apply":          "the server at start, once for each migration it applied",
+	audit.ActionOAuthAuthorize: "the OAuth authorize endpoint, mounted outside /api/v1",
+	audit.ActionOAuthRegister:  "the OAuth registration endpoint, mounted outside /api/v1",
+	audit.ActionOAuthRevoke:    "the OAuth revocation endpoint, mounted outside /api/v1",
+	audit.ActionOAuthExchange:  "the OAuth token endpoint, mounted outside /api/v1",
+	"server.start":             "the server, once it is about to listen",
+	"server.stop":              "the server, once it has drained requests and before the audit writer stops",
+	"webhook.deliver":          "the webhook worker, for each delivery attempt",
 }
 
 var pendingAuditActions = []audit.Action{
-	"agent.tool_call",
-	"auth.credential_rejected",
-	"auth.csrf_rejected",
 	"chat.create",
 	"chat.delete",
 	"chat.turn",
 	"finding.apply",
-	"migration.apply",
-	"oauth.authorize",
-	"oauth.client_register",
-	"oauth.revoke",
-	"oauth.token",
 	"observation.arrange",
 	"run.share",
 	"run.withdraw",
-	"server.start",
-	"server.stop",
 	"thread.agent_set",
-	"webhook.deliver",
 }
 
 type declaredOperation struct {
@@ -132,6 +134,20 @@ func TestFolderAndTeamActionsAreRecordedAndNotPending(t *testing.T) {
 		}
 		if slices.Contains(pendingAuditActions, action) {
 			t.Errorf("%s is recorded inside its service's transaction and must not be pending", action)
+		}
+	}
+}
+
+func TestAuthAndSystemActionsAreNoLongerPending(t *testing.T) {
+	recorded := []audit.Action{
+		"agent.tool_call", "auth.credential_rejected", "auth.csrf_rejected", "auth.login_failed",
+		"migration.apply", "oauth.authorize", "oauth.client_register", "oauth.revoke", "oauth.token",
+		"server.start", "server.stop", "webhook.deliver",
+		"service_account.create", "service_account.key_create", "service_account.key_revoke",
+	}
+	for _, action := range recorded {
+		if slices.Contains(pendingAuditActions, action) {
+			t.Errorf("%s is recorded and must not be in pendingAuditActions", action)
 		}
 	}
 }

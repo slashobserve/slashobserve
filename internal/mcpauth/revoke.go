@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
@@ -49,10 +50,15 @@ func (s *Server) revokeToken(r *http.Request, token, clientID string) error {
 		return err
 	}
 	if row.ClientID != clientID {
+		s.refused(ctx, audit.ActionOAuthRevoke, audit.OutcomeDenied, "client_mismatch", s.registeredClient(ctx, clientID), nil)
 		return nil
 	}
 	revoked, err := s.revokeRecorded(ctx, row.GrantID, "client", nil, func(q *dbsqlc.Queries) (int64, error) {
-		return q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: row.GrantID, Reason: "client"})
+		n, err := q.RevokeOAuthGrant(ctx, dbsqlc.RevokeOAuthGrantParams{ID: row.GrantID, Reason: "client"})
+		if err != nil || n == 0 {
+			return n, err
+		}
+		return n, s.recordRevoked(ctx, q, row.GrantID)
 	})
 	if err == nil && revoked > 0 {
 		s.logger.InfoContext(ctx, "oauth grant revoked", slog.String("grant_id", row.GrantID.String()), slog.String("reason", "client"))

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
@@ -121,6 +122,14 @@ func idAttrs(row dbsqlc.GrafanaSync) []any {
 	return []any{slog.String("connection_id", row.ConnectionID.String()), slog.String("sync_id", row.ID.String())}
 }
 
+func importEvent(action audit.Action, row dbsqlc.GrafanaSync) audit.Event {
+	return audit.Event{
+		Action: action,
+		Target: audit.Target{Kind: "grafana_import", ID: row.ID.String()},
+		Data:   map[string]any{"connection_id": row.ConnectionID.String()},
+	}
+}
+
 func (s *Service) StartSync(ctx context.Context, by auth.Principal, id pgtype.UUID, req SyncRequest) (Sync, error) {
 	if err := s.checkMapping(ctx, req.Mapping); err != nil {
 		return Sync{}, err
@@ -148,8 +157,10 @@ func (s *Service) StartSync(ctx context.Context, by auth.Principal, id pgtype.UU
 			return err
 		}
 		row = inserted
-		_, err = q.PruneGrafanaSyncs(ctx, dbsqlc.PruneGrafanaSyncsParams{ConnectionID: id, Kept: keptSyncs})
-		return err
+		if _, err = q.PruneGrafanaSyncs(ctx, dbsqlc.PruneGrafanaSyncsParams{ConnectionID: id, Kept: keptSyncs}); err != nil {
+			return err
+		}
+		return audit.Record(ctx, q, importEvent("grafana_import.start", inserted))
 	})
 	var pgErr *pgconn.PgError
 	switch {
@@ -195,8 +206,16 @@ func (s *Service) CancelSync(ctx context.Context, by auth.Principal, connectionI
 		return Sync{}, ErrSyncNotFound
 	}
 	q := s.store.db.Queries()
-	canceled, err := q.CancelGrafanaSync(ctx, dbsqlc.CancelGrafanaSyncParams{
-		ToState: string(SyncCanceled), ID: id, ConnectionID: connectionID, FromStates: SyncMachine.From(ActionCancel),
+	var canceled dbsqlc.GrafanaSync
+	err = s.store.db.InTx(ctx, func(tq *dbsqlc.Queries) error {
+		var err error
+		canceled, err = tq.CancelGrafanaSync(ctx, dbsqlc.CancelGrafanaSyncParams{
+			ToState: string(SyncCanceled), ID: id, ConnectionID: connectionID, FromStates: SyncMachine.From(ActionCancel),
+		})
+		if err != nil {
+			return err
+		}
+		return audit.Record(ctx, tq, importEvent("grafana_import.cancel", canceled))
 	})
 	if err == nil {
 		s.logMove(ctx, ActionCancel, SyncCanceled, canceled.ConnectionID, canceled.ID, slog.String("actor_id", by.ID))

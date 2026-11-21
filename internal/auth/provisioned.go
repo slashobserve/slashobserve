@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/opaquetoken"
 )
@@ -133,6 +134,13 @@ func (s *Service) ensureProvisioned(ctx context.Context, a FileAccount) error {
 			return fmt.Errorf("write service account: %w", err)
 		}
 		accountID = row.ID
+		accountEvent := audit.Action("service_account.update")
+		if plan.Account == accountCreate {
+			accountEvent = "service_account.create"
+		}
+		if err := recordProvisioned(ctx, accountEvent, accountID, a.Name, map[string]any{"name": a.Name, "role": string(role), "takes_runs": a.TakesRuns}); err != nil {
+			return err
+		}
 	}
 	if plan.Key != keyKeep {
 		err := s.queries.ReplaceProvisionedKey(ctx, dbsqlc.ReplaceProvisionedKeyParams{
@@ -147,9 +155,26 @@ func (s *Service) ensureProvisioned(ctx context.Context, a FileAccount) error {
 		if err != nil {
 			return fmt.Errorf("write service account key: %w", err)
 		}
+		keyData := map[string]any{"name": a.Name, "key_name": fileKeyName}
+		if plan.Key == keyReplace {
+			if err := recordProvisioned(ctx, "service_account.key_revoke", accountID, a.Name, keyData); err != nil {
+				return err
+			}
+		}
+		if err := recordProvisioned(ctx, "service_account.key_create", accountID, a.Name, keyData); err != nil {
+			return err
+		}
 	}
 	s.logger.InfoContext(ctx, "service account provisioned", slog.String("service_account", a.Name),
 		slog.String("account", string(plan.Account)), slog.String("key", string(plan.Key)), slog.String("role", string(role)), slog.Bool("takes_runs", a.TakesRuns))
+	return nil
+}
+
+func recordProvisioned(ctx context.Context, action audit.Action, accountID pgtype.UUID, name string, data map[string]any) error {
+	err := audit.RecordNow(ctx, audit.Event{Action: action, Target: audit.Target{Kind: "service_account", ID: accountID.String(), Name: name}, Data: data})
+	if err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		return fmt.Errorf("record %s: %w", action, err)
+	}
 	return nil
 }
 
