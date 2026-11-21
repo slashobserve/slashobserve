@@ -28,8 +28,13 @@ ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS N
 RETURNING *;
 
 -- name: ClaimAgentRequest :one
-WITH picked AS (
+WITH running AS (
+  SELECT b.requested_by_kind, b.requested_by_id, count(*) AS runs FROM agent_requests b
+  WHERE b.status = 'running' AND b.lease_until >= clock_timestamp()
+  GROUP BY b.requested_by_kind, b.requested_by_id
+), picked AS (
   SELECT r.id, (r.started_at IS NULL) AS first_claim FROM agent_requests r
+  LEFT JOIN running ON running.requested_by_kind = r.requested_by_kind AND running.requested_by_id = r.requested_by_id
   WHERE r.status IN ('queued', 'running')
     AND r.state = ANY(@from_states::text[])
     AND (r.state = 'queued' OR r.lease_until < clock_timestamp())
@@ -46,8 +51,8 @@ WITH picked AS (
       WHERE e.chat_id = r.chat_id AND e.status IN ('queued', 'running') AND (e.created_at, e.id) < (r.created_at, r.id)
         AND NOT (e.state = 'queued' AND e.cancel_requested_at IS NOT NULL)
     ))
-  ORDER BY r.created_at, r.id
-  FOR UPDATE SKIP LOCKED
+  ORDER BY coalesce(running.runs, 0), r.created_at, r.id
+  FOR UPDATE OF r SKIP LOCKED
   LIMIT 1
 )
 UPDATE agent_requests
