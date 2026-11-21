@@ -80,8 +80,9 @@ func (h *Handler) workingPage(ctx context.Context, caller auth.Principal, limit 
 	rows, err := h.db.Queries().ListWorkingRuns(ctx, dbsqlc.ListWorkingRunsParams{
 		Folders:    levels.Visible(),
 		CallerKind: string(caller.Kind),
-		CallerID:   callerID,
-		RowLimit:   httpapi.Int32(limit + 1),
+		CallerID:    callerID,
+		CallerAdmin: caller.Role.AtLeast(auth.RoleAdmin),
+		RowLimit:    httpapi.Int32(limit + 1),
 	})
 	if err != nil {
 		return workingPageJSON{}, fmt.Errorf("list working runs: %w", err)
