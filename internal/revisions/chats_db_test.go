@@ -107,7 +107,8 @@ func TestAChatIDMustNameTheCallersLiveChatOnTheSameSubject(t *testing.T) {
 		want error
 	}{
 		"someone else's chat":     {account, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
-		"an Admin":                {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
+		"an Admin":                {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatReadOnly},
+		"an Admin on archived":    {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
 		"an archived chat":        {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
 		"a chat that never was":   {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
 		"a Home chat on a board":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), DashboardID: text(dash.String())}, nil},
@@ -261,10 +262,14 @@ func TestChatsAreListedAndArchivedByTheirOwnerAndReadByAdmins(t *testing.T) {
 	if _, _, err := svc.Chat(ctx, account, older); !errors.Is(err, revisions.ErrChatNotFound) {
 		t.Fatalf("%s reads the chat: %v", account.Name, err)
 	}
-	for _, who := range []auth.Principal{bea, account} {
-		if err := svc.ArchiveChat(ctx, who, older); !errors.Is(err, revisions.ErrChatNotFound) {
-			t.Fatalf("%s archives the chat: %v", who.Name, err)
-		}
+	if err := svc.ArchiveChat(ctx, bea, older); !errors.Is(err, revisions.ErrChatReadOnly) {
+		t.Fatalf("an Admin archives the chat: %v, want it refused as read only", err)
+	}
+	if err := svc.ArchiveChat(ctx, account, older); !errors.Is(err, revisions.ErrChatNotFound) {
+		t.Fatalf("%s archives the chat: %v", account.Name, err)
+	}
+	if err := svc.ArchiveChat(ctx, bea, mustUUID(t, "00000000-0000-4000-8000-000000000009")); !errors.Is(err, revisions.ErrChatNotFound) {
+		t.Fatalf("an Admin archives a chat that never was: %v", err)
 	}
 
 	renamed := "Log sources"
@@ -289,13 +294,13 @@ func TestChatsAreListedAndArchivedByTheirOwnerAndReadByAdmins(t *testing.T) {
 	if err := d.SQLDB(t).QueryRowContext(ctx, `SELECT count(*) FROM agent_requests WHERE chat_id = $1 AND archived_at IS NULL`, older).Scan(&live); err != nil || live != 0 {
 		t.Fatalf("%d turns of the archived chat are still listed, %v", live, err)
 	}
-	var deletes []chatEvent
+	var archives []chatEvent
 	for _, e := range chatEvents(t, d) {
-		if e.action == "chat.delete" {
-			deletes = append(deletes, e)
+		if e.action == "chat.archive" {
+			archives = append(archives, e)
 		}
 	}
-	if len(deletes) != 1 || deletes[0].targetID != older.String() || deletes[0].actorID != userID || strings.Contains(deletes[0].whole, "which logs") || strings.Contains(deletes[0].whole, renamed) {
-		t.Fatalf("chat.delete events = %+v", deletes)
+	if len(archives) != 1 || archives[0].targetID != older.String() || archives[0].actorID != userID || strings.Contains(archives[0].whole, "which logs") || strings.Contains(archives[0].whole, renamed) {
+		t.Fatalf("chat.archive events = %+v", archives)
 	}
 }

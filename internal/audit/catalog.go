@@ -164,7 +164,7 @@ var catalog = map[Action]Spec{
 	"thread.agent_set":            change(CategoryConversation),
 	"chat.create":                 change(CategoryConversation),
 	"chat.turn":                   change(CategoryConversation),
-	"chat.delete":                 change(CategoryConversation),
+	"chat.archive":                change(CategoryConversation),
 	"run.share":                   change(CategoryConversation),
 	"run.withdraw":                change(CategoryConversation),
 	"finding.apply":               change(CategoryConversation),

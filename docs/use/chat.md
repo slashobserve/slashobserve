@@ -293,6 +293,7 @@ Each is recorded once per reader and chat, request or list in 10 minutes, so a p
 
 Turns of one chat run one at a time in the order they were sent, and the earlier turns are read when a turn starts running, so a follow-up sent while the last one still runs sees its answer.
 Over the API, `POST /observe` takes `chat_id` to ask the next turn of one of your chats, and every request carries its `chat_id`, the id of the chat's first request.
+A request an ask in a thread started belongs to no chat: its `chat_id` is null, `GET /chats/{id}` has nothing to open for it, and a further ask in the same thread is another request in that thread, which sees the thread's earlier messages.
 Without `chat_id` a new chat starts, except a follow-up on a dashboard, which joins your latest chat on that dashboard; `follows_id`, an earlier request of yours without a dashboard, is the older way to name a chat.
 `client_id`, a UUID the client picks once per message, makes a resend safe: the same `client_id` answers with the request it started and `replayed: true`.
 `GET /chats` lists your chats, `GET /chats/{id}` reads one with every turn, and `DELETE /chats/{id}` archives it with its turns; the CLI has `observe chats`, and MCP `list_chats` and `get_chat`.
@@ -354,7 +355,9 @@ Each chat has a menu with these actions:
 - **Delete** asks "Delete this chat?" and, after **Delete chat**, removes it from your chat lists for good. What the dialog says stays depends on what the chat left: "The dashboard it made stays.", "The answer stays in the observation "<title>", which is not deleted.", "The answer stays on the chat page, which still opens from its link." for an answer not saved as an observation, "The panel suggestion stays.", "The proposal stays." or "Nothing else is removed." The chat page still opens from its link.
   A conversation of several messages says how many messages go and names what they saved, such as `What they saved stays: the dashboard "Checkout health" and the observation "Slowest routes".`, or says "Nothing else is removed." when they saved nothing.
 
-Only the person who started a chat can rename, pin or delete it.
+Only the person who started a chat can rename, pin or delete it, or ask in it.
+Delete archives the chat: the rows are kept and marked archived, and `observe chats archive` and `DELETE /chats/{id}` do the same.
+An Admin who can read the chat gets 403 with the code `chat_read_only` from them and from a request naming its `chat_id`, and anyone who cannot read it gets 404.
 
 The Delete dialog shows an unchecked **Also delete the observation "<title>"** for each observation the chat saved that you may delete, which needs Manage on its folder, or Edit if you started the observation.
 Checked, the dialog says the observation is deleted for everyone, with its blocks, discussion and published RCA revisions, and **Delete chat and observation** deletes it first and then deletes the chat.
@@ -383,4 +386,3 @@ A chat with two or more observations, a chat on a dashboard, a later turn's own 
 To ask a question about your data rather than build a dashboard, use [Investigate](investigate.md).
 To work on a dashboard in your own editor and model, use [MCP](mcp.md) or the [CLI](cli.md).
 To change one panel by hand, see [Edit a panel](edit-panel.md).
-A request an ask in a thread started belongs to no chat: its `chat_id` is null, `GET /chats/{id}` has nothing to open for it, and a further ask in the same thread is another request in that thread, which sees the thread's earlier messages.

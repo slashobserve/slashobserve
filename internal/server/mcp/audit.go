@@ -21,7 +21,7 @@ import (
 
 const actionToolCall audit.Action = "agent.tool_call"
 
-var deniedCodes = []string{"forbidden_role", "forbidden", "user_session_required"}
+var deniedCodes = []string{"forbidden_role", "forbidden", "user_session_required", revisions.CodeChatReadOnly}
 
 func openMCPScope(ctx context.Context) {
 	audit.Update(ctx, func(s *audit.Scope) {
