@@ -128,7 +128,7 @@ func trackedTotal(v any) (int, error) {
 		return 0, nil
 	case json.Number:
 		if n, ok := wholeNumber(x); ok && n >= 0 {
-			return n, nil
+			return min(n, resultWindow), nil
 		}
 	}
 	return 0, refuse("track_total_hits must be true, false or a whole number")
