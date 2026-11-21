@@ -48,7 +48,10 @@ func (r *rig) generalFolder(t *testing.T) pgtype.UUID {
 func (r *rig) applyOnto(t *testing.T, dashboard pgtype.UUID, f findings.Finding) error {
 	t.Helper()
 	id, revise, finding := dashboard.String(), revisions.KindRevise, f.ID
-	_, err := r.revisions.Start(reading(t.Context()), admin, revisions.StartRequest{DashboardID: &id, Kind: &revise, AppliesFindingID: &finding})
+	started, err := r.revisions.Start(reading(t.Context()), admin, revisions.StartRequest{DashboardID: &id, Kind: &revise, AppliesFindingID: &finding})
+	if err == nil {
+		r.db.Exec(t, `UPDATE agent_requests SET state = 'succeeded', status = 'succeeded', finished_at = now() WHERE id = $1`, started.ID)
+	}
 	return err
 }
 
@@ -57,15 +60,11 @@ func TestAnAnswerAboutADashboardOnlyAdminsReadIsPlacedOnlyOnItOrWhereOnlyAdminsR
 	dash := r.createDashboard(t, "rps")
 	home := r.adminsOnlyFolder(t)
 	r.moveInto(t, "dashboards", dash, home)
-	shared := r.createDashboard(t, "errors")
 	about := revisions.StartRequest{DashboardID: new(dash.String())}
 
 	_, f := r.answerAbout(t, about)
 	if _, _, err := r.findings.SaveAsDashboard(reading(t.Context()), admin, mustParse(t, f.ID)); !errors.Is(err, folders.ErrRestrictedAnswer) {
 		t.Fatalf("save as a dashboard in the default folder: err = %v, want the restricted answer refusal", err)
-	}
-	if err := r.applyOnto(t, shared, f); !errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("apply onto a dashboard in General: err = %v, want the restricted answer refusal", err)
 	}
 	if err := r.applyOnto(t, dash, f); errors.Is(err, folders.ErrRestrictedAnswer) {
 		t.Fatalf("apply onto the dashboard it is about: %v", err)
@@ -86,9 +85,6 @@ func TestAnAnswerAboutADashboardOnlyAdminsReadIsPlacedOnlyOnItOrWhereOnlyAdminsR
 	_, f = r.answerAbout(t, about)
 	if _, _, err := r.findings.SaveAsDashboard(reading(t.Context()), admin, mustParse(t, f.ID)); err != nil {
 		t.Fatalf("save as a dashboard after the dashboard moved out: %v", err)
-	}
-	if err := r.applyOnto(t, shared, f); errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("apply onto a dashboard in General after the dashboard moved out: %v", err)
 	}
 	saved, _ = r.answerAbout(t, about)
 	if _, _, err := r.findings.SaveAsObservation(reading(t.Context()), admin, saved); err != nil {
@@ -116,9 +112,22 @@ func TestAnAnswerAboutAnObservationOnlyAdminsReadGoesOnItsPageButNotOutUntilItMo
 		t.Fatalf("blocks after the share = %d, want more than %d", n, blocks)
 	}
 
+	shared := r.createDashboard(t, "errors")
+	onShared := revisions.StartRequest{DashboardID: new(shared.String())}
+	applied, f := r.answerAbout(t, onShared)
+	r.db.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2 WHERE id = $1`, applied, observation)
+	if err := r.applyOnto(t, shared, f); !errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("apply onto a dashboard in General of an answer about the observation: err = %v, want the restricted answer refusal", err)
+	}
+
 	r.moveInto(t, "observations", observation, r.generalFolder(t))
 	_, f = r.answerAbout(t, about)
 	if _, _, err := r.findings.SaveAsDashboard(reading(t.Context()), admin, mustParse(t, f.ID)); err != nil {
 		t.Fatalf("save as a dashboard after the observation moved out: %v", err)
+	}
+	applied, f = r.answerAbout(t, onShared)
+	r.db.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2 WHERE id = $1`, applied, observation)
+	if err := r.applyOnto(t, shared, f); errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("apply onto a dashboard in General after the observation moved out: %v", err)
 	}
 }
