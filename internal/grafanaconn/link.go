@@ -27,10 +27,12 @@ var (
 var dashboardUIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
 type LinkedDashboard struct {
-	ConnectionID string
-	UID          string
-	Title        string
-	JSON         json.RawMessage
+	ConnectionID   string
+	ConnectionName string
+	Host           string
+	UID            string
+	Title          string
+	JSON           json.RawMessage
 }
 
 func parseWebURL(raw string) (*url.URL, bool) {
@@ -136,7 +138,7 @@ func (s *Service) fetchDashboard(ctx context.Context, conn Connection, uid strin
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return LinkedDashboard{}, s.fetchFailure(ctx, conn.ID, errBadResponse)
 	}
-	return LinkedDashboard{ConnectionID: conn.ID, UID: uid, Title: envelope.Dashboard.Title, JSON: raw}, nil
+	return LinkedDashboard{ConnectionID: conn.ID, ConnectionName: conn.Name, Host: hostOf(conn.URL), UID: uid, Title: envelope.Dashboard.Title, JSON: raw}, nil
 }
 
 func (s *Service) fetchFailure(ctx context.Context, connectionID string, err error) error {
