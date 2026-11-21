@@ -48,6 +48,19 @@ export function pointerAnchor(
   )
 }
 
+export const minDrag = 5
+
+export function dragAnchor(
+  surface: CanvasSurface,
+  start: Point,
+  end: Point
+): Anchor | null {
+  const { module, published } = surface
+  if (module?.rangeTest === undefined || published === null) return null
+  if (Math.abs(end.x - start.x) < minDrag) return null
+  return module.rangeTest(published.layout as never, start, end)
+}
+
 export function titleAnchor(point: Point, body: Size): Anchor {
   return { kind: "title", pos: positionOf({ x: point.x, y: 0 }, body) }
 }

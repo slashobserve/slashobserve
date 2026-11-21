@@ -609,7 +609,7 @@ export const PanelContainer = memo(function PanelContainer({
           panelId={panelId}
           tool="comment"
           body={body}
-          window={shownWindow}
+          shownRange={shownWindow}
         />
       ) : null}
       {draft !== null && onCanvas && dashboardId !== undefined ? (

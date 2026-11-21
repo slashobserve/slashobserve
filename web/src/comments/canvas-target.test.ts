@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import type { Anchor, AnchorsModule, Point, Rect } from "@/panels/anchors"
 
 import {
+  dragAnchor,
+  minDrag,
   outlineOf,
   placePin,
   pointerAnchor,
@@ -135,5 +137,39 @@ describe("withWindow", () => {
 
   it("leaves the anchor alone without a full range", () => {
     expect(withWindow(onBar, { from: "", to: "now" })).toBe(onBar)
+  })
+})
+
+describe("dragAnchor", () => {
+  const ranged: CanvasSurface = {
+    module: {
+      ...module,
+      rangeTest: ((_layout: unknown, start: Point, end: Point) => ({
+        kind: "range",
+        pos: { x: 0, y: 0 },
+        from: String(start.x),
+        to: String(end.x),
+      })) as NonNullable<AnchorsModule["rangeTest"]>,
+    },
+    published: { type: "timeseries", layout: {} },
+  }
+
+  it("names a range when the pointer moved across the axis", () => {
+    expect(
+      dragAnchor(ranged, { x: 10, y: 50 }, { x: 10 + minDrag, y: 90 })
+    ).toMatchObject({ kind: "range", from: "10", to: String(10 + minDrag) })
+  })
+
+  it("treats a short move as a click", () => {
+    expect(
+      dragAnchor(ranged, { x: 10, y: 50 }, { x: 10 + minDrag - 1, y: 120 })
+    ).toBeNull()
+  })
+
+  it("needs a panel that can name a range", () => {
+    expect(
+      dragAnchor(surface({}), { x: 10, y: 50 }, { x: 90, y: 50 })
+    ).toBeNull()
+    expect(dragAnchor(blank, { x: 10, y: 50 }, { x: 90, y: 50 })).toBeNull()
   })
 })

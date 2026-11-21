@@ -27,6 +27,7 @@ import { useAnchorsModule, usePublished } from "@/panels/anchor-layout"
 import type { AnchorLayoutStore } from "@/panels/anchor-layout"
 
 import {
+  dragAnchor,
   outlineOf,
   pointerAnchor,
   titleAnchor,
@@ -199,7 +200,7 @@ type LayerProps = {
   panelId: string
   tool: DraftTool
   body: { width: number; height: number }
-  window: { from: string; to: string }
+  shownRange: { from: string; to: string }
 }
 
 function useSurface(store: AnchorLayoutStore): CanvasSurface {
@@ -227,13 +228,13 @@ export function CanvasLayer({
   panelId,
   tool,
   body,
-  window,
+  shownRange,
 }: LayerProps) {
   const surface = useSurface(store)
   const [hover, setHover] = useState<Hover>(null)
-  const current = useRef({ surface, body, window })
+  const current = useRef({ surface, body, shownRange })
   useLayoutEffect(() => {
-    current.current = { surface, body, window }
+    current.current = { surface, body, shownRange }
   })
 
   useEffect(() => {
@@ -246,26 +247,39 @@ export function CanvasLayer({
     function targetOf(event: PointerEvent): Anchor | null {
       const element = surfaceRef.current
       if (element === null) return null
-      const { surface, body, window } = current.current
+      const { surface, body, shownRange } = current.current
       const point = pointIn(element, event)
       const anchor = inBody(event)
         ? pointerAnchor(surface, point, body)
         : titleAnchor(point, body)
-      return withWindow(anchor, window)
+      return withWindow(anchor, shownRange)
+    }
+    let press: { at: Point; anchor: Anchor | null } | null = null
+    function dragged(event: PointerEvent, element: HTMLElement) {
+      if (press === null) return null
+      const anchor = dragAnchor(
+        current.current.surface,
+        press.at,
+        pointIn(element, event)
+      )
+      return anchor === null
+        ? null
+        : withWindow(anchor, current.current.shownRange)
     }
     function onMove(event: PointerEvent) {
       const element = surfaceRef.current
       if (element === null || container === null) return
       const target = event.target
       if (!(target instanceof Node) || !container.contains(target)) return
-      const anchor = inBody(event) ? targetOf(event) : null
+      const anchor =
+        dragged(event, element) ?? (inBody(event) ? targetOf(event) : null)
       setHover({
         outline: outlineOf(current.current.surface, anchor),
         offset: offsetOf(container, element),
       })
     }
     function onLeave() {
-      setHover(null)
+      if (press === null) setHover(null)
     }
     function claims(event: Event): boolean {
       const target = event.target
@@ -279,13 +293,25 @@ export function CanvasLayer({
       event.stopPropagation()
       const element = surfaceRef.current
       if (element === null) return
+      press = { at: pointIn(element, event), anchor: targetOf(event) }
+    }
+    function onUp(event: PointerEvent) {
+      const element = surfaceRef.current
+      if (press === null || element === null) return
+      const range = dragged(event, element)
+      const end = pointIn(element, event)
+      const { at, anchor } = press
+      press = null
       useCanvasTool.getState().openDraft({
         panelId,
         tool,
-        anchor: targetOf(event),
-        at: pointIn(element, event),
+        anchor: range ?? anchor,
+        at: range === null ? at : end,
         surface: surfaceId,
       })
+    }
+    function onCancel() {
+      press = null
     }
     function onClick(event: MouseEvent) {
       if (!claims(event)) return
@@ -310,12 +336,16 @@ export function CanvasLayer({
     container.addEventListener("pointermove", onMove, true)
     container.addEventListener("pointerleave", onLeave)
     container.addEventListener("pointerdown", onDown, true)
+    window.addEventListener("pointerup", onUp, true)
+    window.addEventListener("pointercancel", onCancel, true)
     container.addEventListener("click", onClick, true)
     container.addEventListener("keydown", onKey, true)
     return () => {
       container.removeEventListener("pointermove", onMove, true)
       container.removeEventListener("pointerleave", onLeave)
       container.removeEventListener("pointerdown", onDown, true)
+      window.removeEventListener("pointerup", onUp, true)
+      window.removeEventListener("pointercancel", onCancel, true)
       container.removeEventListener("click", onClick, true)
       container.removeEventListener("keydown", onKey, true)
     }

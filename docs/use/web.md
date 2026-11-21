@@ -192,6 +192,7 @@ At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask*
 **Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
 In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
+On a time series, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 The composer closes when you post, press `Esc` or click outside it, and Comment mode stays on for the next comment.
 
