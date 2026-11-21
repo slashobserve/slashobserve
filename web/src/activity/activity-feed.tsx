@@ -203,12 +203,16 @@ export function ActivityFeed({
     ],
     [openProposals, mergedProposals]
   )
-  const investigations = useMyRequests({
-    source: "investigate",
+  const activeRuns = useMyRequests({
     dashboardId,
+    states: ["queued", "running", "canceling"],
   }).requests
   const threads = useThreads(`dashboard:${dashboardId}`).threads
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const investigations = useMemo(
+    () => activeRuns.filter((request) => request.kind === "investigate"),
+    [activeRuns]
+  )
   const [show, setShow] = useState<TimelineShow>("everything")
   const scopeId = useId()
 

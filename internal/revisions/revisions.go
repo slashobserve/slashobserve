@@ -65,6 +65,7 @@ const (
 	KindBuild       = "build"
 	KindInvestigate = "investigate"
 	KindAsk         = "ask"
+	KindRevise      = "revise"
 )
 
 type Status string
@@ -298,6 +299,7 @@ type StepRecorder interface {
 type Revision struct {
 	ID            string
 	DashboardID   string
+	Intent        Intent
 	Source        Source
 	CommentID     string
 	PanelID       string

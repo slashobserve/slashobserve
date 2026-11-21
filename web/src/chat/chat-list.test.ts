@@ -14,8 +14,9 @@ function summary(
   overrides: Partial<RequestSummary> & { id: string }
 ): RequestSummary {
   return {
-    intent: "ask",
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     trigger: "person",
     prompt: "Show checkout latency",
     status: "succeeded",
@@ -118,19 +119,22 @@ describe("collapseChats", () => {
     const rows = collapseChats([
       summary({
         id: "q",
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "a",
         title: "why is it red",
       }),
       summary({
         id: "e",
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "a",
         title: "make it blue",
       }),
       summary({
         id: "b",
-        source: "observe",
+        intent: "apply",
+        base_version: null,
         dashboard_id: "a",
         title: "Checkout health",
       }),
@@ -164,7 +168,8 @@ describe("collapseChats", () => {
     const rows = collapseChats([
       summary({
         id: "u",
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "d",
         title: "make it blue",
       }),
@@ -188,17 +193,44 @@ describe("collapseChats", () => {
 
   test("keeps investigations and comment revisions as their own rows", () => {
     const rows = collapseChats([
-      summary({ id: "i1", source: "investigate", dashboard_id: "a" }),
-      summary({ id: "i2", source: "investigate", dashboard_id: "a" }),
-      summary({ id: "c1", source: "comment", dashboard_id: "a" }),
+      summary({
+        id: "i1",
+        kind: "investigate",
+        intent: "ask",
+        dashboard_id: "a",
+      }),
+      summary({
+        id: "i2",
+        kind: "investigate",
+        intent: "ask",
+        dashboard_id: "a",
+      }),
+      summary({
+        id: "c1",
+        intent: "apply",
+        base_version: 1,
+        comment_id: "c1",
+        dashboard_id: "a",
+      }),
     ])
     expect(rows.map((row) => row.id)).toEqual(["i1", "i2", "c1"])
   })
 
   test("keeps pinned order by keeping the first row of each conversation", () => {
     const rows = collapseChats([
-      summary({ id: "p", source: "prompt", dashboard_id: "a", pinned_at: "x" }),
-      summary({ id: "o", source: "observe", dashboard_id: "a" }),
+      summary({
+        id: "p",
+        intent: "apply",
+        base_version: 1,
+        dashboard_id: "a",
+        pinned_at: "x",
+      }),
+      summary({
+        id: "o",
+        intent: "apply",
+        base_version: null,
+        dashboard_id: "a",
+      }),
     ])
     expect(rows.map((row) => row.id)).toEqual(["p"])
   })
@@ -206,9 +238,14 @@ describe("collapseChats", () => {
 
 describe("chatTurns and chatRoot", () => {
   const list = [
-    summary({ id: "t2", source: "prompt", dashboard_id: "a" }),
+    summary({ id: "t2", intent: "apply", base_version: 1, dashboard_id: "a" }),
     summary({ id: "other", dashboard_id: "b" }),
-    summary({ id: "t1", source: "observe", dashboard_id: "a" }),
+    summary({
+      id: "t1",
+      intent: "apply",
+      base_version: null,
+      dashboard_id: "a",
+    }),
   ]
 
   test("gathers every turn of the conversation a row stands for", () => {
@@ -219,7 +256,12 @@ describe("chatTurns and chatRoot", () => {
   })
 
   test("takes a request outside any conversation as its own turn", () => {
-    const run = summary({ id: "i1", source: "investigate", dashboard_id: "a" })
+    const run = summary({
+      id: "i1",
+      kind: "investigate",
+      intent: "ask",
+      dashboard_id: "a",
+    })
     expect(chatTurns([...list, run], run)).toEqual([run])
   })
 
@@ -256,21 +298,24 @@ describe("newestChats", () => {
         summary({
           id: "build",
           ...dashboard,
-          source: "observe",
+          intent: "apply",
+          base_version: null,
           title: "Checkout health",
           created_at: "2026-11-01T10:00:00Z",
         }),
         summary({
           id: "edit",
           ...dashboard,
-          source: "prompt",
+          intent: "apply",
+          base_version: 1,
           title: "Rename a panel",
           created_at: "2026-11-01T11:00:00Z",
         }),
         summary({
           id: "question",
           ...dashboard,
-          source: "prompt",
+          intent: "apply",
+          base_version: 1,
           title: "What did you rename",
           created_at: "2026-11-01T12:00:00Z",
         }),
@@ -288,7 +333,8 @@ describe("newestChats", () => {
     const turns = ["t1", "t2", "t3"].map((id, index) =>
       summary({
         id,
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "a",
         created_at: `2026-11-0${index + 1}T10:00:00Z`,
       })

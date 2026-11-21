@@ -1,4 +1,5 @@
 import type { RequestSummary } from "@/observe/queries"
+import { requestOrigin } from "@/observe/request-origin"
 
 export type ChatGroup = {
   key: string
@@ -42,7 +43,8 @@ export function groupChats(requests: readonly RequestSummary[]): ChatGroup[] {
 }
 
 function isChatTurn(request: RequestSummary): boolean {
-  return request.source === "observe" || request.source === "prompt"
+  const origin = requestOrigin(request)
+  return origin === "observe" || origin === "prompt"
 }
 
 function find(parent: Map<string, string>, node: string): string {
@@ -79,7 +81,7 @@ function conversationKeys(
 
 export function chatRoot(turns: readonly RequestSummary[]): RequestSummary {
   return (
-    turns.findLast((turn) => turn.source === "observe") ??
+    turns.findLast((turn) => requestOrigin(turn) === "observe") ??
     turns[turns.length - 1]
   )
 }

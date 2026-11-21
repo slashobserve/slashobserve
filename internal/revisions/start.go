@@ -109,15 +109,21 @@ func checkStartText(ctx context.Context, req StartRequest) (context.Context, str
 }
 
 func (s *Service) startKind(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
-	switch {
-	case req.Kind == nil || *req.Kind == KindBuild:
-		return s.startBuild(ctx, by, req, prompt, turn)
-	case *req.Kind == KindInvestigate:
-		return s.startInvestigation(ctx, by, req, prompt, turn, false)
-	case *req.Kind == KindAsk:
-		return s.startInvestigation(ctx, by, req, prompt, turn, true)
+	kind := KindAsk
+	if req.Kind != nil {
+		kind = *req.Kind
 	}
-	return dbsqlc.AgentRequest{}, refused("kind must be build, ask or investigate")
+	switch {
+	case kind == KindAsk && req.DashboardID == nil && req.ObservationID == nil:
+		return s.startBuild(ctx, by, req, prompt, turn)
+	case kind == KindAsk:
+		return s.startInvestigation(ctx, by, req, prompt, turn, true)
+	case kind == KindRevise:
+		return s.startBuild(ctx, by, req, prompt, turn)
+	case kind == KindInvestigate:
+		return s.startInvestigation(ctx, by, req, prompt, turn, false)
+	}
+	return dbsqlc.AgentRequest{}, refused("kind must be ask, revise or investigate")
 }
 
 func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pgtype.UUID, req StartRequest, prompt string) (Started, bool, error) {
@@ -224,17 +230,41 @@ func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartReq
 }
 
 func buildFieldConflict(req StartRequest) string {
+	if msg := buildShapeConflict(req); msg != "" {
+		return msg
+	}
 	switch {
-	case req.PanelID != nil || req.From != nil || req.To != nil:
-		return "panel_id, from and to need kind ask or investigate"
-	case req.ObservationID != nil:
-		return "observation_id goes with kind ask or investigate"
-	case req.DashboardID == nil && req.BaseVersion != nil:
-		return "base_version needs dashboard_id"
 	case req.DashboardID != nil && req.FollowsID != nil:
 		return "follows_id and dashboard_id exclude each other"
 	case req.ChatID != nil && req.FollowsID != nil:
 		return "follows_id and chat_id exclude each other"
+	}
+	return ""
+}
+
+func buildShapeConflict(req StartRequest) string {
+	if req.Kind == nil || *req.Kind != KindRevise {
+		return createFieldConflict(req)
+	}
+	switch {
+	case req.DashboardID == nil:
+		return "kind revise needs dashboard_id"
+	case req.PanelID != nil || req.From != nil || req.To != nil:
+		return "panel_id, from and to are not allowed for kind revise"
+	case req.ObservationID != nil:
+		return "observation_id is not allowed for kind revise"
+	}
+	return ""
+}
+
+func createFieldConflict(req StartRequest) string {
+	switch {
+	case req.PanelID != nil:
+		return "panel_id needs dashboard_id"
+	case req.From != nil || req.To != nil:
+		return "from and to need dashboard_id, observation_id or kind investigate"
+	case req.BaseVersion != nil:
+		return "base_version needs kind revise"
 	}
 	return ""
 }
@@ -251,15 +281,9 @@ func uuidField(name string, raw *string) (pgtype.UUID, error) {
 }
 
 func askFieldConflict(req StartRequest, private bool) string {
-	kind := KindInvestigate
-	if private {
-		kind = KindAsk
-	}
 	switch {
 	case req.BaseVersion != nil:
-		return "base_version is not allowed for kind " + kind
-	case private && req.DashboardID == nil && req.ObservationID == nil:
-		return "kind ask needs dashboard_id or observation_id"
+		return "base_version needs kind revise"
 	case private && req.DashboardID != nil && req.ObservationID != nil:
 		return "kind ask takes dashboard_id or observation_id, not both"
 	case req.ChatID != nil && req.FollowsID != nil:

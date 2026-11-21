@@ -63,7 +63,7 @@ function request(overrides: Partial<Revision> & { id: string }): Revision {
   return {
     dashboard_id: "d1",
     allowed_actions: [],
-    source: "prompt",
+    intent: "apply",
     comment_id: null,
     panel_id: null,
     prompt: "do it",
@@ -174,8 +174,6 @@ function finding(id: string, createdAt: string): Finding {
     dashboard_id: "d1",
     folder_id: null,
     ask_on: null,
-    suggested_change: null,
-    observe_worthy: false,
     title: "Checkout errors rose after the deploy",
     markdown: "The error rate doubled at 10:02.",
     evidence: [],
@@ -194,6 +192,8 @@ function finding(id: string, createdAt: string): Finding {
     },
     created_at: createdAt,
     url: "",
+    suggested_change: null,
+    observe_worthy: false,
   }
 }
 
@@ -261,14 +261,12 @@ describe("buildTimeline", () => {
       requests: [
         request({
           id: "old",
-          source: "comment",
           comment_id: "c1",
           status: "failed",
           created_at: at(2),
         }),
         request({
           id: "new",
-          source: "comment",
           comment_id: "c1",
           created_at: at(3),
         }),
@@ -292,7 +290,7 @@ describe("buildTimeline", () => {
     function threadRequest(
       overrides: Partial<Revision> & { id: string }
     ): Revision {
-      return request({ source: "comment", comment_id: "c1", ...overrides })
+      return request({ comment_id: "c1", ...overrides })
     }
 
     it("is true for a request sent with the root comment", () => {
@@ -355,7 +353,6 @@ describe("buildTimeline", () => {
       requests: [
         request({
           id: "r1",
-          source: "comment",
           comment_id: "other",
           created_at: at(2),
         }),
@@ -370,7 +367,7 @@ describe("buildTimeline", () => {
     const entries = buildTimeline({
       ...none,
       requests: [
-        request({ id: "o1", source: "observe", base_version: null }),
+        request({ id: "o1", base_version: null }),
         request({ id: "p1", created_at: at(2) }),
       ],
       versions: [version(1, at(1))],
@@ -385,14 +382,13 @@ describe("buildTimeline", () => {
       requests: [
         request({
           id: "t1",
-          source: "comment",
           comment_id: "c1",
           status: "queued",
           created_at: at(2),
         }),
         request({
           id: "o1",
-          source: "observe",
+          base_version: null,
           status: "running",
           created_at: at(3),
           started_at: at(4),
@@ -499,13 +495,11 @@ describe("buildTimeline", () => {
       requests: [
         request({
           id: "later",
-          source: "comment",
           comment_id: "c1",
           created_at: "2026-01-01T01:00:00+01:00",
         }),
         request({
           id: "earlier",
-          source: "comment",
           comment_id: "c1",
           created_at: "2026-01-01T00:30:00Z",
         }),
@@ -642,13 +636,11 @@ describe("filterTimeline", () => {
       requests: [
         request({
           id: "r1",
-          source: "comment",
           comment_id: "asked",
           created_at: at(4),
         }),
         request({
           id: "r2",
-          source: "comment",
           comment_id: "failed",
           status: "failed",
           created_at: at(5),

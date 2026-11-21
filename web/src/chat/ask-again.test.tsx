@@ -46,7 +46,7 @@ describe("AskAgainButton", () => {
     >
     expect(sent).toMatchObject({
       prompt: "which logs exist",
-      kind: "build",
+      kind: "ask",
       chat_id: "c1",
     })
   })
@@ -71,7 +71,7 @@ describe("AskAgainButton", () => {
     >
     expect(sent).toMatchObject({
       prompt: "which logs exist",
-      kind: "build",
+      kind: "revise",
       dashboard_id: "d1",
     })
     expect(sent).not.toHaveProperty("follows_id")

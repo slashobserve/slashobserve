@@ -89,9 +89,9 @@ func TestOfferedRunMapsARequest(t *testing.T) {
 	requester := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Name: "Ada"}
 
 	investigate := offeredRun(revisions.Request{
-		ID: "r1", Source: revisions.SourceInvestigate, Prompt: "why slow", Attempt: 2, RequestedBy: requester, From: &from, To: &to,
+		ID: "r1", Intent: revisions.IntentAsk, Source: revisions.SourceInvestigate, Prompt: "why slow", Attempt: 2, RequestedBy: requester, From: &from, To: &to,
 	})
-	if investigate.Kind != "investigate" || investigate.Source != "investigate" || investigate.Attempt != 2 {
+	if investigate.Kind != "investigate" || investigate.Intent != "ask" || investigate.Attempt != 2 {
 		t.Fatalf("investigate run = %+v", investigate)
 	}
 	if investigate.From == nil || *investigate.From != "2026-11-11T07:00:00Z" || *investigate.To != "2026-11-11T08:00:00Z" {
@@ -105,10 +105,10 @@ func TestOfferedRunMapsARequest(t *testing.T) {
 	}
 
 	build := offeredRun(revisions.Request{
-		ID: "r2", Source: revisions.SourcePrompt, Prompt: "add a panel", Attempt: 1, DashboardID: "d1", BaseVersion: 3, PanelID: "p1", ContinueNote: "keep going", RequestedBy: requester,
+		ID: "r2", Intent: revisions.IntentApply, Source: revisions.SourcePrompt, Prompt: "add a panel", Attempt: 1, DashboardID: "d1", BaseVersion: 3, PanelID: "p1", ContinueNote: "keep going", RequestedBy: requester,
 	})
-	if build.Kind != "build" || build.Source != "prompt" {
-		t.Fatalf("build kind %q source %q", build.Kind, build.Source)
+	if build.Kind != "build" || build.Intent != "apply" {
+		t.Fatalf("build kind %q intent %q", build.Kind, build.Intent)
 	}
 	if build.DashboardID == nil || *build.DashboardID != "d1" || build.BaseVersion == nil || *build.BaseVersion != 3 || build.PanelID == nil || *build.PanelID != "p1" || build.ContinueNote == nil || *build.ContinueNote != "keep going" {
 		t.Fatalf("build run = %+v", build)

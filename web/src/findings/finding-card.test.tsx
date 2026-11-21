@@ -33,8 +33,6 @@ function finding(): Finding {
     dashboard_id: null,
     folder_id: null,
     ask_on: null,
-    suggested_change: null,
-    observe_worthy: false,
     title: "Checkout errors rose after the deploy",
     markdown: text,
     evidence: [
@@ -55,6 +53,8 @@ function finding(): Finding {
     },
     created_at: "2026-11-06T11:05:00Z",
     url: "",
+    suggested_change: null,
+    observe_worthy: false,
   }
 }
 

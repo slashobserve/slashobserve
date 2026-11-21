@@ -10,13 +10,20 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   useNavigate: () => vi.fn(),
 }))
 
-function turn(id: string, source: string, title: string, createdAt: string) {
+function turn(
+  id: string,
+  baseVersion: number | null,
+  title: string,
+  createdAt: string
+) {
   return {
     id,
     kind: "build",
     title,
     pinned_at: null,
-    source,
+    intent: "apply",
+    base_version: baseVersion,
+    comment_id: null,
     trigger: "person",
     prompt: title,
     status: "succeeded",
@@ -61,8 +68,8 @@ describe("RecentChats", () => {
         return new Response(
           JSON.stringify({
             requests: [
-              turn("t2", "prompt", "undo that", "2026-11-02T10:00:00Z"),
-              turn("t1", "observe", "Checkout health", "2026-11-01T10:00:00Z"),
+              turn("t2", 1, "undo that", "2026-11-02T10:00:00Z"),
+              turn("t1", null, "Checkout health", "2026-11-01T10:00:00Z"),
             ],
             next_cursor: null,
             summary: { total: 2, people: null },

@@ -31,7 +31,7 @@ const claimed = {
     id: "9f1c2f5e-3a0e-4a8e-93a6-1c3d6a7f0a11",
     attempt: 1,
     kind: "observe",
-    source: "observe",
+    intent: "ask",
     prompt: "show checkout health",
     dashboard_id: null,
   },

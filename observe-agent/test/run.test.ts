@@ -173,7 +173,7 @@ describe("cut-offs", () => {
     const claim = new FakeClaim()
     await drive(
       claim,
-      claimed("max tokens twice", { source: "suggest", dashboard_id: "d" })
+      claimed("max tokens twice", { intent: "suggest", dashboard_id: "d" })
     )
     expect(claim.briefs).toHaveLength(1)
     expect(claim.finishes[0]).toMatchObject({
@@ -318,7 +318,7 @@ describe("seeds when the model ends without a call", () => {
 
   test("a suggest run fails no_tool_call at once", async () => {
     const claim = new FakeClaim()
-    await drive(claim, claimed("suggest a panel", { source: "suggest" }))
+    await drive(claim, claimed("suggest a panel", { intent: "suggest" }))
     expect(claim.briefs).toHaveLength(1)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",

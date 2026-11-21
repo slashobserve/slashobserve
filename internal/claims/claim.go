@@ -29,7 +29,7 @@ type OfferedRun struct {
 	ID            string    `json:"id"`
 	Attempt       int       `json:"attempt"`
 	Kind          string    `json:"kind"`
-	Source        string    `json:"source"`
+	Intent        string    `json:"intent"`
 	Prompt        string    `json:"prompt"`
 	DashboardID   *string   `json:"dashboard_id"`
 	BaseVersion   *int      `json:"base_version"`
@@ -156,7 +156,7 @@ func offeredRun(req revisions.Request) OfferedRun {
 		ID:            req.ID,
 		Attempt:       req.Attempt,
 		Kind:          revisions.Kind(req.Source),
-		Source:        string(req.Source),
+		Intent:        string(req.Intent),
 		Prompt:        req.Prompt,
 		DashboardID:   nonEmpty(req.DashboardID),
 		PanelID:       nonEmpty(req.PanelID),

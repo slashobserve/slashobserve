@@ -51,7 +51,9 @@ function listedRequest(label: string, index: number) {
   const prompt = `e2e listed request ${label} ${index}: a long prompt that wraps onto a second line in the History card`
   return {
     id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
-    source: "prompt" as const,
+    intent: "apply" as const,
+    base_version: 1,
+    comment_id: null,
     kind: "build" as const,
     prompt,
     title: prompt.slice(0, 80).trim(),

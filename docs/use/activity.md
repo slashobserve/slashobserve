@@ -74,7 +74,7 @@ A thread event's `target` is the thread, and its `data` has `object`, the dashbo
 `thread.opened` also carries the `title` of the dashboard or observation, copied when the thread opens so the row still names it after the object is deleted.
 It adds `version` and `panel_id` when a dashboard thread opens, `message_id` for a reply, an edit or a mention, `resolved_by_version` when a resolve names the version that settled it, and `mentioned` (`kind`, `id`, `name`) on a mention.
 
-A run event adds the run's `source`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
+A run event adds the run's `intent`, and `run.succeeded` adds `result_version` when it saved a version and `cost_usd` when the cost is known.
 The `run.succeeded` of a [health repair](dashboard-health.md) that saved a version also adds `dashboard_title` and `panels_repaired`, the number of panels the repair named that the saved version changed and no longer lists as unverified; panels that were deleted, left unchanged or still fail are not counted.
 To see more of the change, read the object through its own endpoint, which checks your access again.
 

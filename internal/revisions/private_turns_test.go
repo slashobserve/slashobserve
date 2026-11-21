@@ -148,7 +148,7 @@ func TestAPrivateTurnIsReadByItsOwnerAndAdminsAndNobodyElse(t *testing.T) {
 	}
 	dash := seedDashboard(t, d, 1)
 	home := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("which logs mention " + privateWord)})
-	followUp := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a latency panel"), DashboardID: text(dash.String())})
+	followUp := startTurn(t, svc, user, revisions.StartRequest{Prompt: text("add a latency panel"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())})
 	inv := investigate(t, svc, revisions.InvestigateParams{DashboardID: dash, Prompt: "why is checkout failing"}).ID
 	homeChat, followUpChat := chatOfTurn(t, d, home), chatOfTurn(t, d, followUp)
 	failAllRuns(t, svc, d, home.String(), followUp.String(), inv.String())

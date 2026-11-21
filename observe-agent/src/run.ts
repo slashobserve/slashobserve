@@ -87,10 +87,10 @@ const settledPriority = [
 ] as const
 
 function modeOf(run: OfferedRun): Mode {
-  if (run.kind === "investigate" || run.source === "investigate") {
+  if (run.kind === "investigate") {
     return "investigate"
   }
-  if (run.source === "suggest") {
+  if (run.intent === "suggest") {
     return "suggest"
   }
   return run.dashboard_id == null ? "create" : "revise"

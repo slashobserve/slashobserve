@@ -138,7 +138,7 @@ describe("Composer in a chat", () => {
     expect(onSent).not.toHaveBeenCalled()
   })
 
-  it("sends the trimmed prompt on Enter as a build and opens the chat from Home", async () => {
+  it("sends the trimmed prompt on Enter as an ask and opens the chat from Home", async () => {
     const fetch = stubCreate()
     const { user, onSent } = renderComposer()
     await user.type(await box(), "  checkout health  {Enter}")
@@ -149,7 +149,7 @@ describe("Composer in a chat", () => {
     })
     expect(await sentBody(fetch)).toMatchObject({
       prompt: "checkout health",
-      kind: "build",
+      kind: "ask",
       client_id: expect.any(String),
     })
     expect(await sentBody(fetch)).not.toHaveProperty("follows_id")
@@ -165,7 +165,7 @@ describe("Composer in a chat", () => {
     await waitFor(() => expect(onSent).toHaveBeenCalledTimes(2))
     const first = await sentBody(fetch, 0)
     const second = await sentBody(fetch, 1)
-    expect(first).toMatchObject({ chat_id: "c1", kind: "build" })
+    expect(first).toMatchObject({ chat_id: "c1", kind: "ask" })
     expect(onSent.mock.calls[0][0]).toMatchObject({ opens: "same" })
     expect(first.client_id).not.toBe(second.client_id)
   })
@@ -179,7 +179,7 @@ describe("Composer in a chat", () => {
     await user.type(await box(), "add a p99 panel{Enter}")
     await waitFor(() => expect(onSent).toHaveBeenCalledOnce())
     expect(await sentBody(fetch)).toMatchObject({
-      kind: "build",
+      kind: "revise",
       dashboard_id: dashboardId,
       chat_id: "c1",
     })

@@ -30,11 +30,11 @@ export function useSendExample() {
 
   async function send(prompt: string, dashboardId?: string) {
     try {
-      const request = await create.mutateAsync({
-        prompt,
-        kind: "build",
-        ...(dashboardId === undefined ? {} : { dashboardId }),
-      })
+      const request = await create.mutateAsync(
+        dashboardId === undefined
+          ? { prompt, kind: "ask" }
+          : { prompt, kind: "revise", dashboardId }
+      )
       await openSent(request, "chat")
     } catch (cause) {
       toast.error(describeSubmitError(cause).message)

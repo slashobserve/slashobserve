@@ -20,7 +20,7 @@ import (
 
 type runItem struct {
 	ID          string   `json:"id"`
-	Source      string   `json:"source"`
+	Intent      string   `json:"intent"`
 	Title       string   `json:"title"`
 	State       string   `json:"state"`
 	ResultKind  string   `json:"result_kind"`
@@ -115,21 +115,21 @@ func kindQuery(kind, id string) url.Values {
 	return q
 }
 
-func TestRunTitlePrefersTheTitleThenThePromptThenTheSource(t *testing.T) {
+func TestRunTitlePrefersTheTitleThenThePromptThenTheIntent(t *testing.T) {
 	long := strings.Repeat("é", 130)
 	tests := []struct {
-		name, title, prompt, source, want string
+		name, title, prompt, intent, want string
 	}{
-		{"title wins", "Checkout latency", "something else", "prompt", "Checkout latency"},
+		{"title wins", "Checkout latency", "something else", "apply", "Checkout latency"},
 		{"first prompt line", "", "Why is checkout slow?\nSecond line", "prompt", "Why is checkout slow?"},
-		{"leading blank lines are skipped by trimming", "", "\n  \n  Hello  \nworld", "prompt", "Hello"},
-		{"cut to 120 runes", "", long, "prompt", strings.Repeat("é", 120)},
-		{"blank prompt falls back to the source", "", " \n ", "investigate", "investigate"},
+		{"leading blank lines are skipped by trimming", "", "\n  \n  Hello  \nworld", "apply", "Hello"},
+		{"cut to 120 runes", "", long, "apply", strings.Repeat("é", 120)},
+		{"blank prompt falls back to the intent", "", " \n ", "ask", "ask"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := runTitle(tc.title, tc.prompt, tc.source); got != tc.want {
-				t.Fatalf("runTitle(%q, %q, %q) = %q, want %q", tc.title, tc.prompt, tc.source, got, tc.want)
+			if got := runTitle(tc.title, tc.prompt, tc.intent); got != tc.want {
+				t.Fatalf("runTitle(%q, %q, %q) = %q, want %q", tc.title, tc.prompt, tc.intent, got, tc.want)
 			}
 		})
 	}

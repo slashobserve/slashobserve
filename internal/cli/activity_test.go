@@ -92,7 +92,7 @@ func activityFrame(seq int, kind, label, at, data string) string {
 
 func twoEventPage() string {
 	newest := activityJSON(12, "dashboard.version_created", "Sam", "2026-11-01T10:05:09Z", `{"version":12,"title":"Checkout","summary":"x"}`)
-	oldest := activityJSON(11, "run.failed", "Observe Agent for Sam", "2026-11-01T10:00:00Z", `{"source":"prompt","failure_code":"no_progress"}`)
+	oldest := activityJSON(11, "run.failed", "Observe Agent for Sam", "2026-11-01T10:00:00Z", `{"intent":"apply","failure_code":"no_progress"}`)
 	return `{"activity":[` + newest + `,` + oldest + `],"next_cursor":null}`
 }
 
@@ -248,17 +248,17 @@ func TestDescribeCoversEveryEventType(t *testing.T) {
 		{"saved_search.updated", `{"title":"Errors v2","kind":"logs","changed":["title","filters"]}`, `changed the filters of the saved search "Errors v2"`},
 		{"saved_search.moved", `{"title":"Errors","kind":"logs","from_folder_id":"a","to_folder_id":"b"}`, `moved the saved search "Errors"`},
 		{"saved_search.deleted", `{"title":"Errors","kind":"logs"}`, `deleted the saved search "Errors"`},
-		{"run.queued", `{"source":"prompt"}`, `run queued`},
-		{"run.started", `{"source":"prompt","attempt":1}`, `run started`},
-		{"run.succeeded", `{"source":"prompt","result_version":4}`, `run succeeded (saved version 4)`},
-		{"run.succeeded", `{"source":"investigate"}`, `run succeeded`},
-		{"run.failed", `{"source":"prompt","failure_code":"no_progress"}`, `run failed (no_progress)`},
-		{"run.failed", `{"source":"prompt"}`, `run failed`},
-		{"run.canceled", `{"source":"prompt"}`, `run canceled`},
-		{"run.canceling", `{"source":"prompt"}`, `run canceling`},
-		{"run.released", `{"source":"prompt","attempt":2}`, `run released back to the queue`},
-		{"run.kept", `{"source":"prompt","result_version":4}`, `kept the build of a stopped run as version 4`},
-		{"run.kept", `{"source":"prompt"}`, `kept the build of a stopped run`},
+		{"run.queued", `{"intent":"apply"}`, `run queued`},
+		{"run.started", `{"intent":"apply","attempt":1}`, `run started`},
+		{"run.succeeded", `{"intent":"apply","result_version":4}`, `run succeeded (saved version 4)`},
+		{"run.succeeded", `{"intent":"ask"}`, `run succeeded`},
+		{"run.failed", `{"intent":"apply","failure_code":"no_progress"}`, `run failed (no_progress)`},
+		{"run.failed", `{"intent":"apply"}`, `run failed`},
+		{"run.canceled", `{"intent":"apply"}`, `run canceled`},
+		{"run.canceling", `{"intent":"apply"}`, `run canceling`},
+		{"run.released", `{"intent":"apply","attempt":2}`, `run released back to the queue`},
+		{"run.kept", `{"intent":"apply","result_version":4}`, `kept the build of a stopped run as version 4`},
+		{"run.kept", `{"intent":"apply"}`, `kept the build of a stopped run`},
 		{"thread.opened", `{"object":{"kind":"finding","id":"f"}}`, `commented on a finding`},
 		{"thread.opened", `{"object":{"kind":"dashboard","id":"d"},"version":3,"panel_id":"p1"}`, `commented on a dashboard`},
 		{"thread.opened", `{"object":{"kind":"annotation","id":"a"}}`, `commented on an annotation`},
@@ -379,7 +379,7 @@ func TestReadFramesStopsWhenTheHandlerFails(t *testing.T) {
 func TestActivityFollowPrintsFramesAndResumesFromTheLastOne(t *testing.T) {
 	ready := "retry: 10\nevent: ready\ndata: {}\n\n"
 	first := ready + ": ping\n\n" + activityFrame(13, "dashboard.moved", "Sam", "2026-11-01T10:06:00Z", `{"title":"Checkout"}`)
-	second := ready + "event: reset\ndata: {}\n\n" + activityFrame(20, "run.canceled", "Observe Agent for Sam", "2026-11-01T10:07:00Z", `{"source":"prompt"}`)
+	second := ready + "event: reset\ndata: {}\n\n" + activityFrame(20, "run.canceled", "Observe Agent for Sam", "2026-11-01T10:07:00Z", `{"intent":"apply"}`)
 	f := newActivityFake(t, twoEventPage(), sendFrames(first), status(http.StatusTooManyRequests), sendFrames(second))
 	stdout, stderr, code := f.run("activity", "--follow", "--type", "run.canceled", "--limit", "7")
 	if code != 1 || !strings.Contains(stderr, "stop (stop_here)") {

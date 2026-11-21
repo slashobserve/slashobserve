@@ -151,8 +151,8 @@ func TestObservationIdChecksBeforeAnythingIsEnqueued(t *testing.T) {
 		{"an observation the caller cannot see", `{"prompt":"why","kind":"investigate","observation_id":"` + secret.ID + `"}`, http.StatusNotFound, "not_found"},
 		{"an observation that does not exist", `{"prompt":"why","kind":"investigate","observation_id":"00000000-0000-4000-8000-000000000000"}`, http.StatusNotFound, "not_found"},
 		{"a value that is not a UUID", `{"prompt":"why","kind":"investigate","observation_id":"nope"}`, http.StatusBadRequest, "invalid_request"},
-		{"a build", `{"prompt":"why","observation_id":"` + secret.ID + `"}`, http.StatusBadRequest, "invalid_request"},
-		{"an explicit build", `{"prompt":"why","kind":"build","observation_id":"` + secret.ID + `"}`, http.StatusBadRequest, "invalid_request"},
+		{"a private ask about it", `{"prompt":"why","observation_id":"` + secret.ID + `"}`, http.StatusNotFound, "not_found"},
+		{"a revise", `{"prompt":"why","kind":"revise","observation_id":"` + secret.ID + `"}`, http.StatusBadRequest, "invalid_request"},
 	}
 	for _, c := range cases {
 		rec := call(router, http.MethodPost, "/api/v1/observe", c.body)
@@ -163,7 +163,7 @@ func TestObservationIdChecksBeforeAnythingIsEnqueued(t *testing.T) {
 	if n := r.count(t, "agent_requests"); n != 0 {
 		t.Errorf("%d requests were enqueued", n)
 	}
-	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"build","observation_id":"x"}`); !strings.Contains(rec.Body.String(), "observation_id goes with kind ask or investigate") {
+	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"why","kind":"revise","dashboard_id":"00000000-0000-4000-8000-000000000000","observation_id":"x"}`); !strings.Contains(rec.Body.String(), "observation_id is not allowed for kind revise") {
 		t.Errorf("message: %s", rec.Body)
 	}
 }

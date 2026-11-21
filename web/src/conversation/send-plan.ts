@@ -69,10 +69,6 @@ export function subjectOf(target: string): Subject | null {
   return kind === undefined || id === "" ? null : { kind, id }
 }
 
-function asksAbout(subject: Subject | null): boolean {
-  return subject?.kind === "dashboard" || subject?.kind === "observation"
-}
-
 function subjectFields(subject: Subject | null): Partial<ObserveInput> {
   switch (subject?.kind) {
     case "dashboard":
@@ -111,7 +107,7 @@ function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
     case "import":
       return {
         via: "chat.turn",
-        input: { ...base, kind: "build" },
+        input: { ...base, kind: "ask" },
         opens: "chat",
       }
     case "investigate": {
@@ -131,14 +127,14 @@ function chatTurn(place: Place, subject: Subject | null, draft: Draft): Send {
       if (draft.revises === true && subject?.kind === "dashboard") {
         return {
           via: "chat.turn",
-          input: { ...base, ...chat, kind: "build", dashboardId: subject.id },
+          input: { ...base, ...chat, kind: "revise", dashboardId: subject.id },
           opens,
         }
       }
       const input: ObserveInput = {
         ...base,
         ...chat,
-        kind: asksAbout(subject) ? "ask" : "build",
+        kind: "ask",
         ...subjectFields(subject),
         ...spotFields(subject, draft.target),
       }

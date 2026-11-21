@@ -54,7 +54,7 @@ var (
 	blockKeys    = []string{"title", "block_id", "block_kind", "state"}
 	proposalKeys = []string{"title", "revision", "base_version", "version"}
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
-	runKeys      = []string{"source", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
+	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
 	accountKeys  = []string{"name", "role", "takes_runs", "key_id", "key_name", "expires_at"}

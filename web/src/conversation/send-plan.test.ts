@@ -33,7 +33,7 @@ describe("planSend into a chat", () => {
   it("builds or answers from Home and opens the chat", () => {
     expect(planSend(newChat, null, privately, draft)).toEqual({
       via: "chat.turn",
-      input: { prompt: "why", clientId: "k1", kind: "build" },
+      input: { prompt: "why", clientId: "k1", kind: "ask" },
       opens: "chat",
     })
   })
@@ -41,7 +41,7 @@ describe("planSend into a chat", () => {
   it("continues an open chat in place", () => {
     expect(planSend(openChat, null, privately, draft)).toEqual({
       via: "chat.turn",
-      input: { prompt: "why", clientId: "k1", chatId: "c1", kind: "build" },
+      input: { prompt: "why", clientId: "k1", chatId: "c1", kind: "ask" },
       opens: "same",
     })
   })
@@ -92,7 +92,7 @@ describe("planSend into a chat", () => {
       planSend(openChat, dashboard, privately, { ...draft, command: "import" })
     ).toEqual({
       via: "chat.turn",
-      input: { prompt: "why", clientId: "k1", kind: "build" },
+      input: { prompt: "why", clientId: "k1", kind: "ask" },
       opens: "chat",
     })
   })
@@ -220,7 +220,7 @@ describe("planRevise", () => {
       input: {
         prompt: "Revise the dashboard: Add a p99 panel",
         clientId: "k2",
-        kind: "build",
+        kind: "revise",
         dashboardId: "d1",
         chatId: "c1",
       },

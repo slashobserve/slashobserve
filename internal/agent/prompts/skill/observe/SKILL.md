@@ -40,7 +40,7 @@ While your connection is in propose mode, a save that removes panels or variable
 In direct mode update_panels with delete, or a spec without a panel, removes it as a new version, so delete only what the person asked you to, and restore_dashboard_version brings the old version back.
 Never delete a panel the dashboard lists as unverified unless the person asked.
 list_dashboard_health names the panels that fail; fix them with update_panels.
-A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending ask_on.dashboard_id as dashboard_id and the run's prompt.
+A finding from a run made on Home may carry ask_on, the dashboard_id and title of the one dashboard the person meant to change: read it with get_run, then change that dashboard with update_panels, or ask SlashObserve's own agent there with start_run, sending kind revise, ask_on.dashboard_id as dashboard_id and the run's prompt.
 
 ## Review proposals
 

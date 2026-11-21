@@ -12,7 +12,7 @@ import (
 )
 
 func runRow(id, title string) string {
-	return `{"id":"` + id + `","kind":"build","source":"observe","trigger":"person","title":"` + title + `","pinned_at":null,"prompt":"` + strings.Repeat("long prompt ", 300) + `","status":"succeeded","state":"succeeded","result_kind":"version","dashboard_id":"` + runID + `","dashboard_title":"Checkout","observation_id":null,"observation_title":null,"chat_id":"` + id + `","created_at":"2026-11-01T10:00:00Z","requested_by":{"kind":"user","id":"` + runID + `","name":"Ada"},"allowed_actions":["retry"]}`
+	return `{"id":"` + id + `","kind":"build","intent":"apply","trigger":"person","title":"` + title + `","pinned_at":null,"prompt":"` + strings.Repeat("long prompt ", 300) + `","status":"succeeded","state":"succeeded","result_kind":"version","dashboard_id":"` + runID + `","dashboard_title":"Checkout","observation_id":null,"observation_title":null,"chat_id":"` + id + `","created_at":"2026-11-01T10:00:00Z","requested_by":{"kind":"user","id":"` + runID + `","name":"Ada"},"allowed_actions":["retry"]}`
 }
 
 func listPage(rows []string, next string, total int) json.RawMessage {
@@ -25,12 +25,12 @@ func listPage(rows []string, next string, total int) json.RawMessage {
 
 func TestListRunsPassesTheFilterAndAnswersACompactPage(t *testing.T) {
 	runs := &fakeRuns{raw: listPage([]string{runRow(runID, "Checkout health")}, "c2", 7)}
-	res := callRunTool(t, runs, nameListRuns, `{"scope":"all","source":"prompt","state":["failed","canceled"],"q":"  checkout ","pinned":false,"dashboard_id":"`+runID+`","limit":5,"cursor":"c1"}`)
+	res := callRunTool(t, runs, nameListRuns, `{"scope":"all","state":["failed","canceled"],"q":"  checkout ","pinned":false,"dashboard_id":"`+runID+`","limit":5,"cursor":"c1"}`)
 	if res.IsError {
 		t.Fatalf("error result %+v", res.Content)
 	}
 	got := runs.gotFilter
-	if got.Scope != revisions.ScopeAll || got.Source != "prompt" || got.Query != "checkout" || got.Pinned == nil || *got.Pinned || got.DashboardID.String() != runID ||
+	if got.Scope != revisions.ScopeAll || got.Query != "checkout" || got.Pinned == nil || *got.Pinned || got.DashboardID.String() != runID ||
 		len(got.States) != 2 || got.States[0] != revisions.StateFailed || got.States[1] != revisions.StateCanceled {
 		t.Fatalf("filter = %+v", got)
 	}
@@ -38,7 +38,7 @@ func TestListRunsPassesTheFilterAndAnswersACompactPage(t *testing.T) {
 		t.Fatalf("limit %v, cursor %q", runs.gotLimits, runs.gotCursor)
 	}
 	body := string(contentJSON(t, res))
-	if strings.Contains(body, "long prompt") || !strings.Contains(body, `"next_cursor":"c2"`) || !strings.Contains(body, `"title":"Checkout health"`) || !strings.Contains(body, `"allowed_actions":["retry"]`) {
+	if strings.Contains(body, "long prompt") || !strings.Contains(body, `"next_cursor":"c2"`) || !strings.Contains(body, `"title":"Checkout health"`) || !strings.Contains(body, `"allowed_actions":["retry"]`) || !strings.Contains(body, `"intent":"apply"`) {
 		t.Fatalf("body = %s", body)
 	}
 }
@@ -60,7 +60,7 @@ func TestListRunsDefaultsToYourOwnRunsAndTwentyAPage(t *testing.T) {
 func TestListRunsRejectsABadInput(t *testing.T) {
 	for name, input := range map[string]string{
 		"scope":        `{"scope":"everyone"}`,
-		"source":       `{"source":"chat"}`,
+		"source":       `{"source":"prompt"}`,
 		"state":        `{"state":["done"]}`,
 		"empty q":      `{"q":"   "}`,
 		"long q":       `{"q":"` + strings.Repeat("a", 201) + `"}`,

@@ -23,7 +23,8 @@ const (
 
 type agentRequest struct {
 	ID          string        `json:"id"`
-	Source      string        `json:"source"`
+	Kind        string        `json:"kind"`
+	Intent      string        `json:"intent"`
 	Trigger     string        `json:"trigger"`
 	Title       string        `json:"title"`
 	Prompt      string        `json:"prompt"`
@@ -72,6 +73,7 @@ type requestEnvelope struct {
 
 type promptOptions struct {
 	dashboard string
+	revise    bool
 	chat      string
 	follows   string
 	at        string
@@ -86,7 +88,8 @@ type statusOptions struct {
 
 func (a *app) addPromptFlags(root *cobra.Command) {
 	flags := root.Flags()
-	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "revise this dashboard with a follow-up prompt")
+	flags.StringVar(&a.prompt.dashboard, "dashboard", "", "ask about this dashboard; with --revise, change it")
+	flags.BoolVar(&a.prompt.revise, "revise", false, "change --dashboard with this prompt instead of only answering about it")
 	flags.StringVar(&a.prompt.chat, "chat", "", "ask the next turn of this chat of yours, from observe chats list")
 	flags.StringVar(&a.prompt.follows, "follows", "", "deprecated: use --chat; continue the chat of this earlier request of yours, which has no dashboard")
 	flags.StringVar(&a.prompt.at, "at", "", "the spot on --dashboard the prompt is about, as the anchor JSON object")
@@ -129,7 +132,13 @@ func (o promptOptions) payload(prompt string) (map[string]any, error) {
 	if o.chat != "" && o.follows != "" {
 		return nil, usagef("--chat and --follows exclude each other")
 	}
+	if o.revise && o.dashboard == "" {
+		return nil, usagef("--revise needs --dashboard")
+	}
 	payload := map[string]any{"prompt": prompt}
+	if o.revise {
+		payload["kind"] = kindRevise
+	}
 	for field, raw := range map[string]string{"dashboard_id": o.dashboard, "chat_id": o.chat, "follows_id": o.follows} {
 		if raw == "" {
 			continue
@@ -252,7 +261,7 @@ func printRequest(out *output, req agentRequest) {
 		{"ID", text(req.ID)},
 		{"Status", text(req.Status)},
 		{"State", text(req.State)},
-		{"Source", text(req.Source)},
+		{"Intent", text(req.Intent)},
 		{"Trigger", text(req.Trigger)},
 		{"Cost", costText(req.Usage)},
 		{"Dashboard", orDash(req.DashboardID)},
@@ -317,7 +326,7 @@ func (a *app) waitAndReport(ctx context.Context, c *client, id string, timeout t
 		}
 		return fmt.Errorf("observe failed: %s", reason)
 	}
-	if req.Source == sourceInvestigate || req.Finding != nil {
+	if req.Kind == kindInvestigate || req.Finding != nil {
 		return a.reportFinding(out, req)
 	}
 	address, err := dashboardAddress(c, req)

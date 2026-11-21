@@ -10,17 +10,17 @@ import (
 
 func TestRequestsListSendsFiltersAndPrintsTheTotal(t *testing.T) {
 	var got url.Values
-	reply := `{"requests":[{"id":"` + stoppedID + `","kind":"build","title":"Checkout latency","source":"observe","state":"failed","dashboard_id":null,"dashboard_title":null,"created_at":"2026-01-01T00:00:00Z","allowed_actions":["retry"]}],"next_cursor":"c2","summary":{"total":7,"people":1}}`
+	reply := `{"requests":[{"id":"` + stoppedID + `","kind":"build","title":"Checkout latency","intent":"ask","state":"failed","dashboard_id":null,"dashboard_title":null,"created_at":"2026-01-01T00:00:00Z","allowed_actions":["retry"]}],"next_cursor":"c2","summary":{"total":7,"people":1}}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.URL.Query()
 		_, _ = w.Write([]byte(reply))
 	}))
 	t.Cleanup(server.Close)
-	stdout, stderr, code := runWith(server, "requests", "list", "--scope", "all", "--source", "observe", "--state", "failed,canceled", "--state", "queued", "--q", "checkout", "--pinned=false", "--dashboard", testDashboard, "--limit", "5")
+	stdout, stderr, code := runWith(server, "requests", "list", "--scope", "all", "--state", "failed,canceled", "--state", "queued", "--q", "checkout", "--pinned=false", "--dashboard", testDashboard, "--limit", "5")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	want := map[string]string{"scope": "all", "source": "observe", "q": "checkout", "pinned": "false", "dashboard_id": testDashboard, "limit": "5"}
+	want := map[string]string{"scope": "all", "q": "checkout", "pinned": "false", "dashboard_id": testDashboard, "limit": "5"}
 	for key, value := range want {
 		if got.Get(key) != value {
 			t.Fatalf("%s = %q, query %v", key, got.Get(key), got)
@@ -36,7 +36,7 @@ func TestRequestsListSendsFiltersAndPrintsTheTotal(t *testing.T) {
 
 func TestRequestsListPrintsTheStateWordsOfTheWebAndKeepsJSON(t *testing.T) {
 	row := func(id, state string) string {
-		return `{"id":"` + id + `","kind":"build","title":"T","source":"observe","state":"` + state + `","dashboard_id":null,"dashboard_title":null,"created_at":"x","allowed_actions":[]}`
+		return `{"id":"` + id + `","kind":"build","title":"T","intent":"ask","state":"` + state + `","dashboard_id":null,"dashboard_title":null,"created_at":"x","allowed_actions":[]}`
 	}
 	reply := `{"requests":[` + strings.Join([]string{
 		row("00000000-0000-4000-8000-000000000001", "queued"),
@@ -92,7 +92,7 @@ func TestRequestsListRefusesUnknownChoices(t *testing.T) {
 func TestRequestsListAllJoinsPages(t *testing.T) {
 	var seen []string
 	row := func(id string) string {
-		return `{"id":"` + id + `","kind":"build","title":"T","source":"observe","state":"succeeded","dashboard_id":null,"dashboard_title":"Shop","created_at":"x","allowed_actions":[]}`
+		return `{"id":"` + id + `","kind":"build","title":"T","intent":"ask","state":"succeeded","dashboard_id":null,"dashboard_title":"Shop","created_at":"x","allowed_actions":[]}`
 	}
 	server := dashboardPageServer(t, map[string]string{
 		"":   `{"requests":[` + row(testDashboard) + `],"next_cursor":"p2","summary":{"total":2,"people":1}}`,

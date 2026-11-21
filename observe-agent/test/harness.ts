@@ -145,7 +145,7 @@ export function claimed(
   prompt: string,
   extra: {
     kind?: string
-    source?: string
+    intent?: string
     dashboard_id?: string | null
     renew?: number
     maxTokens?: number
@@ -156,7 +156,7 @@ export function claimed(
       id: "11111111-1111-4111-8111-111111111111",
       attempt: 1,
       kind: extra.kind ?? "build",
-      source: extra.source ?? "observe",
+      intent: extra.intent ?? "ask",
       prompt,
       dashboard_id: extra.dashboard_id ?? null,
     },

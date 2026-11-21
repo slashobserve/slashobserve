@@ -204,7 +204,7 @@ describe("itemText", () => {
       over: {
         type: "run.failed",
         target: { kind: "run", id },
-        data: withData({ source: "observe", failure_code: "timeout" }),
+        data: withData({ intent: "ask", failure_code: "timeout" }),
       },
       text: { actor: "", verb: "Your run failed on", object: "a request" },
     },

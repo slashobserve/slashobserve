@@ -20,8 +20,9 @@ function summary(overrides: Partial<RequestSummary> = {}): RequestSummary {
       id: "00000000-0000-4000-8000-0000000000a1",
       name: "Ada Lovelace",
     },
-    intent: "ask",
-    source: "observe",
+    intent: "apply",
+    base_version: null,
+    comment_id: null,
     trigger: "person",
     prompt: "checkout health",
     status: "succeeded",
@@ -121,12 +122,12 @@ describe("chatOutcome", () => {
     ],
     [
       "a new dashboard",
-      { source: "observe", dashboard_title: "Checkout" },
+      { intent: "apply", base_version: null, dashboard_title: "Checkout" },
       "Saved Checkout",
     ],
     [
       "a revised dashboard",
-      { source: "prompt", dashboard_title: "Checkout" },
+      { intent: "apply", base_version: 1, dashboard_title: "Checkout" },
       "Revised Checkout",
     ],
     [
@@ -136,13 +137,19 @@ describe("chatOutcome", () => {
     ],
     [
       "a new dashboard whose title the caller cannot read",
-      { source: "observe", dashboard_id: "d1", dashboard_title: null },
+      {
+        intent: "apply",
+        base_version: null,
+        dashboard_id: "d1",
+        dashboard_title: null,
+      },
       "Saved a dashboard",
     ],
     [
       "a revision whose dashboard the caller cannot read",
       {
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "d1",
         dashboard_title: null,
         result_version: 3,
@@ -186,7 +193,8 @@ describe("chatOutcome", () => {
     [
       "a request for a dashboard that was only answered",
       {
-        source: "observe",
+        intent: "apply",
+        base_version: null,
         result_kind: "observation",
         observation_title: "Checkout errors",
       },
@@ -194,13 +202,14 @@ describe("chatOutcome", () => {
     ],
     [
       "a request for a dashboard whose answer was not saved",
-      { source: "observe", result_kind: "answer" },
+      { intent: "apply", base_version: null, result_kind: "answer" },
       "Answered, no dashboard",
     ],
     [
       "a question on a dashboard",
       {
-        source: "prompt",
+        intent: "apply",
+        base_version: 1,
         dashboard_id: "d1",
         result_kind: "observation",
         observation_title: "Checkout errors",

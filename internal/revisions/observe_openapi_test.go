@@ -151,7 +151,7 @@ func TestObserveListFieldsMatchTheDocument(t *testing.T) {
 	h.call(t, http.MethodPatch, "/api/v1/observe/"+build, `{}`, http.StatusBadRequest)
 	newDocumentedObserve(t, svc, account, nil).call(t, http.MethodPatch, "/api/v1/observe/"+investigation, `{"pinned":true}`, http.StatusForbidden)
 
-	for _, query := range []string{"", "?q=checkout", "?pinned=true", "?source=investigate", "?dashboard_id=" + dash.String(), "?limit=1"} {
+	for _, query := range []string{"", "?q=checkout", "?pinned=true", "?dashboard_id=" + dash.String(), "?limit=1"} {
 		h.call(t, http.MethodGet, "/api/v1/observe"+query, "", http.StatusOK)
 	}
 	h.call(t, http.MethodGet, "/api/v1/observe?pinned=maybe", "", http.StatusBadRequest)
@@ -167,7 +167,7 @@ func TestEveryRequestIsStartedByAPerson(t *testing.T) {
 	h := newDocumentedObserve(t, svc, user, nil)
 
 	created := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
-	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 
 	var triggers struct {
 		Request struct {
@@ -209,8 +209,8 @@ func TestAFinishedRequestReportsItsCostAsTheDocumentSays(t *testing.T) {
 	}))
 	dash := seedDashboard(t, d, 1)
 	h := newDocumentedObserve(t, svc, user, nil)
-	priced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"priced run","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
-	unpriced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"other run","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	priced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"priced run","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	unpriced := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"other run","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 	startWorker(t, svc, d, revisions.WorkerOptions{Workers: 1})
 
 	for id, want := range map[string]*float64{priced: &cost, unpriced: nil} {
@@ -300,7 +300,7 @@ func TestASucceededInvestigationShowsItsFindingAsTheDocumentSays(t *testing.T) {
 		t.Fatalf("GET of a succeeded investigation: %s", rec.Body)
 	}
 
-	list := h.call(t, http.MethodGet, "/api/v1/observe?source=investigate&q="+url.QueryEscape("errors"), "", http.StatusOK)
+	list := h.call(t, http.MethodGet, "/api/v1/observe?q="+url.QueryEscape("errors"), "", http.StatusOK)
 	if !strings.Contains(list.Body.String(), `"url":"/o/`+findingID+`"`) {
 		t.Fatalf("the list does not link the finding: %s", list.Body)
 	}
@@ -362,7 +362,7 @@ func TestRetryAndTheRunStateFieldsMatchTheDocument(t *testing.T) {
 	h := newDocumentedObserve(t, svc, user, nil)
 
 	build := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"checkout health"}`, http.StatusAccepted))
-	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
+	revision := requestIDOf(t, h.call(t, http.MethodPost, "/api/v1/observe", `{"prompt":"add a panel","kind":"revise","dashboard_id":"`+dash.String()+`"}`, http.StatusAccepted))
 
 	queued := h.call(t, http.MethodGet, "/api/v1/observe/"+build, "", http.StatusOK)
 	var shown struct {

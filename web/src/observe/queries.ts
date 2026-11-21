@@ -158,7 +158,6 @@ function myRequestsQuery(filters: ChatListFilters, limit: number) {
         .GET("/observe", {
           params: {
             query: {
-              source: filters.source,
               q: filters.q,
               pinned: filters.pinned,
               dashboard_id: filters.dashboardId,

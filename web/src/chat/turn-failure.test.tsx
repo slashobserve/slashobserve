@@ -7,7 +7,9 @@ import { TurnFailure } from "./turn-failure"
 
 const base = {
   id: "a77cc709-1b2c-4d3e-8f4a-5b6c7d8e9f01",
-  source: "observe" as const,
+  intent: "apply" as const,
+  base_version: null,
+  comment_id: null,
   dashboard_id: null,
   error: "the run was canceled",
   continued_by: null,

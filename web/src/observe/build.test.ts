@@ -20,6 +20,7 @@ import {
   type BuildProgress,
 } from "./build"
 import type { ObserveRequest } from "./queries"
+import type { OriginFields } from "./request-origin"
 
 function progress(overrides: Partial<BuildProgress> = {}): BuildProgress {
   return {
@@ -317,13 +318,13 @@ describe("answeredRequestId", () => {
 })
 
 describe("awaitsFirstPanel", () => {
-  type Waiting = Pick<
-    ObserveRequest,
-    "status" | "build" | "source" | "dashboard_id"
-  >
+  type Waiting = OriginFields &
+    Pick<ObserveRequest, "status" | "build" | "dashboard_id">
   const waiting: Waiting = {
     status: "running",
-    source: "observe",
+    intent: "ask",
+    base_version: null,
+    comment_id: null,
     dashboard_id: null,
     build: null,
   }
@@ -335,7 +336,7 @@ describe("awaitsFirstPanel", () => {
     ["a build exists", { build: progress() }],
     ["the run ended", { status: "failed" }],
     ["it revises a dashboard", { dashboard_id: "d1" }],
-    ["it is not a new-dashboard request", { source: "investigate" }],
+    ["it is not a new-dashboard request", { kind: "investigate" }],
   ])("is false when %s", (_name, overrides) => {
     expect(awaitsFirstPanel({ ...waiting, ...overrides })).toBe(false)
   })

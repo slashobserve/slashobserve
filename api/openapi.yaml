@@ -993,7 +993,7 @@ components:
     AgentRun:
       type: object
       additionalProperties: false
-      required: [id, intent, source, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
+      required: [id, intent, title, state, result_kind, failure_code, created_at, started_at, finished_at, cost_usd, requested_by, openable, dashboard, observation]
       properties:
         id:
           type: string
@@ -1001,13 +1001,10 @@ components:
         intent:
           type: string
           enum: [ask, apply]
-          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
-        source:
-          type: string
-          enum: [comment, prompt, observe, investigate]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
         title:
           type: string
-          description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the source word.
+          description: The requester's title, else the first line of the prompt without `@observe`, cut at a word to 60 characters, else the intent word.
         state:
           type: string
           enum: [queued, running, canceling, succeeded, failed, canceled]
@@ -1095,7 +1092,7 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, intent, source, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
+            required: [id, intent, state, created_at, started_at, mine, title, agent, requested_by, dashboard, observation]
             properties:
               id:
                 type: string
@@ -1103,9 +1100,6 @@ components:
               intent:
                 type: string
                 enum: [ask, apply]
-              source:
-                type: string
-                enum: [comment, prompt, observe, investigate]
               state:
                 type: string
                 enum: [queued, running, canceling]
@@ -4131,7 +4125,7 @@ components:
       required:
         - id
         - dashboard_id
-        - source
+        - intent
         - comment_id
         - panel_id
         - prompt
@@ -4163,10 +4157,10 @@ components:
         dashboard_id:
           type: string
           format: uuid
-        source:
+        intent:
           type: string
-          enum: [comment, prompt, observe]
-          description: "`observe` is the new-dashboard request that created the dashboard; it appears once it has succeeded."
+          enum: [apply]
+          description: "Always `apply`; the new-dashboard request that created the dashboard is the one with a null `base_version`, and it appears once it has succeeded."
         comment_id:
           type: string
           format: uuid
@@ -4648,7 +4642,6 @@ components:
         - kind
         - title
         - intent
-        - source
         - trigger
         - prompt
         - dashboard_id
@@ -4707,10 +4700,7 @@ components:
         intent:
           type: string
           enum: [ask, apply]
-          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
-        source:
-          type: string
-          enum: [comment, prompt, observe, investigate]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
@@ -5022,7 +5012,6 @@ components:
         - title
         - pinned_at
         - intent
-        - source
         - trigger
         - prompt
         - status
@@ -5032,6 +5021,8 @@ components:
         - dashboard_id
         - dashboard_title
         - panel_id
+        - base_version
+        - comment_id
         - result_version
         - url
         - error
@@ -5060,10 +5051,7 @@ components:
         intent:
           type: string
           enum: [ask, apply]
-          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. `source` is derived from it and the run's shape."
-        source:
-          type: string
-          enum: [comment, prompt, observe, investigate]
+          description: "What the run may do: `ask` reads and answers, `apply` changes the dashboard, `suggest` proposes one panel. A run that saved a version is `apply`."
         trigger:
           type: string
           enum: [person, mention, schedule, webhook, slack]
@@ -5099,6 +5087,16 @@ components:
         panel_id:
           type: string
           nullable: true
+        base_version:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The version an `apply` run started from; null for a new-dashboard request and for an ask.
+        comment_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The comment thread an `apply` run answers; null for a chat turn.
         result_version:
           type: integer
           minimum: 1

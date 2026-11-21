@@ -111,7 +111,7 @@ func TestPrintFindingOffersToSaveAnAnswerThatIsNotAnObservation(t *testing.T) {
 func TestPrintFindingShowsTheSuggestedChangeAsARevision(t *testing.T) {
 	var stdout bytes.Buffer
 	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{Title: "Errors", Markdown: "One pod.", URL: "https://o.example/o/1", SuggestedChange: "Split errors by pod.", DashboardID: repairID}, investigationID)
-	want := "Errors\n\nOne pod.\n\nSuggested change: Split errors by pod.\n  observe --dashboard " + repairID + " 'Split errors by pod.'\n\nhttps://o.example/o/1\n"
+	want := "Errors\n\nOne pod.\n\nSuggested change: Split errors by pod.\n  observe --revise --dashboard " + repairID + " 'Split errors by pod.'\n\nhttps://o.example/o/1\n"
 	if stdout.String() != want {
 		t.Errorf("printed %q\nwant %q", stdout.String(), want)
 	}
@@ -128,10 +128,10 @@ func investigationServer(t *testing.T, finding string) (*httptest.Server, *[]rec
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusAccepted)
-			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","source":"investigate","status":"queued","steps":[]}}`)
+			_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","status":"queued","steps":[]}}`)
 			return
 		}
-		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","source":"investigate","status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
+		_, _ = io.WriteString(w, `{"request":{"id":"`+investigationID+`","kind":"investigate","intent":"ask","status":"succeeded","url":"https://observe.example.com/findings/f1","steps":[],"finding":`+finding+`}}`)
 	}))
 	t.Cleanup(server.Close)
 	return server, &requests
@@ -184,6 +184,19 @@ func TestInvestigatePayloadPointsAtASpotOfABlock(t *testing.T) {
 	}
 	if _, err := investigatePayload([]string{"why"}, investigateOptions{observation: observationID, at: `{"kind":"position"`, timeout: time.Hour}); err == nil || !strings.Contains(err.Error(), "--at") {
 		t.Errorf("a broken anchor: error = %v, want one naming --at", err)
+	}
+}
+
+func TestPromptPayloadRevisesOnlyWithReviseAndADashboard(t *testing.T) {
+	got, err := promptOptions{dashboard: repairID, revise: true}.payload("add a latency panel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"dashboard_id":"`+repairID+`","kind":"revise","prompt":"add a latency panel"}` {
+		t.Errorf("payload = %s", raw)
+	}
+	if _, err := (promptOptions{revise: true}).payload("add a latency panel"); err == nil || !strings.Contains(err.Error(), "--revise needs --dashboard") {
+		t.Errorf("--revise alone: error = %v", err)
 	}
 }
 

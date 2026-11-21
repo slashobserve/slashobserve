@@ -79,7 +79,6 @@ function working(overrides: Partial<WorkingRun> = {}): WorkingRun {
   return {
     id: "run1",
     intent: "apply",
-    source: "prompt",
     state: "running",
     created_at: "2026-11-15T10:00:00Z",
     started_at: "2026-11-15T10:00:00Z",

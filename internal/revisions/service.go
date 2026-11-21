@@ -657,7 +657,6 @@ const (
 
 type ListFilter struct {
 	Scope       ListScope
-	Source      string
 	DashboardID pgtype.UUID
 	ChatID      pgtype.UUID
 	Pinned      *bool
@@ -677,7 +676,6 @@ func (f ListFilter) stateNames() []string {
 }
 
 type listMatch struct {
-	source  pgtype.Text
 	pattern pgtype.Text
 	pinned  pgtype.Bool
 	states  []string
@@ -685,7 +683,6 @@ type listMatch struct {
 
 func (f ListFilter) match() listMatch {
 	m := listMatch{
-		source:  pgtype.Text{String: f.Source, Valid: f.Source != ""},
 		pattern: pgtype.Text{String: "%" + escapeLike(f.Query) + "%", Valid: f.Query != ""},
 		states:  f.stateNames(),
 	}
@@ -719,7 +716,6 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 	if filter.Scope == ScopeAll {
 		row, err := s.db.Queries().CountAgentRequestsAll(ctx, dbsqlc.CountAgentRequestsAllParams{
 			Folders:     levels.Visible(),
-			Source:      match.source,
 			DashboardID: filter.DashboardID,
 			ChatID:      filter.ChatID,
 			Pinned:      match.pinned,
@@ -735,7 +731,6 @@ func (s *Service) CountRequests(ctx context.Context, by auth.Principal, filter L
 		RequestedByKind: string(by.Kind),
 		RequestedByID:   requesterID,
 		Folders:         levels.Visible(),
-		Source:          match.source,
 		DashboardID:     filter.DashboardID,
 		ChatID:          filter.ChatID,
 		Pinned:          match.pinned,
@@ -777,7 +772,6 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 	if filter.Scope == ScopeAll {
 		all, err := s.db.Queries().ListAgentRequestsAll(ctx, dbsqlc.ListAgentRequestsAllParams{
 			Folders:         levels.Visible(),
-			Source:          match.source,
 			DashboardID:     filter.DashboardID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
@@ -800,7 +794,6 @@ func (s *Service) ListRequests(ctx context.Context, by auth.Principal, filter Li
 			RequestedByKind: string(by.Kind),
 			RequestedByID:   requesterID,
 			Folders:         levels.Visible(),
-			Source:          match.source,
 			DashboardID:     filter.DashboardID,
 			ChatID:          filter.ChatID,
 			Pinned:          match.pinned,
@@ -1112,6 +1105,7 @@ func revisionFromRow(row dbsqlc.AgentRequest) Revision {
 	rev := Revision{
 		ID:           row.ID.String(),
 		DashboardID:  row.DashboardID.String(),
+		Intent:       Intent(row.Intent),
 		Source:       SourceOf(row),
 		Prompt:       row.Prompt,
 		Status:       Status(row.Status),

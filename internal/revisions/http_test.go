@@ -92,7 +92,7 @@ func TestPostQueuesARevisionUntilTheDashboardIsFull(t *testing.T) {
 			t.Fatal(err)
 		}
 		rev := body.Revision
-		if rev["status"] != "queued" || rev["source"] != "prompt" || rev["base_version"] != float64(2) || rev["comment_id"] != nil ||
+		if rev["status"] != "queued" || rev["intent"] != "apply" || rev["base_version"] != float64(2) || rev["comment_id"] != nil ||
 			rev["panel_id"] != nil || rev["result_version"] != nil || rev["error"] != nil || rev["attempts"] != float64(0) {
 			t.Fatalf("revision = %v", rev)
 		}
@@ -257,10 +257,10 @@ func TestRevisionRoutesAnswerForbiddenRoleWithoutComment(t *testing.T) {
 		"Viewer may not send a prompt":             {auth.RoleViewer, http.MethodPost, revisionsPath(dash), body, http.StatusForbidden},
 		"Commenter sends a prompt":                 {auth.RoleCommenter, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
 		"Editor sends a prompt":                    {auth.RoleEditor, http.MethodPost, revisionsPath(dash), body, http.StatusAccepted},
-		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
+		"Viewer may not follow up through observe": {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`, http.StatusForbidden},
 		"Commenter may not start a new dashboard":  {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
 		"Viewer may not start a new dashboard":     {auth.RoleViewer, http.MethodPost, "/api/v1/observe", `{"prompt":"go"}`, http.StatusForbidden},
-		"Commenter follows up through observe":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","dashboard_id":"` + dash.String() + `"}`, http.StatusAccepted},
+		"Commenter follows up through observe":     {auth.RoleCommenter, http.MethodPost, "/api/v1/observe", `{"prompt":"go","kind":"revise","dashboard_id":"` + dash.String() + `"}`, http.StatusAccepted},
 		"Commenter may not ask for a suggestion":   {auth.RoleCommenter, http.MethodPost, "/api/v1/dashboards/" + dash.String() + "/suggestions", `{"prompt":"go","base_version":1,"panel_id":"p1"}`, http.StatusForbidden},
 	} {
 		t.Run(name, func(t *testing.T) {
