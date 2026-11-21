@@ -376,3 +376,24 @@ func TestADashboardReaderOfAChatsFirstTurnIsNotToldTheChatsTitle(t *testing.T) {
 	}
 	mustContain(t, user.Name, "the first turn", w.http(user, "/api/v1/observe/"+first.String(), http.StatusOK), privateWord)
 }
+
+func TestARunInAnObservationIsReadByEveryoneWhoReadsTheObservation(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	eve := auth.Principal{Kind: auth.KindUser, ID: strangerID, Name: "Eve", Role: auth.RoleEditor}
+	for _, p := range []auth.Principal{user, eve} {
+		d.Exec(t, `INSERT INTO users (id, oidc_issuer, oidc_subject, email, name) VALUES ($1::uuid, 'https://idp', $2, $3, $2)`, p.ID, p.Name, p.Name+"@example.com")
+	}
+	shared := observeFor(t, svc, user, "what does the thread say")
+	private := observeFor(t, svc, user, "what do my notes say")
+	observationIn(t, d, "SELECT general_folder_id()", "Checkout errors", shared)
+	observationIn(t, d, "SELECT id FROM folders WHERE owner_id = '"+userID+"'::uuid", "Ada's notes", private)
+
+	w := newPrivateWalk(t, svc, d)
+	for _, body := range []string{w.http(eve, "/api/v1/observe/"+shared, http.StatusOK), w.mcp(eve, "get_run", `{"id":"`+shared+`"}`, false)} {
+		if chat := chatIDIn(t, body); chat != nil {
+			t.Errorf("a reader of the observation is told the chat %s", *chat)
+		}
+	}
+	w.http(eve, "/api/v1/observe/"+private, http.StatusNotFound)
+	w.mcp(eve, "get_run", `{"id":"`+private+`"}`, true)
+}

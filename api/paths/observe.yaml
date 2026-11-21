@@ -289,8 +289,8 @@ observe-id:
     summary: Read one agent request with its progress steps and usage.
     description: >-
       Works for any agent request, including comment and prompt revisions.
-      A request with no shared product, one that has no dashboard yet or never got one, is readable only by the principal that made it and by Admins; anyone else gets 404.
-      A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard.
+      A request with no shared product, neither a dashboard nor an observation, is readable only by the principal that made it and by Admins; anyone else gets 404.
+      A request on a dashboard, an investigation included, is readable by anyone who can see that dashboard, and a request on an observation with no dashboard, a thread ask included, by anyone who can read that observation.
       An Admin also reads a request on a dashboard it cannot see.
       `read_only` is true when the caller reads the request only as an Admin: `allowed_actions` is then empty and every write route answers as it does today.
       Clients poll it once a second until the status is `succeeded` or `failed`.

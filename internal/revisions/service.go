@@ -554,14 +554,13 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 	if row.Source == string(SourceSuggest) {
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
 	}
-	if !hasSharedProduct(row) && (row.RequestedByKind != string(by.Kind) || row.RequestedByID.String() != by.ID) {
-		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	switch {
+	case sameActor(requesterOf(row), by), row.DashboardID.Valid:
+		return row, nil
+	case row.ObservationID.Valid:
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
 	}
-	return row, nil
-}
-
-func hasSharedProduct(row dbsqlc.AgentRequest) bool {
-	return row.DashboardID.Valid
+	return dbsqlc.AgentRequest{}, ErrRequestNotFound
 }
 
 func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, bool, error) {

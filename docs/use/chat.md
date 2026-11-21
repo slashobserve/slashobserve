@@ -285,7 +285,7 @@ For a chat about a dashboard these are the earlier requests you sent on that das
 Say what to change in the message itself all the same, for example "only show 5xx" or "add a panel with memory by pod"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
-A request with no dashboard is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads.
+A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
 An Admin reads another person's chat read only, and every read of someone else's chat or request, over MCP too, is recorded in the audit trail as `chat.view` or `run.view` with the owner's id as `owner_id`; your reads of your own are not.
 An Admin's list of every person's chats or requests (`scope=all`) is recorded as `chat.list` or `run.list` with `scope` in its data.
