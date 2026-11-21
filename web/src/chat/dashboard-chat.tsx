@@ -215,7 +215,7 @@ function NewChat({
           placeholder={`Ask about ${dashboardTitle}`}
         />
         <p className="mt-1.5 text-center text-xs text-muted-foreground">
-          Only you can see this chat.
+          Only you and Admins can see this chat.
         </p>
       </div>
     </div>

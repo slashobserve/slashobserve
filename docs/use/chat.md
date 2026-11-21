@@ -331,7 +331,7 @@ A dashboard's side panel has a **Chat** tab next to **Activity**, which shows yo
 It opens your latest chat about the dashboard and names it in the address as `tab=chat&chat=<chat id>`, so the chat stays open when a turn in another chat makes that one the latest.
 The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns, and **All your chats** opens the Chats page filtered to this dashboard.
 **New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left; the chat your first message lands in then takes its place in the address.
-The first message after **New chat** is a question about the dashboard and starts a new chat, which the tab then shows; the note under the box says "Only you can see this chat."
+The first message after **New chat** is a question about the dashboard and starts a new chat, which the tab then shows; the note under the box says "Only you and Admins can see this chat."
 A chat that is about another dashboard, or about none, opens read only, with a link to continue it on its chat page.
 
 ### From the dashboard's activity pane

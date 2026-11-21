@@ -156,7 +156,9 @@ describe("DashboardChat", () => {
       "placeholder",
       "Ask about Checkout health"
     )
-    expect(screen.getByText("Only you can see this chat.")).toBeVisible()
+    expect(
+      screen.getByText("Only you and Admins can see this chat.")
+    ).toBeVisible()
     expect(screen.queryByTestId("conversation")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "New chat" })).toBeDisabled()
   })

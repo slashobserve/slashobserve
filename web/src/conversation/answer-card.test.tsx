@@ -404,7 +404,7 @@ describe("AnswerCard", () => {
     })
     await waitFor(() =>
       expect(toasts.success).toHaveBeenLastCalledWith(
-        "Only you can see this answer again"
+        "Only you and Admins can see this answer again"
       )
     )
     await user.click(screen.getByRole("button", { name: "Answer actions" }))

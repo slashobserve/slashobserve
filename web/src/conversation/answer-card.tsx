@@ -229,7 +229,7 @@ function AnswerMenuButton({
     withdraw.mutate(threadId, {
       onSuccess: () => {
         setSharedHere(null)
-        toast.success("Only you can see this answer again")
+        toast.success("Only you and Admins can see this answer again")
       },
       onError: (error) => {
         if (error instanceof ApiError && error.status === 404) {
