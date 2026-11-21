@@ -416,6 +416,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if !ok {
 		return refused, nil
 	}
+	ctx = attributed(ctx, name, run, inRun)
 	res, err := r.handle(ctx, e, name, input)
 	if err != nil {
 		return Result{}, err
