@@ -87,6 +87,7 @@ The Query DSL is a JSON body that starts with `{`, with an optional `query`, `si
 ```
 
 `aggs` runs only through the aggregate endpoint: `date_histogram` and `terms` buckets, up to three levels with one bucket aggregation per level, and `cardinality`, `value_count`, `min`, `max`, `avg`, `sum` and `percentiles` metrics.
+A `date_histogram` takes an optional `time_zone`, `UTC` or a named zone such as `Europe/Berlin`, and its buckets then start on that zone's clock, so a `1d` bucket starts at local midnight; an offset such as `+05:30` is refused.
 An aggregation whose buckets would make more than 100,000 rows is refused with the reason.
 
 ```json

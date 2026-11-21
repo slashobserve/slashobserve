@@ -131,7 +131,7 @@ func TestParseRefusesWhatItDoesNotSupportByName(t *testing.T) {
 		{`{"aggs":{"a":{"scripted_metric":{}}}}`, "unsupported aggregation"},
 		{`{"aggs":{"a":{"histogram":{"field":"status","interval":10}}}}`, "unsupported aggregation"},
 		{`{"aggs":{"a":{"date_histogram":{"field":"occurred_at","calendar_interval":"1M"}}}}`, "needs a fixed_interval"},
-		{`{"aggs":{"a":{"date_histogram":{"field":"occurred_at","fixed_interval":"1h","time_zone":"Asia/Kolkata"}}}}`, "UTC"},
+		{`{"aggs":{"a":{"date_histogram":{"field":"occurred_at","fixed_interval":"1h","time_zone":"+05:30"}}}}`, "UTC or a named zone"},
 		{`{"aggs":{"a":{"date_histogram":{"field":"id","fixed_interval":"1h"}}}}`, "can only bucket occurred_at"},
 		{`{"aggs":{"a":{"terms":{"field":"origin","script":"x"}}}}`, `unsupported key "script"`},
 		{`{"aggs":{"a":{"terms":{"field":"origin","min_doc_count":0}}}}`, "min_doc_count 1"},

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/slashobserve/slashobserve/internal/audit"
@@ -125,11 +126,7 @@ func (r *Reader) events(ctx context.Context, p Prepared, limit int) (Page, error
 	if err != nil {
 		return Page{}, refused(err)
 	}
-	var events []Event
-	err = r.read(ctx, func(tx db.Rows) error {
-		events, err = collectEvents(ctx, tx, c)
-		return err
-	})
+	events, err := r.compiledEvents(ctx, c)
 	if err != nil {
 		return Page{}, err
 	}
@@ -140,6 +137,45 @@ func (r *Reader) events(ctx context.Context, p Prepared, limit int) (Page, error
 		page.NextCursor = encodeCursor(p, last.at, last.ID)
 	}
 	return page, nil
+}
+
+func (r *Reader) compiledEvents(ctx context.Context, c filter.Compiled) ([]Event, error) {
+	var events []Event
+	err := r.read(ctx, func(tx db.Rows) error {
+		var err error
+		events, err = collectEvents(ctx, tx, c)
+		return err
+	})
+	return events, err
+}
+
+func (r *Reader) Rows(ctx context.Context, q filter.Query, w filter.Window, page filter.Page) ([]Event, error) {
+	c, err := q.Rows(w, page)
+	if err != nil {
+		return nil, refused(err)
+	}
+	events, err := r.compiledEvents(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	return events[:min(len(events), c.Limit)], nil
+}
+
+func (r *Reader) Count(ctx context.Context, q filter.Query, w filter.Window, upTo int) (int64, error) {
+	c, err := q.Count(w, upTo)
+	if err != nil {
+		return 0, refused(err)
+	}
+	var n int64
+	err = r.read(ctx, func(tx db.Rows) error {
+		rows, err := tx.Query(ctx, c.SQL, c.Args...)
+		if err != nil {
+			return err
+		}
+		_, err = pgx.ForEachRow(rows, []any{&n}, func() error { return nil })
+		return err
+	})
+	return n, err
 }
 
 func (p Prepared) Cut(page Page, n int) Page {

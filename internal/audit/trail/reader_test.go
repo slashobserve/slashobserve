@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/slashobserve/slashobserve/internal/audit/filter"
 	"github.com/slashobserve/slashobserve/internal/audit/trail/trailtest"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
@@ -346,5 +347,31 @@ func TestReadsRunReadOnly(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "read-only") {
 		t.Fatalf("a write in a read = %v", err)
+	}
+}
+
+func TestRowsReadInEitherOrderFromAnOffsetAndCountStopsAtItsCap(t *testing.T) {
+	r := newReaderRig(t)
+	ids := trailtest.Insert(t, r.db,
+		trailtest.Event{At: r.at(-30)}, trailtest.Event{At: r.at(-20), Outcome: "denied"}, trailtest.Event{At: r.at(-10)},
+	)
+	p := r.window(t, "", -time.Hour, 0)
+	oldest, err := r.reader.Rows(t.Context(), p.Query, p.Window, filter.Page{Limit: 2, Ascending: true})
+	if err != nil || !slices.Equal(idsOf(oldest), ids[:2]) {
+		t.Fatalf("oldest two = %v, %v; want %v", idsOf(oldest), err, ids[:2])
+	}
+	skipped, err := r.reader.Rows(t.Context(), p.Query, p.Window, filter.Page{Limit: 5, Offset: 1})
+	if err != nil || !slices.Equal(idsOf(skipped), []string{ids[1], ids[0]}) {
+		t.Fatalf("newest after one = %v, %v", idsOf(skipped), err)
+	}
+	if n, err := r.reader.Count(t.Context(), p.Query, p.Window, 2); err != nil || n != 2 {
+		t.Fatalf("capped count = %d, %v", n, err)
+	}
+	denied := r.window(t, "outcome:denied", -time.Hour, 0)
+	if n, err := r.reader.Count(t.Context(), denied.Query, denied.Window, 0); err != nil || n != 1 {
+		t.Fatalf("denied count = %d, %v", n, err)
+	}
+	if _, err := r.reader.Rows(t.Context(), p.Query, p.Window, filter.Page{Offset: -1}); err == nil {
+		t.Fatal("Rows accepted a negative offset")
 	}
 }

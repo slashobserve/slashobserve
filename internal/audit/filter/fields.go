@@ -156,6 +156,10 @@ func lookupField(name string) (*Field, bool) {
 	return f, ok
 }
 
+func (f Field) Groupable() bool {
+	return f.groupable()
+}
+
 func (f *Field) groupable() bool {
 	return f.Type != TypeTarget && f.email != emailOnly
 }
