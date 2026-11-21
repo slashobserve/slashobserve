@@ -38,4 +38,29 @@ describe("foldAnswer", () => {
     const markdown = `# One\n\n## Two\n\n${filler}\n\n${filler.repeat(15)}`
     expect(foldAnswer(markdown)?.opening).toBe(`# One\n\n## Two\n\n${filler}`)
   })
+
+  it("keeps a list with a blank line and an indented continuation together", () => {
+    const list = "- one\n\n  still one\n\n- two"
+    const markdown = `## Title\n\n${list}\n\n${filler.repeat(20)}`
+    const fold = foldAnswer(markdown)
+    expect(fold?.opening).toBe(`## Title\n\n${list}`)
+    expect(fold?.rest).toBe(filler.repeat(20))
+  })
+
+  it("keeps reference link definitions with both parts", () => {
+    const markdown = `## Title\n\nSee [the deploy][d].\n\n${filler.repeat(5)} [again][d]\n\n[d]: https://example.com/deploy`
+    const fold = foldAnswer(markdown)
+    expect(fold?.opening).toBe(
+      "## Title\n\nSee [the deploy][d].\n\n[d]: https://example.com/deploy"
+    )
+    expect(fold?.rest).toBe(
+      `${filler.repeat(5)} [again][d]\n\n[d]: https://example.com/deploy`
+    )
+  })
+
+  it("closes a fence only with the same marker", () => {
+    const code = "```\nfirst\n~~~\n\nsecond\n```"
+    const markdown = `## Title\n\n${code}\n\n${filler.repeat(20)}`
+    expect(foldAnswer(markdown)?.opening).toBe(`## Title\n\n${code}`)
+  })
 })
