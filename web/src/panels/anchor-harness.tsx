@@ -1,9 +1,11 @@
 import type { ReactNode } from "react"
 import { render } from "@testing-library/react"
+import { vi } from "vitest"
 
 import type { PanelDataMeta } from "@/dashboards/queries"
 import { displayWithDefaults, type DataPanel } from "@/spec"
 
+import type { Rect } from "./anchors"
 import { AnchorLayoutProvider, createAnchorLayoutStore } from "./anchor-layout"
 import { createFieldResolver } from "./field-config"
 import { createSharedCursor } from "./shared-cursor"
@@ -63,4 +65,18 @@ export function renderPublishing(
     ...extra,
   }
   return renderInStore(<Renderer {...props} />)
+}
+
+export function stubRects(rectOf: (element: Element) => Rect | undefined) {
+  return vi
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: Element) {
+      const { x, y, width, height } = rectOf(this) ?? {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+      }
+      return new DOMRect(x, y, width, height)
+    })
 }

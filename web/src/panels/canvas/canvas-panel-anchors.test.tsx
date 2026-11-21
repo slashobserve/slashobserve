@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { panelOf, renderPublishing } from "../anchor-harness"
+import { panelOf, renderPublishing, stubRects } from "../anchor-harness"
 import type { PreparedFrame } from "../transforms"
+import type { Rect } from "../anchors"
 import type { CanvasAnchorLayout } from "./anchors"
 import CanvasPanel from "./canvas-panel"
 
@@ -41,8 +42,53 @@ function panel(display: Record<string, unknown> = {}) {
   return panelOf("canvas", { elements, ...display })
 }
 
+const rects: Record<string, Rect> = {
+  frame: { x: 5, y: 5, width: 60, height: 40 },
+  orders: { x: 10, y: 10, width: 20, height: 20 },
+  touching: { x: 400, y: 50, width: 30, height: 20 },
+  straddling: { x: 380, y: 100, width: 60, height: 20 },
+  away: { x: 500, y: 50, width: 30, height: 20 },
+}
+
+function stubCanvas() {
+  stubRects((element) =>
+    element.getAttribute("role") === "group"
+      ? { x: 0, y: 0, width: 400, height: 240 }
+      : rects[(element as HTMLElement).dataset.elementId ?? ""]
+  )
+}
+
+afterEach(() => vi.restoreAllMocks())
+
 describe("canvas anchors", () => {
+  it("keeps only the part of an element inside the canvas and skips one that only touches its edge", () => {
+    stubCanvas()
+    const extra = ["touching", "straddling", "away"].map((id) => ({
+      id,
+      kind: "metric",
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+      text: id,
+    }))
+    const { store } = renderPublishing(
+      CanvasPanel,
+      panel({ elements: [...elements, ...extra] }),
+      frames
+    )
+    const layout = store.current()?.layout as CanvasAnchorLayout
+    expect(
+      Object.fromEntries(layout.elements.map(({ id, rect }) => [id, rect]))
+    ).toEqual({
+      frame: rects.frame,
+      orders: rects.orders,
+      straddling: { x: 380, y: 100, width: 20, height: 20 },
+    })
+  })
+
   it("publishes each element it drew", () => {
+    stubCanvas()
     const { store } = renderPublishing(CanvasPanel, panel(), frames)
     const published = store.current()
     expect(published?.type).toBe("canvas")

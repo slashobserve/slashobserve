@@ -115,7 +115,7 @@ function overlap(rect: Rect, area: Rect): Rect | null {
   const top = Math.max(rect.y, area.y)
   const right = Math.min(rect.x + rect.width, area.x + area.width)
   const bottom = Math.min(rect.y + rect.height, area.y + area.height)
-  return right < left || bottom < top
+  return right <= left || bottom <= top
     ? null
     : { x: left, y: top, width: right - left, height: bottom - top }
 }
