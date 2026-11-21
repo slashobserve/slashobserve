@@ -144,11 +144,7 @@ func (h *Handler) pump(c *gin.Context, sub *events.Subscription, id pgtype.UUID,
 	for {
 		select {
 		case ev := <-sub.Events():
-			var data any = ev
-			if ev.Type == events.TypeResync {
-				data = resyncData{DashboardID: ev.DashboardID}
-			}
-			if !writeEvent(c, ev.Type, data) {
+			if !h.forward(c, id, ev) {
 				return
 			}
 		case <-roleCheck.C:
@@ -212,6 +208,22 @@ func (h *Handler) stillAllowed(c *gin.Context, id pgtype.UUID) (valid, failed bo
 		return false, false
 	}
 	return h.checkFailed(c, "re-check event stream dashboard access", "stream_access_check_failed", err, slog.String("dashboard_id", id.String()))
+}
+
+func (h *Handler) forward(c *gin.Context, id pgtype.UUID, ev events.Event) bool {
+	if ev.Type == events.TypeDashboardMoved && !h.seesAfterMove(c, id) {
+		return false
+	}
+	var data any = ev
+	if ev.Type == events.TypeResync {
+		data = resyncData{DashboardID: ev.DashboardID}
+	}
+	return writeEvent(c, ev.Type, data)
+}
+
+func (h *Handler) seesAfterMove(c *gin.Context, id pgtype.UUID) bool {
+	valid, failed := h.stillAllowed(c, id)
+	return valid && !failed
 }
 
 func (h *Handler) checkFailed(c *gin.Context, message, code string, err error, attrs ...any) (valid, failed bool) {
