@@ -109,7 +109,7 @@ func TestSearchAuditEventsCutsLargePagesAndPagesOnWithoutGaps(t *testing.T) {
 		if size := jsonSize(res.Content); size > maxContentBytes {
 			t.Fatalf("page %d is %d bytes", pages, size)
 		}
-		out := res.Content.(trail.SearchJSON)
+		out := res.Content.(auditSearchAnswer)
 		if len(out.Events) == 0 || len(out.Events) >= defaultAuditEvents {
 			t.Fatalf("page %d kept %d events", pages, len(out.Events))
 		}
@@ -123,6 +123,44 @@ func TestSearchAuditEventsCutsLargePagesAndPagesOnWithoutGaps(t *testing.T) {
 	}
 	if strings.Join(seen, ",") != strings.Join(want, ",") {
 		t.Fatalf("paged %d events, want the %d inserted newest first without gaps or repeats", len(seen), len(want))
+	}
+}
+
+func TestSearchAuditEventsSaysWhenTheSizeCapCutAPage(t *testing.T) {
+	r := newAuditToolRig(t)
+	events := make([]trailtest.Event, 0, 30)
+	for i := range 30 {
+		events = append(events, trailtest.Event{At: r.base.Add(-time.Duration(i+1) * time.Minute), TargetKind: "dashboard", TargetName: fmt.Sprintf("%02d %s", i, strings.Repeat("x", 1500))})
+	}
+	trailtest.Insert(t, r.db, events...)
+	read := func(input map[string]any) (events int, truncated bool, note string, more bool) {
+		raw, err := json.Marshal(r.call(t, nameSearchAuditEvents, input).Content)
+		var out struct {
+			Events     []json.RawMessage `json:"events"`
+			NextCursor *string           `json:"next_cursor"`
+			Truncated  bool              `json:"truncated"`
+			Note       string            `json:"note"`
+		}
+		if err != nil || json.Unmarshal(raw, &out) != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		return len(out.Events), out.Truncated, out.Note, out.NextCursor != nil
+	}
+	input := r.window()
+	input["limit"] = 100
+	n, truncated, note, more := read(input)
+	want := fmt.Sprintf("the answer size cap cut this page to %d events; continue with next_cursor", n)
+	if n >= 30 || !truncated || note != want || !more {
+		t.Errorf("a cut page: %d events, truncated %v, note %q, more %v; want note %q", n, truncated, note, more, want)
+	}
+	input["limit"] = 3
+	if n, truncated, note, more = read(input); n != 3 || truncated || note != "" || !more {
+		t.Errorf("a page ended by the limit: %d events, truncated %v, note %q, more %v", n, truncated, note, more)
+	}
+	input["since"] = r.base.Add(-time.Minute).Add(-time.Second).Format(time.RFC3339)
+	input["limit"] = 100
+	if n, truncated, note, more = read(input); n != 1 || truncated || note != "" || more {
+		t.Errorf("the end of the results: %d events, truncated %v, note %q, more %v", n, truncated, note, more)
 	}
 }
 

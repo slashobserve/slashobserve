@@ -25,7 +25,7 @@ const (
 
 	auditAdminOnly = " Admin only; the call is itself recorded in the audit trail."
 
-	descSearchAuditEvents = "Search the audit trail, the record of every sign-in, read, change, agent tool call and refusal, newest first, with who did it, through what (web, cli, mcp, agent), to what and how it ended. q takes KQL by default (actor_name:alice and outcome:denied, action:dashboard.*, not origin:web), Lucene after a lucene: prefix, or a Query DSL JSON body starting with {; list_audit_fields names the fields. The window is since to until, 24 hours by default and at most 366 days. Page with next_cursor, which keeps the window and refuses another q. warnings names a word that looks like a misspelled and, or or not and is searched as text." + auditAdminOnly
+	descSearchAuditEvents = "Search the audit trail, the record of every sign-in, read, change, agent tool call and refusal, newest first, with who did it, through what (web, cli, mcp, agent), to what and how it ended. q takes KQL by default (actor_name:alice and outcome:denied, action:dashboard.*, not origin:web), Lucene after a lucene: prefix, or a Query DSL JSON body starting with {; list_audit_fields names the fields. The window is since to until, 24 hours by default and at most 366 days. Page with next_cursor, which keeps the window and refuses another q. An answer is at most 16 KiB: when that cap, not limit, ended a page early the answer says truncated: true with a note, and next_cursor continues it. warnings names a word that looks like a misspelled and, or or not and is read as text." + auditAdminOnly
 	descGetAuditEvent     = "Read one audit event by id with the other events of its request (same_request, within an hour) and of its agent run (same_run, within a day), newest first, so one tool call can be followed to the request that made it." + auditAdminOnly
 	descListAuditFacets   = "Count the most frequent values of one field among the audit events that match q in the window, such as who made the most refused calls (field actor_name, q outcome:denied) or which actions an agent used most (field action, q initiator:agent)." + auditAdminOnly
 	descGetAuditHistogram = "Count the audit events that match q over time: the window split into at most buckets buckets of one step from 1s to 1d, empty buckets included, oldest first, to see when something started or stopped." + auditAdminOnly
@@ -122,12 +122,25 @@ func (r *Registry) searchAuditEvents(ctx context.Context, input json.RawMessage)
 	if err != nil {
 		return auditFailure(err)
 	}
-	empty := trail.SearchOf(p, trail.Page{NextCursor: page.NextCursor})
+	empty := auditSearchAnswer{SearchJSON: trail.SearchOf(p, trail.Page{NextCursor: page.NextCursor}), Truncated: true, Note: sizeCapNote(maxAuditEvents)}
 	empty.Events = []trail.Event{}
+	answer := auditSearchAnswer{}
 	if kept, cut := fit(page.Events, listBudget-jsonSize(empty)-trail.MaxCursorBytes); cut {
 		page = p.Cut(page, max(len(kept), 1))
+		answer.Truncated, answer.Note = true, sizeCapNote(len(page.Events))
 	}
-	return success("Searched the audit trail: "+plural(len(page.Events), "event", "events"), trail.SearchOf(p, page)), nil
+	answer.SearchJSON = trail.SearchOf(p, page)
+	return success("Searched the audit trail: "+plural(len(page.Events), "event", "events"), answer), nil
+}
+
+type auditSearchAnswer struct {
+	trail.SearchJSON
+	Truncated bool   `json:"truncated,omitempty"`
+	Note      string `json:"note,omitempty"`
+}
+
+func sizeCapNote(events int) string {
+	return fmt.Sprintf("the answer size cap cut this page to %d events; continue with next_cursor", events)
 }
 
 func (r *Registry) getAuditEvent(ctx context.Context, input json.RawMessage) (Result, error) {
