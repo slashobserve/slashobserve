@@ -86,6 +86,49 @@ describe("arranging blocks from the keyboard", () => {
     expect(bodies[0]).toEqual({ blocks: [{ id: "b" }, { id: "a" }] })
   })
 
+  it("sends one write at a time and the undone order after the first returns", async () => {
+    const blocks = [block("a", 0), block("b", 1)]
+    const puts: { body: unknown; release: () => void }[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        if (request.method !== "PUT") {
+          return new Response(JSON.stringify({ blocks }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        }
+        const body = await request.clone().json()
+        await new Promise<void>((release) => puts.push({ body, release }))
+        const order = (body as { blocks: { id: string }[] }).blocks.map(
+          (entry) => entry.id
+        )
+        return new Response(
+          JSON.stringify({
+            blocks: order.map((id, position) => ({
+              ...blocks.find((b) => b.id === id),
+              position,
+            })),
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      })
+    )
+    const { user } = show(blocks, ["update"])
+    const [handle] = await screen.findAllByRole("button", {
+      name: "Move or resize Text",
+    })
+    handle.focus()
+    await user.keyboard("{ArrowDown}")
+    await waitFor(() => expect(puts).toHaveLength(1))
+    await user.keyboard("{ArrowUp}")
+    expect(puts).toHaveLength(1)
+    puts[0].release()
+    await waitFor(() => expect(puts).toHaveLength(2))
+    expect(puts[1].body).toEqual({ blocks: [{ id: "a" }, { id: "b" }] })
+    puts[1].release()
+  })
+
   it("steps the width with shift and the side arrows", async () => {
     const blocks = [block("a", 0, { width: "half" })]
     const bodies = stubLayout(blocks)

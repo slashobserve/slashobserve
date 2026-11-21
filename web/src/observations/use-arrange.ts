@@ -8,6 +8,14 @@ import {
 } from "react"
 import { toast } from "sonner"
 
+import {
+  idle,
+  placements,
+  settle,
+  want,
+  type Queue,
+  type Wanted,
+} from "./arrange-queue"
 import { blockWriteProblem } from "./errors"
 import {
   applyDraft,
@@ -18,7 +26,6 @@ import {
   hasHeight,
   orderOf,
   placeBeside,
-  sameLayout,
   snapHeight,
   snapWidth,
   stepBlock,
@@ -30,7 +37,7 @@ import {
   type Draft,
   type DropTarget,
 } from "./block-rows"
-import { useArrangeBlocks, type Block } from "./queries"
+import { useArrangeBlocks, type ArrangeBody, type Block } from "./queries"
 
 const singleColumnPixels = 720
 
@@ -119,7 +126,7 @@ export function useArrange({
   const [dragging, setDragging] = useState<Dragging | null>(null)
   const [announcement, setAnnouncement] = useState({ message: "", count: 0 })
   const session = useRef<Session | null>(null)
-  const latest = useRef(0)
+  const queue = useRef<Queue<ArrangeBody>>(idle())
 
   const shown = useMemo(
     () => (draft === null ? [...blocks] : applyDraft(blocks, draft)),
@@ -141,19 +148,36 @@ export function useArrange({
     }
   }
 
+  function send(item: Wanted<ArrangeBody>) {
+    mutation.mutateAsync(item.body).then(
+      () => advance(true),
+      (error) => {
+        toast.error(blockWriteProblem(error).text)
+        advance(false)
+      }
+    )
+  }
+
+  function advance(written: boolean) {
+    const step = settle(queue.current, written)
+    queue.current = step.queue
+    if (step.send === null) setDraft(null)
+    else send(step.send)
+  }
+
   function commit(next: Draft) {
-    if (sameLayout(blocks, next)) {
-      setDraft(null)
-      return
-    }
-    setDraft(next)
-    const call = ++latest.current
-    mutation.mutate(arrangeBody(next), {
-      onError: (error) => toast.error(blockWriteProblem(error).text),
-      onSettled: () => {
-        if (call === latest.current) setDraft(null)
+    const step = want(
+      queue.current,
+      {
+        layout: placements(applyDraft(blocks, next)),
+        body: arrangeBody(next),
       },
-    })
+      placements(blocks)
+    )
+    queue.current = step.queue
+    if (step.queue.inFlight === null) setDraft(null)
+    else setDraft(next)
+    if (step.send !== null) send(step.send)
   }
 
   function startDrag(block: Block) {

@@ -18,7 +18,6 @@ import {
   orderOf,
   packRows,
   placeBeside,
-  sameLayout,
   snapHeight,
   snapWidth,
   stepBlock,
@@ -444,22 +443,5 @@ describe("a draft layout", () => {
     ).toEqual({
       blocks: [{ id: "b", width: "third", height: null }, { id: "a" }],
     })
-  })
-
-  it("tells a draft that changes nothing from one that does", () => {
-    const same = {
-      order: ["a", "b", "c"],
-      changes: { a: { width: "half" as const } },
-    }
-    expect(sameLayout(blocks, same)).toBe(true)
-    expect(sameLayout(blocks, { order: ["b", "a", "c"], changes: {} })).toBe(
-      false
-    )
-    expect(
-      sameLayout(blocks, {
-        order: ["a", "b", "c"],
-        changes: { c: { height: 500 } },
-      })
-    ).toBe(false)
   })
 })

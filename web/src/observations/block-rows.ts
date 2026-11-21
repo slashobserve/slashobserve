@@ -209,17 +209,6 @@ export function arrangeBody(draft: Draft): {
   }
 }
 
-export function sameLayout(blocks: readonly Block[], draft: Draft): boolean {
-  const arranged = applyDraft(blocks, draft)
-  const before = blocks.toSorted((a, b) => a.position - b.position)
-  return arranged.every(
-    (block, index) =>
-      block.id === before[index].id &&
-      block.width === before[index].width &&
-      block.height === before[index].height
-  )
-}
-
 export function blockTitle(block: Block): string {
   switch (block.kind) {
     case "text":
