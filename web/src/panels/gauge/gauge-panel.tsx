@@ -185,6 +185,7 @@ function GaugeCell({
   return (
     <div
       data-gauge-cell=""
+      data-value-key={gauge.key}
       {...oneClick}
       className="[container-type:size] relative min-h-0 min-w-0 data-one-click:cursor-pointer"
     >
@@ -299,7 +300,8 @@ const GaugePanel: PanelRenderer = ({
       publish(
         valueAnchorLayout(
           grid,
-          gauges.map(({ name, frame, text }) => ({
+          gauges.map(({ key, name, frame, text }) => ({
+            key,
             name,
             labels: frame.labels,
             text,

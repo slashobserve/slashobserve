@@ -60,4 +60,19 @@ describe("gauge locate", () => {
       })
     ).toBeNull()
   })
+
+  it("points at the bottom edge for a value scrolled out of view", () => {
+    const scrolled: ValueAnchorLayout = {
+      ...layout,
+      targets: [{ ...layout.targets[0], rect: null }, layout.targets[1]],
+    }
+    expect(hitTest(scrolled, { x: 50, y: 20 })).toBeNull()
+    expect(
+      locate(scrolled, {
+        kind: "value",
+        pos: { x: 0, y: 0 },
+        series: { instance: "a" },
+      })
+    ).toEqual({ x: 0, y: 98, width: 200, height: 2 })
+  })
 })

@@ -307,6 +307,7 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
   if (placement === "left") {
     return (
       <div
+        data-value-key={bar.key}
         {...oneClickOf(props)}
         className={cn(rowClass, "flex-row items-center gap-2", oneClickClass)}
         style={style}
@@ -323,6 +324,7 @@ const HorizontalRow = memo(function HorizontalRow(props: BarProps) {
   const showLine = showName || valueMode !== "hidden" || showsLevel(bar)
   return (
     <div
+      data-value-key={bar.key}
       {...oneClickOf(props)}
       className={cn(rowClass, "flex-col gap-[5px]", oneClickClass)}
       style={style}
@@ -350,6 +352,7 @@ const VerticalColumn = memo(function VerticalColumn(props: BarProps) {
   const name = <Name bar={bar} sizes={sizes} className="text-center" />
   return (
     <div
+      data-value-key={bar.key}
       {...oneClickOf(props)}
       className={cn(
         "flex min-w-8 flex-1 basis-0 flex-col gap-1 text-[13px]",
@@ -394,7 +397,8 @@ const BargaugePanel: PanelRenderer = ({
       publish(
         valueAnchorLayout(
           region,
-          model.bars.map(({ name, frame, text }) => ({
+          model.bars.map(({ key, name, frame, text }) => ({
+            key,
             name,
             labels: frame.labels,
             text,
