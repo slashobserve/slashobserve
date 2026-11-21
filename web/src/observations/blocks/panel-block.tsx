@@ -288,6 +288,7 @@ function ReadablePanelBlock({
             editingPanel={false}
             canComment={false}
             canEdit={false}
+            canPropose={false}
             focusOnRender={false}
             onFocused={ignore}
             composerRef={composerRef}

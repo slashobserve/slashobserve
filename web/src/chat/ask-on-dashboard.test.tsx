@@ -7,7 +7,9 @@ import { AskOnDashboard } from "./ask-on-dashboard"
 
 const permissions = vi.hoisted(() => ({ comment: true, edit: false }))
 
-vi.mock("@/dashboards/permissions", () => ({
+vi.mock("@/dashboards/permissions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/dashboards/permissions")>()),
+  useLatestProvisioned: () => false,
   useLatestPermissions: () => ({
     comment: permissions.comment,
     edit: permissions.edit,
