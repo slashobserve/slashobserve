@@ -24,12 +24,8 @@ func (r *rig) savedAsObservation(t *testing.T, run, about pgtype.UUID) pgtype.UU
 	if err != nil {
 		t.Fatal(err)
 	}
-	subject := pgtype.UUID{}
-	if stored.ThreadMessageID.Valid && !stored.ChatID.Valid {
-		subject = about
-	}
-	if stored.ObservationID.String() != saved.ObservationID || stored.SubjectObservationID != subject {
-		t.Fatalf("run is in observation %v about %v, want in %s about %v", stored.ObservationID, stored.SubjectObservationID, saved.ObservationID, subject)
+	if stored.ObservationID.String() != saved.ObservationID || stored.SubjectObservationID != about {
+		t.Fatalf("run is in observation %v about %v, want in %s about %v", stored.ObservationID, stored.SubjectObservationID, saved.ObservationID, about)
 	}
 	return mustParse(t, saved.ObservationID)
 }

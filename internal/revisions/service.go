@@ -594,6 +594,8 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 		return row, nil
 	case PrivateAsk(row):
 		return dbsqlc.AgentRequest{}, ErrRequestNotFound
+	case AskedPrivately(row):
+		return row, s.checkObservationVisible(ctx, row.ObservationID, by)
 	case row.DashboardID.Valid:
 		return row, nil
 	case row.ObservationID.Valid:

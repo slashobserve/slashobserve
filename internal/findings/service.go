@@ -169,12 +169,15 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	if err != nil {
 		return fmt.Errorf("lock finding: %w", err)
 	}
-	if current.Valid {
+	if current == observationID {
 		return nil
 	}
 	conclusion := Conclusion{RunID: requestID, Into: observationID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To}
 	if _, _, err := s.observations.WriteConclusion(ctx, q, by, conclusion); err != nil {
 		return err
+	}
+	if current.Valid {
+		return nil
 	}
 	if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
 		return fmt.Errorf("show finding in observation: %w", err)

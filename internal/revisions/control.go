@@ -384,7 +384,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			From:        optionalTime(row.ContextFrom),
 			To:          optionalTime(row.ContextTo),
 
-			ObservationID:    firstValid(row.ObservationID, row.SubjectObservationID),
+			ObservationID:    investigatedObservation(row),
 			ReuseObservation: true,
 			RetriesID:        retries,
 
@@ -392,7 +392,7 @@ func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth
 			ThreadMessageID: threadMessage,
 			ThreadContext:   threadContext,
 			Ask:             threadMessage.Valid,
-			Private:         PrivateAsk(row),
+			Private:         AskedPrivately(row),
 
 			chat: againChat(row, by),
 		}
@@ -431,13 +431,11 @@ func (p InvestigateParams) again(row dbsqlc.AgentRequest, inThread bool) Investi
 	return p
 }
 
-func firstValid(ids ...pgtype.UUID) pgtype.UUID {
-	for _, id := range ids {
-		if id.Valid {
-			return id
-		}
+func investigatedObservation(row dbsqlc.AgentRequest) pgtype.UUID {
+	if AskedPrivately(row) || !row.ObservationID.Valid {
+		return row.SubjectObservationID
 	}
-	return pgtype.UUID{}
+	return row.ObservationID
 }
 
 func threadOf(row dbsqlc.AgentRequest) (message pgtype.UUID, transcript string) {
