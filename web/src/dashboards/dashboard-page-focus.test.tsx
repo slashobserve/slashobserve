@@ -75,6 +75,14 @@ const envelope = {
           gridPos: { x: 0, y: 0, w: 12, h: 4 },
           content: "Checkout notes",
         },
+        {
+          id: "p_latency",
+          type: "timeseries",
+          title: "Latency",
+          gridPos: { x: 0, y: 4, w: 12, h: 4 },
+          datasource: "prom",
+          queries: [{ query: "up" }],
+        },
       ],
     },
     unverified: { panels: [], variables: [] },
@@ -112,6 +120,8 @@ function mockServer() {
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
           return json(envelope)
+        case "/api/v1/agent":
+          return json({ available: true })
         case "/api/v1/datasources":
           return json({ datasources: [] })
         case "/api/v1/folders":
@@ -233,5 +243,76 @@ describe("dashboard page panes", () => {
       ).not.toBeInTheDocument()
     )
     expect(screen.getByRole("button", { name: /^More:/ })).toHaveFocus()
+  })
+})
+
+function agentRequested() {
+  return vi
+    .mocked(fetch)
+    .mock.calls.some(([input]) =>
+      (typeof input === "string" ? input : (input as Request).url).endsWith(
+        "/api/v1/agent"
+      )
+    )
+}
+
+describe("dashboard page panel keys", () => {
+  it("comments on the hovered panel with c", async () => {
+    const { user, router } = renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    await user.hover(note)
+    await user.keyboard("c")
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        tab: "activity",
+        panel: "p_note",
+      })
+    )
+    expect(useActivityStore.getState().askingAgent).toBe(false)
+  })
+
+  it("asks about the hovered data panel with a", async () => {
+    useActivityStore.setState({ askingAgent: false })
+    const asked: boolean[] = []
+    const stop = useActivityStore.subscribe((state) =>
+      asked.push(state.askingAgent)
+    )
+    const { user, router } = renderDashboard()
+    const latency = await screen.findByRole("article", { name: "Latency" })
+    await user.hover(latency)
+    await waitFor(async () => {
+      await user.keyboard("a")
+      expect(router.state.location.search).toMatchObject({
+        panel: "p_latency",
+      })
+    })
+    stop()
+    expect(asked).toContain(true)
+  })
+
+  it("does not ask about a panel without data", async () => {
+    useActivityStore.setState({ askingAgent: false })
+    const { user, router } = renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    await act(async () => {})
+    await user.hover(note)
+    await user.keyboard("a")
+    expect(router.state.location.search).not.toHaveProperty("panel")
+  })
+
+  it("acts on the focused panel when none is hovered", async () => {
+    const { user, router } = renderDashboard()
+    await screen.findByRole("article", { name: "Latency" })
+    const title = await screen.findByRole("button", {
+      name: "Select panel: Latency",
+    })
+    title.focus()
+    await user.keyboard("c")
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({
+        panel: "p_latency",
+      })
+    )
   })
 })

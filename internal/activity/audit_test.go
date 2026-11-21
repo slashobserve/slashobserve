@@ -95,6 +95,22 @@ func TestATerminalRunRecordsRunFinishWithItsResult(t *testing.T) {
 	}
 }
 
+func TestAuditOnlyDataReachesTheAuditEventAndNotTheActivityRow(t *testing.T) {
+	r := newRig(t)
+	r.append(t, Entry{Type: TypeRunSucceeded, TargetID: newTarget(), Actor: editorActor, Data: map[string]any{"intent": "apply"}, AuditOnly: map[string]any{"model": "m", "input_tokens": 120, "output_tokens": 30}})
+	var model, in, out, intent, activityModel string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT data->>'model', data->>'input_tokens', data->>'output_tokens', data->>'intent', (SELECT coalesce(data->>'model', 'none') FROM activity) FROM audit_events`).
+		Scan(&model, &in, &out, &intent, &activityModel); err != nil {
+		t.Fatal(err)
+	}
+	if model != "m" || in != "120" || out != "30" || intent != "apply" {
+		t.Fatalf("audit data = model %q, input %q, output %q, intent %q, want m, 120, 30, apply", model, in, out, intent)
+	}
+	if activityModel != "none" {
+		t.Fatalf("the activity row holds model %q, want none", activityModel)
+	}
+}
+
 func TestARunEventRecordsTheAgentThatTookTheRun(t *testing.T) {
 	r := newRig(t)
 	grant := newTarget()

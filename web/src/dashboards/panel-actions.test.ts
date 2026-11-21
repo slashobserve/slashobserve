@@ -5,7 +5,15 @@ import { useActivityStore } from "@/activity/activity-store"
 import { threadPlace } from "@/conversation/delivery"
 import { planSend } from "@/conversation/send-plan"
 
-import { askAboutPanel, focusComment } from "./panel-actions"
+import type { LayoutPanel } from "@/spec"
+
+import {
+  askAboutPanel,
+  askAboutPanelAndFocus,
+  commentOnPanelAndFocus,
+  conversationActionsFor,
+  focusComment,
+} from "./panel-actions"
 import type { DashboardSearch } from "./search"
 
 afterEach(() => {
@@ -102,5 +110,84 @@ describe("askAboutPanel", () => {
   it("moves the target when another panel is asked about next", () => {
     const state = asking(asking({ vars: {} }, "latency"), "errors")
     expect(sendFor(state)).toMatchObject({ panelId: "errors" })
+  })
+})
+
+const dataPanel: LayoutPanel = {
+  id: "p1",
+  type: "timeseries",
+  title: "Latency",
+  gridPos: { x: 0, y: 0, w: 12, h: 6 },
+  datasource: "prom",
+  queries: [{ query: "up" }],
+}
+
+const textPanel: LayoutPanel = {
+  id: "t1",
+  type: "text",
+  title: "Notes",
+  gridPos: { x: 0, y: 0, w: 12, h: 6 },
+  content: "hello",
+} as LayoutPanel
+
+describe("conversationActionsFor", () => {
+  it.each([
+    { panel: dataPanel, canComment: true, agent: true, want: [true, true] },
+    { panel: dataPanel, canComment: true, agent: false, want: [true, false] },
+    { panel: dataPanel, canComment: false, agent: true, want: [false, false] },
+    { panel: textPanel, canComment: true, agent: true, want: [true, false] },
+  ])(
+    "gives comment and ask $want for $panel.type with comment $canComment and agent $agent",
+    ({ panel, canComment, agent, want }) => {
+      const actions = conversationActionsFor(panel, canComment, agent)
+      expect([actions.comment, actions.ask]).toEqual(want)
+    }
+  )
+})
+
+describe("acting on a panel and focusing the composer", () => {
+  function frames() {
+    const queue: (() => void)[] = []
+    vi.stubGlobal("requestAnimationFrame", (run: () => void) => {
+      queue.push(run)
+      return queue.length
+    })
+    return queue
+  }
+
+  it("comments on the panel and focuses the composer", () => {
+    const queue = frames()
+    const focus = vi.fn()
+    useActivityStore.getState().setAskingAgent(false)
+    let search: DashboardSearch = { vars: {} }
+    commentOnPanelAndFocus(
+      (update) => {
+        search = update(search)
+      },
+      "latency",
+      { current: { focus } as never }
+    )
+    expect(search).toMatchObject({ tab: "activity", panel: "latency" })
+    expect(useActivityStore.getState().askingAgent).toBe(false)
+    queue.shift()?.()
+    expect(focus).toHaveBeenCalledTimes(1)
+  })
+
+  it("asks about the panel and focuses the composer", () => {
+    const queue = frames()
+    const focus = vi.fn()
+    useActivityStore.getState().setAskingAgent(false)
+    let search: DashboardSearch = { vars: {} }
+    askAboutPanelAndFocus(
+      (update) => {
+        search = update(search)
+      },
+      "latency",
+      { current: { focus } as never }
+    )
+    expect(search).toMatchObject({ tab: "activity", panel: "latency" })
+    expect(useActivityStore.getState().askingAgent).toBe(true)
+    queue.shift()?.()
+    expect(focus).toHaveBeenCalledTimes(1)
   })
 })

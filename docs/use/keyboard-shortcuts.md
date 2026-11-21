@@ -11,7 +11,8 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
-| `c` | Open the activity pane and put the cursor in its comment box. |
+| `a` | Ask the agent about the panel, when you may comment on the dashboard and a model is connected. |
+| `c` | Comment on the panel, when you may comment on the dashboard; with no panel it opens the activity pane and puts the cursor in its comment box. |
 | `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
@@ -38,8 +39,12 @@ Focus stays where it is when you open a page from the sidebar, and when the new 
 
 ## Which panel a key acts on
 
-`v`, `e` and `i` act on the panel under the pointer.
+`v`, `e`, `i`, `a` and `c` act on the panel under the pointer.
 With no panel under the pointer, they act on the panel that holds the keyboard focus.
+
+Hovering a panel also shows **Ask** and **Comment** buttons in its header, which do what `a` and `c` do.
+They fade in under a mouse or trackpad, and on a touch screen and while the keyboard focus is in the panel they are always shown.
+**Ask** needs the same things as `a`, and the panel menu offers both with the same rule.
 
 ## Two-key shortcuts
 
@@ -55,7 +60,7 @@ They do nothing on a dashboard that hides the time picker.
 ## When keys are ignored
 
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
-`v`, `e` and `i` also open nothing while you have unsaved layout changes.
+`v`, `e`, `i`, `a` and `c` also act on no panel while you have unsaved layout changes; `c` then only opens the activity pane.
 
 ## Logs page keys
 
