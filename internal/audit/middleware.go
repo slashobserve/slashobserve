@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -62,11 +61,12 @@ func (r *Recorder) Middleware() (gin.HandlerFunc, error) {
 		if !ok {
 			declared = Declaration{}
 		}
+		refusal := capture.refusal()
 		o := outcomeOf{
 			declared: declared,
 			status:   capture.Status(),
-			code:     capture.code(),
-			needs:    capture.needs(),
+			code:     refusal.Code,
+			needs:    refusal.Needs(),
 			took:     time.Since(start),
 			params:   c.Params,
 			panicked: recovered != nil,
@@ -288,17 +288,4 @@ func (w *errorCapture) keep(b []byte) {
 		return
 	}
 	w.body.Write(b[:min(len(b), maxErrorBody-w.body.Len())])
-}
-
-func (w *errorCapture) code() string {
-	if w.body.Len() == 0 {
-		return ""
-	}
-	var body struct {
-		Code string `json:"code"`
-	}
-	if json.Unmarshal(w.body.Bytes(), &body) != nil {
-		return ""
-	}
-	return body.Code
 }

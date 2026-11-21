@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"testing"
 	"time"
@@ -12,32 +13,47 @@ import (
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 )
 
-func (s storeRig) dataOf(t *testing.T, request uuid.UUID, key string) string {
+func (s storeRig) dataOf(t *testing.T, request uuid.UUID) map[string]any {
 	t.Helper()
-	var value string
-	row := s.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT coalesce(data->>$2, '-') FROM audit_events WHERE request_id = $1`, request, key)
-	if err := row.Scan(&value); err != nil {
+	var raw []byte
+	row := s.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT data FROM audit_events WHERE request_id = $1`, request)
+	if err := row.Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
-	return value
+	var data map[string]any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
 
-func TestARefusalRecordsTheRoleAndTheAccessItNeeded(t *testing.T) {
+func (s storeRig) refuse(t *testing.T, status int, body []byte) map[string]any {
+	t.Helper()
+	engine := s.engine(t, func(ctx *gin.Context) { ctx.Data(status, "application/json", body) })
+	_, request := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
+	s.run(t)()
+	return s.dataOf(t, request)
+}
+
+func TestARefusalRecordsOnlyTheRoleAndTheAccessItNeeded(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
 	cases := []struct {
-		name, body, key, want string
+		name string
+		body forbidden.Body
+		want map[string]any
 	}{
-		{"role", `{"error":"your role does not allow this","code":"forbidden_role","needed_role":"editor"}`, "needed_role", "editor"},
-		{"access", `{"error":"your role does not allow this","code":"forbidden_role","needed_access":"edit","folder_title":"Payments"}`, "needed_access", "edit"},
-		{"folder title is not kept", `{"error":"your role does not allow this","code":"forbidden_role","needed_access":"edit","folder_title":"Payments"}`, "folder_title", "-"},
+		{"a role", forbidden.NeedsRole("editor"), map[string]any{"needed_role": "editor"}},
+		{"an access level on a folder, without the folder title", forbidden.NeedsAccess("edit", "Payments"), map[string]any{"needed_access": "edit"}},
+		{"neither", forbidden.Body{Error: forbidden.RoleMessage, Code: forbidden.Code}, map[string]any{}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			engine := s.engine(t, func(ctx *gin.Context) { ctx.Data(http.StatusForbidden, "application/json", []byte(c.body)) })
-			_, request := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
-			s.run(t)()
-			if got := s.dataOf(t, request, c.key); got != c.want {
-				t.Fatalf("%s = %q, want %q", c.key, got, c.want)
+			body, err := json.Marshal(c.body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := s.refuse(t, http.StatusForbidden, body); !maps.Equal(got, c.want) {
+				t.Fatalf("data = %v, want %v", got, c.want)
 			}
 		})
 	}
@@ -45,30 +61,11 @@ func TestARefusalRecordsTheRoleAndTheAccessItNeeded(t *testing.T) {
 
 func TestOnlyADeniedEventCarriesTheNeededRole(t *testing.T) {
 	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
-	engine := s.engine(t, func(ctx *gin.Context) {
-		ctx.Data(http.StatusInternalServerError, "application/json", []byte(`{"error":"boom","code":"internal","needed_role":"admin"}`))
-	})
-	_, request := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
-	s.run(t)()
-	if got := s.dataOf(t, request, "needed_role"); got != "-" {
-		t.Fatalf("a failed request recorded needed_role %q", got)
+	body := []byte(`{"error":"x","code":"internal","needed_role":"admin"}`)
+	if got := s.refuse(t, http.StatusForbidden, body); got["needed_role"] != "admin" {
+		t.Fatalf("a denied request recorded %v, want needed_role admin", got)
 	}
-}
-
-func TestAViewerRefusedAnEditorRouteAndAnEditorRefusedAnAdminRouteRecordTheRoleTheyLacked(t *testing.T) {
-	s := newStoreRig(t, writerLimits{every: time.Hour}, 0)
-	for _, role := range []string{"editor", "admin"} {
-		t.Run(role, func(t *testing.T) {
-			body, err := json.Marshal(forbidden.NeedsRole(role))
-			if err != nil {
-				t.Fatal(err)
-			}
-			engine := s.engine(t, func(ctx *gin.Context) { ctx.Data(http.StatusForbidden, "application/json", body) })
-			_, request := serve(t, engine, http.MethodPost, "/api/v1/dashboards/"+dashboardID+"/versions")
-			s.run(t)()
-			if got := s.dataOf(t, request, "needed_role"); got != role {
-				t.Fatalf("needed_role = %q, want %q", got, role)
-			}
-		})
+	if got := s.refuse(t, http.StatusInternalServerError, body); len(got) != 0 {
+		t.Fatalf("a failed request recorded %v, want no data", got)
 	}
 }
