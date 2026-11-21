@@ -629,7 +629,7 @@ func TestOverMCPAConnectedAgentMentionOnAnObservationIsRefusedToo(t *testing.T) 
 	}
 }
 
-func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
+func TestOverMCPADashboardThreadStillStartsAnAsk(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)
 
@@ -648,7 +648,7 @@ func TestOverMCPADashboardThreadStillStartsACommentRun(t *testing.T) {
 		t.Fatalf("reply run = %+v, refusal = %+v", run, refusal)
 	}
 	queued := r.queuedRuns(t)
-	if len(queued) != 2 || queued[0].Intent != "apply" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "apply" {
+	if len(queued) != 2 || queued[0].Intent != "ask" || queued[0].DashboardID != dash.String() || queued[0].ThreadMessageID != first.ID || queued[1].Intent != "ask" {
 		t.Fatalf("runs = %+v", queued)
 	}
 }
