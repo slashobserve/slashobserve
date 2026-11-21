@@ -113,6 +113,13 @@ func TestARunThatAsksPrivatelyKeepsTheRequestersAccess(t *testing.T) {
 	if run.Access.Audience != datasource.AudienceCaller || !datasource.ReadsRestricted(datasource.WithAccess(context.Background(), run.Access)) {
 		t.Fatalf("run access = %+v, want the Admin requester's own access", run.Access)
 	}
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "audit", Audience: datasource.AudienceAdmins, Datasource: fakeDatasource{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.For(datasource.WithAccess(context.Background(), run.Access), "audit"); err != nil {
+		t.Fatalf("an Admin's private ask querying the audit datasource: %v", err)
+	}
 }
 
 func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead(t *testing.T) {

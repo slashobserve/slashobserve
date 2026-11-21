@@ -157,3 +157,27 @@ func TestAnAnswerThatReadNoAdminOnlyDataSharesAsBefore(t *testing.T) {
 		t.Fatalf("a reader of the thread reads the unrestricted answer: %+v, %v", f, err)
 	}
 }
+
+func TestAnAdminsPrivateAskOnAnAuditDashboardSavesItsAnswerInTheAuditFolder(t *testing.T) {
+	r := newShareRig(t)
+	dash := r.createDashboard(t, "rps")
+	audit := r.adminsOnlyFolder(t)
+	r.moveInto(t, "dashboards", dash, audit)
+	id := dash.String()
+	run, _ := r.restrictedAnswer(t, admin, revisions.StartRequest{DashboardID: &id})
+
+	saved, _, err := r.findings.SaveAsObservation(reading(t.Context()), admin, run)
+	if err != nil || !saved.Restricted {
+		t.Fatalf("save the answer as an observation: restricted %v, %v", saved.Restricted, err)
+	}
+	var folder pgtype.UUID
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `SELECT o.folder_id FROM observations o JOIN findings f ON f.observation_id = o.id WHERE f.agent_request_id = $1`, run).Scan(&folder); err != nil {
+		t.Fatal(err)
+	}
+	if folder != audit {
+		t.Fatalf("the observation is in folder %v, want the Audit folder %v", folder, audit)
+	}
+	if _, err := r.findingOfRun(t, otherEditor, run); err == nil {
+		t.Fatal("an Editor read the answer saved in the Audit folder")
+	}
+}
