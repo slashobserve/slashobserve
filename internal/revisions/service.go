@@ -77,6 +77,8 @@ type EnqueueParams struct {
 	ThreadContext   string
 	Point           Point
 
+	AppliesFindingID pgtype.UUID
+
 	chat     chatChoice
 	clientID pgtype.UUID
 }
@@ -167,7 +169,11 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
+		AppliesFindingID: p.AppliesFindingID,
 	})
+	if db.ViolatedUnique(err) == appliesFindingIndex {
+		return dbsqlc.AgentRequest{}, ErrFindingApplied
+	}
 	if err != nil {
 		return dbsqlc.AgentRequest{}, clientIDTaken(err, p.clientID, "enqueue agent request")
 	}

@@ -451,6 +451,9 @@ A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observat
   `-q` hides its confirmation.
 - `bin/observe comments withdraw <comment-id>` withdraws an answer you shared with `share-answer` back to only you: it deletes that thread, takes the id of the thread or of any of its comments, and works only for the person who asked while every comment in the thread is theirs or their run's reply.
   On an observation the answer already written onto the page stays, the answer can be shared again later, and `-q` hides its confirmation.
+- `bin/observe comments apply <comment-id> <finding-id>` makes the change an answer in a dashboard thread suggests: the finding id is the answer's, from `bin/observe status <request-id> --json`, and the answer must have been given in that thread.
+  It posts "Revise the dashboard: <suggested change>" in the thread as you and starts a run, yours and taken by the agent that answered, which saves a new version when you can edit the dashboard and opens a proposal when you can only comment.
+  Applying the same answer again while that run is queued or running, or after it succeeded, starts nothing and prints `Already applied by run <id>`; an answer without a suggested change is refused with `no_suggested_change`.
 - `bin/observe comments people --on <kind>:<id>` lists up to 20 people, other than you, who can see the target, with the mention to paste into a comment.
   `--search <text>` keeps those whose name or email contains the text, and a notice says when more people match.
   A person who cannot see the target is not listed, and mentioning one is refused with `invalid_mention`.

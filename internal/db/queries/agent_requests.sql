@@ -14,7 +14,7 @@ INSERT INTO agent_requests (
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
   assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
-  chat_id, anchor, block_id, client_id
+  chat_id, anchor, block_id, client_id, applies_finding_id
 ) VALUES (
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @intent, 'build', sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
@@ -22,10 +22,15 @@ INSERT INTO agent_requests (
   sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
   coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
   sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text,
-  sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid
+  sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid,
+  sqlc.narg('applies_finding_id')::uuid
 )
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;
+
+-- name: GetRunApplyingFinding :one
+SELECT * FROM agent_requests
+WHERE applies_finding_id = @finding_id AND status IN ('queued', 'running', 'succeeded');
 
 -- name: ClaimAgentRequest :one
 WITH running AS (
