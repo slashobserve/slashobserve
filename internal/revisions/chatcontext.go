@@ -209,17 +209,40 @@ func withChatTranscript(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Agent
 		return row, fmt.Errorf("read the earlier turns of the chat: %w", err)
 	}
 	turns := make([]chatTurn, 0, len(rows))
+	ids := make([]pgtype.UUID, 0, len(rows))
 	for i := len(rows) - 1; i >= 0; i-- {
 		turns = append(turns, chatTurn{prompt: rows[i].Prompt, answer: answerOf(rows[i])})
+		ids = append(ids, rows[i].ID)
 	}
 	transcript := chatTranscript(turns)
 	if transcript == "" {
 		return row, nil
+	}
+	if row, err = markIfTurnsKeptWithAdmins(ctx, q, row, ids); err != nil {
+		return row, err
 	}
 	stored := pgtype.Text{String: transcript, Valid: true}
 	if err := q.SetRequestThreadContext(ctx, dbsqlc.SetRequestThreadContextParams{ID: row.ID, ThreadContext: stored}); err != nil {
 		return row, fmt.Errorf("store the chat transcript: %w", err)
 	}
 	row.ThreadContext = stored
+	return row, nil
+}
+
+func markIfTurnsKeptWithAdmins(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.AgentRequest, turns []pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	if row.ReadRestricted {
+		return row, nil
+	}
+	kept, err := q.TurnsKeptWithAdminsFrom(ctx, dbsqlc.TurnsKeptWithAdminsFromParams{ID: row.ID, TurnIds: turns})
+	if err != nil {
+		return row, fmt.Errorf("read whether an earlier turn's answer stays where only Admins read: %w", err)
+	}
+	if !kept {
+		return row, nil
+	}
+	if err := q.MarkRunReadRestricted(ctx, row.ID); err != nil {
+		return row, fmt.Errorf("mark a turn that carries an answer kept where only Admins read: %w", err)
+	}
+	row.ReadRestricted = true
 	return row, nil
 }

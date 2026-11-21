@@ -246,6 +246,34 @@ func TestARunOnAThingTheCallerCanNoLongerSeeIsNotListed(t *testing.T) {
 	}
 }
 
+func TestAnotherPersonsRunKeptWithAdminsIsListedOnlyForAdmins(t *testing.T) {
+	r := newRig(t, Observe{})
+	var adminsOnly string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO folders (title, admins_only) VALUES ('Leadership', true) RETURNING id::text`).Scan(&adminsOnly); err != nil {
+		t.Fatal(err)
+	}
+	var subject string
+	if err := r.db.SQLDB(t).QueryRowContext(t.Context(), `INSERT INTO observations (folder_id, title, created_by_kind, created_by_id, created_by_name) VALUES ($1::uuid, 'Leadership notes', 'user', $2::uuid, 'Bob') RETURNING id::text`, adminsOnly, bob.ID).Scan(&subject); err != nil {
+		t.Fatal(err)
+	}
+	for _, caller := range []auth.Principal{ada, root} {
+		dashboard := r.dashboardBy(t, "Checkout "+caller.Name, caller, "")
+		shown := r.activeRun(t, activeRun{by: bob, dashboardID: dashboard, minutesAgo: 3})
+		marked := r.activeRun(t, activeRun{by: bob, dashboardID: dashboard, minutesAgo: 2})
+		r.db.Exec(t, `UPDATE agent_requests SET read_restricted = true WHERE id = $1::uuid`, marked)
+		kept := r.activeRun(t, activeRun{by: bob, dashboardID: dashboard, minutesAgo: 1})
+		r.db.Exec(t, `UPDATE agent_requests SET observation_id = $2::uuid WHERE id = $1::uuid`, kept, subject)
+
+		want := []string{shown}
+		if caller.Role.AtLeast(auth.RoleAdmin) {
+			want = []string{kept, marked, shown}
+		}
+		if got := workingIDs(r.working(t, caller, url.Values{})); !slices.Equal(got, want) {
+			t.Fatalf("%s's page = %v, want %v", caller.Name, got, want)
+		}
+	}
+}
+
 func TestFinishedRunsAndSuggestionsAreNotListed(t *testing.T) {
 	r := newRig(t, Observe{})
 	dashboard := r.dashboardBy(t, "Checkout", ada, "")

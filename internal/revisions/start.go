@@ -27,6 +27,7 @@ type StartRequest struct {
 	To            *string        `json:"to"`
 	ObservationID *string        `json:"observation_id"`
 	ChatID        *string        `json:"chat_id"`
+	NewChat       *bool          `json:"new_chat"`
 	ClientID      *string        `json:"client_id"`
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
@@ -100,6 +101,9 @@ func (s *Service) turnOf(ctx context.Context, by auth.Principal, req StartReques
 	if turn.point, err = pointOf(req); err != nil {
 		return ctx, "", turnInput{}, err
 	}
+	if msg := newChatConflict(req); msg != "" {
+		return ctx, "", turnInput{}, refused("%s", msg)
+	}
 	if req.AppliesFindingID != nil {
 		if turn.applies, prompt, err = s.suggestedChange(ctx, by, req); err != nil {
 			return ctx, "", turnInput{}, err
@@ -118,6 +122,15 @@ func (s *Service) startedBefore(ctx context.Context, by auth.Principal, turn tur
 		return s.applyingRun(ctx, by, turn.applies)
 	}
 	return Started{}, false, nil
+}
+
+func (r StartRequest) newChat() bool { return r.NewChat != nil && *r.NewChat }
+
+func newChatConflict(req StartRequest) string {
+	if req.newChat() && req.ChatID != nil {
+		return "new_chat and chat_id exclude each other"
+	}
+	return ""
 }
 
 func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
@@ -246,7 +259,7 @@ func buildChat(req StartRequest) (chatChoice, error) {
 	switch {
 	case err != nil:
 		return chatChoice{}, err
-	case !chatID.Valid && req.DashboardID != nil:
+	case !chatID.Valid && req.DashboardID != nil && !req.newChat():
 		return chatChoice{mode: dashboardChat}, nil
 	}
 	return chatNamed(chatID), nil

@@ -16,6 +16,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbtest"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -24,15 +25,17 @@ type fakeDashboards struct {
 	mu    sync.Mutex
 	db    *dbtest.Database
 	specs []spec.Dashboard
+	from  []placement.Copied
 }
 
-func (f *fakeDashboards) Create(ctx context.Context, _ auth.Principal, _ pgtype.UUID, raw []byte, _ string) (dashboards.Dashboard, dashboards.Version, error) {
+func (f *fakeDashboards) CreateCopy(ctx context.Context, _ auth.Principal, raw []byte, _ string, from placement.Copied) (dashboards.Dashboard, dashboards.Version, error) {
 	var d spec.Dashboard
 	if err := json.Unmarshal(raw, &d); err != nil {
 		return dashboards.Dashboard{}, dashboards.Version{}, err
 	}
 	f.mu.Lock()
 	f.specs = append(f.specs, d)
+	f.from = append(f.from, from)
 	f.mu.Unlock()
 	var id string
 	err := f.db.SQLDB(f.t).QueryRowContext(ctx, `INSERT INTO dashboards (title, latest_version, created_by_kind, created_by_id, created_by_name, created_via) VALUES ($1, 1, 'user', gen_random_uuid(), 'Seed', 'direct') RETURNING id::text`, d.Title).Scan(&id)

@@ -216,7 +216,7 @@ func TestReplyCannotRequestARevision(t *testing.T) {
 	if !errors.As(err, &invalid) {
 		t.Fatalf("err = %v, want InvalidInputError", err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 	if listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 1 {
@@ -233,7 +233,7 @@ func TestWholeDashboardCommentQueuesAWholeDashboardRevision(t *testing.T) {
 	if comment.PanelID != "" || !comment.PanelPresent || comment.Revision == nil || comment.Revision.Status != "queued" {
 		t.Fatalf("comment = %+v", comment)
 	}
-	items, _, err := r.revisions.List(reading(t.Context()), dash, 10, "")
+	items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, "")
 	if err != nil || len(items) != 1 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
@@ -453,7 +453,7 @@ func TestRequestingARevisionNeedsCommentAccess(t *testing.T) {
 	if listed, _, err := r.comments.List(reading(t.Context()), testUser, dash, StatusAll, "", 10, ""); err != nil || len(listed) != 0 {
 		t.Fatalf("listed = %+v, err %v", listed, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 
@@ -567,7 +567,7 @@ func TestCommentQueuesARevisionInTheSameTransaction(t *testing.T) {
 	if comment.Revision == nil || comment.Revision.Status != "queued" {
 		t.Fatalf("revision = %+v", comment.Revision)
 	}
-	items, _, err := r.revisions.List(reading(t.Context()), dash, 10, "")
+	items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, "")
 	if err != nil || len(items) != 1 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
@@ -596,7 +596,7 @@ func TestCommentCanOptOutOfARevision(t *testing.T) {
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 }
@@ -608,7 +608,7 @@ func TestCommentWithoutAnAgentQueuesNothing(t *testing.T) {
 	if err != nil || comment.Revision != nil {
 		t.Fatalf("comment = %+v, err %v", comment, err)
 	}
-	if items, _, err := r.revisions.List(reading(t.Context()), dash, 10, ""); err != nil || len(items) != 0 {
+	if items, _, err := r.revisions.List(reading(t.Context()), testUser, dash, 10, ""); err != nil || len(items) != 0 {
 		t.Fatalf("queued = %v, err %v", items, err)
 	}
 }

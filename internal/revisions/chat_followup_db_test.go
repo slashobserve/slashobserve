@@ -258,3 +258,30 @@ func TestContinueOnADashboardChatKeepsItsEarlierTurns(t *testing.T) {
 		t.Fatalf("continued run context = %q, want the earlier turn on the dashboard", got)
 	}
 }
+
+func TestAFollowUpThatCarriesAnAnswerThatReadAdminOnlyDataIsMarkedLikeIt(t *testing.T) {
+	for _, restricted := range []bool{false, true} {
+		svc, d := newService(t, succeedWith(2))
+		ctx := reading(context.Background())
+		first, err := svc.SubmitObserve(ctx, user, "who changed the checkout dashboard")
+		if err != nil {
+			t.Fatal(err)
+		}
+		answerWith(t, d, first.ID, "Root changed it at 09:40")
+		d.Exec(t, `UPDATE agent_requests SET read_restricted = $2 WHERE id = $1`, first.ID, restricted)
+		second, err := followUp(ctx, svc, user, "build a dashboard of it", first.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := claimedContext(t, svc, second.ID); !strings.Contains(got, "Root changed it") {
+			t.Fatalf("thread context = %q, want the first answer", got)
+		}
+		stored, err := svc.GetByID(ctx, second.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.ReadRestricted != restricted {
+			t.Fatalf("earlier answer restricted %v: the follow-up is marked %v", restricted, stored.ReadRestricted)
+		}
+	}
+}

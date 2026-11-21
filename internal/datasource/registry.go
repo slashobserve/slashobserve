@@ -235,6 +235,15 @@ func (r *Registry) retire(ds Datasource) {
 }
 
 func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
+	in, err := r.Describe(ctx, uid)
+	if err != nil {
+		return Instance{}, err
+	}
+	NoteRead(ctx, in.Audience)
+	return in, nil
+}
+
+func (r *Registry) Describe(ctx context.Context, uid string) (Instance, error) {
 	access, ok := AccessFrom(ctx)
 	if !ok {
 		return Instance{}, ErrNoAccess
@@ -242,8 +251,11 @@ func (r *Registry) For(ctx context.Context, uid string) (Instance, error) {
 	r.instancesMu.RLock()
 	in, ok := r.instances[uid]
 	r.instancesMu.RUnlock()
-	if !ok || !access.reads(in.Audience) {
+	if !ok {
 		return Instance{}, ErrNotVisible
+	}
+	if !access.Reads(in.Audience) {
+		return Instance{}, access.refusal(in.Audience)
 	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
@@ -254,7 +266,7 @@ func (r *Registry) Visible(ctx context.Context) []Instance {
 	if !ok {
 		return nil
 	}
-	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.reads(in.Audience) })
+	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.Reads(in.Audience) })
 }
 
 func (r *Registry) AdminsOnly(uid string) bool {
