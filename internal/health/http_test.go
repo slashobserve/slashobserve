@@ -315,8 +315,15 @@ func TestAHealthRunThatDoesNotStartRecordsTheCallerAndWhy(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := newRig(t)
-			audit.Install(audit.New(audit.Config{DB: r.db.DB}))
+			recorder := audit.New(audit.Config{DB: r.db.DB})
+			audit.Install(recorder)
 			t.Cleanup(func() { audit.Install(nil) })
+			stopWriter, writerStopped := context.WithCancel(t.Context())
+			written := make(chan struct{})
+			go func() {
+				defer close(written)
+				recorder.Run(stopWriter)
+			}()
 			h := health.NewHandler(t.Context(), r.svc, r.repairs, &fakeJobs{err: tc.err})
 			person := uuid.New()
 			scoped := audit.Open(t.Context(), audit.Scope{
@@ -326,6 +333,8 @@ func TestAHealthRunThatDoesNotStartRecordsTheCallerAndWhy(t *testing.T) {
 			})
 			h.StartRun(scoped)
 			h.Wait()
+			writerStopped()
+			<-written
 
 			got := r.db.AuditEvents(t, "job.run")
 			if len(got) != 1 {
