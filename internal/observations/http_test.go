@@ -188,7 +188,7 @@ func TestObservationRoutesMatchTheDocument(t *testing.T) {
 	arranged := decode[struct {
 		Blocks []observations.BlockJSON `json:"blocks"`
 	}](t, d.send(t, editor, http.MethodPut, base+"/layout", fmt.Sprintf(`{"blocks":[{"id":%q,"width":"third","height":300},{"id":%q,"width":"two_thirds","height":null},{"id":%q}]}`, text.ID, panel.ID, snapshot.ID), http.StatusOK)).Blocks
-	if len(arranged) != 3 || arranged[0].ID != text.ID || arranged[0].Width != "third" || arranged[0].Height == nil || *arranged[0].Height != 300 || arranged[1].Width != "two_thirds" || arranged[1].Height != nil || arranged[0].Version != changed.Version {
+	if len(arranged) != 4 || arranged[0].ID != text.ID || arranged[0].Width != "third" || arranged[0].Height == nil || *arranged[0].Height != 300 || arranged[1].Width != "two_thirds" || arranged[1].Height != nil || arranged[0].Version != changed.Version {
 		t.Fatalf("arranged %+v", arranged)
 	}
 	asked := decode[blockEnvelope](t, d.send(t, commenter, http.MethodPost, base+"/blocks", `{"kind":"text","body":{"markdown":"Was the cache cold?"}}`, http.StatusCreated)).Block
