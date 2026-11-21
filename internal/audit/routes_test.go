@@ -138,16 +138,16 @@ func TestTraceIDComesFromAValidTraceparentOnly(t *testing.T) {
 	}
 }
 
-func TestPeerIsTheSocketAddress(t *testing.T) {
-	for remote, want := range map[string]string{
-		"192.0.2.7:51234":       "192.0.2.7",
-		"[2001:db8::1]:443":     "2001:db8::1",
-		"[::ffff:192.0.2.9]:80": "192.0.2.9",
-		"192.0.2.8":             "192.0.2.8",
-		"not an address":        "invalid IP",
+func TestClientAddrNormalisesWhatTheServerResolved(t *testing.T) {
+	for resolved, want := range map[string]string{
+		"192.0.2.7":        "192.0.2.7",
+		"2001:db8::1":      "2001:db8::1",
+		"::ffff:192.0.2.9": "192.0.2.9",
+		"":                 "invalid IP",
+		"not an address":   "invalid IP",
 	} {
-		if got := peer(remote).String(); got != want {
-			t.Errorf("peer(%q) = %s, want %s", remote, got, want)
+		if got := clientAddr(resolved).String(); got != want {
+			t.Errorf("clientAddr(%q) = %s, want %s", resolved, got, want)
 		}
 	}
 }
