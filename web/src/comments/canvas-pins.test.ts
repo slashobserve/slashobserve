@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  markerStyle,
   panelPins,
   pinLabel,
   stackLabel,
@@ -137,5 +138,15 @@ describe("stackPins", () => {
     expect(stackLabel(stack)).toBe("3 comments here, 1 resolved")
     const [open] = stackPins([at("t1", 0, 0), at("t2", 1, 1)])
     expect(stackLabel(open)).toBe("2 comments here")
+  })
+})
+
+describe("markerStyle", () => {
+  it("keeps the marker clear of the point it points at", () => {
+    const at = { x: 100, y: 60 }
+    const { left, top, width, height } = markerStyle(at)
+    const clearOfPoint = left > at.x || top + height < at.y
+    expect(clearOfPoint).toBe(true)
+    expect(width).toBe(height)
   })
 })

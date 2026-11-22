@@ -198,6 +198,18 @@ describe("CanvasPins", () => {
     outside.remove()
   })
 
+  it("names the panel in the header of a pin's thread", async () => {
+    const user = userEvent.setup()
+    renderPins()
+    await user.click(
+      await screen.findByRole("button", { name: "Comment by Ada: Quiet tail" })
+    )
+    const shown = await screen.findByRole("dialog", {
+      name: "Thread on Latency",
+    })
+    expect(within(shown).getByText("Latency")).toBeVisible()
+  })
+
   it("stacks overlapping pins into one marker with a count", async () => {
     renderPins()
     expect(

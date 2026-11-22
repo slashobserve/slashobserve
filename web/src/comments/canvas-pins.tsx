@@ -44,6 +44,7 @@ import {
 } from "./thread-queries"
 
 const pinSize = 22
+const pinGap = 5
 
 function useFocusOnArrival(
   arriving: boolean,
@@ -261,8 +262,8 @@ export function markerClass(arriving: boolean, gone: boolean): string {
 
 export function markerStyle(at: Point) {
   return {
-    left: at.x,
-    top: at.y - pinSize,
+    left: at.x + pinGap,
+    top: at.y - pinSize - pinGap,
     width: pinSize,
     height: pinSize,
   }

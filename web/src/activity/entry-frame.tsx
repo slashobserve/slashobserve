@@ -16,7 +16,7 @@ type Props = {
   avatar: AuthorMarkModel
   who: string
   verb?: string
-  panel?: { title: string; onSelect: () => void }
+  panel?: { title: string; onSelect?: () => void }
   at: string
   edited?: boolean
   nested?: boolean
@@ -86,7 +86,11 @@ export function EntryFrame({
             {verb === undefined ? null : (
               <span className="text-muted-foreground">{verb}</span>
             )}
-            {panel === undefined ? null : (
+            {panel === undefined ? null : panel.onSelect === undefined ? (
+              <span className="font-medium wrap-anywhere text-foreground">
+                {panel.title}
+              </span>
+            ) : (
               <button
                 type="button"
                 className={panelLinkClass}
