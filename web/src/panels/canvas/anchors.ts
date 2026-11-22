@@ -26,3 +26,13 @@ export function hitTest(
     id: clip(element.id),
   })
 }
+
+export function locate(
+  layout: CanvasAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  if (anchor.kind !== "element") return null
+  return (
+    layout.elements.findLast(({ id }) => clip(id) === anchor.id)?.rect ?? null
+  )
+}

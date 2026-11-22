@@ -106,7 +106,7 @@ dashboards-id-revisions:
               $ref: "../openapi.yaml#/components/schemas/Error"
   get:
     operationId: listDashboardRevisions
-    x-audit: { none: "list read; recorded as run.list with scope dashboard by the service, once per caller and dashboard in 10 minutes" }
+    x-audit: { none: "list read; recorded as run.list with scope dashboard by the service, once per caller and dashboard in 10 minutes", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       cli: [observe dashboards revisions]
     summary: List the agent requests of a dashboard, newest first, including the new-dashboard request that created it.

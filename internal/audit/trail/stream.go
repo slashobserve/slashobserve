@@ -41,13 +41,13 @@ func (r *Reader) Follow(ctx context.Context, text, lastEventID string) (*Follow,
 		if problem, ok := ProblemOf(err); ok {
 			r.write(ctx, audit.Event{
 				Action: ActionSearch, Outcome: audit.OutcomeFailed, Reason: problem.Code, Status: problem.Status,
-				Data: map[string]any{"query": recordedQuery(text), "view": "stream"},
+				Data: map[string]any{"query": audit.RecordedQuery(text), "view": "stream"},
 			})
 		}
 		return nil, err
 	}
 	r.write(ctx, audit.Event{Action: ActionSearch, Status: http.StatusOK, Data: map[string]any{
-		"form": string(f.query.Form), "since": f.from.Format(time.RFC3339Nano), "query": recordedQuery(text), "view": "stream",
+		"form": string(f.query.Form), "since": f.from.Format(time.RFC3339Nano), "query": audit.RecordedQuery(text), "view": "stream",
 	}})
 	return f, nil
 }

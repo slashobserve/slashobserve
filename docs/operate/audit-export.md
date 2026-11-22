@@ -79,6 +79,18 @@ The attributes use the standard names where one exists: `user.id`, `client.addre
 Every other field is under `slashobserve.audit.`, for example `slashobserve.audit.outcome`, `slashobserve.audit.category`, `slashobserve.audit.actor_name`, `slashobserve.audit.target_kind` and `slashobserve.audit.run_id`; a field an event does not have is left out.
 The full list of fields is in [Audit queries](../reference/audit-queries.md#fields).
 
+The data of a `query.run` and of an `audit.search` event carries the query text, and the export sends it to the collector as it was recorded.
+Before the text is cut at 4 KiB and stored, these secrets in it are replaced by `***`:
+
+- The user and password of a URL, as in `scheme://user:pass@host`.
+- The credential arguments of the ClickHouse functions and engines `s3`, `s3Cluster`, `gcs`, `azureBlobStorage`, `hdfs`, `url`, `mysql`, `postgresql`, `mongodb`, `redis`, `remote`, `remoteSecure`, `jdbc` and `odbc`, and the same arguments of `deltaLake`, `iceberg`, `hudi`, `s3Queue`, `azureBlobStorageCluster`, `MaterializedPostgreSQL` and `MaterializedMySQL`: access keys, secrets, passwords, connection strings and the values of `headers(...)`.
+- The value after `password`, `passwd`, `pwd`, `secret`, `token`, `api_key`, `access_key` or `secret_key`, also when the name has a prefix such as `access_token`, `client_secret` or `X-Api-Key`, written as `key=value`, `key: value`, `key!=value` or `key=~value` in any case, with quoted, unquoted, unterminated or escaped values.
+- The credential after `authorization` with any scheme (the scheme word stays), and a `Bearer` token.
+- AWS access key ids, JSON web tokens and PEM private key blocks, wherever they appear.
+
+Everything else is stored as typed and travels through the export, so a secret in a form this list does not name, such as a password in a free-text log search, is in the trail and in the collector, with the retention and readers of each.
+Give the collector no wider an audience than the Admins who can read the trail.
+
 ## Watching it
 
 `slashobserve_audit_export_lag_seconds` is the time between the newest audit event in the database and the last event the export sent.

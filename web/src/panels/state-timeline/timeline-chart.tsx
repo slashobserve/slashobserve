@@ -19,6 +19,7 @@ import { useTheme } from "@/lib/theme"
 import { formatValue } from "@/lib/units"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { resolveColor } from "../colors"
 import { cssColorToRgb, readableText, type Rgb } from "../contrast"
 import { CursorLine, useCursorLine } from "../cursor-line"
@@ -419,6 +420,24 @@ export function TimelineChart({
   const { lineRef, move: moveCursor } = useCursorLine(cursor, (x) =>
     timeToX(x, from, to, plotWidth)
   )
+  const plotRef = useRef<SVGSVGElement>(null)
+  const publish = useAnchorPublisher(
+    cells ? "status-history" : "state-timeline"
+  )
+  useLayoutEffect(() => {
+    const element = plotRef.current
+    if (element === null) {
+      publish(null)
+      return
+    }
+    publish({
+      body: { width, height },
+      plot: rectWithin(element, surfaceOf(element)),
+      range: { from, to },
+      rowHeight: rowSize,
+      rows: pageRows,
+    })
+  }, [publish, ready, width, height, from, to, rowSize, pageRows, chartWidth])
 
   function move(event: PointerEvent<SVGSVGElement>) {
     const box = event.currentTarget.getBoundingClientRect()
@@ -493,6 +512,7 @@ export function TimelineChart({
               <RowLabels rows={pageRows} width={labels} rowSize={rowSize} />
               <div className="relative" style={{ width: plotWidth }}>
                 <svg
+                  ref={plotRef}
                   role="img"
                   aria-label={`${rows} rows of states over time`}
                   width={plotWidth}

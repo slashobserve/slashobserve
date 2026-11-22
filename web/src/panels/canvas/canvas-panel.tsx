@@ -1,5 +1,6 @@
 import {
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -19,6 +20,8 @@ import {
   type View,
 } from "../nodeGraph/zoom"
 import type { PanelRenderer } from "../types"
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import type { Rect, Size } from "../anchors"
 import { useActionRunner } from "../actions/action-runner"
 import { actionRequest, type RunnableAction } from "../actions/actions"
 import {
@@ -40,6 +43,7 @@ import {
 } from "./elements"
 import { interactionOf, resolveElementLinks } from "./element-links"
 import { clampView, zoomedView } from "./placement"
+import type { CanvasAnchorLayout } from "./anchors"
 
 type Drag = { x: number; y: number; view: View }
 
@@ -104,6 +108,32 @@ function Lines({
       })}
     </svg>
   )
+}
+
+function overlap(rect: Rect, area: Rect): Rect | null {
+  const left = Math.max(rect.x, area.x)
+  const top = Math.max(rect.y, area.y)
+  const right = Math.min(rect.x + rect.width, area.x + area.width)
+  const bottom = Math.min(rect.y + rect.height, area.y + area.height)
+  return right <= left || bottom <= top
+    ? null
+    : { x: left, y: top, width: right - left, height: bottom - top }
+}
+
+function canvasAnchorLayout(root: HTMLElement, body: Size): CanvasAnchorLayout {
+  const surface = surfaceOf(root)
+  const area = rectWithin(root, surface)
+  return {
+    body,
+    elements: Array.from(
+      root.querySelectorAll<HTMLElement>("[data-element-id]")
+    ).flatMap((element) => {
+      const rect = overlap(rectWithin(element, surface), area)
+      return rect === null
+        ? []
+        : [{ rect, id: element.dataset.elementId ?? "" }]
+    }),
+  }
 }
 
 const CanvasPanel: PanelRenderer = ({
@@ -202,6 +232,16 @@ const CanvasPanel: PanelRenderer = ({
       })
     )
   }
+
+  const publish = useAnchorPublisher("canvas")
+  useLayoutEffect(() => {
+    const element = rootRef.current
+    if (element === null) {
+      publish(null)
+      return
+    }
+    publish(canvasAnchorLayout(element, { width, height }))
+  }, [publish, model, view.zoom, view.panX, view.panY, width, height])
 
   if (canvasIsEmpty(model)) {
     return (

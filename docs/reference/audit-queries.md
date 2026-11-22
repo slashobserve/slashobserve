@@ -5,15 +5,20 @@ description: The fields of an audit event, the three query forms the audit trail
 
 The audit trail records every sign-in, read, change, agent tool call and refusal, with who did it, through what, to what and how it ended.
 Only Admins read it, and an Admin service-account key can too.
-A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
-A search is recorded once per caller and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
-The counts, the histogram, the aggregations, the field list and opening one event record nothing, because they only draw what a recorded search already named; an export and each opening of the stream are recorded every time.
+A search, an export and opening the stream are themselves recorded, as `audit.search` or `audit.export`, with the query as sent (known secrets masked, cut at 4 KiB and marked `[truncated]`), its form, the window and the row count, so the trail shows who searched it for what.
+The counts of a field, the histogram, an aggregation and opening one event are recorded the same way, as `audit.search` with `data.view` set to `facets`, `histogram`, `aggregate` or `event`; a count of a field also holds `data.field`, and opening one event records the query `id:<event id>`.
+Every such read is recorded once per caller, view, field and query text in 10 minutes: the repeats, the pages after the first and a page that refreshes itself add no event, and the first one after the 10 minutes is recorded again.
+The same holds over the API, MCP and the CLI, because all three read through the same server code.
+The field list reads no event and records nothing; an export and each opening of the stream are recorded every time.
 A query that is refused is recorded every time, as a `failed` event with its reason.
 
 A view of a chat or an agent request, as `chat.view` or `run.view`, is recorded once per reader and subject in 10 minutes, the owner's own views included.
 A list of chats or requests is one `chat.list` or `run.list` event, recorded once per reader and scope in 10 minutes, never one per row.
 The Agents page's list of one agent's runs is a `run.list` with scope `workspace` for an Admin or `you`, and the connected agent or service account as its target.
 A refused view is recorded every time.
+A call that answers 404 `not_found` for an id the caller cannot see is recorded every time too, as a denied `request.refuse` or the route's own view action, with the kind and id the caller asked for as its target and `not_found` as its reason; this holds for every route that names the id, whatever its method, including the dashboard versions, a diff, a folder, the datasource schema and a presence ping, so probing for hidden ids leaves a trace.
+Any other 404 under a visible object, such as a dashboard that was never imported or a version that does not exist, is not recorded.
+An unknown trace id on a datasource the caller can read is a failed `query.run`, not a denial.
 
 ## Fields
 
@@ -56,7 +61,16 @@ A field with an alias takes either name in a query, in KQL, Lucene and a Query D
 
 Events also carry `seq` and `data`, the action's own fields as the audit catalog declares them, which a query cannot name.
 A `run.finish` recorded by a server older than 0.1.4 says `success` whatever the run's result, so read `data.result` on those events, which a query cannot filter on; every later one agrees with its run.
+
+Every query a person or an agent composes is a `query.run` with the datasource uid as its target and in `datasource_uid`: the Logs, Metrics and Traces pages, the draft previews, the agent's and MCP query tools, and the CLI.
+Its `data` holds `query`, the text that ran cut at 4 KiB with ` [truncated]` appended and with the secrets listed under [the exported record](../operate/audit-export.md#the-record) replaced by `***`, `row_count`, how many rows, points or spans came back, and `from` and `to`, the range it read as RFC 3339 times.
+A request or tool call that ran several queries on one datasource is one event with the distinct texts on separate lines, the rows added up and the widest range.
+The same caller's same query over the same period on the same datasource within 10 minutes is recorded once when it succeeds, where a caller is one person, service-account key or agent run, so each run and each key records its own reads, and a failed or refused query is recorded every time; a live tail is never folded.
+The period is the range's length to the minute and the start of the stretch of that length it begins in, so a page that refreshes the last 15 minutes is recorded at most once each 15 minutes, while a wider or other range is recorded on its own.
+Any other secret in a query text is stored as typed and exported with the event, so it reaches the trail.
+A panel on a saved dashboard version is not recorded query by query: its queries are fixed by the version, and the dashboard view carries it.
 A `query.run` whose `data` holds `stream: true` is a live tail of a logs query: it is written when the stream ends, and its `duration_ms` is how long the stream stayed open, up to the 30 minute limit, not how long a query took.
+
 Repeated refusals are folded so an attack cannot flood the trail: `auth.credential_rejected`, `auth.csrf_rejected` and `auth.login_failed` events that share an action, reason, target, actor and provider error are one key.
 The first event of a key is written at once with `data.count` of 1.
 The rest of that key's minute become one later event whose `data.count` is how many more there were, and there is no later event when there were none, so the `count` of all the events of a key adds up to the refusals.
@@ -195,10 +209,9 @@ It answers `date_histogram` and `terms` buckets, `date_histogram` with a `time_z
 A request holds at most 20 aggregations, nested ones included, and its `date_histogram` buckets, empty ones filled in, come to at most 11,000; a request over either is refused as an invalid query.
 Any other request, body key, sort field or aggregation is refused with 400 and a message that names it, which a panel shows as its query error.
 
-Reading through it is recorded as `query.run`, never as `audit.search`: the Logs page and the agent's queries record one event per query, with the datasource uid as its target, and a panel records nothing beyond the dashboard view.
-Each such `query.run` that succeeds names the datasource in `datasource_uid` and holds `from` and `to`, the range it read as RFC 3339 times.
-The same query from the same caller on the same route over the same period within 10 minutes is recorded once when it succeeds, and a request is left out only when every search in it was such a repeat; a refused or failed query is recorded every time.
-The period is the range's length to the minute and the start of the stretch of that length it begins in, so a panel that refreshes the last 15 minutes is recorded at most once each 15 minutes, while a wider or other range is recorded on its own.
+Reading through it is recorded as `query.run`, never as `audit.search`, with the datasource uid as its target and the same `data` as any other datasource: the query text, its rows and its range.
+A panel on a saved dashboard records nothing beyond the dashboard view.
+The repeat rule of the section above is what keeps a dashboard that reads the trail on a refresh from filling it: a panel that refreshes the last 15 minutes is recorded at most once each 15 minutes.
 
 An agent run reads it only when everyone who can read what the run writes is an Admin, so an answer never shows audit data to someone who could not query it.
 An Admin's private chat reads it, whether or not the chat is about a dashboard or an observation, because the answer stays the Admin's until they share it.

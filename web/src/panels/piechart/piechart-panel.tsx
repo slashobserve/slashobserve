@@ -10,6 +10,7 @@ import {
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { resolveColor } from "../colors"
 import { cssColorToRgb, darkText, lightText, readableText } from "../contrast"
 import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
@@ -316,6 +317,10 @@ const PiechartPanel: PanelRenderer = ({
     () => visibleSeries(storedHidden, keys, legendShown),
     [storedHidden, keys, legendShown]
   )
+  const hiddenNames = useMemo(
+    () => entries.filter(({ key }) => hidden.has(key)).map(({ name }) => name),
+    [entries, hidden]
+  )
   const model = useMemo(
     () => pieModel(orderSlices(entries, options.sliceOrder), hidden),
     [entries, options.sliceOrder, hidden]
@@ -348,6 +353,24 @@ const PiechartPanel: PanelRenderer = ({
 
   const donut = options.pieType === "donut"
   const side = box ? Math.min(box.width, box.height) : 0
+  const publish = useAnchorPublisher("piechart")
+  useLayoutEffect(() => {
+    const svg = node?.querySelector(":scope > svg")
+    if (svg === null || svg === undefined) {
+      publish(null)
+      return
+    }
+    const area = rectWithin(svg, surfaceOf(svg))
+    const outer = (radius / 100) * Math.min(area.width, area.height)
+    publish({
+      body: { width, height },
+      center: { x: area.x + area.width / 2, y: area.y + area.height / 2 },
+      outer,
+      inner: donut ? outer * donutRatio : 0,
+      slices: model.slices,
+      hidden: hiddenNames,
+    })
+  }, [publish, node, box, model.slices, hiddenNames, donut, width, height])
   const textColors = useMemo(
     () => labelTextColors(model.slices, theme),
     [model.slices, theme]

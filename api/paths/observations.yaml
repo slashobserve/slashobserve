@@ -871,7 +871,7 @@ blocks-id-data:
         format: uuid
   get:
     operationId: observationBlockData
-    x-audit: { none: "evidence data stored with a block; the observation view is recorded" }
+    x-audit: { none: "evidence data stored with a block; the observation view is recorded", target: { kind: block, id: path.id } }
     summary: Run the query of a panel block and return its frames.
     description: >-
       Runs a panel block's stored queries under the draft query limits, never cached.
@@ -1085,7 +1085,7 @@ snapshots-id:
         format: uuid
   get:
     operationId: getSnapshot
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: snapshot, id: path.id } }
     summary: Read the frozen data of a snapshot block.
     description: >-
       Anyone who can view the observation's folder may read it.

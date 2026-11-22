@@ -281,7 +281,7 @@ webhooks-id-deliveries:
         format: uuid
   get:
     operationId: listWebhookDeliveries
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: webhook, id: path.id } }
     x-surfaces:
       cli: [observe webhooks deliveries]
     summary: List a webhook's recent delivery attempts, newest first.

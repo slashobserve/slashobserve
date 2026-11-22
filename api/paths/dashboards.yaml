@@ -360,7 +360,7 @@ dashboards-id-versions:
         format: uuid
   get:
     operationId: listDashboardVersions
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [list_dashboard_versions]
       cli: [observe dashboards versions]
@@ -526,7 +526,7 @@ dashboards-id-versions-version:
         maximum: 2147483647
   get:
     operationId: getDashboardVersion
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [get_dashboard]
       cli: [observe dashboards show]
@@ -883,7 +883,7 @@ dashboards-id-diff:
         format: uuid
   get:
     operationId: diffDashboardVersions
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [diff_dashboard_versions]
       cli: [observe dashboards diff]
@@ -946,7 +946,7 @@ dashboards-id-views:
         format: uuid
   get:
     operationId: getDashboardViews
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [get_dashboard]
       cli: [observe dashboards show]
@@ -983,7 +983,7 @@ dashboards-id-views:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: recordDashboardView
-    x-audit: { none: "recently opened counter; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "recently opened counter; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: Record that the caller opened the dashboard.
     description: >-
       Needs View on the dashboard.
@@ -1014,7 +1014,7 @@ dashboards-id-viewers:
         format: uuid
   get:
     operationId: listDashboardViewers
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [list_dashboard_viewers]
       cli: [observe dashboards viewers]
@@ -1042,7 +1042,7 @@ dashboards-id-viewers:
         $ref: "../openapi.yaml#/components/responses/Internal"
   post:
     operationId: reportDashboardViewer
-    x-audit: { none: "presence ping; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "presence ping; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: Report that the caller has the dashboard open, and list who else does.
     description: >-
       Needs View on the dashboard.

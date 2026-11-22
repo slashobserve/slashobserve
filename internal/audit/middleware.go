@@ -103,7 +103,7 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		return
 	}
 	action := o.declared.Action
-	outcome := outcomeFor(o.status, o.declared)
+	outcome := outcomeFor(o.status, o.code, o.declared)
 	reason := o.code
 	target := o.declared.target(o.params)
 	var data map[string]any
@@ -131,30 +131,45 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		action = cmp.Or(action, inTx[0].action)
 	}
 	if action == "" {
-		if !refused(o.status) {
+		if !refused(o.status) && !o.declared.hidesTarget(o.status, o.code) {
 			return
 		}
 		action = ActionRefuse
 	}
-	if len(inTx) == 0 && st.repeatsARead(action, outcome) {
-		return
+	base := Event{
+		Action:   action,
+		Outcome:  outcome,
+		Reason:   reason,
+		Status:   o.status,
+		Target:   target,
+		Data:     data,
+		Duration: o.took,
 	}
-	data = st.withReadWindow(action, data)
-	row, err := r.row(ctx, Event{
-		Action:     action,
-		Outcome:    outcome,
-		Reason:     reason,
-		Status:     o.status,
-		Target:     target,
-		Datasource: st.readDatasource(),
-		Data:       data,
-		Duration:   o.took,
-	})
+	r.emitSettled(ctx, st, base, len(inTx) == 0 && concluded == nil)
+}
+
+func (r *Recorder) emitSettled(ctx context.Context, st *state, base Event, fold bool) {
+	if base.Action == ActionQueryRun {
+		if base.Target.Kind == "datasource" {
+			base.Datasource = base.Target.ID
+		}
+		if st.hasQueries() {
+			for _, e := range r.queryEvents(ctx, st, base, fold) {
+				r.emit(ctx, e)
+			}
+			return
+		}
+	}
+	r.emit(ctx, base)
+}
+
+func (r *Recorder) emit(ctx context.Context, e Event) {
+	row, err := r.row(ctx, e)
 	if err != nil {
 		r.logger.WarnContext(ctx, "audit request event not built", logattrs.Failure("audit_event_invalid", err)...)
 		return
 	}
-	if batched(action, outcome) {
+	if batched(e.Action, Outcome(row.Outcome)) {
 		r.writer.enqueue(row)
 		return
 	}
@@ -195,17 +210,16 @@ func (d Declaration) target(params gin.Params) Target {
 }
 
 func OutcomeForStatus(status int) Outcome {
-	return outcomeFor(status, Declaration{})
+	return outcomeFor(status, "", Declaration{})
 }
 
-func outcomeFor(status int, declared Declaration) Outcome {
-	_, namesTarget := declared.Target.PathParam()
+func outcomeFor(status int, code string, declared Declaration) Outcome {
 	switch {
 	case redirected(status):
 		return OutcomeUnknown
 	case status < http.StatusBadRequest:
 		return OutcomeSuccess
-	case refused(status), status == http.StatusNotFound && namesTarget:
+	case refused(status), declared.hidesTarget(status, code):
 		return OutcomeDenied
 	}
 	return OutcomeFailed

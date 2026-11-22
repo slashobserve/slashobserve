@@ -17,6 +17,7 @@ datasources-uid-query:
       `kind` `instant` returns rows (log lines, table rows, spans) over exactly the given range, and `range` returns series over the range aligned to its step.
       The query runs with the agent tools' limits (15 seconds, 200 series for metric queries, 100,000 points, 1,000 rows; log lines count against the row limit only), and `limit` lowers the row limit.
       Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      Every call is recorded in the audit trail as `query.run` with the query text (cut at 4 KiB), the range and the row count, once per caller, datasource, query text and period in 10 minutes when it succeeds; a failed or refused call is recorded every time.
       Viewers and above may call it, service-account keys included.
       `from` and `to` take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times, fractional seconds included.
       The response has the shape of panel data, with `meta.cached` always false.

@@ -361,7 +361,7 @@ threads-threadid-read:
         format: uuid
   post:
     operationId: markThreadRead
-    x-audit: { none: "read position of the caller's own inbox" }
+    x-audit: { none: "read position of the caller's own inbox", target: { kind: thread, id: path.thread_id } }
     summary: Mark a thread read for the caller.
     description: >-
       Clears the thread's `unread` for the caller until someone else writes in it again.
