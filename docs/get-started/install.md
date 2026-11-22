@@ -3,6 +3,9 @@ title: Run your own deployment
 description: Pull the image and run SlashObserve against your own Postgres, identity provider and datasources.
 ---
 
+SlashObserve is under active development, and releases before 1.0 can include breaking changes.
+Each release lists them under "Breaking changes" in the [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md); read that part before you move to a newer version.
+
 ## Deploy with Docker
 
 1. Create a Postgres database and a user that owns it.
