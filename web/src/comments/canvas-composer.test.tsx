@@ -234,6 +234,32 @@ describe("CanvasComposer", () => {
     expect(useCanvasTool.getState().draft).toBe(clicked)
   })
 
+  it("leaves the mode on the first Escape while the comment is still being sent", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) =>
+        request.method === "POST"
+          ? new Promise<Response>(() => {})
+          : json({ service_accounts: [], connected: [] })
+      )
+    )
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "Why the spike?{Enter}")
+    await waitFor(() => expect(useCanvasTool.getState().sending).toBe(true))
+    await user.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(useCanvasTool.getState()).toMatchObject({
+        tool: "select",
+        draft: null,
+        leaving: null,
+      })
+    )
+  })
+
   it("closes on a click outside while it is empty", async () => {
     stubServer()
     const user = userEvent.setup()

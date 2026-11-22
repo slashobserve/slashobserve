@@ -273,8 +273,11 @@ export function ThreadView({
   const folded = resolved && !expanded
   const panelId = thread.panel_id
   const panel =
-    panelId !== null && panelTitle !== null && onSelectPanel !== undefined
-      ? { title: panelTitle, onSelect: () => onSelectPanel(panelId) }
+    panelId !== null && panelTitle !== null
+      ? {
+          title: panelTitle,
+          onSelect: onSelectPanel && (() => onSelectPanel(panelId)),
+        }
       : undefined
 
   const statusRef = useCallback((node: HTMLButtonElement | null) => {

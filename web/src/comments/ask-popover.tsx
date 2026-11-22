@@ -15,7 +15,7 @@ import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { arrivingClass } from "@/conversation/thread-view"
 import { useComposer, type ComposerModel } from "@/conversation/use-composer"
-import { useCanvasTool } from "@/dashboards/canvas-tools"
+import { useCanvasTool, useReportSending } from "@/dashboards/canvas-tools"
 import {
   useSetDashboardSearch,
   validateDashboardSearch,
@@ -185,6 +185,7 @@ function AskDraft({
       })
     },
   })
+  useReportSending(model.pending)
   return (
     <div className="p-2">
       <Composer
@@ -326,6 +327,7 @@ function AskThread({
       if (sent.via === "chat") asked(sent.request)
     },
   })
+  useReportSending(model.pending)
   const field = model.field
   useEffect(() => {
     if (focusDropped()) field.current?.focus()
@@ -348,7 +350,7 @@ function AskThread({
       </div>
       <ol
         aria-label="Your chat on this spot"
-        className="flex max-h-[min(28rem,60vh)] flex-col gap-3.5 overflow-y-auto p-3"
+        className="flex max-h-[min(28rem,60vh)] min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col gap-3.5 overflow-y-auto p-3"
       >
         {ids.map((id) => (
           <AskTurn key={id} requestId={id} subject={subject} onAsked={asked} />

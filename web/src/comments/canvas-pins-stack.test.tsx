@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {
   afterEach,
@@ -175,6 +175,39 @@ describe("CanvasPins", () => {
       name: "Thread on Latency",
     })
     expect(await within(shown).findByText("dropped")).toBeVisible()
+  })
+
+  it("moves focus to the pin that has just been posted when focus was left on the page", async () => {
+    useCanvasTool.setState({ postedThreadId: "t3" })
+    renderPins()
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Comment by Ada: Quiet tail" })
+      ).toHaveFocus()
+    )
+  })
+
+  it("leaves focus alone when it moved away from the panel before the pin arrived", async () => {
+    const outside = document.createElement("button")
+    document.body.append(outside)
+    outside.focus()
+    useCanvasTool.setState({ postedThreadId: "t3" })
+    renderPins()
+    await screen.findByRole("button", { name: "Comment by Ada: Quiet tail" })
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+
+  it("names the panel in the header of a pin's thread", async () => {
+    const user = userEvent.setup()
+    renderPins()
+    await user.click(
+      await screen.findByRole("button", { name: "Comment by Ada: Quiet tail" })
+    )
+    const shown = await screen.findByRole("dialog", {
+      name: "Thread on Latency",
+    })
+    expect(within(shown).getByText("Latency")).toBeVisible()
   })
 
   it("stacks overlapping pins into one marker with a count", async () => {

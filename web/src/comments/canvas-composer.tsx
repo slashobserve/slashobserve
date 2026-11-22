@@ -16,7 +16,11 @@ import { describeAnchor } from "@/conversation/anchor"
 import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { useComposer } from "@/conversation/use-composer"
-import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
+import {
+  useCanvasTool,
+  useReportSending,
+  type CanvasDraft,
+} from "@/dashboards/canvas-tools"
 import { validateDashboardSearch } from "@/dashboards/search"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
@@ -100,12 +104,15 @@ export function keepsTyping(reason: string, text: string): boolean {
   return leavingReasons.has(reason) && text.trim() !== ""
 }
 
+const clearOfChrome = { top: 88, right: 8, bottom: 72, left: 8 }
+
 type PopoverProps = {
   surfaceRef: RefObject<HTMLElement | null>
   at: Point | null
   label: string
   id?: string
   initialFocus?: PopoverPrimitive.Popup.Props["initialFocus"]
+  finalFocus?: PopoverPrimitive.Popup.Props["finalFocus"]
   onClose: (reason: string) => void
   className?: string
   children: ReactNode
@@ -117,6 +124,7 @@ export function CanvasPopover({
   label,
   id,
   initialFocus,
+  finalFocus,
   onClose,
   className,
   children,
@@ -139,16 +147,17 @@ export function CanvasPopover({
           side="bottom"
           align="start"
           sideOffset={6}
-          collisionPadding={8}
+          collisionPadding={clearOfChrome}
           className="isolate z-50"
         >
           <PopoverPrimitive.Popup
             id={id}
             aria-label={label}
             initialFocus={initialFocus}
+            finalFocus={finalFocus}
             data-opened-by={clicked ? "pointer" : "key"}
             className={cn(
-              "w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
+              "max-h-(--available-height) w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
               clicked && clickedPopupClass,
               className
             )}
@@ -193,18 +202,22 @@ export function CanvasComposer({
       else useCanvasTool.getState().close()
     },
   })
+  useReportSending(model.pending)
   return (
     <CanvasPopover
       surfaceRef={surfaceRef}
       at={draft.at}
       label={commentLabel}
       initialFocus={model.field}
+      finalFocus={() => surfaceRef.current?.closest("article") ?? true}
       className="p-2"
       onClose={(reason) => {
         const store = useCanvasTool.getState()
         if (store.draft !== draft) return
         if (keepsTyping(reason, store.text)) return
-        store.leave("close")
+        store.leave(
+          reason === "escape-key" && store.sending ? "select" : "close"
+        )
       }}
     >
       <Composer

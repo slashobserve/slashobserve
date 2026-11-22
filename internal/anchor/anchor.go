@@ -383,15 +383,25 @@ func (a Anchor) fromText() string {
 }
 
 func (a Anchor) logLineSubject() string {
-	at := a.fromText()
-	if at != "" {
-		at = "at " + at
+	line := "the log line"
+	if a.Quote != "" {
+		line += ` "` + a.Quote + `"`
+	}
+	if at := a.fromText(); at != "" {
+		line += " at " + at
 	}
 	in := ""
 	if len(a.Series) > 0 {
 		in = "in the series " + labelPairs(a.Series)
 	}
-	return joinNonEmpty("the log line "+a.ID, at, a.Quote, in)
+	return joinNonEmpty(line, in)
+}
+
+func (a Anchor) valueSubject() string {
+	if name, only := a.Series["name"]; only && len(a.Series) == 1 && strings.ContainsAny(name, "({[") {
+		return "the value"
+	}
+	return "the value" + a.ofSeries()
 }
 
 var subjects = map[Kind]func(Anchor) string{
@@ -408,7 +418,7 @@ var subjects = map[Kind]func(Anchor) string{
 	Segment:  func(a Anchor) string { return "the segment " + a.Category + a.ofSeries() },
 	HeatCell: func(a Anchor) string { return "the heat cell " + a.Category + " at " + a.fromText() },
 	Slice:    func(a Anchor) string { return "the slice " + a.Category },
-	Value:    func(a Anchor) string { return "the value" + a.ofSeries() },
+	Value:    Anchor.valueSubject,
 	LogLine:  Anchor.logLineSubject,
 	Span:     func(a Anchor) string { return joinNonEmpty("the span "+a.ID, a.Quote) },
 	Element:  func(a Anchor) string { return "the element " + a.ID },
