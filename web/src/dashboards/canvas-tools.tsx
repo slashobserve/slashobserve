@@ -56,6 +56,7 @@ type CanvasToolState = {
   openTurn: OpenTurn | null
   postedThreadId: string | null
   text: string
+  sending: boolean
   leaving: Leaving | null
   detached: DetachedDraft | null
   setTool: (tool: CanvasTool) => void
@@ -71,14 +72,21 @@ type CanvasToolState = {
   posted: (threadId: string) => void
   settled: (threadId: string) => void
   setText: (text: string) => void
+  setSending: (sending: boolean) => void
 }
 
 function holdsText(state: CanvasToolState): boolean {
   const composing = state.draft !== null || state.openTurn !== null
-  return composing && state.text.trim() !== ""
+  return composing && !state.sending && state.text.trim() !== ""
 }
 
-const closed = { draft: null, openThreadId: null, openTurn: null, text: "" }
+const closed = {
+  draft: null,
+  openThreadId: null,
+  openTurn: null,
+  text: "",
+  sending: false,
+}
 
 function moved(to: Leaving) {
   return to === "close" ? closed : { ...closed, tool: to }
@@ -91,6 +99,7 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   openTurn: null,
   postedThreadId: null,
   text: "",
+  sending: false,
   leaving: null,
   detached: null,
   setTool: (tool) => set({ ...closed, tool, leaving: null }),
@@ -134,13 +143,21 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
     ),
   close: () => set(closed),
   posted: (threadId) =>
-    set({ draft: null, postedThreadId: threadId, text: "" }),
+    set({ draft: null, postedThreadId: threadId, text: "", sending: false }),
   settled: (threadId) =>
     set((state) =>
       state.postedThreadId === threadId ? { postedThreadId: null } : {}
     ),
   setText: (text) => set({ text }),
+  setSending: (sending) => set({ sending }),
 }))
+
+export function useReportSending(pending: boolean) {
+  useEffect(() => {
+    useCanvasTool.getState().setSending(pending)
+    return () => useCanvasTool.getState().setSending(false)
+  }, [pending])
+}
 
 export function openKeyDraft(ownerId: string, tool: DraftTool) {
   useCanvasTool

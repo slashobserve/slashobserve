@@ -15,7 +15,7 @@ import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { arrivingClass } from "@/conversation/thread-view"
 import { useComposer, type ComposerModel } from "@/conversation/use-composer"
-import { useCanvasTool } from "@/dashboards/canvas-tools"
+import { useCanvasTool, useReportSending } from "@/dashboards/canvas-tools"
 import {
   useSetDashboardSearch,
   validateDashboardSearch,
@@ -185,6 +185,7 @@ function AskDraft({
       })
     },
   })
+  useReportSending(model.pending)
   return (
     <div className="p-2">
       <Composer
@@ -326,6 +327,7 @@ function AskThread({
       if (sent.via === "chat") asked(sent.request)
     },
   })
+  useReportSending(model.pending)
   const field = model.field
   useEffect(() => {
     if (focusDropped()) field.current?.focus()

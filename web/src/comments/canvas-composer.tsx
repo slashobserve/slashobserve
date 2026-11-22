@@ -16,7 +16,11 @@ import { describeAnchor } from "@/conversation/anchor"
 import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
 import { useComposer } from "@/conversation/use-composer"
-import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
+import {
+  useCanvasTool,
+  useReportSending,
+  type CanvasDraft,
+} from "@/dashboards/canvas-tools"
 import { validateDashboardSearch } from "@/dashboards/search"
 import { cn } from "@/lib/utils"
 import { useAgentInfo } from "@/observe/queries"
@@ -193,6 +197,7 @@ export function CanvasComposer({
       else useCanvasTool.getState().close()
     },
   })
+  useReportSending(model.pending)
   return (
     <CanvasPopover
       surfaceRef={surfaceRef}
@@ -204,7 +209,9 @@ export function CanvasComposer({
         const store = useCanvasTool.getState()
         if (store.draft !== draft) return
         if (keepsTyping(reason, store.text)) return
-        store.leave("close")
+        store.leave(
+          reason === "escape-key" && store.sending ? "select" : "close"
+        )
       }}
     >
       <Composer

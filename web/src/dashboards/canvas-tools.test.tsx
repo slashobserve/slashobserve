@@ -33,6 +33,7 @@ beforeEach(() => {
     text: "",
     leaving: null,
     detached: null,
+    sending: false,
   })
 })
 
@@ -235,6 +236,25 @@ describe("leaving with typed text", () => {
       draft: null,
       leaving: null,
     })
+  })
+
+  it("leaves at once while the text is being sent, and asks again if the send ends unposted", () => {
+    useCanvasTool.setState({ tool: "comment" })
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("Which deploy?")
+    useCanvasTool.getState().setSending(true)
+    useCanvasTool.getState().leave("select")
+    expect(useCanvasTool.getState()).toMatchObject({
+      tool: "select",
+      draft: null,
+      leaving: null,
+    })
+    useCanvasTool.setState({ tool: "comment" })
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("Which deploy?")
+    useCanvasTool.getState().setSending(false)
+    useCanvasTool.getState().leave("select")
+    expect(useCanvasTool.getState().leaving).toBe("select")
   })
 
   it("sets a typed draft apart so the canvas is free again", () => {
