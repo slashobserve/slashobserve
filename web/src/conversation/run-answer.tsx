@@ -100,7 +100,7 @@ export function RunAnswer({
     <AnswerCard
       finding={answer.finding}
       requestId={runId}
-      canSave={answer.can_save}
+      canSave={answer.can_save && subject?.kind !== "observation"}
       revise={
         mayRevise
           ? {

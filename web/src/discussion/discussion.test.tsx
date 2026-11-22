@@ -385,24 +385,27 @@ describe("Discussion with a run", () => {
     ).toBeInTheDocument()
   })
 
-  it("offers Create observation only when the answer can be saved", async () => {
-    mockServer({
-      threads: [thread],
-      messages: () => [
-        asked,
-        {
-          ...answered(),
-          answer: {
-            finding: finding({ observe_worthy: true }),
-            can_save: true,
-          },
+  function saveableAnswers(): Message[] {
+    return [
+      asked,
+      {
+        ...answered(),
+        answer: {
+          finding: finding({ observe_worthy: true }),
+          can_save: true,
         },
-      ],
-    })
-    renderDiscussion()
+      },
+    ]
+  }
+
+  it("does not offer Create observation inside an observation's discussion", async () => {
+    mockServer({ threads: [thread], messages: saveableAnswers })
+    const { user } = renderDiscussion()
+    const chip = await screen.findByRole("button", { name: "1 evidence panel" })
+    await user.click(chip)
     expect(
-      await screen.findByRole("button", { name: "Create observation" })
-    ).toBeInTheDocument()
+      screen.queryByRole("button", { name: "Create observation" })
+    ).not.toBeInTheDocument()
   })
 
   it("never offers to revise the dashboard from an observation", async () => {
@@ -462,6 +465,41 @@ describe("Discussion with a run", () => {
       ).toHaveLength(1)
     )
     expect(screen.getAllByRole("link", { name: "View the run" })).toHaveLength(
+      1
+    )
+  })
+
+  it("keeps the composer's working line when the filter hides the message rows", async () => {
+    let listed: Message[] = [earlier]
+    const posts = mockServer({
+      threads: [thread],
+      messages: () => listed,
+      sent: { run: asked.run },
+    })
+    const { user } = renderWithProviders(
+      <DiscussionFeed
+        target={target}
+        hint="Posted to everyone who can see this"
+        emptyText="No messages yet."
+        view={{
+          filter: { show: "changes", blockId: null },
+          onClear: vi.fn(),
+        }}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    await screen.findByText("No entries match these filters.")
+    await user.click(screen.getByRole("textbox", { name: "Message" }))
+    await user.paste("@observe why did latency rise")
+    listed = [earlier, asked]
+    await user.click(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    )
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(
+      await screen.findByText(/Observe Agent is working on it/)
+    ).toBeVisible()
+    expect(screen.getAllByText(/Observe Agent is working on it/)).toHaveLength(
       1
     )
   })

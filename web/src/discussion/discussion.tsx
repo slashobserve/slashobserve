@@ -416,7 +416,11 @@ export function DiscussionFeed({
           }
           disabledReason={disabledReason}
           runShown={(runId) =>
-            messages.some((message) => message.run?.id === runId)
+            entries.some(
+              (entry) =>
+                entry.kind === "message" &&
+                unansweredRun(entry.message, messages)?.id === runId
+            )
           }
         />
       </div>
