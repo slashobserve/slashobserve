@@ -279,6 +279,20 @@
   --person-6-foreground: #e8b3ee;
 }
 
+@utility cursor-canvas-comment {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21V9a7 7 0 0 1 7-7h4a7 7 0 0 1 7 7v5a7 7 0 0 1-7 7z' fill='%230d0d12' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M8.5 9.5h7M8.5 13.5h4.5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")
+      3 21,
+    crosshair;
+}
+
+@utility cursor-canvas-ask {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21V9a7 7 0 0 1 7-7h4a7 7 0 0 1 7 7v5a7 7 0 0 1-7 7z' fill='%230a7f86' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M10 16.5 14 6.5' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E")
+      3 21,
+    crosshair;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;
