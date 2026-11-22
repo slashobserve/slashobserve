@@ -151,6 +151,15 @@ dashboards:
         schema:
           type: string
           enum: [any, no_data, query_failed, variable_failed, duplicate_title, unopened]
+      - name: exclude_audit
+        in: query
+        description: >-
+          `true` leaves out the dashboards in the built-in Audit folder, from the page, the `total_count` and the paging alike; the other folders are listed as before.
+          It only narrows what the caller can already see, and does not widen it.
+          Default `false`.
+        schema:
+          type: boolean
+          default: false
     responses:
       "200":
         description: One page of dashboards.
@@ -186,6 +195,15 @@ dashboards-tags:
     x-surfaces:
       cli: [observe dashboards tags]
     summary: List every dashboard tag with its dashboard count, by tag name.
+    parameters:
+      - name: exclude_audit
+        in: query
+        description: >-
+          `true` leaves out the dashboards in the built-in Audit folder, so their tags and the counts come from the other folders only.
+          Default `false`.
+        schema:
+          type: boolean
+          default: false
     responses:
       "200":
         description: Every tag in use, at most 500, ordered by name.

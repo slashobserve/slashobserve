@@ -226,12 +226,12 @@ The MCP list tools take their own, smaller page sizes and the same `next_cursor`
 
 | Command | What it does |
 | --- | --- |
-| `bin/observe dashboards list [--order updated\|views\|name]` | Lists dashboards, newest update first, with `--order views` most viewed in the last 30 days first, or with `--order name` by title, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page. |
+| `bin/observe dashboards list [--order updated\|views\|name] [--exclude-audit]` | Lists dashboards, newest update first, with `--order views` most viewed in the last 30 days first, or with `--order name` by title, 50 at a time, up to 200, with a `VIEWS` column; when there are more it prints the total and the `--cursor` value for the next page, which only works with the same `--order`, and `--all` reads every page; `--exclude-audit` leaves out the dashboards in the Audit folder. |
 | `bin/observe dashboards show <dashboard-id>` | Lists the panels of the latest version, or of one given with `--version N`, and how many views the dashboard had in the last 30 days; the folder is in the details, and a version that does not exist says what the latest one is; `--json` adds `view_count` and `window_days`. |
 | `bin/observe dashboards versions <dashboard-id>` | Lists its versions. |
 | `bin/observe dashboards viewers <dashboard-id>` | Lists, by name, the other people who have the dashboard open now; it needs View and prints nothing when nobody is looking. |
 | `bin/observe dashboards revisions <dashboard-id> [<revision-id>]` | Lists the agent requests that changed it, newest first, or shows one in full. |
-| `bin/observe dashboards tags` | Lists every tag with the number of dashboards that carry it. |
+| `bin/observe dashboards tags [--exclude-audit]` | Lists every tag with the number of dashboards that carry it; `--exclude-audit` counts only dashboards outside the Audit folder. |
 | `bin/observe dashboards move <dashboard-id> --folder <folder-id>` | Moves a dashboard to another folder without saving a version; it needs Edit on the dashboard and on the folder, and a personal folder takes no moves. |
 | `bin/observe dashboards duplicate <dashboard-id> --title <title> [--folder <folder-id>]` | Saves the latest version as version 1 of a new dashboard and prints `Duplicated as <id>`; the copy goes to `--folder`, by default the dashboard's own folder when you may create there, else your default folder, and its queries are not run. |
 | `bin/observe dashboards restore <dashboard-id> --version <n> [--parent <n>] [--summary <text>]` | Saves an earlier version as the newest version and prints `Restored version <n> as version <m>`. |
@@ -286,7 +286,7 @@ bin/observe folders permissions open <folder-id> --yes
 bin/observe folders permissions admins-only <folder-id> --yes
 ```
 
-`list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)` and your My Dashboards `(yours)`.
+`list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see, and marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Only Admins)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`; a title that another folder uses answers `folder_exists`.
 `rename` takes everything after the id as the new title, so flags such as `--json` or `-q` must come before the id, and the General folder answers `general_folder`.
 `delete` works only on an empty folder, asks for no `--yes`, and answers `folder_not_empty` when anything is still filed in it.

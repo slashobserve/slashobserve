@@ -23,6 +23,8 @@ var (
 	ErrMoveIntoPersonal = errors.New("a dashboard cannot move into My Dashboards; duplicate it there instead")
 )
 
+const AuditStarterKey = "audit/folder"
+
 type Folder struct {
 	ID         pgtype.UUID
 	Title      string
@@ -196,4 +198,12 @@ func (a *Access) Folder(ctx context.Context, p auth.Principal, id pgtype.UUID) (
 		return Folder{}, Abilities{}, ErrNotFound
 	}
 	return e.Folder, e.Abilities, nil
+}
+
+func (a *Access) AuditFolder(ctx context.Context) (pgtype.UUID, error) {
+	id, err := a.db.Queries().StarterContent(ctx, AuditStarterKey)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, nil
+	}
+	return id, err
 }

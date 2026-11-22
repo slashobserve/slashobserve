@@ -22,6 +22,7 @@ import {
   type ExploreKind,
 } from "./sources"
 import {
+  useBrowsableSources,
   useExploreSources,
   useRouteSource,
   useSourceSwitchSearch,
@@ -112,7 +113,7 @@ function SourceFlyoutItem({
 }
 
 export function SourceFlyoutItems({ kind }: { kind: ExploreKind }) {
-  const { sources } = useExploreSources(kind)
+  const { sources } = useBrowsableSources(kind)
   return (
     <>
       <DropdownMenuLinkItem

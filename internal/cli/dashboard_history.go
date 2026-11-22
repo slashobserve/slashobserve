@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"net/url"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -162,7 +163,7 @@ func (a *app) dashboardViewersCommand() *cobra.Command {
 }
 
 func (a *app) dashboardTagsCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "tags",
 		Short: "List every dashboard tag with the number of dashboards that carry it",
 		Args:  noArgs,
@@ -171,7 +172,11 @@ func (a *app) dashboardTagsCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := c.get(cmd.Context(), "dashboards/tags", nil)
+			query := url.Values{}
+			if a.excludeAudit {
+				query.Set("exclude_audit", "true")
+			}
+			data, err := c.get(cmd.Context(), "dashboards/tags", query)
 			if err != nil {
 				return err
 			}
@@ -192,4 +197,6 @@ func (a *app) dashboardTagsCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&a.excludeAudit, "exclude-audit", false, "leave out the dashboards in the built-in Audit folder")
+	return cmd
 }

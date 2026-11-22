@@ -1345,7 +1345,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, admins_only, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, audit, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1366,6 +1366,9 @@ components:
         admins_only:
           type: boolean
           description: True when only Admins can read the folder, whoever made it. Such a folder lists no people or groups, and only such a folder can hold content that reads an Admins-only datasource.
+        audit:
+          type: boolean
+          description: True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set.
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.

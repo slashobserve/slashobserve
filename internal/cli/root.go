@@ -37,6 +37,7 @@ type app struct {
 	retrying          retryOptions
 	list              pageOptions
 	listOrder         string
+	excludeAudit      bool
 	versions          pageOptions
 	show              showOptions
 	remove            deleteOptions
