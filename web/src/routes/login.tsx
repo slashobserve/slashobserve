@@ -15,6 +15,8 @@ const errorMessages: Record<string, string> = {
     "This account was deactivated by an Admin. Ask an Admin to reactivate it.",
   unavailable: "The identity provider is unavailable. Try again shortly.",
   session_unavailable: "SlashObserve is unavailable. Try again shortly.",
+  sign_in_off:
+    "Browser sign-in is not set up on this server. Use a service-account key, or ask the operator to configure an identity provider.",
 }
 
 const maxReturnToLength = 2048

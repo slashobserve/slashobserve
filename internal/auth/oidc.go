@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
@@ -37,7 +38,12 @@ func (s *Service) backChannel(ctx context.Context) context.Context {
 	return oidc.ClientContext(ctx, s.client)
 }
 
+var errSignInOff = errors.New("browser sign-in is off: no OIDC issuer is configured")
+
 func (s *Service) provider(ctx context.Context) (*oidc.Provider, error) {
+	if s.cfg.IssuerURL == "" {
+		return nil, errSignInOff
+	}
 	s.providerMu.Lock()
 	p := s.oidcProvider
 	s.providerMu.Unlock()

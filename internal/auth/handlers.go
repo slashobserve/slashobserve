@@ -84,6 +84,10 @@ func (f *loginFailure) outcome() audit.Outcome {
 func (s *Service) login(c *gin.Context) {
 	ctx := c.Request.Context()
 	provider, err := s.provider(ctx)
+	if errors.Is(err, errSignInOff) {
+		refuseLogin(c, "sign_in_off")
+		return
+	}
 	if err != nil {
 		s.logger.WarnContext(ctx, "oidc discovery failed", logattrs.Failure("oidc_unavailable", err)...)
 		refuseLogin(c, "unavailable")

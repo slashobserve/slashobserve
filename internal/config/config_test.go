@@ -390,3 +390,59 @@ func TestDatabaseDirectURLSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestNoOIDCSettingsTurnBrowserSignInOff(t *testing.T) {
+	cfg, err := Load(envOf(llmEnv(map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envAllowedEmailDomain: ""})))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.BrowserSignIn || cfg.OIDCIssuerURL != "" || cfg.OIDCClientID != "" || !cfg.OIDCClientSecret.IsZero() {
+		t.Fatalf("BrowserSignIn = %v with issuer %q and client %q, want sign-in off and no OIDC values", cfg.BrowserSignIn, cfg.OIDCIssuerURL, cfg.OIDCClientID)
+	}
+}
+
+func TestAllOIDCSettingsTurnBrowserSignInOn(t *testing.T) {
+	cfg, err := Load(envOf(llmEnv(nil)))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.BrowserSignIn || cfg.OIDCIssuerURL != "http://dex/dex" || cfg.OIDCClientID != "id" || cfg.OIDCClientSecret.Reveal() != "secret" {
+		t.Fatalf("BrowserSignIn = %v with issuer %q and client %q, want sign-in on with the configured values", cfg.BrowserSignIn, cfg.OIDCIssuerURL, cfg.OIDCClientID)
+	}
+}
+
+func TestSomeOIDCSettingsAreRefusedNamingTheMissingOnes(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		unset []string
+	}{
+		{"issuer only", []string{envOIDCClientID, envOIDCClientSecret}},
+		{"no secret", []string{envOIDCClientSecret}},
+		{"no issuer", []string{envOIDCIssuerURL}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			for _, name := range tt.unset {
+				extra[name] = ""
+			}
+			_, err := Load(envOf(llmEnv(extra)))
+			if err == nil || !strings.Contains(err.Error(), strings.Join(tt.unset, ", ")+": set all of") {
+				t.Fatalf("Load err = %v, want one naming %v", err, tt.unset)
+			}
+		})
+	}
+}
+
+func TestInternalOIDCURLNeedsAnIssuer(t *testing.T) {
+	_, err := Load(envOf(llmEnv(map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envOIDCInternalURL: "http://dex:5556"})))
+	if err == nil || !strings.Contains(err.Error(), envOIDCInternalURL+" needs "+envOIDCIssuerURL) {
+		t.Fatalf("Load err = %v, want the internal URL refused without an issuer", err)
+	}
+}
+
+func TestAllowedDomainsStayRequiredWithBrowserSignIn(t *testing.T) {
+	_, err := Load(envOf(llmEnv(map[string]string{envAllowedEmailDomain: ""})))
+	if err == nil || !strings.Contains(err.Error(), envAllowedEmailDomain+" is required") {
+		t.Fatalf("Load err = %v, want the allowed domains required", err)
+	}
+}
