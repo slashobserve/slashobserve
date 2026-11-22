@@ -164,6 +164,7 @@ This lists only the packages whose purpose the name does not make obvious.
   A transaction writes or locks the owner's row before it appends, never after; a deleted owner's rows keep their folder.
   Activity reads filter by `Levels.Visible()` in SQL through `folders.AudienceOf`, the one definition of a reader's folders, Admin flag and identity, which search also reads, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
 - Deleting a dashboard is permanent: foreign keys cascade its versions, threads, agent requests and import record.
+  A `BEFORE DELETE` trigger on `dashboards` (`delete_dashboard_findings`) removes the chat-only answers of the dashboard and of its runs first (a saved answer keeps its place in the cascade, so `keep_copies_of_run` still sees its finding), because the cascade deleting a run fires `delete_unsaved_findings`, whose set-null on `agent_requests.applies_finding_id` would otherwise update a sibling run the same cascade is deleting (`tuple to be updated was already modified`, or a foreign key violation on a row the delete already touched).
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.
 
 ## Database and dashboards
@@ -278,6 +279,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - An HTTP datasource (Prometheus, Loki, Tempo, Elasticsearch) builds its client on `datasource.NewHTTPTransport`, never a bare clone of `http.DefaultTransport`: that keeps 2 idle connections per host, so a burst of concurrent calls redials and the closed sockets exhaust the ephemeral ports within a minute (`datasource_unavailable: connection failed`).
 - The proxy accepts no query text (403 `query_not_in_spec`).
   The one exception is `POST /api/v1/datasources/{uid}/preview`, which places a draft panel from a signed-in user with Comment on the dashboard into a saved version with `spec.WithPanel`, runs it with `DraftLimits` (which apply to every query whose text did not come from a saved Spec), never caches or coalesces it and refuses a bearer key (403 `user_session_required`).
+  Its observation sibling `POST /api/v1/observations/{id}/blocks/preview` (`proxyhttp/observation.go`) wraps a draft panel the way a panel block is wrapped (`observations.Service.DraftPanelData`, for a caller who may add a block, keeping an edited block's variables and range), reads under the observation's folder (`readingStored`) and runs the same way.
 - The proxy's caches are shared by everyone, so a version whose queries reference `${__user.*}` is cached per principal.
   The runner that validates saves stays uncached.
 - The second exception is `GET /api/v1/observe/{id}/build/panels/{panel_id}/data` and `.../build/variables/{name}/values`: they load the requester's stored build on the server, which an Admin may read too (`proxyhttp/build.go`, through `dashboards.Service.ViewBuild`), run under `DraftLimits`, never cache or coalesce, and refuse a bearer key (403 `user_session_required`).

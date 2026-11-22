@@ -14,6 +14,7 @@ import {
   dropTarget,
   holdsAgentOutput,
   moveBlock,
+  followsLivePanel,
   nextBlockId,
   orderOf,
   packRows,
@@ -185,6 +186,30 @@ describe("nextBlockId", () => {
   })
 })
 
+describe("followsLivePanel", () => {
+  const panel = (id: string, position: number, state: Block["state"]) =>
+    block(id, position, "full", { kind: "panel", state })
+
+  it("is true right after a live panel block in page order", () => {
+    const blocks = [
+      block("s", 1, "full", { state: "requested" }),
+      panel("p", 0, "live"),
+    ]
+    expect(followsLivePanel(blocks, "s")).toBe(true)
+  })
+
+  it("is false after a text block, a requested panel or at the top", () => {
+    expect(followsLivePanel([block("t", 0), block("s", 1)], "s")).toBe(false)
+    expect(
+      followsLivePanel([panel("p", 0, "requested"), block("s", 1)], "s")
+    ).toBe(false)
+    expect(followsLivePanel([panel("p", 1, "live"), block("s", 0)], "s")).toBe(
+      false
+    )
+    expect(followsLivePanel([panel("p", 0, "live")], "zzz")).toBe(false)
+  })
+})
+
 describe("holdsAgentOutput", () => {
   it("is true for a run block and for a block an agent wrote", () => {
     expect(holdsAgentOutput(block("a", 0, "full", { kind: "run" }))).toBe(true)
@@ -216,7 +241,7 @@ describe("newPanelBody", () => {
     queries: [{ query: "up" }],
   } as unknown as DataPanel
 
-  it("strips the dashboard placement and carries the observation range", () => {
+  it("strips the dashboard placement and carries the range it is given", () => {
     const body = newPanelBody(panel, {
       from: "2026-11-12T09:00:00Z",
       to: "2026-11-12T10:00:00Z",
