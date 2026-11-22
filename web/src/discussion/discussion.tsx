@@ -26,7 +26,9 @@ import { MessageText } from "@/comments/message-text"
 import { useThreads, type Message } from "@/comments/thread-queries"
 import { Composer } from "@/conversation/composer"
 import { threadPlace, ungated } from "@/conversation/delivery"
+import { RunAnswer, RunLine } from "@/conversation/run-answer"
 import { subjectOf } from "@/conversation/send-plan"
+import { unansweredRun } from "@/conversation/thread-state"
 import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
@@ -276,6 +278,11 @@ export function DiscussionFeed({
               reply:
                 disabledReason === null ? () => setReplyingTo(message) : null,
             })
+            const answer = message.answer ?? null
+            const answerThread = threads.find(
+              (item) => item.thread.id === message.thread_id
+            )?.thread
+            const waitingOn = unansweredRun(message, messages)
             const block =
               message.block_id === null
                 ? undefined
@@ -301,6 +308,17 @@ export function DiscussionFeed({
                   queryKey={threadKeys.list(target)}
                   root={message.id === message.thread_id}
                 />
+                {answer === null || answerThread === undefined ? null : (
+                  <RunAnswer
+                    answer={answer}
+                    target={target}
+                    thread={answerThread}
+                    gate={{ kind: "allowed" }}
+                  />
+                )}
+                {waitingOn === null ? null : (
+                  <RunLine message={message} run={waitingOn} />
+                )}
                 {block === undefined ? null : (
                   <EntryMeta>
                     <span>On {block.title}</span>

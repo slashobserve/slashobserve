@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Message, Thread } from "@/comments/thread-queries"
+import type { Finding } from "@/findings/queries"
 import { renderWithProviders } from "@/test/render"
 
 import { Discussion, DiscussionFeed } from "./discussion"
@@ -30,7 +31,7 @@ const grace = actor("grace-1", "Grace")
 
 function message(
   id: string,
-  who: ReturnType<typeof actor>,
+  who: Message["actor"],
   createdAt: string
 ): Message {
   return {
@@ -322,6 +323,129 @@ describe("Discussion", () => {
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
       client_id: expect.any(String),
     })
+  })
+})
+
+describe("Discussion with a run", () => {
+  const runId = "6f1e2d3c-4b5a-4968-8776-655443322110"
+  const agent: Message["actor"] = {
+    ...grace,
+    run_id: runId,
+    label: "Observe Agent",
+  }
+  const asked: Message = {
+    ...earlier,
+    body: "@observe why did latency rise",
+    run: { id: runId, status: "running", assigned_kind: "builtin" },
+  }
+
+  function finding(patch: Partial<Finding> = {}): Finding {
+    return {
+      id: "f1",
+      observation_id: null,
+      agent_request_id: runId,
+      dashboard_id: null,
+      folder_id: null,
+      ask_on: null,
+      restricted: false,
+      title: "Latency rose",
+      markdown: "Latency **doubled** after the deploy.",
+      evidence: [
+        { id: "e1", type: "timeseries", title: "Latency" },
+      ] as unknown as Finding["evidence"],
+      from: "2020-11-10T08:00:00Z",
+      to: "2020-11-10T09:00:00Z",
+      annotation_id: null,
+      created_by: { kind: "user", id: "grace-1", name: "Grace" },
+      actor: agent,
+      created_at: "2020-11-10T09:01:00Z",
+      url: null,
+      suggested_change: null,
+      observe_worthy: false,
+      ...patch,
+    }
+  }
+
+  function answered(canSave = true): Message {
+    return {
+      ...message("m2", agent, "2020-11-10T09:01:00Z"),
+      body: "Answered.",
+      answer: { finding: finding(), can_save: canSave },
+    }
+  }
+
+  it("shows the answer under the agent's status line", async () => {
+    mockServer({ threads: [thread], messages: () => [asked, answered()] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(within(list).getByText("Answered.")).toBeInTheDocument()
+    expect(await within(list).findByText("doubled")).toBeInTheDocument()
+    expect(
+      within(list).getByRole("button", { name: "1 evidence panel" })
+    ).toBeInTheDocument()
+  })
+
+  it("offers Create observation only when the answer can be saved", async () => {
+    mockServer({
+      threads: [thread],
+      messages: () => [
+        asked,
+        {
+          ...answered(),
+          answer: {
+            finding: finding({ observe_worthy: true }),
+            can_save: true,
+          },
+        },
+      ],
+    })
+    renderDiscussion()
+    expect(
+      await screen.findByRole("button", { name: "Create observation" })
+    ).toBeInTheDocument()
+  })
+
+  it("never offers to revise the dashboard from an observation", async () => {
+    mockServer({
+      threads: [thread],
+      messages: () => [
+        asked,
+        {
+          ...answered(),
+          answer: {
+            finding: finding({ suggested_change: "Add a p99 panel" }),
+            can_save: true,
+          },
+        },
+      ],
+    })
+    renderDiscussion()
+    expect(
+      await screen.findByText("Suggested change: Add a p99 panel")
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Revise the dashboard" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the working line under a message whose run has not answered", async () => {
+    mockServer({ threads: [thread], messages: () => [asked] })
+    renderDiscussion({ route: { path: "/", url: "/" } })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(
+      within(list).getByText(/Observe Agent is working on it/)
+    ).toBeVisible()
+    expect(
+      within(list).getByRole("link", { name: "View the run" })
+    ).toHaveAttribute("href", `/c/${runId}`)
+  })
+
+  it("drops the working line once the run answered", async () => {
+    mockServer({ threads: [thread], messages: () => [asked, answered()] })
+    renderDiscussion({ route: { path: "/", url: "/" } })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(within(list).getByText("Answered.")).toBeInTheDocument()
+    expect(within(list).queryByText(/is working on it/)).not.toBeInTheDocument()
   })
 })
 
