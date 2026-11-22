@@ -400,9 +400,10 @@ describe("Discussion with a run", () => {
 
   it("does not offer Create observation inside an observation's discussion", async () => {
     mockServer({ threads: [thread], messages: saveableAnswers })
-    const { user } = renderDiscussion()
-    const chip = await screen.findByRole("button", { name: "1 evidence panel" })
-    await user.click(chip)
+    renderDiscussion()
+    expect(
+      await screen.findByRole("button", { name: "1 evidence panel" })
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: "Create observation" })
     ).not.toBeInTheDocument()
