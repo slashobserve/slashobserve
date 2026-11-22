@@ -92,11 +92,6 @@ type comment struct {
 	ResolvedByVersion *int    `json:"resolved_by_version"`
 }
 
-type commentList struct {
-	Comments   []comment `json:"comments"`
-	NextCursor *string   `json:"next_cursor"`
-}
-
 type commentEnvelope struct {
 	Comment comment `json:"comment"`
 }
@@ -239,19 +234,23 @@ func (a *app) commentListRequest(args []string) (string, url.Values, error) {
 	if a.commentList.panel != "" {
 		query.Set("panel_id", a.commentList.panel)
 	}
-	if len(args) == 0 {
-		target, err := parseOn(a.commentList.on)
-		if err != nil {
-			return "", nil, err
-		}
-		query.Set("target", target)
-		return "threads", query, nil
-	}
-	id, err := parseID(args[0])
+	target, err := a.commentListTarget(args)
 	if err != nil {
 		return "", nil, err
 	}
-	return "dashboards/" + id + "/comments", query, nil
+	query.Set("target", target)
+	return "threads", query, nil
+}
+
+func (a *app) commentListTarget(args []string) (string, error) {
+	if len(args) == 0 {
+		return parseOn(a.commentList.on)
+	}
+	id, err := parseID(args[0])
+	if err != nil {
+		return "", err
+	}
+	return "dashboard:" + id, nil
 }
 
 func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
@@ -272,7 +271,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	rows, next, err := commentRows(data, len(args) == 1)
+	rows, next, err := commentRows(data)
 	if err != nil {
 		return err
 	}
@@ -285,26 +284,7 @@ func (a *app) runCommentsList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func commentRows(data []byte, byDashboard bool) ([]commentRow, *string, error) {
-	if byDashboard {
-		page, err := decode[commentList](data)
-		if err != nil {
-			return nil, nil, err
-		}
-		rows := make([]commentRow, 0, len(page.Comments))
-		for _, cm := range page.Comments {
-			rows = append(rows, commentRow{
-				id:      cm.ID,
-				thread:  orDash(cm.ParentID),
-				panel:   panelLabel(cm.PanelID, cm.PanelPresent, "dashboard"),
-				status:  cm.Status,
-				author:  cm.Author.Name,
-				created: cm.CreatedAt,
-				body:    cm.Body,
-			})
-		}
-		return rows, page.NextCursor, nil
-	}
+func commentRows(data []byte) ([]commentRow, *string, error) {
 	page, err := decode[threadPage](data)
 	if err != nil {
 		return nil, nil, err

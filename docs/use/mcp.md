@@ -296,7 +296,9 @@ Every comment the comment tools return carries `block_id` (null for the whole ob
 `list_mentionable_people` takes a `target` and an optional `query` and returns the people who can see it, with the `id` to put in `@[Name](user:<id>)`; it returns at most 20, and `more` is true when others match, so narrow with `query`.
 Mentioning a person who does not exist or cannot see the target answers `invalid_mention`, and a mentioned person gets it in their Inbox.
 An observation has one discussion, so `create_comment` on an observation that has one adds the comment to it; with `anchor` it opens a thread of its own on that spot instead.
-`create_comment` takes `anchor`, the spot a dashboard or observation thread points at (with `block_id` on an observation, a spot in that block), and every comment it returns carries `at`, the spot in words.
+`create_comment` takes `anchor`, the spot a dashboard or observation thread points at (with `block_id` on an observation, a spot in that block).
+The first comment of a thread that points at a spot, in `list_comments` and in what the comment tools return, carries that `anchor` as `create_comment` takes it and `at`, the spot in words; replies carry neither, so read the spot from the comment their `parent_id` names.
+A single comment too large for a page first drops `at`, then its mentions lose their names but keep their `kind` and `id`, and then its `body` is cut, with `body_truncated`; its `anchor` is always kept whole.
 Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`.
