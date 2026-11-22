@@ -82,14 +82,16 @@ func (h *Handler) traceLogs(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), queryproxy.DraftLimits.Timeout+queryproxy.DraftGrace)
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
-	frames, err := h.safeTraceLogs(ctx, uid, source, datasource.TraceLogsRequest{
+	logsRequest := datasource.TraceLogsRequest{
 		TraceID: *req.TraceID,
 		SpanID:  optional(req.SpanID),
 		Service: optional(req.Service),
 		Range:   rng,
 		Limit:   req.limit(),
 		User:    queryproxy.UserFor(principal),
-	})
+	}
+	frames, err := h.safeTraceLogs(ctx, uid, source, logsRequest)
+	datasource.NoteQuery(ctx, uid, logsRequest.Text(), rng, datasource.FrameRows(frames))
 	if err != nil {
 		h.exploreFail(c, uid, err)
 		return

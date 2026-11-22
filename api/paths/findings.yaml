@@ -61,7 +61,7 @@ findings-id:
         format: uuid
   get:
     operationId: getFinding
-    x-audit: { none: "read; an unsaved answer is recorded as run.view of its request, and a refused read as a denied run.view of the finding, by the service" }
+    x-audit: { none: "read; an unsaved answer is recorded as run.view of its request, and a refused read as a denied run.view of the finding, by the service", target: { kind: finding, id: path.id } }
     deprecated: true
     summary: Read one finding.
     description: >-
@@ -227,7 +227,7 @@ findings-id-panels-panel-id-data:
         type: string
   get:
     operationId: getFindingPanelData
-    x-audit: { none: "evidence data stored with a finding; the observation view is recorded" }
+    x-audit: { none: "evidence data stored with a finding; the observation view is recorded", target: { kind: finding, id: path.id } }
     deprecated: true
     summary: Run the queries of one evidence panel of a finding and return their frames.
     description: >-

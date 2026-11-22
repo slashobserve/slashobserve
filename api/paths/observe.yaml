@@ -842,7 +842,7 @@ observe-id-build-panels-panel-id-data:
         type: string
   get:
     operationId: getBuildPanelData
-    x-audit: { none: "panel data of a build the agent saved; the run is recorded" }
+    x-audit: { none: "panel data of a build the agent saved; the run is recorded", target: { kind: run, id: path.id } }
     summary: Run the queries of one panel of an agent request's build and return their frames.
     description: >-
       The queries come from the stored build, so the request names a panel and never carries query text, as for saved versions.
@@ -945,7 +945,7 @@ observe-id-build-variables-name-values:
         type: string
   get:
     operationId: getBuildVariableValues
-    x-audit: { none: "variable values of a build the agent saved; the run is recorded" }
+    x-audit: { none: "variable values of a build the agent saved; the run is recorded", target: { kind: run, id: path.id } }
     summary: List the values of one variable of an agent request's build.
     description: >-
       Behaves as the values of a saved version's variable, over the stored build, with the same access rule as the build's panel data: signed-in users who made the request and signed-in Admins only, 403 `user_session_required` for a key, 404 for anyone else.

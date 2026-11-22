@@ -23,6 +23,7 @@ datasources-uid-tail:
       A `: ping` comment arrives every 15 seconds and re-checks the caller's credential, and the server ends the stream after 30 minutes.
       Polls run with the agent tools' limits and share the server's upstream call slots, but a tail holds no in-flight query slot.
       A caller may hold 5 tails and the process 200.
+      Each tail is recorded once, when it ends, as `query.run` with `stream` true, the query text, the start of the stream and the rows of its first poll; tails are never folded.
       Viewers and above may call it, service-account keys included.
     parameters:
       - name: query

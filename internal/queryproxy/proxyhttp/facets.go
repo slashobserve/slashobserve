@@ -92,6 +92,7 @@ func (h *Handler) facets(c *gin.Context) {
 		Limit:  req.limit(),
 		Sample: req.sample(),
 	})
+	datasource.NoteQuery(ctx, uid, *req.Query, rng, datasource.FacetValues(facets))
 	if err != nil {
 		h.exploreFail(c, uid, err)
 		return

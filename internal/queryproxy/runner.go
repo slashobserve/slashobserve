@@ -373,6 +373,7 @@ func (r *Runner) runQuery(ctx context.Context, req Request, panel *spec.Panel, j
 		exemplars, status, err := r.fetchExemplars(ctx, panel.ID, ref, pq)
 		return fetched{frames: frames, exemplars: exemplars, status: status}, err
 	})
+	datasource.NoteQuery(ctx, pq.inst.UID, panel.Queries[j].Query, pq.rng, datasource.FrameRows(out.frames))
 	if err != nil {
 		return fetched{}, err
 	}
@@ -523,6 +524,7 @@ type preparedQuery struct {
 	kind Kind
 	step time.Duration
 	from time.Time
+	rng  datasource.TimeRange
 	call func(context.Context) ([]datasource.Frame, error)
 
 	asksExemplars bool
@@ -586,6 +588,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 			rng = alignToStep(rng, pq.step)
 		}
 		pq.from = rng.From
+		pq.rng = rng
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
 			return inst.Datasource.QueryRange(ctx, dq, rng, pq.step)
 		}
@@ -596,6 +599,7 @@ func (r *Runner) prepare(ctx context.Context, req Request, st *varState, panel *
 		}
 	} else {
 		dq.MinInterval = minimum
+		pq.rng = req.Range
 		pq.call = func(ctx context.Context) ([]datasource.Frame, error) {
 			return inst.Datasource.QueryInstant(ctx, dq, req.Range)
 		}

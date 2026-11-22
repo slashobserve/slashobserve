@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/logtest"
@@ -1073,6 +1074,33 @@ func TestRunPanelAlignsAQueryWithALargerStepToItsOwnGrid(t *testing.T) {
 	}
 	if res.Range != rng {
 		t.Fatalf("result range = %v, want the request range %v", res.Range, rng)
+	}
+}
+
+func TestRunPanelNotesEachQueryOverTheRangeItWasRunOver(t *testing.T) {
+	fake := newFake("prometheus")
+	runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{"prom": fake})
+	d := dashboardOf([]spec.Panel{multiPanel(spec.Timeseries,
+		spec.Query{Query: "plain"},
+		spec.Query{Query: "slow", Interval: "5m"},
+	)})
+	rng := datasource.TimeRange{From: testNow.Add(-6*time.Hour + 37*time.Second), To: testNow.Add(37 * time.Second)}
+	ctx := audit.Open(reading(t.Context()), audit.Scope{})
+	if _, err := runner.RunPanel(ctx, Request{Dashboard: d, PanelID: "p1", Range: rng, MaxDataPoints: 200}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	ran := map[string]datasource.TimeRange{}
+	for _, c := range fake.callsTo("range") {
+		ran[c.query.Text] = c.rng
+	}
+	noted := map[string]audit.Query{}
+	for _, q := range audit.Noted(ctx) {
+		noted[q.Text] = q
+	}
+	for _, text := range []string{"plain", "slow"} {
+		if got := noted[text]; !got.From.Equal(ran[text].From) || !got.To.Equal(ran[text].To) {
+			t.Errorf("%s noted over %v to %v, ran over %v", text, got.From, got.To, ran[text])
+		}
 	}
 }
 

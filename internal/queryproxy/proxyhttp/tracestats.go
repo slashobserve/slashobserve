@@ -103,6 +103,7 @@ func (h *Handler) traceStats(c *gin.Context) {
 		Limits: queryproxy.DraftLimits,
 		User:   queryproxy.UserFor(principal),
 	})
+	datasource.NoteQuery(ctx, uid, *req.Query, al.rng, len(stats.Buckets))
 	if err != nil {
 		h.exploreFail(c, uid, err)
 		return

@@ -8,7 +8,7 @@ oauth-requests-id:
         format: uuid
   get:
     operationId: getConnectionRequest
-    x-audit: { none: "reads a pending consent request; the decision is recorded" }
+    x-audit: { none: "reads a pending consent request; the decision is recorded", target: { kind: connection_request, id: path.id } }
     summary: Read a pending request from an MCP client to act as the signed-in person.
     description: >-
       The consent page reads this to show what the person approves.

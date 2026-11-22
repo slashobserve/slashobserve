@@ -125,6 +125,7 @@ func (h *Handler) serve(c *gin.Context) {
 		t.seen = newSeenRows(2*req.lag, maxSeenKeys)
 	}
 	first, err := t.poll()
+	datasource.NoteQuery(c.Request.Context(), req.uid, req.query, datasource.TimeRange{From: req.from}, datasource.FrameRows(first.frames))
 	if err != nil {
 		h.failBeforeStream(c, req.uid, err)
 		return

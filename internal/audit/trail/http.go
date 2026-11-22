@@ -225,7 +225,7 @@ func (h *Handler) facets(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, noAction, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}
@@ -242,7 +242,7 @@ func (h *Handler) histogram(c *gin.Context) {
 	if !ok {
 		return
 	}
-	p, ok := h.prepare(c, noAction, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}
@@ -268,7 +268,7 @@ func bucketsParam(c *gin.Context) (int, bool) {
 }
 
 func (h *Handler) aggregate(c *gin.Context) {
-	p, ok := h.prepare(c, noAction, false)
+	p, ok := h.prepare(c, ActionSearch, false)
 	if !ok {
 		return
 	}

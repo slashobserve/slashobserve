@@ -112,7 +112,7 @@ dashboards-id-comments:
         $ref: "../openapi.yaml#/components/responses/Internal"
   get:
     operationId: listDashboardComments
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: dashboard, id: path.id } }
     x-surfaces:
       mcp: [list_comments]
       cli: [observe comments list]

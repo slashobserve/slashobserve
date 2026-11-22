@@ -720,11 +720,14 @@ func (r *Registry) sampleRows(ctx context.Context, input json.RawMessage) (Resul
 	}
 	source := clip(cmp.Or(in.Table, untabledSource(typeOf(inst))), maxStepNameBytes)
 	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverSampleRows, Table: in.Table, Limit: limit}, "Sampling "+source)
+	sampled := "sample " + source
 	if !ok || err != nil {
+		datasource.NoteQuery(ctx, inst.UID, sampled, datasource.TimeRange{}, 0)
 		return res, err
 	}
 	out := frameRows(cat.Sample, limit)
 	out.Table = in.Table
+	datasource.NoteQuery(ctx, inst.UID, sampled, datasource.TimeRange{}, len(out.Rows))
 	return success(fmt.Sprintf("Sampled %s from %s on %s", plural(len(out.Rows), "row", "rows"), source, in.Datasource), out), nil
 }
 
