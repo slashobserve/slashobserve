@@ -355,6 +355,7 @@ describe("Discussion with a run", () => {
       ] as unknown as Finding["evidence"],
       from: "2020-11-10T08:00:00Z",
       to: "2020-11-10T09:00:00Z",
+      as_of: null,
       annotation_id: null,
       created_by: { kind: "user", id: "grace-1", name: "Grace" },
       actor: agent,

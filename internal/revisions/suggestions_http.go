@@ -152,8 +152,8 @@ func (s *Service) newSuggestionJSON(c *gin.Context, row dbsqlc.AgentRequest) sug
 		Origin:       httpapi.OptionalString(row.Origin.String),
 		OriginClient: httpapi.OptionalString(row.OriginClient.String),
 		CreatedAt:    httpapi.FormatTime(row.CreatedAt.Time),
-		StartedAt:    formatOptionalTime(optionalTime(row.StartedAt)),
-		FinishedAt:   formatOptionalTime(optionalTime(row.FinishedAt)),
+		StartedAt:    httpapi.FormatOptionalTime(optionalTime(row.StartedAt)),
+		FinishedAt:   httpapi.FormatOptionalTime(optionalTime(row.FinishedAt)),
 	}
 	out.Usage = s.decodeUsage(c.Request.Context(), out.ID, row.RunUsage)
 	switch out.Status {

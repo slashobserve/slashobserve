@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -63,6 +64,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 
 			SuggestedChange: pgtype.Text{String: in.SuggestedChange, Valid: in.SuggestedChange != ""},
 			ObserveWorthy:   in.ObserveWorthy,
+			AsOf:            optionalTimestamp(in.AsOf),
 		})
 		if err != nil {
 			return err
@@ -321,6 +323,7 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 		Markdown:    r.Markdown,
 		From:        r.TimeFrom.Time.UTC(),
 		To:          r.TimeTo.Time.UTC(),
+		AsOf:        timeOf(r.AsOf),
 		CreatedAt:   r.CreatedAt.Time.UTC(),
 		CreatedBy:   Author{Kind: r.CreatedByKind, ID: r.CreatedByID.String(), Name: r.CreatedByName},
 		RequestedBy: requestedBy,
@@ -376,4 +379,19 @@ func (s *store) attachChat(ctx context.Context, by auth.Principal, runID, dashbo
 		return fmt.Errorf("attach the chat to the dashboard made from its answer: %w", err)
 	}
 	return nil
+}
+
+func optionalTimestamp(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
+}
+
+func timeOf(t pgtype.Timestamptz) *time.Time {
+	if !t.Valid {
+		return nil
+	}
+	at := t.Time.UTC()
+	return &at
 }

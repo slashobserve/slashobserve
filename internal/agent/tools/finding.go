@@ -98,7 +98,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	from, to := run.From, run.To
 	if from.IsZero() || to.IsZero() {
-		to = time.Now()
+		to = Now(ctx)
 		from = to.Add(-defaultWindow)
 	}
 	askOn, res, ok := askOnTarget(in.AskOn, run)
@@ -118,6 +118,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
+	save.AsOf = run.asOf()
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil
@@ -175,7 +176,7 @@ func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, i
 	if len(in.Evidence) > findings.MaxEvidence {
 		return findings.SaveInput{}, invalid("evidence takes at most %d panels", findings.MaxEvidence), false, nil
 	}
-	now := time.Now()
+	now := Now(ctx)
 	from, to, res, ok := findingWindow(in, defaultFrom, defaultTo, now)
 	if !ok {
 		return findings.SaveInput{}, res, false, nil

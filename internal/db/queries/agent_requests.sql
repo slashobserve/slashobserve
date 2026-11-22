@@ -13,7 +13,7 @@ INSERT INTO agent_requests (
   id, dashboard_id, intent, kind, comment_id, prompt, panel_id, base_version,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
   continues_id, continue_note, retries_id,
-  assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
+  assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone, as_of,
   chat_id, anchor, block_id, client_id, applies_finding_id
 ) VALUES (
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), @dashboard_id, @intent, 'build', sqlc.narg('comment_id'), @prompt, sqlc.narg('panel_id'), @base_version::integer,
@@ -21,7 +21,7 @@ INSERT INTO agent_requests (
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
   coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
-  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text,
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('as_of')::timestamptz,
   sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid,
   sqlc.narg('applies_finding_id')::uuid
 )
@@ -242,10 +242,10 @@ SELECT count(*) FROM agent_requests WHERE kind = 'build' AND intent = 'ask' AND 
   AND (chat_id IS NULL OR NOT EXISTS (SELECT 1 FROM chats c WHERE c.id = chat_id AND c.observation_id IS NOT NULL));
 
 -- name: EnqueueObserveRequest :one
-INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, client_id)
+INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client, continues_id, continue_note, retries_id, chat_id, thread_context, time_zone, as_of, client_id)
 VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), 'ask', 'build', @prompt, @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('continues_id')::uuid, sqlc.narg('continue_note')::text, sqlc.narg('retries_id')::uuid,
-  sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('client_id')::uuid)
+  sqlc.narg('chat_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('as_of')::timestamptz, sqlc.narg('client_id')::uuid)
 ON CONFLICT (requested_by_kind, requested_by_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
 RETURNING *;
 
@@ -435,7 +435,7 @@ SELECT * FROM agent_requests WHERE id = @id AND dashboard_id = @dashboard_id AND
 INSERT INTO agent_requests (
   id, dashboard_id, intent, kind, prompt, panel_id, context_from, context_to,
   requested_by_kind, requested_by_id, requested_by_name, requested_by_email, origin, origin_client,
-  retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone,
+  retries_id, assigned_kind, assigned_id, trigger, thread_message_id, thread_context, time_zone, as_of,
   chat_id, anchor, block_id, client_id, subject_observation_id, investigation
 ) VALUES (
   coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('dashboard_id')::uuid, 'ask', 'investigate', @prompt, sqlc.narg('panel_id')::text,
@@ -443,7 +443,7 @@ INSERT INTO agent_requests (
   @requested_by_kind, @requested_by_id, @requested_by_name, sqlc.narg('requested_by_email'),
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text,
   sqlc.narg('retries_id')::uuid, coalesce(sqlc.narg('assigned_kind')::text, 'builtin'), sqlc.narg('assigned_id')::uuid, coalesce(sqlc.narg('trigger')::text, 'person'),
-  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text,
+  sqlc.narg('thread_message_id')::uuid, sqlc.narg('thread_context')::text, sqlc.narg('time_zone')::text, sqlc.narg('as_of')::timestamptz,
   sqlc.narg('chat_id')::uuid, sqlc.narg('anchor')::jsonb, sqlc.narg('block_id')::uuid, sqlc.narg('client_id')::uuid,
   sqlc.narg('subject_observation_id')::uuid, @investigation::boolean
 )

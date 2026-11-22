@@ -124,6 +124,7 @@ type agentRequestJSON struct {
 	ArchivedAt    *string         `json:"archived_at"`
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
+	AsOf          *string         `json:"as_of"`
 	ObservationID *string         `json:"observation_id"`
 	SubjectID     *string         `json:"subject_observation_id"`
 	ChatID        *string         `json:"chat_id"`

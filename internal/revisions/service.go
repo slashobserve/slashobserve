@@ -171,6 +171,7 @@ func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		AsOf:             asOfColumn(ctx),
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,
@@ -329,6 +330,7 @@ func (s *Service) enqueueObserve(ctx context.Context, q *dbsqlc.Queries, by auth
 		RetriesID:        turn.retries,
 		ChatID:           slot.chat,
 		TimeZone:         timeZoneColumn(ctx),
+		AsOf:             asOfColumn(ctx),
 		ClientID:         turn.clientID,
 	})
 	if err != nil {
@@ -435,6 +437,7 @@ func (s *Service) enqueueInvestigate(ctx context.Context, q *dbsqlc.Queries, p I
 		ThreadMessageID:  p.ThreadMessageID,
 		ThreadContext:    pgtype.Text{String: p.ThreadContext, Valid: p.ThreadContext != ""},
 		TimeZone:         timeZoneColumn(ctx),
+		AsOf:             asOfColumn(ctx),
 		Anchor:           p.Point.Anchor,
 		BlockID:          p.Point.BlockID,
 		ClientID:         p.clientID,

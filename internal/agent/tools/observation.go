@@ -334,13 +334,13 @@ func foreignFields(b blockFields, kind observations.Kind) (Result, bool) {
 }
 
 func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, panel json.RawMessage, values map[string][]string, own, fallback window) (Result, bool, error) {
-	from, to := own.bounds(fallback, time.Now())
+	from, to := own.bounds(fallback, Now(ctx))
 	variables, err := observations.ValueVariables(values)
 	if err != nil {
 		res, _ := observationRefusal(err)
 		return res, false, nil
 	}
-	_, res, ok, err := r.evidenceDashboardWith(ctx, principal, findings.SaveInput{Title: panelCheckTitle, From: from, To: to}, []json.RawMessage{panel}, variables, true, time.Now())
+	_, res, ok, err := r.evidenceDashboardWith(ctx, principal, findings.SaveInput{Title: panelCheckTitle, From: from, To: to}, []json.RawMessage{panel}, variables, true, Now(ctx))
 	return res, ok, err
 }
 

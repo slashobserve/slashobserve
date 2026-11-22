@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -56,7 +55,7 @@ func (r *Registry) logsForTrace(ctx context.Context, input json.RawMessage) (Res
 	if !supported {
 		return invalid("%s is a %s datasource; logs_for_trace reads Loki, ClickHouse, Elasticsearch and OpenSearch datasources", inst.UID, typeOf(inst)), nil
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}

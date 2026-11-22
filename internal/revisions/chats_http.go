@@ -68,7 +68,7 @@ func newChatJSON(c Chat) chatJSON {
 		DashboardID:    optionalUUID(c.DashboardID),
 		DashboardTitle: c.DashboardTitle,
 		ObservationID:  optionalUUID(c.ObservationID),
-		PinnedAt:       formatOptionalTime(c.PinnedAt),
+		PinnedAt:       httpapi.FormatOptionalTime(c.PinnedAt),
 		CreatedAt:      httpapi.FormatTime(c.CreatedAt),
 		LastTurnAt:     httpapi.FormatTime(c.LastTurnAt),
 		Turns:          c.Turns,

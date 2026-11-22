@@ -336,6 +336,7 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--observation` names an existing observation to write into, by its id.
+`--as-of <time>`, for an Admin key, runs the investigation as of a past time, an RFC 3339 time or epoch milliseconds, so `--from now-1h --to now` is the hour before it; see [Investigate a past incident](investigate.md#investigate-a-past-incident).
 `--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at series:service=checkout`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks, or without `--at` points the question at that whole block.
 `--panel` without `--dashboard`, one of `--from` and `--to` alone, an `--observation` that is not an id, or `--private` without exactly one of `--dashboard` and `--observation`, exits 2.
 

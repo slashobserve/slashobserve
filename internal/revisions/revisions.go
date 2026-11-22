@@ -248,6 +248,8 @@ type Request struct {
 	From, To *time.Time
 
 	TimeZone string
+
+	AsOf *time.Time
 }
 
 func (r Request) WriteOrigin(outside origin.Origin) origin.Origin {

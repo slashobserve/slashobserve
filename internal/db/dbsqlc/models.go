@@ -108,6 +108,7 @@ type AgentRequest struct {
 	SubjectObservationID pgtype.UUID
 	Investigation        bool
 	ReadRestricted       bool
+	AsOf                 pgtype.Timestamptz
 }
 
 type AgentRequestBuild struct {
@@ -391,6 +392,7 @@ type Finding struct {
 	AskDashboardID  pgtype.UUID
 	SuggestedChange pgtype.Text
 	ObserveWorthy   bool
+	AsOf            pgtype.Timestamptz
 }
 
 type Folder struct {

@@ -214,7 +214,7 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 	if res, ok := checkLength("cursor", in.Cursor, datasource.MaxCursorBytes); !ok {
 		return res, nil
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}
@@ -262,7 +262,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	if res, ok := checkQueryText(in.Query); !ok {
 		return res, nil
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}
@@ -292,6 +292,10 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, false, true)
 	}
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
+}
+
+func resolveRunRange(ctx context.Context, from, to string) (datasource.TimeRange, Result, bool) {
+	return resolveRange(from, to, Now(ctx))
 }
 
 func resolveRange(from, to string, now time.Time) (datasource.TimeRange, Result, bool) {

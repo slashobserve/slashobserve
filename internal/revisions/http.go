@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"slices"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -353,12 +352,12 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		Origin:         httpapi.OptionalString(r.Origin),
 		OriginClient:   httpapi.OptionalString(r.OriginClient),
 		CreatedAt:      httpapi.FormatTime(r.CreatedAt),
-		StartedAt:      formatOptionalTime(r.StartedAt),
-		FinishedAt:     formatOptionalTime(r.FinishedAt),
+		StartedAt:      httpapi.FormatOptionalTime(r.StartedAt),
+		FinishedAt:     httpapi.FormatOptionalTime(r.FinishedAt),
 
 		FailureCode:  httpapi.OptionalString(r.FailureCode),
 		Build:        state.progressFor(r.RequestedBy, caller),
-		BuildSavedAt: formatOptionalTime(r.BuildSavedAt),
+		BuildSavedAt: httpapi.FormatOptionalTime(r.BuildSavedAt),
 		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,
@@ -370,12 +369,4 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 func (out *revisionJSON) redact() {
 	out.Redacted = true
 	out.Prompt, out.ContinueNote, out.Error = "", nil, nil
-}
-
-func formatOptionalTime(t *time.Time) *string {
-	if t == nil {
-		return nil
-	}
-	s := httpapi.FormatTime(*t)
-	return &s
 }

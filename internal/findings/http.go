@@ -56,6 +56,7 @@ type FindingJSON struct {
 
 	From         string            `json:"from"`
 	To           string            `json:"to"`
+	AsOf         *string           `json:"as_of"`
 	AnnotationID *string           `json:"annotation_id"`
 	CreatedBy    FindingAuthorJSON `json:"created_by"`
 	Actor        actor.JSON        `json:"actor"`
@@ -114,6 +115,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 		Restricted:      f.Restricted,
 		From:            httpapi.FormatTime(f.From),
 		To:              httpapi.FormatTime(f.To),
+		AsOf:            httpapi.FormatOptionalTime(f.AsOf),
 		AnnotationID:    httpapi.OptionalString(f.AnnotationID),
 		CreatedBy:       FindingAuthorJSON{Kind: f.CreatedBy.Kind, ID: f.CreatedBy.ID, Name: f.CreatedBy.Name},
 		Actor:           f.Actor.JSON(),
