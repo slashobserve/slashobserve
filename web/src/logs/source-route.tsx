@@ -12,7 +12,7 @@ import { LogsPage } from "./logs-page"
 export function LogsSource({ uid }: { uid: string }) {
   if (uid !== auditDatasourceUid) return <LogsPage uid={uid} />
   return (
-    <RoleGate min="admin">
+    <RoleGate min="admin" hideCrumb>
       <LogsPage uid={uid} />
     </RoleGate>
   )
