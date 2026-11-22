@@ -4,6 +4,7 @@ import { useRouteContext, useSearch } from "@tanstack/react-router"
 import { LockIcon, XIcon } from "lucide-react"
 
 import { useActivityStore, useCurrentChat } from "@/activity/activity-store"
+import { keepFocusThroughPaneSwitch } from "@/components/dock/dock-focus"
 import { useChat } from "@/chat/chats-queries"
 import { ContextChips } from "@/chat/context-chips"
 import { ChatAnswer } from "@/chat/request-turn"
@@ -112,6 +113,7 @@ export function useOpenChat(dashboardId: string, paneShown: boolean) {
     (chatId: string) => {
       rememberChat(dashboardId, chatId)
       if (paneShown && chatId !== addressChat) {
+        keepFocusThroughPaneSwitch()
         setSearch((state) => ({ ...state, chat: chatId }), { replace: true })
       }
     },
