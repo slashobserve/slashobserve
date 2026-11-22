@@ -1,6 +1,14 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
 
 import { threadKeys } from "@/api/keys"
 import { ungated } from "@/conversation/delivery"
@@ -66,7 +74,44 @@ function message(threadId: string, body: string): Message {
   } as Message
 }
 
-function renderPins() {
+const agent: Message["actor"] = {
+  ...actor,
+  run_id: "r1",
+  label: "Observe Agent for Ada",
+}
+
+const answeredReply: Message = {
+  ...message("t3", "Answered."),
+  id: "t3-answer",
+  actor: agent,
+  created_at: "2026-11-06T09:02:00Z",
+  answer: {
+    finding: {
+      id: "f1",
+      observation_id: null,
+      agent_request_id: "r1",
+      dashboard_id: "d1",
+      folder_id: null,
+      ask_on: null,
+      restricted: false,
+      title: "The tail went quiet after the deploy",
+      markdown: "Traffic **dropped** at noon.",
+      evidence: [],
+      from: "2026-11-06T08:00:00Z",
+      to: "2026-11-06T09:00:00Z",
+      annotation_id: null,
+      created_by: { kind: "user", id: "u1", name: "Ada" },
+      actor: agent,
+      created_at: "2026-11-06T09:02:00Z",
+      url: null,
+      suggested_change: null,
+      observe_worthy: false,
+    },
+    can_save: false,
+  },
+}
+
+function renderPins(replies: Message[] = []) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(threadKeys.list("dashboard:d1"), {
     pages: [
@@ -76,6 +121,7 @@ function renderPins() {
           message("t1", "Spike at noon"),
           message("t2", "Same here"),
           message("t3", "Quiet tail"),
+          ...replies,
         ],
         next_cursor: null,
         can_comment: true,
@@ -117,6 +163,20 @@ afterEach(() => {
 })
 
 describe("CanvasPins", () => {
+  beforeAll(() => import("@/findings/finding-markdown"))
+
+  it("shows the answer a run saved under its reply in a pin's thread", async () => {
+    const user = userEvent.setup()
+    renderPins([answeredReply])
+    await user.click(
+      await screen.findByRole("button", { name: "Comment by Ada: Quiet tail" })
+    )
+    const shown = await screen.findByRole("dialog", {
+      name: "Thread on Latency",
+    })
+    expect(await within(shown).findByText("dropped")).toBeVisible()
+  })
+
   it("stacks overlapping pins into one marker with a count", async () => {
     renderPins()
     expect(

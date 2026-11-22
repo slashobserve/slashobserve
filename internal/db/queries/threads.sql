@@ -246,3 +246,6 @@ WHERE t.id = ANY(@thread_ids::uuid[])
 
 -- name: AgentGrantIsLive :one
 SELECT EXISTS (SELECT 1 FROM oauth_grants WHERE id = @id AND revoked_at IS NULL AND expires_at > now())::boolean AS live;
+
+-- name: ListAnsweredRuns :many
+SELECT agent_request_id::uuid FROM findings WHERE agent_request_id = ANY(@run_ids::uuid[]);

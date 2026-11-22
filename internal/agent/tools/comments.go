@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -22,6 +23,9 @@ const (
 	defaultListComments   = 50
 	maxListComments       = 100
 	maxCommentOutBytes    = 2000
+	maxAnswerOutBytes     = 400
+	maxAnswerTitleBytes   = 120
+	maxAnswerChangeBytes  = 300
 	maxMentionNameBytes   = 48
 	maxPanelFilterBytes   = 64
 	codeUnknownVersion    = "unknown_version"
@@ -81,6 +85,18 @@ type commentOut struct {
 	Mentions          []mentionOut `json:"mentions"`
 	BlockID           *string      `json:"block_id"`
 	ReplyTo           *replyToOut  `json:"reply_to"`
+	Answer            *answerOut   `json:"answer,omitempty"`
+}
+
+type answerOut struct {
+	RunID             string  `json:"run_id"`
+	FindingID         string  `json:"finding_id"`
+	Title             string  `json:"title"`
+	Markdown          string  `json:"markdown"`
+	MarkdownTruncated bool    `json:"markdown_truncated"`
+	EvidencePanels    int     `json:"evidence_panels"`
+	SuggestedChange   *string `json:"suggested_change"`
+	ObservationID     *string `json:"observation_id"`
 }
 
 type commentListOut struct {
@@ -174,6 +190,18 @@ func commentItem(ref commentRef) commentOut {
 	}
 	if m.ReplyTo != nil {
 		out.ReplyTo = &replyToOut{ID: m.ReplyTo.ID, Author: m.ReplyTo.Author.Label(), Excerpt: m.ReplyTo.Excerpt}
+	}
+	if a := m.Answer; a != nil {
+		out.Answer = &answerOut{
+			RunID:             a.RunID,
+			FindingID:         a.FindingID,
+			Title:             clip(a.Title, maxAnswerTitleBytes),
+			Markdown:          clip(a.Markdown, maxAnswerOutBytes),
+			MarkdownTruncated: len(a.Markdown) > maxAnswerOutBytes,
+			EvidencePanels:    a.EvidencePanels,
+			SuggestedChange:   httpapi.OptionalString(clip(a.SuggestedChange, maxAnswerChangeBytes)),
+			ObservationID:     httpapi.OptionalString(a.ObservationID),
+		}
 	}
 	return out
 }
@@ -330,7 +358,7 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 		return res, nil
 	}
 	for {
-		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor})
+		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor, WithAnswers: true})
 		if err != nil {
 			return commentFailure(err)
 		}

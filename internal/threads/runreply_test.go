@@ -187,17 +187,17 @@ func TestARunAnswersWithWhatHappenedToIt(t *testing.T) {
 			run.ResultKind = string(revisions.ResultProposal)
 			return run, "Opened a proposal: " + title + "."
 		}},
-		{"answer in a dashboard thread carries its title and text", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"answer in a dashboard thread is one sentence", false, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
+			return run, "Answered."
 		}},
-		{"answer in an observation thread carries its title and text", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
+		{"answer in an observation thread is one sentence", true, func(t *testing.T, run dbsqlc.AgentRequest) (dbsqlc.AgentRequest, string) {
 			r.answer(t, testUser, findings.SaveInput{AgentRequestID: run.ID})
 			run = ended(run, revisions.StateSucceeded)
 			run.ResultKind = string(revisions.ResultObservation)
-			return run, "Answered: Checkout is slow.\n\nthe 5xx rate rose"
+			return run, "Answered."
 		}},
 	}
 	for _, tt := range tests {
@@ -408,22 +408,7 @@ func TestAnOutsideAgentsRunAnswersAsTheActorItsOwnWritesCarry(t *testing.T) {
 	}
 }
 
-func TestAFindingAnswerLeadsWithItsFirstParagraphAndNeverCutsAWord(t *testing.T) {
-	tests := []struct {
-		name, title, markdown, want string
-	}{
-		{"skips a heading that repeats the title", "Checkout is slow", "# Checkout is slow\n\nThe 5xx rate rose after the deploy.\n\nSecond paragraph.", "\n\nThe 5xx rate rose after the deploy."},
-		{"is empty when the text says nothing more", "Checkout is slow", "Checkout is slow", ""},
-		{"collapses the lines of a paragraph", "t", "first line\nsecond line", "\n\nfirst line second line"},
-		{"cuts a long paragraph at a word", "t", strings.Repeat("latency ", 100), "\n\n" + strings.TrimSpace(strings.Repeat("latency ", 75)) + "..."},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := findingLead(tt.markdown, tt.title); got != tt.want {
-				t.Fatalf("findingLead = %q, want %q", got, tt.want)
-			}
-		})
-	}
+func TestACutProposalTitleEndsInAnEllipsis(t *testing.T) {
 	if got := sentenceEnd(activity.Excerpt(strings.Repeat("word ", 80), maxReplyHeadingRunes)); !strings.HasSuffix(got, "word...") {
 		t.Fatalf("a cut title ends %q, want an ellipsis and no stray full stop", got[len(got)-10:])
 	}

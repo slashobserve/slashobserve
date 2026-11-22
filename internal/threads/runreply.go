@@ -21,13 +21,12 @@ const (
 	replyUnclaimed       = "No agent picked this up within 10 minutes."
 	replyCanceled        = "The run was stopped before it finished."
 	replyFinished        = "The run finished."
-	replyAnswered        = "Answered: "
+	replyAnswered        = "Answered."
 	replyRestricted      = "The run ended. Its answer read data only Admins can query, such as the audit trail, and people who are not Admins read this thread, so it is not shown here; only whoever asked and Admins read it, in the run."
 	replyAgentFailed     = "the agent reported that it could not finish"
 	replyFailedUnstated  = "the run did not finish"
 	maxReplyReasonRunes  = 500
 	maxReplyHeadingRunes = 200
-	maxReplyLeadRunes    = 600
 )
 
 func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, askedIn pgtype.UUID) error {
@@ -42,7 +41,7 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 	if err != nil || !held {
 		return err
 	}
-	body, err := placedReplyBody(ctx, q, run, sc.target, folder)
+	body, err := placedReplyBody(ctx, q, run, folder)
 	if err != nil {
 		return err
 	}
@@ -110,7 +109,7 @@ func lockForReply(ctx context.Context, q *dbsqlc.Queries, thread dbsqlc.Thread) 
 	return sc, folder, true, nil
 }
 
-func placedReplyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target, folder pgtype.UUID) (string, error) {
+func placedReplyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, folder pgtype.UUID) (string, error) {
 	err := guard.Answer(ctx, q, run.ID, folder)
 	if errors.Is(err, folders.ErrRestrictedAnswer) {
 		return replyRestricted, nil
@@ -118,20 +117,20 @@ func placedReplyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReq
 	if err != nil {
 		return "", err
 	}
-	return replyBody(ctx, q, run, target)
+	return replyBody(ctx, q, run)
 }
 
-func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
+func replyBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) (string, error) {
 	switch revisions.State(run.State) {
 	case revisions.StateSucceeded:
-		return succeededBody(ctx, q, run, target)
+		return succeededBody(ctx, q, run)
 	case revisions.StateCanceled:
 		return replyCanceled, nil
 	}
 	return failedBody(run), nil
 }
 
-func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
+func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest) (string, error) {
 	switch {
 	case run.ResultVersion.Valid:
 		return fmt.Sprintf("Saved version %d of this dashboard.", run.ResultVersion.Int32), nil
@@ -145,51 +144,16 @@ func succeededBody(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentReque
 		}
 		return "Opened a proposal: " + sentenceEnd(activity.Excerpt(title, maxReplyHeadingRunes)), nil
 	case run.ResultKind == string(revisions.ResultObservation):
-		found, err := q.GetFindingByAgentRequest(ctx, run.ID)
+		_, err := q.GetFindingByAgentRequest(ctx, run.ID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return replyFinished, nil
 		}
 		if err != nil {
 			return "", fmt.Errorf("read finding of run: %w", err)
 		}
-		if !found.Finding.ObservationID.Valid {
-			return threadAnswerBody(found.Finding), nil
-		}
-		lead, err := findingReplyLead(ctx, q, run, target)
-		if err != nil {
-			return "", err
-		}
-		return lead + sentenceEnd(activity.Excerpt(found.Finding.Title, maxReplyHeadingRunes)) + findingLead(found.Finding.Markdown, found.Finding.Title), nil
+		return replyAnswered, nil
 	}
 	return replyFinished, nil
-}
-
-func findingReplyLead(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest, target Target) (string, error) {
-	if target.Kind != KindObservation {
-		return "Saved a finding: ", nil
-	}
-	written, err := q.RunHasTextBlock(ctx, dbsqlc.RunHasTextBlockParams{ObservationID: target.ID, RunID: run.ID})
-	if err != nil {
-		return "", fmt.Errorf("read the answer's blocks in the observation: %w", err)
-	}
-	if written {
-		return "Wrote the answer into this observation: ", nil
-	}
-	return "Saved a finding: ", nil
-}
-
-func threadAnswerBody(found dbsqlc.Finding) string {
-	return replyAnswered + sentenceEnd(activity.Excerpt(found.Title, maxReplyHeadingRunes)) + findingLead(found.Markdown, found.Title)
-}
-
-func findingLead(markdown, title string) string {
-	for _, paragraph := range strings.Split(markdown, "\n\n") {
-		lead := activity.Excerpt(strings.TrimLeft(paragraph, "# \t\n"), maxReplyLeadRunes)
-		if lead != "" && lead != strings.TrimSpace(title) {
-			return "\n\n" + lead
-		}
-	}
-	return ""
 }
 
 func failedBody(run dbsqlc.AgentRequest) string {

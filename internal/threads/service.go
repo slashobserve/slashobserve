@@ -48,6 +48,7 @@ type Service struct {
 	panelSets    *panelCache
 	showAnswer   AnswerShower
 	hideAnswer   AnswerHider
+	answers      *answerReads
 }
 
 func NewService(database *db.DB, access *folders.Access, dashboards *dashboards.Service, annotations *annotations.Service, observations *observations.Service, proposals *proposals.Service) *Service {
@@ -92,6 +93,8 @@ type ListQuery struct {
 	PanelID string
 	Limit   int
 	Cursor  string
+
+	WithAnswers bool
 }
 
 type Page struct {
@@ -600,6 +603,11 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 	if err != nil {
 		return Page{}, err
 	}
+	if in.WithAnswers {
+		if pd.answers, err = s.answersOf(ctx, by, rows); err != nil {
+			return Page{}, fmt.Errorf("read the answers of the page's runs: %w", err)
+		}
+	}
 	seen := map[pgtype.UUID]bool{}
 	for _, r := range rows {
 		if !seen[r.Thread.ID] {
@@ -612,6 +620,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 		message.CanDelete = mayDelete(r.ThreadMessage, by, sc, r.ThreadMessage.ID == r.Thread.ID && pd.others[r.Thread.ID])
 		message.ReplyTo = pd.quotes[r.ThreadMessage.ID]
 		message.Run = pd.runs[r.ThreadMessage.ID]
+		message.Answer = answerOf(pd.answers, r.ThreadMessage)
 		page.Messages = append(page.Messages, message)
 	}
 	return page, nil
@@ -624,6 +633,7 @@ type pageData struct {
 	runs     map[pgtype.UUID]*StartedRun
 	started  map[pgtype.UUID]bool
 	unread   map[pgtype.UUID]bool
+	answers  map[pgtype.UUID]Answer
 }
 
 func (s *Service) pageDataOf(ctx context.Context, by auth.Principal, sc scope, rows []dbsqlc.ListThreadMessagesRow) (pageData, error) {

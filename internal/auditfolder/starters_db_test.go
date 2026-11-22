@@ -107,3 +107,13 @@ func TestMostViewedDashboardsCountsTheViewsTheTrailRecords(t *testing.T) {
 		t.Fatalf("Most viewed dashboards after a view: %+v, want rows", got)
 	}
 }
+
+func TestAnAgentAndMCPPanelWithNoEventsYetIsNotAHealthProblem(t *testing.T) {
+	d := dbtest.New(t)
+	dash, issues := starterIssues(t, d, "Agent and MCP activity")
+	for _, id := range []string{"top_agents", "top_clients", "agent_events"} {
+		if got := issuesOfPanel(dash, issues, id); len(got) != 0 {
+			t.Errorf("%s on an empty trail: %+v, want none", id, got)
+		}
+	}
+}

@@ -62,6 +62,7 @@ type Message struct {
 	BlockID     string
 	ReplyTo     *ReplyTo
 	Run         *StartedRun
+	Answer      *Answer
 }
 
 type ReplyTo struct {

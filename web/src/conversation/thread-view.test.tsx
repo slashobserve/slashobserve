@@ -97,7 +97,7 @@ const question = message("t1", {
 })
 
 const reply = message("m2", {
-  body: "Errors doubled after the deploy.",
+  body: "Answered.",
   actor: agent,
   created_at: "2026-11-06T09:02:00Z",
 })
@@ -126,6 +126,18 @@ function finding(patch: Partial<Finding> = {}): Finding {
     suggested_change: "Add a p99 latency panel",
     observe_worthy: false,
     ...patch,
+  }
+}
+
+function answered(
+  patch: Partial<Finding> = {},
+  canSave = true,
+  actor: Message["actor"] = agent
+): Message {
+  return {
+    ...reply,
+    actor,
+    answer: { finding: finding(patch), can_save: canSave },
   }
 }
 
@@ -250,14 +262,10 @@ describe("ThreadView", () => {
 
   it("answers in the agent's voice and unfolds the evidence from its chip", async () => {
     stubFetch({})
-    const { user } = show(
-      { thread: thread(), messages: [question, reply] },
-      (client) =>
-        client.setQueryData(
-          observeKeys.request(runId),
-          request({ finding: finding() })
-        )
-    )
+    const { user } = show({
+      thread: thread(),
+      messages: [question, answered()],
+    })
     expect(await screen.findByText("Observe Agent")).toBeVisible()
     expect(screen.queryByText(/is working on it/)).toBeNull()
     expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
@@ -269,46 +277,56 @@ describe("ThreadView", () => {
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 
-  it("shows only the reply text when the reader cannot open the run", async () => {
+  it("links a built-in reply with no answer to its run without fetching the run", async () => {
     const fetch = stubFetch({})
-    show({ thread: thread(), messages: [question, reply] })
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.some(([input]) =>
-          new URL(input.url).pathname.endsWith(`/observe/${runId}`)
-        )
-      ).toBe(true)
-    )
-    expect(
-      await screen.findByText("Errors doubled after the deploy.")
-    ).toBeVisible()
-    await waitFor(() =>
-      expect(screen.queryByRole("link", { name: "View the run" })).toBeNull()
+    const failed = { ...reply, body: "The run failed: the run did not finish." }
+    show({ thread: thread(), messages: [question, failed] })
+    expect(await screen.findByText(failed.body)).toBeVisible()
+    expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
+      "href",
+      `/c/${runId}`
     )
     expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
+    expect(
+      fetch.mock.calls.some(([input]) =>
+        new URL(input.url).pathname.endsWith(`/observe/${runId}`)
+      )
+    ).toBe(false)
   })
 
-  it("keeps the link to the run when its answer fails to load for another reason", async () => {
-    const fetch = stubFetch({
-      [`GET /api/v1/observe/${runId}`]: {
-        status: 500,
-        body: { error: "unavailable", code: "internal" },
-      },
+  it("shows a connected agent's answer without a link to its run", async () => {
+    stubFetch({})
+    show({
+      thread: thread(),
+      messages: [
+        {
+          ...question,
+          run: { id: runId, status: "succeeded", assigned_kind: "grant" },
+        },
+        answered({}, false, { ...ada, label: "Ada (via Claude Code)" }),
+      ],
     })
-    show({ thread: thread(), messages: [question, reply] })
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.some(([input]) =>
-          new URL(input.url).pathname.endsWith(`/observe/${runId}`)
-        )
-      ).toBe(true)
-    )
     expect(
-      await screen.findByRole("link", { name: "View the run" })
+      await screen.findByRole("button", { name: "1 evidence panel" })
     ).toBeVisible()
+    expect(screen.queryByRole("link", { name: "View the run" })).toBeNull()
+  })
+
+  it("offers Create observation only to the person who asked", async () => {
+    stubFetch({})
+    show({
+      thread: thread(),
+      messages: [question, answered({ observe_worthy: true }, false)],
+    })
+    expect(
+      await screen.findByRole("button", { name: "1 evidence panel" })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("button", { name: "Create observation" })
+    ).toBeNull()
   })
 
   it.each([
@@ -323,12 +341,8 @@ describe("ThreadView", () => {
     async (_name, gate, reason) => {
       const fetch = stubFetch({})
       show(
-        { thread: thread(), messages: [question, reply] },
-        (client) =>
-          client.setQueryData(
-            observeKeys.request(runId),
-            request({ finding: finding() })
-          ),
+        { thread: thread(), messages: [question, answered()] },
+        undefined,
         undefined,
         gate
       )
@@ -358,15 +372,12 @@ describe("ThreadView", () => {
           dashboard_id: null,
           version: null,
         }),
-        messages: [question, reply],
+        messages: [
+          question,
+          answered({ dashboard_id: null, observe_worthy: true }),
+        ],
       },
-      (client) =>
-        client.setQueryData(
-          observeKeys.request(runId),
-          request({
-            finding: finding({ dashboard_id: null, observe_worthy: true }),
-          })
-        ),
+      undefined,
       undefined,
       undefined,
       "observation:o1"
@@ -396,14 +407,10 @@ describe("ThreadView", () => {
         body: { thread: thread(), message: message("m3"), replayed: false },
       },
     })
-    const { user } = show(
-      { thread: thread(), messages: [question, reply] },
-      (client) =>
-        client.setQueryData(
-          observeKeys.request(runId),
-          request({ finding: finding() })
-        )
-    )
+    const { user } = show({
+      thread: thread(),
+      messages: [question, answered()],
+    })
     await user.click(
       await screen.findByRole("button", { name: "Revise the dashboard" })
     )
@@ -443,14 +450,10 @@ describe("ThreadView", () => {
     ],
   ])("says the revision was asked for after %s", async (_name, answer) => {
     stubFetch({ "POST /api/v1/threads/t1/apply": answer })
-    const { user } = show(
-      { thread: thread(), messages: [question, reply] },
-      (client) =>
-        client.setQueryData(
-          observeKeys.request(runId),
-          request({ finding: finding() })
-        )
-    )
+    const { user } = show({
+      thread: thread(),
+      messages: [question, answered()],
+    })
     await user.click(
       await screen.findByRole("button", { name: "Revise the dashboard" })
     )
@@ -469,14 +472,10 @@ describe("ThreadView", () => {
         body: { error: "too many revisions", code: "too_many_revisions" },
       },
     })
-    const { user } = show(
-      { thread: thread(), messages: [question, reply] },
-      (client) =>
-        client.setQueryData(
-          observeKeys.request(runId),
-          request({ finding: finding() })
-        )
-    )
+    const { user } = show({
+      thread: thread(),
+      messages: [question, answered()],
+    })
     const button = await screen.findByRole("button", {
       name: "Revise the dashboard",
     })

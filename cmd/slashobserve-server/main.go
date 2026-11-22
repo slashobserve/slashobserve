@@ -429,7 +429,6 @@ func run() error {
 	if err != nil {
 		return described("findings_setup_failed", err)
 	}
-	findingURL := savedFindingURL(cfg.PublicURL)
 	publicLinks := public.New(database, folderAccess, dashboardsService, registry, cfg.PublicURL, logger, public.WithRCAs(observationsService), public.WithVariableOptions(proxyHandler))
 	publicLinksHandler := public.NewHandler(publicLinks, folderAccess, logger)
 	const healthJob = "dashboard_health"
@@ -442,6 +441,7 @@ func run() error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err
 	})
+	findingURL := savedFindingURL(cfg.PublicURL)
 	liveText := livetext.New(database, database.Listen, logger)
 	baseObserveOpts := revisions.ObserveOptions{
 		DashboardURL:       func(id, title string) string { return links.Dashboard(cfg.PublicURL, id, title) },
@@ -466,6 +466,7 @@ func run() error {
 	observeOpts, revisionOpts := withBuiltInAgent(llmProvider, cfg.LLM, baseObserveOpts, revisionOpts)
 	revisionsService := revisions.NewService(database, logger, revisionOpts...)
 	findingsService.RecordAnswerReadsWith(revisionsService.RecordAnswerRead)
+	threadsService.ReadAnswersWith(revisionsService, threadAnswers{findings: findingsService, url: findingURL})
 	revisionsService.ReadThreadsWith(func(ctx context.Context, by auth.Principal, messageID pgtype.UUID) error {
 		_, err := threadsService.ReadMessage(ctx, by, messageID)
 		return err
@@ -684,6 +685,33 @@ func findingOfRequest(service *findings.Service, findingURL func(f findings.Find
 		raw, err := json.Marshal(findings.JSONOf(f, findingURL(f)))
 		return raw, err == nil, err
 	}
+}
+
+type threadAnswers struct {
+	findings *findings.Service
+	url      func(f findings.Finding) string
+}
+
+func (a threadAnswers) RunAnswer(ctx context.Context, by auth.Principal, run pgtype.UUID) (threads.Answer, bool, error) {
+	f, found, err := a.findings.ForRequest(ctx, by, run)
+	if err != nil || !found {
+		return threads.Answer{}, false, err
+	}
+	raw, err := json.Marshal(findings.JSONOf(f, a.url(f)))
+	if err != nil {
+		return threads.Answer{}, false, err
+	}
+	return threads.Answer{
+		RunID:           run.String(),
+		FindingID:       f.ID,
+		Title:           f.Title,
+		Markdown:        f.Markdown,
+		EvidencePanels:  len(f.Evidence),
+		SuggestedChange: f.SuggestedChange,
+		ObservationID:   f.ObservationID,
+		CanSave:         f.SavableBy(by),
+		Finding:         raw,
+	}, true, nil
 }
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {

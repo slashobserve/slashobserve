@@ -219,8 +219,8 @@ Typing `@` opens the picker of people and agents, as in [Edit a comment and ment
 Deleting the first message deletes the whole discussion only while nobody else has written in it.
 
 A message that mentions one agent, `@observe`, one of your connected agents or a service account that takes runs, asks that agent a read-only question about this observation, and it needs Comment on the observation.
-The run writes nothing on the page, for an Editor as for a Commenter: when it ends the server posts one status line in the discussion, such as "Answered: <title>." and the first paragraph of the answer, and everyone who can read the observation can open the run and its answer.
-The line is not the model's text, and the paragraph is shown as plain text, and it never resolves the discussion.
+The run writes nothing on the page, for an Editor as for a Commenter: when it ends the server posts one status line in the discussion, such as "Answered." with the answer under it, and everyone who can read the observation reads that answer in the discussion.
+The line is not the model's text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Comment and ask on the blocks

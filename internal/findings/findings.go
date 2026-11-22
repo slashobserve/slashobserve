@@ -83,6 +83,7 @@ type Finding struct {
 	Actor                                         actor.Actor
 	Folder                                        *folders.Folder
 	Abilities                                     folders.Abilities
+	observationHidden                             bool
 }
 
 func (f Finding) Saved() bool {

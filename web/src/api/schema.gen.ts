@@ -5937,6 +5937,12 @@ export interface components {
                  */
                 assigned_kind: "builtin" | "grant" | "service_account";
             } | null;
+            /** @description The answer the run that wrote this reply saved, read from its finding, on a thread list only. Null for a person's message, a run that saved no answer, an answer the caller cannot read, and on every other route. The reply's `body` is only the status sentence. */
+            answer?: {
+                finding: components["schemas"]["Finding"];
+                /** @description Whether the caller asked the question and the answer is not yet saved as an observation, so `POST /observe/{id}/observation` with the run id saves it. */
+                can_save: boolean;
+            } | null;
             /** @description Why a write that asked an agent stored the message and started no run; null otherwise. */
             run_refusal?: {
                 /**

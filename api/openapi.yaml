@@ -3452,6 +3452,18 @@ components:
               type: string
               enum: [builtin, grant, service_account]
               description: Who takes the run, the built-in agent, a connected agent or a service account.
+        answer:
+          type: object
+          nullable: true
+          additionalProperties: false
+          required: [finding, can_save]
+          description: The answer the run that wrote this reply saved, read from its finding, on a thread list only. Null for a person's message, a run that saved no answer, an answer the caller cannot read, and on every other route. The reply's `body` is only the status sentence.
+          properties:
+            finding:
+              $ref: "#/components/schemas/Finding"
+            can_save:
+              type: boolean
+              description: Whether the caller asked the question and the answer is not yet saved as an observation, so `POST /observe/{id}/observation` with the run id saves it.
         run_refusal:
           type: object
           nullable: true

@@ -256,7 +256,7 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 `list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 For an Admin key each folder also carries `admins_only`, true for a folder only Admins can read; a save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
-Each folder also carries `audit: true` when it is the [Audit folder](activity.md#audit-folder), and the field is left out otherwise.
+Each folder also carries `audit`, true when it is the [Audit folder](activity.md#audit-folder) and false otherwise.
 A key below Admin never sees the field, and no tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 `create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
 
@@ -315,7 +315,7 @@ The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also wh
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
 
-When a run a comment started ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did; a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
+When a run a comment started ends, whatever the outcome, the server posts one reply in the thread, by the actor the run's agent writes as: "Observe Agent for <person>" for the built-in agent, "<person> (via <client>)" for a connected agent and the service account's own name for a service account; the reply is a status line the server writes, it does not resolve the thread, and `list_comments` shows it like any other message, with `run_id` set to the run that wrote it when the built-in agent did and, when the run saved an answer you can read, its `answer`: `run_id`, `finding_id`, `title`, the start of `markdown` (400 bytes, with `markdown_truncated` when cut), `evidence_panels`, `suggested_change` and `observation_id`, and `get_run` reads the rest; a reply that could not be posted when the run ended is tried again every minute for up to a day, and a reply a person deleted is never posted again.
 
 `save_search` saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
 It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`, and returns the saved search with its `url`.
