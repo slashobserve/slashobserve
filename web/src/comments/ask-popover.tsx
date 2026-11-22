@@ -35,7 +35,7 @@ import {
   spotLabel,
   spotTurnIds,
 } from "./ask-spot"
-import { CanvasPopover, keepsTyping } from "./canvas-composer"
+import { CanvasPopover, keepsTyping, panelTitleOf } from "./canvas-composer"
 import { isAbout, ownerOf, spotTarget, type CanvasSubject } from "./canvas-host"
 
 export type AskSpot = {
@@ -108,19 +108,28 @@ export function useOpenChat() {
   return { chatId: openChatOf(chat), select }
 }
 
-function useReturnFocus() {
-  const [origin] = useState(() =>
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
+function useReturnFocus(surfaceRef: RefObject<HTMLElement | null>) {
+  const [origin] = useState(() => {
+    const active = document.activeElement
+    return active instanceof HTMLElement &&
+      active.closest('[role="toolbar"]') === null
+      ? active
       : null
+  })
+  const target = useCallback(
+    () =>
+      origin !== null && origin.isConnected
+        ? origin
+        : panelTitleOf(surfaceRef.current),
+    [origin, surfaceRef]
   )
   useEffect(
     () => () => {
-      if (focusDropped() && origin !== null && origin.isConnected)
-        origin.focus()
+      if (focusDropped()) target()?.focus()
     },
-    [origin]
+    [target]
   )
+  return () => target() ?? true
 }
 
 function focusDropped(): boolean {
@@ -372,7 +381,7 @@ function AskThread({
 }
 
 export function AskPopover(props: Props) {
-  useReturnFocus()
+  const finalFocus = useReturnFocus(props.surfaceRef)
   const popupId = useId()
   const { turn, spot, panelTitle } = props
   return (
@@ -388,6 +397,7 @@ export function AskPopover(props: Props) {
       initialFocus={() =>
         document.getElementById(popupId)?.querySelector("textarea") ?? true
       }
+      finalFocus={finalFocus}
       className="flex flex-col border-primary"
       onClose={leaveAsk}
     >

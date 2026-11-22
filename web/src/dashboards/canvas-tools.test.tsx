@@ -11,7 +11,6 @@ import {
   CanvasTools,
   commentModeText,
   openKeyDraft,
-  tooltipOffset,
   useCanvasTool,
   type CanvasDraft,
 } from "./canvas-tools"
@@ -206,12 +205,6 @@ async function renderTools(
   await screen.findByText("page")
 }
 
-describe("tooltipOffset", () => {
-  it("lifts a tool's tooltip above the mode hint only while the hint is shown", () => {
-    expect(tooltipOffset(true)).toBeGreaterThan(tooltipOffset(false))
-  })
-})
-
 describe("leaving with typed text", () => {
   it("asks before a tool change or a close drops the text, and moves on once discarded", () => {
     useCanvasTool.setState({ tool: "comment" })
@@ -346,6 +339,18 @@ describe("CanvasTools", () => {
     await user.click(screen.getByRole("button", { name: "Select" }))
     expect(screen.getByRole("toolbar")).toHaveAttribute("data-tool", "select")
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
+  })
+
+  it("keeps the tool button and its focus when the hint docks beside the toolbar", async () => {
+    const user = userEvent.setup()
+    await renderTools({ comment: true, edit: false }, false)
+    const button = screen.getByRole("button", { name: "Comment" })
+    await user.click(button)
+    expect(screen.getByRole("button", { name: "Comment" })).toBe(button)
+    expect(button).toHaveFocus()
+    expect(screen.getByRole("status").parentElement).toBe(
+      screen.getByRole("toolbar").parentElement?.parentElement
+    )
   })
 
   it("shows Ask mode until Select is chosen", async () => {

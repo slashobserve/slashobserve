@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import type { Anchor, Point } from "@/panels/anchors"
 import { useAgentInfo } from "@/observe/queries"
 import {
@@ -220,23 +221,14 @@ type Props = {
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
-const tooltipGap = 4
-const hintClearance = 40
-
-export function tooltipOffset(hintShown: boolean): number {
-  return hintShown ? tooltipGap + hintClearance : tooltipGap
-}
-
 function ToolButton({
   tool,
   pressed,
   disabled,
-  hintShown,
   onClick,
   icon,
 }: {
   tool: CanvasTool
-  hintShown: boolean
   pressed?: boolean
   disabled?: boolean
   onClick: () => void
@@ -261,7 +253,7 @@ function ToolButton({
         {icon}
         {toolNames[tool]}
       </TooltipTrigger>
-      <TooltipContent sideOffset={tooltipOffset(hintShown)}>
+      <TooltipContent>
         {toolNames[tool]}
         <kbd
           aria-hidden="true"
@@ -321,50 +313,59 @@ function ToolBar({
   modeTexts: ModeTexts
   leave: (to: Leaving) => void
 }) {
+  const bar = (
+    <div
+      role="toolbar"
+      aria-label="Canvas tools"
+      data-tool={active}
+      className="flex h-10 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
+    >
+      <ToolButton
+        tool="select"
+        pressed={active === "select"}
+        onClick={() => leave("select")}
+        icon={<MousePointer2Icon aria-hidden="true" />}
+      />
+      <ToolButton
+        tool="comment"
+        pressed={active === "comment"}
+        disabled={!idle}
+        onClick={() => leave("comment")}
+        icon={<MessageSquarePlusIcon aria-hidden="true" />}
+      />
+      {mayAsk ? (
+        <ToolButton
+          tool="ask"
+          pressed={active === "ask"}
+          disabled={!idle}
+          onClick={() => leave("ask")}
+          icon={<AtSignIcon aria-hidden="true" />}
+        />
+      ) : null}
+    </div>
+  )
+  const docked = active !== "select"
   return (
-    <div className="sticky bottom-0 z-30 h-0 narrow:hidden">
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5">
-        {active === "select" ? null : (
-          <p
-            role="status"
-            className="rounded-control border border-border bg-popover px-2.5 py-1 text-xs whitespace-nowrap text-muted-foreground"
-          >
-            {modeTexts[active]}
-          </p>
+    <div
+      className={cn(
+        "sticky bottom-0 z-30 narrow:hidden",
+        docked
+          ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
+          : "h-0"
+      )}
+    >
+      <div
+        className={cn(
+          docked ? "contents" : "absolute bottom-4 left-1/2 -translate-x-1/2"
         )}
-        <div
-          role="toolbar"
-          aria-label="Canvas tools"
-          data-tool={active}
-          className="flex h-10 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
-        >
-          <ToolButton
-            tool="select"
-            hintShown={active !== "select"}
-            pressed={active === "select"}
-            onClick={() => leave("select")}
-            icon={<MousePointer2Icon aria-hidden="true" />}
-          />
-          <ToolButton
-            tool="comment"
-            hintShown={active !== "select"}
-            pressed={active === "comment"}
-            disabled={!idle}
-            onClick={() => leave("comment")}
-            icon={<MessageSquarePlusIcon aria-hidden="true" />}
-          />
-          {mayAsk ? (
-            <ToolButton
-              tool="ask"
-              hintShown={active !== "select"}
-              pressed={active === "ask"}
-              disabled={!idle}
-              onClick={() => leave("ask")}
-              icon={<AtSignIcon aria-hidden="true" />}
-            />
-          ) : null}
-        </div>
+      >
+        {bar}
       </div>
+      {docked ? (
+        <p role="status" className="text-center text-xs text-muted-foreground">
+          {modeTexts[active]}
+        </p>
+      ) : null}
     </div>
   )
 }

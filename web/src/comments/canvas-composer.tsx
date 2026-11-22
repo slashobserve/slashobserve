@@ -104,7 +104,7 @@ export function keepsTyping(reason: string, text: string): boolean {
   return leavingReasons.has(reason) && text.trim() !== ""
 }
 
-const clearOfChrome = { top: 88, right: 8, bottom: 72, left: 8 }
+const clearOfChrome = { top: 8, right: 8, bottom: 72, left: 8 }
 
 type PopoverProps = {
   surfaceRef: RefObject<HTMLElement | null>
@@ -134,6 +134,12 @@ export function CanvasPopover({
     [surfaceRef, at]
   )
   const clicked = at !== null
+  const [boundary, setBoundary] = useState<Element | "clipping-ancestors">(
+    "clipping-ancestors"
+  )
+  useLayoutEffect(() => {
+    setBoundary(surfaceRef.current?.closest("main") ?? "clipping-ancestors")
+  }, [surfaceRef])
   return (
     <PopoverPrimitive.Root
       open
@@ -147,6 +153,7 @@ export function CanvasPopover({
           side="bottom"
           align="start"
           sideOffset={6}
+          collisionBoundary={boundary}
           collisionPadding={clearOfChrome}
           className="isolate z-50"
         >
@@ -167,6 +174,14 @@ export function CanvasPopover({
         </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
+  )
+}
+
+export function panelTitleOf(surface: HTMLElement | null): HTMLElement | null {
+  return (
+    surface
+      ?.closest("article")
+      ?.querySelector<HTMLElement>("[data-panel-title]") ?? null
   )
 }
 
@@ -209,7 +224,7 @@ export function CanvasComposer({
       at={draft.at}
       label={commentLabel}
       initialFocus={model.field}
-      finalFocus={() => surfaceRef.current?.closest("article") ?? true}
+      finalFocus={() => panelTitleOf(surfaceRef.current) ?? true}
       className="p-2"
       onClose={(reason) => {
         const store = useCanvasTool.getState()
