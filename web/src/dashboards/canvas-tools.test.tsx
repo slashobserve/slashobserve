@@ -11,6 +11,7 @@ import {
   CanvasTools,
   commentModeText,
   openKeyDraft,
+  tooltipOffset,
   useCanvasTool,
   type CanvasDraft,
 } from "./canvas-tools"
@@ -204,6 +205,12 @@ async function renderTools(
   )
   await screen.findByText("page")
 }
+
+describe("tooltipOffset", () => {
+  it("lifts a tool's tooltip above the mode hint only while the hint is shown", () => {
+    expect(tooltipOffset(true)).toBeGreaterThan(tooltipOffset(false))
+  })
+})
 
 describe("leaving with typed text", () => {
   it("asks before a tool change or a close drops the text, and moves on once discarded", () => {

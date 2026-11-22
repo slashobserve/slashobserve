@@ -350,7 +350,7 @@ function AskThread({
       </div>
       <ol
         aria-label="Your chat on this spot"
-        className="flex max-h-[min(28rem,60vh)] flex-col gap-3.5 overflow-y-auto p-3"
+        className="flex max-h-[min(28rem,60vh)] min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col gap-3.5 overflow-y-auto p-3"
       >
         {ids.map((id) => (
           <AskTurn key={id} requestId={id} subject={subject} onAsked={asked} />

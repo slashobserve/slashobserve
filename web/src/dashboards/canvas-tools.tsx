@@ -220,14 +220,23 @@ type Props = {
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
+const tooltipGap = 4
+const hintClearance = 40
+
+export function tooltipOffset(hintShown: boolean): number {
+  return hintShown ? tooltipGap + hintClearance : tooltipGap
+}
+
 function ToolButton({
   tool,
   pressed,
   disabled,
+  hintShown,
   onClick,
   icon,
 }: {
   tool: CanvasTool
+  hintShown: boolean
   pressed?: boolean
   disabled?: boolean
   onClick: () => void
@@ -252,7 +261,7 @@ function ToolButton({
         {icon}
         {toolNames[tool]}
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent sideOffset={tooltipOffset(hintShown)}>
         {toolNames[tool]}
         <kbd
           aria-hidden="true"
@@ -331,12 +340,14 @@ function ToolBar({
         >
           <ToolButton
             tool="select"
+            hintShown={active !== "select"}
             pressed={active === "select"}
             onClick={() => leave("select")}
             icon={<MousePointer2Icon aria-hidden="true" />}
           />
           <ToolButton
             tool="comment"
+            hintShown={active !== "select"}
             pressed={active === "comment"}
             disabled={!idle}
             onClick={() => leave("comment")}
@@ -345,6 +356,7 @@ function ToolBar({
           {mayAsk ? (
             <ToolButton
               tool="ask"
+              hintShown={active !== "select"}
               pressed={active === "ask"}
               disabled={!idle}
               onClick={() => leave("ask")}

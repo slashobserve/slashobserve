@@ -104,6 +104,8 @@ export function keepsTyping(reason: string, text: string): boolean {
   return leavingReasons.has(reason) && text.trim() !== ""
 }
 
+const clearOfChrome = { top: 88, right: 8, bottom: 72, left: 8 }
+
 type PopoverProps = {
   surfaceRef: RefObject<HTMLElement | null>
   at: Point | null
@@ -145,7 +147,7 @@ export function CanvasPopover({
           side="bottom"
           align="start"
           sideOffset={6}
-          collisionPadding={8}
+          collisionPadding={clearOfChrome}
           className="isolate z-50"
         >
           <PopoverPrimitive.Popup
@@ -155,7 +157,7 @@ export function CanvasPopover({
             finalFocus={finalFocus}
             data-opened-by={clicked ? "pointer" : "key"}
             className={cn(
-              "w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
+              "max-h-(--available-height) w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
               clicked && clickedPopupClass,
               className
             )}
