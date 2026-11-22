@@ -13,10 +13,12 @@ function Pane({
   onClose,
   holdClose,
   modeKey,
+  active,
 }: {
   onClose: () => void
   holdClose?: () => boolean
   modeKey?: string
+  active?: boolean
 }) {
   const pane = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -27,9 +29,10 @@ function Pane({
     onClose,
     holdClose,
     modeKey,
+    active,
   })
   return (
-    <aside ref={pane} aria-labelledby="heading">
+    <aside ref={pane} aria-labelledby="heading" hidden={active === false}>
       <h2 id="heading" ref={heading} tabIndex={-1}>
         Pane
       </h2>
@@ -47,6 +50,7 @@ function Page({
 }) {
   const [open, setOpen] = useState(startOpen)
   const [mode, setMode] = useState("a")
+  const [active, setActive] = useState(true)
   return (
     <>
       <button
@@ -60,8 +64,10 @@ function Page({
       </button>
       <button onClick={() => setOpen((current) => !current)}>Remount</button>
       <button onClick={() => setMode("b")}>Switch</button>
+      <button onClick={() => setActive((current) => !current)}>Hide</button>
       {open ? (
         <Pane
+          active={active}
           modeKey={mode}
           holdClose={holdClose}
           onClose={() => setOpen(false)}
@@ -109,6 +115,18 @@ describe("useDockFocus", () => {
     expect(screen.getByRole("heading")).toBeInTheDocument()
     expect(screen.getByRole("heading")).not.toHaveFocus()
     expect(pendingPaneHeading()).toBeNull()
+  })
+
+  it("does not move focus when a pane a person opened earlier is shown again after being hidden, as when a layout save ends", async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    await user.click(screen.getByRole("button", { name: "Open" }))
+    expect(screen.getByRole("heading", { hidden: true })).toHaveFocus()
+    const hide = screen.getByRole("button", { name: "Hide" })
+    await user.click(hide)
+    await user.click(hide)
+    expect(screen.getByRole("heading")).not.toHaveFocus()
+    expect(hide).toHaveFocus()
   })
 
   it("moves focus to the heading when the pane switches mode with focus outside it", async () => {

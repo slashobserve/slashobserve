@@ -32,6 +32,7 @@ type Persisted = {
 }
 
 type ActivityState = Persisted & {
+  openings: number
   drafts: Record<string, string>
   targets: Record<string, string | null>
   setOpen: (open: boolean) => void
@@ -86,9 +87,13 @@ export const useActivityStore = create<ActivityState>()(
       editWidth: editWidth.initial,
       chatWidth: chatPaneWidth.initial,
       panelWidth: panelWidth.initial,
+      openings: 0,
       drafts: {},
       targets: {},
-      setOpen: (open) => set({ open }),
+      setOpen: (open) =>
+        set((state) =>
+          open ? { open, openings: state.openings + 1 } : { open }
+        ),
       setWidth: (width) =>
         set({
           width: clampWidth(width, activityWidth, Number.POSITIVE_INFINITY),

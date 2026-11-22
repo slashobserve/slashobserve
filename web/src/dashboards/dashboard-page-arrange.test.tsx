@@ -20,6 +20,8 @@ import { routeTree } from "@/routeTree.gen"
 import { testQueryClient } from "@/test/render"
 
 import { useCanvasTool } from "./canvas-tools"
+import { activityButtonId, activityCardId } from "./pane-openers"
+import { useSelectionStore } from "./selection-store"
 
 const dashboardId = "3c1f9a7e-2b4d-4e6f-8a1c-5d7e9f0a2b3c"
 const folderId = "8e2d4f6a-1c3b-4d5e-9f7a-0b2c4d6e8f1a"
@@ -113,6 +115,29 @@ class IdleEventSource {
   close() {}
 }
 
+let canEdit = true
+let runbookRemoved = false
+
+function servedEnvelope() {
+  const spec = runbookRemoved
+    ? {
+        ...envelope.version.spec,
+        panels: envelope.version.spec.panels.filter(
+          (panel) => panel.id !== "p_runbook"
+        ),
+      }
+    : envelope.version.spec
+  const version = runbookRemoved ? 2 : 1
+  return {
+    dashboard: {
+      ...envelope.dashboard,
+      latest_version: version,
+      permissions: { ...envelope.dashboard.permissions, edit: canEdit },
+    },
+    version: { ...envelope.version, version, spec },
+  }
+}
+
 function mockServer() {
   vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
@@ -126,7 +151,7 @@ function mockServer() {
         case "/api/v1/auth/session":
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
-          return json(envelope)
+          return json(servedEnvelope())
         case "/api/v1/datasources":
           return json({ datasources: [] })
         case "/api/v1/folders":
@@ -153,6 +178,7 @@ function renderDashboard() {
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  return router
 }
 
 function gridItemOf(title: string): HTMLElement {
@@ -200,12 +226,15 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  canEdit = true
+  runbookRemoved = false
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   Reflect.deleteProperty(HTMLElement.prototype, "offsetParent")
   useCanvasTool.setState({ tool: "select" })
   useActivityStore.setState({ open: true })
+  useSelectionStore.getState().clear()
 })
 
 describe("arranging panels on the dashboard grid", () => {
@@ -256,4 +285,205 @@ describe("arranging panels on the dashboard grid", () => {
       )
     }
   )
+
+  describe("with the Activity pane open beside the grid", () => {
+    function activityPane(): HTMLElement {
+      const pane = document.getElementById(activityCardId)
+      if (!pane) throw new Error("no Activity pane")
+      return pane
+    }
+
+    beforeEach(() => {
+      vi.spyOn(window, "innerWidth", "get").mockReturnValue(1440)
+      useActivityStore.setState({ open: true })
+    })
+
+    it("closes the pane on the press that selects a panel to arrange, and the press still drags", async () => {
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      const pane = activityPane()
+      expect(pane).toBeVisible()
+
+      fireEvent.pointerDown(title, { button: 0 })
+      await waitFor(() => expect(pane).not.toBeVisible())
+      fireEvent.mouseDown(title, { button: 0, clientX: 700, clientY: 20 })
+      fireEvent.mouseMove(document, { clientX: 760, clientY: 60 })
+      await waitFor(() =>
+        expect(gridItemOf("Runbook")).toHaveClass("react-draggable-dragging")
+      )
+      fireEvent.mouseUp(document, { clientX: 760, clientY: 60 })
+    })
+
+    it("reopens the same pane from its button while the panel stays selected", async () => {
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      const pane = activityPane()
+      fireEvent.click(title)
+      await waitFor(() => expect(pane).not.toBeVisible())
+      const toggle = document.getElementById(activityButtonId)
+      expect(toggle).toHaveAttribute("aria-pressed", "false")
+
+      fireEvent.click(toggle!)
+
+      await waitFor(() => expect(activityPane()).toBeVisible())
+      expect(activityPane()).toBe(pane)
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
+
+    async function setPaneAsideBySelecting(title: string) {
+      const button = await screen.findByRole("button", {
+        name: `Select panel: ${title}`,
+      })
+      const pane = activityPane()
+      fireEvent.click(button)
+      await waitFor(() => expect(pane).not.toBeVisible())
+      return pane
+    }
+
+    function reopenPane() {
+      fireEvent.click(document.getElementById(activityButtonId)!)
+    }
+
+    it("brings the pane back without focus once nothing is selected", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+      const title = screen.getByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      title.focus()
+
+      act(() => useSelectionStore.getState().clear())
+
+      await waitFor(() => expect(pane).toBeVisible())
+      expect(title).toHaveFocus()
+    })
+
+    it("keeps a pane opened again while the selection moves to another panel", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+      reopenPane()
+      await waitFor(() => expect(pane).toBeVisible())
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select panel: Note" })
+      )
+
+      await waitFor(() =>
+        expect(articleOf("Note")).toHaveAttribute("data-selected")
+      )
+      expect(pane).toBeVisible()
+    })
+
+    it.each([
+      ["viewing a panel", { viewPanel: "p_note" }],
+      ["TV mode", { kiosk: "1" }],
+    ])(
+      "does not set a reopened pane aside again when the selection returns after %s",
+      async (_, detour) => {
+        const router = renderDashboard()
+        const pane = await setPaneAsideBySelecting("Runbook")
+        reopenPane()
+        await waitFor(() => expect(pane).toBeVisible())
+
+        await act(() =>
+          router.navigate({
+            to: ".",
+            search: (state: Record<string, unknown>) => ({
+              ...state,
+              ...detour,
+            }),
+          })
+        )
+        await act(() =>
+          router.navigate({
+            to: ".",
+            search: (state: Record<string, unknown>) => ({
+              ...state,
+              viewPanel: undefined,
+              kiosk: undefined,
+            }),
+          })
+        )
+
+        await waitFor(() =>
+          expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+        )
+        expect(activityPane()).toBeVisible()
+      }
+    )
+
+    it("ends the session and brings the pane back when the selected panel leaves the dashboard", async () => {
+      const router = renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      runbookRemoved = true
+      await act(() => router.options.context.queryClient.invalidateQueries())
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: "Select panel: Runbook" })
+        ).toBeNull()
+      )
+      await waitFor(() => expect(pane).toBeVisible())
+    })
+
+    it("shows the pane when the address points it at a thread during the session", async () => {
+      const router = renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      await act(() =>
+        router.navigate({
+          to: ".",
+          search: (state: Record<string, unknown>) => ({
+            ...state,
+            thread: "t1",
+          }),
+        })
+      )
+
+      await waitFor(() => expect(activityPane()).toBeVisible())
+      expect(activityPane()).toBe(pane)
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
+
+    it("shows the pane for any explicit open, even with nothing in the address changing", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      act(() => useActivityStore.getState().setOpen(true))
+
+      await waitFor(() => expect(pane).toBeVisible())
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
+
+    it("keeps the pane open when a viewer who cannot edit selects a panel", async () => {
+      canEdit = false
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      fireEvent.pointerDown(title, { button: 0 })
+      await waitFor(() =>
+        expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+      )
+      expect(activityPane()).toBeVisible()
+    })
+
+    it.each(["comment", "ask"] as const)(
+      "keeps the pane open for a press in %s mode",
+      async (tool) => {
+        renderDashboard()
+        const title = await screen.findByRole("button", {
+          name: "Select panel: Runbook",
+        })
+        act(() => useCanvasTool.getState().setTool(tool))
+        fireEvent.pointerDown(title, { button: 0 })
+        expect(activityPane()).toBeVisible()
+      }
+    )
+  })
 })

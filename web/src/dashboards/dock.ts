@@ -39,3 +39,39 @@ export function isSidePanelCard(view: DockView): view is SidePanelCard {
     view === "share"
   )
 }
+
+export type SidePane = "activity" | "chat"
+
+function sidePaneOf(view: DockView): SidePane | null {
+  return view === "activity" || view === "chat" ? view : null
+}
+
+export function heldPaneOf(
+  search: DashboardSearch,
+  state: DockState
+): SidePane | null {
+  return sidePaneOf(dockOf(search, { ...state, layoutEditing: false }))
+}
+
+export function arrangingSetsPaneAside(
+  shown: DockView,
+  besideGrid: boolean
+): boolean {
+  return besideGrid && sidePaneOf(shown) !== null
+}
+
+export type ArrangingPane = "aside" | "kept" | null
+
+export function arrangingPaneAfter(
+  current: ArrangingPane,
+  {
+    arranging,
+    setsAside,
+    reopened,
+  }: { arranging: boolean; setsAside: boolean; reopened: boolean }
+): ArrangingPane {
+  if (!arranging) return null
+  if (reopened) return "kept"
+  if (current === null) return setsAside ? "aside" : "kept"
+  return current
+}

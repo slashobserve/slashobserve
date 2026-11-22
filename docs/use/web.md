@@ -278,6 +278,12 @@ The panel's buttons, such as its menu and the information icon, never start a mo
 With the grip focused, the arrow keys move the panel and `Shift` with an arrow resizes it.
 While a panel is selected for arranging, the grid shows the saved layout, so a repeated panel shows once and a row cannot be collapsed until you clear the selection.
 
+When the Activity or chat pane is open beside the grid, selecting a panel to arrange closes it first, so the saved layout gets the full width; the press that selects still drags the panel.
+The pane comes back as you left it once no panel is selected and no moves are unsaved, for example after you press `Esc` or click an empty part of the grid.
+**Activity** in the controls brings it back sooner, and it then stays open while you select other panels.
+A Viewer who cannot edit, or a press in Comment or Ask mode, leaves the pane open.
+While you have unsaved moves the pane stays closed.
+
 After the first move a bar at the bottom of the screen says "Your layout changes are not saved".
 **Save version N** asks for a summary and saves the layout as the next version, and **Discard** drops the moves.
 When someone else saves a version, your moves stay on top of it; a panel you did not touch takes the other version's size and place.

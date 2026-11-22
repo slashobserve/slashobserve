@@ -30,6 +30,7 @@ import { SidePanelTabs } from "./side-panel-tabs"
 
 type Props = {
   view: SidePanelCard
+  hidden?: boolean
   dashboardId: string
   apiId: string
   spec: Dashboard
@@ -51,6 +52,7 @@ type Props = {
 
 export function ActivityCard({
   view: cardView,
+  hidden = false,
   dashboardId,
   apiId,
   spec,
@@ -96,6 +98,7 @@ export function ActivityCard({
     opener: openerOfPane,
     onClose,
     closeOnEscape: !editing,
+    active: !hidden,
     modeKey: `${panelId}|${editing}|${sharing}|${tab}`,
   })
 
@@ -176,6 +179,7 @@ export function ActivityCard({
       bounds={layout.bounds}
       onWidthChange={editing ? setEditWidth : setWidth}
       stacked={editing && layout.stacked ? "sheet" : layout.stacked}
+      hidden={hidden}
     >
       {editingId !== undefined ? (
         <EditPane
