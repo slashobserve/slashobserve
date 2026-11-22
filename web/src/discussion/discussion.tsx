@@ -415,6 +415,9 @@ export function DiscussionFeed({
             )
           }
           disabledReason={disabledReason}
+          runShown={(runId) =>
+            messages.some((message) => message.run?.id === runId)
+          }
         />
       </div>
       <p role="status" className="sr-only">

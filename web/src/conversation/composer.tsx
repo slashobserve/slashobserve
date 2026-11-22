@@ -68,6 +68,7 @@ type ComposerProps = {
   contextChips?: ContextChip[]
   showVisibility?: boolean
   fill?: boolean
+  runShown?: (runId: string) => boolean
 }
 
 const keyboardHint =
@@ -188,10 +189,14 @@ function useKeyDown(
 function Feedback({
   model,
   errorId,
+  runShown,
 }: {
   model: ComposerModel
   errorId: string
+  runShown?: (runId: string) => boolean
 }) {
+  const startedRun = model.started?.sent.run ?? null
+  const startedShown = startedRun !== null && runShown?.(startedRun.id) === true
   return (
     <>
       {model.sendBlock !== null ? (
@@ -202,7 +207,7 @@ function Feedback({
           {model.failure.text}
         </p>
       ) : null}
-      {model.started === null ? null : (
+      {model.started === null || startedShown ? null : (
         <RunStarted
           run={model.started.sent.run}
           refusal={model.started.sent.runRefusal}
@@ -258,6 +263,7 @@ function DockedComposer({
   disabledReason = null,
   showVisibility,
   fill = false,
+  runShown,
 }: ComposerProps) {
   const { field } = model
   const errorId = useId()
@@ -364,7 +370,7 @@ function DockedComposer({
           {counter.over ? ", too long" : null}
         </span>
       )}
-      <Feedback model={model} errorId={errorId} />
+      <Feedback model={model} errorId={errorId} runShown={runShown} />
     </form>
   )
 }

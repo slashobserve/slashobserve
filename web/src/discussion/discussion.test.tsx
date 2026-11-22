@@ -440,6 +440,32 @@ describe("Discussion with a run", () => {
     ).toHaveAttribute("href", `/c/${runId}`)
   })
 
+  it("shows one working line while the sent run is in flight", async () => {
+    let listed: Message[] = [earlier]
+    const posts = mockServer({
+      threads: [thread],
+      messages: () => listed,
+      sent: { run: asked.run },
+    })
+    const { user } = renderDiscussion({ route: { path: "/", url: "/" } })
+    await screen.findByRole("list", { name: "Discussion" })
+    await user.click(screen.getByRole("textbox", { name: "Message" }))
+    await user.paste("@observe why did latency rise")
+    listed = [earlier, asked]
+    await user.click(
+      screen.getByRole("button", { name: "Send and ask Observe Agent" })
+    )
+    await waitFor(() => expect(posts).toHaveLength(1))
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/Observe Agent is working on it/)
+      ).toHaveLength(1)
+    )
+    expect(screen.getAllByRole("link", { name: "View the run" })).toHaveLength(
+      1
+    )
+  })
+
   it("drops the working line once the run answered", async () => {
     mockServer({ threads: [thread], messages: () => [asked, answered()] })
     renderDiscussion({ route: { path: "/", url: "/" } })
