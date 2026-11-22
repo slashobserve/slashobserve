@@ -226,7 +226,7 @@ The line is not the model's text, and it never resolves the discussion.
 ### Comment and ask on the blocks
 
 The page has the same tool bar at the bottom of the screen as a dashboard, with **Select**, **Comment** and **Ask**, for a person who can comment on the observation; it is hidden on a phone, and **Ask** shows only when a model is connected.
-On a live panel block, Comment mode and Ask mode work as on a dashboard panel: a click names the spot under the pointer, a drag across a time series names the range, and pins mark the threads and your own questions, as described in [Comment pins](web.md#comment-pins) and [Ask mode](web.md#ask-mode).
+On a live panel block, Comment mode and Ask mode work as on a dashboard panel: a click names the spot under the pointer, a drag across a time series names the range, and pins mark the threads and your own questions, as described in [Comment pins](ask-and-comment.md#comment-pins) and [Ask mode](ask-and-comment.md#ask-mode).
 On a snapshot or a run block, a click in either mode comments on or asks about the whole block.
 `c` or `a` with the pointer over a block, or with a block focused (Tab reaches text, snapshot and run blocks), opens the composer or the ask box on the whole block, as do a panel block's menu and the **Comment** and **Ask** buttons in its header.
 A comment on the whole block goes into the discussion as a message on that block.

@@ -60,13 +60,13 @@ The boxes in an observation's discussion and in the inbox take the same keys.
 Above the box, a "To:" chip says who reads the message and a "Visible to:" chip says who sees it.
 A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
 A mention of an agent turns the chip to that agent's name.
-In the full-size view and TV mode, press `c` outside a field to open the pane and put the cursor in this box; elsewhere on the dashboard `c` turns on Comment mode, described in [Select a panel](web.md#select-a-panel).
+In the full-size view and TV mode, press `c` outside a field to open the pane and put the cursor in this box; elsewhere on the dashboard `c` turns on Comment mode, described in [Ask and comment on a dashboard](ask-and-comment.md#comment-mode).
 A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
 To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, open its menu ("Panel menu: `<title>`") and choose **Comment**, or choose **Comment** in the toolbar of the selected panel.
 On the dashboard each opens a small composer on the panel, and the comment is saved as a thread on the whole panel.
 In the full-size view and TV mode the card opens scoped to that panel with the cursor in the box instead.
-**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens the [ask box](web.md#ask-mode) on the whole panel, a private question in your chat rather than a thread; in the full-size view and TV mode it opens the dashboard's Chat tab with the panel as the question's target.
+**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens the [ask box](ask-and-comment.md#ask-mode) on the whole panel, a private question in your chat rather than a thread; in the full-size view and TV mode it opens the dashboard's Chat tab with the panel as the question's target.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
@@ -142,7 +142,7 @@ Under the form the card says "Observe Agent is working on it" with a link to the
 The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
-A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+Only a revision started over the API with `comment_id` resolves the thread when it saves a version; **Revise the dashboard** on an answer posts its result in the thread and leaves the thread as it was.
 
 When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
 When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`", and someone who may reply in the thread also gets **Revise the dashboard**.

@@ -178,7 +178,7 @@ The build page shows the chat beside the build.
 On a screen wider than 1200 px the chat is a pane on the left, which you can widen or narrow by dragging its edge or with the arrow keys on the handle.
 On a smaller screen the chat sits below the build.
 The pane holds the conversation with the status line, such as "Building, 12 of 40 panels", **Cancel run**, and, when the agent stops, **Save what was built** and **Continue**.
-Its heading links to the full chat page at `/c/<request id>`.
+Its **Open the chat page** link opens the full chat page at `/c/<request id>`.
 The dashboard is saved once, as one version, and the build page then opens it with the chat in the Chat tab of its side panel.
 
 If the agent stops before it finishes, the build page keeps what was built for 7 days.
@@ -189,7 +189,7 @@ Once the build is saved, the build page opens the dashboard.
 The chat keeps the result card with "5 of 8 panels, saved before the run finished" when the plan is known, the status line says "Saved part of the dashboard" instead of "Stopped", and **Add the missing panels** asks the agent for the rest as a follow-up on that dashboard.
 The button shows only on the newest turn of the chat, so once you have asked for the rest, or anything else, the earlier card no longer offers it.
 
-On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and a **Watch live** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
+On the chat page, a card above the steps shows the same status line with thumbnails of the most recent rows and panels built so far, and an **Open build** link; when the agent stops, the card keeps the thumbnails and offers **Save what was built** and **Continue**.
 In the pane beside a build, the card leaves out the link and the thumbnails, because the build is already on screen.
 On the dashboard page, the running entry shows the same status line and, for you, an **Open chat** link that opens the request's chat in the Chat tab of the side panel.
 Every turn of the conversation keeps its card and buttons for as long as the build is kept, not only the latest ones.
@@ -288,7 +288,7 @@ While a run works you see its live text, but the answer itself is written in one
 The model comes from the server's configuration and cannot be picked in the chat box.
 
 An answer keeps that card after you save it as an observation: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
-Once the answer is in an observation it can no longer be shared to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+Once the answer is in an observation the web app no longer offers to share it to a thread from the chat, because the observation is where the team reads it; an answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
 The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
 
@@ -303,10 +303,10 @@ A follow-up there, and **Ask again**, are questions about the dashboard: they ge
 In a chat about an observation, a follow-up and **Ask again** ask about that observation the same way.
 What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build" and the follow-up continues the same chat: it stays on the same page, below the earlier turns.
-While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
-An empty follow-up says "Describe the change you want first."
+In a chat with no dashboard, while the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
+An empty follow-up says "Describe the change you want first." on a dashboard and "Ask a question or describe a dashboard first." without one.
 
-On a dashboard, [Ask mode](web.md#ask-mode) asks about one spot of a panel as a turn of the chat open in the Chat tab, or of a new chat when none is open.
+On a dashboard, [Ask mode](ask-and-comment.md#ask-mode) asks about one spot of a panel as a turn of the chat open in the Chat tab, or of a new chat when none is open.
 Its answer and follow-ups show both in the box at that spot and in the Chat tab, and each follow-up there carries the same spot.
 
 A follow-up is a continuation of the chat.
@@ -316,10 +316,10 @@ For a chat about a dashboard these are the earlier requests you sent on that das
 Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
-A request with neither a dashboard nor an observation is private the same way, and so is a question about a dashboard, asked in its Chat tab or with [Ask mode](web.md#ask-mode): only you and Admins read it.
-A request in a dashboard's comment thread, an investigation on a dashboard and a request that revises the dashboard are shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
+A request with neither a dashboard nor an observation is private the same way, and so is a question about a dashboard or an observation asked in a chat, in the dashboard's Chat tab or with [Ask mode](ask-and-comment.md#ask-mode): only you and Admins read it, and for anyone else it does not exist.
+A request in a dashboard's comment thread, an investigation on a dashboard and a request that revises the dashboard are shared work that anyone who can see the dashboard reads, and an investigation or an ask in the thread of an observation, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
-Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
+Unless it is an investigation, a question asked in a thread, which belongs to no chat, or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
 In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.
 Its page is read only: it offers nothing to copy, retry or ask again, and has no message box.
 An Admin reads another person's chat read only.
