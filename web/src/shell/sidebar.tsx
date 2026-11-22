@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react"
 import {
-  Link,
   useLinkProps,
   useRouteContext,
   useRouterState,
@@ -28,6 +27,7 @@ import {
 } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
+import { AuditList, auditRows } from "./audit-list"
 import {
   subNavState,
   unreadBadge,
@@ -102,11 +102,17 @@ function NavLink({
   onNavigate?: () => void
 }) {
   const Icon = navIcons[item.to]
+  const linkProps = useLinkProps({
+    to: item.to,
+    activeOptions: { exact: true },
+  })
   return (
-    <Link
-      to={item.to}
-      onClick={onNavigate}
-      activeOptions={{ exact: true }}
+    <a
+      {...linkProps}
+      onClick={(event) => {
+        linkProps.onClick?.(event)
+        onNavigate?.()
+      }}
       aria-current={state === "current" ? "page" : undefined}
       aria-label={
         unread === null ? undefined : `${item.label}, ${unread} unread`
@@ -126,7 +132,7 @@ function NavLink({
         {item.label}
       </span>
       {unread === null ? null : <UnreadMark badge={unread} />}
-    </Link>
+    </a>
   )
 }
 
@@ -325,6 +331,13 @@ export function SidebarContent({
         />
       ),
     },
+    "/audit": {
+      rows: auditRows,
+      render: (currentId) =>
+        currentId === null ? null : (
+          <AuditList currentId={currentId} onNavigate={onNavigate} />
+        ),
+    },
     "/explore/metrics": {
       rows: sourceRows("metrics", metrics.shown),
       render: (currentId) => (
@@ -374,7 +387,7 @@ export function SidebarContent({
       <div
         role="group"
         aria-labelledby={workspaceId}
-        className="flex flex-none flex-col gap-0.5 pb-1"
+        className="-m-[3px] flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-[3px] pb-[7px]"
       >
         <div
           id={workspaceId}

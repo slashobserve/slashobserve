@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
-import { AuditSettings } from "./audit-settings"
+import { AuditLog } from "./audit-log"
 import type { AuditView } from "./search"
 import { type AuditEvent, liveRowLimit } from "./stream"
 import { FakeStream, refusedStream } from "./stream-fake"
@@ -126,13 +126,13 @@ function MovingView({ initial }: { initial: AuditView }) {
   useEffect(() => {
     outside.setView = setView
   }, [])
-  return <AuditSettings view={view} onView={vi.fn()} />
+  return <AuditLog view={view} onView={vi.fn()} />
 }
 
 function renderPage(view: Partial<AuditView> = {}) {
   const onView = vi.fn()
   const { user } = renderWithProviders(
-    <AuditSettings view={{ ...defaults, ...view }} onView={onView} />,
+    <AuditLog view={{ ...defaults, ...view }} onView={onView} />,
     { route: { path: "/", url: "/" } }
   )
   return { onView, user }
@@ -174,7 +174,7 @@ beforeEach(() => {
   }
 })
 
-describe("AuditSettings", () => {
+describe("AuditLog", () => {
   it("opens Logs on the audit datasource with the applied query and range", async () => {
     serve()
     renderPage({ q: "origin:mcp", from: "now-7d" })

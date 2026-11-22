@@ -10,9 +10,7 @@ import {
   type Ref,
 } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import type { Selections } from "@/api/keys"
 import { ApiError } from "@/api/errors"
@@ -24,19 +22,11 @@ import { Label } from "@/components/ui/label"
 import {
   asDashboardSpec,
   latestDashboardQuery,
-  usePatchPanels,
+  type PanelPatch,
 } from "@/dashboards/queries"
 import { MergeConflicts } from "@/dashboards/edit/merge-conflicts"
-import { useDeletedBy } from "@/dashboards/live/deleted-store"
-import {
-  contentChange,
-  useLatestPermissions,
-  useLatestProvisioned,
-} from "@/dashboards/permissions"
-import { saveToast } from "@/dashboards/save-outcome"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { panelTitles } from "@/history/diff-groups"
-import { proposalLink } from "@/lib/links"
 import { useSpecValidator } from "@/lib/use-spec-validator"
 import type { CodeEditorHandle } from "@/query-editor/code-editor"
 import {
@@ -77,7 +67,7 @@ import { MetricsBrowser } from "./metrics-browser"
 import { NewerVersionNotice, newerVersionAuthor } from "./newer-version-notice"
 import { withNewPanel } from "./new-panel"
 import { parsePanelJson } from "./panel-json"
-import { PreviewSection } from "./preview-section"
+import { PreviewSection, type PreviewTarget } from "./preview-section"
 import { saveBlockedText } from "./save-blocked"
 import { maxQueryLength } from "./query-row"
 import type { ResolveDatasource } from "./query-row"
@@ -102,13 +92,42 @@ export type ViewGuard = {
   guardLeave: (leave: () => void, stay?: () => void) => void
 }
 
-type Props = {
+export type PanelsSave = {
+  patch: PanelPatch
+  summary: string
+  parent_version: number
+  propose: boolean
+  acceptEmpty: boolean
+}
+
+export type DashboardTarget = {
+  kind: "dashboard"
   dashboardId: string
+  latestVersion: number
+  adding: boolean
+  propose: boolean
+  deleted: boolean
+  save: (input: PanelsSave) => Promise<unknown>
+}
+
+export type BlockTarget = {
+  kind: "block"
+  observationId: string
+  blockId: string | null
+  saveLabel: string
+  outcome: string | null
+  save: (panel: EditablePanel) => Promise<unknown>
+}
+
+export type EditorTarget = DashboardTarget | BlockTarget
+
+const blockIssuePointer = "/panel"
+
+type Props = {
+  target: EditorTarget
   spec: Dashboard
   panel: EditablePanel
-  adding?: boolean
   version: number
-  latestVersion: number
   readOnly: boolean
   view: EditorView
   focusFirstQuery: boolean
@@ -132,13 +151,17 @@ function focusIsFree() {
 
 const leaveNow: LeaveGuard = (leave) => leave()
 
+function scopeOf(target: EditorTarget): string {
+  return target.kind === "dashboard"
+    ? target.dashboardId
+    : `observation:${target.observationId}:${target.blockId ?? "new"}`
+}
+
 export default function PanelEditor({
-  dashboardId,
+  target,
   spec,
   panel,
-  adding = false,
   version,
-  latestVersion,
   readOnly,
   view,
   focusFirstQuery,
@@ -153,11 +176,24 @@ export default function PanelEditor({
 }: Props) {
   const datasourceId = useId()
   const queryClient = useQueryClient()
-  const save = usePatchPanels(dashboardId)
-  const navigate = useNavigate()
-  const permissions = useLatestPermissions(dashboardId)
-  const propose =
-    contentChange(permissions, useLatestProvisioned(dashboardId)) === "propose"
+  const dashboard = target.kind === "dashboard" ? target : null
+  const dashboardId = dashboard?.dashboardId ?? ""
+  const adding = dashboard?.adding ?? false
+  const propose = dashboard?.propose ?? false
+  const latestVersion = dashboard?.latestVersion ?? version
+  const [saveState, setSaveState] = useState<"idle" | "pending" | "saved">(
+    "idle"
+  )
+  const observationId = target.kind === "block" ? target.observationId : ""
+  const blockId = target.kind === "block" ? target.blockId : null
+  const onBlock = dashboard === null
+  const previewTarget = useMemo<PreviewTarget>(
+    () =>
+      onBlock
+        ? { kind: "block", observationId, blockId }
+        : { kind: "dashboard", dashboardId, version },
+    [onBlock, observationId, blockId, dashboardId, version]
+  )
   const datasources = useDatasources()
   const [draft, dispatch] = useReducer(draftReducer, undefined, () =>
     startDraft(version, panel)
@@ -191,7 +227,7 @@ export default function PanelEditor({
     [draft.base, draft.panel]
   )
   const dirty = changes.length > 0
-  const backup = useDraftBackup(dashboardId, draft, dirty)
+  const backup = useDraftBackup(scopeOf(target), draft, dirty)
   const [jsonValid, setJsonValid] = useState(true)
   const [metricsOpen, setMetricsOpen] = useState(false)
   const [activeRef, setActiveRef] = useState("")
@@ -228,7 +264,7 @@ export default function PanelEditor({
     }
   }, [view, onViewChange])
 
-  const saving = save.isPending || save.isSuccess
+  const saving = saveState !== "idle"
   const newer = saving
     ? 0
     : Math.max(
@@ -239,7 +275,7 @@ export default function PanelEditor({
   const conflicted = problem?.kind === "conflict"
   const newestBody = useQuery({
     ...latestDashboardQuery(queryClient, dashboardId),
-    enabled: newer > 0 && !readOnly,
+    enabled: dashboard !== null && newer > 0 && !readOnly,
   }).data
   const newestPanel =
     newestBody && newestBody.version.version >= newer
@@ -299,7 +335,7 @@ export default function PanelEditor({
   const conflictTitles = useMemo(() => panelTitles(spec), [spec])
   const current = draft.panel
   const jsonBlocked = view === "json" && !jsonValid
-  const deleted = useDeletedBy(dashboardId) !== undefined
+  const deleted = dashboard?.deleted ?? false
   const blockedText = saveBlockedText({ deleted, jsonBlocked, runBlocked })
   const titleOk = current.title === undefined || current.title.trim() !== ""
   const queriesOk = isDataPanel(current)
@@ -318,6 +354,67 @@ export default function PanelEditor({
     blockedText === null &&
     queriesOk &&
     titleOk
+
+  function failed(
+    error: unknown,
+    pointer: string,
+    normalised: EditablePanel,
+    retryOnLatest: (() => void) | null
+  ) {
+    if (error instanceof ApiError) {
+      if (error.status === 409 && error.latestVersion !== undefined) {
+        setProblem({
+          kind: "conflict",
+          latest: error.latestVersion,
+          conflicts: error.conflicts,
+        })
+        return
+      }
+      if (error.status === 409 && dashboard === null) {
+        setProblem(null)
+        return
+      }
+      if (
+        error.status === 422 &&
+        retryOnLatest !== null &&
+        onlyGridOverlap(error.issues)
+      ) {
+        retryOnLatest()
+        return
+      }
+      if (
+        error.status === 422 &&
+        (dashboard !== null || error.issues.length > 0)
+      ) {
+        if (error.issues.length > 0 && error.issues.every(isTransient)) {
+          setProblem({
+            kind: "transient",
+            lines: transientLines(
+              error.issues,
+              pointer,
+              querySources(normalised, (ref) => resolveDatasource(ref).uid)
+            ),
+          })
+          return
+        }
+        if (onlyEmptyResult(error.issues)) {
+          setProblem({ kind: "empty", message: error.issues[0].message })
+          return
+        }
+        setProblem({
+          kind: "rejected",
+          issues: error.issues,
+          pointer,
+          refs: isDataPanel(normalised) ? normalised.queries.map(queryRef) : [],
+        })
+        return
+      }
+    }
+    setProblem({
+      kind: "failed",
+      message: error instanceof Error ? error.message : "The save failed.",
+    })
+  }
 
   function submit(
     source: Dashboard,
@@ -348,90 +445,40 @@ export default function PanelEditor({
       return
     }
     setProblem(null)
+    setSaveState("pending")
     const title = normalised.title || normalised.id
-    save.mutate(
-      {
-        patch: { upsert: [{ ...parsed.panel }] },
-        summary:
-          note.trim() ||
-          (adding
-            ? `Add "${title}"`
-            : defaultSaveSummary(changes, entry.panel.title || entry.panel.id)),
-        parent_version: parent,
-        propose,
-        acceptEmpty,
-      },
-      {
-        onSuccess: (outcome) => {
-          toast.success(
-            saveToast(outcome),
-            outcome.kind === "proposed"
-              ? {
-                  action: {
-                    label: "View proposal",
-                    onClick: () =>
-                      void navigate(proposalLink(outcome.proposalId)),
-                  },
-                }
-              : undefined
-          )
-          onSaved()
-        },
-        onError: (error) => {
-          if (error instanceof ApiError) {
-            if (error.status === 409 && error.latestVersion !== undefined) {
-              setProblem({
-                kind: "conflict",
-                latest: error.latestVersion,
-                conflicts: error.conflicts,
-              })
-              return
-            }
-            if (
-              error.status === 422 &&
-              adding &&
-              !replaced &&
-              onlyGridOverlap(error.issues)
-            ) {
-              void applyToLatest(acceptEmpty, true)
-              return
-            }
-            if (error.status === 422) {
-              if (error.issues.length > 0 && error.issues.every(isTransient)) {
-                setProblem({
-                  kind: "transient",
-                  lines: transientLines(
-                    error.issues,
-                    entry.pointer,
-                    querySources(
-                      normalised,
-                      (ref) => resolveDatasource(ref).uid
-                    )
-                  ),
-                })
-                return
-              }
-              if (onlyEmptyResult(error.issues)) {
-                setProblem({ kind: "empty", message: error.issues[0].message })
-                return
-              }
-              setProblem({
-                kind: "rejected",
-                issues: error.issues,
-                pointer: entry.pointer,
-                refs: isDataPanel(normalised)
-                  ? normalised.queries.map(queryRef)
-                  : [],
-              })
-              return
-            }
-          }
-          setProblem({
-            kind: "failed",
-            message:
-              error instanceof Error ? error.message : "The save failed.",
+    const saved =
+      target.kind === "block"
+        ? target.save(parsed.panel)
+        : target.save({
+            patch: { upsert: [{ ...parsed.panel }] },
+            summary:
+              note.trim() ||
+              (adding
+                ? `Add "${title}"`
+                : defaultSaveSummary(
+                    changes,
+                    entry.panel.title || entry.panel.id
+                  )),
+            parent_version: parent,
+            propose,
+            acceptEmpty,
           })
-        },
+    saved.then(
+      () => {
+        setSaveState("saved")
+        onSaved()
+      },
+      (error: unknown) => {
+        setSaveState("idle")
+        failed(
+          error,
+          dashboard === null ? blockIssuePointer : entry.pointer,
+          normalised,
+          adding && !replaced
+            ? () => void applyToLatest(acceptEmpty, true)
+            : null
+        )
       }
     )
   }
@@ -443,6 +490,11 @@ export default function PanelEditor({
       panel: EditablePanel
     }) => void
   ) {
+    if (dashboard === null) {
+      setProblem(null)
+      onLatest({ spec, version, panel })
+      return
+    }
     setApplying(true)
     setProblem(null)
     try {
@@ -519,13 +571,20 @@ export default function PanelEditor({
     jsonGuard.current = guard
   }, [])
 
+  const outcome =
+    target.kind === "block"
+      ? target.outcome
+      : propose
+        ? "An editor merges your change"
+        : null
   const footerSummary =
     blockedText ??
-    (propose
-      ? `${changeSummary(changes)}. An editor merges your change`
-      : changeSummary(changes))
+    (outcome === null
+      ? changeSummary(changes)
+      : `${changeSummary(changes)}. ${outcome}`)
   let saveLabel = `Save as version ${latestVersion + 1}`
-  if (propose) saveLabel = "Propose change"
+  if (target.kind === "block") saveLabel = target.saveLabel
+  else if (propose) saveLabel = "Propose change"
   else if (newer > 0) saveLabel = `Save my changes as version ${newer + 1}`
 
   const data = isDataPanel(current) ? current : null
@@ -572,9 +631,8 @@ export default function PanelEditor({
           </Alert>
         ) : null}
         <PreviewSection
-          dashboardId={dashboardId}
+          target={previewTarget}
           spec={spec}
-          version={version}
           baseVersion={draft.baseVersion}
           base={draft.base}
           draft={draft.panel}
@@ -583,17 +641,19 @@ export default function PanelEditor({
           onSaveBlockedChange={setRunBlocked}
           inlineErrorRefs={inlineErrorRefs}
         />
-        <div className={view === "editor" ? "contents" : "hidden"}>
-          <AskAgent
-            dashboardId={dashboardId}
-            version={draft.baseVersion}
-            draft={draft.panel}
-            dispatch={dispatch}
-            blockedReason={
-              readOnly ? readOnlyAskReason : locked ? savingText : null
-            }
-          />
-        </div>
+        {dashboard === null ? null : (
+          <div className={view === "editor" ? "contents" : "hidden"}>
+            <AskAgent
+              dashboardId={dashboardId}
+              version={draft.baseVersion}
+              draft={draft.panel}
+              dispatch={dispatch}
+              blockedReason={
+                readOnly ? readOnlyAskReason : locked ? savingText : null
+              }
+            />
+          </div>
+        )}
         {view === "editor" ? (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 narrow:grid-cols-1">
@@ -716,7 +776,7 @@ export default function PanelEditor({
         summary={footerSummary}
         noteOpen={noteOpen}
         note={note}
-        onNoteOpen={() => setNoteOpen(true)}
+        onNoteOpen={dashboard === null ? undefined : () => setNoteOpen(true)}
         onNoteChange={setNote}
         saving={saving || applying}
         canSave={canSave}

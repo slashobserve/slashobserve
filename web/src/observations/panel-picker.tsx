@@ -58,6 +58,8 @@ function panelChoices(raw: unknown): PanelChoice[] {
     }))
 }
 
+const followsPage = { from: null, to: null }
+
 export function PanelPicker({
   observation,
   verb,
@@ -101,7 +103,7 @@ export function PanelPicker({
     if (panel === null || addBlock.isPending) return
     setProblem(null)
     addBlock.mutate(
-      { kind: "panel", body: newPanelBody(panel.panel, observation) },
+      { kind: "panel", body: newPanelBody(panel.panel, followsPage) },
       {
         onSuccess: ({ block }) => {
           onPicked(block.id)
@@ -167,7 +169,7 @@ export function PanelPicker({
   return (
     <SidePanel
       title={`${verb} a panel`}
-      description="The panel stays live on this page, with the observation's time range when it has one."
+      description="The panel stays live on this page and follows its time range."
       trigger={trigger}
       closeDisabled={addBlock.isPending}
       onClose={onClose}

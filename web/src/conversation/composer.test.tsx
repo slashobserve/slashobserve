@@ -151,7 +151,6 @@ describe("Composer in a chat", () => {
       kind: "ask",
       client_id: expect.any(String),
     })
-    expect(await sentBody(fetch)).not.toHaveProperty("follows_id")
     expect(await box()).toHaveValue("")
   })
 

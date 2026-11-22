@@ -1,3 +1,4 @@
+import { auditDatasourceUid } from "@/audit/audit-source"
 import {
   logsLink,
   logsPath,
@@ -56,6 +57,15 @@ export function sourcesOf(
   list: readonly DatasourceStatus[] | undefined
 ): DatasourceStatus[] {
   return eligibleDatasources(list, datasourceTypesOf[kind])
+}
+
+export function browsableSources(
+  kind: ExploreKind,
+  sources: readonly DatasourceStatus[]
+): DatasourceStatus[] {
+  return kind === "logs"
+    ? sources.filter((source) => source.uid !== auditDatasourceUid)
+    : [...sources]
 }
 
 export function sourceLanguage(kind: ExploreKind, type: string): string {

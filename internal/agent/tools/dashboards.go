@@ -84,6 +84,7 @@ type listDashboardsIn struct {
 	Cursor            string `json:"cursor"`
 	Order             string `json:"order"`
 	IncludeRestricted bool   `json:"include_restricted"`
+	ExcludeAudit      bool   `json:"exclude_audit"`
 }
 
 func (in listDashboardsIn) checked() (int, Result, bool) {
@@ -119,7 +120,7 @@ func (r *Registry) listDashboards(ctx context.Context, input json.RawMessage) (R
 		next  string
 	)
 	for {
-		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ByViews: in.Order == "views", ByName: in.Order == "name"})
+		page, err := r.deps.Dashboards.List(ctx, principal, dashboards.ListParams{Limit: limit, Cursor: in.Cursor, SkipTotal: true, ExcludeAudit: in.ExcludeAudit, ByViews: in.Order == "views", ByName: in.Order == "name"})
 		if errors.Is(err, dashboards.ErrInvalidCursor) {
 			return invalid("cursor is not valid"), nil
 		}

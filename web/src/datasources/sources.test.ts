@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { DatasourceStatus } from "./queries"
 import {
+  browsableSources,
   carriesSearch,
   defaultSource,
   isSourcePage,
@@ -50,6 +51,29 @@ describe("sourcesOf", () => {
 
   it("returns nothing before the list loads", () => {
     expect(sourcesOf("logs", undefined)).toEqual([])
+  })
+})
+
+describe("browsableSources", () => {
+  const list = [
+    source("loki", "loki"),
+    source("slashobserve-audit", "opensearch"),
+    source("os", "opensearch"),
+  ]
+
+  it("leaves the audit datasource out of the logs list", () => {
+    expect(uids(browsableSources("logs", list))).toEqual(["loki", "os"])
+  })
+
+  it("keeps every source of the other kinds and the other log sources", () => {
+    expect(uids(browsableSources("traces", list))).toEqual([
+      "loki",
+      "slashobserve-audit",
+      "os",
+    ])
+    expect(uids(browsableSources("logs", [source("loki", "loki")]))).toEqual([
+      "loki",
+    ])
   })
 })
 

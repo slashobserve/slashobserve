@@ -335,8 +335,9 @@ A panel that uses dashboard variables is copied with them and the values you hav
 
 ## Sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces, Metrics and Agents, and a Workspace group with Datasources, API keys and People for Admins and Settings for everyone.
+The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces, Metrics and Agents, and a Workspace group with Datasources, API keys, People and Audit for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
+**Audit** lists its three pages indented under it, **Log**, **Folder** and **Explore**; on the audit datasource's page under Logs, **Audit** is the parent that turns semibold, not **Logs**.
 The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 On the page of a listed observation, pinned dashboard, or log, trace or metrics source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.
@@ -344,7 +345,7 @@ Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, an
 `⌘\` or `Ctrl+\` does the same as these buttons on every page that shows the sidebar, including while you type in a field, and does nothing on a phone.
 
 Hovering or focusing an icon on the rail shows its name.
-On the rail, Inbox shows its unread count, Observations shows a teal dot while one of your open observations has something unread, and Dashboards opens a menu that Escape or a click outside closes; with two or more sources, Logs, Traces and Metrics open a menu with a link to their list and the sources.
+On the rail, Inbox shows its unread count, Observations shows a teal dot while one of your open observations has something unread, and Dashboards and Audit open a menu that Escape or a click outside closes; with two or more sources, Logs, Traces and Metrics open a menu with a link to their list and the sources.
 A pinned dashboard, in the sidebar and in the Dashboards menu, shows its problem count from the last health check, such as "1 problem", and nothing while it has none.
 
 ## Search
@@ -396,6 +397,7 @@ Browser zoom scales the whole app if the text is small on a large display.
 Settings groups its sections under You, Workspace and Integrations, and Admins also see Agent access and the Integrations group.
 A section's address is `/settings#<section>`, such as `/settings#grafana`; `#grafana-connection` opens the same section.
 An address whose section does not exist, or one that only Admins can open, shows Server with a note that says so.
+The audit log is not a Settings section any more: `/settings#audit-log` redirects to the Audit page at `/audit`.
 On a phone the section list is a **Settings section** menu at the top of the page.
 
 Open Settings and choose **Connected agents** in its section list to see **Your connected agents**: the MCP clients you approved, each with the name it registered under, the host your browser returned to when you approved it, when it connected and when it last made a request.

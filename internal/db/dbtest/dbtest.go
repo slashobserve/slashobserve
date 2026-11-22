@@ -34,6 +34,11 @@ var (
 	baseURL string
 	skipped bool
 	counter atomic.Int64
+
+	onDemand     bool
+	onDemandOnce sync.Once
+	stopOnDemand func()
+	onDemandErr  error
 )
 
 // Main starts one Postgres container for the test binary and migrates a template database that every
@@ -44,7 +49,43 @@ func Main(m *testing.M) int {
 		skipped = true
 		return m.Run()
 	}
+	stop, err := startContainer()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer stop()
+	return m.Run()
+}
+
+// MainOnDemand is Main for a package whose tests mostly need no database: the container starts when the first
+// test asks for a database and is removed when the binary ends, so the other tests run without Docker.
+func MainOnDemand(m *testing.M) int {
+	flag.Parse()
+	if testing.Short() {
+		skipped = true
+		return m.Run()
+	}
+	onDemand = true
+	defer func() {
+		if stopOnDemand != nil {
+			stopOnDemand()
+		}
+	}()
+	return m.Run()
+}
+
+func ensureStarted(t testing.TB) {
+	t.Helper()
+	onDemandOnce.Do(func() { stopOnDemand, onDemandErr = startContainer() })
+	if onDemandErr != nil {
+		t.Fatal(onDemandErr)
+	}
+}
+
+func startContainer() (func(), error) {
 	ctx, cancel := context.WithTimeout(context.Background(), setupTimeout)
+	defer cancel()
 	container, err := tctest.Retry(ctx, func() (*tcpostgres.PostgresContainer, error) {
 		return tcpostgres.Run(ctx, image,
 			tcpostgres.WithDatabase(adminDB),
@@ -53,26 +94,20 @@ func Main(m *testing.M) int {
 			tcpostgres.BasicWaitStrategies(),
 		)
 	})
+	stop := func() { _ = testcontainers.TerminateContainer(container) }
 	if err != nil {
-		cancel()
-		_ = testcontainers.TerminateContainer(container)
-		fmt.Fprintln(os.Stderr, "start postgres:", err)
-		return 1
+		stop()
+		return nil, fmt.Errorf("start postgres: %w", err)
 	}
-	defer func() { _ = testcontainers.TerminateContainer(container) }()
-	baseURL, err = container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		cancel()
-		fmt.Fprintln(os.Stderr, "postgres connection string:", err)
-		return 1
+	if baseURL, err = container.ConnectionString(ctx, "sslmode=disable"); err != nil {
+		stop()
+		return nil, fmt.Errorf("postgres connection string: %w", err)
 	}
-	err = migrateTemplate(ctx)
-	cancel()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "migrate the template database:", err)
-		return 1
+	if err = migrateTemplate(ctx); err != nil {
+		stop()
+		return nil, fmt.Errorf("migrate the template database: %w", err)
 	}
-	return m.Run()
+	return stop, nil
 }
 
 func migrateTemplate(ctx context.Context) error {
@@ -119,6 +154,9 @@ func (tpl *Template) New(t testing.TB) *Database {
 	if skipped {
 		t.Skip("Postgres tests are skipped with -short")
 	}
+	if onDemand {
+		ensureStarted(t)
+	}
 	tpl.once.Do(func() { tpl.name, tpl.err = buildTemplate(tpl.prepare) })
 	if tpl.err != nil {
 		t.Fatalf("prepare the template database: %v", tpl.err)
@@ -150,6 +188,9 @@ func create(t testing.TB, logger *slog.Logger, options string) *Database {
 	t.Helper()
 	if skipped {
 		t.Skip("Postgres tests are skipped with -short")
+	}
+	if onDemand {
+		ensureStarted(t)
 	}
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", counter.Add(1))

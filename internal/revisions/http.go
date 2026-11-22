@@ -306,7 +306,7 @@ func failureReplyFor(err error) (Reply, bool) {
 		return Reply{Status: http.StatusTooManyRequests, Code: "agent_busy", Message: err.Error()}, true
 	case errors.Is(err, ErrUnavailable):
 		return Reply{Status: http.StatusServiceUnavailable, Code: "agent_unavailable", Message: err.Error()}, true
-	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrFollowsDashboard), errors.Is(err, ErrAnchoredNeedsMine):
+	case errors.Is(err, ErrInvalidCursor), errors.Is(err, ErrAnchoredNeedsMine):
 		return Reply{Status: http.StatusBadRequest, Code: "invalid_request", Message: err.Error()}, true
 	}
 	return Reply{}, false

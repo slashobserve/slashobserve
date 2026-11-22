@@ -41,7 +41,7 @@ Both need the Viewer role or higher, and both work with a session or a service-a
 ## Admin changes
 
 These events record what an Admin changes about people, keys, integrations and access.
-Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks.md) and in Settings, Audit log.
+Only an Admin can read them, in the list, in the stream, in a [webhook](webhooks.md) and in [the Audit log](#audit-log) in the web app.
 
 | Target | Event types | Written when |
 | --- | --- | --- |
@@ -80,8 +80,12 @@ To see more of the change, read the object through its own endpoint, which check
 
 ## Audit log
 
-An Admin reads the audit trail in the web app under Settings, then **Audit log**, which other roles do not see.
-It shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
+An Admin reads the audit trail in the web app under **Audit** in the sidebar's Workspace group, which other roles do not see.
+**Audit** has three pages, listed under it: **Log**, at `/audit`, **Folder** and **Explore**.
+**Folder** is [the Audit folder](#audit-folder), and **Explore** opens the [Logs page](logs-and-traces.md) on the audit datasource.
+An Editor, Commenter or Viewer who opens `/audit` or `/audit/dashboards` sees a note that only Admins can open the page.
+
+**Log** shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
 The query box takes the same text as `GET /api/v1/audit/events`, KQL by default, Lucene after `lucene:` and a Query DSL body that starts with `{`, and it names the form it reads and completes field names.
 **Search**, or Ctrl+Enter (Cmd+Enter on a Mac), runs it, and a query the server cannot read is shown with the part it stopped at marked and the parser's message under it.
 The time range is the last 24 hours unless you pick another, and it spans at most 366 days.
@@ -105,6 +109,8 @@ An export stops at 1,000,000 events; when more match, the page says how many bef
 The app's other downloads, such as a dashboard's Spec JSON, a trace's JSON or a panel's CSV, are assembled in the browser from reads that are each recorded, so they have no separate export event.
 `observe audit search` and the `search_audit_events` tool read the same trail; see [Audit queries](../reference/audit-queries.md#api-mcp-and-the-cli).
 
+The log used to be Settings, then **Audit log**; `/settings#audit-log` now redirects to `/audit` and keeps its query, time range and open event.
+
 ## Audit folder
 
 At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards on the [audit datasource](../reference/audit-queries.md#the-audit-datasource): Audit overview, Sign-ins and access, Agent and MCP activity, and Data access.
@@ -117,6 +123,8 @@ A starter that someone changed before it became read-only is kept as a separate 
 A starter that was moved out of the Audit folder returns to it, and its copy stays in the folder it had been moved to, or goes to the Audit folder when that folder may not hold its content.
 A dashboard of your own that happens to carry a starter's title is never taken over; the starter is added beside it.
 A starter an Admin deletes comes back at the next start.
+**Audit**, then **Folder**, opens the folder as `/f/<id>` does: its dashboards, then its observations and saved searches.
+The page finds the folder by the server's record of it, not by its title, so it keeps working after an Admin renames the folder; `GET /api/v1/folders` marks that folder with `audit: true`.
 When a folder named Audit already exists, the server fills it only if it is Admins only and otherwise logs a warning and leaves it alone, and after an Admin deletes the Audit folder it is not created again.
 A dashboard, observation or saved search that reads the audit datasource can live only in a folder that only Admins can read.
 
