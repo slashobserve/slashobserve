@@ -121,7 +121,7 @@ The conversation shows these as phases, each with a message from the server:
 
 A save is the real check.
 A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed.
-Either rejects a panel whose query is invalid or returns no data, except for alert list panels.
+Either rejects a panel whose query is invalid or returns no data, except for alert list panels and panels over the built-in audit datasource, which can be quiet.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
 The instructions allow three repair attempts; if the agent still cannot save, the request fails.
 A save that finishes the dashboard ends the run.

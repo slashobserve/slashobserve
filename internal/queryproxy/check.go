@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
@@ -477,7 +478,13 @@ func (r *Runner) firstValue(ctx context.Context, d *spec.Dashboard, name string,
 }
 
 func emptyResultIsValid(p *spec.Panel) bool {
-	return p.Type == spec.AlertList
+	return p.Type == spec.AlertList || readsOnlyTheAuditTrail(p)
+}
+
+func readsOnlyTheAuditTrail(p *spec.Panel) bool {
+	return p.Datasource == auditsource.UID && !slices.ContainsFunc(p.Queries, func(q spec.Query) bool {
+		return q.Datasource != "" && q.Datasource != auditsource.UID
+	})
 }
 
 func checkPanelDeadline(skip []bool) time.Duration {

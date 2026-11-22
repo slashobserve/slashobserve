@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -1631,4 +1632,54 @@ func TestCheckSpecChecksARepeatedPanelAsOneCopy(t *testing.T) {
 			t.Fatalf("issues = %+v, want one", issues)
 		}
 	})
+}
+
+func TestCheckSpecTreatsAQuietAuditTrailAsValidButStillFlagsItsFailures(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		panel spec.Panel
+		setup func(*fakeDatasource)
+		want  []wantIssue
+	}{
+		{
+			name:  "no events in the window",
+			panel: panelOf("p0", spec.Table, auditsource.UID, `{"aggs":{"by_agent_name":{"terms":{"field":"agent_name"}}}}`),
+			setup: func(f *fakeDatasource) {
+				f.onRange = func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+					return nil, nil
+				}
+				f.onInstant = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+					return nil, nil
+				}
+			},
+		},
+		{
+			name:  "a failing query",
+			panel: panelOf("p0", spec.Table, auditsource.UID, "action:"),
+			setup: func(f *fakeDatasource) {
+				bad := datasource.Errorf(datasource.ErrInvalidQuery, "parse error")
+				f.onRange = failWith(bad)
+				f.onInstant = func(context.Context, datasource.Query, datasource.TimeRange) ([]datasource.Frame, error) {
+					return nil, bad
+				}
+			},
+			want: []wantIssue{{"/panels/0/queries/0/query", CodeQueryInvalid, ""}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := newFake("elasticsearch")
+			tt.setup(fake)
+			runner := newTestRunner(t, discardLogger(), map[string]*fakeDatasource{auditsource.UID: fake})
+			issues, err := runner.CheckSpec(reading(t.Context()), dashboardOf([]spec.Panel{tt.panel}), testNow, datasource.QueryUser{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(tt.want) == 0 && len(issues) != 0 {
+				t.Fatalf("issues = %+v, want none", issues)
+			}
+			if len(tt.want) > 0 {
+				assertIssues(t, issues, tt.want)
+			}
+		})
+	}
 }
