@@ -12,10 +12,10 @@ description: Pull the image and run SlashObserve against your own Postgres, iden
 2. Pull the image:
 
    ```sh
-   docker pull ghcr.io/slashobserve/slashobserve:0.1.3
+   docker pull ghcr.io/slashobserve/slashobserve:0.1.4
    ```
 
-   Each release is tagged with its full version, such as `0.1.3`, with its minor version, such as `0.1`, and `latest`; a prerelease gets only its full version.
+   Each release is tagged with its full version, such as `0.1.4`, with its minor version, such as `0.1`, and `latest`; a prerelease gets only its full version.
    Pin the full version.
    A new server applies database migrations when it starts, so the version you run should change only when you decide to upgrade (see [Upgrades and backups](../operate/upgrades-and-backups.md)).
    To run your own build instead, run `docker build -t slashobserve-server:local .` from the repository root and use that name in step 4.
@@ -50,7 +50,7 @@ description: Pull the image and run SlashObserve against your own Postgres, iden
      -p 127.0.0.1:8080:8080 \
      --env-file slashobserve.env \
      -v "$PWD/datasources.yaml:/etc/slashobserve/datasources.yaml:ro" \
-     ghcr.io/slashobserve/slashobserve:0.1.3
+     ghcr.io/slashobserve/slashobserve:0.1.4
    ```
 
 5. Check that it is ready:

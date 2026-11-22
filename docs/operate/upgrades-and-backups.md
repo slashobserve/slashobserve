@@ -99,11 +99,43 @@ At the default 180 day retention the build is short, but a log that holds millio
 An older server ignores the new objects, so servers of both versions can run together.
 To go back, run `goose down-to 42` against the database before starting an older binary; everyone's read position is lost, and the next inbox shows the last 30 days as unread.
 
+### Upgrading from 0.1.3
+
+Migrations 74 to 90 are new, and there are no migrations 76 to 78.
+They add the audit trail and its export position, the audience of a datasource, Only Admins folders, anchors and agent columns on threads, chats, the record of starter dashboards, observation block heights, run intent, read restrictions on runs and a delete trigger for dashboards.
+Take the backup first.
+
+Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
+It puts events from the 24 months before the migration into one partition per UTC month and older events into one per UTC year, and leaves out an activity event dated after the migration, which it counts in a notice.
+Retention drops a partition only once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, so backfilled history older than two years is kept until the end of its year.
+During a rolling upgrade, servers still on the older version keep writing activity events without an audit event, so for 7 days after the migration the `audit_partitions` job, and every server at start, records an audit event for each activity event that has none.
+
+Migrations 81, 82, 84 and 87 run outside a transaction, add each check constraint and foreign key as `NOT VALID` and validate it afterwards, and build their indexes concurrently, so none of them holds a write lock for its whole run.
+Migration 82 backfills chats for earlier requests and migration 87 sets the intent and kind of every run, both in batches of 1000 rows.
+Migrations 82 and 87 also add triggers that fill the chat, the intent and the kind of a request that an older server writes while it is still running.
+
+The server records an audit event for every sign-in, change, refusal, tool call and query, and keeps them for `SLASHOBSERVE_AUDIT_RETENTION`, one year by default, so the database grows with its use.
+Set it to the history you want before the first start, read [Audit trail](audit.md), and set `SLASHOBSERVE_TRUSTED_PROXIES` when a load balancer or ingress controller sits in front of the server, so the recorded client address is the caller's and not the balancer's.
+[Configuration](../reference/configuration.md) lists both settings and `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT`, which copies the trail to a log pipeline and sends nothing while it is unset.
+On `SIGTERM` the server now also ends the requests that are still open after 10 seconds, see [Shutdown and leases](#shutdown-and-leases).
+
+To go back, run `goose down-to 73` against the database before starting an older binary.
+The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
+
+- Migration 74 drops the audit table with every audit event in it, its detached partitions included, and migration 85 drops the export position.
+- Migration 87 puts each run's `source` back from its intent and deletes the investigation requests that continue another.
+- Migration 82 drops the chats table, which holds each chat's title, pin and archive mark.
+- Migration 81 drops the anchors and agent columns of threads and deletes the threads of observations that have an anchor or a block.
+- Migration 79 drops the Only Admins mark of folders, so such a folder, which has no access list, reads as open again, and migration 75 drops the audience of datasources, so every datasource can be queried by everyone again.
+- Migration 84 drops block heights and sets a block of a third or two thirds width to half width.
+- Migration 88 drops the read restriction marks of runs and the flags on copied answers.
+
 ### Upgrading from 0.1.2
 
 Migrations 49 to 73 are new, and there is no migration 66.
 They add tables and columns for chats, inbox item states, webhook formats, per-person thread read marks, dashboard viewers and view days, home dashboards, datasources added in the app, people invites and deactivation, teams, chat-only findings, observation pins, run time zones and access requests.
 Take the backup first.
+Migrations 74 to 90 came with 0.1.4, so read [Upgrading from 0.1.3](#upgrading-from-013) as well.
 
 Migrations 59, 62 and 73 replace a check constraint on the activity log, which scans the whole log under a lock that blocks reads and writes.
 Migrations 50 and 73 rebuild `activity_inbox_idx` with a plain `CREATE INDEX`, which blocks writes to the log, and so every change that records activity, until it finishes.
@@ -111,15 +143,9 @@ Like migration 43, the cost grows with the log, so when it holds millions of eve
 Migration 63 records the earliest person to have signed in as the first user, the person the first-user rule of [Roles](../teams/roles.md) names.
 Migration 71 sets a reply time on every finished request that was started from a thread message, in one `UPDATE`.
 
-Migration 74 copies every activity event into the new audit table, keeping only the data keys each audit action allows.
-It puts events from the 24 months before the migration into one partition per UTC month and older events into one per UTC year, and leaves out an activity event dated after the migration, which it counts in a notice.
-Retention drops a partition only once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, so backfilled history older than two years is kept until the end of its year.
-During a rolling upgrade, servers still on the older version keep writing activity events without an audit event, so for 7 days after the migration the `audit_partitions` job, and every server at start, records an audit event for each activity event that has none.
-
-To go back, run `goose down-to 48` against the database before starting an older binary.
+To go back, run `goose down-to 48` against the database before starting an older binary; that also runs the down sections of migrations 74 to 90 listed above.
 The down sections undo the new tables and columns, and some also delete data the older schema cannot hold:
 
-- Migration 74 drops the audit table with every audit event in it, its detached partitions included.
 - Migration 73 drops access requests and deletes their activity events, and migration 70 drops each request's time zone.
 - Migration 65 deletes every finding that no observation holds, which is a chat answer nobody saved.
 - Migration 64 drops teams and their members, so folder entries that named a team match no one.
