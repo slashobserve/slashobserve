@@ -57,6 +57,7 @@ import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
 import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
+  shortcutTarget,
   useDashboardShortcuts,
 } from "@/shortcuts/use-dashboard-shortcuts"
 import {
@@ -72,7 +73,7 @@ import {
 import { ActivityToggle } from "./activity-toggle"
 import {
   askAboutPanelAndFocus,
-  commentOnPanelAndFocus,
+  commentOnThisPanel,
   conversationActionsFor,
   focusComment,
 } from "./panel-actions"
@@ -85,6 +86,7 @@ import {
   useCursorSyncShortcut,
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -616,14 +618,33 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
-      const panel = shortcutPanel()
-      const mayComment =
-        panel !== undefined &&
-        !editing &&
-        conversationActionsFor(panel, permissions.comment, agentAvailable)
-          .comment
-      if (mayComment) commentOnPanelAndFocus(setSearch, panel.id, composerRef)
-      else focusComment(setSearch, composerRef)
+      const target = shortcutTarget()
+      const panelId = layoutPanelOf(spec, target?.id ?? undefined)?.id
+      const onCanvas = takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing: viewed !== undefined,
+        editingPanel: editingPanel && panelId === search.panel,
+        copy: target?.copy === true,
+      })
+      const action = commentKeyAction({
+        commenting: commentTool,
+        panelId,
+        canComment: permissions.comment,
+        editing,
+        onCanvas,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("comment")
+        case "panel":
+          commentOnThisPanel(setSearch, action.panelId, onCanvas, composerRef)
+          return
+        case "pane":
+          return focusComment(setSearch, composerRef)
+      }
     },
     ask: () => {
       const panel = shortcutPanel()
@@ -890,6 +911,13 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      onCanvas={takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing,
+        editingPanel: editingPanel && item.panel.id === search.panel,
+        copy: item.key !== item.panel.id,
+      })}
       canPropose={content === "propose"}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined

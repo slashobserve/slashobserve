@@ -1,1 +1,1 @@
-export { hitTest } from "../value-anchors"
+export { hitTest, locate } from "../value-anchors"

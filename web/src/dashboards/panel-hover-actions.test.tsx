@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
+import { useCanvasTool } from "./canvas-tools"
 import { PanelHoverActions } from "./panel-hover-actions"
 
 const panel: LayoutPanel = {
@@ -41,6 +42,7 @@ function renderActions(over: {
   idle?: boolean
   panel?: LayoutPanel
   viewing?: boolean
+  onCanvas?: boolean
 }) {
   return renderWithProviders(
     <PanelHoverActions
@@ -48,13 +50,17 @@ function renderActions(over: {
       canComment={over.canComment ?? true}
       idle={over.idle ?? true}
       viewing={over.viewing}
+      onCanvas={over.onCanvas ?? false}
       composerRef={createRef<HTMLTextAreaElement>()}
     />,
     { route: { path: "/", url: "/" } }
   )
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  useCanvasTool.getState().close()
+})
 
 describe("PanelHoverActions", () => {
   it("offers Ask and Comment, named after the panel, when the agent is connected", async () => {
@@ -100,6 +106,33 @@ describe("PanelHoverActions", () => {
     for (const button of screen.getAllByRole("button")) {
       expect(button).toBeDisabled()
     }
+  })
+
+  it("opens the canvas composer on the whole panel where the panel takes canvas comments", async () => {
+    serveAgent(true)
+    const { user, router } = renderActions({ onCanvas: true })
+    await user.click(
+      await screen.findByRole("button", { name: "Comment on Checkout latency" })
+    )
+    expect(useCanvasTool.getState().draft).toMatchObject({
+      panelId: "p1",
+      tool: "comment",
+      anchor: null,
+    })
+    expect(router?.state.location.search).not.toMatchObject({ tab: "activity" })
+  })
+
+  it("comments in the activity pane where the panel cannot take canvas comments", async () => {
+    serveAgent(true)
+    const { user, router } = renderActions({ onCanvas: false })
+    await user.click(
+      await screen.findByRole("button", { name: "Comment on Checkout latency" })
+    )
+    expect(useCanvasTool.getState().draft).toBeNull()
+    expect(router?.state.location.search).toMatchObject({
+      tab: "activity",
+      panel: "p1",
+    })
   })
 
   it("fades with opacity only, on fine hover pointers, under the panel's hover", async () => {

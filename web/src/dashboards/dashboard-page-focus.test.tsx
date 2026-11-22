@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useLayoutStore } from "@/dashboards/edit/layout-store"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { routeTree } from "@/routeTree.gen"
 import { testQueryClient } from "@/test/render"
@@ -106,7 +107,7 @@ class IdleEventSource {
   close() {}
 }
 
-function mockServer() {
+function mockServer(served: unknown = envelope) {
   vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
     "fetch",
@@ -119,7 +120,7 @@ function mockServer() {
         case "/api/v1/auth/session":
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
-          return json(envelope)
+          return json(served)
         case "/api/v1/agent":
           return json({ available: true })
         case "/api/v1/datasources":
@@ -257,18 +258,104 @@ function agentRequested() {
 }
 
 describe("dashboard page panel keys", () => {
-  it("comments on the hovered panel with c", async () => {
-    const { user, router } = renderDashboard()
+  it("opens the whole-panel composer on the hovered panel with c", async () => {
+    const { user } = renderDashboard()
     const note = await screen.findByRole("article", { name: "Note" })
     await user.hover(note)
+    await user.keyboard("c")
+    const composer = await screen.findByRole("dialog", {
+      name: "Comment on the canvas",
+    })
+    expect(composer).toHaveAttribute("data-opened-by", "key")
+    expect(composer).toHaveTextContent("Note, whole panel")
+    expect(useActivityStore.getState().askingAgent).toBe(false)
+  })
+
+  it("comments on a repeated panel's copy in the activity pane, since copies take no canvas comments", async () => {
+    const spec = envelope.version.spec
+    mockServer({
+      ...envelope,
+      version: {
+        ...envelope.version,
+        spec: {
+          ...spec,
+          variables: [
+            {
+              name: "env",
+              type: "custom",
+              options: ["a", "b"],
+              multi: true,
+              default: ["a", "b"],
+            },
+          ],
+          panels: [spec.panels[0], { ...spec.panels[1], repeat: "env" }],
+        },
+      },
+    })
+    const { user, router } = renderDashboard()
+    await waitFor(() =>
+      expect(screen.getAllByRole("article", { name: "Latency" })).toHaveLength(
+        2
+      )
+    )
+    const copy = screen.getAllByRole("article", { name: "Latency" })[1]
+    await user.hover(copy)
     await user.keyboard("c")
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({
         tab: "activity",
-        panel: "p_note",
+        panel: "p_latency",
       })
     )
-    expect(useActivityStore.getState().askingAgent).toBe(false)
+    expect(
+      screen.queryByRole("dialog", { name: "Comment on the canvas" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("closes the canvas composer while the layout has unsaved moves and brings it back with its text", async () => {
+    const { user } = renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    await user.hover(note)
+    await user.keyboard("c")
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "half a thought")
+    act(() =>
+      useLayoutStore
+        .getState()
+        .ensure(dashboardId, 1, envelope.version.spec as never)
+    )
+    const session = useLayoutStore.getState().session!
+    act(() =>
+      useLayoutStore
+        .getState()
+        .setLayout(
+          session.layout.map((item, index) =>
+            index === 0 ? { ...item, x: item.x + 1 } : item
+          )
+        )
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Comment on the canvas" })
+      ).not.toBeInTheDocument()
+    )
+    act(() => useLayoutStore.getState().setLayout(session.baseline))
+    expect(
+      await screen.findByRole("textbox", { name: "Write a comment" })
+    ).toHaveValue("half a thought")
+    useLayoutStore.getState().end()
+  })
+
+  it("enters Comment mode with c over no panel and leaves it with c again", async () => {
+    const { user } = renderDashboard()
+    await screen.findByRole("article", { name: "Note" })
+    const tools = await screen.findByRole("toolbar", { name: "Canvas tools" })
+    await user.keyboard("c")
+    await waitFor(() => expect(tools).toHaveAttribute("data-tool", "comment"))
+    await user.keyboard("c")
+    await waitFor(() => expect(tools).toHaveAttribute("data-tool", "select"))
   })
 
   it("asks about the hovered data panel with a", async () => {
@@ -302,17 +389,15 @@ describe("dashboard page panel keys", () => {
   })
 
   it("acts on the focused panel when none is hovered", async () => {
-    const { user, router } = renderDashboard()
+    const { user } = renderDashboard()
     await screen.findByRole("article", { name: "Latency" })
     const title = await screen.findByRole("button", {
       name: "Select panel: Latency",
     })
     title.focus()
     await user.keyboard("c")
-    await waitFor(() =>
-      expect(router.state.location.search).toMatchObject({
-        panel: "p_latency",
-      })
-    )
+    expect(
+      await screen.findByRole("dialog", { name: "Comment on the canvas" })
+    ).toHaveTextContent("Latency, whole panel")
   })
 })

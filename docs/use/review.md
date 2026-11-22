@@ -60,11 +60,12 @@ The boxes in an observation's discussion and in the inbox take the same keys.
 Above the box, a "To:" chip says who reads the message and a "Visible to:" chip says who sees it.
 A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
 A mention of an agent turns the chip to that agent's name.
-Press `c` anywhere on the dashboard, outside a field, to open the pane and put the cursor in this box.
+In the full-size view and TV mode, press `c` outside a field to open the pane and put the cursor in this box; elsewhere on the dashboard `c` turns on Comment mode, described in [Select a panel](web.md#select-a-panel).
 A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
-To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, or open its menu ("Panel menu: `<title>`") and choose **Comment**.
-The card opens scoped to that panel with the cursor in the box.
+To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, open its menu ("Panel menu: `<title>`") and choose **Comment**, or choose **Comment** in the toolbar of the selected panel.
+On the dashboard each opens a small composer on the panel, and the comment is saved as a thread on the whole panel.
+In the full-size view and TV mode the card opens scoped to that panel with the cursor in the box instead.
 **Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens it the same way with the "To:" chip on Observe Agent.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 

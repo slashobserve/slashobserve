@@ -63,6 +63,9 @@ import {
   type TooltipSeries,
   type TooltipView,
 } from "./plugins"
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
+import { seriesLabels } from "../anchors"
+import type { AnchorSeries, TimeseriesAnchorLayout } from "./anchors"
 import { scaleDistribution } from "./axis-scale"
 import { breakingGaps, shapeNulls } from "./gaps"
 import { zonedPlotDate } from "./plot-zone"
@@ -75,6 +78,7 @@ import {
   fillPercent,
   fillStyle,
   firstStackMode,
+  formatTogether,
   scaleOf,
   settingsOf,
   timeseriesDisplay,
@@ -139,6 +143,7 @@ type PlotConfig = {
   zone: string | undefined
   draw?: uPlot.Plugin
   onPlace: (place: PlotPlace | null) => void
+  onDrawn?: (u: uPlot) => void
 }
 
 const tickEdgeGap = 24
@@ -296,8 +301,17 @@ function thresholdLineStroke(
 }
 
 function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
-  const { member, peerTooltip, host, latest, xAxis, zone, draw, onPlace } =
-    config
+  const {
+    member,
+    peerTooltip,
+    host,
+    latest,
+    xAxis,
+    zone,
+    draw,
+    onPlace,
+    onDrawn,
+  } = config
   const timed = xAxis.kind === "time"
   const customPainted = draw !== undefined
   const { model } = latest.current
@@ -338,6 +352,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
       )
     )
   }
+  if (onDrawn !== undefined) plugins.push({ hooks: { draw: [onDrawn] } })
   const gesture = annotateGesture(() => latest.current.annotate)
   if (timed) {
     plugins.push(
@@ -856,6 +871,35 @@ export function TimeseriesChart({
     commitKeys(stateKey, keys)
   }, [commitKeys, stateKey, keys])
 
+  const publishAnchors = useAnchorPublisher("timeseries")
+  const anchorsDrawn = xAxis.kind === "time" && draw === undefined
+  const frameLabels = useMemo(
+    () => new Map(aligned.series.map(({ key, frame }) => [key, frame.labels])),
+    [aligned.series]
+  )
+  const anchorInput = useRef({ frameLabels, width, height })
+  useLayoutEffect(() => {
+    anchorInput.current = { frameLabels, width, height }
+  })
+  const onDrawn = useMemo(
+    () =>
+      anchorsDrawn
+        ? (u: uPlot) => {
+            const { frameLabels, width, height } = anchorInput.current
+            publishAnchors(
+              timeseriesAnchorLayout(u, {
+                body: { width, height },
+                first: 1 + latest.current.model.ghostCount,
+                series: latest.current.model.series,
+                entries: latest.current.entries,
+                frameLabels,
+              })
+            )
+          }
+        : undefined,
+    [anchorsDrawn, publishAnchors]
+  )
+
   useLayoutEffect(() => {
     const element = legendRef.current
     if (!element || !bottomLegend) return
@@ -881,6 +925,7 @@ export function TimeseriesChart({
       zone,
       draw,
       onPlace,
+      onDrawn,
     })
     if (xAxis.kind === "time") {
       member.current = cursor.join((peer) => {
@@ -903,6 +948,7 @@ export function TimeseriesChart({
       plot.destroy()
       plotRef.current = null
       appliedRef.current = null
+      if (onDrawn !== undefined) publishAnchors(null)
     }
   }, [
     ready,
@@ -921,6 +967,8 @@ export function TimeseriesChart({
     thresholdsKey,
     model.painted,
     onPlace,
+    onDrawn,
+    publishAnchors,
   ])
 
   useLayoutEffect(() => {
@@ -1075,3 +1123,57 @@ const TimeseriesPanel: PanelRenderer = (props) => {
 }
 
 export default TimeseriesPanel
+
+function timeseriesAnchorLayout(
+  u: uPlot,
+  {
+    body,
+    first,
+    series,
+    entries,
+    frameLabels,
+  }: {
+    body: { width: number; height: number }
+    first: number
+    series: readonly ChartSeries[]
+    entries: readonly TooltipSeries[]
+    frameLabels: ReadonlyMap<string, Record<string, string> | undefined>
+  }
+): TimeseriesAnchorLayout {
+  const plot = rectWithin(u.over, surfaceOf(u.over))
+  const xs = (u.data[0] ?? []) as number[]
+  const hidden: Record<string, string>[] = []
+  const drawn: AnchorSeries[] = series.flatMap((entry, index) => {
+    const options = u.series[first + index]
+    const data = u.data[first + index]
+    const tooltip = entries[index]
+    if (options?.show !== true && tooltip) {
+      hidden.push(seriesLabels(frameLabels.get(entry.key), tooltip.label))
+    }
+    if (options?.show !== true || data === undefined || !tooltip) return []
+    const scale = options.scale ?? "y"
+    return [
+      {
+        name: tooltip.label,
+        labels: frameLabels.get(entry.key) ?? {},
+        ys: Array.from(data, (value) =>
+          value === null || value === undefined
+            ? null
+            : u.valToPos(value, scale)
+        ),
+        values: entry.values.map((value) => value ?? null),
+        format: (value: number) =>
+          formatTogether([{ value, config: tooltip.config }])[0] ?? "",
+      },
+    ]
+  })
+  return {
+    body,
+    plot,
+    xMin: u.scales.x?.min ?? NaN,
+    xMax: u.scales.x?.max ?? NaN,
+    xs,
+    series: drawn,
+    hidden,
+  }
+}

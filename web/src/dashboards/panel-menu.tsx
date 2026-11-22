@@ -46,7 +46,7 @@ import {
 import { exploreProblemText, exploreTarget } from "./explore-link"
 import {
   askAboutPanel,
-  commentOnPanel,
+  commentOnThisPanel,
   editPanelQuery,
   useConversationActions,
 } from "./panel-actions"
@@ -65,6 +65,7 @@ type Props = {
   onToggleTableView: () => void
   idle: boolean
   viewing: boolean
+  onCanvas: boolean
   onDownloadCsv?: () => void
   onSavePng?: () => void
   downloadsReady?: boolean
@@ -119,6 +120,7 @@ export function PanelMenu({
   onToggleTableView,
   idle,
   viewing,
+  onCanvas,
   onDownloadCsv,
   onSavePng,
   downloadsReady = true,
@@ -149,8 +151,9 @@ export function PanelMenu({
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        returnFocusToComposerUntilInput()
-        commentOnPanel(setSearch, panel.id)
+        const place = commentOnThisPanel(setSearch, panel.id, onCanvas)
+        if (place === "pane") returnFocusToComposerUntilInput()
+        else focusAfterClose = "none"
       },
       shortcut: shortcutText("comment"),
     })
@@ -344,6 +347,7 @@ export function PanelMenu({
           canComment={canComment}
           idle={idle}
           viewing={viewing}
+          onCanvas={onCanvas}
           composerRef={composerRef}
         />
       ) : null}
