@@ -35,7 +35,7 @@ const (
 	descGetRunBuild = "Read the dashboard a run of the built-in agent has saved so far: its Spec, how many panels and saves it holds and how many it planned, updated_at, and dashboard_id and base_version when it revises one. Only the person or key that started the run and an Admin can read it; a run with no saved work answers not_found. Read it to see what a run made before you keep, redo or replace it; nothing here changes it."
 	descRetryRun    = "Start a succeeded, failed or canceled run of the built-in agent again with the same prompt; the new run is yours and queues at once, with a new id to follow with get_run. A queued or running run answers invalid_transition with allowed_actions. It is not safe to repeat: each call queues another run. An investigation cannot be retried here; a private ask can."
 
-	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to ask about or revise; omit for a new one."},"base_version":{"type":"integer","minimum":1,"description":"The version to revise; the latest by default."},"chat_id":{"type":"string","format":"uuid","description":"Your chat, from list_chats, to continue."},"client_id":{"type":"string","format":"uuid","description":"A new UUID per question; a resend starts nothing."},"new_chat":{"type":"boolean","description":"Start a new chat."},"kind":{"type":"string","enum":["ask","revise"],"description":"ask (default) or revise."},"observation_id":{"type":"string","format":"uuid","description":"The observation an ask is about."},"anchor":{"type":"object","description":"A spot on dashboard_id, shaped as in list_comments."},"applies_finding_id":{"type":"string","format":"uuid","description":"With kind revise, instead of prompt: a finding id from get_run; its suggested_change is the prompt."},"follows_id":{"type":"string","format":"uuid","description":"Deprecated: send chat_id."}},"additionalProperties":false}`
+	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to ask about or revise; omit for a new one."},"base_version":{"type":"integer","minimum":1,"description":"The version to revise; the latest by default."},"chat_id":{"type":"string","format":"uuid","description":"Your chat, from list_chats, to continue."},"client_id":{"type":"string","format":"uuid","description":"A new UUID per question; a resend starts nothing."},"new_chat":{"type":"boolean","description":"Start a new chat."},"kind":{"type":"string","enum":["ask","revise"],"description":"ask (default) or revise."},"observation_id":{"type":"string","format":"uuid","description":"The observation an ask is about."},"anchor":{"type":"object","description":"A spot on dashboard_id, shaped as in list_comments."},"applies_finding_id":{"type":"string","format":"uuid","description":"With kind revise, instead of prompt: a finding id from get_run; its suggested_change is the prompt."}},"additionalProperties":false}`
 	schemaRunTarget = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from start_run, get_run or list_activity."}},"required":["id"],"additionalProperties":false}`
 
 	runStepLimit = 20
@@ -104,7 +104,6 @@ type startRunInput struct {
 	Prompt      *string        `json:"prompt"`
 	DashboardID *string        `json:"dashboard_id"`
 	BaseVersion *int           `json:"base_version"`
-	FollowsID   *string        `json:"follows_id"`
 	ChatID      *string        `json:"chat_id"`
 	ClientID    *string        `json:"client_id"`
 	NewChat     *bool          `json:"new_chat"`
@@ -127,7 +126,7 @@ func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result,
 		return invalid("kind must be ask or revise; investigations are started by a person in the web app or the CLI"), nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, FollowsID: in.FollowsID, ChatID: in.ChatID, NewChat: in.NewChat, ClientID: in.ClientID, Anchor: in.Anchor, Kind: in.Kind, ObservationID: in.ObservationID, AppliesFindingID: in.AppliesFindingID})
+	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, ChatID: in.ChatID, NewChat: in.NewChat, ClientID: in.ClientID, Anchor: in.Anchor, Kind: in.Kind, ObservationID: in.ObservationID, AppliesFindingID: in.AppliesFindingID})
 	if err != nil {
 		r.recordRefusedStart(ctx, err)
 		return runFailure(err)

@@ -298,7 +298,7 @@ An observation has one discussion, so `create_comment` on an observation that ha
 Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`.
-A comment is for everyone and asks no agent unless the call sets `to` to `agent`; `start_runs` is the deprecated spelling of the same.
+A comment is for everyone and asks no agent unless the call sets `to` to `agent`.
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
@@ -446,7 +446,7 @@ Without a `dashboard_id` an `ask` builds a new dashboard or answers in the chat,
 With `kind: revise`, `applies_finding_id` in place of `prompt` makes the change an answer about that dashboard suggests: the answer's `suggested_change` from `get_run` is the prompt, and while a run applying it is queued or running, or after it succeeded, the call returns your run with `replayed: true` or answers `already_applied` for someone else's.
 An `ask` with one of `dashboard_id` or `observation_id` is a [private ask](../concepts/agent.md#private-asks): it only answers, changes nothing, and is read only by you and Admins; `kind: investigate` is refused, because an investigation is a person's decision.
 
-Every run is a turn of a chat: without `chat_id` a new chat starts, and a revise joins your latest chat on that dashboard unless `new_chat` is true, which always starts a new one and is refused with `chat_id` or `follows_id`; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
+Every run is a turn of a chat: without `chat_id` a new chat starts, and a revise joins your latest chat on that dashboard unless `new_chat` is true, which always starts a new one and is refused with `chat_id`.
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
 Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.

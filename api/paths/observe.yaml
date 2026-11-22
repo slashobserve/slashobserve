@@ -154,10 +154,8 @@ observe:
       A revision whose prompt only asks a question may also end with a finding: the request succeeds with `finding` set, keeps its `dashboard_id`, and `result_version` stays null; it too makes no observation until its requester saves it.
       Every request you start here is a turn of a chat, which you and Admins can read and nobody else sees.
       With `chat_id` the request is the next turn of that chat of yours (404 `not_found` when it is someone else's, archived or unknown, and 403 `chat_read_only` for an Admin who can read it, because only its owner asks in it), and the chat must be about the same dashboard or observation as the request, or about none on both sides (400 `invalid_request`).
-      Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` and `follows_id` (400 `invalid_request`).
+      Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` (400 `invalid_request`).
       The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back.
-      `follows_id`, the id of an earlier request of yours that has no dashboard, is the older way to name a chat: the request joins that request's chat.
-      `follows_id` excludes `dashboard_id` and `chat_id`.
       `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`.
       `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`).
       When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard.
@@ -218,12 +216,7 @@ observe:
                 description: The chat of yours this request is the next turn of; without it a new chat starts, or a `revise` joins your latest chat on that dashboard.
               new_chat:
                 type: boolean
-                description: Start a new chat even when a `revise` would join your latest chat on that dashboard; not with `chat_id` or `follows_id`.
-              follows_id:
-                type: string
-                format: uuid
-                deprecated: true
-                description: The earlier request of yours, without a dashboard, whose chat this one joins; send `chat_id` instead.
+                description: Start a new chat even when a `revise` would join your latest chat on that dashboard; not with `chat_id`.
               observation_id:
                 type: string
                 format: uuid

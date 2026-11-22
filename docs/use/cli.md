@@ -90,8 +90,7 @@ A prompt sent with `--dashboard <dashboard-id>` is never refused, since a comman
 `--dashboard <dashboard-id>` asks about that dashboard privately, as `observe investigate --private` does, and with `--revise` it sends the prompt as a follow-up that revises that dashboard, as described in [Chat and follow-ups](chat.md); `--revise` without `--dashboard` exits 2.
 `--apply <finding-id>` with `--revise` and `--dashboard`, and no prompt, revises the dashboard with the suggested change of that answer instead of a prompt you write.
 `--chat <chat-id>` sends it as the next turn of that chat of yours, from `observe chats list`, and may be combined with `--dashboard` when the chat is about that dashboard.
-`--new-chat` starts a new chat even when `--revise` would join your latest chat on that dashboard, and exits 2 with `--chat` or `--follows`.
-`--follows <request-id>`, the older form, sends it in the chat of that earlier request of yours, which has no dashboard, and cannot be combined with `--dashboard` or `--chat`.
+`--new-chat` starts a new chat even when `--revise` would join your latest chat on that dashboard, and exits 2 with `--chat`.
 `--at '<anchor JSON>'` points the prompt at one spot on the `--dashboard` dashboard, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at pos:0.4,0.3`.
 
 The short forms are `row:service=payments,span=authorize_card`, `time:2026-11-20T23:56Z`, `range:23:50Z..23:58Z`, `series:service=checkout` and `pos:0.4,0.3`, and every `--at` of the CLI takes them.
@@ -488,7 +487,7 @@ A mention shows in the [activity log](activity.md) and asks no agent unless you 
 
 ### Ask an agent from a comment
 
-`--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; `--start-runs` is the deprecated spelling of `--to agent`.
+`--to agent` on `comments add` or `comments reply` asks the one agent the text mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent.
 Without it the comment is for everyone, asks no agent and turns the thread's agent off, so the web app's plain replies stop asking it until someone mentions an agent again.
 The agent's token is removed from the text to make the run's prompt, and the earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
 A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard; an observation thread starts a read-only ask, which needs Comment on the observation and answers in the thread without writing on the page; an annotation or a proposal thread starts none.
