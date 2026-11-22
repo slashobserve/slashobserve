@@ -71,15 +71,14 @@ for (const colorScheme of ["light", "dark"] as const) {
           .getByRole("button", { name: `Panel menu: ${secondPanelTitle}` })
           .click()
         await page.getByRole("menuitem", { name: "Comment" }).click()
-        await expect(page).toHaveURL(/panel=log_services/)
-
-        const form = card(page).getByRole("form", {
-          name: "Add to the activity",
+        const canvasComposer = page.getByRole("dialog", {
+          name: "Comment on the canvas",
         })
-        await form
-          .getByRole("textbox", { name: "Comment or request" })
+        await expect(page).not.toHaveURL(/panel=/)
+        await canvasComposer
+          .getByRole("textbox", { name: "Write a comment" })
           .fill(ownComment)
-        await form.getByRole("button", { name: "Send", exact: true }).click()
+        await canvasComposer.getByRole("button", { name: "Send" }).click()
 
         const own = thread(ownComment)
         await expect(own).toHaveCount(1)
@@ -88,13 +87,6 @@ for (const colorScheme of ["light", "dark"] as const) {
         ).toBeVisible()
         await expect(activityToggle(page, 2)).toBeVisible()
 
-        await card(page)
-          .getByRole("combobox", { name: /^Panel/ })
-          .click()
-        await page
-          .getByRole("option", { name: "All panels", exact: true })
-          .click()
-        await expect(page).not.toHaveURL(/panel=/)
         await expect(thread(teammateComment)).toHaveCount(1)
         await expect(
           thread(teammateComment).getByRole("button", {
