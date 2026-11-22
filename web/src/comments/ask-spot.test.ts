@@ -193,10 +193,51 @@ describe("askChips", () => {
   it("names the panel, the target, the value under the pointer and the window", () => {
     expect(askChips("Span errors", row).map((chip) => chip.label)).toEqual([
       "Span errors",
-      "The row payments, authorize_card",
+      "Row payments, authorize_card",
       "440",
       "last hour",
     ])
+  })
+
+  it("prints a dragged range with its day once and the full text on hover", () => {
+    const dragged: Anchor = {
+      kind: "range",
+      pos: { x: 0.4, y: 0.3 },
+      from: "2026-11-22T08:54:11Z",
+      to: "2026-11-22T09:11:32Z",
+      window: { from: "now-1h", to: "now" },
+    }
+    expect(askChips("CPU time by mode", dragged)).toEqual([
+      { id: "panel", label: "CPU time by mode" },
+      {
+        id: "anchor",
+        label: "Range 22 Nov 08:54:11 to 09:11:32 UTC",
+        title:
+          "The range 2026-11-22 08:54:11 UTC to 2026-11-22 09:11:32 UTC, last hour",
+      },
+      { id: "window", label: "last hour" },
+    ])
+  })
+
+  it("names both days of a range that crosses midnight", () => {
+    const overnight: Anchor = {
+      kind: "range",
+      pos: { x: 0.4, y: 0.3 },
+      from: "2026-11-22T23:50:00Z",
+      to: "2026-11-23T00:10:00Z",
+    }
+    expect(askChips("Load", overnight)[1].label).toBe(
+      "Range 22 Nov 23:50 to 23 Nov 00:10 UTC"
+    )
+  })
+
+  it("shortens a single moment the same way", () => {
+    const moment: Anchor = {
+      kind: "time",
+      pos: { x: 0.4, y: 0.3 },
+      from: "2026-01-05T08:54:00Z",
+    }
+    expect(askChips("Load", moment)[1].label).toBe("Moment 5 Jan 08:54 UTC")
   })
 
   it("names the whole panel when asked by key", () => {
@@ -207,10 +248,10 @@ describe("askChips", () => {
 
   it("joins the chips into the popover's heading and the pin's name", () => {
     expect(spotLabel("Span errors", row)).toBe(
-      "Span errors · The row payments, authorize_card · 440 · last hour"
+      "Span errors · Row payments, authorize_card · 440 · last hour"
     )
     expect(pinName("Span errors", row)).toBe(
-      "Your question on Span errors, The row payments, authorize_card, 440, last hour"
+      "Your question on Span errors, Row payments, authorize_card, 440, last hour"
     )
   })
 })

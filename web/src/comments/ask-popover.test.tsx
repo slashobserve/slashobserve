@@ -291,11 +291,11 @@ describe("AskPopover", () => {
     openDraft()
     renderAsk()
     const popup = await screen.findByRole("dialog", {
-      name: "Ask about Slow services · The row payments · 440 · last hour",
+      name: "Ask about Slow services · Row payments · 440 · last hour",
     })
     expect(popup).toHaveAttribute("data-opened-by", "pointer")
     const chips = within(popup).getByRole("list", { name: "Context" })
-    for (const label of ["Slow services", "The row payments", "440"]) {
+    for (const label of ["Slow services", "Row payments", "440"]) {
       expect(chips).toHaveTextContent(label)
     }
     expect(within(popup).queryByText(/Visible to/)).toBeNull()
@@ -424,7 +424,7 @@ describe("AskPopover", () => {
     openTurn()
     renderAsk({ queryClient })
     const popup = await screen.findByRole("dialog", {
-      name: "Your question on Slow services, The row payments, 440, last hour",
+      name: "Your question on Slow services, Row payments, 440, last hour",
     })
     expect(
       within(popup).getByText("Payments waits on the card network.")

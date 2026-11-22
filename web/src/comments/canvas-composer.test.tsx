@@ -8,7 +8,13 @@ import { useCanvasTool, type CanvasDraft } from "@/dashboards/canvas-tools"
 import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders } from "@/test/render"
 
-import { CanvasComposer, targetChips, useCanvasGate } from "./canvas-composer"
+import {
+  boxMinHeight,
+  boxMinWidth,
+  boxSizeKey,
+  parseStoredBoxSizes,
+} from "./canvas-box-size"
+import { CanvasComposer, useCanvasGate } from "./canvas-composer"
 import type { CanvasSubject } from "./canvas-host"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -23,28 +29,6 @@ const onBar: Anchor = {
   series: { name: "p99" },
   shown: "840 ms",
 }
-
-describe("targetChips", () => {
-  it("names the panel and the target under the click", () => {
-    expect(targetChips("Latency", onBar)).toEqual([
-      { id: "panel", label: "Latency" },
-      {
-        id: "anchor",
-        label: "The bar checkout of the series name=p99 (840 ms)",
-      },
-    ])
-  })
-
-  it("names the whole panel when the composer opened by key", () => {
-    expect(targetChips("Latency", null)).toEqual([
-      { id: "panel", label: "Latency, whole panel" },
-    ])
-  })
-
-  it("names an untitled panel", () => {
-    expect(targetChips("", null)[0].label).toBe("Untitled panel, whole panel")
-  })
-})
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -117,6 +101,45 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe("resizing the box", () => {
+  afterEach(() => {
+    localStorage.removeItem(boxSizeKey)
+  })
+
+  it("resizes from the keyboard, remembers the size and resets on a double click", async () => {
+    stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const popup = await screen.findByRole("dialog", {
+      name: "Comment on the canvas",
+    })
+    expect(popup).not.toHaveAttribute("data-sized")
+    const grip = within(popup).getByRole("button", { name: "Resize this box" })
+    grip.focus()
+    await user.keyboard("{ArrowRight}")
+    expect(popup).toHaveAttribute("data-sized")
+    expect(parseStoredBoxSizes(localStorage.getItem(boxSizeKey))).toEqual({
+      comment: { width: boxMinWidth, height: boxMinHeight },
+    })
+    await user.dblClick(grip)
+    expect(popup).not.toHaveAttribute("data-sized")
+    expect(localStorage.getItem(boxSizeKey)).toBeNull()
+  })
+
+  it("opens at the size kept from last time", async () => {
+    localStorage.setItem(
+      boxSizeKey,
+      JSON.stringify({ comment: { width: 480, height: 400 } })
+    )
+    stubServer()
+    renderDraft(clicked)
+    const popup = await screen.findByRole("dialog", {
+      name: "Comment on the canvas",
+    })
+    expect(popup).toHaveAttribute("data-sized")
+  })
+})
+
 function GateProbe({ layoutEditing }: { layoutEditing: boolean }) {
   const gate = useCanvasGate(true, layoutEditing)
   return <output>{gate.layoutEditing ? "editing" : "idle"}</output>
@@ -142,9 +165,7 @@ describe("CanvasComposer", () => {
     expect(popup).toHaveAttribute("data-opened-by", "pointer")
     const chips = within(popup).getByRole("list", { name: "Context" })
     expect(chips).toHaveTextContent("Latency")
-    expect(chips).toHaveTextContent(
-      "The bar checkout of the series name=p99 (840 ms)"
-    )
+    expect(chips).toHaveTextContent("Bar checkout of the series name=p99")
     await waitFor(() =>
       expect(
         within(popup).getByRole("textbox", { name: "Write a comment" })
