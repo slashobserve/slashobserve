@@ -42,7 +42,7 @@ The row has the fields `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `Service
 A trace with more spans than the datasource's row limit is cut at the limit and marked truncated, and a trace Jaeger does not know returns no data.
 
 Any other query is a search: `key=value` pairs separated by spaces, over the dashboard's time range, such as `service=checkout operation="POST /pay" minDuration=500ms error=true`.
-An empty query lists the newest traces.
+A query that is empty lists the newest traces, but the query API and a panel need at least one byte, so write `minDuration=0s` to search with no filter.
 
 | Key                           | Meaning                                                                                                        |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |

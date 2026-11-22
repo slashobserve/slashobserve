@@ -37,6 +37,7 @@ describe("sourcesOf", () => {
     source("ch", "clickhouse"),
     source("loki", "loki"),
     source("tempo", "tempo"),
+    source("jaeger", "jaeger"),
     source("es", "elasticsearch"),
     source("os", "opensearch"),
   ]
@@ -46,7 +47,7 @@ describe("sourcesOf", () => {
   })
 
   it("keeps the trace datasource types for traces", () => {
-    expect(uids(sourcesOf("traces", list))).toEqual(["ch", "tempo"])
+    expect(uids(sourcesOf("traces", list))).toEqual(["ch", "tempo", "jaeger"])
   })
 
   it("returns nothing before the list loads", () => {
@@ -99,6 +100,7 @@ describe("sourceLanguage", () => {
     ["logs", "opensearch", "KQL"],
     ["traces", "tempo", "TraceQL"],
     ["traces", "clickhouse", "Search"],
+    ["traces", "jaeger", "Search"],
     ["traces", "other", "Query"],
   ] as const)("names the %s language of %s as %s", (kind, type, language) => {
     expect(sourceLanguage(kind, type)).toBe(language)

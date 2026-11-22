@@ -1,11 +1,11 @@
 import type { DataPanel } from "@/spec"
 
-import type { TraceSearch } from "./search"
+import { hasQueryText, type TraceSearch } from "./search"
 import {
   clickhouseLatestTraceSpans,
   clickhouseTraceSpans,
+  textSearchFor,
   traceForm,
-  traceQLFor,
 } from "./search-query"
 
 type TracePanelInput = {
@@ -31,7 +31,7 @@ export function tracesPanelFor({
     title,
     datasource,
     gridPos: { x: 0, y, w: 24, h: 12 },
-    queries: [type === "tempo" ? { query } : { query, format: "table" }],
+    queries: [hasQueryText(type) ? { query } : { query, format: "table" }],
   }
 }
 
@@ -53,13 +53,13 @@ export function traceSqlPanelFor({
 }
 
 export function tracePanelQuery(type: string, search: TraceSearch): string {
-  return type === "tempo"
-    ? (search.q ?? traceQLFor(traceForm(search)))
+  return hasQueryText(type)
+    ? textSearchFor(type, search)
     : clickhouseLatestTraceSpans(traceForm(search))
 }
 
 export function traceByIdQuery(type: string, traceId: string): string {
-  return type === "tempo" ? traceId : clickhouseTraceSpans(traceId)
+  return hasQueryText(type) ? traceId : clickhouseTraceSpans(traceId)
 }
 
 export function tracePanelTitle(search: TraceSearch): string {

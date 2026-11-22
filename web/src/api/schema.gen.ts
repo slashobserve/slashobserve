@@ -1831,7 +1831,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read one trace whole from a Tempo or ClickHouse datasource.
+         * Read one trace whole from a Tempo, Jaeger or ClickHouse datasource.
          * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
@@ -13550,7 +13550,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo, Jaeger or ClickHouse (`invalid_request`). */
             400: {
                 headers: {
                     [name: string]: unknown;

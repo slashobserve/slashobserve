@@ -18,7 +18,7 @@ datasources-uid-traces-trace-id:
     x-surfaces:
       mcp: [get_trace]
       cli: [observe traces]
-    summary: Read one trace whole from a Tempo or ClickHouse datasource.
+    summary: Read one trace whole from a Tempo, Jaeger or ClickHouse datasource.
     description: >-
       Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`.
       `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none.
@@ -59,7 +59,7 @@ datasources-uid-traces-trace-id:
             schema:
               $ref: "../openapi.yaml#/components/schemas/PanelData"
       "400":
-        description: The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`).
+        description: The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo, Jaeger or ClickHouse (`invalid_request`).
         content:
           application/json:
             schema:

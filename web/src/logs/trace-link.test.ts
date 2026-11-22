@@ -94,6 +94,12 @@ describe("traceDatasourceFor", () => {
     expect(traceDatasourceFor(all[0], all)).toBe("tempo-a")
   })
 
+  it("opens a Loki line in the first Jaeger when there is no Tempo", () => {
+    const jaeger = [all[0], datasource("jaeger", "jaeger")]
+    expect(traceDatasourceFor(all[0], jaeger)).toBe("jaeger")
+    expect(traceDatasourceFor(all[0], [...jaeger, all[1]])).toBe("tempo-a")
+  })
+
   it("gives null for Loki without a Tempo", () => {
     expect(traceDatasourceFor(all[0], all.slice(0, 1))).toBeNull()
   })

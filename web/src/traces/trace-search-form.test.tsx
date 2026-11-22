@@ -107,3 +107,57 @@ describe("TraceSearchForm on ClickHouse", () => {
     )
   })
 })
+
+describe("TraceSearchForm on Jaeger", () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function jaegerForm(value: Parameters<typeof TraceSearchForm>[0]["value"]) {
+    const fetchMock = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify({ values: ["checkout", "payments"] }), {
+          headers: { "Content-Type": "application/json" },
+        })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const onSubmit = vi.fn()
+    const view = renderWithProviders(
+      <>
+        <TraceSearchForm
+          id="f"
+          type="jaeger"
+          uid="jaeger"
+          value={value}
+          onSubmit={onSubmit}
+        />
+        <button type="submit" form="f">
+          Search
+        </button>
+      </>
+    )
+    return { ...view, onSubmit, fetchMock }
+  }
+
+  it("lists the services under the service label and takes one", async () => {
+    const { user, onSubmit, fetchMock } = jaegerForm({})
+    await user.click(screen.getByRole("combobox", { name: "Service" }))
+    await user.click(await screen.findByRole("option", { name: "payments" }))
+    await user.click(screen.getByRole("button", { name: "Search" }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ service: "payments" })
+    )
+    const requested = fetchMock.mock.calls.map(([input]) =>
+      input instanceof Request ? input.url : String(input)
+    )
+    expect(
+      requested.some((url) => url.includes("/labels/service/values"))
+    ).toBe(true)
+  })
+
+  it("names the written search Search and lets it replace the fields", async () => {
+    const { user, onSubmit } = jaegerForm({ q: "http.status_code=500" })
+    expect(screen.getByLabelText("Search")).toHaveValue("http.status_code=500")
+    expect(screen.getByRole("combobox", { name: "Service" })).toBeDisabled()
+    await user.click(screen.getByRole("button", { name: "Search" }))
+    expect(onSubmit).toHaveBeenCalledWith({ q: "http.status_code=500" })
+  })
+})

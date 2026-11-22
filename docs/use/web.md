@@ -24,7 +24,7 @@ Every page that belongs to one dashboard, folder or agent request has a short ad
 | `/traces` | The list of trace sources and saved trace searches. |
 | `/traces/<datasource uid>` | The trace search on one source; `service`, `span`, `min`, `max`, `errors`, `q`, `ask`, `from` and `to` in the query string reopen a search or a question. |
 | `/explore/metrics/<datasource uid>` | The metrics page on one Prometheus source; `q`, `from`, `to`, `mode` and `ask` in the query string reopen a query, and `saved` and `observation` name the saved search or observation it belongs to. |
-| `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo or ClickHouse datasource. |
+| `/t/<trace id>?ds=<datasource uid>` | One trace in a Tempo, Jaeger or ClickHouse datasource. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/rca/<token>` | A published RCA revision opened through its public link, with no sign-in; see [Share a revision](observations.md#share-a-revision). |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |

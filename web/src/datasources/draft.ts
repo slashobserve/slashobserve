@@ -18,6 +18,7 @@ export const datasourceTypes: { value: DatasourceType; label: string }[] = [
   { value: "prometheus", label: "Prometheus" },
   { value: "loki", label: "Loki" },
   { value: "tempo", label: "Tempo" },
+  { value: "jaeger", label: "Jaeger" },
   { value: "clickhouse", label: "ClickHouse, read only" },
   { value: "elasticsearch", label: "Elasticsearch" },
   { value: "opensearch", label: "OpenSearch" },
@@ -61,6 +62,8 @@ export function addressHint(type: DatasourceType | ""): string {
       return "https://loki.example.com"
     case "tempo":
       return "https://tempo.example.com"
+    case "jaeger":
+      return "https://jaeger.example.com"
     case "elasticsearch":
     case "opensearch":
       return "https://search.example.com:9200"

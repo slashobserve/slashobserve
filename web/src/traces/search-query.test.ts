@@ -9,8 +9,10 @@ import {
   parseDuration,
   traceQLAttribute,
   traceQLFor,
+  jaegerSearchFor,
   traceSearchParams,
   traceSearchParamsWithCursor,
+  withJaegerDurationBounds,
   traceStatsFilter,
   withDurationBounds,
   type TraceForm,
@@ -307,6 +309,7 @@ describe("keepSelectionSearch", () => {
   it("writes the selection's range and duration bounds into the fields", () => {
     expect(
       keepSelectionSearch(
+        "tempo",
         { service: "checkout" },
         { from, to, minMs: 812.34, maxMs: 1500 }
       )
@@ -322,6 +325,7 @@ describe("keepSelectionSearch", () => {
   it("keeps the search's own bound when it is tighter and keeps a ceiling the selection lacks", () => {
     expect(
       keepSelectionSearch(
+        "tempo",
         { min: "1s", max: "5s" },
         { from, to, minMs: 800, maxMs: null }
       )
@@ -334,6 +338,7 @@ describe("keepSelectionSearch", () => {
     })
     expect(
       keepSelectionSearch(
+        "tempo",
         { min: "100ms", max: "5s" },
         { from, to, minMs: 800, maxMs: 2000 }
       )
@@ -343,6 +348,7 @@ describe("keepSelectionSearch", () => {
   it("appends the bounds to a written TraceQL query", () => {
     expect(
       keepSelectionSearch(
+        "tempo",
         { q: "{ status = error }" },
         { from, to, minMs: 800, maxMs: null }
       )
@@ -352,6 +358,7 @@ describe("keepSelectionSearch", () => {
   it("is null when the written query cannot take duration bounds", () => {
     expect(
       keepSelectionSearch(
+        "tempo",
         { q: "status = error" },
         { from, to, minMs: 800, maxMs: null }
       )
@@ -433,5 +440,80 @@ describe("traceSearchParamsWithCursor", () => {
 
   it("leaves the first page without a cursor", () => {
     expect(traceSearchParamsWithCursor(params, undefined)).toBe(params)
+  })
+})
+
+describe("jaegerSearchFor", () => {
+  it("writes only the set filters as key=value pairs", () => {
+    expect(
+      jaegerSearchFor({
+        service: "checkout",
+        span: "POST /pay",
+        min: "250µs",
+        max: "2s",
+        errors: true,
+      })
+    ).toBe(
+      'service=checkout operation="POST /pay" minDuration=250us maxDuration=2s error=true'
+    )
+  })
+
+  it("quotes a value with a quote or a backslash", () => {
+    expect(
+      jaegerSearchFor({
+        service: "",
+        span: 'say "hi"',
+        min: "",
+        max: "",
+        errors: false,
+      })
+    ).toBe('operation="say \\"hi\\""')
+  })
+
+  it("sends a pair that matches everything when no filter is set", () => {
+    expect(
+      jaegerSearchFor({
+        service: "",
+        span: "",
+        min: "",
+        max: "",
+        errors: false,
+      })
+    ).toBe("minDuration=0s")
+  })
+})
+
+describe("Jaeger searches", () => {
+  const from = Date.UTC(2026, 10, 6, 14, 13)
+  const to = Date.UTC(2026, 10, 6, 14, 17)
+
+  it("sends the written search, or the one built from the fields", () => {
+    expect(
+      traceSearchParams("jaeger", { q: "http.status_code=500" }).query
+    ).toBe("http.status_code=500")
+    expect(
+      traceSearchParams("jaeger", { service: "x", errors: "1" }).query
+    ).toBe("service=x error=true")
+    expect(traceSearchParams("jaeger", { sort: "spans" }).sort).toBeUndefined()
+  })
+
+  it("replaces the bounds of a written search with the selection's", () => {
+    expect(
+      withJaegerDurationBounds(
+        'service=checkout minDuration=1s maxDuration="5s" http.method=GET',
+        "800ms",
+        "2s"
+      )
+    ).toBe("service=checkout http.method=GET minDuration=800ms maxDuration=2s")
+    expect(withJaegerDurationBounds("minDuration=0s", "800ms", undefined)).toBe(
+      "minDuration=800ms"
+    )
+    expect(
+      keepSelectionSearch(
+        "jaeger",
+        { q: "service=checkout" },
+        { from, to, minMs: 800, maxMs: null }
+      )
+    ).toMatchObject({ q: "service=checkout minDuration=800ms" })
   })
 })

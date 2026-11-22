@@ -274,6 +274,7 @@ describe("pagesByOffset", () => {
     ["clickhouse", true],
     ["elasticsearch", true],
     ["opensearch", true],
+    ["jaeger", true],
     ["loki", false],
     ["tempo", false],
   ])("%s is %s", (type, byOffset) => {

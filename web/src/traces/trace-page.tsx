@@ -204,8 +204,8 @@ function TraceForId({ id }: { id: string }) {
             />
             <p className="text-[13px] text-muted-foreground">
               {eligible.length === 0
-                ? "No traces datasource is configured. An Admin adds a Tempo or ClickHouse datasource in the datasources file."
-                : "Pick a Tempo or ClickHouse datasource to open this trace."}
+                ? "No traces datasource is configured. An Admin adds a Tempo, Jaeger or ClickHouse datasource in the datasources file."
+                : "Pick a Tempo, Jaeger or ClickHouse datasource to open this trace."}
             </p>
           </div>
         </>

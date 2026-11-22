@@ -72,7 +72,7 @@ export function sourceLanguage(kind: ExploreKind, type: string): string {
   if (kind === "metrics") return "PromQL"
   if (kind === "logs") return queryModeLabel(type)
   if (type === "tempo") return "TraceQL"
-  if (type === "clickhouse") return "Search"
+  if (type === "clickhouse" || type === "jaeger") return "Search"
   return "Query"
 }
 

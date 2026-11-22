@@ -37,7 +37,7 @@ const emptyTitles = {
 const emptyText = {
   logs: "No logs datasource is configured. An Admin adds an Elasticsearch, OpenSearch, Loki or ClickHouse datasource on the Datasources page.",
   traces:
-    "No traces datasource is configured. An Admin adds a Tempo or ClickHouse datasource on the Datasources page.",
+    "No traces datasource is configured. An Admin adds a Tempo, Jaeger or ClickHouse datasource on the Datasources page.",
   metrics:
     "No metrics datasource is configured. An Admin adds a Prometheus datasource on the Datasources page.",
 } as const

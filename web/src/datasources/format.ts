@@ -12,6 +12,8 @@ export function typeLabel(type: string): string {
       return "Loki"
     case "tempo":
       return "Tempo"
+    case "jaeger":
+      return "Jaeger"
     case "elasticsearch":
       return "Elasticsearch"
     case "opensearch":
@@ -32,6 +34,7 @@ export function exploreTargets(type: string): ExploreTarget[] {
     case "opensearch":
       return ["logs"]
     case "tempo":
+    case "jaeger":
       return ["traces"]
     case "prometheus":
       return ["metrics"]

@@ -9,6 +9,10 @@ export const traceFilterLabels = {
   q: "TraceQL",
 } as const
 
+export function queryLabel(type: string): string {
+  return type === "jaeger" ? "Search" : traceFilterLabels.q
+}
+
 type TraceFilterKey = keyof typeof traceFilterLabels
 
 export type TraceFilterChip = {
@@ -26,14 +30,17 @@ const chipOrder: readonly TraceFilterKey[] = [
   "q",
 ]
 
-export function traceFilterChips(search: TraceSearch): TraceFilterChip[] {
+export function traceFilterChips(
+  type: string,
+  search: TraceSearch
+): TraceFilterChip[] {
   return chipOrder.flatMap((key) => {
     const value = search[key]
     if (value === undefined) return []
     return [
       {
         key,
-        label: traceFilterLabels[key],
+        label: key === "q" ? queryLabel(type) : traceFilterLabels[key],
         value: key === "errors" ? "" : value,
       },
     ]

@@ -73,7 +73,10 @@ export function validPage(value: unknown): number | undefined {
 
 export function pagesByOffset(type: string): boolean {
   return (
-    type === "clickhouse" || type === "elasticsearch" || type === "opensearch"
+    type === "clickhouse" ||
+    type === "jaeger" ||
+    type === "elasticsearch" ||
+    type === "opensearch"
   )
 }
 
