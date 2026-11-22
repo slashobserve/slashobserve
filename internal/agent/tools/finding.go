@@ -41,7 +41,7 @@ const (
 
 	propFindingAskOn = `"ask_on_dashboard_id":{"type":"string","description":"On Home: the id of the one existing dashboard the request asks to change."}`
 
-	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: one plain sentence on a change to it that would help; you never change it."}`
+	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: one plain sentence on a change that would help, omitted when none is needed, never repeated in markdown; you never change it."}`
 	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
 
 	maxSuggestedChangeRunes = 500
