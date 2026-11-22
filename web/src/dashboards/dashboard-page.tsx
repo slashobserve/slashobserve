@@ -466,6 +466,7 @@ function DashboardView({
     }),
     [dashboardId, canvasGate, askChatId, selectAskChat]
   )
+  const pressArranges = arranging && (tool === "select" || editing)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
@@ -924,11 +925,12 @@ function DashboardView({
       refreshMs={refreshMs}
       mixedDatasources={mixedDatasources}
       editable={
-        arranging &&
+        pressArranges &&
         layout !== undefined &&
         item.first &&
         item.panel.id === selectedId
       }
+      arrangeable={arranging && item.first}
       layoutSession={editing}
       openComments={item.first ? (openByPanel.get(item.panel.id) ?? 0) : 0}
       unverifiedReason={unverified.panels.get(item.panel.id)}
@@ -1111,7 +1113,7 @@ function DashboardView({
                           spec={spec}
                           selections={selections}
                           values={values}
-                          editable={arranging && layout !== undefined}
+                          editable={pressArranges && layout !== undefined}
                           layout={layout}
                           onLayoutChange={layout ? setLayout : undefined}
                           selectedId={selectedId}
