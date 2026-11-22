@@ -336,10 +336,57 @@ function describeWindow(window: AnchorWindow): string {
   return `${window.from} to ${window.to}`
 }
 
-function describeTime(value: string): string {
-  const iso = new Date(value).toISOString()
+function clockOf(iso: string): string {
   const seconds = iso.slice(17, 19) === "00" ? "" : iso.slice(16, 19)
-  return `${iso.slice(0, 10)} ${iso.slice(11, 16)}${seconds} UTC`
+  return `${iso.slice(11, 16)}${seconds}`
+}
+
+type TimeStyle = {
+  at: (value: string) => string
+  span: (from: string, to: string) => string
+}
+
+function fullTime(value: string): string {
+  const iso = new Date(value).toISOString()
+  return `${iso.slice(0, 10)} ${clockOf(iso)} UTC`
+}
+
+const fullTimes: TimeStyle = {
+  at: fullTime,
+  span: (from, to) => `${fullTime(from)} to ${fullTime(to)}`,
+}
+
+const monthNames = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+]
+
+function shortDay(iso: string): string {
+  return `${Number(iso.slice(8, 10))} ${monthNames[Number(iso.slice(5, 7)) - 1]}`
+}
+
+const shortTimes: TimeStyle = {
+  at: (value) => {
+    const iso = new Date(value).toISOString()
+    return `${shortDay(iso)} ${clockOf(iso)} UTC`
+  },
+  span: (from, to) => {
+    const start = new Date(from).toISOString()
+    const end = new Date(to).toISOString()
+    const endDay =
+      start.slice(0, 10) === end.slice(0, 10) ? "" : `${shortDay(end)} `
+    return `${shortDay(start)} ${clockOf(start)} to ${endDay}${clockOf(end)} UTC`
+  },
 }
 
 function sortedKeys(labels: Record<string, string>): string[] {
@@ -393,9 +440,8 @@ function percent(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
-function subject(anchor: Anchor): string {
-  const from = anchor.from ? describeTime(anchor.from) : ""
-  const to = anchor.to ? describeTime(anchor.to) : ""
+function subject(anchor: Anchor, times: TimeStyle): string {
+  const from = anchor.from ? times.at(anchor.from) : ""
   const series = anchor.series ? labelPairs(anchor.series) : ""
   const row = anchor.row ? readableCells(anchor.row) : ""
   const quote = anchor.quote ?? ""
@@ -403,7 +449,9 @@ function subject(anchor: Anchor): string {
     case "time":
       return `the moment ${from}`
     case "range":
-      return `the range ${from} to ${to}`
+      return `the range ${
+        anchor.from && anchor.to ? times.span(anchor.from, anchor.to) : ""
+      }`
     case "series":
       return `the series ${series}`
     case "point":
@@ -448,23 +496,33 @@ function subject(anchor: Anchor): string {
   }
 }
 
-export type AnchorParts = {
+type AnchorParts = {
   subject: string
   shown: string | null
   window: string | null
 }
 
-export function anchorParts(anchor: Anchor): AnchorParts {
+function partsOf(anchor: Anchor, times: TimeStyle): AnchorParts {
   return {
-    subject: subject(anchor),
+    subject: subject(anchor, times),
     shown: anchor.shown ? anchor.shown : null,
     window: anchor.window ? describeWindow(anchor.window) : null,
   }
 }
 
-export function describeAnchor(anchor: Anchor): string {
-  const parts = anchorParts(anchor)
+const leadingArticle = /^(the|a) /
+
+export function chipParts(anchor: Anchor): AnchorParts {
+  const parts = partsOf(anchor, shortTimes)
+  return { ...parts, subject: parts.subject.replace(leadingArticle, "") }
+}
+
+function sentence(parts: AnchorParts): string {
   const shown = parts.shown === null ? "" : ` (${parts.shown})`
   const window = parts.window === null ? "" : `, ${parts.window}`
   return `${parts.subject}${shown}${window}`
+}
+
+export function describeAnchor(anchor: Anchor): string {
+  return sentence(partsOf(anchor, fullTimes))
 }

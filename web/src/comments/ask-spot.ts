@@ -1,5 +1,5 @@
 import type { ContextChip } from "@/chat/context-chips"
-import { anchorParts } from "@/conversation/anchor"
+import { chipParts, describeAnchor } from "@/conversation/anchor"
 import type { ObserveRequest, RequestSummary } from "@/observe/queries"
 import type { Anchor } from "@/panels/anchors"
 
@@ -122,10 +122,14 @@ export function askChips(
   if (anchor === null) {
     return [{ id: "panel", label: `${panel}, whole panel` }]
   }
-  const parts = anchorParts(anchor)
+  const parts = chipParts(anchor)
   return [
     { id: "panel", label: panel },
-    { id: "anchor", label: capitalized(parts.subject) },
+    {
+      id: "anchor",
+      label: capitalized(parts.subject),
+      title: capitalized(describeAnchor(anchor)),
+    },
     ...(parts.shown === null ? [] : [{ id: "shown", label: parts.shown }]),
     ...(parts.window === null ? [] : [{ id: "window", label: parts.window }]),
   ]

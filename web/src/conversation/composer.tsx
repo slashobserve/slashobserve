@@ -67,6 +67,7 @@ type ComposerProps = {
   importLink?: boolean
   contextChips?: ContextChip[]
   showVisibility?: boolean
+  fill?: boolean
 }
 
 const keyboardHint =
@@ -256,6 +257,7 @@ function DockedComposer({
   hint,
   disabledReason = null,
   showVisibility,
+  fill = false,
 }: ComposerProps) {
   const { field } = model
   const errorId = useId()
@@ -271,10 +273,15 @@ function DockedComposer({
         event.preventDefault()
         void model.submit()
       }}
-      className="flex flex-col gap-2"
+      className={cn("flex flex-col gap-2", fill && "min-h-0 flex-auto")}
     >
       {notice}
-      <div className="rounded-card border border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50 has-aria-invalid:border-destructive">
+      <div
+        className={cn(
+          "rounded-card border border-input bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50 has-aria-invalid:border-destructive",
+          fill && "flex min-h-0 flex-auto flex-col"
+        )}
+      >
         <div className="flex flex-wrap items-center gap-1.5 px-2 pt-2">
           {chips}
           <DeliveryChips model={model} showVisibility={showVisibility} />
@@ -292,7 +299,10 @@ function DockedComposer({
           value={model.text}
           disabled={unavailable}
           readOnly={model.pending}
-          className="field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0"
+          className={cn(
+            "field-sizing-content max-h-64 min-h-16 resize-none border-0 px-3 py-2.5 text-[13px] shadow-none focus-visible:ring-0 aria-invalid:ring-0 aria-invalid:focus-visible:ring-0",
+            fill && "max-h-none flex-auto"
+          )}
           onChange={(event) =>
             model.setText(event.target.value, event.target.selectionStart)
           }

@@ -129,7 +129,7 @@ describe("AskPins", () => {
     ])
     const { user } = renderPins()
     const pin = await screen.findByRole("button", {
-      name: "Your question on Slow services, The row payments, 440",
+      name: "Your question on Slow services, Row payments, 440",
     })
     expect(screen.getAllByRole("button")).toHaveLength(1)
     expect(pin).toHaveAttribute("aria-expanded", "false")
@@ -173,7 +173,7 @@ describe("AskPins", () => {
       ownerId: "b1",
     })
     await screen.findByRole("button", {
-      name: "Your question on Slow services, The row payments, 440",
+      name: "Your question on Slow services, Row payments, 440",
     })
     expect(screen.getAllByRole("button")).toHaveLength(1)
     expect(Object.fromEntries(listed[0].searchParams)).toMatchObject({
@@ -193,12 +193,12 @@ describe("AskPins", () => {
     )
     expect(
       await screen.findByRole("button", {
-        name: "Why is payments slow? Your question on Slow services, The row payments, 440",
+        name: "Why is payments slow? Your question on Slow services, Row payments, 440",
       })
     ).toBeInTheDocument()
     await user.click(
       screen.getByRole("button", {
-        name: "And yesterday? Your question on Slow services, The row payments, 440",
+        name: "And yesterday? Your question on Slow services, Row payments, 440",
       })
     )
     expect(useCanvasTool.getState().openTurn).toMatchObject({
@@ -213,7 +213,7 @@ describe("AskPins", () => {
       const listed = stubRequests([summary({ id: "r1", status: "running" })])
       renderPins()
       await screen.findByRole("button", {
-        name: "Your question on Slow services, The row payments, 440",
+        name: "Your question on Slow services, Row payments, 440",
       })
       await act(() => vi.advanceTimersByTimeAsync(30_000))
       expect(listed).toHaveLength(1)
@@ -249,7 +249,7 @@ describe("AskPins", () => {
     await waitFor(() => expect(listed).toHaveLength(1))
     expect(
       await screen.findByRole("button", {
-        name: "Your question on Slow services, The row payments, 440",
+        name: "Your question on Slow services, Row payments, 440",
       })
     ).toBeInTheDocument()
     expect(screen.getAllByRole("button")).toHaveLength(1)

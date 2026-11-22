@@ -192,6 +192,11 @@ At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask*
 **Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
 In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
+
+The chips are short: a time reads "22 Nov 08:54:11 UTC", a range on one day names the day once, as in "Range 22 Nov 08:54:11 to 09:11:32 UTC", and pointing at a chip shows the full text.
+The composer and the ask box fit the window on a narrow screen, and the handle in their bottom right corner resizes them: drag it, or focus it and press the arrow keys (Shift for larger steps).
+Each box opens at the size you last gave it in this browser, and a double-click on the handle returns it to its default size.
+
 On a time series, a heatmap, a state timeline or a status history, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 

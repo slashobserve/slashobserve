@@ -35,7 +35,12 @@ import {
   spotLabel,
   spotTurnIds,
 } from "./ask-spot"
-import { CanvasPopover, keepsTyping, panelTitleOf } from "./canvas-composer"
+import {
+  CanvasPopover,
+  keepsTyping,
+  panelTitleOf,
+  useBoxSized,
+} from "./canvas-composer"
 import { isAbout, ownerOf, spotTarget, type CanvasSubject } from "./canvas-host"
 
 export type AskSpot = {
@@ -195,11 +200,13 @@ function AskDraft({
     },
   })
   useReportSending(model.pending)
+  const sized = useBoxSized()
   return (
-    <div className="p-2">
+    <div className={cn("p-2", sized && "flex min-h-0 flex-auto flex-col")}>
       <Composer
         model={model}
         layout="docked"
+        fill={sized}
         label="Ask about this"
         formLabel="Ask on the canvas"
         placeholder="Ask about this"
@@ -341,6 +348,7 @@ function AskThread({
   useEffect(() => {
     if (focusDropped()) field.current?.focus()
   }, [field])
+  const sized = useBoxSized()
   return (
     <>
       <div className="flex items-center gap-0.5 border-b py-1.5 pr-1.5 pl-3">
@@ -359,7 +367,10 @@ function AskThread({
       </div>
       <ol
         aria-label="Your chat on this spot"
-        className="flex max-h-[min(28rem,60vh)] min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col gap-3.5 overflow-y-auto p-3"
+        className={cn(
+          "flex min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col gap-3.5 overflow-y-auto p-3",
+          sized ? "flex-auto" : "max-h-[min(28rem,60vh)]"
+        )}
       >
         {ids.map((id) => (
           <AskTurn key={id} requestId={id} subject={subject} onAsked={asked} />
@@ -386,6 +397,7 @@ export function AskPopover(props: Props) {
   const { turn, spot, panelTitle } = props
   return (
     <CanvasPopover
+      box="ask"
       id={popupId}
       surfaceRef={props.surfaceRef}
       at={spot.at}
