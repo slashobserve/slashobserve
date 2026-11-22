@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -313,6 +314,24 @@ func TestVersionFailureNamesTheVersionField(t *testing.T) {
 	}
 }
 
+func largestAnchor(t *testing.T) *anchor.Anchor {
+	t.Helper()
+	at := time.Date(2026, 11, 20, 23, 56, 0, 0, time.UTC)
+	grow := func(n int) anchor.Anchor {
+		return anchor.Anchor{Kind: anchor.LogLine, Pos: anchor.Pos{X: 0.123456789, Y: 0.987654321}, From: &at, ID: strings.Repeat("<", 40), Quote: strings.Repeat("<", n), Series: map[string]string{"k": strings.Repeat("<", 40)}}
+	}
+	n := 0
+	for grow(n+1).Validate() == nil {
+		n++
+	}
+	a := grow(n)
+	encoded, err := json.Marshal(a)
+	if err != nil || n == 0 || len(encoded) < 1500 {
+		t.Fatalf("largest anchor is %d bytes with a %d character quote: %v", len(encoded), n, err)
+	}
+	return &a
+}
+
 func worstCaseRef(t *testing.T) commentRef {
 	version := 2147483647
 	author := strings.Repeat("<", 256)
@@ -322,9 +341,9 @@ func worstCaseRef(t *testing.T) commentRef {
 	}
 	edited := time.Date(2026, 10, 19, 12, 30, 0, 0, time.UTC)
 	return commentRef{
-		thread: threads.Thread{ID: dashB, PanelID: strings.Repeat("<", maxPanelFilterBytes), PanelPresent: true, Version: &version, Status: threads.StatusResolved, ResolvedByVersion: &version},
+		thread: threads.Thread{ID: dashB, PanelID: strings.Repeat("<", maxPanelFilterBytes), PanelPresent: true, Version: &version, Status: threads.StatusResolved, ResolvedByVersion: &version, Anchor: largestAnchor(t)},
 		message: threads.Message{
-			ID:          dashA,
+			ID:          dashB,
 			ThreadID:    dashB,
 			Author:      actor.Actor{Name: author},
 			AuthorEmail: author,
@@ -338,6 +357,7 @@ func worstCaseRef(t *testing.T) commentRef {
 
 func worstCaseRunReplyRef(t *testing.T) commentRef {
 	ref := worstCaseRef(t)
+	ref.message.ID = dashA
 	ref.message.Mentions = nil
 	ref.message.Body = strings.Repeat("<", 520)
 	ref.message.Answer = &threads.Answer{
@@ -380,6 +400,41 @@ func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 	}
 	if !out.Comments[0].BodyTruncated || !strings.HasSuffix(out.Comments[0].Body, "...") {
 		t.Fatalf("the worst-case body was not cut: truncated = %v", out.Comments[0].BodyTruncated)
+	}
+	if got := out.Comments[0]; got.Anchor == nil || len(got.Mentions) != threads.MaxMentions || got.Mentions[0].ID != dashA {
+		t.Fatalf("the worst-case comment lost its anchor or its mention ids: anchor %v, mentions %+v", got.Anchor, got.Mentions)
+	}
+}
+
+func TestTheFirstCommentOfAThreadCarriesItsAnchorAsCreateCommentTakesIt(t *testing.T) {
+	at := time.Date(2026, 11, 20, 23, 56, 0, 0, time.UTC)
+	pinned := &anchor.Anchor{Kind: anchor.Point, Pos: anchor.Pos{X: 0.4, Y: 0.3}, From: &at, Series: map[string]string{"service": "checkout"}, Shown: "1.2s", Window: &anchor.Window{From: "now-6h", To: "now"}}
+	thread := threads.Thread{ID: dashB, PanelID: "p1", Anchor: pinned}
+	listed := func(thread threads.Thread, m threads.Message) (json.RawMessage, string) {
+		t.Helper()
+		body, err := json.Marshal(commentItem(commentRef{thread, m}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out struct {
+			Anchor json.RawMessage `json:"anchor"`
+			At     string          `json:"at"`
+		}
+		if err := json.Unmarshal(body, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out.Anchor, out.At
+	}
+	raw, words := listed(thread, threads.Message{ID: dashB, ThreadID: dashB})
+	back, err := anchor.Parse(string(raw))
+	if err != nil || !reflect.DeepEqual(&back, pinned) || words != pinned.Describe() {
+		t.Fatalf("first comment: anchor %s parses back to %+v, %v; at %q", raw, back, err, words)
+	}
+	if raw, words := listed(thread, threads.Message{ID: dashA, ThreadID: dashB}); raw != nil || words != "" {
+		t.Fatalf("a reply repeats the thread's anchor %s, at %q", raw, words)
+	}
+	if raw, words := listed(threads.Thread{ID: dashB}, threads.Message{ID: dashB}); raw != nil || words != "" {
+		t.Fatalf("a thread pinned nowhere lists anchor %s, at %q", raw, words)
 	}
 }
 

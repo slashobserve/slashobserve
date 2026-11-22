@@ -26,6 +26,7 @@ const (
 	maxAnswerOutBytes     = 400
 	maxAnswerTitleBytes   = 120
 	maxAnswerChangeBytes  = 300
+	maxAnchorTextBytes    = 300
 	maxMentionNameBytes   = 48
 	maxPanelFilterBytes   = 64
 	codeUnknownVersion    = "unknown_version"
@@ -64,28 +65,29 @@ type replyToOut struct {
 }
 
 type commentOut struct {
-	ID                string       `json:"id"`
-	ParentID          *string      `json:"parent_id"`
-	Target            string       `json:"target,omitempty"`
-	PanelID           *string      `json:"panel_id"`
-	PanelPresent      bool         `json:"panel_present"`
-	Version           *int         `json:"version"`
-	Status            string       `json:"status"`
-	AllowedActions    []string     `json:"allowed_actions"`
-	Unread            bool         `json:"unread"`
-	Author            string       `json:"author"`
-	Actor             actor.JSON   `json:"actor"`
-	RunID             string       `json:"run_id,omitempty"`
-	CreatedAt         string       `json:"created_at"`
-	EditedAt          *string      `json:"edited_at"`
-	Body              string       `json:"body"`
-	BodyTruncated     bool         `json:"body_truncated,omitempty"`
-	ResolvedByVersion *int         `json:"resolved_by_version"`
-	At                string       `json:"at,omitempty"`
-	Mentions          []mentionOut `json:"mentions"`
-	BlockID           *string      `json:"block_id"`
-	ReplyTo           *replyToOut  `json:"reply_to"`
-	Answer            *answerOut   `json:"answer,omitempty"`
+	ID                string         `json:"id"`
+	ParentID          *string        `json:"parent_id"`
+	Target            string         `json:"target,omitempty"`
+	PanelID           *string        `json:"panel_id"`
+	PanelPresent      bool           `json:"panel_present"`
+	Version           *int           `json:"version"`
+	Status            string         `json:"status"`
+	AllowedActions    []string       `json:"allowed_actions"`
+	Unread            bool           `json:"unread"`
+	Author            string         `json:"author"`
+	Actor             actor.JSON     `json:"actor"`
+	RunID             string         `json:"run_id,omitempty"`
+	CreatedAt         string         `json:"created_at"`
+	EditedAt          *string        `json:"edited_at"`
+	Body              string         `json:"body"`
+	BodyTruncated     bool           `json:"body_truncated,omitempty"`
+	ResolvedByVersion *int           `json:"resolved_by_version"`
+	At                string         `json:"at,omitempty"`
+	Anchor            *anchor.Anchor `json:"anchor,omitempty"`
+	Mentions          []mentionOut   `json:"mentions"`
+	BlockID           *string        `json:"block_id"`
+	ReplyTo           *replyToOut    `json:"reply_to"`
+	Answer            *answerOut     `json:"answer,omitempty"`
 }
 
 type answerOut struct {
@@ -179,7 +181,8 @@ func commentItem(ref commentRef) commentOut {
 	} else {
 		out.ResolvedByVersion = t.ResolvedByVersion
 		if t.Anchor != nil {
-			out.At = t.Anchor.Describe()
+			out.At = clip(t.Anchor.Describe(), maxAnchorTextBytes)
+			out.Anchor = t.Anchor
 		}
 	}
 	if t.PanelID != "" {
@@ -414,15 +417,19 @@ func commentPage(q commentQuery, refs []commentRef, next string) (commentListOut
 
 func commentWithin(ref commentRef, budget int) commentOut {
 	out := commentItem(ref)
+	fits := func() bool { return jsonSize(out) < budget }
+	if !fits() {
+		out.At = ""
+	}
 	body := ref.message.Body
-	n := min(len(body), maxCommentOutBytes)
-	for n > 0 {
-		b, err := json.Marshal(out)
-		if err != nil || len(b)+1 <= budget {
-			break
-		}
-		n = max(n-(len(b)+1-budget), 0)
+	for n := min(len(body), maxCommentOutBytes); n > 0 && !fits(); {
+		n = max(n-(jsonSize(out)-budget+1), 0)
 		out.Body, out.BodyTruncated = clip(body, n), true
+	}
+	if !fits() {
+		for i := range out.Mentions {
+			out.Mentions[i].Name = ""
+		}
 	}
 	return out
 }
