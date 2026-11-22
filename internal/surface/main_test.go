@@ -8,5 +8,5 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(dbtest.Main(m))
+	os.Exit(dbtest.MainOnDemand(m))
 }
