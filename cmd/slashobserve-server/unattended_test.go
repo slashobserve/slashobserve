@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -38,7 +39,12 @@ func TestAServerWithNoIdentityProviderStartsAndTakesItsFileKey(t *testing.T) {
 	})
 	base := "http://" + addr
 	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	get := func(path, token string) *http.Response {
+	type reply struct {
+		status   int
+		location string
+		body     []byte
+	}
+	get := func(path, token string) (reply, bool) {
 		t.Helper()
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, base+path, nil)
 		if err != nil {
@@ -49,10 +55,14 @@ func TestAServerWithNoIdentityProviderStartsAndTakesItsFileKey(t *testing.T) {
 		}
 		res, err := noRedirect.Do(req)
 		if err != nil {
-			return nil
+			return reply{}, false
 		}
-		t.Cleanup(func() { _ = res.Body.Close() })
-		return res
+		defer func() { _ = res.Body.Close() }()
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return reply{}, false
+		}
+		return reply{status: res.StatusCode, location: res.Header.Get("Location"), body: body}, true
 	}
 
 	deadline := time.After(2 * time.Minute)
@@ -63,8 +73,8 @@ func TestAServerWithNoIdentityProviderStartsAndTakesItsFileKey(t *testing.T) {
 		case <-deadline:
 			t.Fatal("the server was not ready in time")
 		case <-time.After(100 * time.Millisecond):
-			res := get("/readyz", "")
-			ready = res != nil && res.StatusCode == http.StatusOK
+			res, ok := get("/readyz", "")
+			ready = ok && res.status == http.StatusOK
 		}
 	}
 
@@ -73,20 +83,20 @@ func TestAServerWithNoIdentityProviderStartsAndTakesItsFileKey(t *testing.T) {
 		Name string `json:"name"`
 		Role string `json:"role"`
 	}
-	res := get("/api/v1/me", key)
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("GET /api/v1/me with the file key = %d, want 200", res.StatusCode)
+	res, _ := get("/api/v1/me", key)
+	if res.status != http.StatusOK {
+		t.Fatalf("GET /api/v1/me with the file key = %d, want 200", res.status)
 	}
-	if err := json.NewDecoder(res.Body).Decode(&me); err != nil {
+	if err := json.Unmarshal(res.body, &me); err != nil {
 		t.Fatal(err)
 	}
 	if me.Kind != "service_account" || me.Name != "bench-admin" || me.Role != "admin" {
 		t.Fatalf("the file key acts as %+v, want the bench-admin service account with the admin role", me)
 	}
 
-	res = get("/api/v1/auth/login", "")
-	if res.StatusCode != http.StatusFound || res.Header.Get("Location") != "/login?error=sign_in_off" {
-		t.Fatalf("browser sign-in = %d to %q, want a redirect to /login?error=sign_in_off", res.StatusCode, res.Header.Get("Location"))
+	res, _ = get("/api/v1/auth/login", "")
+	if res.status != http.StatusFound || res.location != "/login?error=sign_in_off" {
+		t.Fatalf("browser sign-in = %d to %q, want a redirect to /login?error=sign_in_off", res.status, res.location)
 	}
 
 	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
