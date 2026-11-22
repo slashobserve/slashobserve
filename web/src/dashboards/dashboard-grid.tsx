@@ -1,4 +1,12 @@
-import { useCallback, useMemo, type KeyboardEvent, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react"
 import { GridLayout, useContainerWidth, type Layout } from "react-grid-layout"
 import { verticalCompactor } from "react-grid-layout/core"
 import "react-grid-layout/css/styles.css"
@@ -54,6 +62,24 @@ type Props = {
 }
 
 const noRows: Record<string, boolean> = {}
+
+function positionsOf(layout: Layout): string {
+  return layout.map(({ i, x, y, w, h }) => `${i}:${x},${y},${w},${h}`).join("|")
+}
+
+function useNewPositionsThisCommit(layout: Layout) {
+  const positions = positionsOf(layout)
+  const committed = useRef(positions)
+  const changed = useRef(false)
+  useLayoutEffect(() => {
+    changed.current = committed.current !== positions
+    committed.current = positions
+  })
+  useEffect(() => {
+    changed.current = false
+  })
+  return changed
+}
 
 function viewItem(entry: LayoutItem): Layout[number] {
   const { x, y, w, h } = entry.gridPos
@@ -157,9 +183,11 @@ export function DashboardGrid({
     [ordered]
   )
 
+  const givenNewPositions = useNewPositionsThisCommit(gridItems)
   const reportLayout = useCallback(
     (next: Layout) => {
-      if (!layout || !onLayoutChange) return
+      // react-grid-layout reports the layout it held before this commit's props, then syncs to them.
+      if (!layout || !onLayoutChange || givenNewPositions.current) return
       const given = new Map(layout.map((item) => [item.i, item]))
       onLayoutChange(
         next.map((item) => {
@@ -170,7 +198,7 @@ export function DashboardGrid({
         })
       )
     },
-    [layout, onLayoutChange]
+    [layout, onLayoutChange, givenNewPositions]
   )
 
   function moveSelection(event: KeyboardEvent<HTMLDivElement>) {

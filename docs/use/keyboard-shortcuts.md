@@ -44,6 +44,7 @@ With no panel under the pointer, they act on the panel that holds the keyboard f
 
 Hovering a panel also shows **Ask** and **Comment** buttons in its header, which do what `a` and `c` do.
 They fade in under a mouse or trackpad, and on a touch screen and while the keyboard focus is in the panel they are always shown.
+A panel narrower than 240 pixels leaves them and its datasource name out of the header so the title keeps the room; the keys and the panel menu still work there.
 **Ask** needs the same things as `a`, and the panel menu offers both with the same rule.
 
 ## Observation page keys

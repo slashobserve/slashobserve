@@ -135,7 +135,7 @@ export function PanelChrome({
       data-selected={selected ? "" : undefined}
       aria-current={selected ? "true" : undefined}
       className={cn(
-        "group/panel relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
+        "group/panel @container/panel relative flex size-full flex-col overflow-hidden rounded-card border text-card-foreground",
         transparent ? "border-transparent bg-transparent" : "bg-card",
         emphasized &&
           "border-foreground outline outline-1 -outline-offset-1 outline-foreground",
@@ -144,7 +144,7 @@ export function PanelChrome({
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1",
+          "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1 @max-[15rem]/panel:gap-1",
           dragHandle || arrangeable ? "pl-1" : "pl-3",
           dragHandle && "touch-none",
           grabbable &&
@@ -204,7 +204,7 @@ export function PanelChrome({
           </Tooltip>
         ) : null}
         {datasourceLabel ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
+          <span className="min-w-0 truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
             {datasourceLabel}
           </span>
         ) : null}
