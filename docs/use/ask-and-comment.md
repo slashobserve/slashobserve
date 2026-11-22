@@ -24,20 +24,21 @@ Over MCP and the CLI the same spots are [anchors](#anchors-over-mcp-and-the-cli)
 
 ## The tool bar
 
-At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you cannot comment, as a Viewer cannot.
-**Ask** shows only when a model is connected.
+At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode, while a panel is open in the editor and when you cannot comment, as a Viewer cannot.
+**Ask** shows only when a model is connected, and only a data panel can be asked about: a text panel takes comments but no questions.
+A line beside the bar, or below it when the row wraps, says what a click does while a mode is on.
 **Select** is the default: a click selects a panel, as [Select a panel](web.md#select-a-panel) describes.
 **Comment**, or `c` with the pointer on no panel, turns on [Comment mode](#comment-mode), and **Ask**, or `a` with the pointer on no panel, turns on [Ask mode](#ask-mode).
 Each mode stays on until you choose **Select**, press `Esc` or press its key again, and both are greyed while you have unsaved layout changes.
 
 With the pointer over a panel, or a panel selected, `c` and `a` do not turn a mode on: they open the composer or the ask box on the whole panel.
-The same two actions are **Comment** and **Ask** in the panel's menu, in its header and in the toolbar above a selected panel.
+The same two actions are **Comment** and **Ask** in the panel's menu, in the toolbar above a selected panel and in two icon buttons in the panel's header, named "Comment on `<title>`" and "Ask about `<title>`", which show when you hover the panel and hide while it is selected or too narrow to hold them.
 In the full-size view and TV mode there is no canvas to point at, so they open the dashboard's side pane instead: **Comment** the **Activity** tab, scoped to the panel, and **Ask** the **Chat** tab with a chip naming the panel, so the question is about that panel until you remove the chip.
 `Esc` closes Inspect first, then the full-size view, then TV mode and full screen, then leaves Comment or Ask mode for **Select**, and then clears the selected panel; [Keyboard shortcuts](keyboard-shortcuts.md) lists the keys.
 
 ## Comment mode
 
-In Comment mode the pointer becomes a dark comment marker whose bottom left tip is the spot a click lands on, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
+In Comment mode the pointer becomes a dark comment marker whose bottom left tip is the spot a click lands on, the line beside the tool bar reads "Click a spot on a panel to comment on it. Esc returns to Select.", and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
 
 The chips are short: a time reads "22 Nov 08:54:11 UTC", a range on one day names the day once, as in "Range 22 Nov 08:54:11 to 09:11:32 UTC", and pointing at a chip shows the full text.
@@ -67,7 +68,7 @@ Each panel type names the finest part of itself that it draws, and a pin follows
 | Heatmap | A cell, or a dragged range of time | The cell's time step and bucket, or the range |
 | Pie chart | A slice | The slice's name |
 | Stat, Gauge, Bar gauge | The value under the pointer | The value's series |
-| Table | A column header, or a row with the value under the pointer | The row's identifying cells and the column |
+| Table | A row, with the value under the pointer shown as a chip, or a column header | The row's identifying cells, or the column |
 | State timeline, Status history | A state at a time, a row, or a dragged range of time | The row and the time, or the range |
 | Logs | A log line | The line |
 | Traces | A span | The span |
@@ -92,11 +93,12 @@ A table row, log line, span or alert that is on the panel but scrolled out of vi
 
 Choose a pin, or Tab to it and press Enter, to read the thread with its replies and reply in place.
 Pins that would overlap stack into one marker with their count; choose it for a list of those threads, and choose one to read it, with a button back to the list.
-Pins show only the threads you can read, and they are not drawn in print, in a panel image or in TV mode.
+Pins show only the threads you can read, to people who can comment, and they are not drawn in print, in a panel image, in TV mode, in the full-size view or in the panel editor.
+A pin on a panel that shows no data is drawn faded.
 
 ## Ask mode
 
-In Ask mode the pointer carries a teal marker with the slash in place of the dark one, and the line above the tool bar and the outline work as in Comment mode.
+In Ask mode the pointer carries a teal marker with the slash in place of the dark one, and the line beside the tool bar ("Click a spot on a panel to ask the agent about it. Esc returns to Select.") and the outline work as in Comment mode.
 A click opens a small box at that spot with chips naming the panel, the part you clicked, the value under the pointer and the time window, and sends your question to the agent with all of them.
 Dragging across the time axis of a panel that takes a range, as in Comment mode, asks about the range you dragged over.
 In the table view of a panel that is not a table, a click or drag in Ask mode asks about the whole panel.
@@ -104,11 +106,13 @@ In the table view of a panel that is not a table, a click or drag in Ask mode as
 The question is a turn of the dashboard's current chat, or of a new chat that becomes the current chat when there is none.
 The current chat is the one you last opened in the Chat tab or asked in on the canvas.
 Asking on the canvas never opens a closed side pane; when the pane shows Activity or Chat it switches to that chat, and the Chat tab shows it whenever you open it later.
-The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
+The answer arrives in the same box: "Waiting for a free agent" while the question is queued, "Looking into it" while it runs, and "Revising the dashboard" for a revision.
+Then comes the answer card with the **Answer actions** menu, an evidence chip when the answer has evidence panels, and **Revise the dashboard** when the agent suggested a change, which then reads **Revision asked for**.
+A follow-up box under it continues the same chat about the same spot.
 The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard; the line under it says that a revision is visible to everyone who can see the dashboard.
 When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
 
-The box closes on its **Close** button or `Esc`, and the focus goes back to where it was; with a typed question it first asks "Discard your draft?".
+The box closes on `Esc`, and once the question is sent also on its **Close** button, and the focus goes back to where it was; with a typed question it first asks "Discard your draft?".
 A click outside closes it only while it is empty: once you have typed a question, it stays open with your text, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the box is hidden, and it comes back with your text once the moves are saved or discarded.
 The copies of a repeated panel take no canvas questions: Ask mode does nothing on a copy, and **Ask** or `a` on a copy opens the dashboard's Chat tab on that panel.

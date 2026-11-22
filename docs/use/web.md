@@ -180,11 +180,12 @@ Click the panel's title bar, or Tab to its title and press Enter, and the panel 
 The toolbar shows only what you may do:
 
 - **Comment**, when you can comment, opens the composer on the whole panel, as `c`, the panel menu's **Comment** and the **Comment** button in the panel's header do; in the full-size view and TV mode it starts the comment in the activity pane instead.
-- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the [ask box](ask-and-comment.md#ask-mode) on the whole panel, as `a`, the panel menu's **Ask** and the **Ask** button in the panel's header do; in the full-size view and TV mode it opens the dashboard's Chat tab instead, with the cursor in its box and a chip naming the panel, so the question is about that panel until you remove the chip.
+- **Ask @observe**, when you can comment on the dashboard and a model is connected, opens the [ask box](ask-and-comment.md#ask-mode) on the whole panel, on a data panel, as `a`, the panel menu's **Ask** and the **Ask** button in the panel's header do; in the full-size view and TV mode it opens the dashboard's Chat tab instead, with the cursor in its box and a chip naming the panel, so the question is about that panel until you remove the chip.
 - **Edit query** opens the panel editor on its query when you can edit the dashboard, and reads **Suggest an edit** when you can only comment.
 - **Add to observation** is described in [Add to an observation](#add-to-an-observation).
 - **More actions** opens the panel's menu, which every panel also has in its own title bar without selecting it.
 
+The toolbar moves below the panel's title bar when the panel is less than 48 pixels from the top of the dashboard area.
 The arrow keys move between the toolbar's buttons, and `Home` and `End` go to the first and last.
 While you have unsaved layout changes, Comment, Ask, Edit query and Add to observation are greyed.
 
@@ -209,7 +210,7 @@ A Viewer who cannot edit, or a press in Comment or Ask mode, leaves the pane ope
 While you have unsaved moves the pane stays closed.
 
 After the first move a bar at the bottom of the screen says "Your layout changes are not saved".
-**Save version N** asks for a summary and saves the layout as the next version, and **Discard** drops the moves.
+**Save version N** asks for a summary and saves the layout as the next version, and **Discard** asks "Discard unsaved layout changes?" and then drops the moves.
 When someone else saves a version, your moves stay on top of it; a panel you did not touch takes the other version's size and place.
 Leaving the dashboard, or opening an older version, with unsaved moves asks first.
 While you have unsaved moves, the actions that would change the dashboard in another way, such as Edit details, Duplicate, Delete, Inspect and View, say "finish the layout first".
