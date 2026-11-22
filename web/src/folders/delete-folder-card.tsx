@@ -49,13 +49,13 @@ export function DeleteFolderCard({ folder }: { folder: Folder }) {
 
   function confirm() {
     setProblem(null)
-    remove.mutate(undefined, {
-      onSuccess: () => {
+    remove.mutateAsync().then(
+      () => {
         toast.success(`Deleted ${folder.title}`)
         void navigate({ to: "/dashboards" })
       },
-      onError: (error) => setProblem(problemText(error)),
-    })
+      (error) => setProblem(problemText(error))
+    )
   }
 
   return (

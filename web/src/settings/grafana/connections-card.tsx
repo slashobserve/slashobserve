@@ -95,12 +95,13 @@ export function ConnectionsCard({ connections, onImport, onEdit }: Props) {
   function confirmDelete() {
     if (deleting === null) return
     const name = deleting.name
-    remove.mutate(deleting.id, {
-      onSuccess: () => {
+    remove.mutateAsync(deleting.id).then(
+      () => {
         setDeleting(null)
         toast.success(`Deleted ${name}`)
       },
-    })
+      () => {}
+    )
   }
 
   return (

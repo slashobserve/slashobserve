@@ -73,17 +73,17 @@ function DiscardButton({
 
   function confirm() {
     setProblem(null)
-    discard.mutate(reason.trim(), {
-      onSuccess: () => {
+    discard.mutateAsync(reason.trim()).then(
+      () => {
         toast.success("Discarded")
         setOpen(false)
         setReason("")
       },
-      onError: (error) => {
+      (error) => {
         setProblem(loadProblemText(error))
         if (mergeLeftProposalStale(error)) onStale()
-      },
-    })
+      }
+    )
   }
 
   return (

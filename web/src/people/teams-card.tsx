@@ -235,16 +235,15 @@ function Members({ team }: { team: Team }) {
             disabled={member.isPending}
             aria-label={`Remove ${personLabel(person)} from ${team.name}`}
             onClick={() =>
-              member.mutate(
-                { team: team.id, user: person.id, add: false },
-                {
-                  onSuccess: () =>
+              member
+                .mutateAsync({ team: team.id, user: person.id, add: false })
+                .then(
+                  () =>
                     toast.success(
                       `Removed ${personLabel(person)} from ${team.name}`
                     ),
-                  onError: (error) => toast.error(teamProblemText(error)),
-                }
-              )
+                  (error) => toast.error(teamProblemText(error))
+                )
             }
           >
             <XIcon aria-hidden="true" />
@@ -305,12 +304,13 @@ function DeleteTeamButton({ team }: { team: Team }) {
               focusableWhenDisabled
               aria-busy={remove.isPending}
               onClick={() =>
-                remove.mutate(team.id, {
-                  onSuccess: () => {
+                remove.mutateAsync(team.id).then(
+                  () => {
                     toast.success(`Deleted team ${team.name}`)
                     setOpen(false)
                   },
-                })
+                  () => {}
+                )
               }
             >
               {remove.isPending ? (

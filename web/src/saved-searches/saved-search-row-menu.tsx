@@ -47,18 +47,18 @@ export function SavedSearchRowMenu({ saved }: { saved: SavedSearch }) {
     const target = choices.find((choice) => choice.id === id)
     if (target === undefined || target.id === current) return
     leaveFocusAlone.current = true
-    move.mutate(target.id, {
-      onSuccess: () => {
+    move.mutateAsync(target.id).then(
+      () => {
         toast.success(
           `${publishing ? "Published" : "Moved"} to ${target.title}`
         )
         focusPageHeading()
       },
-      onError: (error) => {
+      (error) => {
         leaveFocusAlone.current = false
         toast.error(`Could not move ${saved.title}. ${loadProblemText(error)}`)
-      },
-    })
+      }
+    )
   }
 
   return (

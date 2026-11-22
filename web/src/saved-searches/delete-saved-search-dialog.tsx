@@ -46,14 +46,14 @@ export function DeleteSavedSearchDialog({
 
   function confirm() {
     setProblem(null)
-    remove.mutate(undefined, {
-      onSuccess: () => {
+    remove.mutateAsync().then(
+      () => {
         toast.success(`Deleted ${saved.title}`)
         onDeleted()
         onOpenChange(false)
       },
-      onError: (error) => setProblem(loadProblemText(error)),
-    })
+      (error) => setProblem(loadProblemText(error))
+    )
   }
 
   return (

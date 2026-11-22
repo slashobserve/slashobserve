@@ -187,12 +187,13 @@ export function WebhooksCard({
       })
       return
     }
-    remove.mutate(webhook.id, {
-      onSuccess: () => {
+    remove.mutateAsync(webhook.id).then(
+      () => {
         setConfirming(null)
         toast.success(`Deleted ${webhook.name}`)
       },
-    })
+      () => {}
+    )
   }
 
   return (

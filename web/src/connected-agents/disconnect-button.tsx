@@ -53,19 +53,19 @@ export function DisconnectButton({
 
   function confirm() {
     setProblem(null)
-    disconnect.mutate(grant.id, {
-      onSuccess: () => {
+    disconnect.mutateAsync(grant.id).then(
+      () => {
         toast.success(`Disconnected ${agentName(grant.client.name)}`)
         setOpen(false)
       },
-      onError: (error) => {
+      (error) => {
         if (isGone(error)) {
           setOpen(false)
           return
         }
         setProblem(loadProblemText(error))
-      },
-    })
+      }
+    )
   }
 
   return (
