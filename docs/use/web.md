@@ -374,7 +374,7 @@ A panel that uses dashboard variables is copied with them and the values you hav
 
 The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces, Metrics and Agents, and a Workspace group with Datasources, API keys, People and Audit for Admins and Settings for everyone.
 Open observations are listed indented under **Observations** the same way.
-**Audit** lists its three pages indented under it, **Log**, **Folder** and **Explore**; on the audit datasource's page under Logs, **Audit** is the parent that turns semibold, not **Logs**.
+**Audit** lists its three pages indented under it, **Log**, **Dashboards** and **Observations**; on the audit datasource's page under Logs, which **Open in Logs** on the Audit log reaches, **Audit** is the parent that turns semibold and **Log** the highlighted page, not **Logs**.
 The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 On the page of a listed observation, pinned dashboard, or log, trace or metrics source only that row is highlighted, and its parent item is not highlighted but shown in semibold; on any other page of the section, such as the list itself, the parent is highlighted as usual.
 **Collapse sidebar**, beside your account at the bottom, folds it to a rail of icons, and **Expand sidebar**, above your avatar, opens it again; this browser remembers the choice.

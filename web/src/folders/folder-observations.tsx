@@ -12,8 +12,15 @@ import { observationsInfiniteQuery } from "@/observations/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 import { plainTitle } from "@/comments/plain-title"
 
-export function FolderObservations({ folderId }: { folderId: string }) {
-  const headingId = useId()
+export function FolderObservations({
+  folderId,
+  labelledBy,
+}: {
+  folderId: string
+  labelledBy?: string
+}) {
+  const ownHeadingId = useId()
+  const headingId = labelledBy ?? ownHeadingId
   const list = useInfiniteQuery(observationsInfiniteQuery({ folderId }))
 
   if (list.isError && list.data === undefined) {
@@ -30,10 +37,12 @@ export function FolderObservations({ folderId }: { folderId: string }) {
   const observations = list.data.pages.flatMap((page) => page.observations)
 
   return (
-    <div className="mt-6">
-      <h2 id={headingId} className="mb-2 text-sm font-semibold">
-        Observations
-      </h2>
+    <div className={labelledBy === undefined ? "mt-6" : undefined}>
+      {labelledBy === undefined ? (
+        <h2 id={headingId} className="mb-2 text-sm font-semibold">
+          Observations
+        </h2>
+      ) : null}
       {observations.length === 0 ? (
         <p className="text-[13px] text-muted-foreground">
           No observations in this folder

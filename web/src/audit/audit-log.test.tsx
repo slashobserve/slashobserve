@@ -179,6 +179,10 @@ describe("AuditLog", () => {
     serve()
     renderPage({ q: "origin:mcp", from: "now-7d" })
     const link = await screen.findByRole("link", { name: "Open in Logs" })
+    expect(link).toHaveAttribute(
+      "title",
+      "Open the same events in the log explorer"
+    )
     const href = new URL(link.getAttribute("href") ?? "", "http://localhost")
     expect(href.pathname).toBe("/logs/slashobserve-audit")
     expect(Object.fromEntries(href.searchParams)).toEqual({

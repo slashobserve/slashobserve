@@ -81,9 +81,10 @@ To see more of the change, read the object through its own endpoint, which check
 ## Audit log
 
 An Admin reads the audit trail in the web app under **Audit** in the sidebar's Workspace group, which other roles do not see.
-**Audit** has three pages, listed under it: **Log**, at `/audit`, **Folder** and **Explore**.
-**Folder** is [the Audit folder](#audit-folder), and **Explore** opens the [Logs page](logs-and-traces.md) on the audit datasource.
-An Editor, Commenter or Viewer who opens `/audit` or `/audit/dashboards` sees a note that only Admins can open the page.
+**Audit** has three pages, listed under it: **Log**, at `/audit`, **Dashboards**, at `/audit/dashboards`, and **Observations**, at `/audit/observations`.
+**Dashboards** and **Observations** list what [the Audit folder](#audit-folder) holds, and **Dashboards** keeps the folder's settings button.
+The [Logs page](logs-and-traces.md) on the audit datasource is not a page of its own: **Open in Logs** on **Log** opens it, and while it is open **Log** is the highlighted page.
+An Editor, Commenter or Viewer who opens `/audit`, `/audit/dashboards` or `/audit/observations` sees a note that only Admins can open the page.
 
 **Log** shows the trail that [Audit queries](../reference/audit-queries.md) describes, not this activity log: every sign-in, read, change, agent tool call and refusal, admin changes among them.
 The query box takes the same text as `GET /api/v1/audit/events`, KQL by default, Lucene after `lucene:` and a Query DSL body that starts with `{`, and it names the form it reads and completes field names.
@@ -100,7 +101,7 @@ After a dropped connection it reconnects and continues from the last event it sh
 After 500 new events the page reloads the list up to now, so the newest of them are in the list and the older ones a click on Load older events away.
 It turns itself off with a message when you are no longer an Admin, when you already hold 5 audit streams, or when the query is too slow to follow.
 The query, the time range and the open event are in the page's address, so a link opens the same view.
-**Open in Logs** opens the [Logs page](logs-and-traces.md) on the audit datasource with the page's current query and time range, so the same events can be read there like any OpenSearch logs.
+**Open in Logs** opens the same events in the log explorer, the [Logs page](logs-and-traces.md) on the audit datasource, with the page's current query and time range, so the same events can be read there like any OpenSearch logs.
 A query longer than the Logs page accepts is left out and Logs opens with the time range alone.
 
 **Export** downloads the matching events as NDJSON or CSV through `GET /api/v1/audit/export`, which records the download as `audit.export` with the query, the window, the format and the row count.

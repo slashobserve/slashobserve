@@ -60,13 +60,17 @@ class IdleEventSource {
   close() {}
 }
 
+let requestedPaths: string[] = []
+
 function serve(folders: Folder[]) {
+  requestedPaths = []
   const dashboardLists: URLSearchParams[] = []
   vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const url = new URL(request.url)
+      requestedPaths.push(url.pathname)
       const detail = folders.find(
         (item) => url.pathname === `/api/v1/folders/${item.id}`
       )
@@ -142,8 +146,9 @@ describe("AuditDashboards", () => {
     renderPage()
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Records" })
+      await screen.findByRole("heading", { level: 1, name: "Dashboards" })
     ).toBeInTheDocument()
+    expect(screen.getByText(/Records folder/)).toBeInTheDocument()
     expect(lists.map((params) => params.get("folder"))).toEqual([auditId])
     expect(lists.map((params) => params.get("exclude_audit"))).toEqual([null])
   })
@@ -159,6 +164,27 @@ describe("AuditDashboards", () => {
       await screen.findByText("The Audit folder was deleted.")
     ).toBeInTheDocument()
     expect(screen.getByText(/does not create it again/)).toBeInTheDocument()
+    expect(screen.queryByText(/Explore/)).toBeNull()
     expect(lists).toEqual([])
+  })
+
+  it("lists no observations or saved searches and keeps the folder settings button", async () => {
+    serve([folder(auditId, "Audit", { audit: true, restricted: true })])
+    renderPage()
+
+    expect(
+      await screen.findByRole("button", { name: "Folder settings" })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Observations" })).toBeNull()
+    expect(requestedPaths).not.toContain("/api/v1/observations")
+    expect(requestedPaths).not.toContain("/api/v1/saved-searches")
+  })
+
+  it("titles the tab Audit dashboards", async () => {
+    serve([folder(auditId, "Audit", { audit: true })])
+    renderPage()
+
+    await screen.findByRole("heading", { level: 1, name: "Dashboards" })
+    expect(document.title).toBe("Audit dashboards - SlashObserve")
   })
 })

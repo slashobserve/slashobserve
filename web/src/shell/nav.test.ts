@@ -85,9 +85,10 @@ describe("the Audit item", () => {
       .filter((item) => isNavItemActive(item.to, pathname))
       .map((item) => item.label)
 
-  test("covers its log, its dashboards and the audit datasource's explorer", () => {
+  test("covers its log, its dashboards, its observations and the audit datasource's explorer", () => {
     expect(active("/audit")).toEqual(["Audit"])
     expect(active("/audit/dashboards")).toEqual(["Audit"])
+    expect(active("/audit/observations")).toEqual(["Audit"])
     expect(active("/logs/slashobserve-audit")).toEqual(["Audit"])
     expect(active("/audit-x")).toEqual([])
   })
@@ -105,15 +106,26 @@ describe("the Audit item", () => {
     }
   })
 
-  test("contains the current child on each of its three pages", () => {
+  test("contains the current child on each of its pages, the explorer counting as Log", () => {
     const audit = visibleNavItems("admin").find((item) => item.to === "/audit")
     if (audit === undefined) throw new Error("no Audit item")
+    expect(auditRows.map((row) => row.id)).toEqual([
+      "log",
+      "dashboards",
+      "observations",
+    ])
     expect(
-      auditRows.map((row) => subNavState(audit, auditRows, row.paths[0] ?? ""))
+      [
+        "/audit",
+        "/audit/dashboards",
+        "/audit/observations",
+        "/logs/slashobserve-audit",
+      ].map((pathname) => subNavState(audit, auditRows, pathname))
     ).toEqual([
       { parent: "contains-current", currentId: "log" },
       { parent: "contains-current", currentId: "dashboards" },
-      { parent: "contains-current", currentId: "explore" },
+      { parent: "contains-current", currentId: "observations" },
+      { parent: "contains-current", currentId: "log" },
     ])
     expect(subNavState(audit, auditRows, "/people")).toEqual({
       parent: "none",

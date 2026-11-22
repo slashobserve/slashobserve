@@ -2,35 +2,37 @@ import { Link } from "@tanstack/react-router"
 
 import { auditDatasourceUid } from "@/audit/audit-source"
 import { DropdownMenuLinkItem } from "@/components/ui/dropdown-menu"
-import { logsLink, logsPath } from "@/lib/links"
+import { logsPath } from "@/lib/links"
 
 import type { SubNavRow } from "./nav"
 import { railFlyoutItemClass } from "./rail-flyout"
 import { SubNavList, subNavLinkClass } from "./sub-nav"
 
 const pages = [
-  { id: "log", label: "Log", path: "/audit" },
-  { id: "dashboards", label: "Folder", path: "/audit/dashboards" },
-  { id: "explore", label: "Explore", path: logsPath(auditDatasourceUid) },
+  {
+    id: "log",
+    label: "Log",
+    to: "/audit",
+    paths: ["/audit", logsPath(auditDatasourceUid)],
+  },
+  {
+    id: "dashboards",
+    label: "Dashboards",
+    to: "/audit/dashboards",
+    paths: ["/audit/dashboards"],
+  },
+  {
+    id: "observations",
+    label: "Observations",
+    to: "/audit/observations",
+    paths: ["/audit/observations"],
+  },
 ] as const
 
-type AuditPage = (typeof pages)[number]
-
-export const auditRows: readonly SubNavRow[] = pages.map(({ id, path }) => ({
+export const auditRows: readonly SubNavRow[] = pages.map(({ id, paths }) => ({
   id,
-  paths: [path],
+  paths,
 }))
-
-function targetOf(page: AuditPage) {
-  switch (page.id) {
-    case "log":
-      return { to: "/audit" } as const
-    case "dashboards":
-      return { to: "/audit/dashboards" } as const
-    case "explore":
-      return logsLink(auditDatasourceUid)
-  }
-}
 
 export function AuditList({
   currentId,
@@ -44,7 +46,7 @@ export function AuditList({
       {pages.map((page) => (
         <li key={page.id}>
           <Link
-            {...targetOf(page)}
+            to={page.to}
             activeOptions={{ exact: true }}
             onClick={onNavigate}
             aria-current={page.id === currentId ? "page" : undefined}
@@ -64,7 +66,7 @@ export function AuditFlyoutItems() {
       {pages.map((page) => (
         <DropdownMenuLinkItem
           key={page.id}
-          render={<Link {...targetOf(page)} />}
+          render={<Link to={page.to} />}
           className={railFlyoutItemClass}
         >
           {page.label}
