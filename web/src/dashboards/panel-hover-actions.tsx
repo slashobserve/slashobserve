@@ -93,7 +93,7 @@ export function PanelHoverActions({
     <div
       data-panel-hover-actions=""
       className={cn(
-        "flex items-center gap-0.5",
+        "flex items-center gap-0.5 @max-[15rem]/panel:hidden",
         hoverFadeClass,
         !viewing && hiddenWhileToolbarShown
       )}
