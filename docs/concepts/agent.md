@@ -127,7 +127,8 @@ It also names the free end of that row's last line and its height, so the model 
 
 The first save must come early.
 From the sixth model call since the session started, its history was shortened, or the last accepted save, reads are refused and only a save can run; the call before gets a note to save next.
-A suggest run, which proposes one panel for the panel editor, and an investigation, which saves a finding, get 12 calls instead of 6, with the note at the 11th.
+A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
+An investigation, which saves a finding, gets 12 calls by default, with the note one call before; `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets it from 6 to 60 for investigations that need longer, on the server and for connected agents alike.
 Reads in the same call as a save always run, and so do the reads of the call right after a rejected save, so the model can look into why a save was rejected.
 Two turns in a row in which every call was refused end the run with `no_progress`.
 

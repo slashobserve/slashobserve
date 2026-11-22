@@ -19,6 +19,8 @@ type State struct {
 	Absence       Absence         `json:"absence,omitzero"`
 	Turn          Turn            `json:"turn"`
 	Counts        Counts          `json:"counts"`
+
+	InvestigationCalls int `json:"-"`
 }
 
 type Window struct {
@@ -84,5 +86,5 @@ func (s *State) Restart() {
 
 func (s *State) BeginTurn(hasSave bool) {
 	s.Window.Calls++
-	s.Turn = Turn{ReadGuard: readRefusal(s.Mode, s.Window, hasSave)}
+	s.Turn = Turn{ReadGuard: s.readRefusal(hasSave)}
 }

@@ -132,7 +132,7 @@ A build that changed nothing keeps the sentence the agent wrote.
 
 Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,000 points and 1,000 rows, so a heavy query may fail where the saved panel would work.
 
-When the agent answers a question after its reads were refused at its limit of model calls (six in a chat, twelve in an investigation), the answer ends with a line saying reading stopped early and the counts may be partial.
+When the agent answers a question after its reads were refused at its limit of model calls (six in a chat, twelve in an investigation unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets another number), the answer ends with a line saying reading stopped early and the counts may be partial.
 An answer reads deploy markers as you before it says there was no deploy, so a question such as when checkout last deployed is answered from them.
 Times in an answer are in your browser's time zone with its label, such as 19:52 IST, because the chat sends that zone with each request.
 When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why, so a timeout is never read as no data.

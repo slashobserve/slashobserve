@@ -61,32 +61,34 @@ type Statuses interface {
 }
 
 type Config struct {
-	DB            *db.DB
-	Runs          *revisions.Service
-	Claims        *claims.Service
-	Builds        Builds
-	Dashboards    Dashboards
-	Imports       brief.ImportReader
-	Statuses      Statuses
-	Steps         revisions.StepRecorder
-	Prices        pricing.Table
-	MaxRunCostUSD float64
-	Logger        *slog.Logger
+	DB                 *db.DB
+	Runs               *revisions.Service
+	Claims             *claims.Service
+	Builds             Builds
+	Dashboards         Dashboards
+	Imports            brief.ImportReader
+	Statuses           Statuses
+	Steps              revisions.StepRecorder
+	Prices             pricing.Table
+	MaxRunCostUSD      float64
+	InvestigationCalls int
+	Logger             *slog.Logger
 }
 
 type Service struct {
-	db         *db.DB
-	runs       *revisions.Service
-	claims     *claims.Service
-	builds     Builds
-	dashboards Dashboards
-	loader     brief.Loader
-	statuses   Statuses
-	steps      revisions.StepRecorder
-	prices     pricing.Table
-	maxRunCost float64
-	logger     *slog.Logger
-	inFlight   slots
+	db                 *db.DB
+	runs               *revisions.Service
+	claims             *claims.Service
+	builds             Builds
+	dashboards         Dashboards
+	loader             brief.Loader
+	statuses           Statuses
+	steps              revisions.StepRecorder
+	prices             pricing.Table
+	maxRunCost         float64
+	investigationCalls int
+	logger             *slog.Logger
+	inFlight           slots
 }
 
 func New(c Config) *Service {
@@ -99,7 +101,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, logger: c.Logger,
+		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -171,6 +173,7 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if err := json.Unmarshal(raw, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
+	sess.state.Guard.InvestigationCalls = s.investigationCalls
 	return sess, nil
 }
 
