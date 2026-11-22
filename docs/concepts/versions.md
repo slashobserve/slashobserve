@@ -20,6 +20,7 @@ These all save a version:
   Saving what a stopped run built is one version too.
   The agent's version summary is written by the server from what the whole build changed (see [Chat](../use/chat.md)), and a build that comes back to an earlier version is recorded as a restore of it.
 - `update_panels` or `update_dashboard` from an MCP client, one version per accepted save.
+  A save a connected agent makes this way carries the summary the agent wrote, or "Update dashboard" when it sent none: that text is agent-written, and nothing marks it as checked, so read it as the agent's claim, unlike the summary of a build, which the server writes from what changed.
 - `POST /api/v1/dashboards/{id}/versions` over the API, or `POST /api/v1/dashboards/{id}/panels` with only the panels to add, replace, remove or move, which runs only their queries like `update_panels` and `observe dashboards panels`.
 - A restore of an older version.
 
@@ -36,6 +37,7 @@ Each version keeps a summary of 1 to 500 characters, the time, and who or what m
   The client's name is what the client reports about itself and is not verified.
   The origin is a label and never decides what someone may do.
 - The agent request that saved it, if there was one.
+  It is what tells a version saved by an agent from one a person saved, together with the author label below.
 - The version it was restored from, if it is a restore.
 
 Every author is shown with one label, the same in the web app, the CLI and MCP.

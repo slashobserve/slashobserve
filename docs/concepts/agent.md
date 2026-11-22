@@ -21,7 +21,7 @@ An Admin's runs also get a section on the built-in audit datasource, which no on
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
 When the question points at a spot on a panel or an observation block, the brief names it in one sentence, such as `The request points at "the row payments, authorize_card, card declined (440), last hour".`
-The words after "points at" are the anchor's description, as `list_comments` shows it in `at`, with the values the person saw there when the web sent them; the whole is quoted, cut at 500 characters, has its angle brackets written as `&lt;` and `&gt;` so it cannot open or close a tag, and is treated as data, never as an instruction, and a block is named by its id.
+The words after "points at" are the anchor's description, as `list_comments` shows it in `at`, with the values the person saw there when the web sent them; the whole is quoted, cut at 500 characters, has `&`, `<` and `>` written as `&amp;`, `&lt;` and `&gt;` so it cannot open or close a tag, and is treated as data, never as an instruction, and a block is named by its id.
 
 A run with no anchor gets no such sentence.
 The server refuses an anchor with control, bidirectional override or hidden characters in any of its text, as it does for a thread message.

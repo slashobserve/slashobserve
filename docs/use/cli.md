@@ -107,7 +107,7 @@ The order can shift, because a request is skipped while another revision of its 
 `observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
 When the request points at a spot, `observe status` prints `Points at`, and `On block` for an observation block, which it prints alone for a question about a whole block.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
-It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
+It also prints the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
 An ask about an observation adds `About observation <id>`, also after its answer is saved into another observation.
 Once a request has finished, `observe status` shows its `Cost`, the server's estimate in US dollars (`about $0.12`, `under $0.01`, or `-` when the model has no price).
 
@@ -249,7 +249,8 @@ It fails with `409` and the code `dashboard_being_created` while the agent reque
 `panels` reads the latest version for `--parent` the same way, and a change that touches only other panels than a newer version merges onto it.
 To duplicate a panel, upsert a copy under a new id with a `gridPos` below the original.
 `bin/observe dashboards diff <dashboard-id> --from 2 --to 3` shows what changed between versions 2 and 3.
-Pins (stars) are a signed-in person's and cannot be set with a key, so the CLI has no pin command; pin dashboards in the web app or over MCP.
+Dashboard pins (stars) are a signed-in person's and cannot be set with a key, so the CLI has no command for them; pin dashboards in the web app or over MCP.
+`chats pin` and `requests pin` pin a chat or a request of yours, and `o pin` pins an observation to a dashboard as an annotation.
 
 The lists and the panel table print as columns aligned with spaces.
 `bin/observe --help` shows the rest.
