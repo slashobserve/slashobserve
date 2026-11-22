@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 import { useRouteContext, useSearch } from "@tanstack/react-router"
 import { LockIcon, XIcon } from "lucide-react"
 
+import { useActivityStore, useCurrentChat } from "@/activity/activity-store"
+import { keepFocusThroughPaneSwitch } from "@/components/dock/dock-focus"
 import { useChat } from "@/chat/chats-queries"
 import { ContextChips } from "@/chat/context-chips"
 import { ChatAnswer } from "@/chat/request-turn"
@@ -16,6 +18,7 @@ import type { GateInput } from "@/conversation/delivery"
 import { arrivingClass } from "@/conversation/thread-view"
 import { useComposer, type ComposerModel } from "@/conversation/use-composer"
 import { useCanvasTool, useReportSending } from "@/dashboards/canvas-tools"
+import type { SidePanelCard } from "@/dashboards/dock"
 import {
   useSetDashboardSearch,
   validateDashboardSearch,
@@ -66,7 +69,7 @@ type Props = {
   spot: AskSpot
   turn: AskedTurn | null
   openChatId: string | null
-  onChatStarted: (chatId: string) => void
+  onChatAsked: (chatId: string) => void
 }
 
 const newChat = "new"
@@ -98,17 +101,46 @@ function continuedChat(
   return !open.read_only && isAbout(open, subject) ? openChatId : null
 }
 
-export function useOpenChat() {
-  const chat = useSearch({
+export type ChatWrite = "switch" | "show" | null
+
+export function chatWriteOf(
+  pane: SidePanelCard | null,
+  chatId: string,
+  addressChat: string | undefined
+): ChatWrite {
+  if (pane === "activity") return "switch"
+  if (pane === "chat" && chatId !== addressChat) return "show"
+  return null
+}
+
+export function useOpenChat(dashboardId: string, pane: SidePanelCard | null) {
+  const addressChat = useSearch({
     strict: false,
     select: (search: Record<string, unknown>) =>
       validateDashboardSearch(search).chat,
   })
+  const rememberChat = useActivityStore((state) => state.setChat)
+  useEffect(() => {
+    if (addressChat !== undefined && addressChat !== newChat) {
+      rememberChat(dashboardId, addressChat)
+    }
+  }, [addressChat, dashboardId, rememberChat])
+  const chat = useCurrentChat(
+    dashboardId,
+    pane === "chat" ? addressChat : undefined
+  )
   const setSearch = useSetDashboardSearch()
   const select = useCallback(
-    (chatId: string) =>
-      setSearch((state) => ({ ...state, chat: chatId }), { replace: true }),
-    [setSearch]
+    (chatId: string) => {
+      rememberChat(dashboardId, chatId)
+      const write = chatWriteOf(pane, chatId, addressChat)
+      if (write === null) return
+      if (write === "switch") keepFocusThroughPaneSwitch()
+      setSearch((state) => ({ ...state, tab: "chat", chat: chatId }), {
+        replace: true,
+      })
+    },
+    [rememberChat, dashboardId, pane, addressChat, setSearch]
   )
   return { chatId: openChatOf(chat), select }
 }
@@ -177,7 +209,7 @@ function AskDraft({
   gate,
   spot,
   openChatId,
-  onChatStarted,
+  onChatAsked,
 }: Omit<Props, "turn" | "surfaceRef">) {
   const [ownDraft] = useState(() => useCanvasTool.getState().draft)
   const chatId = useContinuedChat(openChatId, subject)
@@ -191,7 +223,7 @@ function AskDraft({
       if (sent.via !== "chat") return
       if (useCanvasTool.getState().draft !== ownDraft) return
       const asked = sent.request.chat_id ?? sent.request.id
-      if (asked !== openChatId) onChatStarted(asked)
+      onChatAsked(asked)
       useCanvasTool.getState().showTurn({
         requestId: sent.request.id,
         chatId: asked,
@@ -314,7 +346,7 @@ function AskThread({
   gate,
   spot,
   turn,
-}: Omit<Props, "openChatId" | "onChatStarted" | "surfaceRef"> & {
+}: Omit<Props, "openChatId" | "onChatAsked" | "surfaceRef"> & {
   turn: AskedTurn
 }) {
   const chat = useChat(turn.chatId)

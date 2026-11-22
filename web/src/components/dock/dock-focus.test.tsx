@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
   announcePaneOpening,
+  keepFocusThroughPaneSwitch,
   pendingPaneHeading,
   useDockFocus,
 } from "./dock-focus"
@@ -64,6 +65,14 @@ function Page({
       </button>
       <button onClick={() => setOpen((current) => !current)}>Remount</button>
       <button onClick={() => setMode("b")}>Switch</button>
+      <button
+        onClick={() => {
+          keepFocusThroughPaneSwitch()
+          setMode("c")
+        }}
+      >
+        Switch quietly
+      </button>
       <button onClick={() => setActive((current) => !current)}>Hide</button>
       {open ? (
         <Pane
@@ -132,6 +141,16 @@ describe("useDockFocus", () => {
   it("moves focus to the heading when the pane switches mode with focus outside it", async () => {
     const user = userEvent.setup()
     render(<Page startOpen />)
+    await user.click(screen.getByRole("button", { name: "Switch" }))
+    expect(screen.getByRole("heading")).toHaveFocus()
+  })
+
+  it("leaves focus where it is when the switch keeps it, as when a canvas ask moves the pane to its chat", async () => {
+    const user = userEvent.setup()
+    render(<Page startOpen />)
+    const quiet = screen.getByRole("button", { name: "Switch quietly" })
+    await user.click(quiet)
+    expect(quiet).toHaveFocus()
     await user.click(screen.getByRole("button", { name: "Switch" }))
     expect(screen.getByRole("heading")).toHaveFocus()
   })

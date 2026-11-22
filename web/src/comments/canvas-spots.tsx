@@ -50,7 +50,7 @@ export function CanvasSpots({ owner, panelTitle, surfaceRef }: Props) {
         spot={askSpot}
         turn={openTurn}
         openChatId={host.chat.chatId}
-        onChatStarted={host.chat.select}
+        onChatAsked={host.chat.select}
       />
     )
   }

@@ -252,7 +252,9 @@ A click opens a small box at that spot with chips naming the panel, the part you
 Dragging across the time axis of a panel that takes a range, as in Comment mode, asks about the range you dragged over.
 In the table view of a panel that is not a table, a click or drag in Ask mode asks about the whole panel.
 
-The question is a turn of the chat open in the dashboard's Chat tab, or of a new chat that the Chat tab then opens when none is.
+The question is a turn of the dashboard's current chat, or of a new chat that becomes the current chat when there is none.
+The current chat is the one you last opened in the Chat tab or asked in on the canvas.
+Asking on the canvas never opens a closed side pane; when the pane shows Activity or Chat it switches to that chat, and the Chat tab shows it whenever you open it later.
 The answer arrives in the same box, first as "Looking into it" and then as the answer card with the evidence chip, **Revise the dashboard** and the **Answer actions** menu, and a follow-up box under it continues the same chat about the same spot.
 The same turns show in the Chat tab, and only **Revise the dashboard** changes the dashboard; the line under it says that a revision is visible to everyone who can see the dashboard.
 The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.

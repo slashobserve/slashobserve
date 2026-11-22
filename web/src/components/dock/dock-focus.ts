@@ -25,6 +25,18 @@ function consumeOpening(): boolean {
   return announced
 }
 
+let focusKeptAt = Number.NEGATIVE_INFINITY
+
+export function keepFocusThroughPaneSwitch(): void {
+  focusKeptAt = performance.now()
+}
+
+function consumeKeptFocus(): boolean {
+  const kept = performance.now() - focusKeptAt < announceMs
+  focusKeptAt = Number.NEGATIVE_INFINITY
+  return kept
+}
+
 type Options = {
   pane: RefObject<HTMLElement | null>
   heading: RefObject<HTMLElement | null>
@@ -71,7 +83,8 @@ export function useDockFocus({
       takes.current =
         before === null
           ? wantsFocus.current
-          : element?.contains(document.activeElement) !== true
+          : !consumeKeptFocus() &&
+            element?.contains(document.activeElement) !== true
     }
     if (!takes.current || !element || !heading.current) return
     remember()

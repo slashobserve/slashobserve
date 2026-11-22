@@ -24,7 +24,11 @@ import { findPanel, type Dashboard } from "@/spec"
 import type { SidePanelCard } from "@/dashboards/dock"
 
 import { ActivityFeed } from "./activity-feed"
-import { useActivityLayout, useActivityStore } from "./activity-store"
+import {
+  useActivityLayout,
+  useActivityStore,
+  useCurrentChat,
+} from "./activity-store"
 import { EditPane, type EditGuard } from "./edit-pane"
 import { SidePanelTabs } from "./side-panel-tabs"
 
@@ -74,6 +78,7 @@ export function ActivityCard({
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
   const setOpen = useActivityStore((state) => state.setOpen)
+  const chatId = useCurrentChat(dashboardId, search.chat)
   const setWidth = useActivityStore((state) => state.setWidth)
   const setEditWidth = useActivityStore((state) => state.setEditWidth)
   const headingId = useId()
@@ -231,7 +236,7 @@ export function ActivityCard({
             <DashboardChat
               dashboardId={apiId}
               dashboardTitle={spec.title}
-              chatId={search.chat}
+              chatId={chatId}
               onOpenChat={onOpenChat}
               panel={chatPanel}
             />

@@ -461,17 +461,12 @@ function DashboardView({
   useEffect(() => {
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
+  const selectionGone = storedSelection !== null && selection === null
+  useEffect(() => {
+    if (selectionGone) useSelectionStore.getState().clear()
+  }, [selectionGone])
   const tool = useCanvasTool((state) => state.tool)
   const canvasGate = useCanvasGate(permissions.comment, editing)
-  const { chatId: askChatId, select: selectAskChat } = useOpenChat()
-  const canvasHost = useMemo<CanvasHost>(
-    () => ({
-      subject: { kind: "dashboard", id: dashboardId },
-      gate: canvasGate,
-      chat: { chatId: askChatId, select: selectAskChat },
-    }),
-    [dashboardId, canvasGate, askChatId, selectAskChat]
-  )
   const pressArranges = arranging && (tool === "select" || editing)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
@@ -508,6 +503,18 @@ function DashboardView({
   const cardView = isSidePanelCard(dock) && !paneAside ? dock : null
   const mountedCard = isSidePanelCard(dock) ? dock : heldPane
   const cardVisible = cardView !== null
+  const { chatId: askChatId, select: selectAskChat } = useOpenChat(
+    dashboardId,
+    cardView
+  )
+  const canvasHost = useMemo<CanvasHost>(
+    () => ({
+      subject: { kind: "dashboard", id: dashboardId },
+      gate: canvasGate,
+      chat: { chatId: askChatId, select: selectAskChat },
+    }),
+    [dashboardId, canvasGate, askChatId, selectAskChat]
+  )
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)

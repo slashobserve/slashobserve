@@ -117,6 +117,7 @@ class IdleEventSource {
 
 let canEdit = true
 let runbookRemoved = false
+let servedVersion = 1
 
 function servedEnvelope() {
   const spec = runbookRemoved
@@ -127,7 +128,7 @@ function servedEnvelope() {
         ),
       }
     : envelope.version.spec
-  const version = runbookRemoved ? 2 : 1
+  const version = servedVersion
   return {
     dashboard: {
       ...envelope.dashboard,
@@ -228,6 +229,7 @@ beforeEach(() => {
 afterEach(() => {
   canEdit = true
   runbookRemoved = false
+  servedVersion = 1
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -421,6 +423,7 @@ describe("arranging panels on the dashboard grid", () => {
       const pane = await setPaneAsideBySelecting("Runbook")
 
       runbookRemoved = true
+      servedVersion = 2
       await act(() => router.options.context.queryClient.invalidateQueries())
 
       await waitFor(() =>
@@ -429,6 +432,23 @@ describe("arranging panels on the dashboard grid", () => {
         ).toBeNull()
       )
       await waitFor(() => expect(pane).toBeVisible())
+    })
+
+    it("does not start a session when the selected panel comes back in a later version", async () => {
+      const router = renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+      runbookRemoved = true
+      servedVersion = 2
+      await act(() => router.options.context.queryClient.invalidateQueries())
+      await waitFor(() => expect(pane).toBeVisible())
+
+      runbookRemoved = false
+      servedVersion = 3
+      await act(() => router.options.context.queryClient.invalidateQueries())
+
+      await screen.findByRole("button", { name: "Select panel: Runbook" })
+      expect(articleOf("Runbook")).not.toHaveAttribute("data-selected")
+      expect(activityPane()).toBeVisible()
     })
 
     it("shows the pane when the address points it at a thread during the session", async () => {
