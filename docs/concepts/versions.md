@@ -20,6 +20,7 @@ These all save a version:
   Saving what a stopped run built is one version too.
   The agent's version summary is written by the server from what the whole build changed (see [Chat](../use/chat.md)), and a build that comes back to an earlier version is recorded as a restore of it.
 - `update_panels` or `update_dashboard` from an MCP client, one version per accepted save.
+  A save a connected agent makes this way carries the summary the agent wrote, or "Update dashboard" when it sent none: that text is agent-written, and nothing marks it as checked, so read it as the agent's claim, unlike the summary of a build, which the server writes from what changed.
 - `POST /api/v1/dashboards/{id}/versions` over the API, or `POST /api/v1/dashboards/{id}/panels` with only the panels to add, replace, remove or move, which runs only their queries like `update_panels` and `observe dashboards panels`.
 - A restore of an older version.
 
@@ -36,10 +37,11 @@ Each version keeps a summary of 1 to 500 characters, the time, and who or what m
   The client's name is what the client reports about itself and is not verified.
   The origin is a label and never decides what someone may do.
 - The agent request that saved it, if there was one.
+  It is what tells a version saved by an agent from one a person saved, together with the author label below.
 - The version it was restored from, if it is a restore.
 
 Every author is shown with one label, the same in the web app, the CLI and MCP.
-A person or a service account shows their name, such as `Ishan`; over MCP the client follows, such as `Ishan (via Claude Code)`, or `(via MCP)` when the client sent no name; and a version the built-in agent saved shows `Observe Agent for` and whoever asked, such as `Observe Agent for Ishan`.
+A person or a service account shows their name, such as `Ishan`; over MCP the client follows, such as `Ishan (via Claude Code)`, or `(via MCP)` when the client sent no name; and a version saved inside an agent's run shows `Observe Agent for` and whoever asked, such as `Observe Agent for Ishan`, while a plain MCP save outside a run reads `Ishan (via Claude Code)`.
 The version menu, the History page and the activity feed show that label, and versions and dashboards in the API carry it as `actor.label`.
 The Dashboards page's **Made by** column shows the label of version 1, then the channel (Web, CLI or API) for a direct save, and its tooltip adds the email or "service account".
 The **Made by** filter lists each person with their email, and the dashboard header names the client of a dashboard made over MCP.

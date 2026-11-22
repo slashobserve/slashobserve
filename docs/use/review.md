@@ -60,13 +60,13 @@ The boxes in an observation's discussion and in the inbox take the same keys.
 Above the box, a "To:" chip says who reads the message and a "Visible to:" chip says who sees it.
 A comment that mentions no agent reads "To: everyone here", goes to the team and starts nothing; choose the chip to send it to the agent instead, and choose it again to go back.
 A mention of an agent turns the chip to that agent's name.
-In the full-size view and TV mode, press `c` outside a field to open the pane and put the cursor in this box; elsewhere on the dashboard `c` turns on Comment mode, described in [Select a panel](web.md#select-a-panel).
+In the full-size view and TV mode, press `c` outside a field to open the pane and put the cursor in this box; elsewhere on the dashboard `c` turns on Comment mode, described in [Ask and comment on a dashboard](ask-and-comment.md#comment-mode).
 A comment is 1 to 4000 characters, counted without the spaces around it: from 3600 a counter such as "3650 of 4000" appears under the box, past 4000 it turns red with "too long", and sending then says "Use at most 4000 characters."
 
 To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, open its menu ("Panel menu: `<title>`") and choose **Comment**, or choose **Comment** in the toolbar of the selected panel.
 On the dashboard each opens a small composer on the panel, and the comment is saved as a thread on the whole panel.
 In the full-size view and TV mode the card opens scoped to that panel with the cursor in the box instead.
-**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens the [ask box](web.md#ask-mode) on the whole panel, a private question in your chat rather than a thread; in the full-size view and TV mode it opens the dashboard's Chat tab with the panel as the question's target.
+**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens the [ask box](ask-and-comment.md#ask-mode) on the whole panel, a private question in your chat rather than a thread; in the full-size view and TV mode it opens the dashboard's Chat tab with the panel as the question's target.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.
@@ -126,6 +126,7 @@ A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 Mention one agent in a comment and send it: the send button then reads "Send and ask Observe Agent" (or the connected agent's name), and the agent gets a run for that message.
 Asking needs Comment on the dashboard's folder.
+Only a thread on a dashboard or an observation can ask the agent, and a thread whose agent is someone else's connected agent saves your message and starts no run.
 The agent answers in the thread and changes nothing: it reads the dashboard and its data, saves no version and opens no observation.
 
 - **From the form.** Write your question, mention `@observe`, and send.
@@ -133,7 +134,7 @@ The agent answers in the thread and changes nothing: it reads the dashboard and 
   The comment is attached to the latest version and the panel you chose.
 - **From a thread.** Choose **Reply** on a comment: the box at the bottom of the card shows "Replying in" and the panel or dashboard, and **On** hides.
   Write the instruction with the mention, and send; the box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
-  The agent gets the earlier messages of the thread as context.
+  The agent gets the earlier messages of the thread as context, the last 20 and at most 8000 characters.
   The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention.
   A reply that mentions a person goes to the team and starts nothing, and the thread keeps its agent for the next reply.
   A message someone sent to everyone, by turning the "To:" chip or through the API, MCP or the CLI, turns the thread's agent off until a message asks an agent again.
@@ -142,7 +143,7 @@ Under the form the card says "Observe Agent is working on it" with a link to the
 The comment is saved in every case, and a refusal never loses it.
 When the run ends, its answer arrives as a reply in the same thread, from "Observe Agent for `<your name>`" or, for a connected agent, "`<your name>` (via `<client>`)".
 A run started from a mention never resolves or reopens the thread.
-A run started by a comment that asked for a change posts its answer in the comment's thread too, and when it saves a version it also resolves the thread.
+Only a revision started over the API with `comment_id` resolves the thread when it saves a version; **Revise the dashboard** on an answer posts its result in the thread and leaves the thread as it was.
 
 When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
 When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`", and someone who may reply in the thread also gets **Revise the dashboard**.
@@ -152,7 +153,7 @@ A refusal, such as five revisions already waiting on the dashboard, shows the se
 On a [starter dashboard](activity.md#audit-folder), and for anyone who can no longer comment on the dashboard, the answer keeps its suggested change without **Revise the dashboard**; a starter adds "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it to get a copy you can change." with **Duplicate**, which opens the same dialog as the dashboard menu, and a revision the server still refuses as `provisioned` shows "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
 
-The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+The person who asked gets **Create observation**, which saves the answer as an observation and opens it; in the web app it sits beside the chip when the agent marked the answer worth keeping and it is not yet in an observation, and under the evidence once you unfold it otherwise; `observe save-answer` and `save_run_answer` save it whichever way the web app shows it.
 A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.
 The reply itself reads "Answered.", and the answer shows under it in the thread, so everyone who can read the thread reads what was found without opening the run.

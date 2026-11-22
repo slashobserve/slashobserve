@@ -33,6 +33,7 @@ To give a role before the first sign-in, [invite](../teams/people.md#invite-peop
 
 Sign-in opens [Home](../use/home.md).
 Type a prompt such as `checkout health by pod, last 6h` into the chat composer on its **Ask Observe Agent** tab.
+Once a dashboard exists you can also ask the agent about it from the dashboard itself: in its **Chat** tab, in a comment thread, or by pointing at a spot on a panel with **Ask**; see [Ask and comment on a dashboard](../use/ask-and-comment.md).
 
 ## Dashboards the demo provisions
 

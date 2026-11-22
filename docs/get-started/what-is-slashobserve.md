@@ -7,6 +7,12 @@ SlashObserve is an open-source observability workspace where a team and its agen
 Type `/observe checkout health by pod, last 6h` and the built-in agent builds a verified dashboard that you refine in plain language.
 Outside agents such as Claude Code connect over MCP and act as the person who connected them.
 
+You can ask the agent a question where you are working, and it answers without changing the dashboard until you choose **Revise the dashboard**:
+
+- In a comment thread, by mentioning `@observe` or addressing the message to it, so the team reads the answer ([Comments, agent requests and versions](../use/review.md#ask-the-agent-from-a-comment)).
+- In a private chat in the dashboard's side pane, which only you and Admins read ([Chat and follow-ups](../use/chat.md#in-the-dashboards-chat-tab)).
+- By pointing at a spot on a panel, a point, a range, a row or a value, in Ask mode, or by commenting on that spot in Comment mode ([Ask and comment on a dashboard](../use/ask-and-comment.md)).
+
 ## What you run
 
 SlashObserve is one container plus one Postgres database.

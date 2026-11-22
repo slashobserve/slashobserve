@@ -80,6 +80,14 @@ If you have the dashboard open, a toast says "Updated to version 2" and the page
 Version 1 is kept.
 You can compare the two versions or restore the older one; see [Comments, agent requests and versions](../use/review.md).
 
+## Ask about one spot, or ask in a comment
+
+You can ask without leaving the dashboard.
+Choose **Ask** at the bottom of the screen, or press `a` with the pointer on no panel, and click a spot on a panel, such as a point on a line, a row of a table or a stat's value: a small box opens there, and the answer arrives in it.
+The question is a turn of your private chat, which the dashboard's **Chat** tab shows too, and only you and Admins read it.
+**Comment**, or `c`, works the same way for a note the team reads, and a comment that mentions `@observe` asks the agent in the thread.
+The pages [Ask and comment on a dashboard](../use/ask-and-comment.md) and [Comments, agent requests and versions](../use/review.md#ask-the-agent-from-a-comment) describe both.
+
 ## Change the time range and variables
 
 The button at the top of the dashboard shows the current range, for example "Last 6 hours".
@@ -105,6 +113,7 @@ To change the saved default range for everyone, ask the agent in a follow-up, su
 ## Next steps
 
 - [Chat and follow-ups](../use/chat.md) explains what the agent does at each step and what it cannot do.
+- [Ask and comment on a dashboard](../use/ask-and-comment.md) covers asking about a spot, in a thread or in a private chat.
 - [Comments, agent requests and versions](../use/review.md) covers review, comparing versions and restoring.
 - [Edit a panel](../use/edit-panel.md) covers changing a query or a panel by hand.
 - [MCP](../use/mcp.md) and [CLI](../use/cli.md) build and edit dashboards from your own tools.

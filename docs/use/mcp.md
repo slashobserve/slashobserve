@@ -147,7 +147,7 @@ The schema accepts the `{code, message}` body a failed call answers with, becaus
 Every other tool publishes none.
 
 A thing's id is named `<thing>_id` and a datasource is named `datasource`, and every tool that takes one also accepts its common alias, so a guess costs no call.
-`datasource_uid` is accepted wherever `datasource` is, `id` for `dashboard_id` on a tool named for a dashboard, for `observation_id` on one named for an observation and for `run_id` on one named for a run, and `run_id` for the `id` of `get_run`, `get_run_build`, `cancel_run` and `retry_run`.
+`datasource_uid` is accepted wherever `datasource` is, `id` for `dashboard_id` on a tool named for a dashboard, for `observation_id` on one named for an observation and for `run_id` on one named for a run, and `run_id` for the `id` of every tool named for a run, such as `get_run`, `get_run_build`, `cancel_run` and `retry_run`.
 `diff_dashboard_versions` also accepts `from_version` and `to_version` for `from` and `to`, and `get_panels` accepts `panel_ids` for `ids`.
 A call that sends both names with the same value works, and one that sends them with different values is refused with `invalid_request`.
 The names in `tools/list` are the documented ones; a run of the built-in agent takes only those.
@@ -283,6 +283,8 @@ A dashboard made by Claude Code can then be reviewed by the team without a model
 Comments can sit on a dashboard, an annotation, an observation or a proposal.
 A `proposal:<uuid>` target is read with View and written with Comment on the proposal's dashboard, and a comment on it has no `panel_id` or `version`.
 `list_comments` takes exactly one of `target` and `dashboard_id`: `target` is written `kind:uuid`, for example `observation:7f0c1d2e-5a4b-4c3d-8e9f-0a1b2c3d4e5f`, and `dashboard_id` means the same as `dashboard:<id>`.
+
+`create_comment` and `list_mentionable_people` take only `target`, so a comment on a dashboard is written with `target` `dashboard:<id>` and a `dashboard_id` is refused; `list_comments` takes either `target` or `dashboard_id`, exactly one of them.
 Each comment has its `version`, which is null off a dashboard, `edited_at` and its `mentions`, and an `actor` that is the same object the HTTP API returns (`kind`, `id`, `name`, `origin`, `client`, `run_id` and `label`), whose `run_id` is the run that wrote an agent reply and null for a person; `author` stays the plain name, and a top-level `run_id` appears only on an agent reply; a result listed by `target` also names that `target`.
 `create_comment` opens a thread on a `target`; on a dashboard it takes an optional `panel_id` and `version`, and defaults to the whole dashboard on the latest version.
 `edit_comment` changes the text of a comment the same key wrote, `reopen_comment` reopens a resolved thread, and `reply_to_comment` and `resolve_comment` work on any thread, `resolve_comment` taking `version` only on a dashboard.
@@ -294,9 +296,9 @@ On an observation, `create_comment` and `reply_to_comment` take `block_id`, the 
 Every comment the comment tools return carries `block_id` (null for the whole observation and on every other target) and `reply_to` (null when it quotes nothing, else the quoted message's `id`, its `author` as the web app labels it, and an `excerpt` of its first 200 characters).
 
 `list_mentionable_people` takes a `target` and an optional `query` and returns the people who can see it, with the `id` to put in `@[Name](user:<id>)`; it returns at most 20, and `more` is true when others match, so narrow with `query`.
-Mentioning a person who does not exist or cannot see the target answers `invalid_mention`, and a mentioned person gets it in their Inbox.
+Mentioning a person who does not exist or cannot see the target answers `invalid_request` with the reason in its message (the HTTP API and the CLI say `invalid_mention`), and a mentioned person gets it in their Inbox.
 An observation has one discussion, so `create_comment` on an observation that has one adds the comment to it; with `anchor` it opens a thread of its own on that spot instead.
-`create_comment` takes `anchor`, the spot a dashboard or observation thread points at (with `block_id` on an observation, a spot in that block).
+`create_comment` takes `anchor`, the spot a dashboard or observation thread points at (with `block_id` on an observation, a spot in that block); [Anchors over MCP and the CLI](ask-and-comment.md#anchors-over-mcp-and-the-cli) lists the kinds and what each needs.
 The first comment of a thread that points at a spot, in `list_comments` and in what the comment tools return, carries that `anchor` as `create_comment` takes it and `at`, the spot in words; replies carry neither, so read the spot from the comment their `parent_id` names.
 A single comment too large for a page first drops `at`, then its mentions lose their names but keep their `kind` and `id`, and then its `body` is cut, with `body_truncated`; its `anchor` is always kept whole.
 Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
@@ -312,7 +314,7 @@ A run started this way is checked like one the same person starts in the web app
 An answer on a dashboard may carry `suggested_change`, one sentence on a change that would help, and `apply_suggested_change` (`comment_id` and the answer's `finding_id` from `get_run`) posts "Revise the dashboard: <suggested change>" in that thread as you and starts a run that makes the change: it saves a version when you can edit the dashboard and opens a proposal when you can only comment.
 The run is yours and goes to the agent that answered; a repeat call while it is queued or running, or after it succeeded, posts nothing and returns that run with `replayed` true.
 An id that is not an answer given in this thread answers `not_found`, an answer without a suggested change `invalid_request`, and the run's own refusals are `too_many_revisions`, `agent_unavailable`, `assignee_unavailable` and `provisioned` on a starter dashboard.
-Two agents in one comment answer `too_many_agents` and write nothing, and a grant that is not yours, revoked or expired, a service account that takes no runs, or a grant mention from a key answer `invalid_mention`.
+Two agents in one comment write nothing and answer `invalid_request`, as do a grant that is not yours, revoked or expired, a service account that takes no runs, and a grant mention from a key; the HTTP API and the CLI name these `too_many_agents` and `invalid_mention`.
 The refusal codes are `mention_target_unsupported`, `agent_unavailable` (also when the thread's agent was disconnected, which clears it), `agent_not_yours` (the thread's agent is someone else's connected agent), `forbidden_role` and `too_many_runs`.
 Every opened, replied, edited, resolved and reopened thread appends to the activity log, which `list_activity` reads.
 A key needs the Comment ability on the target to write; a target the key cannot see answers `not_found`, and only the author can edit a message (`not_author`).
@@ -435,7 +437,8 @@ Both are over MCP only, so the built-in agent does not have them, and a service-
 The answer is the object `GET /api/v1/observe/{id}` returns: its `state`, `result_kind`, `allowed_actions`, `attempt`, the last 20 steps, its usage and, while the run is running, `live_text`, the text the agent is writing now, which is never stored and is `null` once the run ends.
 It is over MCP only, and a run is visible to the same people as through the API.
 An Admin can read any run; the answer then has `read_only: true` and no allowed actions.
-A run from someone else's private chat, other than an investigation or an answer shared into a thread you can read, has `redacted: true`, `read_only: true`, no allowed actions, and its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` empty, while `failure_code` stays.
+A question someone asked in their own chat answers `not_found` to anyone but them and Admins, unless it is an investigation or its answer was shared into a thread you can read.
+A revision from someone else's chat, other than an investigation or an answer shared into a thread you can read, has `redacted: true`, `read_only: true`, no allowed actions, and its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` empty, while `failure_code` stays.
 `subject_observation_id` names the observation an ask is about, such as one asked from an observation's chat, and stays set after its answer is saved into another observation; it is null when `redacted` or when you cannot open that observation.
 
 When the run ended with an answer to a question, the object carries it as `finding`, whose `observation_id` and `url` are null until the answer is saved as an observation.
@@ -489,7 +492,7 @@ Only the one who asked can save it: an Admin gets `forbidden_role`, anyone else 
 It opens a comment thread there, at the same panel or block, with the question as your message and the agent's answer as its reply, and on an observation it also writes the answer onto the page; with `thread_id` it adds both to that thread instead, which must be on the same dashboard or observation.
 It answers `thread_id`, `message_id` and `replayed`, true when the run was already shared, and a run is shared once.
 Only the one who asked can share it, and only when you can comment there: anyone else gets `not_found`, a run that is not a private question gets `not_shareable` and one without an answer gets `no_answer`.
-An answer whose evidence reads a datasource only Admins can query is refused with `restricted_content` unless the dashboard or observation is in a folder only Admins can read.
+An answer whose evidence reads a datasource only Admins can query is refused with `restricted_answer` unless the dashboard or observation is in a folder only Admins can read.
 The run and the rest of the chat stay readable only by you and Admins.
 Withdrawing a shared answer deletes the shared question and its answer, or the thread the share opened, so no MCP tool does it; the person who asked uses `observe comments withdraw` or `DELETE /threads/{id}/share`.
 
