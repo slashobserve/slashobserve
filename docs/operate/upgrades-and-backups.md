@@ -3,6 +3,9 @@ title: Upgrades and backups
 description: Back up Postgres, upgrade the server and return to an older version.
 ---
 
+SlashObserve is under active development, and releases before 1.0 can include breaking changes.
+Before you upgrade, read the [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md) for each release between your version and the new one; a release that has breaking changes lists them under "Breaking changes".
+
 ## Back up Postgres
 
 Postgres is the only state.
