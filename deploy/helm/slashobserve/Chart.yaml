@@ -2,8 +2,8 @@ apiVersion: v2
 name: slashobserve
 description: SlashObserve server on Kubernetes, with an external Postgres and every secret taken from a Secret you create.
 type: application
-version: 0.1.3
-appVersion: "0.1.3"
+version: 0.1.4
+appVersion: "0.1.4"
 home: https://slashobserve.com
 sources:
   - https://github.com/slashobserve/slashobserve

@@ -5,6 +5,153 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can change between minor releases.
 
+## [0.1.4] - 2026-11-22
+
+This release adds features and database migrations despite its patch number.
+Migrations 74 to 90 are new, there are no migrations 76 to 78, and no later migration exists.
+They add the audit trail and its export position, datasource audiences, Only Admins folders, anchors and agent columns on threads, chats, the starter content record, observation block heights, run intent and read restrictions, and a delete trigger for dashboards.
+Migration 74 creates the audit table and copies every activity event into it, which takes longer the more activity the log holds.
+Migrations 81, 82, 84 and 87 run outside a transaction, add each check constraint and foreign key as `NOT VALID` and validate it afterwards, and build their indexes concurrently, so they do not hold a write lock for the whole run.
+Migration 82 gives every earlier chat a row, and migration 87 gives every run an intent and a kind, both in batches of 1000.
+Back up Postgres before you upgrade.
+The server never runs a migration backwards, so going back to 0.1.3 means restoring the backup you took before upgrading.
+The server now records every sign-in, change, refusal, tool call and query in an audit trail in your own Postgres, kept for a year by default, so size the database for it and read the upgrade notes in the operations guide.
+The Breaking changes below can break a script, an integration or a CLI call.
+
+### Breaking changes
+
+- `observe comments list <dashboard-id> --json` prints the thread page of `observe comments list --on dashboard:<id>`, and the `comments` key is gone (#241).
+  Before, it printed `{"comments": [...], "next_cursor": ...}` from the older dashboard comments route.
+  Now it prints `threads`, `messages`, `next_cursor` and `can_comment`.
+  A script that read `jq '.comments[]'` reads `jq '.messages[]'` instead, as `docs/use/cli.md` documents.
+  A message's `thread_id` names its thread in `threads` and replaces `parent_id`, a reply being a message whose `thread_id` is not its own `id`.
+  `actor.label` replaces `author.name`, and `status`, `panel_id`, `panel_present` and `resolved_by_version` move from the comment to its thread.
+  In the table, the AUTHOR column shows the actor label, such as `Ada (via Claude Code)`, and a run's reply shows the answer's title after `Answered.`.
+  The route `GET /api/v1/dashboards/{id}/comments` is unchanged.
+- The retired spellings for asking an agent and for naming a chat are removed (#232).
+  `start_runs` is gone from `POST /api/v1/threads` and `POST /api/v1/threads/{thread_id}/messages`, from the MCP tools `create_comment` and `reply_to_comment`, and as `--start-runs` from `observe comments add` and `observe comments reply`.
+  Send `to: agent`, or pass `--to agent`, which asks the agent the text mentions, else the thread's agent, else `@observe`.
+  `follows_id` is gone from `POST /api/v1/observe` and the MCP tool `start_run`, and `--follows` is gone from `observe`.
+  Send `chat_id`, or pass `--chat`, with the id of one of your chats from `GET /api/v1/chats`, `list_chats` or `observe chats list`.
+  No database migration is involved, because neither name was a column.
+- A message to the agent in a thread now starts a read-only ask, and `kind` and `source` of a run changed (#179, #188).
+  Before, `start_runs` on a dashboard thread started a comment run that saved a version or opened a proposal, and on an observation thread an investigation that wrote into the page.
+  Now `to: agent` on either starts an ask that answers in the thread and changes nothing, for an Editor as for a Commenter.
+  To change the dashboard from the answer, apply its suggested change with `POST /api/v1/threads/{thread_id}/apply`, `apply_suggested_change` or `observe comments apply`, or start a revision.
+  `kind` on `POST /api/v1/observe`, `start_run` and the CLI is now `ask` (the default), `revise` or `investigate`, where it was `build` or `investigate`, and a request with `kind` `build` is refused with 400 `invalid_request`.
+  A request with `dashboard_id` and no `kind` no longer revises that dashboard.
+  It asks about it privately, and only `kind` `revise` changes it, as in `observe --revise --dashboard <id> '<prompt>'`, where `observe --dashboard <id> '<prompt>'` used to revise.
+- Runs carry `intent` and `investigation` where they carried `source` (#188).
+  `source` and its values `observe`, `prompt`, `comment`, `suggest` and `investigate` are gone from a run in `GET /api/v1/observe`, `GET /api/v1/observe/{id}`, `list_runs`, `get_run` and a claimed run, and `intent` is `ask`, `apply` or `suggest`.
+  `investigation` is true for a run that opens or writes into an observation and false for an ask.
+  The `source` filter is gone from `GET /api/v1/observe`, from `list_runs` and from `observe requests list`, whose table shows an intent column in its place.
+  The `data.source` of a `run.*` event in the activity feed, an inbox item or a webhook payload is now `data.intent`, and migration 87 rewrites the events already stored.
+- The admin scope of the activity feed is removed (#177).
+  `GET /api/v1/activity?scope=admin`, `observe activity --admin` and the `scope` argument of `list_activity` no longer exist, and the old Settings, Audit log page that used them is replaced by the Audit module.
+  An Admin key still gets the admin changes in the ordinary activity list, and `GET /api/v1/audit/events`, `observe audit search` and `search_audit_events` read the audit trail.
+- `chat_id` of a run that belongs to no chat is null, where `GET /api/v1/observe` answered the run's own id (#187).
+- Upgrade notes that need a decision before the first start:
+  Set `SLASHOBSERVE_AUDIT_RETENTION` (default `8760h`, one year) to the history you want to keep, because the audit table grows with every sign-in, change, tool call and query, and an Admin cannot delete an event.
+  Set `SLASHOBSERVE_TRUSTED_PROXIES` to the addresses or CIDR ranges of your load balancer or ingress controller when it sits in front of the server, or every audit event records the balancer's address as the client address; the Helm chart takes `trustedProxies`.
+  An invalid entry stops the server at start and names the entry.
+  Set `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` and `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE` only if you want a copy of the trail in a log pipeline; unset, nothing is sent.
+  On `SIGTERM` the server now ends the requests still open after 10 seconds, such as live tails, event streams and `/mcp` streams, so each one records its audit event before the server exits, and a proxy or client of such a stream sees it close then.
+  Upgrading from 0.1.2 reads both sets of migrations, 49 to 73 from the 0.1.3 notes and 74 to 90 here.
+
+### Added
+
+- The audit trail.
+  The server records who did what, through what, to what and how it ended, in the table `audit_events` of its own Postgres, one partition for each UTC day.
+  A change is recorded in the same transaction as the change, so the two commit or roll back together, and the database refuses to update, delete or truncate an event.
+  Sign-ins and failed sign-ins, credentials and CSRF tokens that were refused, OAuth and MCP sign-in, webhook deliveries, folder and team changes, Grafana imports, provisioning, scheduled job runs, the server's start and stop and every migration it applies are recorded, and so is every request that is refused with 401, 403 or 429.
+  Every MCP tool call, every datasource query with its query text cut at 4 KiB, and views of a dashboard, an observation, a public link, a run and a chat are events too.
+  An audit search and a read of someone else's chat or run are recorded once in 10 minutes, and repeated refusals of a sign-in, a credential or a CSRF token are folded into one event a minute.
+  A run's start, finish and release name the agent that took it, and a run that failed or was canceled is recorded as failed.
+  A write that times out is kept and written again, and a loss is recorded as `audit.gap`, with `slashobserve_audit_dropped_total` and `slashobserve_audit_partitions_ahead` to watch.
+  Retention drops a whole partition once its end is older than `SLASHOBSERVE_AUDIT_RETENTION`, and migration 74 copies the activity log into the table so the trail starts with your history.
+- Reading the audit trail.
+  An Admin reads it with `GET /api/v1/audit/events`, `/audit/events/{id}`, `/audit/facets`, `/audit/histogram`, `/audit/aggregate`, `/audit/fields`, `/audit/export` and `/audit/stream`, with `observe audit search`, `show`, `facets`, `histogram`, `aggregate`, `fields` and `export`, and with the MCP tools `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_audit_histogram`, `aggregate_audit_events` and `list_audit_fields`.
+  Every other caller gets 403 `forbidden_role`, and every read is recorded as `audit.search`.
+  A query is KQL, Lucene after a `lucene:` prefix, or a Query DSL body of `bool`, `term`, `terms`, `match`, `match_phrase` and the aggregations the API description lists, over at most 366 days, and the CLI marks the failing part of a query.
+  `observe audit search --follow` and the stream tail new events and resume after a dropped connection.
+  An MCP answer holds at most 16 KiB and says `truncated: true` with a `next_cursor` when it cut a page.
+- The Audit module and the audit datasource.
+  Admins get an Audit item in the sidebar with Log, Dashboards and Observations.
+  Log searches the trail with a query box that completes field names, facet chips, a volume chart, a detail panel with the other events of the same request and agent run, Live follow and an export as NDJSON or CSV.
+  The trail is also a built-in datasource, `slashobserve-audit`, which only Admins can query, so the Logs page, log, table, stat and time series panels and saved searches read it like an OpenSearch datasource.
+  At first start the server creates the folder Audit, which only Admins can read, with four starter dashboards: Audit overview, Sign-ins and access, Agent and MCP activity and Data access.
+  The starters are read-only and a release updates them, and an Admin duplicates one to change it.
+  `observe folders list`, `list_folders` and the folders API mark that folder with `audit`, and the dashboards list takes `exclude_audit`.
+- Audit export over OTLP.
+  With `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` set, the server posts each audit event as an OTLP log record to `<endpoint>/v1/logs`, in the order the events committed and at least once, from a position stored in the database.
+  A receiver should drop repeats by `slashobserve.audit.id`, and `slashobserve_audit_export_lag_seconds` shows how far the export is behind.
+  The server refuses a redirect and a link-local address, and request headers come only from the file in `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE`.
+- Admins-only datasources and folders.
+  An Admin sets a datasource's audience to Everyone or Only Admins on the form, with `observe datasources add --audience` and `edit --audience`, in the datasources file, or over the API.
+  Every datasource lookup now checks who is asking, so a person who is not an Admin gets no data, no values, no tail and no public link from an Admins-only datasource.
+  Content that reads one can live only in an Only Admins folder, which non-Admins cannot see, its creator included, and is set in the folder's settings, with `PUT /api/v1/folders/{id}/permissions` or with `observe folders permissions admins-only <folder-id> --yes`.
+  A save, a move, a share or a public link that would put such content where non-Admins read it is refused with 409 `restricted_content`.
+  An answer from a run that read Admin-only data is kept where only Admins read it, and sharing it elsewhere is refused with 409 `restricted_answer`.
+- Asks and private chats.
+  Every prompt is a turn of a chat that you and Admins can read, and nobody else sees it.
+  A private ask about a dashboard or an observation needs only Comment on it, reads data and answers without writing anything shared, and has no per-person or total cap.
+  The asker shares the answer into a comment thread, which on an observation also writes it onto the page, with `POST /api/v1/observe/{id}/share`, `share_answer` and `observe share-answer`, and takes it back with `DELETE /api/v1/threads/{thread_id}/share` or `observe comments withdraw`.
+  An answer may carry a one-sentence `suggested_change`, which `POST /api/v1/threads/{thread_id}/apply`, `apply_suggested_change`, `observe comments apply` and `applies_finding_id` with `kind` `revise` turn into a run that saves a version, or a proposal for someone who can only comment.
+  `GET /api/v1/chats`, `GET /api/v1/chats/{id}`, `DELETE /api/v1/chats/{id}`, `list_chats`, `get_chat` and `observe chats list`, `show`, `pin`, `unpin` and `archive` read and manage chats, and an Admin reads anyone's chat read only.
+  A revision on a dashboard joins your latest chat there unless `new_chat` is true, and a resend with the same `client_id` returns the first run.
+  The dashboard side panel has Chat and Activity tabs, and Chats and Home list one row for each chat.
+  A thread's reply from a run carries the run's answer, so a thread view no longer fetches each one.
+- Anchors.
+  An anchor names the spot a comment or a question points at: a time, a range, a series, a table row or cell, a bar, a log line, a span or a position on a panel or an observation block.
+  `anchor` and `block_id` are accepted by `POST /api/v1/threads`, `POST /api/v1/observe`, `create_comment` and `start_run`, `observe --at` and `observe comments add --at` take it as JSON or as `row:`, `time:`, `range:`, `series:` and `pos:` short forms, and the agent's brief names the spot in one sentence.
+  `list_comments` and the comment tools return a thread's `anchor` and `at`, and `observe requests list --anchored` and `list_runs` with `anchored` keep the questions that point at a spot.
+- Comment and Ask on the dashboard canvas.
+  **Comment** and **Ask** in the tool bar are modes: a click on a spot of a panel, or a drag across its time axis, opens a box there that names the panel, the part you clicked, the value and the time window.
+  A comment posts a thread with that anchor and shows a pin on the panel, which opens the thread in place, and a question goes to the agent as a private turn of your chat and shows a pin that only you see.
+  Hovering a panel shows Ask and Comment buttons, `c` and `a` act on the panel under the pointer, `Esc` leaves the mode, and the two modes have their own pointers.
+  Every panel type with a meaningful target publishes the layout it draws, so a pin finds its spot again, and the boxes can be resized.
+- Comment and Ask on observation blocks.
+  The observation page has the same tool bar and keys, and selecting text in a text block offers Comment and Ask on the words you selected.
+  An ask or an investigation can name a block with `block_id`, over the API, `start_run` and `observe investigate --block`.
+  A run asked on a block puts its answer under that block.
+- Editing and arranging observation blocks.
+  A panel block has **Edit panel**, or **Suggest an edit** for a commenter, which opens the dashboard's panel editor with a preview over the block's window, and **Panel** offers **From a dashboard** and **New query**.
+  A panel block is drawn as a dashboard panel with its panel menu, follows the observation's time range unless pinned, and `POST /api/v1/observations/{id}/blocks/preview` runs an unsaved panel under the draft limits.
+  Blocks are dragged by a grip, snap to a third, a half, two thirds or the full width, take a height of 120 to 960 pixels on a panel or snapshot block, and move with the arrow keys.
+  `arrange_blocks`, `observe o arrange`, `PUT /api/v1/observations/{id}/layout`, `width` and `height` on `add_block` and `update_block`, and `follow_page` do the same without a version, because a layout change never makes a text edit stale.
+- Moving and resizing panels.
+  A title bar you can arrange shows a grab cursor and a faint grip, a press and a drag selects and moves in one gesture, the selected panel has handles on its right edge, bottom edge and corner, and the drop spot is a dashed outline.
+  The Activity or chat pane closes while you arrange, so the layout shows at full width.
+- The CLI and MCP reach the same work.
+  The server has 110 tools, 11 more than 0.1.3, and `observe chats`, `observe audit`, `observe share-answer`, `observe o arrange` and `observe chats pin` are new.
+  `observe chats list` shows a PINNED and a DASHBOARD column, `observe o show` shows the height and the range of each block, and `--exclude-audit` leaves the Audit folder out of `observe dashboards list` and `tags`.
+
+### Changed
+
+- `GET /api/v1/datasources` gives the audit trail the `source` `builtin`, next to `file` and `app`, and lists it only to Admins, so a script that switches on `source` must handle `builtin`.
+  The Datasources page labels it Built in and offers no edit or remove.
+- Replying to an observation that has a discussion with `create_comment` adds the comment to it, where it answered 409 `observation_thread_exists`, unless `anchor` opens a thread of its own on a spot.
+- The status line a run posts in a thread reads `Answered.` and the thread carries the answer, where it said `Answered in the chat of the person who asked.` and linked to the chat.
+- `observe dashboards duplicate` and `duplicate_dashboard` put the copy in the dashboard's own folder when you may create there, else in your default folder.
+- A dashboard that changed since its last health check is no longer shown as healthy.
+  Its row says a recheck is pending and its old problems stay out of the failing counts and the problem filter, and `list_dashboard_health` rows carry `can_edit`, which is false on a starter.
+  Repair is not offered on a starter, and health repair answers `provisioned` for one.
+- The investigate prompt and `save_finding` tell the agent to leave `suggested_change` out when no change is needed and never to write it into the answer's Markdown.
+- Dependencies: Prometheus 0.316.0, kin-openapi 0.153.0, openai-go 3.96.0, testcontainers-go 0.45.0 and golang.org/x/oauth2 0.38.0 on the Go side, 15 web packages including react-query 5.107.1, zustand 5.1.0, lucide-react 1.70.0 and vite 8.3.6, and docker/login-action 4.8.0 in the release workflow (#245, #246, #247).
+
+### Fixed
+
+- Dashboard saves stalled in the browser after a few page loads, because pages kept in the back and forward cache held their event streams open and used up the six connections a browser allows.
+- A layout save could finish without its toast, or crash the page when the fitted layout differed from the saved one.
+  A delete, a move or a removal that finished after its row had left the page lost its toast, focus move or navigation.
+- A dashboard moved out of someone's view took 5 to 6 seconds to say Dashboard not found, a move made while the event stream was closed never reached the page, and the stream sent a move to a person who had lost access to it.
+- On a dashboard that shows its defaults, Open in Logs, Open in Traces and Add to observation ignored the dashboard's range and variables, and a panel whose datasource is a variable could not open Logs or Traces.
+- The observation page did not show the agent's reply until a reload, Add a panel opened beside the discussion, Add from Logs or Metrics left the person there, and an agent's backticks showed literally in comments and replies.
+- A page first opened in a background tab never caught up on what changed while it was hidden.
+- In the Activity pane, Enter with the Investigate chip posted a comment where the send button started the run, the filter overflowed on a long panel name, and the PromQL completion popup misplaced itself.
+- A stat panel whose series was constantly zero drew a half-height block, and now sits on the baseline.
+- A refused `create_observation` left an empty observation behind, and now creates nothing.
+
 ## [0.1.3] - 2026-11-20
 
 This release adds features and database migrations despite its patch number.
@@ -392,6 +539,7 @@ First public release.
   `make demo` and `docker compose -f deploy/compose/compose.yaml up -d --wait` start a local demo stack with Dex, Prometheus, ClickHouse, a demo shop and sample history from the published images.
   The demo is for local use only, with fixed logins and published ports bound to 127.0.0.1.
 
+[0.1.4]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.4
 [0.1.3]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.3
 [0.1.2]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.2
 [0.1.1]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.1
