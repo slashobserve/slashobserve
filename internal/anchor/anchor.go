@@ -334,13 +334,30 @@ func describeTime(t time.Time) string {
 	return t.Format(layout) + " UTC"
 }
 
-func labelValues(labels map[string]string) string {
-	keys := sortedKeys(labels)
-	values := make([]string, len(keys))
-	for i, k := range keys {
-		values[i] = labels[k]
+var longID = regexp.MustCompile(`^[0-9a-fA-F]{16,}$`)
+
+const idPrefixLen = 8
+
+func readableCells(labels map[string]string) string {
+	var cells []string
+	for _, k := range sortedKeys(labels) {
+		v := labels[k]
+		switch {
+		case v == "" || v == "Unset":
+		case longID.MatchString(v):
+			cells = append(cells, v[:idPrefixLen]+"\u2026")
+		default:
+			cells = append(cells, v)
+		}
 	}
-	return strings.Join(values, ", ")
+	return strings.Join(cells, ", ")
+}
+
+func inRow(row string) string {
+	if row == "" {
+		return ""
+	}
+	return " in the row " + row
 }
 
 func labelPairs(labels map[string]string) string {
@@ -411,9 +428,11 @@ var subjects = map[Kind]func(Anchor) string{
 	Point: func(a Anchor) string {
 		return "the point at " + a.fromText() + " on the series " + labelPairs(a.Series)
 	},
-	Row:      func(a Anchor) string { return joinNonEmpty("the row "+labelValues(a.Row), a.Quote) },
+	Row: func(a Anchor) string {
+		return joinNonEmpty(strings.TrimSpace("the row "+readableCells(a.Row)), a.Quote)
+	},
 	Column:   func(a Anchor) string { return "the column " + a.Column },
-	Cell:     func(a Anchor) string { return "the cell " + a.Column + " in the row " + labelValues(a.Row) },
+	Cell:     func(a Anchor) string { return "the cell " + a.Column + inRow(readableCells(a.Row)) },
 	Bar:      func(a Anchor) string { return "the bar " + a.Category + a.ofSeries() },
 	Segment:  func(a Anchor) string { return "the segment " + a.Category + a.ofSeries() },
 	HeatCell: func(a Anchor) string { return "the heat cell " + a.Category + " at " + a.fromText() },

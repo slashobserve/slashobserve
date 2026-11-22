@@ -346,10 +346,21 @@ function sortedKeys(labels: Record<string, string>): string[] {
   return Object.keys(labels).sort()
 }
 
-function labelValues(labels: Record<string, string>): string {
+const longId = /^[0-9a-f]{16,}$/i
+const idPrefix = 8
+
+function readableCells(labels: Record<string, string>): string {
   return sortedKeys(labels)
     .map((key) => labels[key])
+    .filter((value) => value !== "" && value !== "Unset")
+    .map((value) =>
+      longId.test(value) ? `${value.slice(0, idPrefix)}\u2026` : value
+    )
     .join(", ")
+}
+
+function inRow(row: string): string {
+  return row === "" ? "" : ` in the row ${row}`
 }
 
 function labelPairs(labels: Record<string, string>): string {
@@ -386,7 +397,7 @@ function subject(anchor: Anchor): string {
   const from = anchor.from ? describeTime(anchor.from) : ""
   const to = anchor.to ? describeTime(anchor.to) : ""
   const series = anchor.series ? labelPairs(anchor.series) : ""
-  const row = anchor.row ? labelValues(anchor.row) : ""
+  const row = anchor.row ? readableCells(anchor.row) : ""
   const quote = anchor.quote ?? ""
   switch (anchor.kind) {
     case "time":
@@ -398,11 +409,11 @@ function subject(anchor: Anchor): string {
     case "point":
       return `the point at ${from} on the series ${series}`
     case "row":
-      return [`the row ${row}`, quote].filter(Boolean).join(", ")
+      return [`the row ${row}`.trim(), quote].filter(Boolean).join(", ")
     case "column":
       return `the column ${anchor.column}`
     case "cell":
-      return `the cell ${anchor.column} in the row ${row}`
+      return `the cell ${anchor.column}${inRow(row)}`
     case "bar":
       return `the bar ${anchor.category}${ofSeries(anchor)}`
     case "segment":
