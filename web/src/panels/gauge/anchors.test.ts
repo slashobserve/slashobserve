@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ValueAnchorLayout } from "../value-anchors"
 
-import { hitTest } from "./anchors"
+import { hitTest, locate } from "./anchors"
 
 const layout: ValueAnchorLayout = {
   body: { width: 200, height: 100 },
@@ -41,5 +41,38 @@ describe("gauge hitTest", () => {
 
   it("returns null between values", () => {
     expect(hitTest(layout, { x: 50, y: 45 })).toBeNull()
+  })
+})
+
+describe("gauge locate", () => {
+  it("finds the value a hit test named", () => {
+    const anchor = hitTest(layout, { x: 50, y: 60 })
+    expect(anchor).not.toBeNull()
+    expect(locate(layout, anchor!)).toEqual(layout.targets[1].rect)
+  })
+
+  it("returns null when the value is gone", () => {
+    expect(
+      locate(layout, {
+        kind: "value",
+        pos: { x: 0, y: 0 },
+        series: { name: "disk" },
+      })
+    ).toBeNull()
+  })
+
+  it("points at the bottom edge for a value scrolled out of view", () => {
+    const scrolled: ValueAnchorLayout = {
+      ...layout,
+      targets: [{ ...layout.targets[0], rect: null }, layout.targets[1]],
+    }
+    expect(hitTest(scrolled, { x: 50, y: 20 })).toBeNull()
+    expect(
+      locate(scrolled, {
+        kind: "value",
+        pos: { x: 0, y: 0 },
+        series: { instance: "a" },
+      })
+    ).toEqual({ x: 0, y: 98, width: 200, height: 2 })
   })
 })

@@ -20,7 +20,7 @@ dashboards-id-versions-version-panels-panel-id-data:
         type: string
   get:
     operationId: getPanelData
-    x-audit: { none: "saved panel data; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "saved panel data; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: Run the saved queries of one panel in one dashboard version and return their frames.
     description: >-
       The queries are fixed by the saved version, so the request names a panel and never carries query text;
@@ -150,7 +150,7 @@ dashboards-id-versions-version-variables-name-values:
         type: string
   get:
     operationId: getVariableValues
-    x-audit: { none: "saved variable values; the view is recorded by GET /dashboards/{ id }" }
+    x-audit: { none: "saved variable values; the view is recorded by GET /dashboards/{ id }", target: { kind: dashboard, id: path.id } }
     summary: List the values of one variable in one dashboard version.
     description: >-
       A custom variable returns its options without an upstream call.
@@ -222,7 +222,7 @@ datasources-uid-lint:
         type: string
   post:
     operationId: lintDatasourceQuery
-    x-audit: { none: "checks query syntax without running it" }
+    x-audit: { none: "checks query syntax without running it", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [lint_query]
       cli: [observe datasources lint]

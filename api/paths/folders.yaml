@@ -101,7 +101,7 @@ folders-id:
         format: uuid
   get:
     operationId: getFolder
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: folder, id: path.id } }
     summary: Get a folder.
     description: A folder the caller cannot see answers 404, as if it did not exist.
     responses:
@@ -202,7 +202,7 @@ folders-id-permissions:
         format: uuid
   get:
     operationId: getFolderPermissions
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: folder, id: path.id } }
     x-surfaces:
       cli: [observe folders permissions show]
     summary: List who a folder is restricted to.

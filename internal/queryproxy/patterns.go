@@ -98,7 +98,9 @@ func (r *Runner) nativePatterns(ctx context.Context, datasourceUID string, sourc
 		return nil, err
 	}
 	defer release()
-	return source.LogPatterns(ctx, datasource.PatternRequest{Query: req.Query, Range: req.Range, Step: max(req.Range.To.Sub(req.Range.From)/patternSteps, time.Second)})
+	found, err := source.LogPatterns(ctx, datasource.PatternRequest{Query: req.Query, Range: req.Range, Step: max(req.Range.To.Sub(req.Range.From)/patternSteps, time.Second)})
+	datasource.NoteQuery(ctx, datasourceUID, req.Query.Text, req.Range, len(found))
+	return found, err
 }
 
 func (r *Runner) sampleLines(ctx context.Context, datasourceUID string, source datasource.LineSource, req PatternsRequest) ([]datasource.Frame, error) {
@@ -109,7 +111,9 @@ func (r *Runner) sampleLines(ctx context.Context, datasourceUID string, source d
 	defer release()
 	query := req.Query
 	query.Limits.MaxRows = req.Sample
-	return source.Lines(ctx, datasource.LinesRequest{Query: query, Range: req.Range, Direction: datasource.Backward, Limit: req.Sample})
+	frames, err := source.Lines(ctx, datasource.LinesRequest{Query: query, Range: req.Range, Direction: datasource.Backward, Limit: req.Sample})
+	datasource.NoteQuery(ctx, datasourceUID, req.Query.Text, req.Range, datasource.FrameRows(frames))
+	return frames, err
 }
 
 func foldNative(found []datasource.NativePattern, limit int, rng datasource.TimeRange, source string) LogPatterns {

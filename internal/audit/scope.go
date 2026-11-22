@@ -2,8 +2,6 @@ package audit
 
 import (
 	"context"
-	"maps"
-	"slices"
 	"sync"
 	"time"
 
@@ -21,11 +19,7 @@ type state struct {
 	scope     Scope
 	inTx      []written
 	committed bool
-	reads     int
-	repeated  int
-	readFrom  time.Time
-	readTo    time.Time
-	readOn    string
+	queries   []Query
 	result    *Result
 }
 
@@ -70,60 +64,37 @@ func Conclude(ctx context.Context, r Result) {
 	st.result = &r
 }
 
+func Concluded(ctx context.Context) (Result, bool) {
+	st := stateOf(ctx)
+	if st == nil {
+		return Result{}, false
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.result == nil {
+		return Result{}, false
+	}
+	return *st.result, true
+}
+
 func Skip(ctx context.Context) {
 	if st := stateOf(ctx); st != nil {
 		st.markCommitted()
 	}
 }
 
-type Read struct {
-	Datasource string
-	From, To   time.Time
-	Repeated   bool
-}
-
-func NoteRead(ctx context.Context, r Read) {
-	st := stateOf(ctx)
-	if st == nil {
-		return
-	}
+func (st *state) takeQueries() []Query {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	st.reads++
-	if r.Repeated {
-		st.repeated++
-	}
-	if st.readFrom.IsZero() || r.From.Before(st.readFrom) {
-		st.readFrom = r.From
-	}
-	if r.To.After(st.readTo) {
-		st.readTo = r.To
-	}
-	if r.Datasource != "" {
-		st.readOn = r.Datasource
-	}
+	queries := st.queries
+	st.queries = nil
+	return queries
 }
 
-func (st *state) readDatasource() string {
+func (st *state) hasQueries() bool {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	return st.readOn
-}
-
-func (st *state) withReadWindow(action Action, data map[string]any) map[string]any {
-	st.mu.Lock()
-	from, to := st.readFrom, st.readTo
-	st.mu.Unlock()
-	spec, _ := Lookup(action)
-	if from.IsZero() || !slices.Contains(spec.Data, "from") {
-		return data
-	}
-	out := maps.Clone(data)
-	if out == nil {
-		out = map[string]any{}
-	}
-	out["from"], out["to"] = from.UTC().Format(time.RFC3339), to.UTC().Format(time.RFC3339)
-	return out
+	return len(st.queries) > 0
 }
 
 func (st *state) wroteInTx(w written) {
@@ -142,12 +113,4 @@ func (st *state) unsettled() (bool, []written, *Result) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	return st.committed, append([]written(nil), st.inTx...), st.result
-}
-
-func (st *state) repeatsARead(action Action, outcome Outcome) bool {
-	st.mu.Lock()
-	everyReadRepeated := st.reads > 0 && st.repeated == st.reads
-	st.mu.Unlock()
-	spec, known := Lookup(action)
-	return everyReadRepeated && outcome == OutcomeSuccess && known && spec.Class == ClassAccess
 }

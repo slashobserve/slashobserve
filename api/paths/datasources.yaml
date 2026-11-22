@@ -88,7 +88,7 @@ datasources-uid-recheck:
         type: string
   post:
     operationId: recheckDatasource
-    x-audit: { none: "refreshes the health status of a datasource" }
+    x-audit: { none: "refreshes the health status of a datasource", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [recheck_datasource]
       cli: [observe datasources recheck]
@@ -281,7 +281,7 @@ datasources-uid-config:
         type: string
   get:
     operationId: getDatasourceConfig
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       cli: [observe datasources get]
     summary: Read the definition of a datasource added in the app.

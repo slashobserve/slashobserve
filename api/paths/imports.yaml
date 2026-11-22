@@ -190,7 +190,7 @@ dashboards-id-import:
         format: uuid
   get:
     operationId: getDashboardImport
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: dashboard, id: path.id } }
     summary: Get how a dashboard was imported from Grafana.
     description: >-
       Answers 404 `not_found` when there is no such dashboard and 404 `not_imported` when the dashboard was not made by an import.

@@ -121,7 +121,7 @@ inbox-read:
 inbox-item:
   put:
     operationId: setInboxItemState
-    x-audit: { none: "read position of the caller's own inbox" }
+    x-audit: { none: "read position of the caller's own inbox", target: { kind: inbox_item, id: path.seq } }
     x-surfaces:
       mcp: [set_inbox_item_done]
     summary: Mark one inbox item read, unread or done.

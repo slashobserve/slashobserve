@@ -8,7 +8,7 @@ dashboards-id-events:
         format: uuid
   get:
     operationId: streamDashboardEvents
-    x-audit: { none: "event stream; each change it carries is recorded where it is made" }
+    x-audit: { none: "event stream; each change it carries is recorded where it is made", target: { kind: dashboard, id: path.id } }
     summary: Stream live events for one dashboard as Server-Sent Events.
     description: >-
       The stream starts with `retry: 3000` and an `event: ready` whose data is `{"dashboard_id","latest_version"}`.

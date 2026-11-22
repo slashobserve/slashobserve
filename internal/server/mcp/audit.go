@@ -80,6 +80,9 @@ func (h *handler) recordToolCall(ctx context.Context, name string, kind callKind
 			s.Origin.Tool = name
 		}
 	})
+	if err := audit.RecordNotedQueries(ctx, audit.Event{Outcome: outcome, Reason: reason, Duration: took}); err != nil && !errors.Is(err, audit.ErrNotInstalled) {
+		h.logger.WarnContext(ctx, "record mcp query", append(logattrs.Failure("audit_record_failed", err), slog.String("tool", name))...)
+	}
 	recordErr := audit.RecordNow(ctx, audit.Event{
 		Action:   actionToolCall,
 		Outcome:  outcome,

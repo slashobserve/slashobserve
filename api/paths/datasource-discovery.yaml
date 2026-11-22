@@ -7,7 +7,7 @@ datasources-uid-schema:
         type: string
   get:
     operationId: getDatasourceSchema
-    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller" }
+    x-audit: { none: "datasource metadata for query authoring; carries no query from the caller", target: { kind: datasource, id: path.uid } }
     x-surfaces:
       mcp: [get_schema]
       cli: [observe datasources schema]

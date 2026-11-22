@@ -86,7 +86,7 @@ grafana-id:
         format: uuid
   get:
     operationId: getGrafanaConnection
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: grafana_connection, id: path.id } }
     summary: Read one Grafana connection.
     description: Only Admins can call this endpoint.
     responses:
@@ -225,7 +225,7 @@ grafana-id-folders:
         format: uuid
   get:
     operationId: listGrafanaFolders
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: grafana_connection, id: path.id } }
     x-surfaces:
       cli: [observe grafana import]
     summary: List the Grafana folders and how many dashboards each holds.
@@ -278,7 +278,7 @@ grafana-id-datasources:
         format: uuid
   get:
     operationId: listGrafanaDatasources
-    x-audit: { none: "list read; lists are not recorded" }
+    x-audit: { none: "list read; lists are not recorded", target: { kind: grafana_connection, id: path.id } }
     summary: List the Grafana datasources and the datasource each one matches here.
     description: >-
       Only Admins can call this endpoint.
@@ -394,7 +394,7 @@ grafana-id-imports-syncid:
         maxLength: 64
   get:
     operationId: getGrafanaImport
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: grafana_connection, id: path.id } }
     x-surfaces:
       cli: [observe grafana import]
     summary: Read the progress of an import.
@@ -476,7 +476,7 @@ grafana-resolve-uid:
         maxLength: 256
   get:
     operationId: resolveGrafanaUID
-    x-audit: { none: "read; only dashboard, observation and public link views are recorded" }
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: grafana_dashboard, id: path.uid } }
     x-surfaces:
       cli: [observe open]
     summary: Find the dashboard imported from a Grafana uid.

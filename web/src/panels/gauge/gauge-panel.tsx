@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react"
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react"
 import { EllipsisIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,8 @@ import { oneClickTarget, type FieldAction } from "../actions/field-actions"
 import type { FieldResolver, LinkScope, ResolvedLink } from "../field-config"
 import { thresholdIcons } from "../thresholds"
 import type { PanelRenderer } from "../types"
+import { useAnchorPublisher } from "../anchor-layout"
+import { valueAnchorLayout } from "../value-layout"
 import {
   gaugeActions,
   gaugeLimits,
@@ -183,6 +185,7 @@ function GaugeCell({
   return (
     <div
       data-gauge-cell=""
+      data-value-key={gauge.key}
       {...oneClick}
       className="[container-type:size] relative min-h-0 min-w-0 data-one-click:cursor-pointer"
     >
@@ -288,6 +291,28 @@ const GaugePanel: PanelRenderer = ({
   )
   const limited =
     limits.minWidth !== undefined || limits.minHeight !== undefined
+  const gridRef = useRef<HTMLDivElement>(null)
+  const publish = useAnchorPublisher("gauge")
+  useLayoutEffect(() => {
+    const grid = gridRef.current
+    if (grid === null) return
+    const measure = () =>
+      publish(
+        valueAnchorLayout(
+          grid,
+          gauges.map(({ key, name, frame, text }) => ({
+            key,
+            name,
+            labels: frame.labels,
+            text,
+          })),
+          { width, height }
+        )
+      )
+    measure()
+    grid.addEventListener("scroll", measure, { passive: true })
+    return () => grid.removeEventListener("scroll", measure)
+  }, [publish, gauges, width, height])
   const cellWidth = Math.max(
     limits.minWidth ?? 0,
     (width - bodyInsetX - gridGap * (columns - 1)) / columns
@@ -296,6 +321,7 @@ const GaugePanel: PanelRenderer = ({
   return (
     <>
       <div
+        ref={gridRef}
         data-gauge-grid
         className={cn(
           "grid p-2 pt-0",

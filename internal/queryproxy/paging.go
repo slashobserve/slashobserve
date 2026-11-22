@@ -109,6 +109,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	}
 	defer release()
 	frames, info, err := source.QueryPage(ctx, req)
+	datasource.NoteQuery(ctx, inst.UID, p.Query.Text, req.Range, datasource.FrameRows(frames))
 	if err != nil {
 		return PageResult{}, err
 	}
