@@ -98,12 +98,15 @@ export function DashboardGrid({
   selectedId = null,
   newPanelIds,
 }: Props) {
-  const { width, mounted, containerRef } = useContainerWidth({
+  const { width, mounted, containerRef, measureWidth } = useContainerWidth({
     measureBeforeMount: true,
   })
   const collapsed = useRowStore((state) => state.collapsed[dashboardId])
   const toggleRow = useRowStore((state) => state.toggle)
   const editing = layout !== undefined
+  useLayoutEffect(() => {
+    measureWidth()
+  }, [measureWidth, editing])
 
   const ordered = useMemo(() => {
     const byId = new Map((layout ?? []).map((item) => [item.i, item]))

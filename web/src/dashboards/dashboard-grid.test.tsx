@@ -8,12 +8,15 @@ import type { Dashboard } from "@/spec"
 import { DashboardGrid } from "./dashboard-grid"
 import { useLayoutStore } from "./edit/layout-store"
 
+const measureWidth = vi.fn()
+
 vi.mock("react-grid-layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-grid-layout")>()),
   useContainerWidth: () => ({
     width: 978,
     mounted: true,
     containerRef: { current: null },
+    measureWidth,
   }),
 }))
 
@@ -95,9 +98,24 @@ function MovingPage({
   )
 }
 
+function SwappingPage({ layout }: { layout?: Layout }) {
+  return (
+    <DashboardGrid
+      dashboardId="d1"
+      spec={spec}
+      selections={{}}
+      values={{}}
+      editable
+      layout={layout}
+      renderPanel={(item) => <div>{item.panel.title}</div>}
+    />
+  )
+}
+
 afterEach(() => {
   cleanup()
   useLayoutStore.getState().end()
+  measureWidth.mockClear()
 })
 
 describe("DashboardGrid", () => {
@@ -137,5 +155,18 @@ describe("DashboardGrid", () => {
     expect(onReport).toHaveBeenLastCalledWith(
       expect.arrayContaining([expect.objectContaining({ i: "p_stat_0", y: 0 })])
     )
+  })
+
+  it("measures its width again in the commit that swaps to or from the saved layout", () => {
+    const view = render(<SwappingPage />)
+    measureWidth.mockClear()
+    view.rerender(<SwappingPage />)
+    expect(measureWidth).not.toHaveBeenCalled()
+    view.rerender(<SwappingPage layout={saved} />)
+    expect(measureWidth).toHaveBeenCalledTimes(1)
+    view.rerender(<SwappingPage layout={saved} />)
+    expect(measureWidth).toHaveBeenCalledTimes(1)
+    view.rerender(<SwappingPage />)
+    expect(measureWidth).toHaveBeenCalledTimes(2)
   })
 })
