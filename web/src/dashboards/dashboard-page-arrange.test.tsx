@@ -21,6 +21,7 @@ import { testQueryClient } from "@/test/render"
 
 import { useCanvasTool } from "./canvas-tools"
 import { activityButtonId, activityCardId } from "./pane-openers"
+import { useSelectionStore } from "./selection-store"
 
 const dashboardId = "3c1f9a7e-2b4d-4e6f-8a1c-5d7e9f0a2b3c"
 const folderId = "8e2d4f6a-1c3b-4d5e-9f7a-0b2c4d6e8f1a"
@@ -162,6 +163,7 @@ function renderDashboard() {
       <RouterProvider router={router} />
     </QueryClientProvider>
   )
+  return router
 }
 
 function gridItemOf(title: string): HTMLElement {
@@ -216,6 +218,7 @@ afterEach(() => {
   Reflect.deleteProperty(HTMLElement.prototype, "offsetParent")
   useCanvasTool.setState({ tool: "select" })
   useActivityStore.setState({ open: true })
+  useSelectionStore.getState().clear()
 })
 
 describe("arranging panels on the dashboard grid", () => {
@@ -312,6 +315,98 @@ describe("arranging panels on the dashboard grid", () => {
 
       await waitFor(() => expect(activityPane()).toBeVisible())
       expect(activityPane()).toBe(pane)
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
+
+    async function setPaneAsideBySelecting(title: string) {
+      const button = await screen.findByRole("button", {
+        name: `Select panel: ${title}`,
+      })
+      const pane = activityPane()
+      fireEvent.click(button)
+      await waitFor(() => expect(pane).not.toBeVisible())
+      return pane
+    }
+
+    function reopenPane() {
+      fireEvent.click(document.getElementById(activityButtonId)!)
+    }
+
+    it("brings the pane back without focus once nothing is selected", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+      const title = screen.getByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      title.focus()
+
+      act(() => useSelectionStore.getState().clear())
+
+      await waitFor(() => expect(pane).toBeVisible())
+      expect(title).toHaveFocus()
+    })
+
+    it("keeps a pane opened again while the selection moves to another panel", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+      reopenPane()
+      await waitFor(() => expect(pane).toBeVisible())
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Select panel: Note" })
+      )
+
+      await waitFor(() =>
+        expect(articleOf("Note")).toHaveAttribute("data-selected")
+      )
+      expect(pane).toBeVisible()
+    })
+
+    it.each([
+      ["viewing a panel", { viewPanel: "p_note" }],
+      ["TV mode", { kiosk: "1" }],
+    ])(
+      "does not set a reopened pane aside again when the selection returns after %s",
+      async (_, detour) => {
+        const router = renderDashboard()
+        const pane = await setPaneAsideBySelecting("Runbook")
+        reopenPane()
+        await waitFor(() => expect(pane).toBeVisible())
+
+        await act(() =>
+          router.navigate({
+            to: ".",
+            search: (state: Record<string, unknown>) => ({
+              ...state,
+              ...detour,
+            }),
+          })
+        )
+        await act(() =>
+          router.navigate({
+            to: ".",
+            search: (state: Record<string, unknown>) => ({
+              ...state,
+              viewPanel: undefined,
+              kiosk: undefined,
+            }),
+          })
+        )
+
+        await waitFor(() =>
+          expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+        )
+        expect(activityPane()).toBeVisible()
+      }
+    )
+
+    it("shows the pane for any explicit open, even with nothing in the address changing", async () => {
+      renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      act(() => useActivityStore.getState().setOpen(true))
+
+      await waitFor(() => expect(pane).toBeVisible())
       expect(articleOf("Runbook")).toHaveAttribute("data-selected")
     })
 

@@ -274,7 +274,9 @@ With the grip focused, the arrow keys move the panel and `Shift` with an arrow r
 While a panel is selected for arranging, the grid shows the saved layout, so a repeated panel shows once and a row cannot be collapsed until you clear the selection.
 
 When the Activity or chat pane is open beside the grid, selecting a panel to arrange closes it first, so the saved layout gets the full width; the press that selects still drags the panel.
-**Activity** in the controls opens the pane again as you left it, and a Viewer who cannot edit, or a press in Comment or Ask mode, leaves the pane open.
+The pane comes back as you left it once no panel is selected and no moves are unsaved, for example after you press `Esc` or click an empty part of the grid.
+**Activity** in the controls brings it back sooner, and it then stays open while you select other panels.
+A Viewer who cannot edit, or a press in Comment or Ask mode, leaves the pane open.
 While you have unsaved moves the pane stays closed.
 
 After the first move a bar at the bottom of the screen says "Your layout changes are not saved".

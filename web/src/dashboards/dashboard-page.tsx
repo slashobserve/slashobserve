@@ -172,11 +172,12 @@ import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
 import { activityCardId } from "./pane-openers"
 import {
+  arrangingPaneAfter,
   arrangingSetsPaneAside,
   dockOf,
   heldPaneOf,
   isSidePanelCard,
-  paneKeyOf,
+  type ArrangingPane,
 } from "./dock"
 
 function scrollPaneIntoView(id: string) {
@@ -483,22 +484,23 @@ function DashboardView({
   }
   const dock = dockOf(search, dockState)
   const heldPane = heldPaneOf(search, dockState)
-  const paneKey = paneKeyOf(search, heldPane)
   const cardLayout = useActivityLayout(editingPanel)
-  const [paneAsideAt, setPaneAsideAt] = useState<string | null>(null)
-  const [arrangedId, setArrangedId] = useState(selectedId)
-  if (paneAsideAt !== null && paneAsideAt !== paneKey) setPaneAsideAt(null)
-  if (arrangedId !== selectedId) {
-    setArrangedId(selectedId)
-    if (
+  const paneOpenings = useActivityStore((state) => state.openings)
+  const [seenOpenings, setSeenOpenings] = useState(paneOpenings)
+  const [arrangingPane, setArrangingPane] = useState<ArrangingPane>(null)
+  const nextArrangingPane = arrangingPaneAfter(arrangingPane, {
+    arranging: selection !== null || editing,
+    setsAside:
       selectedId !== null &&
       pressArranges &&
-      arrangingSetsPaneAside(dock, !cardLayout.stacked)
-    ) {
-      setPaneAsideAt(paneKey)
-    }
+      arrangingSetsPaneAside(dock, !cardLayout.stacked),
+    reopened: seenOpenings !== paneOpenings,
+  })
+  if (seenOpenings !== paneOpenings) setSeenOpenings(paneOpenings)
+  if (nextArrangingPane !== arrangingPane) {
+    setArrangingPane(nextArrangingPane)
   }
-  const paneAside = paneAsideAt !== null && paneAsideAt === paneKey
+  const paneAside = nextArrangingPane === "aside"
   const inspecting = dock === "inspect"
   const specShown = dock === "spec"
   const cardView = isSidePanelCard(dock) && !paneAside ? dock : null
@@ -790,11 +792,6 @@ function DashboardView({
   ])
 
   const toggleCard = useCallback(() => {
-    if (paneAside) {
-      announcePaneOpening()
-      setPaneAsideAt(null)
-      return
-    }
     if (cardVisible) {
       closeCard()
       return
@@ -802,14 +799,7 @@ function DashboardView({
     announcePaneOpening()
     setOpen(true)
     if (cardLayout.stacked) scrollPaneIntoView(activityCardId)
-  }, [
-    paneAside,
-    cardVisible,
-    closeCard,
-    setOpen,
-    setPaneAsideAt,
-    cardLayout.stacked,
-  ])
+  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
 
   const toggleShare = useCallback(() => {
     const sharing = search.share === true

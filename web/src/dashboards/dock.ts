@@ -53,17 +53,25 @@ export function heldPaneOf(
   return sidePaneOf(dockOf(search, { ...state, layoutEditing: false }))
 }
 
-export function paneKeyOf(
-  search: DashboardSearch,
-  pane: SidePane | null
-): string | null {
-  if (pane === null) return null
-  return [pane, search.tab, search.chat, search.thread, search.panel].join("|")
-}
-
 export function arrangingSetsPaneAside(
   shown: DockView,
   besideGrid: boolean
 ): boolean {
   return besideGrid && sidePaneOf(shown) !== null
+}
+
+export type ArrangingPane = "aside" | "kept" | null
+
+export function arrangingPaneAfter(
+  current: ArrangingPane,
+  {
+    arranging,
+    setsAside,
+    reopened,
+  }: { arranging: boolean; setsAside: boolean; reopened: boolean }
+): ArrangingPane {
+  if (!arranging) return null
+  if (reopened) return "kept"
+  if (current === null) return setsAside ? "aside" : "kept"
+  return current
 }

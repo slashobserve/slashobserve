@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  arrangingPaneAfter,
   arrangingSetsPaneAside,
   dockOf,
   heldPaneOf,
   isSidePanelCard,
-  paneKeyOf,
   type DockState,
 } from "./dock"
 import type { DashboardSearch } from "./search"
@@ -133,20 +133,6 @@ describe("heldPaneOf", () => {
   })
 })
 
-describe("paneKeyOf", () => {
-  test("changes when the pane is pointed somewhere else", () => {
-    const chat = paneKeyOf({ vars: {}, tab: "chat", chat: "c1" }, "chat")
-    expect(paneKeyOf({ vars: {}, tab: "chat", chat: "c1" }, "chat")).toBe(chat)
-    expect(paneKeyOf({ vars: {}, tab: "chat", chat: "c2" }, "chat")).not.toBe(
-      chat
-    )
-    expect(paneKeyOf({ vars: {}, thread: "t1" }, "activity")).not.toBe(
-      paneKeyOf({ vars: {} }, "activity")
-    )
-    expect(paneKeyOf({ vars: {} }, null)).toBeNull()
-  })
-})
-
 describe("arrangingSetsPaneAside", () => {
   test.each<[ReturnType<typeof dockOf>, boolean, boolean]>([
     ["activity", true, true],
@@ -158,5 +144,41 @@ describe("arrangingSetsPaneAside", () => {
     [null, true, false],
   ])("%s beside the grid %s sets it aside: %s", (shown, beside, expected) => {
     expect(arrangingSetsPaneAside(shown, beside)).toBe(expected)
+  })
+})
+
+describe("arrangingPaneAfter", () => {
+  const quiet = { arranging: true, setsAside: false, reopened: false }
+
+  test("sets the pane aside only when the session starts on a press that sets it aside", () => {
+    expect(arrangingPaneAfter(null, { ...quiet, setsAside: true })).toBe(
+      "aside"
+    )
+    expect(arrangingPaneAfter(null, quiet)).toBe("kept")
+  })
+
+  test("keeps the session's choice while the selection moves, disappears or comes back", () => {
+    expect(arrangingPaneAfter("aside", quiet)).toBe("aside")
+    expect(arrangingPaneAfter("kept", { ...quiet, setsAside: true })).toBe(
+      "kept"
+    )
+  })
+
+  test("keeps a pane the person opened again for the rest of the session", () => {
+    expect(arrangingPaneAfter("aside", { ...quiet, reopened: true })).toBe(
+      "kept"
+    )
+    expect(
+      arrangingPaneAfter(null, { ...quiet, setsAside: true, reopened: true })
+    ).toBe("kept")
+  })
+
+  test("ends with the session, so the next session decides again", () => {
+    expect(
+      arrangingPaneAfter("aside", { ...quiet, arranging: false })
+    ).toBeNull()
+    expect(
+      arrangingPaneAfter("kept", { ...quiet, arranging: false })
+    ).toBeNull()
   })
 })
