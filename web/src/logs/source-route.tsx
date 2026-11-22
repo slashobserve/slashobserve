@@ -20,7 +20,11 @@ export function LogsSource({ uid }: { uid: string }) {
 
 export function logsSourceCrumbs(params: { datasourceUid?: string }): Crumb[] {
   return params.datasourceUid === auditDatasourceUid
-    ? [{ label: "Audit", to: "/audit" }, { label: "Explore" }]
+    ? [
+        { label: "Audit" },
+        { label: "Log", to: "/audit" },
+        { label: "Explorer" },
+      ]
     : [{ label: "Logs", to: "/logs" }]
 }
 

@@ -27,6 +27,7 @@ type Props = {
   onSearchChange: (next: ListSearch) => void
   settingsOpen: boolean
   onSettings: (open: boolean) => void
+  dashboardsView?: { heading: string; documentTitle: string }
 }
 
 function description(folder: Folder): string {
@@ -48,13 +49,14 @@ export function FolderPage({
   onSearchChange,
   settingsOpen,
   onSettings,
+  dashboardsView,
 }: Props) {
   const headingId = useId()
   const settingsButton = useRef<HTMLButtonElement>(null)
   const query = useQuery(folderQuery(folderId))
   const folder = query.data
   const name = folder?.title ?? "Folder"
-  useDocumentTitle(`${name} - SlashObserve`)
+  useDocumentTitle(dashboardsView?.documentTitle ?? `${name} - SlashObserve`)
 
   const crumb = (
     <TopRowTitle>
@@ -90,8 +92,12 @@ export function FolderPage({
       ) : (
         <PageHeader
           headingId={headingId}
-          title={folder.title}
-          description={description(folder)}
+          title={dashboardsView?.heading ?? folder.title}
+          description={
+            dashboardsView === undefined
+              ? description(folder)
+              : `${folder.title} folder. ${description(folder)}`
+          }
           actions={
             folder.permissions.manage ? (
               <Button
@@ -115,7 +121,9 @@ export function FolderPage({
       />
       {folder === undefined ? null : (
         <>
-          <FolderObservations folderId={folderId} />
+          {dashboardsView === undefined ? (
+            <FolderObservations folderId={folderId} />
+          ) : null}
           <FolderSavedSearches folderId={folderId} />
         </>
       )}

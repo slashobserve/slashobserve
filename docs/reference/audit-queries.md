@@ -197,7 +197,7 @@ It is listed with type `opensearch` and source `builtin`, only Admins and Admin 
 A datasources file entry with the uid `slashobserve-audit` stops the server at start with `audit_datasource_failed`.
 
 The four starter dashboards in the Audit folder are read-only and the server brings each up to date with its release at every start; see [Audit folder](../use/activity.md#audit-folder).
-In the web app, **Audit**, then **Explore**, opens the Logs page on this datasource, and **Audit**, then **Folder**, opens the Audit folder.
+In the web app, **Open in Logs** on **Audit**, then **Log**, opens the Logs page on this datasource, and **Audit**, then **Dashboards** or **Observations**, lists what the Audit folder holds.
 
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.

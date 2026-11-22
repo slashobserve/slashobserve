@@ -2,6 +2,7 @@ import { useCallback } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 
 import { AuditDashboards } from "@/audit/audit-dashboards"
+import { auditPageTitles } from "@/audit/audit-folder"
 import { RoleGate } from "@/components/role-gate"
 import { validateListSearch, type ListSearch } from "@/dashboards/list-filters"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -23,15 +24,14 @@ function validateAuditDashboardsSearch(
 
 export const Route = createFileRoute("/_authed/_shell/audit/dashboards")({
   staticData: {
-    crumbs: [{ label: "Audit", to: "/audit" }],
-    pageTitle: true,
+    crumbs: [{ label: "Audit", to: "/audit" }, { label: "Dashboards" }],
   },
   validateSearch: validateAuditDashboardsSearch,
   component: AuditDashboardsRoute,
 })
 
 function AuditDashboardsRoute() {
-  useDocumentTitle("Audit dashboards - SlashObserve")
+  useDocumentTitle(auditPageTitles.dashboards)
   const { settings, ...search } = Route.useSearch()
   const navigate = Route.useNavigate()
   const onSearchChange = useCallback(

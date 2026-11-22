@@ -241,6 +241,7 @@ export function AuditLog({
             />
             <Link
               {...auditInLogsLink(applied)}
+              title="Open the same events in the log explorer"
               className={cn(buttonVariants({ variant: "outline" }))}
             >
               <TextSearchIcon aria-hidden="true" />
