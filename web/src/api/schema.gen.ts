@@ -5030,7 +5030,7 @@ export interface components {
         DatasourceDraft: {
             uid?: string;
             /** @enum {string} */
-            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
+            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "jaeger" | "elasticsearch" | "opensearch";
             /** @description The display name; the uid when empty. */
             name?: string;
             /**

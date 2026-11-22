@@ -450,7 +450,7 @@ Two series of different queries that end up with the same label show their query
 
 ### Query language and macros
 
-The query language follows the datasource: PromQL for Prometheus, a single SQL `SELECT` for ClickHouse, LogQL for Loki, TraceQL or a trace id for Tempo, and KQL for Elasticsearch and OpenSearch, with `lucene:` before a Lucene query and a body that starts with `{` for Query DSL.
+The query language follows the datasource: PromQL for Prometheus, a single SQL `SELECT` for ClickHouse, LogQL for Loki, TraceQL or a trace id for Tempo, `key=value` pairs or a trace id for Jaeger, and KQL for Elasticsearch and OpenSearch, with `lucene:` before a Lucene query and a body that starts with `{` for Query DSL.
 `$name`, `${name}` and `${name:format}` insert the value of a variable.
 Macros such as `$__rate_interval` for Prometheus and `$__timeFilter(Timestamp)` for ClickHouse expand when the query runs, from the time range and step of the request.
 On ClickHouse, `$__conditionalAll(condition, $variable)` writes `(condition)`, or `1=1` when the variable selects All.

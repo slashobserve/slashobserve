@@ -32,7 +32,7 @@ var (
 	durationPattern = regexp.MustCompile(`^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$`)
 
 	logsDatasources   = []spec.DatasourceType{spec.Loki, spec.ClickHouse, spec.Elasticsearch, spec.OpenSearch}
-	tracesDatasources = []spec.DatasourceType{spec.Tempo, spec.ClickHouse}
+	tracesDatasources = []spec.DatasourceType{spec.Tempo, spec.Jaeger, spec.ClickHouse}
 
 	metricsDatasources = []spec.DatasourceType{spec.Prometheus}
 )

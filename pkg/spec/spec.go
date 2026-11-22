@@ -26,6 +26,7 @@ const (
 	ClickHouse    DatasourceType = "clickhouse"
 	Loki          DatasourceType = "loki"
 	Tempo         DatasourceType = "tempo"
+	Jaeger        DatasourceType = "jaeger"
 	Elasticsearch DatasourceType = "elasticsearch"
 	OpenSearch    DatasourceType = "opensearch"
 )

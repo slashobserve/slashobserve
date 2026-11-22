@@ -3,7 +3,7 @@ title: What is SlashObserve
 description: What SlashObserve does and what you run to host it.
 ---
 
-SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch.
 Type `/observe checkout health by pod, last 6h` and the built-in agent builds a verified dashboard that you refine in plain language.
 Outside agents such as Claude Code connect over MCP and act as the person who connected them.
 
@@ -18,7 +18,7 @@ You can ask the agent a question where you are working, and it answers without c
 SlashObserve is one container plus one Postgres database.
 The container holds the Go server with the web UI embedded and `observe-agent`, the built-in agent as a second binary that the server starts and supervises whenever a model provider is configured.
 Postgres holds everything the server owns: dashboards and their versions, observations and proposals, comment threads, the activity log, the inbox's read position, saved searches, folders and their access lists, users and sessions, service accounts and key hashes, connected agents, webhooks, and the agent request queue.
-Your Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers stay where they are; SlashObserve only reads from them.
+Your Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch servers stay where they are; SlashObserve only reads from them.
 
 You also need:
 

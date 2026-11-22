@@ -94,7 +94,7 @@ func TestTracesRefusesBadInputBeforeQuerying(t *testing.T) {
 		{"short id", "tempo", []string{"abc123", "--datasource", "traces"}, "is not a trace id"},
 		{"quote in id", "clickhouse", []string{"4bf92f3577b34da6' OR 1=1", "--datasource", "traces"}, "is not a trace id"},
 		{"no datasource", "tempo", []string{traceID}, "needs --datasource"},
-		{"prometheus", "prometheus", []string{traceID, "--datasource", "traces"}, "traces reads Tempo or ClickHouse datasources; traces is prometheus"},
+		{"prometheus", "prometheus", []string{traceID, "--datasource", "traces"}, "traces reads Tempo, Jaeger or ClickHouse datasources; traces is prometheus"},
 		{"unknown uid", "tempo", []string{traceID, "--datasource", "nope"}, `no datasource has uid "nope"`},
 	}
 	for _, tc := range cases {
@@ -297,7 +297,7 @@ func TestTracesAskUsageErrors(t *testing.T) {
 		{"tempo", []string{traceID, traceID}, "takes one trace id"},
 		{"tempo", []string{traceID, "--sort", "duration"}, "--sort needs --ask"},
 		{"tempo", []string{"--ask", "slow", "--sort", "Duration"}, "--sort takes start"},
-		{"prometheus", []string{"--ask", "slow"}, "traces reads Tempo or ClickHouse datasources; ds is prometheus"},
+		{"prometheus", []string{"--ask", "slow"}, "traces reads Tempo, Jaeger or ClickHouse datasources; ds is prometheus"},
 	}
 	for _, c := range cases {
 		f := newAskFake(t, c.kind, `{}`, traceSearchFrames)

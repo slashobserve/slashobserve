@@ -1732,7 +1732,7 @@ components:
           pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
         type:
           type: string
-          enum: [prometheus, clickhouse, loki, tempo, elasticsearch, opensearch]
+          enum: [prometheus, clickhouse, loki, tempo, jaeger, elasticsearch, opensearch]
         name:
           type: string
           maxLength: 100

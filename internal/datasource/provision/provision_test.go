@@ -174,12 +174,19 @@ func TestBuildLokiAndTempoSendTheirConnectionSettings(t *testing.T) {
 			BasicAuthPassword: datasource.NewSecret("pw"),
 		},
 	}}
-	registry, err := Build(nil, []config.Datasource{logs, traces})
+	jaegerTraces := config.Datasource{UID: "jaeger", Type: "jaeger", Jaeger: &config.JaegerDatasource{
+		HTTPConnection: config.HTTPConnection{
+			URL:         upstream.URL,
+			Headers:     map[string]string{"X-Source": "jaeger"},
+			BearerToken: datasource.NewSecret("jaeger-token"),
+		},
+	}}
+	registry, err := Build(nil, []config.Datasource{logs, traces, jaegerTraces})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = registry.Close() }()
-	for uid, typ := range map[string]string{"logs": "loki", "traces": "tempo"} {
+	for uid, typ := range map[string]string{"logs": "loki", "traces": "tempo", "jaeger": "jaeger"} {
 		in, _ := registry.For(everything(t), uid)
 		if in.Datasource.Type() != typ {
 			t.Fatalf("%s type = %s, want %s", uid, in.Datasource.Type(), typ)
@@ -194,12 +201,16 @@ func TestBuildLokiAndTempoSendTheirConnectionSettings(t *testing.T) {
 	if h := seen["tempo"]; h.Get("Authorization") != "Basic cmVhZGVyOnB3" {
 		t.Fatalf("tempo sent %v", h)
 	}
+	if h := seen["jaeger"]; h.Get("Authorization") != "Bearer jaeger-token" {
+		t.Fatalf("jaeger sent %v", h)
+	}
 }
 
 func TestBuildLokiAndTempoRefuseInvalidSettings(t *testing.T) {
 	for _, src := range []config.Datasource{
 		{UID: "logs", Type: "loki", Loki: &config.LokiDatasource{HTTPConnection: config.HTTPConnection{URL: "ftp://loki"}}},
 		{UID: "traces", Type: "tempo", Tempo: &config.TempoDatasource{HTTPConnection: config.HTTPConnection{URL: "ftp://tempo"}}},
+		{UID: "jaeger", Type: "jaeger", Jaeger: &config.JaegerDatasource{HTTPConnection: config.HTTPConnection{URL: "ftp://jaeger"}}},
 	} {
 		_, err := Build(nil, []config.Datasource{src})
 		var buildErr *BuildError

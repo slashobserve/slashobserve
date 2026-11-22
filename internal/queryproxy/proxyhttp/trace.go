@@ -23,7 +23,7 @@ const (
 	traceDefaultFrom     = "now-24h"
 	paramTraceTimezone   = "timezone"
 	traceNotFoundMessage = "trace not found in the range; widen from and to"
-	traceSourcesMessage  = "traces read Tempo and ClickHouse datasources"
+	traceSourcesMessage  = "traces read Tempo, Jaeger and ClickHouse datasources"
 	traceIDMessage       = "trace_id must be 16 or 32 hex characters"
 )
 

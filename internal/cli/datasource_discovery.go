@@ -52,7 +52,7 @@ func (a *app) datasourceSchemaCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "schema <datasource-uid>",
 		Short: "List the tables, or the columns of one table, of a ClickHouse, Elasticsearch or OpenSearch datasource",
-		Long:  "schema lists the tables of a datasource, or with --table the columns of one table with their types.\nA Tempo datasource has no tables: schema lists its services, span names and attribute names.\nPrometheus and Loki datasources have none of these; labels reads their label names.\nWhen a list is cut, the notice names the --offset that reads the next page.",
+		Long:  "schema lists the tables of a datasource, or with --table the columns of one table with their types.\nA Tempo or Jaeger datasource has no tables: schema lists its services and span names, and on Tempo its attribute names.\nPrometheus and Loki datasources have none of these; labels reads their label names.\nWhen a list is cut, the notice names the --offset that reads the next page.",
 		Args:  exactArgs(1, "one datasource uid"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := url.Values{}

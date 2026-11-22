@@ -11,6 +11,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
+	"github.com/slashobserve/slashobserve/internal/datasource/jaeger"
 	"github.com/slashobserve/slashobserve/internal/datasource/loki"
 	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -84,6 +85,8 @@ func (r *Registry) draftContext(ctx context.Context, inst datasource.Instance, s
 		err = b.loki()
 	case spec.Tempo:
 		err = b.tempo()
+	case spec.Jaeger:
+		err = b.jaeger()
 	case spec.ClickHouse:
 		err = b.clickhouse(signal)
 	case spec.Elasticsearch, spec.OpenSearch:
@@ -216,6 +219,10 @@ func (b *factsBuilder) tempo() error {
 		b.list("attributes", names(cat.Labels), cat.Truncated)
 	}
 	return b.services("values of "+tempo.ServiceTag, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: tempo.ServiceTag, Limit: draftValuesLimit})
+}
+
+func (b *factsBuilder) jaeger() error {
+	return b.services("values of "+jaeger.ServiceKey, datasource.DiscoverRequest{Kind: datasource.DiscoverLabelValues, Label: jaeger.ServiceKey, Limit: draftValuesLimit})
 }
 
 func (b *factsBuilder) clickhouse(signal string) error {

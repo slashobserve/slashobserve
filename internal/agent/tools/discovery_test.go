@@ -732,7 +732,7 @@ func TestDiscoveryToolsNameTheDatasourceTypesThatFitInsteadOfAnsweringEmpty(t *t
 	}{
 		{"metrics on loki", "loki", nameListMetrics, `{"datasource":"fake"}`, "list_metrics works on Prometheus and ClickHouse datasources; fake is a loki datasource"},
 		{"metrics on tempo", "tempo", nameListMetrics, `{"datasource":"fake"}`, "fake is a tempo datasource"},
-		{"schema on prometheus", "prometheus", nameGetSchema, `{"datasource":"fake"}`, "get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; fake is a prometheus datasource"},
+		{"schema on prometheus", "prometheus", nameGetSchema, `{"datasource":"fake"}`, "get_schema works on ClickHouse, Tempo, Jaeger, Elasticsearch and OpenSearch datasources; fake is a prometheus datasource"},
 		{"schema on loki", "loki", nameGetSchema, `{"datasource":"fake","table":"x"}`, "fake is a loki datasource"},
 	}
 	for _, tt := range tests {

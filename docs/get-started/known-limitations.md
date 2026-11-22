@@ -8,13 +8,13 @@ These are the gaps that most often decide whether it fits.
 
 ## Datasources
 
-SlashObserve reads six datasource types: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+SlashObserve reads seven datasource types: Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch.
 Elasticsearch and OpenSearch are logs datasources.
 A datasources file entry with any other `type` is refused (see [Datasources file](../reference/datasources-file.md)), and so is a datasource of another type in the app.
-There is no Jaeger, InfluxDB, CloudWatch or SQL database datasource such as MySQL or PostgreSQL.
+There is no InfluxDB, CloudWatch or SQL database datasource such as MySQL or PostgreSQL.
 When you import a Grafana panel that queries another type, such as InfluxDB, it imports as a placeholder that says "Influxdb is not supported yet." and the datasource cannot be mapped.
 Tempo search builder queries and TraceQL metrics queries are dropped from an import by decision; write the search as a TraceQL query instead.
-The agent finds metrics, labels, tables, columns, log labels and trace attributes on these six only.
+The agent finds metrics, labels, tables, columns, log labels and trace attributes on these seven only.
 
 ## No alerting
 
@@ -42,7 +42,8 @@ For a screen that must stay current, use a public link or [TV mode](../use/publi
 ## Exploring data
 
 The [logs page and the trace search](../use/logs-and-traces.md) have gaps.
-The logs page reads Loki, ClickHouse, Elasticsearch and OpenSearch, and the trace search reads Tempo and ClickHouse.
+The logs page reads Loki, ClickHouse, Elasticsearch and OpenSearch, and the trace search reads Tempo, Jaeger and ClickHouse.
+A Jaeger datasource is searched by service, operation, tags and duration, not TraceQL, and has no trace statistics or trace comparison.
 The [metrics page](../use/metrics.md) reads Prometheus; a SQL query on ClickHouse metrics runs in the panel editor's live preview (see [Edit a panel](../use/edit-panel.md)).
 
 ## Sign-in needs an OIDC provider

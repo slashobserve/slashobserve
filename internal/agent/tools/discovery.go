@@ -138,7 +138,11 @@ func holdsMetrics(t spec.DatasourceType) bool {
 }
 
 func hasTables(t spec.DatasourceType) bool {
-	return t == spec.ClickHouse || t == spec.Tempo || isSearch(t)
+	return t == spec.ClickHouse || isSpanStore(t) || isSearch(t)
+}
+
+func isSpanStore(t spec.DatasourceType) bool {
+	return t == spec.Tempo || t == spec.Jaeger
 }
 
 func isSearch(t spec.DatasourceType) bool {
@@ -608,10 +612,10 @@ func (r *Registry) getSchema(ctx context.Context, input json.RawMessage) (Result
 		return res, nil
 	}
 	if !hasTables(typeOf(inst)) {
-		return invalid("get_schema works on ClickHouse, Tempo, Elasticsearch and OpenSearch datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
+		return invalid("get_schema works on ClickHouse, Tempo, Jaeger, Elasticsearch and OpenSearch datasources; %s is a %s datasource, and list_labels reads its label names", clip(in.Datasource, maxStepNameBytes), typeOf(inst)), nil
 	}
-	if typeOf(inst) == spec.Tempo {
-		return r.spanSchema(ctx, in, offset)
+	if isSpanStore(typeOf(inst)) {
+		return r.spanSchema(ctx, in, typeOf(inst), offset)
 	}
 	limit := offset + maxDiscoverItems + 1
 	if in.Table == "" {
@@ -648,9 +652,9 @@ type spanSchemaOut struct {
 	Truncated  bool     `json:"truncated,omitempty"`
 }
 
-func (r *Registry) spanSchema(ctx context.Context, in schemaInput, offset int) (Result, error) {
+func (r *Registry) spanSchema(ctx context.Context, in schemaInput, dsType spec.DatasourceType, offset int) (Result, error) {
 	if in.Table != "" || offset > 0 {
-		return invalid("tempo has no tables; leave out table and offset"), nil
+		return invalid("%s has no tables; leave out table and offset", dsType), nil
 	}
 	cat, res, ok, err := r.discover(ctx, in.Datasource, datasource.DiscoverRequest{Kind: datasource.DiscoverTables}, "Listing services and span names")
 	if !ok || err != nil {

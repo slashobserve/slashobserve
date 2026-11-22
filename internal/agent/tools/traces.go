@@ -19,11 +19,11 @@ const (
 	traceListLimit        = 20
 	traceStatsMaxBuckets  = 60
 	traceIDStepChars      = 8
-	traceSourcesMessage   = "get_trace reads Tempo and ClickHouse datasources"
+	traceSourcesMessage   = "get_trace reads Tempo, Jaeger and ClickHouse datasources"
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
 
-	descGetTrace   = "Read one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND Duration > 1000000. Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`

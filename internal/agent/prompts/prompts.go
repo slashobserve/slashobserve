@@ -20,6 +20,9 @@ var clickhouseGuide string
 //go:embed guide/loki.md
 var lokiGuide string
 
+//go:embed guide/jaeger.md
+var jaegerGuide string
+
 //go:embed guide/search.md
 var searchGuide string
 
@@ -43,6 +46,7 @@ var sections = []struct {
 	{[]spec.DatasourceType{spec.ClickHouse}, clickhouseGuide},
 	{[]spec.DatasourceType{spec.Loki}, lokiGuide},
 	{[]spec.DatasourceType{spec.Tempo}, tempoGuide},
+	{[]spec.DatasourceType{spec.Jaeger}, jaegerGuide},
 	{[]spec.DatasourceType{spec.Elasticsearch, spec.OpenSearch}, searchGuide},
 	{[]spec.DatasourceType{AuditTrail}, auditGuide},
 }
@@ -70,7 +74,7 @@ func GuideFor(types []spec.DatasourceType) string {
 }
 
 func SpecGuide() string {
-	return GuideFor([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Elasticsearch})
+	return GuideFor([]spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Jaeger, spec.Elasticsearch})
 }
 
 func System() string { return system }

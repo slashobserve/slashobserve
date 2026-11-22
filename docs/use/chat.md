@@ -77,7 +77,7 @@ Name a folder in the request and the agent builds the dashboard there when you c
 If you cannot, or no folder has that name, the agent builds it in My Dashboards and the version summary says so; move it from the dashboards list.
 See [Roles](../teams/roles.md).
 
-The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md) and [Tempo](../connect/tempo.md).
+The chips under the box list the healthy datasources; the agent can only query datasources the server has configured, see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md), [Tempo](../connect/tempo.md) and [Jaeger](../connect/jaeger.md).
 Without a model the box is replaced by "No model is connected to this server."
 **Import from Grafana** next to the send button opens [Import Grafana dashboards](import-grafana.md), which needs no model.
 

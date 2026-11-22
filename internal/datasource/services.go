@@ -30,7 +30,7 @@ func ServiceSignals(datasourceType string) []string {
 	switch datasourceType {
 	case "loki", "elasticsearch", "opensearch":
 		return []string{SignalLogs}
-	case "tempo":
+	case "tempo", "jaeger":
 		return []string{SignalTraces}
 	case "clickhouse":
 		return []string{SignalLogs, SignalTraces}
