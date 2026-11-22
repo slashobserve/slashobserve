@@ -151,6 +151,7 @@ The Breaking changes below can break a script, an integration or a CLI call.
 - In the Activity pane, Enter with the Investigate chip posted a comment where the send button started the run, the filter overflowed on a long panel name, and the PromQL completion popup misplaced itself.
 - A stat panel whose series was constantly zero drew a half-height block, and now sits on the baseline.
 - A refused `create_observation` left an empty observation behind, and now creates nothing.
+- An observation's discussion showed only `Answered.` after an agent answered a question there, and now shows the answer under it, with the line that the agent is working while the run is in flight.
 
 ## [0.1.3] - 2026-11-20
 
