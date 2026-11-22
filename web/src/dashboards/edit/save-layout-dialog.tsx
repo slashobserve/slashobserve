@@ -117,19 +117,17 @@ export function SaveLayoutDialog({ dashboardId, open, onOpenChange }: Props) {
       })
       return
     }
-    save.mutate(
-      {
+    save
+      .mutateAsync({
         spec: checked.spec,
         summary: summary.trim(),
         parent_version: session.baseVersion,
         propose: false,
-      },
-      {
-        onSuccess: (outcome) => finish(saveToast(outcome)),
-        onError: (failure) =>
-          setProblem(saveProblemFrom(failure, rejectedHeading)),
-      }
-    )
+      })
+      .then(
+        (outcome) => finish(saveToast(outcome)),
+        (failure) => setProblem(saveProblemFrom(failure, rejectedHeading))
+      )
   }
 
   function submit(event: FormEvent) {
