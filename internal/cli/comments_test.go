@@ -52,14 +52,19 @@ func messageJSON(id, threadID, label, body string) string {
 
 func TestCommentsCommands(t *testing.T) {
 	longBody := strings.Repeat("é", 81)
-	listBody := `{"comments":[` + strings.Join([]string{
-		commentJSON("c1", "", "", true, "Ada", "whole dashboard note", "null"),
-		commentJSON("c2", "", testPanel, false, "Grace", "gone panel", "null"),
-		commentJSON("c3", "c1", "", true, "Linus", "a reply", "null"),
-		commentJSON("c4", "", "", true, "Ken", "first line\nsecond line", "null"),
-		commentJSON("c5", "", "", true, "Rob", longBody, "null"),
-		commentJSON("c6", "", "", true, "Eve\u202eevil", "bidi author", "null"),
-	}, ",") + `],"next_cursor":null}`
+	wholeThread := "11111111-1111-4111-8111-111111111111"
+	goneThread := "22222222-2222-4222-8222-222222222222"
+	dashboardPage := `{"threads":[` + strings.Join([]string{
+		threadJSON(wholeThread, "dashboard", testDashboard, "", true, "open", "null"),
+		threadJSON(goneThread, "dashboard", testDashboard, testPanel, false, "open", "null"),
+	}, ",") + `],"messages":[` + strings.Join([]string{
+		messageJSON(wholeThread, wholeThread, "Ada", "whole dashboard note"),
+		messageJSON(goneThread, goneThread, "Grace", "gone panel"),
+		messageJSON("c3000000-0000-4000-8000-000000000003", wholeThread, "Linus", "a reply"),
+		messageJSON("c4000000-0000-4000-8000-000000000004", wholeThread, "Ken", "first line\nsecond line"),
+		messageJSON("c5000000-0000-4000-8000-000000000005", wholeThread, "Rob", longBody),
+		messageJSON("c6000000-0000-4000-8000-000000000006", wholeThread, "Eve\u202eevil", "bidi author"),
+	}, ",") + `],"next_cursor":null,"can_comment":true}`
 	envelope := func(c string) string { return `{"comment":` + c + `}` }
 	threadsPage := `{"threads":[` + strings.Join([]string{
 		threadJSON(testThread, "observation", testFinding, "", true, "open", "null"),
@@ -101,17 +106,17 @@ func TestCommentsCommands(t *testing.T) {
 		wantErr    string
 	}{
 		{
-			name:       "list renders every row shape",
+			name:       "list by dashboard id reads its threads and renders every row shape",
 			args:       []string{"comments", "list", testDashboard},
-			response:   listBody,
+			response:   dashboardPage,
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/dashboards/" + testDashboard + "/comments",
-			wantQuery:  "limit=50&status=open",
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&status=open&target=dashboard%3A" + testDashboard,
 			wantOut: []string{
 				"ID", "THREAD", "COMMENT",
-				"c1 - dashboard",
-				"c2 - " + testPanel + " (removed)",
-				"c3 c1 dashboard",
+				wholeThread + " - dashboard",
+				goneThread + " - " + testPanel + " (removed)",
+				"c3000000-0000-4000-8000-000000000003 " + wholeThread + " dashboard",
 				"first line",
 				strings.Repeat("é", 80) + "...",
 				"Eve evil",
@@ -119,12 +124,12 @@ func TestCommentsCommands(t *testing.T) {
 			wantNotOut: []string{"second line", strings.Repeat("é", 81), "\u202e"},
 		},
 		{
-			name:       "list sends status and panel",
+			name:       "list by dashboard id sends status and panel",
 			args:       []string{"comments", "list", testDashboard, "--status", "all", "--panel", testPanel},
-			response:   `{"comments":[],"next_cursor":null}`,
+			response:   `{"threads":[],"messages":[],"next_cursor":null,"can_comment":true}`,
 			wantMethod: http.MethodGet,
-			wantPath:   "/api/v1/dashboards/" + testDashboard + "/comments",
-			wantQuery:  "limit=50&panel_id=" + testPanel + "&status=all",
+			wantPath:   "/api/v1/threads",
+			wantQuery:  "limit=50&panel_id=" + testPanel + "&status=all&target=dashboard%3A" + testDashboard,
 		},
 		{
 			name:     "list rejects an unknown status",
@@ -813,5 +818,41 @@ func TestARunReplyPreviewsItsAnswerTitle(t *testing.T) {
 	}
 	if got := page.Messages[1].preview(); got != "is this real?" {
 		t.Errorf("plain message previews %q", got)
+	}
+}
+
+func TestListingByDashboardIDGivesWhatListingTheDashboardTargetGives(t *testing.T) {
+	page := `{"threads":[{"id":"` + testThread + `","target":{"kind":"dashboard","id":"` + testDashboard + `"},"panel_id":"p1","panel_present":true,"status":"open","resolved_by_version":null,` +
+		`"anchor":{"kind":"time","pos":{"x":0.4,"y":0.3},"from":"2026-11-20T23:56:00Z"}}],"messages":[` +
+		`{"id":"` + testThread + `","thread_id":"` + testThread + `","actor":{"label":"Ada"},"created_at":"2026-01-02T03:04:05Z","body":"@observe why?","answer":null},` +
+		`{"id":"` + testReply + `","thread_id":"` + testThread + `","actor":{"label":"Observe Agent for Ada"},"created_at":"2026-01-02T03:05:05Z","body":"Answered.","answer":{"finding":{"title":"Checkout errors doubled"}}}` +
+		`],"next_cursor":null,"can_comment":true}`
+	for _, json := range []bool{false, true} {
+		var outs []string
+		for _, args := range [][]string{
+			{"comments", "list", testDashboard},
+			{"comments", "list", "--on", "dashboard:" + testDashboard},
+		} {
+			if json {
+				args = append(args, "--json")
+			}
+			call, stdout, stderr, code := runAgainst(t, http.StatusOK, page, args...)
+			if code != 0 || call.path != "/api/v1/threads" {
+				t.Fatalf("%v: exit %d, path %q, stderr %q", args, code, call.path, stderr)
+			}
+			outs = append(outs, stdout)
+		}
+		if outs[0] != outs[1] {
+			t.Fatalf("json %v: by dashboard id\n%s\nby --on\n%s", json, outs[0], outs[1])
+		}
+		want := []string{"Answered. Checkout errors doubled"}
+		if json {
+			want = []string{`"answer":{"finding":{"title":"Checkout errors doubled"}}`, `"anchor":{"kind":"time"`}
+		}
+		for _, w := range want {
+			if !strings.Contains(outs[0], w) {
+				t.Errorf("json %v: output lacks %q:\n%s", json, w, outs[0])
+			}
+		}
 	}
 }

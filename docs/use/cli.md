@@ -449,7 +449,8 @@ Comments on a dashboard, an annotation or a proposal can be worked from the term
 A target is written `<kind>:<id>` with kind `dashboard`, `annotation`, `observation` or `proposal`, for example `dashboard:0a1b2c3d-0000-4000-8000-000000000001`.
 
 - `bin/observe comments list <dashboard-id>` lists the comments of open threads, replies included, oldest first; `--status resolved` shows resolved threads instead, `--status all` shows both, and `--panel <panel-id>` narrows it to one panel.
-  `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required.
+  `bin/observe comments list --on <kind>:<id>` lists the comments of any target the same way, and exactly one of the dashboard id and `--on` is required; a dashboard id gives what `--on dashboard:<id>` gives.
+  `--json` prints the server's page of `threads` and `messages`: a thread carries its `anchor`, the spot it points at in the shape `--at` takes as JSON, and a run's reply carries its `answer` when you can read it.
 - `bin/observe comments add --on <kind>:<id> <text...>` starts a thread and prints `Started thread <id> on <kind>:<id>`, even with `-q`.
   On a dashboard, `--panel <panel-id>` anchors it to a panel and `--version N` to a version, the latest by default; the server refuses both on an observation, an annotation or a proposal.
   On an observation, `--block <block-id>` anchors the comment to one of its blocks, and without it the comment is about the whole observation; the server refuses `--block` on any other target.
