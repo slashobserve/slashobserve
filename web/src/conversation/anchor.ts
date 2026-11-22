@@ -364,6 +364,20 @@ function ofSeries(anchor: Anchor): string {
     : ""
 }
 
+function looksLikeQuery(name: string): boolean {
+  return /[({[]/.test(name)
+}
+
+function valueSeries(anchor: Anchor): Anchor {
+  const names = anchor.series ? Object.keys(anchor.series) : []
+  const [only] = names
+  return names.length === 1 &&
+    only === "name" &&
+    looksLikeQuery(anchor.series?.name ?? "")
+    ? { ...anchor, series: undefined }
+    : anchor
+}
+
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`
 }
@@ -398,12 +412,12 @@ function subject(anchor: Anchor): string {
     case "slice":
       return `the slice ${anchor.category}`
     case "value":
-      return `the value${ofSeries(anchor)}`
+      return `the value${ofSeries(valueSeries(anchor))}`
     case "log_line":
       return [
-        `the log line ${anchor.id}`,
-        from && `at ${from}`,
-        quote,
+        ["the log line", quote && `"${quote}"`, from && `at ${from}`]
+          .filter(Boolean)
+          .join(" "),
         series && `in the series ${series}`,
       ]
         .filter(Boolean)
