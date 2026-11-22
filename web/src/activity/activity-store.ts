@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 import type { QueryClient } from "@tanstack/react-query"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
@@ -13,6 +13,8 @@ import {
   isStacked,
   panelWidth,
 } from "@/components/dock/card-width"
+import { ApiError } from "@/api/errors"
+import { useChat, type Chat } from "@/chat/chats-queries"
 
 const storageKey = "slashobserve-activity"
 const retiredReviseKey = "slashobserve-revise-on-comment"
@@ -38,6 +40,8 @@ type ActivityState = Persisted & {
   targets: Record<string, string | null>
   setOpen: (open: boolean) => void
   setChat: (dashboardId: string, chatId: string) => void
+  forgetChat: (dashboardId: string, chatId: string) => void
+  forgetChats: () => void
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
   setChatWidth: (width: number) => void
@@ -98,7 +102,24 @@ export const useActivityStore = create<ActivityState>()(
           open ? { open, openings: state.openings + 1 } : { open }
         ),
       setChat: (dashboardId, chatId) =>
-        set((state) => ({ chats: { ...state.chats, [dashboardId]: chatId } })),
+        set((state) =>
+          state.chats[dashboardId] === chatId
+            ? state
+            : { chats: { ...state.chats, [dashboardId]: chatId } }
+        ),
+      forgetChat: (dashboardId, chatId) =>
+        set((state) =>
+          state.chats[dashboardId] === chatId
+            ? {
+                chats: Object.fromEntries(
+                  Object.entries(state.chats).filter(
+                    ([id]) => id !== dashboardId
+                  )
+                ),
+              }
+            : state
+        ),
+      forgetChats: () => set({ chats: {} }),
       setWidth: (width) =>
         set({
           width: clampWidth(width, activityWidth, Number.POSITIVE_INFINITY),
@@ -234,10 +255,32 @@ export function usePanelLayout() {
   }
 }
 
+export function unusableChat(
+  error: unknown,
+  chat: Chat | undefined,
+  dashboardId: string
+): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 403 || error.status === 404
+  }
+  return (
+    chat !== undefined && (chat.read_only || chat.dashboard_id !== dashboardId)
+  )
+}
+
 export function useCurrentChat(
   dashboardId: string,
   addressChat: string | undefined
 ): string | undefined {
   const remembered = useActivityStore((state) => state.chats[dashboardId])
-  return addressChat ?? remembered
+  const forgetChat = useActivityStore((state) => state.forgetChat)
+  const checked = useChat(addressChat === undefined ? remembered : undefined)
+  const unusable =
+    remembered !== undefined &&
+    unusableChat(checked.error, checked.data?.chat, dashboardId)
+  useEffect(() => {
+    if (unusable) forgetChat(dashboardId, remembered)
+  }, [unusable, forgetChat, dashboardId, remembered])
+  if (addressChat !== undefined) return addressChat
+  return unusable ? undefined : remembered
 }

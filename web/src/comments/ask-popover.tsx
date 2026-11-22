@@ -18,6 +18,7 @@ import type { GateInput } from "@/conversation/delivery"
 import { arrivingClass } from "@/conversation/thread-view"
 import { useComposer, type ComposerModel } from "@/conversation/use-composer"
 import { useCanvasTool, useReportSending } from "@/dashboards/canvas-tools"
+import type { SidePanelCard } from "@/dashboards/dock"
 import {
   useSetDashboardSearch,
   validateDashboardSearch,
@@ -100,24 +101,46 @@ function continuedChat(
   return !open.read_only && isAbout(open, subject) ? openChatId : null
 }
 
-export function useOpenChat(dashboardId: string, paneShown: boolean) {
+export type ChatWrite = "switch" | "show" | null
+
+export function chatWriteOf(
+  pane: SidePanelCard | null,
+  chatId: string,
+  addressChat: string | undefined
+): ChatWrite {
+  if (pane === "activity") return "switch"
+  if (pane === "chat" && chatId !== addressChat) return "show"
+  return null
+}
+
+export function useOpenChat(dashboardId: string, pane: SidePanelCard | null) {
   const addressChat = useSearch({
     strict: false,
     select: (search: Record<string, unknown>) =>
       validateDashboardSearch(search).chat,
   })
-  const chat = useCurrentChat(dashboardId, addressChat)
   const rememberChat = useActivityStore((state) => state.setChat)
+  useEffect(() => {
+    if (addressChat !== undefined && addressChat !== newChat) {
+      rememberChat(dashboardId, addressChat)
+    }
+  }, [addressChat, dashboardId, rememberChat])
+  const chat = useCurrentChat(
+    dashboardId,
+    pane === "chat" ? addressChat : undefined
+  )
   const setSearch = useSetDashboardSearch()
   const select = useCallback(
     (chatId: string) => {
       rememberChat(dashboardId, chatId)
-      if (paneShown && chatId !== addressChat) {
-        keepFocusThroughPaneSwitch()
-        setSearch((state) => ({ ...state, chat: chatId }), { replace: true })
-      }
+      const write = chatWriteOf(pane, chatId, addressChat)
+      if (write === null) return
+      if (write === "switch") keepFocusThroughPaneSwitch()
+      setSearch((state) => ({ ...state, tab: "chat", chat: chatId }), {
+        replace: true,
+      })
     },
-    [rememberChat, dashboardId, paneShown, addressChat, setSearch]
+    [rememberChat, dashboardId, pane, addressChat, setSearch]
   )
   return { chatId: openChatOf(chat), select }
 }

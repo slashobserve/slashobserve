@@ -505,7 +505,7 @@ function DashboardView({
   const cardVisible = cardView !== null
   const { chatId: askChatId, select: selectAskChat } = useOpenChat(
     dashboardId,
-    cardVisible
+    cardView
   )
   const canvasHost = useMemo<CanvasHost>(
     () => ({

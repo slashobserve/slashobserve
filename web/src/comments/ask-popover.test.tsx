@@ -11,6 +11,7 @@ import {
   type GateInput,
 } from "@/conversation/delivery"
 import { useCanvasTool, type OpenTurn } from "@/dashboards/canvas-tools"
+import type { SidePanelCard } from "@/dashboards/dock"
 import type { Finding } from "@/findings/queries"
 import type { ObserveRequest } from "@/observe/queries"
 import type { Anchor } from "@/panels/anchors"
@@ -19,6 +20,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 import type { CanvasSubject } from "./canvas-host"
 import {
   AskPopover,
+  chatWriteOf,
   noModelAskText,
   openChatOf,
   privateText,
@@ -288,71 +290,138 @@ describe("openChatOf", () => {
 })
 
 function ChatHost({
-  paneShown,
-  started,
+  pane,
+  asked,
 }: {
-  paneShown: boolean
-  started: string
+  pane: SidePanelCard | null
+  asked: string
 }) {
-  const { chatId, select } = useOpenChat("d1", paneShown)
+  const { chatId, select } = useOpenChat(dashboardId, pane)
   return (
     <>
       <output>{chatId ?? "none"}</output>
-      <button onClick={() => select(started)}>Ask on the canvas</button>
+      <button onClick={() => select(asked)}>Ask on the canvas</button>
     </>
   )
 }
 
-function renderChatHost(url: string, paneShown: boolean) {
-  return renderWithProviders(<ChatHost paneShown={paneShown} started="q1" />, {
-    route: { path: "/d/$dashboardId/{-$slug}", url },
+function renderChatHost(
+  query: string,
+  pane: SidePanelCard | null,
+  asked = "c1"
+) {
+  stubServer()
+  return renderWithProviders(<ChatHost pane={pane} asked={asked} />, {
+    route: {
+      path: "/d/$dashboardId/{-$slug}",
+      url: `/d/${dashboardId}${query}`,
+    },
   })
 }
+
+function rememberedChat() {
+  return useActivityStore.getState().chats[dashboardId]
+}
+
+describe("chatWriteOf", () => {
+  it("switches a pane on Activity to the chat", () => {
+    expect(chatWriteOf("activity", "c1", undefined)).toBe("switch")
+    expect(chatWriteOf("activity", "c1", "c1")).toBe("switch")
+  })
+
+  it("shows the chat in a Chat pane only when it is not already shown", () => {
+    expect(chatWriteOf("chat", "c1", "c9")).toBe("show")
+    expect(chatWriteOf("chat", "c1", "c1")).toBeNull()
+  })
+
+  it("writes nothing while the pane is closed or shows something else", () => {
+    for (const pane of [null, "share", "edit"] as const) {
+      expect(chatWriteOf(pane, "c1", undefined)).toBeNull()
+    }
+  })
+})
 
 describe("useOpenChat", () => {
   afterEach(() => useActivityStore.setState({ chats: {} }))
 
-  it("keeps a chat started on the canvas out of the address while the pane is closed, and continues it", async () => {
-    const { user, router } = renderChatHost("/d/d1", false)
+  it("keeps a chat started on the canvas out of the address while the pane is closed, and makes it the current chat", async () => {
+    const { user, router } = renderChatHost("", null)
     await user.click(
       await screen.findByRole("button", { name: "Ask on the canvas" })
     )
     expect(router?.state.location.search).not.toHaveProperty("chat")
-    expect(screen.getByRole("status")).toHaveTextContent("q1")
+    expect(rememberedChat()).toBe("c1")
+    expect(screen.getByRole("status")).toHaveTextContent("c1")
   })
 
-  it("switches the open pane to the chat started on the canvas", async () => {
-    const { user, router } = renderChatHost("/d/d1", true)
+  it("switches a pane on Activity to the chat, even when the address picked the Activity tab", async () => {
+    const { user, router } = renderChatHost("?tab=activity", "activity")
     await user.click(
       await screen.findByRole("button", { name: "Ask on the canvas" })
     )
     await waitFor(() =>
-      expect(router?.state.location.search).toMatchObject({ chat: "q1" })
+      expect(router?.state.location.search).toMatchObject({
+        tab: "chat",
+        chat: "c1",
+      })
     )
-    expect(screen.getByRole("status")).toHaveTextContent("q1")
   })
 
-  it("switches the open pane to a remembered chat that a canvas ask continues", async () => {
-    useActivityStore.setState({ chats: { d1: "q1" } })
-    const { user, router } = renderChatHost("/d/d1", true)
+  it("switches the pane to a remembered chat that a canvas ask continues", async () => {
+    useActivityStore.setState({ chats: { [dashboardId]: "c1" } })
+    const { user, router } = renderChatHost("", "activity")
     await user.click(
       await screen.findByRole("button", { name: "Ask on the canvas" })
     )
     await waitFor(() =>
-      expect(router?.state.location.search).toMatchObject({ chat: "q1" })
+      expect(router?.state.location.search).toMatchObject({ chat: "c1" })
     )
   })
 
-  it("prefers the chat in the address over the remembered one", async () => {
-    useActivityStore.setState({ chats: { d1: "q1" } })
-    renderChatHost("/d/d1?chat=c9", false)
+  it("leaves the address alone while the Share pane shows", async () => {
+    const { user, router } = renderChatHost("?share=1", "share")
+    await user.click(
+      await screen.findByRole("button", { name: "Ask on the canvas" })
+    )
+    expect(router?.state.location.search).not.toHaveProperty("chat")
+    expect(rememberedChat()).toBe("c1")
+  })
+
+  it("remembers a chat the address carries, so the pane and the canvas agree after it closes", async () => {
+    useActivityStore.setState({ chats: { [dashboardId]: "c7" } })
+    renderChatHost("?chat=c1", "chat")
+    await waitFor(() => expect(rememberedChat()).toBe("c1"))
+  })
+
+  it("does not remember a new chat from the address", async () => {
+    useActivityStore.setState({ chats: { [dashboardId]: "c1" } })
+    renderChatHost("?chat=new", "chat")
+    expect(await screen.findByRole("status")).toHaveTextContent("none")
+    expect(rememberedChat()).toBe("c1")
+  })
+
+  it("prefers the chat in the address while the pane shows it", async () => {
+    useActivityStore.setState({ chats: { [dashboardId]: "c1" } })
+    renderChatHost("?chat=c9", "chat")
     expect(await screen.findByRole("status")).toHaveTextContent("c9")
   })
 
-  it("starts fresh for a new chat in the address", async () => {
-    useActivityStore.setState({ chats: { d1: "q1" } })
-    renderChatHost("/d/d1?chat=new", false)
-    expect(await screen.findByRole("status")).toHaveTextContent("none")
+  it("continues the latest canvas chat while the pane is hidden, not the address chat it could not continue", async () => {
+    const { user } = renderChatHost("?chat=c9", null)
+    await waitFor(() => expect(rememberedChat()).toBe("c9"))
+    await user.click(
+      await screen.findByRole("button", { name: "Ask on the canvas" })
+    )
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("c1")
+    )
+  })
+
+  it("forgets a remembered chat that no longer loads and falls back to none", async () => {
+    useActivityStore.setState({ chats: { [dashboardId]: "gone" } })
+    renderChatHost("", null)
+    await waitFor(() => expect(rememberedChat()).toBeUndefined())
+    expect(screen.getByRole("status")).toHaveTextContent("none")
   })
 })
 
