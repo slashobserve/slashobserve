@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
@@ -421,16 +422,21 @@ func commentWithin(ref commentRef, budget int) commentOut {
 	if !fits() {
 		out.At = ""
 	}
-	body := ref.message.Body
-	for n := min(len(body), maxCommentOutBytes); n > 0 && !fits(); {
-		n = max(n-(jsonSize(out)-budget+1), 0)
-		out.Body, out.BodyTruncated = clip(body, n), true
-	}
 	if !fits() {
 		for i := range out.Mentions {
 			out.Mentions[i].Name = ""
 		}
 	}
+	if fits() {
+		return out
+	}
+	body := ref.message.Body
+	out.BodyTruncated = true
+	longest := sort.Search(min(len(body), maxCommentOutBytes), func(n int) bool {
+		out.Body = clip(body, n+1)
+		return !fits()
+	})
+	out.Body = clip(body, longest)
 	return out
 }
 

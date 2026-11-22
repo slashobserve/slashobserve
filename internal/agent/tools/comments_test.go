@@ -18,6 +18,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -345,7 +346,7 @@ func worstCaseRef(t *testing.T) commentRef {
 		message: threads.Message{
 			ID:          dashB,
 			ThreadID:    dashB,
-			Author:      actor.Actor{Name: author},
+			Author:      actor.Actor{Name: author, Origin: origin.Origin{Kind: origin.MCP, Client: strings.Repeat("<", origin.MaxClientRunes)}},
 			AuthorEmail: author,
 			CreatedAt:   time.Date(2026, 10, 19, 12, 30, 0, 0, time.UTC),
 			EditedAt:    &edited,
@@ -373,14 +374,32 @@ func worstCaseRunReplyRef(t *testing.T) commentRef {
 }
 
 func TestWorstCaseRunReplyWithItsAnswerFitsTheListBudget(t *testing.T) {
-	q := commentQuery{target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}, byTarget: true}
-	out, _, cut := commentPage(q, []commentRef{worstCaseRunReplyRef(t)}, strings.Repeat("c", 256))
-	body, err := json.Marshal(out)
-	if err != nil {
-		t.Fatal(err)
+	builtIn := worstCaseRunReplyRef(t)
+	builtIn.message.Author = actor.Actor{Name: builtIn.message.Author.Name, RunID: dashA}
+	tests := []struct {
+		name      string
+		ref       commentRef
+		mayCutRun bool
+	}{
+		{name: "built-in agent", ref: builtIn},
+		{name: "connected agent with the longest client name", ref: worstCaseRunReplyRef(t), mayCutRun: true},
 	}
-	if cut || len(out.Comments) != 1 || out.Comments[0].BodyTruncated || len(body) > listBudget {
-		t.Fatalf("worst-case run reply: cut %v, %d comments, body truncated %v, %d bytes over the %d byte budget", cut, len(out.Comments), out.Comments[0].BodyTruncated, len(body), listBudget)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := commentQuery{target: threads.Target{Kind: threads.KindObservation, ID: mustUUID(t, dashA)}, byTarget: true}
+			out, _, cut := commentPage(q, []commentRef{tt.ref}, strings.Repeat("c", 256))
+			body, err := json.Marshal(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cut || len(out.Comments) != 1 || len(body) > listBudget {
+				t.Fatalf("cut %v, %d comments, %d bytes over the %d byte budget", cut, len(out.Comments), len(body), listBudget)
+			}
+			got := out.Comments[0]
+			if got.Answer == nil || got.Answer.Markdown != commentItem(tt.ref).Answer.Markdown || got.BodyTruncated && !tt.mayCutRun {
+				t.Fatalf("answer %+v, status line truncated %v", got.Answer, got.BodyTruncated)
+			}
+		})
 	}
 }
 
@@ -401,8 +420,12 @@ func TestWorstCaseCommentFitsTheListBudgetAtLimitOne(t *testing.T) {
 	if !out.Comments[0].BodyTruncated || !strings.HasSuffix(out.Comments[0].Body, "...") {
 		t.Fatalf("the worst-case body was not cut: truncated = %v", out.Comments[0].BodyTruncated)
 	}
-	if got := out.Comments[0]; got.Anchor == nil || len(got.Mentions) != threads.MaxMentions || got.Mentions[0].ID != dashA {
+	got := out.Comments[0]
+	if got.Anchor == nil || len(got.Mentions) != threads.MaxMentions || got.Mentions[0].ID != dashA {
 		t.Fatalf("the worst-case comment lost its anchor or its mention ids: anchor %v, mentions %+v", got.Anchor, got.Mentions)
+	}
+	if got.At != "" || got.Mentions[threads.MaxMentions-1].Name != "" || got.Actor.Client == nil || len(got.Body) <= len("...") {
+		t.Fatalf("the worst case did not drop at and the mention names before cutting the body, with every field at its maximum: at %q, last mention %q, client %v, body %d bytes", got.At, got.Mentions[threads.MaxMentions-1].Name, got.Actor.Client, len(got.Body))
 	}
 }
 
