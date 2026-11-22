@@ -164,6 +164,7 @@ This lists only the packages whose purpose the name does not make obvious.
   A transaction writes or locks the owner's row before it appends, never after; a deleted owner's rows keep their folder.
   Activity reads filter by `Levels.Visible()` in SQL through `folders.AudienceOf`, the one definition of a reader's folders, Admin flag and identity, which search also reads, and the activity stream re-reads the principal with `RequestPrincipal` and its levels at every ping, as the dashboard stream does.
 - Deleting a dashboard is permanent: foreign keys cascade its versions, threads, agent requests and import record.
+  A `BEFORE DELETE` trigger on `dashboards` (`delete_dashboard_findings`) removes the chat-only answers of the dashboard and of its runs first (a saved answer keeps its place in the cascade, so `keep_copies_of_run` still sees its finding), because the cascade deleting a run fires `delete_unsaved_findings`, whose set-null on `agent_requests.applies_finding_id` would otherwise update a sibling run the same cascade is deleting (`tuple to be updated was already modified`, or a foreign key violation on a row the delete already touched).
   Inserts that lose the race against a delete map the foreign-key error (`db.IsForeignKeyViolation`) to 404.
 
 ## Database and dashboards
