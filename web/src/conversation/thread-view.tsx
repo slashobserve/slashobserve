@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -8,7 +6,6 @@ import {
   ReplyIcon,
   RotateCcwIcon,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import {
   EntryAction,
@@ -17,7 +14,6 @@ import {
   MetaState,
   ResolvedState,
 } from "@/activity/entry-frame"
-import { ApiError } from "@/api/errors"
 import { threadKeys } from "@/api/keys"
 import { MessageText } from "@/comments/message-text"
 import { threadParticipants, type MentionPerson } from "@/comments/mentions"
@@ -29,132 +25,20 @@ import {
 } from "@/comments/thread-queries"
 import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
-import { observeRequestQuery } from "@/observe/queries"
 
+import type { AgentGate } from "./delivery"
+import { RunAnswer, RunLine, RunLink } from "./run-answer"
 import {
-  AnswerCard,
-  reviseFailureText,
-  type RevisionAsked,
-} from "./answer-card"
-import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
-import { planRevise, subjectOf } from "./send-plan"
-import {
-  askedAgentName,
   panelText,
   replyCountText,
-  runLineText,
   threadStatus,
   unansweredRun,
-  type Run,
 } from "./thread-state"
-import { useDeliver } from "./use-composer"
 
 const foldMs = 200
 
 export const arrivingClass =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 motion-safe:ease-out"
-
-const runLinkClass = "underline underline-offset-2 hover:text-foreground"
-
-function RunLink({ runId }: { runId: string }) {
-  return (
-    <Link
-      to="/c/$requestId"
-      params={{ requestId: runId }}
-      className={runLinkClass}
-    >
-      View the run
-    </Link>
-  )
-}
-
-function RunLine({ message, run }: { message: Message; run: Run }) {
-  const builtin = run.assigned_kind === "builtin"
-  const request = useQuery({
-    ...observeRequestQuery(run.id),
-    enabled: builtin,
-    retry: false,
-  })
-  const status = request.data?.status ?? run.status
-  return (
-    <p role="status" className="text-xs text-muted-foreground">
-      {runLineText(run, status, askedAgentName(message, run))}
-      {builtin ? (
-        <>
-          {" · "}
-          <RunLink runId={run.id} />
-        </>
-      ) : null}
-    </p>
-  )
-}
-
-type MessageAnswer = NonNullable<Message["answer"]>
-
-function RunAnswer({
-  answer,
-  runId,
-  target,
-  entry,
-  gate,
-}: {
-  answer: MessageAnswer
-  runId: string
-  target: string
-  entry: ThreadWithMessages
-  gate: AgentGate
-}) {
-  const subject = subjectOf(target)
-  const { deliver, pending } = useDeliver(subject)
-  const findingId = answer.finding.id
-  const mayRevise =
-    subject?.kind === "dashboard" &&
-    entry.thread.allowed_actions.includes("reply")
-
-  async function revise(): Promise<RevisionAsked> {
-    const plan = planRevise(
-      threadPlace(entry.thread.id, entry.thread),
-      subject,
-      findingId,
-      crypto.randomUUID()
-    )
-    if ("error" in plan) {
-      toast.error(plan.error)
-      return false
-    }
-    try {
-      await deliver(plan)
-      return true
-    } catch (error) {
-      if (error instanceof ApiError && error.code === "already_applied") {
-        return true
-      }
-      toast.error(reviseFailureText(error))
-      return false
-    }
-  }
-
-  return (
-    <AnswerCard
-      finding={answer.finding}
-      requestId={runId}
-      canSave={answer.can_save}
-      revise={
-        mayRevise
-          ? {
-              onRevise: revise,
-              pending,
-              blocked: reviseBlock(
-                gate,
-                entry.thread.agent?.kind === "builtin"
-              ),
-              dashboardId: subject.id,
-            }
-          : undefined
-      }
-    />
-  )
-}
 
 function MessageRow({
   message,
@@ -172,7 +56,6 @@ function MessageRow({
   gate: AgentGate
 }) {
   const answer = message.answer ?? null
-  const runId = answer?.finding.agent_request_id ?? null
   const builtinRunId = message.actor.run_id ?? null
   const pending = unansweredRun(message, entry.messages)
   return (
@@ -195,12 +78,11 @@ function MessageRow({
           <RunLink runId={builtinRunId} />
         </p>
       )}
-      {answer === null || runId === null ? null : (
+      {answer === null ? null : (
         <RunAnswer
           answer={answer}
-          runId={runId}
           target={target}
-          entry={entry}
+          thread={entry.thread}
           gate={gate}
         />
       )}

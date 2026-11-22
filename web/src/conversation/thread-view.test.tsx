@@ -358,14 +358,31 @@ describe("ThreadView", () => {
     }
   )
 
-  it("offers to file a new observation for an answer asked in an observation's discussion", async () => {
+  it("offers to file a new observation for an answer saved from a dashboard thread", async () => {
     const fetch = stubFetch({
       [`POST /api/v1/observe/${runId}/observation`]: {
         status: 201,
         body: { observation_id: "o-new" },
       },
     })
-    const { user } = show(
+    const { user } = show({
+      thread: thread(),
+      messages: [question, answered({ observe_worthy: true })],
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Create observation" })
+    )
+    await waitFor(() =>
+      expect(
+        fetch.mock.calls.map(
+          ([sent]) => `${sent.method} ${new URL(sent.url).pathname}`
+        )
+      ).toContain(`POST /api/v1/observe/${runId}/observation`)
+    )
+  })
+
+  it("does not offer a new observation for an answer on an observation", async () => {
+    show(
       {
         thread: thread({
           target: { kind: "observation", id: "o1" },
@@ -382,22 +399,13 @@ describe("ThreadView", () => {
       undefined,
       "observation:o1"
     )
-    await user.click(
-      await screen.findByRole("button", { name: "Create observation" })
-    )
+    expect(await screen.findByText(/Errors/)).toBeInTheDocument()
     expect(
-      screen.queryByRole("link", { name: "Open the observation" })
+      screen.queryByRole("button", { name: "Create observation" })
     ).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Revise the dashboard" })
     ).toBeNull()
-    await waitFor(() =>
-      expect(
-        fetch.mock.calls.map(
-          ([sent]) => `${sent.method} ${new URL(sent.url).pathname}`
-        )
-      ).toContain(`POST /api/v1/observe/${runId}/observation`)
-    )
   })
 
   it("applies the suggested change in the thread with Revise the dashboard", async () => {
