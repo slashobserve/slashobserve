@@ -12,8 +12,8 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
 | `a` | Ask the agent about the panel, when you may comment on the dashboard and a model is connected. |
-| `c` | Comment on the panel, when you may comment on the dashboard; with no panel it opens the activity pane and puts the cursor in its comment box. |
-| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then go back from the Comment tool to Select, then clear the selected panel. |
+| `c` | Comment on the whole panel in a composer on the panel, when you may comment on the dashboard; with no panel it turns Comment mode on, and in Comment mode it turns it off. |
+| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then leave Comment mode for Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
 | `t` then `→` | Move the time range forward by half its length. |
@@ -61,6 +61,8 @@ They do nothing on a dashboard that hides the time picker.
 
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
 `v`, `e`, `i`, `a` and `c` also act on no panel while you have unsaved layout changes; `c` then only opens the activity pane.
+In the full-size view and in TV mode, `c` comments on the panel in the activity pane instead, and with no panel it opens the activity pane.
+On a copy of a repeated panel, `c` also comments in the activity pane.
 
 ## Logs page keys
 

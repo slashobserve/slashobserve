@@ -209,3 +209,66 @@ func TestSwitchingOffOnlyAdminsForAFolderThatHoldsARestrictedAnswerIsRefused(t *
 		})
 	}
 }
+
+func TestOnlyTheFolderRecordedAsTheAuditFolderCarriesTheAuditFlag(t *testing.T) {
+	d := dbtest.New(t)
+	trail := folderMadeBy(t, d, "Trail", addUser(t, d, "alice"))
+	other := folderMadeBy(t, d, "Payroll", addUser(t, d, "bob"))
+	admin := engineAs(t, d, rootAdmin, nil)
+
+	flags := func() map[string]bool {
+		rec := call(t, admin, http.MethodGet, "/api/v1/folders", "")
+		var body struct {
+			Folders []struct {
+				ID    string `json:"id"`
+				Audit bool   `json:"audit"`
+			} `json:"folders"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK {
+			t.Fatalf("list = %d %s", rec.Code, rec.Body)
+		}
+		out := map[string]bool{}
+		for _, f := range body.Folders {
+			out[f.ID] = f.Audit
+		}
+		return out
+	}
+
+	if got := flags(); got[trail] || got[other] {
+		t.Fatalf("before the Audit folder is recorded, flags = %v, want none", got)
+	}
+	if _, err := d.SQLDB(t).ExecContext(t.Context(), `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, AuditStarterKey, trail); err != nil {
+		t.Fatal(err)
+	}
+	if got := flags(); !got[trail] || got[other] {
+		t.Fatalf("flags = %v, want only %s", got, trail)
+	}
+	renamed := call(t, admin, http.MethodPatch, "/api/v1/folders/"+trail, `{"title":"Records"}`)
+	if renamed.Code != http.StatusOK || !strings.Contains(renamed.Body.String(), `"audit":true`) {
+		t.Fatalf("rename = %d %s, want audit kept", renamed.Code, renamed.Body)
+	}
+}
+
+func TestANonAdminsFolderListCarriesNoAuditFolder(t *testing.T) {
+	d := dbtest.New(t)
+	trail := folderMadeBy(t, d, "Trail", addUser(t, d, "alice"))
+	d.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, trail)
+	d.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, AuditStarterKey, trail)
+	editor := auth.Principal{Kind: auth.KindServiceAccount, ID: "00000000-0000-4000-8000-0000000000bb", Name: "ci", Role: auth.RoleEditor}
+
+	rec := call(t, engineAs(t, d, editor, nil), http.MethodGet, "/api/v1/folders", "")
+	var body struct {
+		Folders []struct {
+			ID    string `json:"id"`
+			Audit bool   `json:"audit"`
+		} `json:"folders"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("list = %d %s", rec.Code, rec.Body)
+	}
+	for _, f := range body.Folders {
+		if f.Audit || f.ID == trail {
+			t.Errorf("a non-Admin's list holds %+v, want no Audit folder", f)
+		}
+	}
+}

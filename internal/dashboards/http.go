@@ -167,7 +167,11 @@ func newTagsJSON(tags []TagCount) []tagCountJSON {
 }
 
 func (s *Service) listTags(c *gin.Context) {
-	tags, err := s.Tags(c.Request.Context(), httpapi.Caller(c))
+	exclude, ok := excludeAuditQuery(c)
+	if !ok {
+		return
+	}
+	tags, err := s.Tags(c.Request.Context(), httpapi.Caller(c), exclude)
 	if err != nil {
 		s.fail(c, "list dashboard tags", err)
 		return
@@ -216,7 +220,11 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.Query = trimmed
 	}
-	return params, problemFilter(c, &params) && folderFilters(c, &params)
+	return params, narrowingFilters(c, &params)
+}
+
+func narrowingFilters(c *gin.Context, params *ListParams) bool {
+	return problemFilter(c, params) && excludeAuditFilter(c, params) && folderFilters(c, params)
 }
 
 func problemFilter(c *gin.Context, params *ListParams) bool {
@@ -234,6 +242,23 @@ func problemFilter(c *gin.Context, params *ListParams) bool {
 	}
 	params.Problem = problem
 	return true
+}
+
+func excludeAuditQuery(c *gin.Context) (exclude, ok bool) {
+	switch c.DefaultQuery("exclude_audit", "false") {
+	case "false":
+		return false, true
+	case "true":
+		return true, true
+	}
+	httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "exclude_audit must be true or false")
+	return false, false
+}
+
+func excludeAuditFilter(c *gin.Context, params *ListParams) bool {
+	exclude, ok := excludeAuditQuery(c)
+	params.ExcludeAudit = exclude
+	return ok
 }
 
 func folderFilters(c *gin.Context, params *ListParams) bool {

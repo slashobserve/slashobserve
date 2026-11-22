@@ -4,6 +4,8 @@ import { useActivityStore } from "@/activity/activity-store"
 import { useAgentInfo } from "@/observe/queries"
 import { isDataPanel, type LayoutPanel } from "@/spec"
 
+import { openKeyDraft } from "./canvas-tools"
+
 import type { DashboardSearch, useSetDashboardSearch } from "./search"
 
 type SetSearch = ReturnType<typeof useSetDashboardSearch>
@@ -54,7 +56,7 @@ export function focusComment(setSearch: SetSearch, field: Composer) {
   focusWhenMounted(field)
 }
 
-export function commentOnPanel(setSearch: SetSearch, panelId: string) {
+function commentOnPanel(setSearch: SetSearch, panelId: string) {
   useActivityStore.getState().setOpen(true)
   setSearch((state) => ({
     ...onActivityTab(state),
@@ -63,13 +65,21 @@ export function commentOnPanel(setSearch: SetSearch, panelId: string) {
   }))
 }
 
-export function commentOnPanelAndFocus(
+export type CommentPlace = "canvas" | "pane"
+
+export function commentOnThisPanel(
   setSearch: SetSearch,
   panelId: string,
-  field: Composer
-) {
+  onCanvas: boolean,
+  paneField?: Composer
+): CommentPlace {
+  if (onCanvas) {
+    openKeyDraft(panelId, "comment")
+    return "canvas"
+  }
   commentOnPanel(setSearch, panelId)
-  focusWhenMounted(field)
+  if (paneField) focusWhenMounted(paneField)
+  return "pane"
 }
 
 function askTheAgent() {

@@ -96,6 +96,9 @@ A service-account key matches no entry, because entries name people and groups.
 A key therefore sees a restricted folder only when its service account is an Admin or created the folder.
 To let automation work in a restricted folder, use a key of an Admin service account.
 A key that manages the folder, such as one of an Admin service account, can change the list with `observe folders permissions show`, `grant`, `revoke` and `open`, and an Admin key makes a folder Admins only with `admins-only`; see [the command line](../use/cli.md#folders).
+The [Audit folder](../use/activity.md#audit-folder) is an ordinary Admins-only folder that the server made, and each folder in `GET /api/v1/folders` carries a read-only `audit`, true for that one whatever it is now called and false for every other folder.
+The same flag is `audit` in the MCP `list_folders` result, and `observe folders list` marks that folder `(Audit folder)`.
+The Dashboards page leaves that folder out, and so can any other client: `GET /api/v1/dashboards?exclude_audit=true`, MCP `list_dashboards` with `exclude_audit: true` and `observe dashboards list --exclude-audit` leave the Audit folder's dashboards out of the rows, the total and the paging alike, and change nothing else, and `GET /api/v1/dashboards/tags?exclude_audit=true` and `observe dashboards tags --exclude-audit` do the same for the tag list and its counts; without it every dashboard the caller can see is listed, as before.
 Over REST, `GET /api/v1/folders/{id}/permissions` reads the list and `PUT` replaces all of it in one call; `{"entries": [], "admins_only": true}` makes the folder Admins only.
 
 The agent works as the person or key that asked.

@@ -153,3 +153,23 @@ describe("ExploreList services", () => {
     expect(screen.getAllByText("Loading services")).toHaveLength(3)
   })
 })
+
+describe("ExploreList browsing", () => {
+  it("leaves the audit datasource out of the log sources", async () => {
+    stubServices()
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(datasourceKeys.list(), {
+      datasources: [
+        source("few", "Few"),
+        source("slashobserve-audit", "Audit trail", "opensearch"),
+      ],
+    })
+    renderWithProviders(<ExploreList kind="logs" />, {
+      queryClient,
+      route: { path: "/", url: "/" },
+    })
+
+    expect(await screen.findByRole("link", { name: "Few" })).toBeVisible()
+    expect(screen.queryByRole("link", { name: "Audit trail" })).toBeNull()
+  })
+})

@@ -818,7 +818,7 @@ export interface paths {
         };
         /**
          * List the folders the caller can see.
-         * @description A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone. Folders are sorted by title without regard to case, with General last. Each folder carries the caller's own `permissions` on it. The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
+         * @description A folder with listed people or groups is visible only to them, to its creator and to Admins; every other folder is visible to everyone. Folders are sorted by title without regard to case, with General last. Each folder carries the caller's own `permissions` on it, and `audit` is true on the Audit folder. The response is `private, no-cache` with a weak `ETag` and `Vary: Authorization, Cookie`, so a client that sends `If-None-Match` gets 304 while nothing changed.
          */
         get: operations["listFolders"];
         put?: never;
@@ -4834,6 +4834,8 @@ export interface components {
             restricted: boolean;
             /** @description True when only Admins can read the folder, whoever made it. Such a folder lists no people or groups, and only such a folder can hold content that reads an Admins-only datasource. */
             admins_only: boolean;
+            /** @description True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set. */
+            audit: boolean;
             /** @description All dashboards in the folder, including ones the caller cannot see when the caller manages it. */
             dashboard_count: number;
             /** @description The names of up to 5 listed people, then groups. */
@@ -10925,6 +10927,8 @@ export interface operations {
                 tag?: string[];
                 /** @description Only dashboards with this health problem at their last check (`no_data`, `query_failed`, `variable_failed`) or now (`duplicate_title`, `unopened`); `any` means any of them, and also a dashboard waiting for a recheck of an earlier problem, or with a health repair on record. The same rules as `GET /health`. */
                 problem?: "any" | "no_data" | "query_failed" | "variable_failed" | "duplicate_title" | "unopened";
+                /** @description `true` leaves out the dashboards in the built-in Audit folder, from the page, the `total_count` and the paging alike; the other folders are listed as before. It only narrows what the caller can already see, and does not widen it. Default `false`. */
+                exclude_audit?: boolean;
             };
             header?: never;
             path?: never;
@@ -11006,7 +11010,10 @@ export interface operations {
     };
     listDashboardTags: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `true` leaves out the dashboards in the built-in Audit folder, so their tags and the counts come from the other folders only. Default `false`. */
+                exclude_audit?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

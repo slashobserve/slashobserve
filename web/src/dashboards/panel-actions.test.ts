@@ -10,11 +10,12 @@ import type { LayoutPanel } from "@/spec"
 import {
   askAboutPanel,
   askAboutPanelAndFocus,
-  commentOnPanelAndFocus,
+  commentOnThisPanel,
   conversationActionsFor,
   focusComment,
 } from "./panel-actions"
 import type { DashboardSearch } from "./search"
+import { useCanvasTool } from "./canvas-tools"
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -155,22 +156,51 @@ describe("acting on a panel and focusing the composer", () => {
     return queue
   }
 
-  it("comments on the panel and focuses the composer", () => {
+  it("comments on the panel in the activity pane and focuses the composer off the canvas", () => {
     const queue = frames()
     const focus = vi.fn()
     useActivityStore.getState().setAskingAgent(false)
     let search: DashboardSearch = { vars: {} }
-    commentOnPanelAndFocus(
-      (update) => {
+    const place = commentOnThisPanel(
+      (update: (current: DashboardSearch) => DashboardSearch) => {
         search = update(search)
       },
       "latency",
+      false,
       { current: { focus } as never }
     )
+    expect(place).toBe("pane")
     expect(search).toMatchObject({ tab: "activity", panel: "latency" })
     expect(useActivityStore.getState().askingAgent).toBe(false)
+    expect(useCanvasTool.getState().draft).toBeNull()
     queue.shift()?.()
     expect(focus).toHaveBeenCalledTimes(1)
+  })
+
+  it("opens the canvas composer on the whole panel when the panel takes canvas comments", () => {
+    const queue = frames()
+    const focus = vi.fn()
+    let search: DashboardSearch = { vars: {} }
+    const place = commentOnThisPanel(
+      (update: (current: DashboardSearch) => DashboardSearch) => {
+        search = update(search)
+      },
+      "latency",
+      true,
+      { current: { focus } as never }
+    )
+    expect(place).toBe("canvas")
+    expect(search).toEqual({ vars: {} })
+    expect(useCanvasTool.getState().draft).toEqual({
+      panelId: "latency",
+      tool: "comment",
+      anchor: null,
+      at: null,
+      surface: null,
+    })
+    queue.shift()?.()
+    expect(focus).not.toHaveBeenCalled()
+    useCanvasTool.getState().close()
   })
 
   it("asks about the panel and focuses the composer", () => {

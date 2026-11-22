@@ -25,6 +25,7 @@ export type DashboardListFilters = {
     paths["/dashboards"]["get"]["parameters"]["query"]
   >["problem"]
   order?: "updated" | "name" | "views"
+  excludeAudit?: boolean
 }
 
 export const dashboardKeys = {
@@ -35,6 +36,8 @@ export const dashboardKeys = {
     ["dashboards", "list", filters, page] as const,
   titles: () => ["dashboards", "titles"] as const,
   tags: () => ["dashboards", "tags"] as const,
+  tagsFor: (excludeAudit: boolean) =>
+    ["dashboards", "tags", excludeAudit] as const,
   tagged: (tags: string[]) => ["dashboards", "list", "tagged", tags] as const,
   inFolder: (folderId: string) =>
     ["dashboards", "list", "folder", folderId] as const,

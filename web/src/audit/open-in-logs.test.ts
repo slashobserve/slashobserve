@@ -3,7 +3,8 @@ import { describe, expect, test } from "vitest"
 import { stringifySearch } from "@/lib/search"
 import { validateLogsSearch } from "@/logs/search"
 
-import { auditDatasourceUid, auditInLogsLink } from "./open-in-logs"
+import { auditDatasourceUid } from "./audit-source"
+import { auditInLogsLink } from "./open-in-logs"
 
 describe("auditInLogsLink", () => {
   test("opens Logs on the audit datasource with the query and the range", () => {

@@ -45,6 +45,7 @@ function renderToolbar(
       from={undefined}
       to={undefined}
       idle={over.idle ?? true}
+      onCanvas={false}
       menu={
         <button type="button" aria-label="More actions for Checkout latency" />
       }
