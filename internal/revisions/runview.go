@@ -239,7 +239,7 @@ func (r *RunDesk) render(ctx context.Context, row dbsqlc.AgentRequest, caller au
 	if out.SharedThread, err = r.service.sharedThreadShownTo(ctx, row, caller); err != nil {
 		return agentRequestJSON{}, err
 	}
-	if mayHaveFinding(row) && r.opts.Finding != nil {
+	if findingShown(view, row) && r.opts.Finding != nil {
 		if err := r.attachFinding(ctx, caller, row, &out); err != nil {
 			return agentRequestJSON{}, err
 		}
@@ -275,6 +275,10 @@ func (s *Service) sharedThreadShownTo(ctx context.Context, row dbsqlc.AgentReque
 
 func mayHaveFinding(row dbsqlc.AgentRequest) bool {
 	return SourceOf(row) != SourceSuggest && !row.ResultVersion.Valid
+}
+
+func findingShown(view runView, row dbsqlc.AgentRequest) bool {
+	return view != viewNone && mayHaveFinding(row)
 }
 
 func (r *RunDesk) attachFinding(ctx context.Context, caller auth.Principal, row dbsqlc.AgentRequest, out *agentRequestJSON) error {

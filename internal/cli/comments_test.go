@@ -799,3 +799,19 @@ func TestAPlainCommentPrintsNoRunLine(t *testing.T) {
 		}
 	}
 }
+
+func TestARunReplyPreviewsItsAnswerTitle(t *testing.T) {
+	page, err := decode[threadPage]([]byte(`{"threads":[],"messages":[` +
+		`{"id":"m1","thread_id":"t1","body":"Answered.","answer":{"finding":{"title":"Checkout errors doubled"},"can_save":false}},` +
+		`{"id":"m2","thread_id":"t1","body":"is this real?","answer":null}` +
+		`],"next_cursor":null}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := page.Messages[0].preview(); got != "Answered. Checkout errors doubled" {
+		t.Errorf("answered reply previews %q", got)
+	}
+	if got := page.Messages[1].preview(); got != "is this real?" {
+		t.Errorf("plain message previews %q", got)
+	}
+}

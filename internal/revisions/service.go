@@ -621,21 +621,25 @@ func (s *Service) GetObserve(ctx context.Context, id pgtype.UUID, by auth.Princi
 }
 
 func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, bool, error) {
+	row, readOnly, err := s.resolveObserve(ctx, id, by)
+	if err == nil {
+		s.recordRunView(ctx, row)
+	}
+	return row, readOnly, err
+}
+
+func (s *Service) resolveObserve(ctx context.Context, id pgtype.UUID, by auth.Principal) (dbsqlc.AgentRequest, bool, error) {
 	row, err := s.GetObserve(ctx, id, by)
 	if err == nil {
 		err = s.checkVisible(ctx, row.DashboardID, by)
 	}
 	if err == nil {
-		s.recordRunView(ctx, row)
 		return row, false, nil
 	}
 	if !errors.Is(err, ErrRequestNotFound) {
 		return dbsqlc.AgentRequest{}, false, err
 	}
 	if shared, ok, sharedErr := s.sharedWith(ctx, id, by); sharedErr != nil || ok {
-		if ok {
-			s.recordRunView(ctx, shared)
-		}
 		return shared, ok, sharedErr
 	}
 	if !by.Role.AtLeast(auth.RoleAdmin) {
@@ -648,7 +652,6 @@ func (s *Service) ReadObserve(ctx context.Context, id pgtype.UUID, by auth.Princ
 	if SourceOf(row) == SourceSuggest {
 		return dbsqlc.AgentRequest{}, false, ErrRequestNotFound
 	}
-	s.recordRunView(ctx, row)
 	return row, true, nil
 }
 

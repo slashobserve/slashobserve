@@ -529,6 +529,10 @@ func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	return Placement{Dashboard: dashboardID, Folder: &folder, Activity: activity.OnObservation(observationID), Abilities: abilities}, nil
 }
 
+func (f Finding) SavableBy(by auth.Principal) bool {
+	return !f.Saved() && !f.observationHidden && isRequester(by, f)
+}
+
 func isRequester(by auth.Principal, f Finding) bool {
 	return string(by.Kind) == f.RequestedBy.Kind && by.ID == f.RequestedBy.ID
 }
@@ -550,7 +554,7 @@ func (s *Service) place(ctx context.Context, by auth.Principal, f Finding) (fold
 func (s *Service) readPlace(ctx context.Context, by auth.Principal, f Finding) (Finding, folders.Folder, folders.Abilities, error) {
 	folder, abilities, err := s.place(ctx, by, f)
 	if errors.Is(err, ErrNotFound) && f.Saved() && s.readableInThread(ctx, by, f) == nil {
-		f.ObservationID, f.FolderID = "", ""
+		f.ObservationID, f.FolderID, f.observationHidden = "", "", true
 		return f, folders.Folder{}, folders.Abilities{View: true}, nil
 	}
 	return f, folder, abilities, err

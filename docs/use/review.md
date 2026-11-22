@@ -27,7 +27,7 @@ They come in six kinds:
   Replies sit under the first message, each with its author's name and no verb, and an agent's reply speaks as the agent, such as "Observe Agent for Ishan".
   A message that arrives while the card is open slides in; the ones already there stay put.
 - **Agent requests** sent from a comment show inside their thread, as one status line per run under the message that asked: "Observe Agent is working on it · View the run" while it works, "`<name>` was asked" for a connected agent, and the agent's reply once it ends.
-  **View the run** opens the run's conversation at `/c/<id>`, and the agent's reply carries the same link for whoever can open that run; anyone else sees the reply's text alone.
+  **View the run** opens the run's conversation at `/c/<id>`, and the built-in agent's reply carries the same link.
 - **Agent requests** that no loaded thread holds show "`<name>` asked the agent" and one of "Sent to the agent", "Resolved by version N", "Proposal opened, waiting for an Editor", "Finished, nothing changed" or "The agent could not finish: `<reason>`".
   A request from someone else's private chat reads "Asked in a private chat" in place of its message.
   A run by someone who cannot edit ends in a [proposal](../concepts/proposals.md), and its status links to the proposal and follows it: "Proposal merged as version N" or "Proposal discarded".
@@ -155,8 +155,7 @@ While a message to the agent could not be sent, because you are viewing an older
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
 A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.
-A finding's answer carries the start of its text, as plain text, so the thread says what was found without opening the run.
-An answer that is not filed in an observation reads "Answered: `<title>`." with the start of its text, and everyone who can read the thread opens the whole answer from it.
+The reply itself reads "Answered.", and the answer shows under it in the thread, so everyone who can read the thread reads what was found without opening the run.
 When the asker later saves that answer as an observation, everyone who can read the thread still opens it from the thread, and someone who cannot see the new observation reads the answer without it.
 
 A discussion entry reads "asked the agent" only when the message started a run.

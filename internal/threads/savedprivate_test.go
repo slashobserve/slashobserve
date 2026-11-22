@@ -126,7 +126,7 @@ func TestASharedSavedPrivateAnswerSaysItWasWrittenOntoThePage(t *testing.T) {
 	}
 
 	replies := r.runReplies(t, shared.Thread.ID)
-	if len(replies) != 1 || !strings.HasPrefix(replies[0].Body, "Wrote the answer into this observation: ") {
+	if len(replies) != 1 || replies[0].Body != "Answered." {
 		t.Fatalf("replies after the share = %+v", replies)
 	}
 }
