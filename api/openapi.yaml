@@ -3437,7 +3437,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [id, status, assigned_kind]
-          description: The run this message started, set on the response of a write sent with `start_runs` and on every read of the message while that run exists; null when the message started no run, and on an edit.
+          description: The run this message started, set on the response of a write that asked an agent and on every read of the message while that run exists; null when the message started no run, and on an edit.
           properties:
             id:
               type: string
@@ -3454,7 +3454,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [code, message]
-          description: Why a write sent with `start_runs` stored the message and started no run; null otherwise.
+          description: Why a write that asked an agent stored the message and started no run; null otherwise.
           properties:
             code:
               type: string
@@ -8316,7 +8316,7 @@ components:
               - $ref: "#/components/schemas/InvalidTransition"
     ThreadRefused:
       description: >-
-        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_block` (`block_id` is not a block of this observation, or the target is not an observation), `invalid_reply_to` (`reply_to_id` is not a message of this thread), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent).
+        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_block` (`block_id` is not a block of this observation, or the target is not an observation), `invalid_reply_to` (`reply_to_id` is not a message of this thread), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a message mentions more than one agent).
       content:
         application/json:
           schema:

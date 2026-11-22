@@ -25,20 +25,18 @@ type commentListOptions struct {
 }
 
 type commentAddOptions struct {
-	on        string
-	panel     string
-	block     string
-	at        string
-	version   int
-	to        string
-	startRuns bool
+	on      string
+	panel   string
+	block   string
+	at      string
+	version int
+	to      string
 }
 
 type commentReplyOptions struct {
-	block     string
-	replyTo   string
-	to        string
-	startRuns bool
+	block   string
+	replyTo string
+	to      string
 }
 
 const (
@@ -46,22 +44,18 @@ const (
 	toEveryone = "everyone"
 )
 
-func deliveryOf(to string, startRuns bool) (string, error) {
-	switch {
-	case startRuns && to != "" && to != toAgent:
-		return "", usagef("--start-runs is the old spelling of --to agent; drop it or --to")
-	case startRuns:
-		return toAgent, nil
-	case to == "":
+func deliveryOf(to string) (string, error) {
+	switch to {
+	case "":
 		return toEveryone, nil
-	case to == toAgent || to == toEveryone:
+	case toAgent, toEveryone:
 		return to, nil
 	}
 	return "", usagef("--to must be agent or everyone, not %q", to)
 }
 
 func (o commentReplyOptions) checkDashboardForm() error {
-	if o.startRuns || o.to != "" {
+	if o.to != "" {
 		return usagef("--to needs a reply by comment id alone, without a dashboard id")
 	}
 	if o.block != "" || o.replyTo != "" {
@@ -71,7 +65,7 @@ func (o commentReplyOptions) checkDashboardForm() error {
 }
 
 func (o commentReplyOptions) addTo(payload map[string]any) error {
-	to, err := deliveryOf(o.to, o.startRuns)
+	to, err := deliveryOf(o.to)
 	if err != nil {
 		return err
 	}
@@ -360,8 +354,6 @@ func (a *app) commentsAddCommand() *cobra.Command {
 	cmd.Flags().IntVar(&a.commentAdd.version, "version", 0, "the dashboard version to comment on; the latest by default")
 	cmd.Flags().StringVar(&a.commentAdd.at, "at", "", "the spot the thread points at, as the anchor JSON object or a short form such as pos:0.4,0.3")
 	cmd.Flags().StringVar(&a.commentAdd.to, "to", "", "agent to ask an agent, or everyone (the default) for a plain comment")
-	cmd.Flags().BoolVar(&a.commentAdd.startRuns, "start-runs", false, "the same as --to agent")
-	_ = cmd.Flags().MarkDeprecated("start-runs", "use --to agent")
 	return cmd
 }
 
@@ -393,7 +385,7 @@ func (a *app) runCommentsAdd(cmd *cobra.Command, args []string) error {
 		}
 		payload["anchor"] = at
 	}
-	to, err := deliveryOf(a.commentAdd.to, a.commentAdd.startRuns)
+	to, err := deliveryOf(a.commentAdd.to)
 	if err != nil {
 		return err
 	}
@@ -453,8 +445,6 @@ func (a *app) commentsReplyCommand() *cobra.Command {
 	cmd.Flags().StringVar(&a.commentReply.block, "block", "", "the block of the observation the reply is about")
 	cmd.Flags().StringVar(&a.commentReply.replyTo, "reply-to", "", "the comment of this thread the reply answers")
 	cmd.Flags().StringVar(&a.commentReply.to, "to", "", "agent to ask an agent, or everyone (the default) for a plain reply")
-	cmd.Flags().BoolVar(&a.commentReply.startRuns, "start-runs", false, "the same as --to agent")
-	_ = cmd.Flags().MarkDeprecated("start-runs", "use --to agent")
 	return cmd
 }
 

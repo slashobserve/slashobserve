@@ -123,8 +123,6 @@ type openThreadRequest struct {
 	Body     string         `json:"body"`
 	To       string         `json:"to"`
 	ClientID *string        `json:"client_id"`
-
-	StartRuns bool `json:"start_runs"`
 }
 
 type messageBodyRequest struct {
@@ -137,14 +135,6 @@ type replyRequest struct {
 	ReplyToID *string `json:"reply_to_id"`
 	To        string  `json:"to"`
 	ClientID  *string `json:"client_id"`
-	StartRuns bool    `json:"start_runs"`
-}
-
-func deliveryOf(to string, startRuns bool) (To, error) {
-	if to == "" && startRuns {
-		return ToAgent, nil
-	}
-	return ParseTo(to)
 }
 
 func ParseClientID(raw *string) (pgtype.UUID, error) {
@@ -265,7 +255,7 @@ func (th *Threads) open(c *gin.Context) {
 		th.fail(c, "open thread", err)
 		return
 	}
-	to, err := deliveryOf(req.To, req.StartRuns)
+	to, err := ParseTo(req.To)
 	if err != nil {
 		th.fail(c, "open thread", err)
 		return
@@ -294,7 +284,7 @@ func (th *Threads) reply(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &req, maxCommentRequestBytes) {
 		return
 	}
-	to, err := deliveryOf(req.To, req.StartRuns)
+	to, err := ParseTo(req.To)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
 		return
