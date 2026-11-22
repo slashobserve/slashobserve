@@ -1,5 +1,7 @@
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -11,11 +13,10 @@ import {
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { useSearch } from "@tanstack/react-router"
 
-import { ContextChips, type ContextChip } from "@/chat/context-chips"
-import { describeAnchor } from "@/conversation/anchor"
+import { ContextChips } from "@/chat/context-chips"
 import { Composer } from "@/conversation/composer"
 import type { GateInput } from "@/conversation/delivery"
-import { useComposer } from "@/conversation/use-composer"
+import { useComposer, type ComposerModel } from "@/conversation/use-composer"
 import {
   useCanvasTool,
   useReportSending,
@@ -28,6 +29,15 @@ import type { Anchor, Point, Rect } from "@/panels/anchors"
 import { useAnchorsModule, usePublished } from "@/panels/anchor-layout"
 import type { AnchorLayoutStore } from "@/panels/anchor-layout"
 
+import { askChips } from "./ask-spot"
+import { BoxResizeGrip } from "./canvas-box-grip"
+import {
+  boxStyle,
+  storeBoxSize,
+  storedBoxSize,
+  type BoxSize,
+  type CanvasBox,
+} from "./canvas-box-size"
 import { spotTarget, type CanvasSubject } from "./canvas-host"
 import {
   dragAnchor,
@@ -42,26 +52,6 @@ const keyDraftInset = 12
 
 const clickedPopupClass =
   "transition-[opacity,scale] duration-(--duration-fast) ease-out data-ending-style:opacity-0 data-ending-style:duration-100 data-starting-style:opacity-0 motion-safe:data-ending-style:scale-96 motion-safe:data-starting-style:scale-96"
-
-export function targetChips(
-  panelTitle: string,
-  anchor: Anchor | null
-): ContextChip[] {
-  const panel: ContextChip = {
-    id: "panel",
-    label: panelTitle === "" ? "Untitled panel" : panelTitle,
-  }
-  if (anchor === null)
-    return [{ ...panel, label: `${panel.label}, whole panel` }]
-  const described = describeAnchor(anchor)
-  return [
-    panel,
-    {
-      id: "anchor",
-      label: described.charAt(0).toUpperCase() + described.slice(1),
-    },
-  ]
-}
 
 export function useCanvasGate(
   canComment: boolean,
@@ -106,7 +96,14 @@ export function keepsTyping(reason: string, text: string): boolean {
 
 const clearOfChrome = { top: 8, right: 8, bottom: 72, left: 8 }
 
+const BoxSized = createContext(false)
+
+export function useBoxSized(): boolean {
+  return useContext(BoxSized)
+}
+
 type PopoverProps = {
+  box: CanvasBox
   surfaceRef: RefObject<HTMLElement | null>
   at: Point | null
   label: string
@@ -119,6 +116,7 @@ type PopoverProps = {
 }
 
 export function CanvasPopover({
+  box,
   surfaceRef,
   at,
   label,
@@ -140,6 +138,12 @@ export function CanvasPopover({
   useLayoutEffect(() => {
     setBoundary(surfaceRef.current?.closest("main") ?? "clipping-ancestors")
   }, [surfaceRef])
+  const popup = useRef<HTMLDivElement | null>(null)
+  const [size, setSize] = useState<BoxSize | null>(() => storedBoxSize(box))
+  const measure = useCallback((): BoxSize => {
+    const shown = popup.current?.getBoundingClientRect()
+    return { width: shown?.width ?? 0, height: shown?.height ?? 0 }
+  }, [])
   return (
     <PopoverPrimitive.Root
       open
@@ -158,18 +162,31 @@ export function CanvasPopover({
           className="isolate z-50"
         >
           <PopoverPrimitive.Popup
+            ref={popup}
             id={id}
             aria-label={label}
             initialFocus={initialFocus}
             finalFocus={finalFocus}
             data-opened-by={clicked ? "pointer" : "key"}
+            data-sized={size === null ? undefined : ""}
+            style={boxStyle(box, size)}
             className={cn(
-              "max-h-(--available-height) w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
+              "relative flex max-h-(--available-height) origin-(--transform-origin) flex-col rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
+              size !== null && "overflow-hidden",
               clicked && clickedPopupClass,
               className
             )}
           >
-            {children}
+            <BoxSized value={size !== null}>{children}</BoxSized>
+            <BoxResizeGrip
+              measure={measure}
+              onResize={setSize}
+              onSettle={(settled) => storeBoxSize(box, settled)}
+              onReset={() => {
+                setSize(null)
+                storeBoxSize(box, null)
+              }}
+            />
           </PopoverPrimitive.Popup>
         </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>
@@ -187,6 +204,26 @@ export function panelTitleOf(surface: HTMLElement | null): HTMLElement | null {
 
 const commentLabel = "Comment on the canvas"
 const commentPlaceholder = "Write a comment"
+
+function CommentForm({
+  model,
+  chips,
+}: {
+  model: ComposerModel
+  chips: ReactNode
+}) {
+  return (
+    <Composer
+      model={model}
+      layout="docked"
+      fill={useBoxSized()}
+      label={commentPlaceholder}
+      formLabel={commentLabel}
+      placeholder={commentPlaceholder}
+      chips={chips}
+    />
+  )
+}
 
 type ComposerProps = {
   subject: CanvasSubject
@@ -220,6 +257,7 @@ export function CanvasComposer({
   useReportSending(model.pending)
   return (
     <CanvasPopover
+      box="comment"
       surfaceRef={surfaceRef}
       at={draft.at}
       label={commentLabel}
@@ -235,13 +273,9 @@ export function CanvasComposer({
         )
       }}
     >
-      <Composer
+      <CommentForm
         model={model}
-        layout="docked"
-        label={commentPlaceholder}
-        formLabel={commentLabel}
-        placeholder={commentPlaceholder}
-        chips={<ContextChips chips={targetChips(panelTitle, draft.anchor)} />}
+        chips={<ContextChips chips={askChips(panelTitle, draft.anchor)} />}
       />
     </CanvasPopover>
   )
