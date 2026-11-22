@@ -126,6 +126,7 @@ A deletion is recorded in the [activity log](activity.md) as `thread.deleted`.
 
 Mention one agent in a comment and send it: the send button then reads "Send and ask Observe Agent" (or the connected agent's name), and the agent gets a run for that message.
 Asking needs Comment on the dashboard's folder.
+Only a thread on a dashboard or an observation can ask the agent, and a thread whose agent is someone else's connected agent saves your message and starts no run.
 The agent answers in the thread and changes nothing: it reads the dashboard and its data, saves no version and opens no observation.
 
 - **From the form.** Write your question, mention `@observe`, and send.
@@ -133,7 +134,7 @@ The agent answers in the thread and changes nothing: it reads the dashboard and 
   The comment is attached to the latest version and the panel you chose.
 - **From a thread.** Choose **Reply** on a comment: the box at the bottom of the card shows "Replying in" and the panel or dashboard, and **On** hides.
   Write the instruction with the mention, and send; the box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
-  The agent gets the earlier messages of the thread as context.
+  The agent gets the earlier messages of the thread as context, the last 20 and at most 8000 characters.
   The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention.
   A reply that mentions a person goes to the team and starts nothing, and the thread keeps its agent for the next reply.
   A message someone sent to everyone, by turning the "To:" chip or through the API, MCP or the CLI, turns the thread's agent off until a message asks an agent again.
@@ -152,7 +153,7 @@ A refusal, such as five revisions already waiting on the dashboard, shows the se
 On a [starter dashboard](activity.md#audit-folder), and for anyone who can no longer comment on the dashboard, the answer keeps its suggested change without **Revise the dashboard**; a starter adds "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited. Duplicate it to get a copy you can change." with **Duplicate**, which opens the same dialog as the dashboard menu, and a revision the server still refuses as `provisioned` shows "This starter dashboard is kept current by SlashObserve releases, so it cannot be edited."
 While a message to the agent could not be sent, because you are viewing an older version or editing the layout, the button is off and shows the same reason as the form below; with no model on the server it is off with "No model is connected to this server, so the agent cannot make this change." when the built-in agent answered.
 
-The person who asked gets **Create observation**, which saves the answer as an observation and opens it; it sits beside the chip when the agent marked the answer worth keeping, and under the evidence otherwise.
+The person who asked gets **Create observation**, which saves the answer as an observation and opens it; in the web app it sits beside the chip when the agent marked the answer worth keeping and it is not yet in an observation, and under the evidence once you unfold it otherwise; `observe save-answer` and `save_run_answer` save it whichever way the web app shows it.
 A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.
 The reply itself reads "Answered.", and the answer shows under it in the thread, so everyone who can read the thread reads what was found without opening the run.
