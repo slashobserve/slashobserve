@@ -147,7 +147,7 @@ test("drags and resizes a panel and saves a new version", async ({
 
   await selectPanelToArrange(page, "Checkout requests per second")
   const resize = await box(
-    gridItem(page, "rps").locator(".react-resizable-handle")
+    gridItem(page, "rps").locator(".react-resizable-handle-se")
   )
   const rps = await box(panel(page, "Checkout requests per second"))
   await dragTo(
@@ -258,7 +258,7 @@ test("announces when a key press changes nothing and clears after a mouse drag",
 
   await expectNoAnimations(gridItem(page, "rps"))
   const resize = await box(
-    gridItem(page, "rps").locator(".react-resizable-handle")
+    gridItem(page, "rps").locator(".react-resizable-handle-se")
   )
   await dragTo(
     page,
@@ -631,7 +631,10 @@ test("lists each rejected layout issue once", async ({
   consoleErrors.splice(consoleErrors.indexOf(failed[0]), 1)
 })
 
-test("shows a single resize grip on hover", async ({ page, request }) => {
+test("shows the edge and corner resize handles on hover", async ({
+  page,
+  request,
+}) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
@@ -639,13 +642,13 @@ test("shows a single resize grip on hover", async ({ page, request }) => {
 
   const item = gridItem(page, "rps")
   await item.hover()
-  const handle = item.locator(".react-resizable-handle")
-  await expect(handle).toHaveCSS("opacity", "1")
-  const after = await handle.evaluate(
-    (element) => getComputedStyle(element, "::after").display
-  )
-  expect(after).toBe("none")
-  await expect(item.locator("svg.size-2\\.5")).toHaveCount(1)
+  for (const axis of ["e", "s", "se"]) {
+    await expect(item.locator(`.react-resizable-handle-${axis}`)).toHaveCSS(
+      "opacity",
+      "1"
+    )
+  }
+  await expect(item.locator(".react-resizable-handle")).toHaveCount(3)
 })
 
 type PanelBox = GridPos & { id: string }

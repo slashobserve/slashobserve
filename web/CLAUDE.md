@@ -170,6 +170,7 @@ The rules below are how the code applies it.
 - Every workspace table is a `TableCard` with `stackOnNarrow`, so its rows become lists on a phone and nothing scrolls sideways.
 - Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
   Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.
+  The one exception is arranging the dashboard grid: the panel being dragged or resized, its placeholder and the neighbours settling around it slide with `transform` over `--duration-panel`, and stay still under reduced motion.
   Hover may change opacity only, in 120ms or less.
   Only `transform` and `opacity` animate, and height for a fold.
   Always name the property: never `transition-all` and never a bare `duration-*`, because it transitions every property, including a resize.

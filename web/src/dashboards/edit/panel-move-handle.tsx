@@ -3,6 +3,7 @@ import { GripVerticalIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { liveRegionText } from "@/lib/live-region"
+import { cn } from "@/lib/utils"
 import { panelTitle, type LayoutPanel } from "@/spec"
 
 import {
@@ -12,6 +13,9 @@ import {
   stepItemVertically,
 } from "./layout"
 import { useLayoutStore } from "./layout-store"
+
+export const panelDragCancel =
+  "button:not(.panel-drag-handle):not([data-panel-title]), a, input, textarea, [role='menu'], [role='menuitem']"
 
 const arrows: Record<string, { dx: number; dy: number }> = {
   ArrowLeft: { dx: -1, dy: 0 },
@@ -92,19 +96,19 @@ export function PanelMoveHandle({
   )
 }
 
-export function PanelResizeGrip() {
+export function PanelMoveHint({ shown }: { shown: boolean }) {
   return (
-    <svg
+    <span
       aria-hidden="true"
-      viewBox="0 0 10 10"
-      className="pointer-events-none absolute right-1 bottom-1 size-2.5 text-muted-foreground"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinecap="round"
+      data-panel-move-hint=""
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center text-muted-foreground opacity-0",
+        shown &&
+          "group-hover/header:opacity-60 motion-safe:transition-opacity motion-safe:duration-100 motion-safe:ease-out"
+      )}
     >
-      <path d="M9 3L3 9M9 6.5L6.5 9" />
-    </svg>
+      <GripVerticalIcon className="size-3" />
+    </span>
   )
 }
 

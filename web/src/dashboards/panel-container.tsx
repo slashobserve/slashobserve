@@ -149,6 +149,7 @@ type PanelContainerProps = {
   refreshMs: number | null
   mixedDatasources: boolean
   editable: boolean
+  arrangeable?: boolean
   layoutSession: boolean
   openComments: number
   unverifiedReason: string | undefined
@@ -196,6 +197,7 @@ export const PanelContainer = memo(function PanelContainer({
   refreshMs,
   mixedDatasources,
   editable,
+  arrangeable = false,
   layoutSession,
   openComments,
   unverifiedReason,
@@ -235,6 +237,7 @@ export const PanelContainer = memo(function PanelContainer({
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const commentTool = useCanvasTool((state) => state.tool === "comment")
+  const selectTool = useCanvasTool((state) => state.tool === "select")
   const { width: bodyWidth, height: bodyHeight } = panelBodySize(
     Math.floor(width),
     Math.floor(height)
@@ -443,7 +446,9 @@ export const PanelContainer = memo(function PanelContainer({
   const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || viewing) return
     const target = event.target as Element
-    if (target.closest(interactiveTarget)) return
+    const pressesTitle =
+      !commenting && target.closest("[data-panel-title]") !== null
+    if (!pressesTitle && target.closest(interactiveTarget)) return
     if (commenting) return
     if (!target.closest("[data-panel-body]")) selectPanel?.()
   }
@@ -515,6 +520,8 @@ export const PanelContainer = memo(function PanelContainer({
         staleError={query.isError && query.data ? query.error : undefined}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
+        arrangeable={arrangeable}
+        grabbable={arrangeable && selectTool}
         highlighted={highlighted}
         selected={selected}
         onSelect={viewing ? undefined : selectPanel}
