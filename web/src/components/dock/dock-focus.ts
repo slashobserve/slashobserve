@@ -60,6 +60,7 @@ export function useDockFocus({
     if (!active) {
       handled.current = null
       takes.current = false
+      wantsFocus.current = undefined
       return
     }
     const element = pane.current
