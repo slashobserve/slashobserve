@@ -172,3 +172,15 @@ func TestBuildLetsTextPanelsHoldMarkdownButNotHTML(t *testing.T) {
 		}
 	}
 }
+
+func TestInvestigateAsksForNoSuggestedChangeWhenNoneIsNeededAndNoRestatement(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"Leave `suggested_change` out when no change is needed",
+		"never write it into the markdown",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("investigate system text lacks %q", want)
+		}
+	}
+}

@@ -646,6 +646,15 @@ func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
 	}
 }
 
+func TestTheSuggestedChangePropertyIsOmittedWhenNoneIsNeededAndNotRepeatedInMarkdown(t *testing.T) {
+	schema := string(toolsByName(t)[nameSaveFinding].InputSchema)
+	for _, want := range []string{"omitted when none is needed", "never repeated in markdown"} {
+		if !strings.Contains(schema, want) {
+			t.Errorf("save_finding schema lacks %q: %s", want, schema)
+		}
+	}
+}
+
 func TestTheFindingToolNamesNoCallLimitThatIsOnlyRightForSomeRuns(t *testing.T) {
 	tool := toolsByName(t)[nameSaveFinding]
 	for _, word := range []string{"six", "twelve", "6 ", "12 "} {
