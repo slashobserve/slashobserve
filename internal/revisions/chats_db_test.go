@@ -107,14 +107,13 @@ func TestAChatIDMustNameTheCallersLiveChatOnTheSameSubject(t *testing.T) {
 		req  revisions.StartRequest
 		want error
 	}{
-		"someone else's chat":     {account, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
-		"an Admin":                {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatReadOnly},
-		"an Admin on archived":    {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
-		"an archived chat":        {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
-		"a chat that never was":   {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
-		"a Home chat on a board":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}, nil},
-		"a board chat from Home":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(chatOfTurn(t, d, onDash))}, nil},
-		"chat_id with follows_id": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), FollowsID: text(home.String())}, nil},
+		"someone else's chat":    {account, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatNotFound},
+		"an Admin":               {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String())}, revisions.ErrChatReadOnly},
+		"an Admin on archived":   {bea, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
+		"an archived chat":       {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(archived.String())}, revisions.ErrChatNotFound},
+		"a chat that never was":  {user, revisions.StartRequest{Prompt: text("x"), ChatID: text("00000000-0000-4000-8000-000000000009")}, revisions.ErrChatNotFound},
+		"a Home chat on a board": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(home.String()), Kind: text(revisions.KindRevise), DashboardID: text(dash.String())}, nil},
+		"a board chat from Home": {user, revisions.StartRequest{Prompt: text("x"), ChatID: text(chatOfTurn(t, d, onDash))}, nil},
 	} {
 		_, err := svc.Start(ctx, c.by, c.req)
 		var refusal *revisions.StartError
@@ -146,6 +145,42 @@ func TestADashboardTurnWithoutAChatIDJoinsTheLatestLiveChatOnThatDashboard(t *te
 	}
 	if fresh := on(user); fresh == first {
 		t.Fatalf("a turn after the chat was archived joined it")
+	}
+}
+
+func TestANewChatOnADashboardNeverJoinsTheLatestOne(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	turn := func(newChat *bool) string {
+		return chatOfTurn(t, d, startTurn(t, svc, user, revisions.StartRequest{Prompt: text("p"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String()), NewChat: newChat}))
+	}
+	first := turn(nil)
+	fresh := turn(ptr(true))
+	if fresh == first {
+		t.Fatalf("new_chat joined the latest chat %s", first)
+	}
+	if latest := turn(nil); latest != fresh {
+		t.Fatalf("the next turn chat = %s, want the new chat %s", latest, fresh)
+	}
+	if again := turn(ptr(false)); again != fresh {
+		t.Fatalf("new_chat false chat = %s, want the latest chat %s", again, fresh)
+	}
+}
+
+func TestAResendWithNewChatReturnsTheOriginalRunInItsChat(t *testing.T) {
+	svc, d := newService(t, succeedWith(2))
+	dash := seedDashboard(t, d, 1)
+	const clientID = "99999999-9999-4999-8999-999999999999"
+	req := func(newChat *bool) revisions.StartRequest {
+		return revisions.StartRequest{Prompt: text("p"), Kind: text(revisions.KindRevise), DashboardID: text(dash.String()), ClientID: text(clientID), NewChat: newChat}
+	}
+	first, err := svc.Start(context.Background(), user, req(nil))
+	if err != nil || first.Replayed {
+		t.Fatalf("first send = %+v, %v", first, err)
+	}
+	again, err := svc.Start(context.Background(), user, req(ptr(true)))
+	if err != nil || !again.Replayed || again.ID != first.ID || again.ChatID != first.ChatID {
+		t.Fatalf("resend with new_chat = %+v, %v; want the first run %v replayed in its chat", again.AgentRequest, err, first.ID)
 	}
 }
 

@@ -232,8 +232,4 @@ func TestAPromptInAChatSendsChatID(t *testing.T) {
 	if call.body != `{"chat_id":"`+stoppedID+`","dashboard_id":"`+testDashboard+`","prompt":"and the day before?"}` {
 		t.Fatalf("got %+v", call)
 	}
-	_, _, stderr, code = runAgainst(t, http.StatusAccepted, created, "--chat", stoppedID, "--follows", stoppedID, "why is it slow")
-	if code != 2 || !strings.Contains(stderr, "exclude each other") {
-		t.Fatalf("both flags: exit %d, stderr %q", code, stderr)
-	}
 }

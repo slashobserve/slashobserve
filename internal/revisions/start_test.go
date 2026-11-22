@@ -28,8 +28,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 		"base version needs a revise": {StartRequest{Prompt: ptr("x"), BaseVersion: ptr(2)}, "base_version needs kind revise"},
 		"bad dashboard id":            {StartRequest{Prompt: ptr("x"), DashboardID: ptr("nope")}, "dashboard_id must be a UUID"},
 		"base version range":          {StartRequest{Prompt: ptr("x"), Kind: ptr("revise"), DashboardID: ptr("11111111-2222-3333-4444-555555555555"), BaseVersion: ptr(0)}, "positive 32-bit"},
-		"follows a chat and a board":  {StartRequest{Prompt: ptr("x"), Kind: ptr("revise"), DashboardID: ptr("11111111-2222-3333-4444-555555555555"), FollowsID: ptr("11111111-2222-3333-4444-555555555555")}, "follows_id and dashboard_id exclude each other"},
-		"follows a bad id":            {StartRequest{Prompt: ptr("x"), FollowsID: ptr("nope")}, "follows_id must be a UUID"},
+		"a bad chat id":               {StartRequest{Prompt: ptr("x"), ChatID: ptr("nope")}, "chat_id must be a UUID"},
 		"investigate with a version":  {StartRequest{Prompt: ptr("x"), Kind: ptr("investigate"), BaseVersion: ptr(1)}, "base_version needs kind revise"},
 		"panel without dashboard":     {StartRequest{Prompt: ptr("x"), Kind: ptr("investigate"), PanelID: ptr("p")}, "panel_id needs dashboard_id"},
 		"half a window":               {StartRequest{Prompt: ptr("x"), Kind: ptr("investigate"), From: ptr("now-1h")}, "go together"},
@@ -37,6 +36,7 @@ func TestStartRefusesABadRequestBeforeTouchingAnything(t *testing.T) {
 		"an ask with a version":       {StartRequest{Prompt: ptr("x"), Kind: ptr("ask"), BaseVersion: ptr(1)}, "base_version needs kind revise"},
 		"a board ask with a version":  {StartRequest{Prompt: ptr("x"), DashboardID: ptr("11111111-2222-3333-4444-555555555555"), BaseVersion: ptr(1)}, "base_version needs kind revise"},
 		"a bad observation of an ask": {StartRequest{Prompt: ptr("x"), ObservationID: ptr("o")}, "observation_id must be a UUID"},
+		"a new chat in a named chat":  {StartRequest{Prompt: ptr("x"), NewChat: ptr(true), ChatID: ptr("11111111-2222-3333-4444-555555555555")}, "new_chat and chat_id exclude each other"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

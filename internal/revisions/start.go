@@ -26,8 +26,8 @@ type StartRequest struct {
 	From          *string        `json:"from"`
 	To            *string        `json:"to"`
 	ObservationID *string        `json:"observation_id"`
-	FollowsID     *string        `json:"follows_id"`
 	ChatID        *string        `json:"chat_id"`
+	NewChat       *bool          `json:"new_chat"`
 	ClientID      *string        `json:"client_id"`
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
@@ -101,6 +101,9 @@ func (s *Service) turnOf(ctx context.Context, by auth.Principal, req StartReques
 	if turn.point, err = pointOf(req); err != nil {
 		return ctx, "", turnInput{}, err
 	}
+	if msg := newChatConflict(req); msg != "" {
+		return ctx, "", turnInput{}, refused("%s", msg)
+	}
 	if req.AppliesFindingID != nil {
 		if turn.applies, prompt, err = s.suggestedChange(ctx, by, req); err != nil {
 			return ctx, "", turnInput{}, err
@@ -119,6 +122,15 @@ func (s *Service) startedBefore(ctx context.Context, by auth.Principal, turn tur
 		return s.applyingRun(ctx, by, turn.applies)
 	}
 	return Started{}, false, nil
+}
+
+func (r StartRequest) newChat() bool { return r.NewChat != nil && *r.NewChat }
+
+func newChatConflict(req StartRequest) string {
+	if req.newChat() && req.ChatID != nil {
+		return "new_chat and chat_id exclude each other"
+	}
+	return ""
 }
 
 func checkStartText(ctx context.Context, req StartRequest) (context.Context, string, error) {
@@ -219,7 +231,7 @@ func pointOf(req StartRequest) (Point, error) {
 }
 
 func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
-	if message := buildFieldConflict(req); message != "" {
+	if message := buildShapeConflict(req); message != "" {
 		return dbsqlc.AgentRequest{}, refused("%s", message)
 	}
 	dashboardID, err := uuidField("dashboard_id", req.DashboardID)
@@ -229,7 +241,7 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 	if req.BaseVersion != nil && (*req.BaseVersion < 1 || *req.BaseVersion > math.MaxInt32) {
 		return dbsqlc.AgentRequest{}, refused("base_version must be a positive 32-bit integer")
 	}
-	chat, err := s.buildChat(ctx, by, req)
+	chat, err := buildChat(req)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
@@ -242,41 +254,15 @@ func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRe
 	return s.submitObserve(ctx, by, prompt, observeTurn{chat: chat, clientID: turn.clientID})
 }
 
-func (s *Service) buildChat(ctx context.Context, by auth.Principal, req StartRequest) (chatChoice, error) {
+func buildChat(req StartRequest) (chatChoice, error) {
 	chatID, err := uuidField("chat_id", req.ChatID)
-	if err != nil {
-		return chatChoice{}, err
-	}
-	followsID, err := uuidField("follows_id", req.FollowsID)
 	switch {
 	case err != nil:
 		return chatChoice{}, err
-	case followsID.Valid:
-		parent, err := s.GetObserve(ctx, followsID, by)
-		if err != nil {
-			return chatChoice{}, err
-		}
-		if parent.DashboardID.Valid {
-			return chatChoice{}, ErrFollowsDashboard
-		}
-		return chatNamed(chatRoot(parent.ID, parent.ChatID)), nil
-	case !chatID.Valid && req.DashboardID != nil:
+	case !chatID.Valid && req.DashboardID != nil && !req.newChat():
 		return chatChoice{mode: dashboardChat}, nil
 	}
 	return chatNamed(chatID), nil
-}
-
-func buildFieldConflict(req StartRequest) string {
-	if msg := buildShapeConflict(req); msg != "" {
-		return msg
-	}
-	switch {
-	case req.DashboardID != nil && req.FollowsID != nil:
-		return "follows_id and dashboard_id exclude each other"
-	case req.ChatID != nil && req.FollowsID != nil:
-		return "follows_id and chat_id exclude each other"
-	}
-	return ""
 }
 
 func buildShapeConflict(req StartRequest) string {
@@ -323,8 +309,6 @@ func askFieldConflict(req StartRequest, private bool) string {
 		return "base_version needs kind revise"
 	case private && req.DashboardID != nil && req.ObservationID != nil:
 		return "kind ask takes dashboard_id or observation_id, not both"
-	case req.ChatID != nil && req.FollowsID != nil:
-		return "follows_id and chat_id exclude each other"
 	}
 	return ""
 }
@@ -335,7 +319,7 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 	}
 	params := InvestigateParams{Prompt: prompt, By: by, Point: turn.point, Private: private, clientID: turn.clientID}
 	var err error
-	if params.chat, err = s.investigationChat(ctx, by, req); err != nil {
+	if params.chat, err = investigationChat(req); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
 	if params.DashboardID, err = uuidField("dashboard_id", req.DashboardID); err != nil {
@@ -362,18 +346,7 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 	return s.SubmitInvestigate(ctx, params)
 }
 
-func (s *Service) investigationChat(ctx context.Context, by auth.Principal, req StartRequest) (chatChoice, error) {
+func investigationChat(req StartRequest) (chatChoice, error) {
 	chatID, err := uuidField("chat_id", req.ChatID)
-	if err != nil {
-		return chatChoice{}, err
-	}
-	followsID, err := uuidField("follows_id", req.FollowsID)
-	if err != nil || !followsID.Valid {
-		return chatNamed(chatID), err
-	}
-	parent, err := s.GetObserve(ctx, followsID, by)
-	if err != nil {
-		return chatChoice{}, err
-	}
-	return chatChoice{mode: sameChat, id: chatRoot(parent.ID, parent.ChatID)}, nil
+	return chatNamed(chatID), err
 }

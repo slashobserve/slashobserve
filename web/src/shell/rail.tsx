@@ -12,6 +12,7 @@ import {
   LogsIcon,
   NotebookTextIcon,
   PanelLeftOpenIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UsersIcon,
   type LucideIcon,
@@ -19,12 +20,13 @@ import {
 
 import { Mark } from "@/components/brand/mark"
 import { SourceFlyoutItems } from "@/datasources/source-menu"
-import { useExploreSources } from "@/datasources/use-sources"
+import { useBrowsableSources } from "@/datasources/use-sources"
 import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
+import { AuditFlyoutItems } from "./audit-list"
 import { CountBadge } from "./count-badge"
 import {
   countLabel,
@@ -56,6 +58,7 @@ export const navIcons: Record<NavPath, LucideIcon> = {
   "/datasources": DatabaseIcon,
   "/keys": KeyIcon,
   "/people": UsersIcon,
+  "/audit": ScrollTextIcon,
   "/settings": SettingsIcon,
 }
 
@@ -192,11 +195,12 @@ export function RailContent({ forced }: { forced: boolean }) {
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
   const badges = useRailBadges()
-  const logs = useExploreSources("logs").sources.length > 1
-  const traces = useExploreSources("traces").sources.length > 1
-  const metrics = useExploreSources("metrics").sources.length > 1
+  const logs = useBrowsableSources("logs").sources.length > 1
+  const traces = useBrowsableSources("traces").sources.length > 1
+  const metrics = useBrowsableSources("metrics").sources.length > 1
   const flyouts: Partial<Record<NavPath, ReactNode>> = {
     "/dashboards": <DashboardsFlyoutItems />,
+    "/audit": <AuditFlyoutItems />,
     ...(logs ? { "/logs": <SourceFlyoutItems kind="logs" /> } : {}),
     ...(traces ? { "/traces": <SourceFlyoutItems kind="traces" /> } : {}),
     ...(metrics

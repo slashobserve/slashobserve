@@ -34,7 +34,14 @@ func TestDashboardViewersPrintsWhoIsLooking(t *testing.T) {
 func TestDashboardTagsPrintsCounts(t *testing.T) {
 	server, seen := recordingServer(t, `{"tags":[{"tag":"prod","dashboards":4}]}`)
 	stdout, _, code := runWith(server, "dashboards", "tags")
-	if code != 0 || seen.path != "/api/v1/dashboards/tags" || !strings.Contains(stdout, "prod") || !strings.Contains(stdout, "4") {
+	if code != 0 || seen.path != "/api/v1/dashboards/tags" || seen.query != "" || !strings.Contains(stdout, "prod") || !strings.Contains(stdout, "4") {
 		t.Fatalf("exit %d, call %+v, stdout %q", code, seen, stdout)
+	}
+}
+
+func TestDashboardTagsSendsExcludeAuditOnlyWhenAsked(t *testing.T) {
+	server, seen := recordingServer(t, `{"tags":[]}`)
+	if _, _, code := runWith(server, "dashboards", "tags", "--exclude-audit"); code != 0 || seen.query != "exclude_audit=true" {
+		t.Fatalf("exit %d, query %q, want exclude_audit=true", code, seen.query)
 	}
 }

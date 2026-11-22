@@ -32,10 +32,14 @@ const (
 )
 
 type previewRequest struct {
-	DashboardID   string              `json:"dashboard_id"`
-	Version       int                 `json:"version"`
-	PanelID       string              `json:"panel_id"`
-	Panel         json.RawMessage     `json:"panel"`
+	DashboardID string          `json:"dashboard_id"`
+	Version     int             `json:"version"`
+	PanelID     string          `json:"panel_id"`
+	Panel       json.RawMessage `json:"panel"`
+	draftWindow
+}
+
+type draftWindow struct {
 	From          *string             `json:"from"`
 	To            *string             `json:"to"`
 	Timezone      *string             `json:"tz"`
@@ -257,21 +261,29 @@ func (r previewRequest) validate() (id pgtype.UUID, message string) {
 		return id, "version must be a positive 32-bit integer"
 	case utf8.RuneCountInString(r.PanelID) < 1 || utf8.RuneCountInString(r.PanelID) > maxPanelIDLength:
 		return id, "panel_id must be from 1 to 64 characters"
-	case !bytes.HasPrefix(bytes.TrimSpace(r.Panel), []byte("{")):
+	case !isJSONObject(r.Panel):
 		return id, "panel must be a JSON object"
 	}
+	return id, r.draftWindow.validate()
+}
+
+func isJSONObject(raw json.RawMessage) bool {
+	return bytes.HasPrefix(bytes.TrimSpace(raw), []byte("{"))
+}
+
+func (r draftWindow) validate() string {
 	for _, name := range slices.Sorted(maps.Keys(r.Variables)) {
 		switch {
 		case name == "":
-			return id, "variables needs non-empty names"
+			return "variables needs non-empty names"
 		case len(r.Variables[name]) == 0:
-			return id, "variables." + name + " needs at least one value"
+			return "variables." + name + " needs at least one value"
 		}
 	}
-	return id, ""
+	return ""
 }
 
-func (r previewRequest) values() url.Values {
+func (r draftWindow) values() url.Values {
 	q := url.Values{}
 	if r.From != nil {
 		q.Set(paramFrom, *r.From)

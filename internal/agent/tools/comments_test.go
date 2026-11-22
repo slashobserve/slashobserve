@@ -579,41 +579,41 @@ func TestCommentToolsStartARunOnlyWhenAskedTo(t *testing.T) {
 
 	plain := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+token+` look"}`)
 	if out, ok := plain.Content.(commentResultOut); !ok || out.Run != nil || out.RunRefusal != nil || plain.Step != "Opened a comment" {
-		t.Fatalf("without start_runs = %s, step %q", textOf(t, plain), plain.Step)
+		t.Fatalf("without to agent = %s, step %q", textOf(t, plain), plain.Step)
 	}
 	if strings.Contains(textOf(t, plain), `"run"`) || strings.Contains(textOf(t, plain), `"run_refusal"`) {
-		t.Fatalf("a result without start_runs names a run: %s", textOf(t, plain))
+		t.Fatalf("a result without to agent names a run: %s", textOf(t, plain))
 	}
 
-	started := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+token+` look","start_runs":true}`)
+	started := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"`+token+` look","to":"agent"}`)
 	out, ok := started.Content.(commentResultOut)
 	if !ok || out.Run == nil || out.Run.AssignedKind != "service_account" || out.Run.Status != "queued" || out.RunRefusal != nil || started.Step != "Opened a comment and started a run" {
-		t.Fatalf("with start_runs = %s, step %q", textOf(t, started), started.Step)
+		t.Fatalf("with to agent = %s, step %q", textOf(t, started), started.Step)
 	}
 
-	replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+token+` and again","start_runs":true}`)
+	replied := r.call(t, adminCaller, nameReplyToComment, `{"comment_id":"`+out.Comment.ID+`","body":"`+token+` and again","to":"agent"}`)
 	if again, ok := replied.Content.(commentResultOut); !ok || again.Run == nil || again.Run.ID == out.Run.ID || replied.Step != "Replied to a comment and started a run" {
-		t.Fatalf("reply with start_runs = %s, step %q", textOf(t, replied), replied.Step)
+		t.Fatalf("reply with to agent = %s, step %q", textOf(t, replied), replied.Step)
 	}
 
-	refused := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"@observe look","start_runs":true}`)
+	refused := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"@observe look","to":"agent"}`)
 	if got, ok := refused.Content.(commentResultOut); !ok || got.Run != nil || got.RunRefusal == nil || got.RunRefusal.Code != threads.RefusalAgentUnavailable || refused.Step != "Opened a comment" {
 		t.Fatalf("observe without a provider = %s, step %q", textOf(t, refused), refused.Step)
 	}
 
-	two := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"@observe `+token+`","start_runs":true}`)
+	two := r.call(t, adminCaller, nameCreateComment, `{`+target+`,"body":"@observe `+token+`","to":"agent"}`)
 	if errorCode(t, two) != codeInvalidRequest {
 		t.Fatalf("two agents = %s", textOf(t, two))
 	}
 }
 
-func TestStartRunsNeedsTheMentionRuns(t *testing.T) {
+func TestAskingAnAgentNeedsTheMentionRuns(t *testing.T) {
 	r := newAccessRig(t)
 	registry := New(Deps{Threads: r.threads})
 	ctx := auth.WithPrincipal(t.Context(), adminCaller)
 	for tool, input := range map[string]string{
-		nameCreateComment:  `{"target":"dashboard:` + dashA + `","body":"@observe hi","start_runs":true}`,
-		nameReplyToComment: `{"comment_id":"` + dashB + `","body":"@observe hi","start_runs":true}`,
+		nameCreateComment:  `{"target":"dashboard:` + dashA + `","body":"@observe hi","to":"agent"}`,
+		nameReplyToComment: `{"comment_id":"` + dashB + `","body":"@observe hi","to":"agent"}`,
 	} {
 		if _, err := registry.Call(ctx, tool, []byte(input)); !errors.Is(err, errCommentsNotConfigured) {
 			t.Errorf("%s: err = %v, want errCommentsNotConfigured", tool, err)

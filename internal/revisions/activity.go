@@ -121,19 +121,22 @@ func runActivityWith(row dbsqlc.AgentRequest, typ string, assigneeName string, e
 			data["result_version"] = row.ResultVersion.Int32
 		}
 	}
+	var recorded map[string]any
 	switch typ {
 	case activity.TypeRunSucceeded, activity.TypeRunFailed, activity.TypeRunCanceled:
 		if cost, ok := storedCost(row.RunUsage); ok {
 			data["cost_usd"] = cost
 		}
+		recorded = storedModelUse(row.RunUsage)
 	}
 	maps.Copy(data, extra)
 	entry := activity.Entry{
-		Type:     typ,
-		TargetID: row.ID,
-		Owner:    runOwner(row),
-		Actor:    actor.FromColumns(columns),
-		Data:     data,
+		Type:      typ,
+		TargetID:  row.ID,
+		Owner:     runOwner(row),
+		Actor:     actor.FromColumns(columns),
+		Data:      data,
+		AuditOnly: recorded,
 	}
 	if takenByAgent(row, typ) {
 		entry.Agent = AssignedAgent(row, assigneeName)
@@ -156,6 +159,28 @@ func storedCost(runUsage []byte) (float64, bool) {
 		return 0, false
 	}
 	return *usage.CostUSD, true
+}
+
+func storedModelUse(runUsage []byte) map[string]any {
+	var usage struct {
+		Model        string `json:"model"`
+		InputTokens  *int64 `json:"input_tokens"`
+		OutputTokens *int64 `json:"output_tokens"`
+	}
+	if err := json.Unmarshal(runUsage, &usage); err != nil {
+		return nil
+	}
+	use := map[string]any{}
+	if usage.Model != "" {
+		use["model"] = usage.Model
+	}
+	if usage.InputTokens != nil {
+		use["input_tokens"] = *usage.InputTokens
+	}
+	if usage.OutputTokens != nil {
+		use["output_tokens"] = *usage.OutputTokens
+	}
+	return use
 }
 
 func revisionEvent(row dbsqlc.AgentRequest) (events.Event, bool) {

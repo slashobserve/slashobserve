@@ -274,7 +274,7 @@ func annotationFailure(err error) (Result, error) {
 	case errors.Is(err, annotations.ErrNotFound):
 		return toolError(codeNotFound, "annotation or dashboard not found"), nil
 	case errors.Is(err, annotations.ErrForbidden):
-		return toolError(codeForbiddenRole, roleDeniedText(err)), nil
+		return forbiddenBy(err, roleDeniedText(err)), nil
 	case errors.Is(err, annotations.ErrNotCreator):
 		return toolError(codeNotCreator, annotations.ErrNotCreator.Error()), nil
 	}

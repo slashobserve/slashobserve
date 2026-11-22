@@ -7,7 +7,12 @@ import {
   type ReactNode,
 } from "react"
 import { useContainerWidth } from "react-grid-layout"
-import { CalendarClockIcon, PinIcon, PinOffIcon } from "lucide-react"
+import {
+  CalendarClockIcon,
+  PencilIcon,
+  PinIcon,
+  PinOffIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import type { Selections } from "@/api/keys"
@@ -24,6 +29,7 @@ import { createSharedCursor } from "@/panels/shared-cursor"
 import { useUpdateBlock, type Block } from "@/observations/queries"
 import { isDataPanel, isRowPanel, panelTitle, type LayoutPanel } from "@/spec"
 
+import { useBlockEditor } from "../block-editor"
 import { blockWriteProblem } from "../errors"
 import { blockVariableStates, variableCaption } from "../panel-input"
 import { BlockByline } from "./block-byline"
@@ -163,6 +169,8 @@ function ReadablePanelBlock({
   const update = useUpdateBlock(block.observation_id)
   const [choosingWindow, setChoosingWindow] = useState(false)
   const canPin = block.allowed_actions.includes("update")
+  const editor = useBlockEditor()
+  const canOpenEditor = editor !== null && (canPin || editor.canSuggest)
 
   function write(change: { body?: Block["body"]; follow_page?: boolean }) {
     if (update.isPending) return
@@ -177,7 +185,17 @@ function ReadablePanelBlock({
     if (next !== null) write({ body: next })
   }
 
-  const actions: MenuItem[] = canPin
+  const editActions: MenuItem[] = canOpenEditor
+    ? [
+        {
+          id: "edit-panel",
+          label: canPin ? "Edit panel" : "Suggest an edit",
+          icon: <PencilIcon aria-hidden="true" />,
+          onSelect: () => editor.open({ kind: "edit", blockId: block.id }),
+        },
+      ]
+    : []
+  const pinActions: MenuItem[] = canPin
     ? [
         ...(range.pinned
           ? []
@@ -213,7 +231,7 @@ function ReadablePanelBlock({
     : []
   const blockMenu: BlockMenuHost = {
     onInspect: inspect === null ? undefined : () => inspect.open(block.id),
-    actions,
+    actions: [...editActions, ...pinActions],
   }
   const dataPanel = isDataPanel(panel) ? panel : undefined
   const datasourceUid = dataPanel ? datasourceUidOf(dataPanel) : undefined

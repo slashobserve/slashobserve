@@ -27,7 +27,7 @@ import (
 const (
 	Title          = "Audit"
 	lockName       = "audit_folder"
-	FolderKey      = "audit/folder"
+	FolderKey      = folders.AuditStarterKey
 	summary        = "Starter dashboard added by the server to the Audit folder"
 	releaseSummary = "Updated to this release"
 	copySuffix     = " (your copy)"

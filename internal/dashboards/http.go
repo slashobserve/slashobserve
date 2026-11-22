@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -166,7 +167,11 @@ func newTagsJSON(tags []TagCount) []tagCountJSON {
 }
 
 func (s *Service) listTags(c *gin.Context) {
-	tags, err := s.Tags(c.Request.Context(), httpapi.Caller(c))
+	exclude, ok := excludeAuditQuery(c)
+	if !ok {
+		return
+	}
+	tags, err := s.Tags(c.Request.Context(), httpapi.Caller(c), exclude)
 	if err != nil {
 		s.fail(c, "list dashboard tags", err)
 		return
@@ -215,7 +220,11 @@ func (s *Service) listFilters(c *gin.Context) (ListParams, bool) {
 		}
 		params.Query = trimmed
 	}
-	return params, problemFilter(c, &params) && folderFilters(c, &params)
+	return params, narrowingFilters(c, &params)
+}
+
+func narrowingFilters(c *gin.Context, params *ListParams) bool {
+	return problemFilter(c, params) && excludeAuditFilter(c, params) && folderFilters(c, params)
 }
 
 func problemFilter(c *gin.Context, params *ListParams) bool {
@@ -233,6 +242,23 @@ func problemFilter(c *gin.Context, params *ListParams) bool {
 	}
 	params.Problem = problem
 	return true
+}
+
+func excludeAuditQuery(c *gin.Context) (exclude, ok bool) {
+	switch c.DefaultQuery("exclude_audit", "false") {
+	case "false":
+		return false, true
+	case "true":
+		return true, true
+	}
+	httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "exclude_audit must be true or false")
+	return false, false
+}
+
+func excludeAuditFilter(c *gin.Context, params *ListParams) bool {
+	exclude, ok := excludeAuditQuery(c)
+	params.ExcludeAudit = exclude
+	return ok
 }
 
 func folderFilters(c *gin.Context, params *ListParams) bool {
@@ -287,6 +313,11 @@ func (s *Service) getDashboard(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	audit.Conclude(c.Request.Context(), audit.Result{
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
+		Data:    map[string]any{"version": ver.Number},
+	})
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 

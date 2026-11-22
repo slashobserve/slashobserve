@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -350,19 +351,20 @@ type MadeBy struct {
 }
 
 type ListParams struct {
-	Limit      int
-	Cursor     string
-	Offset     int
-	MadeBy     MadeBy
-	Datasource string
-	Query      string
-	Tags       []string
-	Problem    string
-	SkipTotal  bool
-	Folder     pgtype.UUID
-	ByFolder   bool
-	ByViews    bool
-	ByName     bool
+	Limit        int
+	Cursor       string
+	Offset       int
+	MadeBy       MadeBy
+	Datasource   string
+	Query        string
+	Tags         []string
+	Problem      string
+	ExcludeAudit bool
+	SkipTotal    bool
+	Folder       pgtype.UUID
+	ByFolder     bool
+	ByViews      bool
+	ByName       bool
 }
 
 type ListItem struct {
@@ -435,7 +437,11 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 	if err != nil {
 		return ListPage{}, err
 	}
-	filter, err := filterOf(p, levels.Visible())
+	visible, err := s.visibleFolders(ctx, levels, p.ExcludeAudit)
+	if err != nil {
+		return ListPage{}, err
+	}
+	filter, err := filterOf(p, visible)
 	if err != nil {
 		return ListPage{}, err
 	}
@@ -467,6 +473,18 @@ func (s *Service) List(ctx context.Context, by auth.Principal, p ListParams) (Li
 		page.NextCursor = nextCursor(page.Items[len(page.Items)-1], p)
 	}
 	return page, nil
+}
+
+func (s *Service) visibleFolders(ctx context.Context, levels folders.Levels, excludeAudit bool) ([]pgtype.UUID, error) {
+	visible := levels.Visible()
+	if !excludeAudit {
+		return visible, nil
+	}
+	audit, err := s.access.AuditFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(visible, func(id pgtype.UUID) bool { return id == audit }), nil
 }
 
 func (s *Service) listByRecency(ctx context.Context, p ListParams, filter dbsqlc.CountDashboardsParams) ([]ListItem, error) {
@@ -546,12 +564,16 @@ type TagCount struct {
 	Dashboards int
 }
 
-func (s *Service) Tags(ctx context.Context, by auth.Principal) ([]TagCount, error) {
+func (s *Service) Tags(ctx context.Context, by auth.Principal, excludeAudit bool) ([]TagCount, error) {
 	levels, err := s.access.Levels(ctx, by)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.store.db.Queries().ListDashboardTags(ctx, levels.Visible())
+	visible, err := s.visibleFolders(ctx, levels, excludeAudit)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.store.db.Queries().ListDashboardTags(ctx, visible)
 	if err != nil {
 		return nil, fmt.Errorf("list dashboard tags: %w", err)
 	}

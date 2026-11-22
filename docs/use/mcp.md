@@ -168,6 +168,7 @@ A Viewer still gets `forbidden_role`.
 
 `get_dashboard` also returns `view_count`, the people-days on which the dashboard was opened in the last 30 days, with `window_days`.
 `list_dashboards` returns the same `view_count` on each dashboard and takes `order`, `updated` (the default), `views` for the most viewed first or `name` for A to Z by title; pass a `next_cursor` back with the order that produced it.
+Pass `exclude_audit: true` to leave out the dashboards in the [Audit folder](activity.md#audit-folder).
 
 `update_panels` changes an existing dashboard by sending only what changed, so a one-panel fix costs one panel and not the whole document.
 It takes `dashboard_id`, `parent_version` and a `summary`, and a patch with any of these:
@@ -255,6 +256,7 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 `list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 For an Admin key each folder also carries `admins_only`, true for a folder only Admins can read; a save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
+Each folder also carries `audit: true` when it is the [Audit folder](activity.md#audit-folder), and the field is left out otherwise.
 A key below Admin never sees the field, and no tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 `create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
 
@@ -298,7 +300,7 @@ An observation has one discussion, so `create_comment` on an observation that ha
 Both tools take `client_id`, a UUID you make for the message: sending the same call again returns the message already posted with `replayed` true, and starts nothing.
 
 Write `@observe` to address the built-in agent, `@[Name](grant:<id>)` for one of your own connected agents and `@[Name](service_account:<id>)` for a service account that takes runs: a mention is recorded and appears in the activity log as `thread.mentioned`.
-A comment is for everyone and asks no agent unless the call sets `to` to `agent`; `start_runs` is the deprecated spelling of the same.
+A comment is for everyone and asks no agent unless the call sets `to` to `agent`.
 With `to: agent` the comment asks the one agent it mentions, else the thread's agent, else `@observe`, in the same transaction as the comment, and that agent becomes the thread's agent; a comment for everyone turns the thread's agent off.
 The result carries `to`, and `run` (`id`, `status`, `assigned_kind`) or `run_refusal` (`code`, `message`) when the comment was stored without a run.
 
@@ -446,7 +448,7 @@ Without a `dashboard_id` an `ask` builds a new dashboard or answers in the chat,
 With `kind: revise`, `applies_finding_id` in place of `prompt` makes the change an answer about that dashboard suggests: the answer's `suggested_change` from `get_run` is the prompt, and while a run applying it is queued or running, or after it succeeded, the call returns your run with `replayed: true` or answers `already_applied` for someone else's.
 An `ask` with one of `dashboard_id` or `observation_id` is a [private ask](../concepts/agent.md#private-asks): it only answers, changes nothing, and is read only by you and Admins; `kind: investigate` is refused, because an investigation is a person's decision.
 
-Every run is a turn of a chat: without `chat_id` a new chat starts, and a revision joins your latest chat on that dashboard; `follows_id`, an earlier run of yours with no dashboard, is the deprecated way to name a chat.
+Every run is a turn of a chat: without `chat_id` a new chat starts, and a revise joins your latest chat on that dashboard unless `new_chat` is true, which always starts a new one and is refused with `chat_id`.
 Send a new `client_id` (a UUID) with each question: a resend with the same one answers with the run it started and `replayed: true`, and one with another prompt answers `client_id_reused`.
 Without `client_id` every call queues another run, so read `get_run` or `list_activity` before asking again; the limits (3 new-dashboard runs per caller, 5 revisions per dashboard, an instance-wide cap) answer `too_many_requests`, `too_many_revisions` and `agent_busy`, and `agent_unavailable` means the server has no model.
 `cancel_run` stops a run the caller started and is safe to repeat: a run that is already canceled, succeeded or failed answers with its current state.
