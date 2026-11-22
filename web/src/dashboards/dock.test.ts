@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest"
 
-import { dockOf, isSidePanelCard, type DockState } from "./dock"
+import {
+  arrangingSetsPaneAside,
+  dockOf,
+  heldPaneOf,
+  isSidePanelCard,
+  paneKeyOf,
+  type DockState,
+} from "./dock"
 import type { DashboardSearch } from "./search"
 
 const closed: DockState = {
@@ -105,5 +112,51 @@ describe("isSidePanelCard", () => {
     [null, false],
   ] as const)("%s is %s", (dock, expected) => {
     expect(isSidePanelCard(dock)).toBe(expected)
+  })
+})
+
+describe("heldPaneOf", () => {
+  test("keeps the Activity or chat pane held while unsaved moves hide it", () => {
+    const search = { vars: {}, tab: "chat" as const, chat: "c1" }
+    const editing = { ...closed, open: true, layoutEditing: true }
+    expect(dockOf(search, editing)).toBeNull()
+    expect(heldPaneOf(search, editing)).toBe("chat")
+    expect(heldPaneOf({ vars: {} }, editing)).toBe("activity")
+  })
+
+  test("holds no share, edit or closed pane", () => {
+    expect(heldPaneOf({ vars: {}, share: true }, closed)).toBeNull()
+    expect(
+      heldPaneOf({ vars: {}, panel: "p1", edit: "query" }, closed)
+    ).toBeNull()
+    expect(heldPaneOf({ vars: {} }, closed)).toBeNull()
+  })
+})
+
+describe("paneKeyOf", () => {
+  test("changes when the pane is pointed somewhere else", () => {
+    const chat = paneKeyOf({ vars: {}, tab: "chat", chat: "c1" }, "chat")
+    expect(paneKeyOf({ vars: {}, tab: "chat", chat: "c1" }, "chat")).toBe(chat)
+    expect(paneKeyOf({ vars: {}, tab: "chat", chat: "c2" }, "chat")).not.toBe(
+      chat
+    )
+    expect(paneKeyOf({ vars: {}, thread: "t1" }, "activity")).not.toBe(
+      paneKeyOf({ vars: {} }, "activity")
+    )
+    expect(paneKeyOf({ vars: {} }, null)).toBeNull()
+  })
+})
+
+describe("arrangingSetsPaneAside", () => {
+  test.each<[ReturnType<typeof dockOf>, boolean, boolean]>([
+    ["activity", true, true],
+    ["chat", true, true],
+    ["activity", false, false],
+    ["share", true, false],
+    ["edit", true, false],
+    ["inspect", true, false],
+    [null, true, false],
+  ])("%s beside the grid %s sets it aside: %s", (shown, beside, expected) => {
+    expect(arrangingSetsPaneAside(shown, beside)).toBe(expected)
   })
 })

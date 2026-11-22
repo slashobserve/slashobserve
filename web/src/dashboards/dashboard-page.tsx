@@ -171,7 +171,13 @@ import { useExportStore } from "./print/export-store"
 import { VersionMenu } from "./version-menu"
 import { useViewsText } from "./views"
 import { activityCardId } from "./pane-openers"
-import { dockOf, isSidePanelCard } from "./dock"
+import {
+  arrangingSetsPaneAside,
+  dockOf,
+  heldPaneOf,
+  isSidePanelCard,
+  paneKeyOf,
+} from "./dock"
 
 function scrollPaneIntoView(id: string) {
   requestAnimationFrame(() =>
@@ -469,17 +475,35 @@ function DashboardView({
   const pressArranges = arranging && (tool === "select" || editing)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
-  const dock = dockOf(search, {
+  const dockState = {
     open,
     layoutEditing: editing,
     inspectable: inspectPanel !== undefined,
     specOpen,
-  })
+  }
+  const dock = dockOf(search, dockState)
+  const heldPane = heldPaneOf(search, dockState)
+  const paneKey = paneKeyOf(search, heldPane)
+  const cardLayout = useActivityLayout(editingPanel)
+  const [paneAsideAt, setPaneAsideAt] = useState<string | null>(null)
+  const [arrangedId, setArrangedId] = useState(selectedId)
+  if (paneAsideAt !== null && paneAsideAt !== paneKey) setPaneAsideAt(null)
+  if (arrangedId !== selectedId) {
+    setArrangedId(selectedId)
+    if (
+      selectedId !== null &&
+      pressArranges &&
+      arrangingSetsPaneAside(dock, !cardLayout.stacked)
+    ) {
+      setPaneAsideAt(paneKey)
+    }
+  }
+  const paneAside = paneAsideAt !== null && paneAsideAt === paneKey
   const inspecting = dock === "inspect"
   const specShown = dock === "spec"
-  const cardView = isSidePanelCard(dock) ? dock : null
+  const cardView = isSidePanelCard(dock) && !paneAside ? dock : null
+  const mountedCard = isSidePanelCard(dock) ? dock : heldPane
   const cardVisible = cardView !== null
-  const cardLayout = useActivityLayout(editingPanel)
   const inspectLayout = useActivityLayout(false)
   const [inspectTarget, setInspectTarget] = useState<InspectTarget | null>(null)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
@@ -766,6 +790,11 @@ function DashboardView({
   ])
 
   const toggleCard = useCallback(() => {
+    if (paneAside) {
+      announcePaneOpening()
+      setPaneAsideAt(null)
+      return
+    }
     if (cardVisible) {
       closeCard()
       return
@@ -773,7 +802,14 @@ function DashboardView({
     announcePaneOpening()
     setOpen(true)
     if (cardLayout.stacked) scrollPaneIntoView(activityCardId)
-  }, [cardVisible, closeCard, setOpen, cardLayout.stacked])
+  }, [
+    paneAside,
+    cardVisible,
+    closeCard,
+    setOpen,
+    setPaneAsideAt,
+    cardLayout.stacked,
+  ])
 
   const toggleShare = useCallback(() => {
     const sharing = search.share === true
@@ -1127,9 +1163,10 @@ function DashboardView({
                     <CanvasTools permissions={permissions} idle={!editing} />
                   )}
                 </div>
-                {cardView !== null ? (
+                {mountedCard !== null ? (
                   <ActivityCard
-                    view={cardView}
+                    view={mountedCard}
+                    hidden={cardView === null}
                     dashboardId={dashboardId}
                     apiId={envelope.dashboard.id}
                     spec={spec}

@@ -544,6 +544,8 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(card(page).getByText(olderVersionNote)).toHaveCount(0)
 
       await selectPanelToArrange(page, rpsTitle)
+      await expect(card(page)).toHaveCount(0)
+      await expect(toggle(page)).toHaveAttribute("aria-pressed", "false")
       await page
         .getByRole("button", { name: `Move or resize ${rpsTitle}` })
         .focus()

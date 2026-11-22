@@ -20,6 +20,7 @@ import { routeTree } from "@/routeTree.gen"
 import { testQueryClient } from "@/test/render"
 
 import { useCanvasTool } from "./canvas-tools"
+import { activityButtonId, activityCardId } from "./pane-openers"
 
 const dashboardId = "3c1f9a7e-2b4d-4e6f-8a1c-5d7e9f0a2b3c"
 const folderId = "8e2d4f6a-1c3b-4d5e-9f7a-0b2c4d6e8f1a"
@@ -113,6 +114,8 @@ class IdleEventSource {
   close() {}
 }
 
+let canEdit = true
+
 function mockServer() {
   vi.stubGlobal("EventSource", IdleEventSource)
   vi.stubGlobal(
@@ -126,7 +129,13 @@ function mockServer() {
         case "/api/v1/auth/session":
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
-          return json(envelope)
+          return json({
+            ...envelope,
+            dashboard: {
+              ...envelope.dashboard,
+              permissions: { ...envelope.dashboard.permissions, edit: canEdit },
+            },
+          })
         case "/api/v1/datasources":
           return json({ datasources: [] })
         case "/api/v1/folders":
@@ -200,6 +209,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  canEdit = true
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -256,4 +266,79 @@ describe("arranging panels on the dashboard grid", () => {
       )
     }
   )
+
+  describe("with the Activity pane open beside the grid", () => {
+    function activityPane(): HTMLElement {
+      const pane = document.getElementById(activityCardId)
+      if (!pane) throw new Error("no Activity pane")
+      return pane
+    }
+
+    beforeEach(() => {
+      vi.spyOn(window, "innerWidth", "get").mockReturnValue(1440)
+      useActivityStore.setState({ open: true })
+    })
+
+    it("closes the pane on the press that selects a panel to arrange, and the press still drags", async () => {
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      const pane = activityPane()
+      expect(pane).toBeVisible()
+
+      fireEvent.pointerDown(title, { button: 0 })
+      await waitFor(() => expect(pane).not.toBeVisible())
+      fireEvent.mouseDown(title, { button: 0, clientX: 700, clientY: 20 })
+      fireEvent.mouseMove(document, { clientX: 760, clientY: 60 })
+      await waitFor(() =>
+        expect(gridItemOf("Runbook")).toHaveClass("react-draggable-dragging")
+      )
+      fireEvent.mouseUp(document, { clientX: 760, clientY: 60 })
+    })
+
+    it("reopens the same pane from its button while the panel stays selected", async () => {
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      const pane = activityPane()
+      fireEvent.click(title)
+      await waitFor(() => expect(pane).not.toBeVisible())
+      const toggle = document.getElementById(activityButtonId)
+      expect(toggle).toHaveAttribute("aria-pressed", "false")
+
+      fireEvent.click(toggle!)
+
+      await waitFor(() => expect(activityPane()).toBeVisible())
+      expect(activityPane()).toBe(pane)
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
+
+    it("keeps the pane open when a viewer who cannot edit selects a panel", async () => {
+      canEdit = false
+      renderDashboard()
+      const title = await screen.findByRole("button", {
+        name: "Select panel: Runbook",
+      })
+      fireEvent.pointerDown(title, { button: 0 })
+      await waitFor(() =>
+        expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+      )
+      expect(activityPane()).toBeVisible()
+    })
+
+    it.each(["comment", "ask"] as const)(
+      "keeps the pane open for a press in %s mode",
+      async (tool) => {
+        renderDashboard()
+        const title = await screen.findByRole("button", {
+          name: "Select panel: Runbook",
+        })
+        act(() => useCanvasTool.getState().setTool(tool))
+        fireEvent.pointerDown(title, { button: 0 })
+        expect(activityPane()).toBeVisible()
+      }
+    )
+  })
 })

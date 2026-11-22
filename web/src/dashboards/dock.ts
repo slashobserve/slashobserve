@@ -39,3 +39,31 @@ export function isSidePanelCard(view: DockView): view is SidePanelCard {
     view === "share"
   )
 }
+
+export type SidePane = "activity" | "chat"
+
+function sidePaneOf(view: DockView): SidePane | null {
+  return view === "activity" || view === "chat" ? view : null
+}
+
+export function heldPaneOf(
+  search: DashboardSearch,
+  state: DockState
+): SidePane | null {
+  return sidePaneOf(dockOf(search, { ...state, layoutEditing: false }))
+}
+
+export function paneKeyOf(
+  search: DashboardSearch,
+  pane: SidePane | null
+): string | null {
+  if (pane === null) return null
+  return [pane, search.tab, search.chat, search.thread, search.panel].join("|")
+}
+
+export function arrangingSetsPaneAside(
+  shown: DockView,
+  besideGrid: boolean
+): boolean {
+  return besideGrid && sidePaneOf(shown) !== null
+}
