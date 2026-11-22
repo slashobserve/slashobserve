@@ -447,14 +447,13 @@ function DashboardView({
     envelopeVersion,
     envelopeSpec,
   ])
-  const selection = useSelectedPanel(dashboardId)
-  const selectedId =
-    !kiosk &&
-    viewed === undefined &&
-    selection !== null &&
-    layoutPanelOf(spec, selection) !== undefined
-      ? selection
+  const storedSelection = useSelectedPanel(dashboardId)
+  const selection =
+    storedSelection !== null &&
+    layoutPanelOf(spec, storedSelection) !== undefined
+      ? storedSelection
       : null
+  const selectedId = !kiosk && viewed === undefined ? selection : null
   const layout =
     sessionOpen && ((arranging && selectedId !== null) || editing)
       ? session.layout
@@ -487,6 +486,8 @@ function DashboardView({
   const cardLayout = useActivityLayout(editingPanel)
   const paneOpenings = useActivityStore((state) => state.openings)
   const [seenOpenings, setSeenOpenings] = useState(paneOpenings)
+  const paneAddress = [search.tab, search.chat, search.thread].join("|")
+  const [seenPaneAddress, setSeenPaneAddress] = useState(paneAddress)
   const [arrangingPane, setArrangingPane] = useState<ArrangingPane>(null)
   const nextArrangingPane = arrangingPaneAfter(arrangingPane, {
     arranging: selection !== null || editing,
@@ -494,9 +495,10 @@ function DashboardView({
       selectedId !== null &&
       pressArranges &&
       arrangingSetsPaneAside(dock, !cardLayout.stacked),
-    reopened: seenOpenings !== paneOpenings,
+    reopened: seenOpenings !== paneOpenings || seenPaneAddress !== paneAddress,
   })
   if (seenOpenings !== paneOpenings) setSeenOpenings(paneOpenings)
+  if (seenPaneAddress !== paneAddress) setSeenPaneAddress(paneAddress)
   if (nextArrangingPane !== arrangingPane) {
     setArrangingPane(nextArrangingPane)
   }

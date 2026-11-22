@@ -116,6 +116,27 @@ class IdleEventSource {
 }
 
 let canEdit = true
+let runbookRemoved = false
+
+function servedEnvelope() {
+  const spec = runbookRemoved
+    ? {
+        ...envelope.version.spec,
+        panels: envelope.version.spec.panels.filter(
+          (panel) => panel.id !== "p_runbook"
+        ),
+      }
+    : envelope.version.spec
+  const version = runbookRemoved ? 2 : 1
+  return {
+    dashboard: {
+      ...envelope.dashboard,
+      latest_version: version,
+      permissions: { ...envelope.dashboard.permissions, edit: canEdit },
+    },
+    version: { ...envelope.version, version, spec },
+  }
+}
 
 function mockServer() {
   vi.stubGlobal("EventSource", IdleEventSource)
@@ -130,13 +151,7 @@ function mockServer() {
         case "/api/v1/auth/session":
           return json({ authenticated: true, principal: admin })
         case `/api/v1/dashboards/${dashboardId}`:
-          return json({
-            ...envelope,
-            dashboard: {
-              ...envelope.dashboard,
-              permissions: { ...envelope.dashboard.permissions, edit: canEdit },
-            },
-          })
+          return json(servedEnvelope())
         case "/api/v1/datasources":
           return json({ datasources: [] })
         case "/api/v1/folders":
@@ -212,6 +227,7 @@ beforeEach(() => {
 
 afterEach(() => {
   canEdit = true
+  runbookRemoved = false
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -399,6 +415,40 @@ describe("arranging panels on the dashboard grid", () => {
         expect(activityPane()).toBeVisible()
       }
     )
+
+    it("ends the session and brings the pane back when the selected panel leaves the dashboard", async () => {
+      const router = renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      runbookRemoved = true
+      await act(() => router.options.context.queryClient.invalidateQueries())
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: "Select panel: Runbook" })
+        ).toBeNull()
+      )
+      await waitFor(() => expect(pane).toBeVisible())
+    })
+
+    it("shows the pane when the address points it at a thread during the session", async () => {
+      const router = renderDashboard()
+      const pane = await setPaneAsideBySelecting("Runbook")
+
+      await act(() =>
+        router.navigate({
+          to: ".",
+          search: (state: Record<string, unknown>) => ({
+            ...state,
+            thread: "t1",
+          }),
+        })
+      )
+
+      await waitFor(() => expect(activityPane()).toBeVisible())
+      expect(activityPane()).toBe(pane)
+      expect(articleOf("Runbook")).toHaveAttribute("data-selected")
+    })
 
     it("shows the pane for any explicit open, even with nothing in the address changing", async () => {
       renderDashboard()
