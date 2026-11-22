@@ -200,6 +200,21 @@ func TestPromptPayloadRevisesOnlyWithReviseAndADashboard(t *testing.T) {
 	}
 }
 
+func TestPromptPayloadStartsANewChatOnlyWithoutANamedOne(t *testing.T) {
+	got, err := promptOptions{dashboard: repairID, revise: true, newChat: true}.payload("add a latency panel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := json.Marshal(got); string(raw) != `{"dashboard_id":"`+repairID+`","kind":"revise","new_chat":true,"prompt":"add a latency panel"}` {
+		t.Errorf("payload = %s", raw)
+	}
+	for _, o := range []promptOptions{{newChat: true, chat: repairID}, {newChat: true, follows: repairID}} {
+		if _, err := o.payload("x"); err == nil || !strings.Contains(err.Error(), "--new-chat excludes --chat and --follows") {
+			t.Errorf("%+v: error = %v", o, err)
+		}
+	}
+}
+
 func TestPromptPayloadCarriesTheAnchor(t *testing.T) {
 	at := `{"kind":"time","pos":{"x":0.5,"y":0.5},"from":"2026-11-20T23:56:00Z"}`
 	got, err := promptOptions{dashboard: repairID, at: at}.payload("why this spike")

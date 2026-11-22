@@ -167,7 +167,7 @@ func (r *Recorder) row(ctx context.Context, e Event) (dbsqlc.InsertAuditEventPar
 	if !ok {
 		return dbsqlc.InsertAuditEventParams{}, fmt.Errorf("%w: %q", ErrUnknownAction, e.Action)
 	}
-	data, err := r.declaredData(spec, e.Data)
+	data, err := r.declaredData(spec, e.Outcome, e.Data)
 	if err != nil {
 		return dbsqlc.InsertAuditEventParams{}, err
 	}
@@ -237,11 +237,11 @@ func (r *Recorder) row(ctx context.Context, e Event) (dbsqlc.InsertAuditEventPar
 	return row, nil
 }
 
-func (r *Recorder) declaredData(spec Spec, data map[string]any) ([]byte, error) {
+func (r *Recorder) declaredData(spec Spec, outcome Outcome, data map[string]any) ([]byte, error) {
 	kept := make(map[string]any, len(data))
 	dropped := 0
 	for key, value := range data {
-		if slices.Contains(spec.Data, key) {
+		if slices.Contains(spec.Data, key) || outcome == OutcomeDenied && slices.Contains(refusalKeys, key) {
 			kept[key] = value
 		} else {
 			dropped++

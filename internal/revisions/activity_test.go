@@ -293,6 +293,40 @@ func TestRunActivityDataCarriesOnlyIdsNumbersAndEnums(t *testing.T) {
 	}
 }
 
+func TestAFinishedRunKeepsItsModelAndTokensForTheAuditEventOnly(t *testing.T) {
+	finished := runRow(StatusSucceeded, SourcePrompt)
+	finished.RunUsage = []byte(`{"model":"claude-haiku-5-5","input_tokens":1200,"output_tokens":340,"cost_usd":0.5}`)
+	cases := []struct {
+		name  string
+		row   dbsqlc.AgentRequest
+		typ   string
+		audit map[string]any
+	}{
+		{"succeeded", finished, activity.TypeRunSucceeded, map[string]any{"model": "claude-haiku-5-5", "input_tokens": int64(1200), "output_tokens": int64(340)}},
+		{"failed", finished, activity.TypeRunFailed, map[string]any{"model": "claude-haiku-5-5", "input_tokens": int64(1200), "output_tokens": int64(340)}},
+		{"canceled", finished, activity.TypeRunCanceled, map[string]any{"model": "claude-haiku-5-5", "input_tokens": int64(1200), "output_tokens": int64(340)}},
+		{"no usage", runRow(StatusSucceeded, SourcePrompt), activity.TypeRunSucceeded, map[string]any{}},
+		{"unreadable usage", func() dbsqlc.AgentRequest { r := finished; r.RunUsage = []byte(`[1`); return r }(), activity.TypeRunSucceeded, nil},
+		{"started", finished, activity.TypeRunStarted, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := runActivity(tc.row, tc.typ)
+			if len(entry.AuditOnly) != len(tc.audit) {
+				t.Fatalf("audit data = %v, want %v", entry.AuditOnly, tc.audit)
+			}
+			for k, v := range tc.audit {
+				if entry.AuditOnly[k] != v {
+					t.Errorf("audit data[%q] = %v, want %v", k, entry.AuditOnly[k], v)
+				}
+			}
+			if data := dataOf(t, entry); data["model"] != nil || data["input_tokens"] != nil {
+				t.Errorf("activity data = %v, want no model or tokens", data)
+			}
+		})
+	}
+}
+
 func TestRevisionEventIsSentOnlyForRunsThatChangeADashboard(t *testing.T) {
 	withComment := runRow(StatusSucceeded, SourceComment)
 	withComment.CommentID = pgtype.UUID{Bytes: [16]byte{4}, Valid: true}

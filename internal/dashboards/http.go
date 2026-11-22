@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -287,6 +288,11 @@ func (s *Service) getDashboard(c *gin.Context) {
 	}
 	dash.Abilities = folders.DashboardFrom(c).Shown()
 	dash.Provisioned = folders.DashboardFrom(c).Provisioned
+	audit.Conclude(c.Request.Context(), audit.Result{
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "dashboard", ID: c.Param("id")},
+		Data:    map[string]any{"version": ver.Number},
+	})
 	c.JSON(http.StatusOK, NewDashboardVersionJSON(dash, ver))
 }
 

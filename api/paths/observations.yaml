@@ -454,7 +454,7 @@ observations-id-layout:
         format: uuid
   put:
     operationId: arrangeObservationBlocks
-    x-audit: { action: observation.update, target: { kind: observation, id: path.id } }
+    x-audit: { action: observation.arrange, target: { kind: observation, id: path.id } }
     x-surfaces:
       mcp: [arrange_blocks]
       cli: [observe o arrange]
@@ -953,6 +953,124 @@ blocks-id-data:
               $ref: "../openapi.yaml#/components/schemas/PanelDataError"
       "504":
         description: A datasource did not answer within the query timeout.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+observations-id-blocks-preview:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  post:
+    operationId: previewObservationBlock
+    x-audit: { action: query.run, target: { kind: observation, id: path.id } }
+    summary: Run an unsaved panel for a panel block of an observation and return its frames.
+    description: >-
+      The draft is the panel an edit of the block `block_id` would store, or a new panel block when `block_id` is absent, and it is checked like a panel block write.
+      An edit keeps the block's variables and range; a new panel block has none of its own and uses the observation's range.
+      Only signed-in users who may add a block, with Edit or Comment on the observation's folder, may call it: a service-account key gets 403 `user_session_required` and uses `query_range` instead, and a Viewer gets 403 `forbidden_role`.
+      The draft's queries run with the agent tools' limits (15 seconds, 200 series, 100,000 points, 1,000 rows), and a datasource only Admins may query answers only in an Admins-only folder, as the block's own data does.
+      Nothing is cached, and the call counts against the caller's 8 in-flight query requests.
+      `from`, `to`, `tz`, `max_data_points` and `variables` behave as the parameters of panel data, and the response has the shape of panel data, with `meta.cached` always false.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [panel]
+            properties:
+              block_id:
+                type: string
+                format: uuid
+                description: The panel block being edited; absent for a new panel block.
+              panel:
+                type: object
+                additionalProperties: true
+                description: The draft panel, in the Spec's panel shape.
+              from:
+                type: string
+                minLength: 1
+                maxLength: 128
+              to:
+                type: string
+                minLength: 1
+                maxLength: 128
+              tz:
+                type: string
+                minLength: 1
+                maxLength: 64
+              max_data_points:
+                type: integer
+                minimum: 10
+                maximum: 11000
+                default: 1000
+              variables:
+                type: object
+                additionalProperties:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+    responses:
+      "200":
+        description: The frames the draft's queries returned.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelData"
+      "400":
+        description: The request is malformed or fails validation.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The caller is not a signed-in user (`user_session_required`), or may not add a block to the observation (`forbidden_role`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        description: There is no such observation, or no such panel block in it, for the caller (`not_found`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: >-
+          The draft is not a valid panel block (`invalid_panel`, `invalid_block` or `variable_missing`, with `issues`), or a query or a variable cannot run, with the codes of panel data.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/ValidationError"
+                - $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "429":
+        $ref: "../openapi.yaml#/components/responses/TooManyRequests"
+      "500":
+        description: The server failed to handle the request.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "502":
+        description: A datasource is unavailable.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/PanelDataError"
+      "504":
+        description: A datasource did not answer within the draft's 15 second query timeout, or the request did not finish within 20 seconds.
         content:
           application/json:
             schema:

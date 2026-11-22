@@ -256,6 +256,8 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-reopen"
   /observations/{id}/blocks:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
+  /observations/{id}/blocks/preview:
+    $ref: "./paths/observations.yaml#/observations-id-blocks-preview"
   /observations/{id}/layout:
     $ref: "./paths/observations.yaml#/observations-id-layout"
   /blocks/{id}:
