@@ -145,7 +145,7 @@ An anchor over 1536 bytes once encoded is refused.
 | `value` | nothing, and optionally `series` |
 | `position`, `title` | nothing |
 
-`start_run` and `create_comment` over MCP take it as `anchor`, and `list_comments`, `list_runs` and `get_run` give it back; `--at` takes it in the CLI, on [`observe` with a prompt](cli.md#send-a-prompt), on `observe investigate` and on [`observe comments create`](cli.md#comments); [MCP](mcp.md) lists the tools.
+`start_run` and `create_comment` over MCP take it as `anchor`, and `list_comments`, `list_runs` and `get_run` give it back; `--at` takes it in the CLI, on [`observe` with a prompt](cli.md#send-a-prompt), on `observe investigate` and on [`observe comments add`](cli.md#comments); [MCP](mcp.md) lists the tools.
 The CLI also takes short forms such as `row:service=payments,span=authorize_card` and `range:23:50Z..23:58Z` in place of the JSON.
 
 ## Related pages
