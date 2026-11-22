@@ -145,12 +145,16 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		Data:     data,
 		Duration: o.took,
 	}
-	if action == ActionQueryRun {
-		if target.Kind == "datasource" {
-			base.Datasource = target.ID
+	r.emitSettled(ctx, st, base, len(inTx) == 0 && concluded == nil)
+}
+
+func (r *Recorder) emitSettled(ctx context.Context, st *state, base Event, fold bool) {
+	if base.Action == ActionQueryRun {
+		if base.Target.Kind == "datasource" {
+			base.Datasource = base.Target.ID
 		}
 		if st.hasQueries() {
-			for _, e := range r.queryEvents(ctx, st, base, len(inTx) == 0 && concluded == nil) {
+			for _, e := range r.queryEvents(ctx, st, base, fold) {
 				r.emit(ctx, e)
 			}
 			return
