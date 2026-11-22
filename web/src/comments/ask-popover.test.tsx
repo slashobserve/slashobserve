@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react"
 import { useRef } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { useActivityStore } from "@/activity/activity-store"
 import { chatKeys, observeKeys } from "@/api/keys"
 import {
   layoutEditingText,
@@ -22,6 +23,7 @@ import {
   openChatOf,
   privateText,
   reviseSharedText,
+  useOpenChat,
   type AskSpot,
 } from "./ask-popover"
 
@@ -166,12 +168,12 @@ const onObservation: CanvasSubject = { kind: "observation", id: "o1" }
 function Harness({
   gate,
   openChatId,
-  onChatStarted,
+  onChatAsked,
   subject,
 }: {
   gate: GateInput
   openChatId: string | null
-  onChatStarted: (chatId: string) => void
+  onChatAsked: (chatId: string) => void
   subject: CanvasSubject
 }) {
   const turn = useCanvasTool((state) => state.openTurn)
@@ -204,7 +206,7 @@ function Harness({
           }}
           turn={turn}
           openChatId={openChatId}
-          onChatStarted={onChatStarted}
+          onChatAsked={onChatAsked}
         />
       )}
     </>
@@ -225,13 +227,13 @@ function seeded(agentAvailable = true) {
 function renderAsk({
   gate = { ...ungated, agentAvailable: true },
   openChatId = null,
-  onChatStarted = vi.fn(),
+  onChatAsked = vi.fn(),
   queryClient = seeded(),
   subject = onDashboard,
 }: {
   gate?: GateInput
   openChatId?: string | null
-  onChatStarted?: (chatId: string) => void
+  onChatAsked?: (chatId: string) => void
   queryClient?: ReturnType<typeof testQueryClient>
   subject?: CanvasSubject
 } = {}) {
@@ -239,7 +241,7 @@ function renderAsk({
     <Harness
       gate={gate}
       openChatId={openChatId}
-      onChatStarted={onChatStarted}
+      onChatAsked={onChatAsked}
       subject={subject}
     />,
     { queryClient, route: { path: "/", url: "/" } }
@@ -285,6 +287,75 @@ describe("openChatOf", () => {
   })
 })
 
+function ChatHost({
+  paneShown,
+  started,
+}: {
+  paneShown: boolean
+  started: string
+}) {
+  const { chatId, select } = useOpenChat("d1", paneShown)
+  return (
+    <>
+      <output>{chatId ?? "none"}</output>
+      <button onClick={() => select(started)}>Ask on the canvas</button>
+    </>
+  )
+}
+
+function renderChatHost(url: string, paneShown: boolean) {
+  return renderWithProviders(<ChatHost paneShown={paneShown} started="q1" />, {
+    route: { path: "/d/$dashboardId/{-$slug}", url },
+  })
+}
+
+describe("useOpenChat", () => {
+  afterEach(() => useActivityStore.setState({ chats: {} }))
+
+  it("keeps a chat started on the canvas out of the address while the pane is closed, and continues it", async () => {
+    const { user, router } = renderChatHost("/d/d1", false)
+    await user.click(
+      await screen.findByRole("button", { name: "Ask on the canvas" })
+    )
+    expect(router?.state.location.search).not.toHaveProperty("chat")
+    expect(screen.getByRole("status")).toHaveTextContent("q1")
+  })
+
+  it("switches the open pane to the chat started on the canvas", async () => {
+    const { user, router } = renderChatHost("/d/d1", true)
+    await user.click(
+      await screen.findByRole("button", { name: "Ask on the canvas" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.search).toMatchObject({ chat: "q1" })
+    )
+    expect(screen.getByRole("status")).toHaveTextContent("q1")
+  })
+
+  it("switches the open pane to a remembered chat that a canvas ask continues", async () => {
+    useActivityStore.setState({ chats: { d1: "q1" } })
+    const { user, router } = renderChatHost("/d/d1", true)
+    await user.click(
+      await screen.findByRole("button", { name: "Ask on the canvas" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.search).toMatchObject({ chat: "q1" })
+    )
+  })
+
+  it("prefers the chat in the address over the remembered one", async () => {
+    useActivityStore.setState({ chats: { d1: "q1" } })
+    renderChatHost("/d/d1?chat=c9", false)
+    expect(await screen.findByRole("status")).toHaveTextContent("c9")
+  })
+
+  it("starts fresh for a new chat in the address", async () => {
+    useActivityStore.setState({ chats: { d1: "q1" } })
+    renderChatHost("/d/d1?chat=new", false)
+    expect(await screen.findByRole("status")).toHaveTextContent("none")
+  })
+})
+
 describe("AskPopover", () => {
   it("opens at the click with the spot's chips, no Visible to chip, and the private note", async () => {
     stubServer()
@@ -309,11 +380,11 @@ describe("AskPopover", () => {
 
   it("asks privately in the open chat with the spot, the value shown and the window, then shows it working", async () => {
     const posts = stubServer()
-    const onChatStarted = vi.fn()
+    const onChatAsked = vi.fn()
     const queryClient = seeded()
     queryClient.setQueryData(chatKeys.detail("c1"), chatOf([]))
     openDraft()
-    const { user } = renderAsk({ openChatId: "c1", onChatStarted, queryClient })
+    const { user } = renderAsk({ openChatId: "c1", onChatAsked, queryClient })
     await user.type(
       await screen.findByRole("textbox", { name: "Ask about this" }),
       "Why is payments slow?{Enter}"
@@ -344,19 +415,19 @@ describe("AskPopover", () => {
       ownerId: "p1",
       anchor: onRow,
     })
-    expect(onChatStarted).not.toHaveBeenCalled()
+    expect(onChatAsked).toHaveBeenCalledWith("c1")
   })
 
   it("starts a new chat when none is open and selects it in the Chat tab", async () => {
     const posts = stubServer()
-    const onChatStarted = vi.fn()
+    const onChatAsked = vi.fn()
     openDraft()
-    const { user } = renderAsk({ onChatStarted })
+    const { user } = renderAsk({ onChatAsked })
     await user.type(
       await screen.findByRole("textbox", { name: "Ask about this" }),
       "Why?{Enter}"
     )
-    await waitFor(() => expect(onChatStarted).toHaveBeenCalledWith("q1"))
+    await waitFor(() => expect(onChatAsked).toHaveBeenCalledWith("q1"))
     expect(posts[0]).not.toHaveProperty("chat_id")
   })
 
@@ -380,14 +451,14 @@ describe("AskPopover", () => {
           chat: { ...open.chat, ...change },
         })
       }
-      const onChatStarted = vi.fn()
+      const onChatAsked = vi.fn()
       openDraft()
-      const { user } = renderAsk({ openChatId, onChatStarted, queryClient })
+      const { user } = renderAsk({ openChatId, onChatAsked, queryClient })
       const field = await screen.findByRole("textbox", {
         name: "Ask about this",
       })
       await user.type(field, "Why?{Enter}")
-      await waitFor(() => expect(onChatStarted).toHaveBeenCalledWith("q1"))
+      await waitFor(() => expect(onChatAsked).toHaveBeenCalledWith("q1"))
       expect(posts[0]).not.toHaveProperty("chat_id")
     }
   )
@@ -632,8 +703,8 @@ describe("AskPopover", () => {
         return served(request)
       })
     )
-    const onChatStarted = vi.fn()
-    const { user } = renderAsk({ onChatStarted })
+    const onChatAsked = vi.fn()
+    const { user } = renderAsk({ onChatAsked })
     act(() => openDraft())
     await user.type(
       await screen.findByRole("textbox", { name: "Ask about this" }),
@@ -651,7 +722,7 @@ describe("AskPopover", () => {
       draft: comment,
       openTurn: null,
     })
-    expect(onChatStarted).not.toHaveBeenCalled()
+    expect(onChatAsked).not.toHaveBeenCalled()
   })
 
   it("says why it cannot ask when no model is connected", async () => {

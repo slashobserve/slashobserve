@@ -33,9 +33,11 @@ type Persisted = {
 
 type ActivityState = Persisted & {
   openings: number
+  chats: Record<string, string>
   drafts: Record<string, string>
   targets: Record<string, string | null>
   setOpen: (open: boolean) => void
+  setChat: (dashboardId: string, chatId: string) => void
   setWidth: (width: number) => void
   setEditWidth: (width: number) => void
   setChatWidth: (width: number) => void
@@ -88,12 +90,15 @@ export const useActivityStore = create<ActivityState>()(
       chatWidth: chatPaneWidth.initial,
       panelWidth: panelWidth.initial,
       openings: 0,
+      chats: {},
       drafts: {},
       targets: {},
       setOpen: (open) =>
         set((state) =>
           open ? { open, openings: state.openings + 1 } : { open }
         ),
+      setChat: (dashboardId, chatId) =>
+        set((state) => ({ chats: { ...state.chats, [dashboardId]: chatId } })),
       setWidth: (width) =>
         set({
           width: clampWidth(width, activityWidth, Number.POSITIVE_INFINITY),
@@ -227,4 +232,12 @@ export function usePanelLayout() {
     width: clampWidth(stored, panelWidth, viewport),
     stacked: "container" as const,
   }
+}
+
+export function useCurrentChat(
+  dashboardId: string,
+  addressChat: string | undefined
+): string | undefined {
+  const remembered = useActivityStore((state) => state.chats[dashboardId])
+  return addressChat ?? remembered
 }

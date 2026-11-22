@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useRouteContext, useSearch } from "@tanstack/react-router"
 import { LockIcon, XIcon } from "lucide-react"
 
+import { useActivityStore, useCurrentChat } from "@/activity/activity-store"
 import { useChat } from "@/chat/chats-queries"
 import { ContextChips } from "@/chat/context-chips"
 import { ChatAnswer } from "@/chat/request-turn"
@@ -66,7 +67,7 @@ type Props = {
   spot: AskSpot
   turn: AskedTurn | null
   openChatId: string | null
-  onChatStarted: (chatId: string) => void
+  onChatAsked: (chatId: string) => void
 }
 
 const newChat = "new"
@@ -98,17 +99,23 @@ function continuedChat(
   return !open.read_only && isAbout(open, subject) ? openChatId : null
 }
 
-export function useOpenChat() {
-  const chat = useSearch({
+export function useOpenChat(dashboardId: string, paneShown: boolean) {
+  const addressChat = useSearch({
     strict: false,
     select: (search: Record<string, unknown>) =>
       validateDashboardSearch(search).chat,
   })
+  const chat = useCurrentChat(dashboardId, addressChat)
+  const rememberChat = useActivityStore((state) => state.setChat)
   const setSearch = useSetDashboardSearch()
   const select = useCallback(
-    (chatId: string) =>
-      setSearch((state) => ({ ...state, chat: chatId }), { replace: true }),
-    [setSearch]
+    (chatId: string) => {
+      rememberChat(dashboardId, chatId)
+      if (paneShown && chatId !== addressChat) {
+        setSearch((state) => ({ ...state, chat: chatId }), { replace: true })
+      }
+    },
+    [rememberChat, dashboardId, paneShown, addressChat, setSearch]
   )
   return { chatId: openChatOf(chat), select }
 }
@@ -177,7 +184,7 @@ function AskDraft({
   gate,
   spot,
   openChatId,
-  onChatStarted,
+  onChatAsked,
 }: Omit<Props, "turn" | "surfaceRef">) {
   const [ownDraft] = useState(() => useCanvasTool.getState().draft)
   const chatId = useContinuedChat(openChatId, subject)
@@ -191,7 +198,7 @@ function AskDraft({
       if (sent.via !== "chat") return
       if (useCanvasTool.getState().draft !== ownDraft) return
       const asked = sent.request.chat_id ?? sent.request.id
-      if (asked !== openChatId) onChatStarted(asked)
+      onChatAsked(asked)
       useCanvasTool.getState().showTurn({
         requestId: sent.request.id,
         chatId: asked,
@@ -314,7 +321,7 @@ function AskThread({
   gate,
   spot,
   turn,
-}: Omit<Props, "openChatId" | "onChatStarted" | "surfaceRef"> & {
+}: Omit<Props, "openChatId" | "onChatAsked" | "surfaceRef"> & {
   turn: AskedTurn
 }) {
   const chat = useChat(turn.chatId)
