@@ -170,6 +170,14 @@ export function CanvasPopover({
   )
 }
 
+export function panelTitleOf(surface: HTMLElement | null): HTMLElement | null {
+  return (
+    surface
+      ?.closest("article")
+      ?.querySelector<HTMLElement>("[data-panel-title]") ?? null
+  )
+}
+
 const commentLabel = "Comment on the canvas"
 const commentPlaceholder = "Write a comment"
 
@@ -209,7 +217,7 @@ export function CanvasComposer({
       at={draft.at}
       label={commentLabel}
       initialFocus={model.field}
-      finalFocus={() => surfaceRef.current?.closest("article") ?? true}
+      finalFocus={() => panelTitleOf(surfaceRef.current) ?? true}
       className="p-2"
       onClose={(reason) => {
         const store = useCanvasTool.getState()

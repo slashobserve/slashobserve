@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from "@testing-library/react"
-import { createRef } from "react"
+import { useRef } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { chatKeys, observeKeys } from "@/api/keys"
@@ -177,14 +177,24 @@ function Harness({
   const turn = useCanvasTool((state) => state.openTurn)
   const draft = useCanvasTool((state) => state.draft)
   const at = turn ?? draft
+  const surface = useRef<HTMLDivElement>(null)
   return (
     <>
       <button type="button">Ask origin</button>
+      <div role="toolbar">
+        <button type="button">Ask tool</button>
+      </div>
+      <article>
+        <button type="button" data-panel-title="">
+          Slow services title
+        </button>
+        <div ref={surface} />
+      </article>
       {at === null ? null : (
         <AskPopover
           subject={subject}
           panelTitle="Slow services"
-          surfaceRef={createRef<HTMLElement>()}
+          surfaceRef={surface}
           gate={gate}
           spot={{
             ownerId: at.ownerId,
@@ -552,6 +562,24 @@ describe("AskPopover", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
     expect(useCanvasTool.getState().draft).toBeNull()
     expect(origin).toHaveFocus()
+  })
+
+  it("returns focus to the panel title, not the toolbar, when it was opened from the toolbar", async () => {
+    stubServer()
+    const { user } = renderAsk()
+    const tool = await screen.findByRole("button", { name: "Ask tool" })
+    tool.focus()
+    act(() => openDraft())
+    await waitFor(() =>
+      expect(
+        screen.getByRole("textbox", { name: "Ask about this" })
+      ).toHaveFocus()
+    )
+    await user.keyboard("{Escape}")
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(
+      screen.getByRole("button", { name: "Slow services title" })
+    ).toHaveFocus()
   })
 
   it("stays open with a typed question on a click outside, and closes when empty", async () => {
