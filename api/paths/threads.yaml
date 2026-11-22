@@ -90,7 +90,7 @@ threads:
       `to` decides who the message is for.
       Absent, a message that mentions one agent asks it, a message that mentions a person asks no agent, and any other message asks the thread's agent unless it is off.
       `agent` asks the agent it mentions, else the thread's agent, else `@observe`; `everyone` asks no agent and turns the thread's agent off.
-      The agent a message asks becomes the thread's agent, so later plain replies ask it too; `start_runs: true` is the deprecated spelling of `to: agent`.
+      The agent a message asks becomes the thread's agent, so later plain replies ask it too.
       More than one agent in a message answers 422 `too_many_agents` and writes nothing, whatever `to` says.
       The agent asked gets one run in the same transaction as the message, with the message's text as the prompt (the agent's token removed) and the earlier messages of the thread, the last 20 and at most 8000 characters, as its context.
       A dashboard thread starts a `comment` run on the thread's version and panel, which a Commenter may start and which ends in a proposal when the person cannot edit; an observation thread starts a read-only `investigate` run about the observation, which needs Comment on it, has no per-person cap and answers in the thread without writing on the page.
@@ -146,11 +146,6 @@ threads:
                 format: uuid
                 nullable: true
                 description: A UUID the caller makes for this message, so a resend returns the message already posted.
-              start_runs:
-                type: boolean
-                default: false
-                deprecated: true
-                description: The same as `to` agent when `to` is absent.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.
@@ -233,11 +228,6 @@ threads-threadid-messages:
                 format: uuid
                 nullable: true
                 description: A UUID the caller makes for this message, so a resend returns the message already posted.
-              start_runs:
-                type: boolean
-                default: false
-                deprecated: true
-                description: The same as `to` agent when `to` is absent.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.

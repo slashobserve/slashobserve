@@ -110,6 +110,7 @@ func (a *app) listCommand() *cobra.Command {
 	}
 	addPageFlags(cmd, &a.list, maxDashboardPage)
 	cmd.Flags().StringVar(&a.listOrder, "order", "", "updated (default), views (most opened in the last 30 days first) or name (by title)")
+	cmd.Flags().BoolVar(&a.excludeAudit, "exclude-audit", false, "leave out the dashboards in the built-in Audit folder")
 	return cmd
 }
 
@@ -127,6 +128,9 @@ func (a *app) runList(cmd *cobra.Command, _ []string) error {
 	query := a.list.query()
 	if a.listOrder != "" {
 		query.Set("order", a.listOrder)
+	}
+	if a.excludeAudit {
+		query.Set("exclude_audit", "true")
 	}
 	data, err := c.getPages(cmd.Context(), "dashboards", query, a.list.all)
 	if err != nil {

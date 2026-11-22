@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 import { isEditableTarget } from "@/lib/shortcuts"
 
 import { feedKey, idleChord, type ShortcutAction } from "./chords"
-import { useHoveredPanel } from "./hovered-panel"
+import { useHoveredPanel, type PanelTarget } from "./hovered-panel"
 
 export type ShortcutHandlers = Partial<Record<ShortcutAction, () => void>>
 
@@ -14,12 +14,18 @@ function popupOpen(): boolean {
   return document.querySelector(openPopup) !== null
 }
 
-export function shortcutPanelId(): string | null {
-  const hovered = useHoveredPanel.getState().id
+export function shortcutTarget(): PanelTarget | null {
+  const hovered = useHoveredPanel.getState().target
   if (hovered !== null) return hovered
   const focused =
     document.activeElement?.closest<HTMLElement>("[data-panel-id]")
-  return focused?.dataset.panelId ?? null
+  const id = focused?.dataset.panelId
+  if (focused == null || id === undefined) return null
+  return { id, copy: focused.dataset.repeatOf !== undefined }
+}
+
+export function shortcutPanelId(): string | null {
+  return shortcutTarget()?.id ?? null
 }
 
 export function useDashboardShortcuts(handlers: ShortcutHandlers) {

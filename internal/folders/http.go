@@ -97,9 +97,13 @@ func (h *Handler) bodies(ctx context.Context, items []folderAccess) ([]folderJSO
 	for _, r := range rows {
 		details[r.ID] = r
 	}
+	audit, err := h.access.AuditFolder(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]folderJSON, 0, len(items))
 	for _, item := range items {
-		out = append(out, folderBody(item.Folder, item.Abilities, details[item.Folder.ID]))
+		out = append(out, folderBody(item.Folder, item.Abilities, details[item.Folder.ID], audit))
 	}
 	return out, nil
 }

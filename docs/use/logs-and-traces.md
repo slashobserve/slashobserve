@@ -25,6 +25,7 @@ The five you used last on this browser come first and the rest follow by name, a
 The order is set when the app loads and stays fixed until you reload, so opening a source does not move it; the next load puts it first.
 A source added or removed meanwhile goes by name without moving the others.
 With one log source nothing is listed under it, and **Logs** still opens the list.
+For an Admin the built-in audit datasource, `slashobserve-audit`, is in none of the sidebar's lists, the collapsed sidebar's menu and the `/logs` list, and the default source for a Logs link without one never is it; **Audit**, then **Explore**, opens it, and so does its address `/logs/slashobserve-audit`, the phone's source menu and the command palette.
 On the collapsed sidebar the Logs icon opens a menu with a **Logs** link and the same sources, and on a phone the source line under the page title opens the sources.
 The title names the source and its language, such as **Logs / ClickHouse** with an **SQL** tag.
 

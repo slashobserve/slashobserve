@@ -256,7 +256,7 @@ func observationRefusal(err error) (Result, bool) {
 	case errors.Is(err, observations.ErrNothingToUpdate):
 		return invalid("no change given: send markdown, a panel, width, height or position"), true
 	case errors.Is(err, folders.ErrForbidden):
-		return toolError(codeForbiddenRole, forbidden.RoleMessage), true
+		return forbiddenBy(err, forbidden.RoleMessage), true
 	case errors.As(err, &conflict):
 		return toolError(codeVersionConflict, fmt.Sprintf("the block changed since you read it; read it with %s and apply your change to version %d", nameGetObservation, conflict.Current.Version)), true
 	case errors.As(err, &refusal):

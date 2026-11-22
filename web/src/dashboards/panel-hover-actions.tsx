@@ -1,0 +1,123 @@
+import type { ReactNode, RefObject } from "react"
+import { AtSignIcon, MessageSquarePlusIcon } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+import { shortcutText } from "@/shortcuts/chords"
+import { panelTitle, type LayoutPanel } from "@/spec"
+
+import {
+  askAboutPanelAndFocus,
+  commentOnThisPanel,
+  useConversationActions,
+} from "./panel-actions"
+import { useSetDashboardSearch } from "./search"
+
+const finePointer = "[@media(hover:hover)_and_(pointer:fine)]"
+
+const hoverFadeClass = cn(
+  `${finePointer}:opacity-0`,
+  "motion-safe:transition-opacity",
+  "motion-safe:duration-100",
+  "motion-safe:ease-[var(--ease-out)]",
+  `${finePointer}:group-hover/panel:opacity-100`,
+  `${finePointer}:group-focus-within/panel:opacity-100`
+)
+
+const hiddenWhileToolbarShown = "group-data-[selected]/panel:hidden"
+
+type Props = {
+  panel: LayoutPanel
+  canComment: boolean
+  idle: boolean
+  viewing?: boolean
+  onCanvas: boolean
+  composerRef: RefObject<HTMLTextAreaElement | null>
+}
+
+function HoverAction({
+  label,
+  tooltip,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string
+  tooltip: string
+  disabled: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+export function PanelHoverActions({
+  panel,
+  canComment,
+  idle,
+  viewing = false,
+  onCanvas,
+  composerRef,
+}: Props) {
+  const setSearch = useSetDashboardSearch()
+  const actions = useConversationActions(panel, canComment)
+  const title = panelTitle(panel)
+  if (!actions.comment) return null
+  const pause = idle ? "" : " (finish the layout first)"
+  return (
+    <div
+      data-panel-hover-actions=""
+      className={cn(
+        "flex items-center gap-0.5",
+        hoverFadeClass,
+        !viewing && hiddenWhileToolbarShown
+      )}
+    >
+      {actions.ask ? (
+        <HoverAction
+          label={`Ask about ${title}`}
+          tooltip={`Ask (${shortcutText("ask")})${pause}`}
+          disabled={!idle}
+          onClick={() =>
+            askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+          }
+        >
+          <AtSignIcon aria-hidden="true" />
+        </HoverAction>
+      ) : null}
+      <HoverAction
+        label={`Comment on ${title}`}
+        tooltip={`Comment (${shortcutText("comment")})${pause}`}
+        disabled={!idle}
+        onClick={() =>
+          commentOnThisPanel(setSearch, panel.id, onCanvas, composerRef)
+        }
+      >
+        <MessageSquarePlusIcon aria-hidden="true" />
+      </HoverAction>
+    </div>
+  )
+}

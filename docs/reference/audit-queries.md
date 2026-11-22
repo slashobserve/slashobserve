@@ -63,6 +63,26 @@ The rest of that key's minute become one later event whose `data.count` is how m
 When more than 1000 keys are open, refusals of new keys fold under one anonymous event marked `data.overflow` that names no actor or target, and those follow the same rule.
 Free text, a word with no field, matches the action, the actor's and the target's names, the reason, the tool, the route and a query's text.
 
+## Event data
+
+An event's `data` holds fields that belong to its action and that a query cannot name; read them from a result.
+Only the fields an action declares are kept, and no event holds a message body, a prompt or an answer.
+
+| Action | Data | What it holds |
+| ------ | ---- | ------------- |
+| `dashboard.view` | `version` | The version number the reader was shown |
+| `observation.view` | `updated_at` | When the observation last changed before the reader opened it, as an RFC 3339 time, since an observation has no versions |
+| `observation.arrange` | `title`, `changed` | An arrangement of an observation's blocks that changed something, with `changed` listing which of `height`, `order` and `width` did; it is not an `observation.update`; over the API a request that changes nothing is still recorded, with reason `no_change` and without `changed` |
+| `saved_prompt.create`, `saved_prompt.update`, `saved_prompt.share`, `saved_prompt.unshare`, `saved_prompt.delete` | `owner_id`, `changed`, `from_name` | A change to a prompt that is shared, or that becomes shared or private, with the prompt's owner and which of `name`, `body` and `shared` changed; `from_name` is the name before a change to a prompt that stays shared; an unshare names the prompt by its name while it was shared, never its new private name; a change that alters nothing has reason `no_change`; a successful change to a prompt that is private before and after is never recorded, a refused or failed request on one is recorded without its name, and the text is never recorded |
+| `datasource.test`, `grafana_connection.test` | `type`, `host`, `healthy` | An Admin's connection test, with the datasource's type (datasources only), the host that was called and whether it answered healthy; an unhealthy test has outcome `failed` and reason `unhealthy`; the address, any credential and the response are never recorded |
+| `grafana_connection.fetch_dashboard` | `host` | An Admin's fetch of a dashboard from a link, naming the connection that was used and its host; the link and the dashboard are never recorded |
+| every action, when `outcome` is `denied` | `needed_role`, `needed_access` | The role or the folder access level the refusal said the request needed, over the API and over MCP, left out when the refusal named none; a refusal raised by a plain role check that names none, and failed and successful events, never carry them |
+| `run.finish` | `model`, `input_tokens`, `output_tokens` | The model that ran and the tokens it used, as the run reported them, left out when the run reported none; the activity feed does not carry them |
+| `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The length of the message or prompt in characters, never its text, and the kind of point its thread or turn is anchored to, such as `series` or `position`, left out when there is none |
+
+Events carry no `visible_to` field.
+Who can see a run is recorded by the `run.share` and `run.withdraw` events instead.
+
 ## Query forms
 
 A query is KQL unless it starts with `lucene:` or `{`, and an empty query matches every event in the window.
@@ -163,6 +183,7 @@ It is listed with type `opensearch` and source `builtin`, only Admins and Admin 
 A datasources file entry with the uid `slashobserve-audit` stops the server at start with `audit_datasource_failed`.
 
 The four starter dashboards in the Audit folder are read-only and the server brings each up to date with its release at every start; see [Audit folder](../use/activity.md#audit-folder).
+In the web app, **Audit**, then **Explore**, opens the Logs page on this datasource, and **Audit**, then **Folder**, opens the Audit folder.
 
 It takes the three query forms above: a KQL range query counts the matching events per interval, a logs panel or an instant query returns events newest first, and a DSL body with `aggs` returns series when it holds a `date_histogram` and a table when it does not.
 Each event comes back with the fields of [Fields](#fields) and a `message` line such as `dashboard.update denied (forbidden_role) by Sam via web on dashboard "Checkout"`; `outcome` stands in for a log level.

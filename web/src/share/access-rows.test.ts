@@ -49,6 +49,7 @@ function folder(
     personal: false,
     restricted: true,
     admins_only: false,
+    audit: false,
     dashboard_count: 3,
     grantees: [],
     grantee_count: 0,

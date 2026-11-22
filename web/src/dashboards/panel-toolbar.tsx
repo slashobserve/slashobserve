@@ -21,7 +21,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
 import { isEditablePanel } from "@/panel-editor/draft"
 import {
@@ -31,7 +30,12 @@ import {
   type Variable,
 } from "@/spec"
 
-import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
+import {
+  askAboutPanelAndFocus,
+  commentOnThisPanel,
+  editPanelQuery,
+  useConversationActions,
+} from "./panel-actions"
 import type { DashboardPermissions } from "./permissions"
 import { useSetDashboardSearch } from "./search"
 
@@ -46,14 +50,9 @@ type Props = {
   from: string | undefined
   to: string | undefined
   idle: boolean
+  onCanvas: boolean
   menu: ReactNode
   observationVariables?: readonly Variable[]
-}
-
-function focusComposerWhenShown(
-  composerRef: RefObject<HTMLTextAreaElement | null>
-) {
-  requestAnimationFrame(() => composerRef.current?.focus())
 }
 
 function enabledButtons(root: HTMLElement): HTMLButtonElement[] {
@@ -131,6 +130,7 @@ export function PanelToolbar({
   from,
   to,
   idle,
+  onCanvas,
   menu,
   observationVariables,
 }: Props) {
@@ -139,7 +139,7 @@ export function PanelToolbar({
   const [stop, setStop] = useState(0)
   const [addingToObservation, setAddingToObservation] = useState(false)
   const setSearch = useSetDashboardSearch()
-  const agentAvailable = useAgentInfo().data?.available === true
+  const conversation = useConversationActions(panel, permissions.comment)
   const below = useFlipBelow(root)
   const title = panelTitle(panel)
   const data = isDataPanel(panel)
@@ -202,27 +202,25 @@ export function PanelToolbar({
         below ? "-bottom-10" : "-top-10"
       )}
     >
-      {permissions.comment ? (
+      {conversation.comment ? (
         <ToolbarButton
           label="Comment"
           tooltip={finishFirst("Comment")}
           disabled={!idle}
           onClick={() => {
-            commentOnPanel(setSearch, panel.id)
-            focusComposerWhenShown(composerRef)
+            commentOnThisPanel(setSearch, panel.id, onCanvas, composerRef)
           }}
         >
           <MessageSquarePlusIcon aria-hidden="true" />
         </ToolbarButton>
       ) : null}
-      {permissions.comment && data && agentAvailable ? (
+      {conversation.ask ? (
         <ToolbarButton
           label="Ask @observe"
           tooltip={finishFirst("Ask @observe")}
           disabled={!idle}
           onClick={() => {
-            askAboutPanel(setSearch, panel.id)
-            focusComposerWhenShown(composerRef)
+            askAboutPanelAndFocus(setSearch, panel.id, composerRef)
           }}
         >
           <AtSignIcon aria-hidden="true" />

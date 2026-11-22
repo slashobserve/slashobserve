@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest"
 
 import {
+  isMovedAuditLog,
   sectionNotice,
   selectedSectionId,
   settingsGroups,
@@ -22,19 +23,13 @@ describe("settingsGroups", () => {
       },
       {
         label: "Workspace",
-        ids: [
-          "server",
-          "sign-in",
-          "outbound-access",
-          "agent-access",
-          "audit-log",
-        ],
+        ids: ["server", "sign-in", "outbound-access", "agent-access"],
       },
       { label: "Integrations", ids: ["grafana", "webhooks"] },
     ])
   })
 
-  test("leaves Agent access, the Audit log and Integrations to admins", () => {
+  test("leaves Agent access and Integrations to admins", () => {
     expect(layout("editor")).toEqual([
       {
         label: "You",
@@ -69,7 +64,6 @@ describe("settingsGroups", () => {
       "Sign-in",
       "Outbound access",
       "Agent access",
-      "Audit log",
       "Grafana connection",
       "Webhooks",
     ])
@@ -96,7 +90,7 @@ describe("selectedSectionId", () => {
     expect(selectedSectionId(admin, "agent-access")).toBe("agent-access")
     expect(selectedSectionId(admin, "grafana")).toBe("grafana")
     expect(selectedSectionId(admin, "webhooks")).toBe("webhooks")
-    expect(selectedSectionId(admin, "audit-log")).toBe("audit-log")
+    expect(selectedSectionId(admin, "audit-log")).toBe("server")
   })
 
   test("selects the server without a hash", () => {
@@ -122,7 +116,7 @@ describe("selectedSectionId", () => {
   test("falls back to the server for a section the role cannot see", () => {
     for (const role of ["editor", "commenter", "viewer"] as const) {
       const groups = settingsGroups(role)
-      for (const hash of ["agent-access", "audit-log", "grafana", "webhooks"]) {
+      for (const hash of ["agent-access", "grafana", "webhooks"]) {
         expect(selectedSectionId(groups, hash)).toBe("server")
       }
     }
@@ -194,5 +188,14 @@ describe("settingsPanel", () => {
     expect(settingsPanel("webhooks", { panel: "export" })).toBeNull()
     expect(settingsPanel("grafana", { panel: "export" })).toBeNull()
     expect(settingsPanel("webhooks", {})).toBeNull()
+  })
+})
+
+describe("isMovedAuditLog", () => {
+  test("names the section hash that now lives at /audit", () => {
+    expect(isMovedAuditLog("audit-log")).toBe(true)
+    expect(isMovedAuditLog("")).toBe(false)
+    expect(isMovedAuditLog("webhooks")).toBe(false)
+    expect(isMovedAuditLog("Audit-log")).toBe(false)
   })
 })

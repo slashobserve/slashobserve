@@ -32,7 +32,6 @@ import {
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
-import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
 import { isRenderable } from "@/panels"
 import { shortcutText } from "@/shortcuts/chords"
@@ -45,7 +44,13 @@ import {
 } from "@/spec"
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
-import { askAboutPanel, commentOnPanel, editPanelQuery } from "./panel-actions"
+import {
+  askAboutPanel,
+  commentOnThisPanel,
+  editPanelQuery,
+  useConversationActions,
+} from "./panel-actions"
+import { PanelHoverActions } from "./panel-hover-actions"
 import {
   RemovePanelDialog,
   type PanelLayoutActions,
@@ -60,6 +65,7 @@ type Props = {
   onToggleTableView: () => void
   idle: boolean
   viewing: boolean
+  onCanvas: boolean
   onDownloadCsv?: () => void
   onSavePng?: () => void
   downloadsReady?: boolean
@@ -114,6 +120,7 @@ export function PanelMenu({
   onToggleTableView,
   idle,
   viewing,
+  onCanvas,
   onDownloadCsv,
   onSavePng,
   downloadsReady = true,
@@ -130,23 +137,25 @@ export function PanelMenu({
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
   const datasources = useDatasources().data
-  const agentAvailable = useAgentInfo().data?.available === true
+  const conversation = useConversationActions(panel, canComment)
   const menuButton = useRef<HTMLButtonElement>(null)
   const [addingToObservation, setAddingToObservation] = useState(false)
   const [removing, setRemoving] = useState(false)
   const items: MenuItem[] = []
   const data = isDataPanel(panel)
   const onDashboard = block === undefined
-  if (onDashboard && canComment) {
+  if (onDashboard && conversation.comment) {
     items.push({
       id: "comment",
       label: idle ? "Comment" : "Comment (finish the layout first)",
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        returnFocusToComposerUntilInput()
-        commentOnPanel(setSearch, panel.id)
+        const place = commentOnThisPanel(setSearch, panel.id, onCanvas)
+        if (place === "pane") returnFocusToComposerUntilInput()
+        else focusAfterClose = "none"
       },
+      shortcut: shortcutText("comment"),
     })
   } else if (onDashboard) {
     items.push({
@@ -157,7 +166,7 @@ export function PanelMenu({
       onSelect: () => {},
     })
   }
-  if (onDashboard && canComment && data && agentAvailable) {
+  if (onDashboard && conversation.ask) {
     items.push({
       id: "ask",
       label: idle ? "Ask" : "Ask (finish the layout first)",
@@ -167,6 +176,7 @@ export function PanelMenu({
         returnFocusToComposerUntilInput()
         askAboutPanel(setSearch, panel.id)
       },
+      shortcut: shortcutText("ask"),
     })
   }
   if (onDashboard && data && idle) {
@@ -331,6 +341,16 @@ export function PanelMenu({
   if (block) items.push(...block.actions)
   return (
     <>
+      {onDashboard && !inToolbar ? (
+        <PanelHoverActions
+          panel={panel}
+          canComment={canComment}
+          idle={idle}
+          viewing={viewing}
+          onCanvas={onCanvas}
+          composerRef={composerRef}
+        />
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={

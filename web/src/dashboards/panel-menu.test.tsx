@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
+import { useCanvasTool } from "./canvas-tools"
 import { PanelMenu } from "./panel-menu"
 
 vi.mock("@/observations/add-to-observation-panel", () => ({
@@ -61,6 +62,7 @@ function renderMenu(
   canComment = true,
   downloadsReady?: boolean,
   shown: LayoutPanel = panel,
+  onCanvas = false,
   canPropose = false
 ) {
   const composer = createRef<HTMLTextAreaElement>()
@@ -74,6 +76,7 @@ function renderMenu(
         onToggleTableView={() => {}}
         idle
         viewing={false}
+        onCanvas={onCanvas}
         canComment={canComment}
         canEdit={false}
         canPropose={canPropose}
@@ -131,7 +134,7 @@ describe("PanelMenu", () => {
   ])(
     "with canPropose %s, Suggest an edit is shown: %s",
     async (canPropose, shown) => {
-      const { user } = renderMenu(true, undefined, panel, canPropose)
+      const { user } = renderMenu(true, undefined, panel, false, canPropose)
       await user.click(
         await screen.findByRole("button", {
           name: "Panel menu: Checkout latency",
@@ -153,6 +156,23 @@ describe("PanelMenu", () => {
         screen.getByRole("textbox", { name: "Comment or request" })
       ).toHaveFocus()
     )
+  })
+
+  it("opens the canvas composer on the whole panel and leaves the comment box alone where the panel takes canvas comments", async () => {
+    const { user } = renderMenu(true, undefined, panel, true)
+    await chooseComment(user)
+    finishExit()
+    await waitFor(() =>
+      expect(useCanvasTool.getState().draft).toMatchObject({
+        panelId: panel.id,
+        tool: "comment",
+        anchor: null,
+      })
+    )
+    expect(
+      screen.getByRole("textbox", { name: "Comment or request" })
+    ).not.toHaveFocus()
+    useCanvasTool.getState().close()
   })
 
   it("leaves focus where the person clicked when the menu finishes closing after they moved on", async () => {

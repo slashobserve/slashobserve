@@ -42,6 +42,7 @@ import {
 import { shift, zoomOut } from "@/lib/time-shift"
 import { madeByBreadcrumb } from "@/lib/origin"
 import { cn } from "@/lib/utils"
+import { useAgentInfo } from "@/observe/queries"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { isRenderable } from "@/panels"
 import { ActionProvider } from "@/panels/actions/action-context"
@@ -56,6 +57,7 @@ import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
 import { useShortcutsStore } from "@/shortcuts/shortcuts-store"
 import {
   shortcutPanelId,
+  shortcutTarget,
   useDashboardShortcuts,
 } from "@/shortcuts/use-dashboard-shortcuts"
 import {
@@ -69,7 +71,12 @@ import {
 } from "@/spec"
 
 import { ActivityToggle } from "./activity-toggle"
-import { focusComment } from "./panel-actions"
+import {
+  askAboutPanelAndFocus,
+  commentOnThisPanel,
+  conversationActionsFor,
+  focusComment,
+} from "./panel-actions"
 import { ViewerNames } from "./viewer-names"
 import {
   cursorOverride,
@@ -79,6 +86,7 @@ import {
   useCursorSyncShortcut,
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
 import { DashboardPageSkeleton, pageClass } from "./dashboard-page-skeleton"
@@ -590,6 +598,7 @@ function DashboardView({
           const next = move(Date.now())
           if (next) setSearch((state) => ({ ...state, ...next }))
         }
+  const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
   useDashboardShortcuts({
@@ -609,7 +618,45 @@ function DashboardView({
             setSearch((state) => ({ ...state, panel: panel.id, edit: "query" }))
           }
         : undefined,
-    comment: () => focusComment(setSearch, composerRef),
+    comment: () => {
+      const target = shortcutTarget()
+      const panelId = layoutPanelOf(spec, target?.id ?? undefined)?.id
+      const onCanvas = takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing: viewed !== undefined,
+        editingPanel: editingPanel && panelId === search.panel,
+        copy: target?.copy === true,
+      })
+      const action = commentKeyAction({
+        commenting: commentTool,
+        panelId,
+        canComment: permissions.comment,
+        editing,
+        onCanvas,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("comment")
+        case "panel":
+          commentOnThisPanel(setSearch, action.panelId, onCanvas, composerRef)
+          return
+        case "pane":
+          return focusComment(setSearch, composerRef)
+      }
+    },
+    ask: () => {
+      const panel = shortcutPanel()
+      if (
+        panel !== undefined &&
+        !editing &&
+        conversationActionsFor(panel, permissions.comment, agentAvailable).ask
+      ) {
+        askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+      }
+    },
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
@@ -866,6 +913,13 @@ function DashboardView({
       }
       canComment={permissions.comment}
       canEdit={permissions.edit}
+      onCanvas={takesCanvasComments({
+        canComment: permissions.comment,
+        onTv: kiosk,
+        viewing,
+        editingPanel: editingPanel && item.panel.id === search.panel,
+        copy: item.key !== item.panel.id,
+      })}
       canPropose={content === "propose"}
       onToggleResponsive={
         permissions.edit && !editing && !pinned ? toggleResponsive : undefined

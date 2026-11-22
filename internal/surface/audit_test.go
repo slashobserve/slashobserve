@@ -25,6 +25,9 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	"run.list":          "the run lists, once per list request",
 	"chat.list":         "the chat list, once per list request",
 
+	"saved_prompt.share":   "the prompts handler, in the transaction of a change that makes a prompt shared",
+	"saved_prompt.unshare": "the prompts handler, in the transaction of a change that makes a shared prompt personal",
+
 	"agent.tool_call":          "the MCP handler, for each tool call except the claim tools",
 	"auth.credential_rejected": "authentication, for a bearer credential that matches no key or token",
 	"auth.csrf_rejected":       "authentication, for a cookie request refused by the cross-origin check",
@@ -38,9 +41,7 @@ var nonHTTPAuditSources = map[audit.Action]string{
 	"webhook.deliver":          "the webhook worker, for each delivery attempt",
 }
 
-var pendingAuditActions = []audit.Action{
-	"observation.arrange",
-}
+var pendingAuditActions = []audit.Action{}
 
 type declaredOperation struct {
 	where       string

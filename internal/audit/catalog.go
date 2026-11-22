@@ -3,6 +3,7 @@ package audit
 import (
 	"maps"
 	"slices"
+	"unicode/utf8"
 )
 
 type Action string
@@ -55,6 +56,13 @@ var (
 	proposalKeys = []string{"title", "revision", "base_version", "version"}
 	threadKeys   = []string{"object", "title", "version", "panel_id", "message_id", "resolved_by_version", "mentioned"}
 	runKeys      = []string{"intent", "continues_id", "attempt", "result_version", "failure_code", "cost_usd", "dashboard_title", "panels_repaired", "result"}
+	messageKeys  = []string{"anchor_kind", "body_length"}
+	arrangeKeys  = []string{"title", "changed"}
+	promptKeys   = []string{"changed", "from_name", "owner_id"}
+	testKeys     = []string{"type", "host", "healthy"}
+	connTestKeys = []string{"host", "healthy"}
+	fetchKeys    = []string{"host"}
+	usageKeys    = []string{"model", "input_tokens", "output_tokens"}
 	linkKeys     = []string{"object", "title", "prefix", "expires_at"}
 	accessKeys   = []string{"object", "title", "general", "requested_by"}
 	accountKeys  = []string{"name", "role", "takes_runs", "key_id", "key_name", "expires_at"}
@@ -86,6 +94,14 @@ var (
 	memberKeys     = []string{"user_id", "user_name"}
 )
 
+func MessageData(body, anchorKind string) map[string]any {
+	data := map[string]any{"body_length": utf8.RuneCountInString(body)}
+	if anchorKind != "" {
+		data["anchor_kind"] = anchorKind
+	}
+	return data
+}
+
 func change(c Category, data ...[]string) Spec {
 	return Spec{Category: c, Class: ClassChange, Data: slices.Concat(data...)}
 }
@@ -106,8 +122,8 @@ var catalog = map[Action]Spec{
 	"auth.csrf_rejected":       access(CategoryAuth, countKeys, overflowKeys),
 	"request.refuse":           access(CategoryAccess),
 
-	"dashboard.view":   access(CategoryAccess),
-	"observation.view": access(CategoryAccess),
+	"dashboard.view":   access(CategoryAccess, []string{"version"}),
+	"observation.view": access(CategoryAccess, []string{"updated_at"}),
 	"chat.view":        access(CategoryAccess, []string{"owner_id"}),
 	"chat.list":        access(CategoryAccess, []string{"scope"}),
 	"run.view":         access(CategoryAccess, []string{"owner_id"}),
@@ -131,6 +147,11 @@ var catalog = map[Action]Spec{
 	"saved_search.update":       change(CategoryContent, savedKeys),
 	"saved_search.move":         change(CategoryContent, savedKeys),
 	"saved_search.delete":       change(CategoryContent, savedKeys),
+	"saved_prompt.create":       change(CategoryContent, promptKeys),
+	"saved_prompt.update":       change(CategoryContent, promptKeys),
+	"saved_prompt.share":        change(CategoryContent, promptKeys),
+	"saved_prompt.unshare":      change(CategoryContent, promptKeys),
+	"saved_prompt.delete":       change(CategoryContent, promptKeys),
 	"observation.create":        change(CategoryContent, obsKeys),
 	"observation.update":        change(CategoryContent, obsKeys),
 	"observation.move":          change(CategoryContent, obsKeys),
@@ -144,7 +165,7 @@ var catalog = map[Action]Spec{
 	"observation.block_keep":    change(CategoryContent, blockKeys),
 	"observation.block_discard": change(CategoryContent, blockKeys),
 	"observation.block_remove":  change(CategoryContent, blockKeys),
-	"observation.arrange":       change(CategoryContent),
+	"observation.arrange":       change(CategoryContent, arrangeKeys),
 	"proposal.open":             change(CategoryContent, proposalKeys),
 	"proposal.update":           change(CategoryContent, proposalKeys),
 	"proposal.merge":            change(CategoryContent, proposalKeys),
@@ -155,8 +176,8 @@ var catalog = map[Action]Spec{
 	"grafana_import.start":      change(CategoryContent, importKeys),
 	"grafana_import.cancel":     change(CategoryContent, importKeys),
 
-	"thread.open":                 change(CategoryConversation, threadKeys),
-	"thread.message":              change(CategoryConversation, threadKeys),
+	"thread.open":                 change(CategoryConversation, threadKeys, messageKeys),
+	"thread.message":              change(CategoryConversation, threadKeys, messageKeys),
 	"thread.message_edit":         change(CategoryConversation, threadKeys),
 	"thread.message_delete":       change(CategoryConversation, threadKeys),
 	"thread.resolve":              change(CategoryConversation, threadKeys),
@@ -164,7 +185,7 @@ var catalog = map[Action]Spec{
 	"thread.mention":              change(CategoryConversation, threadKeys),
 	"thread.agent_set":            change(CategoryConversation),
 	"chat.create":                 change(CategoryConversation),
-	"chat.turn":                   change(CategoryConversation),
+	"chat.turn":                   change(CategoryConversation, messageKeys),
 	"chat.archive":                change(CategoryConversation),
 	"run.share":                   change(CategoryConversation, []string{"finding_id", "on_the_page"}),
 	"run.withdraw":                change(CategoryConversation, []string{"finding_id"}),
@@ -173,7 +194,7 @@ var catalog = map[Action]Spec{
 
 	"run.queue":       change(CategoryAgent, runKeys),
 	"run.start":       change(CategoryAgent, runKeys),
-	"run.finish":      change(CategoryAgent, runKeys),
+	"run.finish":      change(CategoryAgent, runKeys, usageKeys),
 	"run.cancel":      change(CategoryAgent, runKeys),
 	"run.release":     change(CategoryAgent, runKeys),
 	"run.keep":        change(CategoryAgent, runKeys),
@@ -185,48 +206,51 @@ var catalog = map[Action]Spec{
 
 	"query.run": access(CategoryQuery, streamKeys, windowKeys),
 
-	"user.role_change":           change(CategoryAdmin, personKeys),
-	"user.sign_out_everywhere":   change(CategoryAdmin, personKeys),
-	"user.invite":                change(CategoryAdmin, personKeys),
-	"user.invite_update":         change(CategoryAdmin, personKeys),
-	"user.invite_withdraw":       change(CategoryAdmin, personKeys),
-	"user.deactivate":            change(CategoryAdmin, personKeys),
-	"user.reactivate":            change(CategoryAdmin, personKeys),
-	"user.remove":                change(CategoryAdmin, personKeys),
-	"service_account.create":     change(CategoryAdmin, accountKeys),
-	"service_account.update":     change(CategoryAdmin, accountKeys),
-	"service_account.delete":     change(CategoryAdmin, accountKeys),
-	"service_account.key_create": change(CategoryAdmin, accountKeys),
-	"service_account.key_revoke": change(CategoryAdmin, accountKeys),
-	"webhook.create":             change(CategoryAdmin, webhookKeys),
-	"webhook.update":             change(CategoryAdmin, webhookKeys),
-	"webhook.secret_rotate":      change(CategoryAdmin, webhookKeys),
-	"webhook.delete":             change(CategoryAdmin, webhookKeys),
-	"webhook.skip":               change(CategoryAdmin),
-	"webhook.test":               change(CategoryAdmin),
-	"mcp_client.connect":         change(CategoryAdmin, grantKeys),
-	"mcp_client.disconnect":      change(CategoryAdmin, grantKeys),
-	"mcp_client.update":          change(CategoryAdmin),
-	"mcp_client.deny":            change(CategoryAdmin),
-	"outbound_domain.add":        change(CategoryAdmin, domainKeys),
-	"outbound_domain.remove":     change(CategoryAdmin, domainKeys),
-	"grafana_connection.create":  change(CategoryAdmin, grafanaKeys),
-	"grafana_connection.update":  change(CategoryAdmin, grafanaKeys),
-	"grafana_connection.delete":  change(CategoryAdmin, grafanaKeys),
-	"datasource.create":          change(CategoryAdmin, sourceKeys),
-	"datasource.update":          change(CategoryAdmin, sourceKeys),
-	"datasource.delete":          change(CategoryAdmin, sourceKeys),
-	"datasource.audience_change": change(CategoryAdmin, audienceKeys),
-	"public_link.create":         change(CategoryAdmin, linkKeys),
-	"public_link.revoke":         change(CategoryAdmin, linkKeys),
-	"access_request.open":        change(CategoryAdmin, accessKeys),
-	"access_request.grant":       change(CategoryAdmin, accessKeys),
-	"folder.permissions_change":  change(CategoryAdmin, permissionKeys, sharingKeys),
-	"team.create":                change(CategoryAdmin),
-	"team.delete":                change(CategoryAdmin),
-	"team.member_add":            change(CategoryAdmin, memberKeys),
-	"team.member_remove":         change(CategoryAdmin, memberKeys),
-	"action.run":                 change(CategoryAdmin),
+	"user.role_change":                   change(CategoryAdmin, personKeys),
+	"user.sign_out_everywhere":           change(CategoryAdmin, personKeys),
+	"user.invite":                        change(CategoryAdmin, personKeys),
+	"user.invite_update":                 change(CategoryAdmin, personKeys),
+	"user.invite_withdraw":               change(CategoryAdmin, personKeys),
+	"user.deactivate":                    change(CategoryAdmin, personKeys),
+	"user.reactivate":                    change(CategoryAdmin, personKeys),
+	"user.remove":                        change(CategoryAdmin, personKeys),
+	"service_account.create":             change(CategoryAdmin, accountKeys),
+	"service_account.update":             change(CategoryAdmin, accountKeys),
+	"service_account.delete":             change(CategoryAdmin, accountKeys),
+	"service_account.key_create":         change(CategoryAdmin, accountKeys),
+	"service_account.key_revoke":         change(CategoryAdmin, accountKeys),
+	"webhook.create":                     change(CategoryAdmin, webhookKeys),
+	"webhook.update":                     change(CategoryAdmin, webhookKeys),
+	"webhook.secret_rotate":              change(CategoryAdmin, webhookKeys),
+	"webhook.delete":                     change(CategoryAdmin, webhookKeys),
+	"webhook.skip":                       change(CategoryAdmin),
+	"webhook.test":                       change(CategoryAdmin),
+	"mcp_client.connect":                 change(CategoryAdmin, grantKeys),
+	"mcp_client.disconnect":              change(CategoryAdmin, grantKeys),
+	"mcp_client.update":                  change(CategoryAdmin),
+	"mcp_client.deny":                    change(CategoryAdmin),
+	"outbound_domain.add":                change(CategoryAdmin, domainKeys),
+	"outbound_domain.remove":             change(CategoryAdmin, domainKeys),
+	"grafana_connection.create":          change(CategoryAdmin, grafanaKeys),
+	"grafana_connection.update":          change(CategoryAdmin, grafanaKeys),
+	"grafana_connection.delete":          change(CategoryAdmin, grafanaKeys),
+	"datasource.create":                  change(CategoryAdmin, sourceKeys),
+	"datasource.update":                  change(CategoryAdmin, sourceKeys),
+	"datasource.delete":                  change(CategoryAdmin, sourceKeys),
+	"datasource.audience_change":         change(CategoryAdmin, audienceKeys),
+	"datasource.test":                    change(CategoryAdmin, testKeys),
+	"grafana_connection.test":            change(CategoryAdmin, connTestKeys),
+	"grafana_connection.fetch_dashboard": change(CategoryAdmin, fetchKeys),
+	"public_link.create":                 change(CategoryAdmin, linkKeys),
+	"public_link.revoke":                 change(CategoryAdmin, linkKeys),
+	"access_request.open":                change(CategoryAdmin, accessKeys),
+	"access_request.grant":               change(CategoryAdmin, accessKeys),
+	"folder.permissions_change":          change(CategoryAdmin, permissionKeys, sharingKeys),
+	"team.create":                        change(CategoryAdmin),
+	"team.delete":                        change(CategoryAdmin),
+	"team.member_add":                    change(CategoryAdmin, memberKeys),
+	"team.member_remove":                 change(CategoryAdmin, memberKeys),
+	"action.run":                         change(CategoryAdmin),
 
 	"server.start":    change(CategorySystem),
 	"server.stop":     change(CategorySystem),

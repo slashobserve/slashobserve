@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,13 @@ import { toast } from "sonner"
 import { annotationsFor } from "@/annotations/markers"
 import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
+import {
+  CanvasComposer,
+  CanvasLayer,
+  useCanvasGate,
+} from "@/comments/canvas-composer"
+import { CanvasPins } from "@/comments/canvas-pins"
+import { pinView } from "@/comments/canvas-target"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { PanelHealthBadge } from "@/health/panel-health-badge"
@@ -21,6 +29,10 @@ import { downloadCsv } from "@/inspect/csv"
 import type { InspectTarget } from "@/inspect/inspect-pane"
 import { savePanelPng } from "@/inspect/png"
 import { isRenderable, isStaticPanel, preloadRenderer } from "@/panels"
+import {
+  AnchorLayoutProvider,
+  createAnchorLayoutStore,
+} from "@/panels/anchor-layout"
 import { createFieldResolver, panelLinks } from "@/panels/field-config"
 import { linkScopeFor, PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
@@ -30,6 +42,7 @@ import type { ReusedFilter } from "@/panels/transforms/ad-hoc-filter"
 import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
 import { useGazetteers } from "@/panels/transforms/use-gazetteers"
 import type { WireFrame } from "@/dashboards/queries"
+import { cn } from "@/lib/utils"
 import { useHoveredPanel } from "@/shortcuts/hovered-panel"
 import {
   isDataPanel,
@@ -40,8 +53,7 @@ import {
   type Variable,
 } from "@/spec"
 
-import { useCanvasTool } from "./canvas-tools"
-import { commentOnPanel } from "./panel-actions"
+import { useCanvasTool, type CanvasDraft } from "./canvas-tools"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
@@ -91,6 +103,18 @@ function useFramePreparer(
   )
 }
 
+function ownsDraft(
+  draft: CanvasDraft | null,
+  panelId: string,
+  surfaceId: string,
+  repeatOf: string | undefined
+): draft is CanvasDraft {
+  if (draft === null || draft.panelId !== panelId) return false
+  return draft.surface === null
+    ? repeatOf === undefined
+    : draft.surface === surfaceId
+}
+
 function focusPanel(root: HTMLElement | null) {
   const article = root?.querySelector<HTMLElement>("article")
   if (!article) return
@@ -135,6 +159,7 @@ type PanelContainerProps = {
   editingPanel: boolean
   canComment: boolean
   canEdit: boolean
+  onCanvas?: boolean
   canPropose: boolean
   onToggleResponsive?: (panel: LayoutPanel) => void
   layoutActions?: PanelLayoutActions
@@ -182,6 +207,7 @@ export const PanelContainer = memo(function PanelContainer({
   editingPanel,
   canComment,
   canEdit,
+  onCanvas = false,
   canPropose,
   onToggleResponsive,
   layoutActions,
@@ -204,12 +230,22 @@ export const PanelContainer = memo(function PanelContainer({
   )
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const surfaceId = useId()
+  const [layoutStore] = useState(createAnchorLayoutStore)
   const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
   const commentTool = useCanvasTool((state) => state.tool === "comment")
   const selectTool = useCanvasTool((state) => state.tool === "select")
-  const body = panelBodySize(Math.floor(width), Math.floor(height))
+  const { width: bodyWidth, height: bodyHeight } = panelBodySize(
+    Math.floor(width),
+    Math.floor(height)
+  )
+  const body = useMemo(
+    () => ({ width: bodyWidth, height: bodyHeight }),
+    [bodyWidth, bodyHeight]
+  )
   const dataPanel = useMemo(
     () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
     [panel, reused]
@@ -378,8 +414,8 @@ export const PanelContainer = memo(function PanelContainer({
 
   const panelId = panel.id
   const onPointerEnter = useCallback(
-    () => useHoveredPanel.getState().enter(panelId),
-    [panelId]
+    () => useHoveredPanel.getState().enter(panelId, repeatOf !== undefined),
+    [panelId, repeatOf]
   )
   const onPointerLeave = useCallback(
     () => useHoveredPanel.getState().leave(panelId),
@@ -398,21 +434,22 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
+  const commenting = onCanvas && commentTool && !layoutSession
+  const draft = useCanvasTool((state) =>
+    ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null
+  )
+  const gateInput = useCanvasGate(canComment, layoutSession)
+  const shownWindow = useMemo(
+    () => ({ from: rangeFrom, to: rangeTo }),
+    [rangeFrom, rangeTo]
+  )
   const onPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || viewing) return
     const target = event.target as Element
     const pressesTitle =
-      !commentTool && target.closest("[data-panel-title]") !== null
+      !commenting && target.closest("[data-panel-title]") !== null
     if (!pressesTitle && target.closest(interactiveTarget)) return
-    if (commentTool && sourceKind !== "block") {
-      if (layoutSession) return
-      event.preventDefault()
-      event.stopPropagation()
-      useCanvasTool.getState().setTool("select")
-      commentOnPanel(setSearch, panelId)
-      requestAnimationFrame(() => composerRef.current?.focus())
-      return
-    }
+    if (commenting) return
     if (!target.closest("[data-panel-body]")) selectPanel?.()
   }
 
@@ -444,6 +481,7 @@ export const PanelContainer = memo(function PanelContainer({
       onToggleTableView={() => setTableView((current) => !current)}
       idle={!layoutSession}
       viewing={viewing}
+      onCanvas={onCanvas}
       onDownloadCsv={onDownloadCsv}
       onSavePng={onSavePng}
       downloadsReady={downloadsReady}
@@ -466,7 +504,10 @@ export const PanelContainer = memo(function PanelContainer({
   return (
     <div
       ref={ref}
-      className="relative size-full"
+      className={cn(
+        "relative size-full",
+        commenting && "cursor-crosshair **:cursor-crosshair"
+      )}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       onPointerDownCapture={onPointerDownCapture}
@@ -514,37 +555,82 @@ export const PanelContainer = memo(function PanelContainer({
         }
         menu={panelMenu(false)}
       >
-        <div ref={bodyRef} className="size-full">
-          {dataPanel && query.data ? (
-            <PanelBody
-              panel={dataPanel}
-              data={query.data}
-              width={body.width}
-              height={body.height}
-              stateScope={stateScope(source)}
-              cursor={cursor}
-              onTimeRangeSelect={onTimeRangeSelect}
-              vars={selections}
-              timezone={timezone}
-              from={rangeFrom}
-              to={rangeTo}
-              asTable={tableView}
-              reusedFilter={reusedFilter}
-              annotations={annotations}
-            />
-          ) : null}
-          {isStaticPanel(panel) && supported ? (
-            <StaticPanelBody
-              panel={panel}
-              width={body.width}
-              height={body.height}
-              vars={selections}
-              from={rangeFrom}
-              to={rangeTo}
-            />
-          ) : null}
-        </div>
+        <AnchorLayoutProvider value={layoutStore}>
+          <div
+            ref={surfaceRef}
+            data-canvas-surface=""
+            className="relative size-full"
+          >
+            <div ref={bodyRef} className="size-full">
+              {dataPanel && query.data ? (
+                <PanelBody
+                  panel={dataPanel}
+                  data={query.data}
+                  width={body.width}
+                  height={body.height}
+                  stateScope={stateScope(source)}
+                  cursor={cursor}
+                  onTimeRangeSelect={onTimeRangeSelect}
+                  vars={selections}
+                  timezone={timezone}
+                  from={rangeFrom}
+                  to={rangeTo}
+                  asTable={tableView}
+                  reusedFilter={reusedFilter}
+                  annotations={annotations}
+                />
+              ) : null}
+              {isStaticPanel(panel) && supported ? (
+                <StaticPanelBody
+                  panel={panel}
+                  width={body.width}
+                  height={body.height}
+                  vars={selections}
+                  from={rangeFrom}
+                  to={rangeTo}
+                />
+              ) : null}
+            </div>
+            {onCanvas && dashboardId !== undefined && repeatOf === undefined ? (
+              <CanvasPins
+                dashboardId={dashboardId}
+                panelId={panelId}
+                panelTitle={panelName}
+                store={layoutStore}
+                body={body}
+                view={pinView(state, tableView)}
+                gateInput={gateInput}
+              />
+            ) : null}
+          </div>
+        </AnchorLayoutProvider>
       </PanelChrome>
+      {commenting ? (
+        <CanvasLayer
+          containerRef={ref}
+          surfaceRef={surfaceRef}
+          store={layoutStore}
+          surfaceId={surfaceId}
+          panelId={panelId}
+          tool="comment"
+          body={body}
+          shownRange={shownWindow}
+          wholePanel={tableView && panel.type !== "table"}
+        />
+      ) : null}
+      {draft !== null &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
+        <CanvasComposer
+          key={`${draft.panelId}:${draft.at?.x ?? ""}:${draft.at?.y ?? ""}`}
+          dashboardId={dashboardId}
+          panelTitle={panelName}
+          draft={draft}
+          surfaceRef={surfaceRef}
+          gate={gateInput}
+        />
+      ) : null}
       {selected && !viewing ? (
         <PanelToolbar
           panel={panel}
@@ -553,6 +639,7 @@ export const PanelContainer = memo(function PanelContainer({
           from={rangeFrom}
           to={rangeTo}
           idle={!layoutSession}
+          onCanvas={onCanvas}
           menu={panelMenu(true)}
           observationVariables={observationVariables}
         />
