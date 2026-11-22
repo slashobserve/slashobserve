@@ -61,7 +61,7 @@ export function BoxResizeGrip({ measure, onResize, onSettle, onReset }: Props) {
       data-box-grip=""
       aria-label="Resize this box"
       title="Drag to resize, or use the arrow keys. Double-click for the default size."
-      className="absolute right-0 bottom-0 flex size-5 cursor-nwse-resize touch-none items-center justify-center rounded-control text-muted-foreground opacity-60 outline-hidden hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring motion-safe:transition-opacity motion-safe:duration-100"
+      className="absolute right-0 bottom-0 flex size-4 cursor-nwse-resize touch-none items-center justify-center rounded-control text-muted-foreground opacity-60 outline-hidden hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring motion-safe:transition-opacity motion-safe:duration-100"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={release}
