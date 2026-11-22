@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest"
 
+import { auditRows } from "./audit-list"
 import {
   countLabel,
   isNavItemActive,
@@ -75,6 +76,49 @@ describe("isNavItemActive", () => {
     for (const item of visibleNavItems("admin")) {
       expect(isNavItemActive(item.to, "/login")).toBe(false)
     }
+  })
+})
+
+describe("the Audit item", () => {
+  const active = (pathname: string) =>
+    visibleNavItems("admin")
+      .filter((item) => isNavItemActive(item.to, pathname))
+      .map((item) => item.label)
+
+  test("covers its log, its dashboards and the audit datasource's explorer", () => {
+    expect(active("/audit")).toEqual(["Audit"])
+    expect(active("/audit/dashboards")).toEqual(["Audit"])
+    expect(active("/logs/slashobserve-audit")).toEqual(["Audit"])
+    expect(active("/audit-x")).toEqual([])
+  })
+
+  test("leaves other log sources to Logs", () => {
+    expect(active("/logs/loki")).toEqual(["Logs"])
+    expect(active("/logs")).toEqual(["Logs"])
+  })
+
+  test("is hidden from every role below Admin", () => {
+    for (const role of ["editor", "commenter", "viewer"] as const) {
+      expect(visibleNavItems(role).map((item) => item.to)).not.toContain(
+        "/audit"
+      )
+    }
+  })
+
+  test("contains the current child on each of its three pages", () => {
+    const audit = visibleNavItems("admin").find((item) => item.to === "/audit")
+    if (audit === undefined) throw new Error("no Audit item")
+    expect(
+      auditRows.map((row) => subNavState(audit, auditRows, row.paths[0] ?? ""))
+    ).toEqual([
+      { parent: "contains-current", currentId: "log" },
+      { parent: "contains-current", currentId: "dashboards" },
+      { parent: "contains-current", currentId: "explore" },
+    ])
+    expect(subNavState(audit, auditRows, "/people")).toEqual({
+      parent: "none",
+      currentId: null,
+    })
   })
 })
 
@@ -173,7 +217,7 @@ describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all twelve pages, API keys among them, and the chat is not one of them", () => {
+  test("an Admin sees all thirteen pages, API keys among them, and the chat is not one of them", () => {
     expect(labels("admin")).toEqual([
       "Home",
       "Inbox",
@@ -186,6 +230,7 @@ describe("visibleNavItems", () => {
       "Datasources",
       "API keys",
       "People",
+      "Audit",
       "Settings",
     ])
   })

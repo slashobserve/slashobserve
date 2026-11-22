@@ -80,7 +80,7 @@ Removing a person also removes them from every team.
 
 ## Audit log
 
-Role changes, invites, deactivations, reactivations, removals and sign-outs everywhere are recorded in Settings, Audit log, which only Admins read; see [Activity](../use/activity.md#admin-changes).
+Role changes, invites, deactivations, reactivations, removals and sign-outs everywhere are recorded in the Audit log, under **Audit** in the sidebar, which only Admins read; see [Activity](../use/activity.md#admin-changes).
 
 ## Over the API
 

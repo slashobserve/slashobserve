@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -139,7 +140,8 @@ func recordChatTurn(ctx context.Context, q *dbsqlc.Queries, slot chatSlot, row d
 			return err
 		}
 	}
-	return audit.Record(ctx, q, audit.Event{Action: actionChatTurn, Target: target, Chat: chat, By: by})
+	sent := audit.MessageData(row.Prompt, string(anchor.KindOf(row.Anchor)))
+	return audit.Record(ctx, q, audit.Event{Action: actionChatTurn, Target: target, Chat: chat, By: by, Data: sent})
 }
 
 func nullUUID(id pgtype.UUID) uuid.NullUUID {
@@ -156,13 +158,6 @@ func againChat(row dbsqlc.AgentRequest, by auth.Principal) chatChoice {
 		return chatChoice{mode: dashboardChat}
 	}
 	return chatChoice{mode: newChat}
-}
-
-func chatRoot(id, chat pgtype.UUID) pgtype.UUID {
-	if chat.Valid {
-		return chat
-	}
-	return id
 }
 
 func clipRunes(s string, n int) string {

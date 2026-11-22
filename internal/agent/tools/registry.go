@@ -29,6 +29,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/health"
 	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/imports"
@@ -413,7 +414,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
 	}
 	if !claimOnly && !allowed(principal, inRun, e.tool.MinRole) {
-		res := toolError(codeForbiddenRole, roleRefusal(principal, name))
+		res := failure("", errorBody{Code: codeForbiddenRole, Message: roleRefusal(principal, name), NeededRole: string(e.tool.MinRole)})
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}
@@ -631,6 +632,9 @@ type errorBody struct {
 	Message string `json:"message,omitempty"`
 	Note    string `json:"note,omitempty"`
 
+	NeededRole   string `json:"needed_role,omitempty"`
+	NeededAccess string `json:"needed_access,omitempty"`
+
 	unknownField bool
 }
 
@@ -640,6 +644,11 @@ func success(step string, content any) Result {
 
 func failure(step string, content any) Result {
 	return Result{Content: content, IsError: true, Step: step}
+}
+
+func forbiddenBy(err error, message string) Result {
+	body := forbidden.BodyOf(err)
+	return failure("", errorBody{Code: codeForbiddenRole, Message: message, NeededRole: body.NeededRole, NeededAccess: body.NeededAccess})
 }
 
 func toolError(code, message string) Result {

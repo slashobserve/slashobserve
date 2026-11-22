@@ -41,6 +41,16 @@ const (
 	Position Kind = "position"
 )
 
+func KindOf(raw []byte) Kind {
+	var a struct {
+		Kind Kind `json:"kind"`
+	}
+	if json.Unmarshal(raw, &a) != nil {
+		return ""
+	}
+	return a.Kind
+}
+
 type Pos struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`

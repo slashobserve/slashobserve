@@ -16,6 +16,12 @@ import { RcaPanel } from "@/rca/rca-panel"
 import { rcasQuery } from "@/rca/queries"
 
 import { AddBlockRow } from "./add-block-row"
+import {
+  BlockEditorContext,
+  BlockEditorDock,
+  type BlockEditRequest,
+  type ReplaceGuard,
+} from "./block-editor"
 import { BlockList, type Reveal } from "./block-list"
 import {
   BlockInspectContext,
@@ -90,6 +96,9 @@ function LoadedObservation({
   )
   const [moving, setMoving] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [editing, setEditing] = useState<BlockEditRequest | null>(null)
+  const [editorKey, setEditorKey] = useState(0)
+  const replaceGuard = useRef<ReplaceGuard | null>(null)
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -104,6 +113,35 @@ function LoadedObservation({
     [observation.from, observation.to]
   )
   const inspecting = inspect.block !== undefined
+  const replaceEditor = useCallback((replace: () => void) => {
+    if (replaceGuard.current === null) replace()
+    else replaceGuard.current(replace)
+  }, [])
+  const blockEditor = useMemo(
+    () => ({
+      open: (request: BlockEditRequest) => {
+        if (
+          request.kind === "edit" &&
+          editing?.kind === "edit" &&
+          editing.blockId === request.blockId
+        ) {
+          return
+        }
+        replaceEditor(() => {
+          setPicking(false)
+          setEditing(request)
+          setEditorKey((key) => key + 1)
+        })
+      },
+      canSuggest: permissions.comment,
+    }),
+    [permissions.comment, editing, replaceEditor]
+  )
+  const closeEditor = useCallback(() => setEditing(null), [])
+  const savedFromEditor = useCallback((blockId: string) => {
+    setEditing(null)
+    setReveal({ id: blockId, focus: true })
+  }, [])
 
   useEffect(() => {
     const target = focusAfterToggle.current
@@ -168,29 +206,39 @@ function LoadedObservation({
             ) : null
           }
         />
-        <PageRangeContext value={pageRange}>
-          <BlockInspectContext value={inspect.context}>
-            <BlockList
+        <BlockEditorContext value={canAdd ? blockEditor : null}>
+          <PageRangeContext value={pageRange}>
+            <BlockInspectContext value={inspect.context}>
+              <BlockList
+                observation={observation}
+                blocks={blocks}
+                canAdd={canAdd}
+                canComment={permissions.comment}
+                reveal={reveal}
+                onRevealed={revealed}
+                onAdded={added}
+              />
+            </BlockInspectContext>
+          </PageRangeContext>
+          {canAdd ? (
+            <AddBlockRow
               observation={observation}
               blocks={blocks}
-              canAdd={canAdd}
-              canComment={permissions.comment}
-              reveal={reveal}
-              onRevealed={revealed}
+              canEdit={permissions.edit}
+              picking={picking}
+              onPickingChange={(next) => {
+                if (!next) setPicking(false)
+                else {
+                  replaceEditor(() => {
+                    setEditing(null)
+                    setPicking(true)
+                  })
+                }
+              }}
               onAdded={added}
             />
-          </BlockInspectContext>
-        </PageRangeContext>
-        {canAdd ? (
-          <AddBlockRow
-            observation={observation}
-            blocks={blocks}
-            canEdit={permissions.edit}
-            picking={picking}
-            onPickingChange={setPicking}
-            onAdded={added}
-          />
-        ) : null}
+          ) : null}
+        </BlockEditorContext>
       </div>
       {discussionShown ? (
         <DiscussionPane
@@ -198,14 +246,32 @@ function LoadedObservation({
           folderTitle={envelope.folder.title}
           canAdd={canAdd}
           canEdit={permissions.edit}
-          hidden={rca.open || moving || picking || inspecting}
+          hidden={
+            rca.open || moving || picking || inspecting || editing !== null
+          }
           headingRef={headingRef}
           onClose={onClosePane}
           onShowBlock={onShowBlock}
           onAdded={addedFromDiscussion}
         />
       ) : null}
-      {inspect.block !== undefined && !(rca.open || moving || picking) ? (
+      {editing !== null ? (
+        <PageRangeContext value={pageRange}>
+          <BlockEditorDock
+            key={editorKey}
+            hidden={rca.open || moving}
+            observation={observation}
+            blocks={blocks}
+            request={editing}
+            canEdit={permissions.edit}
+            onClose={closeEditor}
+            onSaved={savedFromEditor}
+            replaceGuardRef={replaceGuard}
+          />
+        </PageRangeContext>
+      ) : null}
+      {inspect.block !== undefined &&
+      !(rca.open || moving || picking || editing !== null) ? (
         <BlockInspectDock
           block={inspect.block}
           tab={inspect.tab}

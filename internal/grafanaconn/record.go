@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
@@ -31,6 +32,35 @@ type recordedUpdate struct {
 type recorder func(ctx context.Context, q *dbsqlc.Queries) error
 
 type updateRecorder func(ctx context.Context, q *dbsqlc.Queries, before dbsqlc.GrafanaConnection) error
+
+const (
+	actionTest           audit.Action = "grafana_connection.test"
+	actionFetchDashboard audit.Action = "grafana_connection.fetch_dashboard"
+)
+
+func testRecord(id string, tested Connection) audit.Result {
+	healthy := tested.LastTest != nil && tested.LastTest.OK
+	outcome, reason := audit.OutcomeSuccess, ""
+	if !healthy {
+		outcome, reason = audit.OutcomeFailed, audit.ReasonUnhealthy
+	}
+	return audit.Result{
+		Action:  actionTest,
+		Outcome: outcome,
+		Reason:  reason,
+		Target:  audit.Target{Kind: "grafana_connection", ID: id, Name: tested.Name},
+		Data:    map[string]any{"host": hostOf(tested.URL), "healthy": healthy},
+	}
+}
+
+func fetchRecord(linked LinkedDashboard) audit.Result {
+	return audit.Result{
+		Action:  actionFetchDashboard,
+		Outcome: audit.OutcomeSuccess,
+		Target:  audit.Target{Kind: "grafana_connection", ID: linked.ConnectionID, Name: linked.ConnectionName},
+		Data:    map[string]any{"host": linked.Host},
+	}
+}
 
 func hostOf(address string) string {
 	u, err := url.Parse(address)

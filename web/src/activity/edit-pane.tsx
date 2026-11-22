@@ -7,22 +7,12 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type ReactNode,
   type Ref,
 } from "react"
-import { useBlocker } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -30,14 +20,27 @@ import {
   useDeletedBy,
   useDeletedDashboards,
 } from "@/dashboards/live/deleted-store"
+import {
+  contentChange,
+  useLatestPermissions,
+  useLatestProvisioned,
+} from "@/dashboards/permissions"
+import { usePatchPanels } from "@/dashboards/queries"
+import { saveToast } from "@/dashboards/save-outcome"
 import { useSetDashboardSearch } from "@/dashboards/search"
 import type { Selections } from "@/api/keys"
 import { DockHeader } from "@/components/dock/dock-header"
 import { Button } from "@/components/ui/button"
+import { proposalLink } from "@/lib/links"
 import { guardLoad } from "@/panels/renderer-load"
-import type { EditorView, ViewGuard } from "@/panel-editor/panel-editor"
+import type {
+  DashboardTarget,
+  EditorView,
+  PanelsSave,
+} from "@/panel-editor/panel-editor"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { useDraftTitle } from "@/panel-editor/draft-title"
+import { useLeaveGuard } from "@/panel-editor/leave-guard"
 import { useNewPanels, withNewPanel } from "@/panel-editor/new-panel"
 import { findPanel, panelTitle, type Dashboard, type Panel } from "@/spec"
 
@@ -105,57 +108,59 @@ export function EditPane({
   guardRef,
 }: Props) {
   const setSearch = useSetDashboardSearch()
+  const navigate = useNavigate()
   useEditorEntryInDocument()
-  const unsaved = useRef(false)
-  const [dirty, setDirty] = useState(false)
-  const onDirtyChange = useCallback((next: boolean) => {
-    unsaved.current = next
-    setDirty(next)
-  }, [])
+  const returnFocus = useRef(false)
+  const afterLeave = useRef<(() => void) | null>(null)
+  const onLeave = useCallback(
+    (kind: Leave) => {
+      if (kind === "layout") {
+        const proceed = afterLeave.current
+        afterLeave.current = null
+        proceed?.()
+        return
+      }
+      if (kind !== "back") returnFocus.current = true
+      if (kind === "back") onBack()
+      else if (kind === "close") onClose()
+      else onSaved()
+    },
+    [onBack, onClose, onSaved]
+  )
+  const {
+    root,
+    dirty,
+    onDirtyChange,
+    viewGuard,
+    focusFirstQuery,
+    requestView,
+    leave,
+    run,
+    onKeyDown,
+    dialog,
+  } = useLeaveGuard<Leave>({
+    view,
+    onViewChange,
+    closeKind: "close",
+    leaves: leavesDraft,
+    onLeave,
+    trigger: () => panelTrigger(panelId),
+    discardFocus: (kind) => (kind === "layout" ? "none" : "trigger"),
+    keepFocus: () => {
+      const focus = afterLeave.current ? "editor" : "default"
+      afterLeave.current = null
+      return focus
+    },
+  })
   const holdDraft = useDeletedDashboards((state) => state.holdDraft)
   useEffect(() => {
     holdDraft(dashboardId, dirty)
   }, [dashboardId, dirty, holdDraft])
   useEffect(() => () => holdDraft(dashboardId, false), [dashboardId, holdDraft])
   const deletedBy = useDeletedBy(dashboardId)
-  const [confirm, setConfirm] = useState<Leave | null>(null)
-  const focusAfter = useRef<"default" | "trigger" | "editor" | "none">(
-    "default"
-  )
-  const root = useRef<HTMLDivElement>(null)
-  const returnFocus = useRef(false)
-  const afterLeave = useRef<(() => void) | null>(null)
-  const viewGuard = useRef<ViewGuard>(null)
-  const jsonOpen = useRef(view === "json")
-  const [focusFirstQuery, setFocusFirstQuery] = useState(view === "editor")
-  if (focusFirstQuery && view !== "editor") setFocusFirstQuery(false)
-  useEffect(() => {
-    jsonOpen.current = view === "json"
-  }, [view])
-  const [blockConfirmed, setBlockConfirmed] = useState(false)
-
-  const blocker = useBlocker({
-    shouldBlockFn: ({ current, next }) =>
-      (unsaved.current || jsonOpen.current) && leavesDraft(current, next),
-    enableBeforeUnload: () => unsaved.current,
-    withResolver: true,
-  })
-  const discardOpen = confirm !== null || blockConfirmed
-
-  useEffect(() => {
-    if (blocker.status !== "blocked") return
-    const { proceed, reset } = blocker
-    const approved = () => {
-      if (unsaved.current) {
-        setBlockConfirmed(true)
-        return
-      }
-      jsonOpen.current = false
-      proceed()
-    }
-    if (viewGuard.current) viewGuard.current.guardLeave(approved, reset)
-    else approved()
-  }, [blocker])
+  const permissions = useLatestPermissions(dashboardId)
+  const provisioned = useLatestProvisioned(dashboardId)
+  const patch = usePatchPanels(dashboardId)
 
   useEffect(
     () => () => {
@@ -182,37 +187,6 @@ export function EditPane({
   const [readOnly, setReadOnly] = useState(stale)
   if (readOnly !== stale && !(stale && dirty)) setReadOnly(stale)
 
-  const run = useCallback(
-    (kind: Leave) => {
-      unsaved.current = false
-      jsonOpen.current = false
-      setConfirm(null)
-      if (kind === "layout") {
-        const proceed = afterLeave.current
-        afterLeave.current = null
-        proceed?.()
-        return
-      }
-      if (kind !== "back") returnFocus.current = true
-      if (kind === "back") onBack()
-      else if (kind === "close") onClose()
-      else onSaved()
-    },
-    [onBack, onClose, onSaved]
-  )
-
-  const leave = useCallback(
-    (kind: Leave) => {
-      const proceed = () => {
-        if (unsaved.current) setConfirm(kind)
-        else run(kind)
-      }
-      if (viewGuard.current) viewGuard.current.guardLeave(proceed)
-      else proceed()
-    },
-    [run]
-  )
-
   useImperativeHandle(
     guardRef,
     () => ({
@@ -224,33 +198,28 @@ export function EditPane({
     [leave]
   )
 
-  function keepEditing() {
-    focusAfter.current = afterLeave.current ? "editor" : "default"
-    afterLeave.current = null
-    setConfirm(null)
-    setBlockConfirmed(false)
-    if (blocker.status === "blocked") blocker.reset()
-  }
-
-  function discard() {
-    focusAfter.current = confirm === "layout" ? "none" : "trigger"
-    if (blockConfirmed && blocker.status === "blocked") {
-      unsaved.current = false
-      jsonOpen.current = false
-      setConfirm(null)
-      setBlockConfirmed(false)
-      blocker.proceed()
-      return
-    }
-    run(confirm ?? "close")
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== "Escape" || event.defaultPrevented || discardOpen) return
-    if ((event.target as Element).closest('[role="alertdialog"]')) return
-    event.preventDefault()
-    // The dialog mounts during this keydown and its own Escape listener would see the same event and close it at once.
-    window.setTimeout(() => leave("close"), 0)
+  const target: DashboardTarget = {
+    kind: "dashboard",
+    dashboardId,
+    latestVersion,
+    adding,
+    propose: contentChange(permissions, provisioned) === "propose",
+    deleted: deletedBy !== undefined,
+    save: (input: PanelsSave) =>
+      patch.mutateAsync(input).then((outcome) => {
+        toast.success(
+          saveToast(outcome),
+          outcome.kind === "proposed"
+            ? {
+                action: {
+                  label: "View proposal",
+                  onClick: () =>
+                    void navigate(proposalLink(outcome.proposalId)),
+                },
+              }
+            : undefined
+        )
+      }),
   }
 
   const editable = panel !== undefined && isEditablePanel(panel)
@@ -279,12 +248,10 @@ export function EditPane({
           }
         >
           <PanelEditor
-            dashboardId={dashboardId}
+            target={target}
             spec={editorSpec}
             panel={panel}
-            adding={adding}
             version={version}
-            latestVersion={latestVersion}
             readOnly={readOnly}
             view={view}
             focusFirstQuery={focusFirstQuery}
@@ -330,14 +297,7 @@ export function EditPane({
         back={() => leave("back")}
         controls={
           editable ? (
-            <EditorViewSwitch
-              view={view}
-              onChange={(next) => {
-                setFocusFirstQuery(false)
-                if (viewGuard.current) viewGuard.current.request(next)
-                else onViewChange(next)
-              }}
-            />
+            <EditorViewSwitch view={view} onChange={requestView} />
           ) : null
         }
         onClose={() => leave("close")}
@@ -353,42 +313,7 @@ export function EditPane({
         </Alert>
       )}
       <div className="flex min-h-0 flex-1 flex-col">{body}</div>
-      <AlertDialog
-        open={discardOpen}
-        onOpenChange={(next) => {
-          if (!next) keepEditing()
-        }}
-      >
-        <AlertDialogContent
-          finalFocus={() => {
-            switch (focusAfter.current) {
-              case "none":
-                return false
-              case "trigger":
-                return panelTrigger(panelId) ?? true
-              case "editor":
-                return (
-                  root.current?.querySelector<HTMLElement>(".cm-content") ??
-                  root.current?.querySelector<HTMLElement>("h2") ??
-                  true
-                )
-              default:
-                return true
-            }
-          }}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard your changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The panel changes you made have not been saved.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction onClick={discard}>Discard</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {dialog}
     </div>
   )
 }

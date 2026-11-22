@@ -159,13 +159,17 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await openPanelMenuItem(page, rpsTitle, "Comment")
 
-      await expect(page).toHaveURL(/panel=rps/)
-      await expect(scopeSelect(page)).toContainText(rpsTitle)
-      await expect(targetSelect(page)).toContainText(rpsTitle)
-      await expect(composerBox(page)).toBeFocused()
+      const canvasComposer = page.getByRole("dialog", {
+        name: "Comment on the canvas",
+      })
+      await expect(page).not.toHaveURL(/panel=/)
+      await expect(canvasComposer.getByText(rpsTitle)).toBeVisible()
 
-      await composerBox(page).fill("Latency looks high")
-      await sendButton(page).click()
+      await canvasComposer
+        .getByRole("textbox", { name: "Write a comment" })
+        .fill("Latency looks high")
+      await canvasComposer.getByRole("button", { name: "Send" }).click()
+      await expect(canvasComposer).toHaveCount(0)
 
       const entry = entryWith(page, "Latency looks high")
       await expect(entry).toHaveCount(1)
@@ -176,8 +180,6 @@ for (const colorScheme of ["light", "dark"] as const) {
       ).toHaveCount(0)
       await expect(entry.getByRole("button", { name: rpsTitle })).toBeVisible()
       await expect(entry.getByText("Open", { exact: true })).toBeVisible()
-      await expect(composerBox(page)).toHaveValue("")
-      await expect(composerBox(page)).toBeFocused()
       await expect(
         page.getByRole("button", { name: "Activity, 1 open comment" })
       ).toBeVisible()

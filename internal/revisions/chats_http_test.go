@@ -214,6 +214,10 @@ func TestAPointedTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT anchor->>'kind', block_id::text FROM agent_requests WHERE id = $1::uuid`, created.Request.ID).Scan(&kind, &stored); err != nil || kind != "position" || stored != block {
 		t.Fatalf("stored point %q on %q, want position on %s (%v)", kind, stored, block, err)
 	}
+	turns := r.d.AuditEvents(t, "chat.turn")
+	if len(turns) != 1 || turns[0].Data["anchor_kind"] != "position" || turns[0].Data["body_length"] != float64(len("what happened here?")) {
+		t.Fatalf("chat.turn events = %+v, want one with anchor_kind position and body_length 19", turns)
+	}
 
 	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"and this one?","kind":"ask",`+observation+`,"block_id":"`+otherBlock+`"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("whole block of another observation: %d %s", rec.Code, rec.Body)

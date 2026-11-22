@@ -175,7 +175,6 @@ describe("ActivityComposer", () => {
         panel_id: "latency",
       },
     })
-    expect(posts[0].body).not.toHaveProperty("start_runs")
   })
 
   it("sends on Enter and adds a line on Shift+Enter", async () => {

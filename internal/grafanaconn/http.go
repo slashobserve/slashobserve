@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/egress"
@@ -261,6 +262,7 @@ func (h *Handler) test(c *gin.Context) {
 		h.fail(c, "test grafana connection", err)
 		return
 	}
+	audit.Conclude(c.Request.Context(), testRecord(id.String(), tested))
 	c.JSON(http.StatusOK, newConnectionJSON(tested, httpapi.Caller(c)))
 }
 
@@ -416,6 +418,7 @@ func (h *Handler) fetchLink(c *gin.Context) {
 		h.fail(c, "fetch grafana dashboard from a link", err)
 		return
 	}
+	audit.Conclude(c.Request.Context(), fetchRecord(linked))
 	c.JSON(http.StatusOK, linkedJSON{ConnectionID: linked.ConnectionID, UID: linked.UID, Title: linked.Title, JSON: string(linked.JSON)})
 }
 

@@ -256,6 +256,8 @@ paths:
     $ref: "./paths/observations.yaml#/observations-id-reopen"
   /observations/{id}/blocks:
     $ref: "./paths/observations.yaml#/observations-id-blocks"
+  /observations/{id}/blocks/preview:
+    $ref: "./paths/observations.yaml#/observations-id-blocks-preview"
   /observations/{id}/layout:
     $ref: "./paths/observations.yaml#/observations-id-layout"
   /blocks/{id}:
@@ -1343,7 +1345,7 @@ components:
     Folder:
       type: object
       additionalProperties: false
-      required: [id, title, general, personal, restricted, admins_only, dashboard_count, grantees, grantee_count, created_by, permissions, level]
+      required: [id, title, general, personal, restricted, admins_only, audit, dashboard_count, grantees, grantee_count, created_by, permissions, level]
       properties:
         id:
           type: string
@@ -1364,6 +1366,9 @@ components:
         admins_only:
           type: boolean
           description: True when only Admins can read the folder, whoever made it. Such a folder lists no people or groups, and only such a folder can hold content that reads an Admins-only datasource.
+        audit:
+          type: boolean
+          description: True for the Audit folder, the one the server made to hold the starter dashboards over the audit trail, whatever it is now called. False for every other folder, and for all of them when the Audit folder was deleted, which the server does not recreate. The field cannot be set.
         dashboard_count:
           type: integer
           description: All dashboards in the folder, including ones the caller cannot see when the caller manages it.
@@ -3435,7 +3440,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [id, status, assigned_kind]
-          description: The run this message started, set on the response of a write sent with `start_runs` and on every read of the message while that run exists; null when the message started no run, and on an edit.
+          description: The run this message started, set on the response of a write that asked an agent and on every read of the message while that run exists; null when the message started no run, and on an edit.
           properties:
             id:
               type: string
@@ -3452,7 +3457,7 @@ components:
           nullable: true
           additionalProperties: false
           required: [code, message]
-          description: Why a write sent with `start_runs` stored the message and started no run; null otherwise.
+          description: Why a write that asked an agent stored the message and started no run; null otherwise.
           properties:
             code:
               type: string
@@ -8314,7 +8319,7 @@ components:
               - $ref: "#/components/schemas/InvalidTransition"
     ThreadRefused:
       description: >-
-        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_block` (`block_id` is not a block of this observation, or the target is not an observation), `invalid_reply_to` (`reply_to_id` is not a message of this thread), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a write sent with `start_runs` mentions more than one agent).
+        The request is well formed but refused: `invalid_target`, `invalid_body` (empty, too long or with refused characters), `too_many_mentions`, `invalid_panel_id`, `invalid_version` (`version` is out of range or below the version the thread is on), `unknown_panel` (the panel is not in that version's Spec), `unknown_version` (the version does not exist on the dashboard), `invalid_block` (`block_id` is not a block of this observation, or the target is not an observation), `invalid_reply_to` (`reply_to_id` is not a message of this thread), `invalid_mention` (a `grant` mention names a connected agent that is not the caller's own or is revoked or expired, or a `service_account` mention names an account that does not take runs, or does not exist) or `too_many_agents` (a message mentions more than one agent).
       content:
         application/json:
           schema:

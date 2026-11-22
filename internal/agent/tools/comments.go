@@ -413,8 +413,6 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 		Anchor   *anchor.Anchor `json:"anchor"`
 		To       string         `json:"to"`
 		ClientID *string        `json:"client_id"`
-
-		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -426,7 +424,7 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return commentFailure(err)
 	}
-	to, clientID, err := deliveryOf(in.To, in.StartRuns, in.ClientID)
+	to, clientID, err := deliveryOf(in.To, in.ClientID)
 	if err != nil {
 		return commentFailure(err)
 	}
@@ -438,15 +436,12 @@ func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Re
 	return success(startedStep("Opened a comment", sent.Run), commentResult(commentRef{sent.Thread, sent.Message}, sent)), nil
 }
 
-func deliveryOf(to string, startRuns bool, rawClientID *string) (threads.To, pgtype.UUID, error) {
+func deliveryOf(to string, rawClientID *string) (threads.To, pgtype.UUID, error) {
 	clientID, err := threads.ParseClientID(rawClientID)
 	if err != nil {
 		return "", pgtype.UUID{}, err
 	}
-	switch {
-	case to == "" && startRuns:
-		return threads.ToAgent, clientID, nil
-	case to == "":
+	if to == "" {
 		return threads.ToEveryone, clientID, nil
 	}
 	parsed, err := threads.ParseTo(to)
@@ -465,8 +460,6 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 		ReplyToID *string `json:"reply_to_id"`
 		To        string  `json:"to"`
 		ClientID  *string `json:"client_id"`
-
-		StartRuns bool `json:"start_runs"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -478,7 +471,7 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 	if !ok {
 		return res, nil
 	}
-	to, clientID, err := deliveryOf(in.To, in.StartRuns, in.ClientID)
+	to, clientID, err := deliveryOf(in.To, in.ClientID)
 	if err != nil {
 		return commentFailure(err)
 	}

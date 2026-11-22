@@ -26,9 +26,9 @@ INSERT INTO findings (id, observation_id, agent_request_id, title, markdown, tim
 SELECT o.id, o.id, $1, 'answer', $2, now() - interval '1 hour', now(), 'user', $3::uuid, 'Ada' FROM o`, id, markdown, userID)
 }
 
-func followUp(ctx context.Context, svc *revisions.Service, by auth.Principal, prompt string, id pgtype.UUID) (dbsqlc.AgentRequest, error) {
-	follows := id.String()
-	row, err := svc.Start(ctx, by, revisions.StartRequest{Prompt: &prompt, FollowsID: &follows})
+func followUp(ctx context.Context, svc *revisions.Service, by auth.Principal, prompt string, chat pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	chatID := chat.String()
+	row, err := svc.Start(ctx, by, revisions.StartRequest{Prompt: &prompt, ChatID: &chatID})
 	return row.AgentRequest, err
 }
 
@@ -68,7 +68,7 @@ func TestObserveFollowUpJoinsTheChatAndCarriesItsAnswers(t *testing.T) {
 	}
 	answerWith(t, d, second.ID, "Errors are flat")
 
-	third, err := followUp(ctx, svc, user, "and latency", second.ID)
+	third, err := followUp(ctx, svc, user, "and latency", first.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,20 +86,8 @@ func TestObserveFollowUpRefusesAnotherPrincipalsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrRequestNotFound) {
-		t.Fatalf("err = %v, want not found", err)
-	}
-}
-
-func TestObserveFollowUpRefusesARequestThatHasADashboard(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 1)
-	row, err := svc.SubmitFollowUp(reading(context.Background()), dash, nil, "", "revise", user)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := followUp(reading(context.Background()), svc, user, "next", row.ID); !errors.Is(err, revisions.ErrFollowsDashboard) {
-		t.Fatalf("err = %v, want ErrFollowsDashboard", err)
+	if _, err := followUp(reading(context.Background()), svc, account, "not mine", first.ID); !errors.Is(err, revisions.ErrChatNotFound) {
+		t.Fatalf("err = %v, want chat not found", err)
 	}
 }
 
@@ -150,7 +138,7 @@ func TestListObserveByChatReturnsEveryTurnOfOneChat(t *testing.T) {
 	}
 }
 
-func TestCreateObserveWithFollowsIDReportsTheChat(t *testing.T) {
+func TestCreateObserveWithChatIDReportsTheChat(t *testing.T) {
 	svc, _ := newService(t, succeedWith(2))
 	first, err := svc.SubmitObserve(reading(context.Background()), user, "one")
 	if err != nil {
@@ -158,7 +146,7 @@ func TestCreateObserveWithFollowsIDReportsTheChat(t *testing.T) {
 	}
 	r := observeRouterFor(svc, user)
 
-	rec := call(r, http.MethodPost, "/api/v1/observe", fmt.Sprintf(`{"prompt":"two","follows_id":%q}`, first.ID))
+	rec := call(r, http.MethodPost, "/api/v1/observe", fmt.Sprintf(`{"prompt":"two","chat_id":%q}`, first.ID))
 	var wrapped struct {
 		Request struct {
 			ID     string `json:"id"`
@@ -176,20 +164,14 @@ func TestCreateObserveWithFollowsIDReportsTheChat(t *testing.T) {
 	}
 }
 
-func TestCreateObserveRejectsAMalformedOrConflictingFollowsID(t *testing.T) {
-	svc, d := newService(t, succeedWith(2))
-	dash := seedDashboard(t, d, 1)
+func TestCreateObserveRejectsAMalformedOrUnknownChatID(t *testing.T) {
+	svc, _ := newService(t, succeedWith(2))
 	r := observeRouterFor(svc, user)
-	for name, body := range map[string]string{
-		"not a uuid":       `{"prompt":"x","follows_id":"nope"}`,
-		"with a dashboard": fmt.Sprintf(`{"prompt":"x","kind":"revise","follows_id":"00000000-0000-4000-8000-000000000001","dashboard_id":%q}`, dash),
-	} {
-		if rec := call(r, http.MethodPost, "/api/v1/observe", body); rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
-			t.Fatalf("%s: %d %s", name, rec.Code, rec.Body)
-		}
+	if rec := call(r, http.MethodPost, "/api/v1/observe", `{"prompt":"x","chat_id":"nope"}`); rec.Code != http.StatusBadRequest || errorCode(t, rec) != "invalid_request" {
+		t.Fatalf("not a uuid: %d %s", rec.Code, rec.Body)
 	}
-	if rec := call(r, http.MethodPost, "/api/v1/observe", `{"prompt":"x","follows_id":"00000000-0000-4000-8000-000000000001"}`); rec.Code != http.StatusNotFound {
-		t.Fatalf("unknown follows_id: %d %s", rec.Code, rec.Body)
+	if rec := call(r, http.MethodPost, "/api/v1/observe", `{"prompt":"x","chat_id":"00000000-0000-4000-8000-000000000001"}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown chat_id: %d %s", rec.Code, rec.Body)
 	}
 }
 

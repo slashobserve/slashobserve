@@ -31,6 +31,7 @@ import {
   blockRows,
   blockTitle,
   hasHeight,
+  followsLivePanel,
   holdsAgentOutput,
   nextBlockId,
   rowGridClass,
@@ -313,6 +314,7 @@ function BlockSection({
       {block.state === "requested" ? (
         <RequestedBlock
           block={block}
+          besideLivePanel={followsLivePanel(blocks, block.id)}
           onKept={() => focusBlock(block.id, true)}
           onDiscarded={() => focusAfterRemoval(nextId)}
         >
