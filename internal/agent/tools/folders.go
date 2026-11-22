@@ -47,7 +47,7 @@ type folderItemOut struct {
 	General    bool   `json:"general"`
 	CanCreate  bool   `json:"can_create"`
 	AdminsOnly *bool  `json:"admins_only,omitempty"`
-	Audit      bool   `json:"audit,omitempty"`
+	Audit      bool   `json:"audit"`
 }
 
 type folderListOut struct {

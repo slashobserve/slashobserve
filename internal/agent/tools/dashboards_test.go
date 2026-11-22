@@ -297,3 +297,28 @@ func TestListDashboardsExcludesTheAuditFolderOnlyWhenAsked(t *testing.T) {
 		t.Errorf("the dashboard left is %q, want Board", list.Dashboards[0].Title)
 	}
 }
+
+func TestListFoldersPrintsTheAuditFlagOnEveryRow(t *testing.T) {
+	r := newAccessRig(t)
+	trail := r.newFolder(t, "Trail")
+	r.newFolder(t, "Payments")
+	r.db.Exec(t, `INSERT INTO starter_content (key, ref) VALUES ($1, $2)`, folders.AuditStarterKey, trail)
+
+	list, ok := r.call(t, adminCaller, nameListFolders, `{}`).Content.(folderListOut)
+	if !ok || len(list.Folders) < 3 {
+		t.Fatalf("list_folders = %+v", list)
+	}
+	for _, f := range list.Folders {
+		raw, err := json.Marshal(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := `"audit":false`
+		if f.ID == trail.String() {
+			want = `"audit":true`
+		}
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("folder %s = %s, want %s", f.Title, raw, want)
+		}
+	}
+}
