@@ -256,7 +256,7 @@ Save results also carry `notes`, up to 20 hints that never reject a save: a time
 `list_folders` is also offered to the built-in agent, so a request that names a folder can place the dashboard there.
 It lists the folders the key can see, with `can_create` for each, and sets `truncated` when there are more than fit in the result.
 For an Admin key each folder also carries `admins_only`, true for a folder only Admins can read; a save that reads an Admins-only datasource, and is refused with `restricted_content`, goes in one of those.
-Each folder also carries `audit: true` when it is the [Audit folder](activity.md#audit-folder), and the field is left out otherwise.
+Each folder also carries `audit`, true when it is the [Audit folder](activity.md#audit-folder) and false otherwise.
 A key below Admin never sees the field, and no tool changes a folder's access: an Admin sets it with `observe folders permissions admins-only`.
 `create_folder` takes a `title` (1 to 100 characters, unique without regard to case); a Viewer is refused by the folder rules, an Editor or Admin may create, and the caller manages the folder they create.
 

@@ -30,7 +30,7 @@ Health shows in two places: the [dashboards list](#in-the-dashboards-list) and [
 
 | Kind | Meaning |
 | --- | --- |
-| `no_data` | A panel query runs but returns nothing over the last 7 days. |
+| `no_data` | A panel query runs but returns nothing over the last 7 days. Alert list panels and panels over the built-in audit datasource are left out, because a quiet audit trail is not a fault. |
 | `query_failed` | A panel query fails, for example a syntax error, an unknown metric or a datasource that does not answer. |
 | `variable_failed` | A variable resolves to no value, so the panels that use it cannot run. |
 | `duplicate_title` | Another dashboard in the same folder has the same title, compared without case. |

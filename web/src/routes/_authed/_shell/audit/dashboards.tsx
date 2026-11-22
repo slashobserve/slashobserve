@@ -55,7 +55,7 @@ function AuditDashboardsRoute() {
     [navigate]
   )
   return (
-    <RoleGate min="admin">
+    <RoleGate min="admin" hideCrumb>
       <AuditDashboards
         search={search}
         onSearchChange={onSearchChange}
