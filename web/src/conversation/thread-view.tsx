@@ -51,7 +51,7 @@ import { useDeliver } from "./use-composer"
 
 const foldMs = 200
 
-const arrivingClass =
+export const arrivingClass =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:animation-duration-200 motion-safe:ease-out"
 
 const runLinkClass = "underline underline-offset-2 hover:text-foreground"

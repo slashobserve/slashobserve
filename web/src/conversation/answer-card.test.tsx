@@ -530,6 +530,27 @@ describe("AnswerCard", () => {
     )
   })
 
+  it("offers only Share to thread for an answer that stays private", async () => {
+    stubFetch({})
+    const { user } = renderCard({
+      menu: {
+        shareTarget: "dashboard:d1",
+        sharedThreadId: null,
+        showToEveryone: false,
+        subjectObservationId: null,
+      },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Answer actions" })
+    )
+    expect(
+      await screen.findByRole("menuitem", { name: /^Share to thread/ })
+    ).toBeVisible()
+    expect(
+      screen.queryByRole("menuitem", { name: /^Show to everyone/ })
+    ).toBeNull()
+  })
+
   it("shares the answer to an open thread picked from the menu", async () => {
     const fetch = stubFetch({
       thread_id: "t1",

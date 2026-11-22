@@ -19,6 +19,8 @@ import {
   CanvasLayer,
   useCanvasGate,
 } from "@/comments/canvas-composer"
+import { AskPins } from "@/comments/ask-pins"
+import { AskPopover, useOpenChat } from "@/comments/ask-popover"
 import { CanvasPins } from "@/comments/canvas-pins"
 import { pinView } from "@/comments/canvas-target"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
@@ -43,6 +45,7 @@ import { reusedFilterOf, reusePanel } from "@/panels/transforms/reuse-panel"
 import { useGazetteers } from "@/panels/transforms/use-gazetteers"
 import type { WireFrame } from "@/dashboards/queries"
 import { cn } from "@/lib/utils"
+import { useAgentInfo } from "@/observe/queries"
 import { useHoveredPanel } from "@/shortcuts/hovered-panel"
 import {
   isDataPanel,
@@ -53,7 +56,13 @@ import {
   type Variable,
 } from "@/spec"
 
-import { useCanvasTool, type CanvasDraft } from "./canvas-tools"
+import {
+  activeTool,
+  useCanvasTool,
+  type CanvasDraft,
+  type OpenTurn,
+} from "./canvas-tools"
+import { conversationActionsFor } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
@@ -113,6 +122,22 @@ function ownsDraft(
   return draft.surface === null
     ? repeatOf === undefined
     : draft.surface === surfaceId
+}
+
+function spotKeyOf(spot: Pick<CanvasDraft, "panelId" | "at">): string {
+  return `${spot.panelId}:${spot.at?.x ?? ""}:${spot.at?.y ?? ""}`
+}
+
+function ownsTurn(
+  turn: OpenTurn | null,
+  panelId: string,
+  surfaceId: string,
+  repeatOf: string | undefined
+): turn is OpenTurn {
+  if (turn === null || turn.panelId !== panelId) return false
+  return turn.surface === null
+    ? repeatOf === undefined
+    : turn.surface === surfaceId
 }
 
 function focusPanel(root: HTMLElement | null) {
@@ -236,8 +261,9 @@ export const PanelContainer = memo(function PanelContainer({
   const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
   const setSearch = useSetDashboardSearch()
-  const commentTool = useCanvasTool((state) => state.tool === "comment")
-  const selectTool = useCanvasTool((state) => state.tool === "select")
+  const canvasTool = useCanvasTool((state) => state.tool)
+  const selectTool = canvasTool === "select"
+  const agentAvailable = useAgentInfo().data?.available === true
   const { width: bodyWidth, height: bodyHeight } = panelBodySize(
     Math.floor(width),
     Math.floor(height)
@@ -434,10 +460,22 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
-  const commenting = onCanvas && commentTool && !layoutSession
+  const pointing = onCanvas
+    ? activeTool(canvasTool, {
+        ...conversationActionsFor(panel, canComment, agentAvailable),
+        idle: !layoutSession,
+      })
+    : "select"
   const draft = useCanvasTool((state) =>
     ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null
   )
+  const openTurn = useCanvasTool((state) =>
+    ownsTurn(state.openTurn, panelId, surfaceId, repeatOf)
+      ? state.openTurn
+      : null
+  )
+  const openChat = useOpenChat()
+  const askSpot = openTurn ?? (draft?.tool === "ask" ? draft : null)
   const gateInput = useCanvasGate(canComment, layoutSession)
   const shownWindow = useMemo(
     () => ({ from: rangeFrom, to: rangeTo }),
@@ -447,9 +485,9 @@ export const PanelContainer = memo(function PanelContainer({
     if (event.button !== 0 || viewing) return
     const target = event.target as Element
     const pressesTitle =
-      !commenting && target.closest("[data-panel-title]") !== null
+      pointing === "select" && target.closest("[data-panel-title]") !== null
     if (!pressesTitle && target.closest(interactiveTarget)) return
-    if (commenting) return
+    if (pointing !== "select") return
     if (!target.closest("[data-panel-body]")) selectPanel?.()
   }
 
@@ -506,7 +544,7 @@ export const PanelContainer = memo(function PanelContainer({
       ref={ref}
       className={cn(
         "relative size-full",
-        commenting && "cursor-crosshair **:cursor-crosshair"
+        pointing !== "select" && "cursor-crosshair **:cursor-crosshair"
       )}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
@@ -602,28 +640,55 @@ export const PanelContainer = memo(function PanelContainer({
                 gateInput={gateInput}
               />
             ) : null}
+            {onCanvas && dashboardId !== undefined && repeatOf === undefined ? (
+              <AskPins
+                dashboardId={dashboardId}
+                panelId={panelId}
+                panelTitle={panelName}
+                surfaceId={surfaceId}
+                store={layoutStore}
+                body={body}
+                view={pinView(state, tableView)}
+              />
+            ) : null}
           </div>
         </AnchorLayoutProvider>
       </PanelChrome>
-      {commenting ? (
+      {pointing !== "select" ? (
         <CanvasLayer
           containerRef={ref}
           surfaceRef={surfaceRef}
           store={layoutStore}
           surfaceId={surfaceId}
           panelId={panelId}
-          tool="comment"
+          tool={pointing}
           body={body}
           shownRange={shownWindow}
           wholePanel={tableView && panel.type !== "table"}
         />
       ) : null}
-      {draft !== null &&
+      {askSpot !== null &&
+      onCanvas &&
+      !layoutSession &&
+      dashboardId !== undefined ? (
+        <AskPopover
+          key={spotKeyOf(askSpot)}
+          dashboardId={dashboardId}
+          panelTitle={panelName}
+          surfaceRef={surfaceRef}
+          gate={gateInput}
+          spot={askSpot}
+          turn={openTurn}
+          openChatId={openChat.chatId}
+          onChatStarted={openChat.select}
+        />
+      ) : null}
+      {draft?.tool === "comment" &&
       onCanvas &&
       !layoutSession &&
       dashboardId !== undefined ? (
         <CanvasComposer
-          key={`${draft.panelId}:${draft.at?.x ?? ""}:${draft.at?.y ?? ""}`}
+          key={spotKeyOf(draft)}
           dashboardId={dashboardId}
           panelTitle={panelName}
           draft={draft}

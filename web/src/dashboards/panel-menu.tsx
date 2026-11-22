@@ -45,7 +45,7 @@ import {
 
 import { exploreProblemText, exploreTarget } from "./explore-link"
 import {
-  askAboutPanel,
+  askAboutThisPanel,
   commentOnThisPanel,
   editPanelQuery,
   useConversationActions,
@@ -173,8 +173,8 @@ export function PanelMenu({
       icon: <AtSignIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        returnFocusToComposerUntilInput()
-        askAboutPanel(setSearch, panel.id)
+        askAboutThisPanel(setSearch, panel.id, onCanvas)
+        focusAfterClose = "none"
       },
       shortcut: shortcutText("ask"),
     })

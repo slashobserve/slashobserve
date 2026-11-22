@@ -40,7 +40,7 @@ The Investigate chip shows above the box, and the send asks the question instead
 In a chat about a dashboard, the investigation is about that dashboard and its answer appears in the same conversation.
 Without a dashboard, the send opens a new chat page for it.
 
-On a dashboard, **Ask** in a panel's menu opens the activity pane with the panel as the target and the "To:" chip on Observe Agent, so the next message asks the agent in a new thread on that panel, even when the box was replying in another thread; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
+On a dashboard, **Ask** in a panel's menu opens the [ask box](web.md#ask-mode) on the whole panel, which asks the agent privately in your chat about that dashboard; to ask in a thread the team reads, choose the "To:" chip in a comment, see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
 The activity pane has no Investigate chip and takes no slash command: a message there that asks the agent is a request in a comment thread, see [Comments, agent requests and versions](review.md).
 To start an investigation about a dashboard, type `/investigate` in a chat about that dashboard.
 
@@ -107,7 +107,7 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 
 Starting an investigation needs the Editor role or above, and view access on the dashboard it is about.
 Viewers can read the observations in the folders they can view.
-**Ask** in a panel's menu, the panel toolbar and the bottom tool bar asks a question in a thread rather than starting an investigation, so it needs only Comment on the dashboard and a connected model; a Viewer does not see it.
+**Ask** in a panel's menu, the panel toolbar and the panel's header, and [Ask mode](web.md#ask-mode) in the bottom tool bar, ask a question as a private turn of your chat rather than starting an investigation, so they need only Comment on the dashboard and a connected model; a Viewer does not see them.
 Over the API, `POST /api/v1/observe` with `kind` `investigate` from a Viewer or Commenter answers `403` `forbidden_role` with `needed_role` `editor`.
 
 ## From an MCP client

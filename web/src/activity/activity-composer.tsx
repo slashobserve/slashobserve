@@ -23,7 +23,6 @@ import {
 import { useComposer } from "@/conversation/use-composer"
 import { cn } from "@/lib/utils"
 
-import { useActivityStore } from "./activity-store"
 import { truncatingTriggerClass } from "./show-filter"
 
 export type Target = { kind: "dashboard" } | { kind: "panel"; panelId: string }
@@ -142,14 +141,6 @@ export function ActivityComposer({
   }, [targetGone, onTargetChange])
   const panelId =
     target.kind === "panel" && !targetMissing ? target.panelId : null
-  const askingAgent = useActivityStore((state) => state.askingAgent)
-  const setAskingAgent = useActivityStore((state) => state.setAskingAgent)
-  const askingInThread = askingAgent && replying !== null
-  useEffect(() => {
-    if (!askingAgent) return
-    if (askingInThread) onLeaveThread()
-    else setAskingAgent(false)
-  }, [askingAgent, askingInThread, setAskingAgent, onLeaveThread])
 
   const model = useComposer({
     subject: { kind: "dashboard", id: dashboardId },
@@ -164,7 +155,6 @@ export function ActivityComposer({
     people: replying?.people,
     draft: { value: draft, onChange: onDraftChange },
     runningRequestId,
-    addressAgent: askingAgent && !askingInThread,
     onSent: () => undefined,
   })
   const { field } = model

@@ -306,6 +306,9 @@ Before that, when the agent answered a question instead of building, the box rea
 While the latest turn still runs the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first."
 
+On a dashboard, [Ask mode](web.md#ask-mode) asks about one spot of a panel as a turn of the chat open in the Chat tab, or of a new chat when none is open.
+Its answer and follow-ups show both in the box at that spot and in the Chat tab, and each follow-up there carries the same spot.
+
 A follow-up is a continuation of the chat.
 The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation: each earlier question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
 It gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
@@ -313,7 +316,8 @@ For a chat about a dashboard these are the earlier requests you sent on that das
 Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?"; the context helps with "and the same for latency", it does not replace the current Spec.
 
 Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
-A request with neither a dashboard nor an observation is private the same way; a request on a dashboard, an investigation included, is shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
+A request with neither a dashboard nor an observation is private the same way, and so is a question about a dashboard, asked in its Chat tab or with [Ask mode](web.md#ask-mode): only you and Admins read it.
+A request in a dashboard's comment thread, an investigation on a dashboard and a request that revises the dashboard are shared work that anyone who can see the dashboard reads, and a request on an observation, an ask in its thread included, anyone who can read the observation.
 They read that one request only: its `chat_id` is null for them, the first request of a chat shows them its own title rather than the chat's name, and the rest of the chat, the earlier questions the agent was given included, stays yours.
 Unless it is an investigation or an answer you shared into a thread they can read, they also read it without your words: its `title`, `prompt`, step messages, `live_text`, `continue_note` and `error` are empty and `redacted` is true, while its state, times, your name, its kind, its `failure_code` and the version it saved stay, and the dashboard's revision list shows its `prompt`, `continue_note` and `error` empty the same way.
 In the web app such a run reads "Asked in a private chat" where its message would be, in its page and browser tab title and in the dashboard's activity, its steps show without their messages, and while it runs the dashboard's activity names its current phase instead of its latest step.

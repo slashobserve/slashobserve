@@ -88,6 +88,7 @@ export type ChatListFilters = {
   chatId?: string
   scope?: "all"
   states?: components["schemas"]["RequestSummary"]["state"][]
+  anchored?: true
 }
 
 export const observeKeys = {

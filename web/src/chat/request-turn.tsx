@@ -109,12 +109,14 @@ type Props = {
   about?: Subject | null
 }
 
-function ChatAnswer({
+export function ChatAnswer({
   request,
   finding,
   own,
   about,
   onRevised,
+  showToEveryone,
+  reviseNote,
   actions,
 }: {
   request: ObserveRequest
@@ -122,7 +124,9 @@ function ChatAnswer({
   own: boolean
   about: Subject | null
   onRevised: (next: ObserveRequest) => Promise<void>
-  actions: ReactNode
+  showToEveryone?: boolean
+  reviseNote?: string
+  actions?: ReactNode
 }) {
   const dashboardId = request.dashboard_id
   const revised: Subject | null =
@@ -171,6 +175,7 @@ function ChatAnswer({
               onRevise: revise,
               pending,
               blocked: reviseBlock(gate, true),
+              note: reviseNote,
               dashboardId: revised.id,
             }
           : undefined
@@ -180,6 +185,7 @@ function ChatAnswer({
       menu={{
         shareTarget: own && asked !== null ? threadTargetOf(asked) : null,
         sharedThreadId: request.shared_thread_id,
+        showToEveryone,
         subjectObservationId: request.subject_observation_id,
       }}
     />

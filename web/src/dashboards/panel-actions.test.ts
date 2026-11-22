@@ -2,14 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
 
-import { threadPlace } from "@/conversation/delivery"
-import { planSend } from "@/conversation/send-plan"
-
 import type { LayoutPanel } from "@/spec"
 
 import {
-  askAboutPanel,
-  askAboutPanelAndFocus,
+  askAboutThisPanel,
   commentOnThisPanel,
   conversationActionsFor,
   focusComment,
@@ -65,52 +61,48 @@ describe("focusComment", () => {
   })
 })
 
-describe("askAboutPanel", () => {
-  function asking(start: DashboardSearch, panelId: string) {
-    let state = start
-    askAboutPanel((update) => {
-      state = update(state)
-    }, panelId)
-    return state
-  }
-
-  function sendFor(state: DashboardSearch) {
-    return planSend(
-      threadPlace(null),
-      { kind: "dashboard", id: "dashboard" },
-      { to: "agent", visibleTo: "everyone" },
-      {
-        body: "why is this slow",
-        clientId: "k1",
-        toChosen: true,
-        target: { panelId: state.panel },
-      }
+describe("askAboutThisPanel", () => {
+  it("opens the ask box on the whole panel on the canvas", () => {
+    let search: DashboardSearch = { vars: {} }
+    const place = askAboutThisPanel(
+      (update) => {
+        search = update(search)
+      },
+      "latency",
+      true
     )
-  }
-
-  it("opens the activity on the panel, addressed to the agent, and asks about that panel", () => {
-    useActivityStore.getState().setOpen(false)
-    useActivityStore.getState().setAskingAgent(false)
-    const state = asking({ vars: {}, edit: "query" }, "latency")
-    expect(useActivityStore.getState().open).toBe(true)
-    expect(useActivityStore.getState().askingAgent).toBe(true)
-    expect(state).toMatchObject({ panel: "latency", edit: undefined })
-    expect(sendFor(state)).toMatchObject({
-      via: "thread.open",
-      target: "dashboard:dashboard",
-      to: "agent",
+    expect(place).toBe("canvas")
+    expect(search).toEqual({ vars: {} })
+    expect(useCanvasTool.getState().draft).toEqual({
       panelId: "latency",
+      tool: "ask",
+      anchor: null,
+      at: null,
+      surface: null,
     })
+    useCanvasTool.getState().close()
   })
 
-  it("switches the side panel from the Chat tab to Activity", () => {
-    const state = asking({ vars: {}, tab: "chat", chat: "c1" }, "latency")
-    expect(state).toMatchObject({ tab: "activity", panel: "latency" })
-  })
-
-  it("moves the target when another panel is asked about next", () => {
-    const state = asking(asking({ vars: {} }, "latency"), "errors")
-    expect(sendFor(state)).toMatchObject({ panelId: "errors" })
+  it("opens the Chat tab off the canvas on the panel, keeping the open chat", () => {
+    useActivityStore.getState().setOpen(false)
+    let search: DashboardSearch = {
+      vars: {},
+      tab: "activity",
+      chat: "c1",
+      edit: "query",
+    }
+    const place = askAboutThisPanel(
+      (update) => {
+        search = update(search)
+      },
+      "latency",
+      false
+    )
+    expect(place).toBe("pane")
+    expect(useActivityStore.getState().open).toBe(true)
+    expect(search).toMatchObject({ tab: "chat", chat: "c1", panel: "latency" })
+    expect(search.edit).toBeUndefined()
+    expect(useCanvasTool.getState().draft).toBeNull()
   })
 })
 
@@ -159,7 +151,6 @@ describe("acting on a panel and focusing the composer", () => {
   it("comments on the panel in the activity pane and focuses the composer off the canvas", () => {
     const queue = frames()
     const focus = vi.fn()
-    useActivityStore.getState().setAskingAgent(false)
     let search: DashboardSearch = { vars: {} }
     const place = commentOnThisPanel(
       (update: (current: DashboardSearch) => DashboardSearch) => {
@@ -171,7 +162,6 @@ describe("acting on a panel and focusing the composer", () => {
     )
     expect(place).toBe("pane")
     expect(search).toMatchObject({ tab: "activity", panel: "latency" })
-    expect(useActivityStore.getState().askingAgent).toBe(false)
     expect(useCanvasTool.getState().draft).toBeNull()
     queue.shift()?.()
     expect(focus).toHaveBeenCalledTimes(1)
@@ -201,23 +191,5 @@ describe("acting on a panel and focusing the composer", () => {
     queue.shift()?.()
     expect(focus).not.toHaveBeenCalled()
     useCanvasTool.getState().close()
-  })
-
-  it("asks about the panel and focuses the composer", () => {
-    const queue = frames()
-    const focus = vi.fn()
-    useActivityStore.getState().setAskingAgent(false)
-    let search: DashboardSearch = { vars: {} }
-    askAboutPanelAndFocus(
-      (update) => {
-        search = update(search)
-      },
-      "latency",
-      { current: { focus } as never }
-    )
-    expect(search).toMatchObject({ tab: "activity", panel: "latency" })
-    expect(useActivityStore.getState().askingAgent).toBe(true)
-    queue.shift()?.()
-    expect(focus).toHaveBeenCalledTimes(1)
   })
 })

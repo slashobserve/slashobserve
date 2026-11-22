@@ -66,7 +66,7 @@ A comment is 1 to 4000 characters, counted without the spaces around it: from 36
 To start from a panel, hover it and choose **Comment** in its header, press `c` while the pointer is over it, open its menu ("Panel menu: `<title>`") and choose **Comment**, or choose **Comment** in the toolbar of the selected panel.
 On the dashboard each opens a small composer on the panel, and the comment is saved as a thread on the whole panel.
 In the full-size view and TV mode the card opens scoped to that panel with the cursor in the box instead.
-**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens it the same way with the "To:" chip on Observe Agent.
+**Ask**, in the header, on `a` or in the same menu, on a data panel when you can comment and a model is connected, opens the [ask box](web.md#ask-mode) on the whole panel, a private question in your chat rather than a thread; in the full-size view and TV mode it opens the dashboard's Chat tab with the panel as the question's target.
 A panel with open comments shows a badge, "N open comments on `<title>`".
 
 A comment is attached to the latest version when you write it.

@@ -72,7 +72,7 @@ import {
 
 import { ActivityToggle } from "./activity-toggle"
 import {
-  askAboutPanelAndFocus,
+  askAboutThisPanel,
   commentOnThisPanel,
   conversationActionsFor,
   focusComment,
@@ -86,6 +86,7 @@ import {
   useCursorSyncShortcut,
 } from "./cursor-sync"
 import { CanvasTools, useCanvasTool } from "./canvas-tools"
+import { askKeyAction } from "./ask-key"
 import { commentKeyAction, takesCanvasComments } from "./comment-key"
 import { DashboardGrid, type PanelItem } from "./dashboard-grid"
 import { DashboardLinks } from "./dashboard-links"
@@ -451,8 +452,8 @@ function DashboardView({
   useEffect(() => {
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
-  const commentTool = useCanvasTool((state) => state.tool === "comment")
-  const pressArranges = arranging && !(commentTool && !editing)
+  const tool = useCanvasTool((state) => state.tool)
+  const pressArranges = arranging && (tool === "select" || editing)
   const toolsShown = permissions.comment
   const [specOpen, setSpecOpen] = useState(false)
   const dock = dockOf(search, {
@@ -601,6 +602,18 @@ function DashboardView({
   const agentAvailable = useAgentInfo().data?.available === true
   const shortcutPanel = () =>
     layoutPanelOf(spec, shortcutPanelId() ?? undefined)
+  const shortcutPlace = () => {
+    const target = shortcutTarget()
+    const panel = layoutPanelOf(spec, target?.id ?? undefined)
+    const onCanvas = takesCanvasComments({
+      canComment: permissions.comment,
+      onTv: kiosk,
+      viewing: viewed !== undefined,
+      editingPanel: editingPanel && panel?.id === search.panel,
+      copy: target?.copy === true,
+    })
+    return { panel, onCanvas }
+  }
   useDashboardShortcuts({
     view: () => {
       if (viewed !== undefined) return closeView()
@@ -619,18 +632,10 @@ function DashboardView({
           }
         : undefined,
     comment: () => {
-      const target = shortcutTarget()
-      const panelId = layoutPanelOf(spec, target?.id ?? undefined)?.id
-      const onCanvas = takesCanvasComments({
-        canComment: permissions.comment,
-        onTv: kiosk,
-        viewing: viewed !== undefined,
-        editingPanel: editingPanel && panelId === search.panel,
-        copy: target?.copy === true,
-      })
+      const { panel, onCanvas } = shortcutPlace()
       const action = commentKeyAction({
-        commenting: commentTool,
-        panelId,
+        commenting: tool === "comment",
+        panelId: panel?.id,
         canComment: permissions.comment,
         editing,
         onCanvas,
@@ -648,13 +653,28 @@ function DashboardView({
       }
     },
     ask: () => {
-      const panel = shortcutPanel()
-      if (
-        panel !== undefined &&
-        !editing &&
-        conversationActionsFor(panel, permissions.comment, agentAvailable).ask
-      ) {
-        askAboutPanelAndFocus(setSearch, panel.id, composerRef)
+      const { panel, onCanvas } = shortcutPlace()
+      const action = askKeyAction({
+        asking: tool === "ask",
+        panelId: panel?.id,
+        panelAskable:
+          panel !== undefined &&
+          conversationActionsFor(panel, permissions.comment, agentAvailable)
+            .ask,
+        mayAsk: permissions.comment && agentAvailable,
+        editing,
+        onCanvas,
+      })
+      switch (action.kind) {
+        case "leaveMode":
+          return useCanvasTool.getState().setTool("select")
+        case "enterMode":
+          return useCanvasTool.getState().setTool("ask")
+        case "panel":
+          askAboutThisPanel(setSearch, action.panelId, onCanvas)
+          return
+        case "none":
+          return
       }
     },
     inspect: () => {
@@ -675,7 +695,7 @@ function DashboardView({
         ? closeView
         : kiosk
           ? leaveKiosk
-          : commentTool
+          : tool !== "select"
             ? () => useCanvasTool.getState().setTool("select")
             : selectedId !== null
               ? () => useSelectionStore.getState().clear()
@@ -1090,11 +1110,7 @@ function DashboardView({
                   </ActionProvider>
                 </main>
                 {kiosk || editingPanel ? null : (
-                  <CanvasTools
-                    permissions={permissions}
-                    idle={!editing}
-                    composerRef={composerRef}
-                  />
+                  <CanvasTools permissions={permissions} idle={!editing} />
                 )}
               </div>
               {cardView !== null ? (

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode, type RefObject } from "react"
+import { useEffect, type ReactNode } from "react"
 import {
   AtSignIcon,
   MessageSquarePlusIcon,
@@ -20,11 +20,9 @@ import {
   type ShortcutAction,
 } from "@/shortcuts/chords"
 
-import { askAboutDashboard } from "./panel-actions"
 import type { DashboardPermissions } from "./permissions"
-import { useSetDashboardSearch } from "./search"
 
-type CanvasTool = "select" | "comment" | "ask"
+export type CanvasTool = "select" | "comment" | "ask"
 
 export type DraftTool = Exclude<CanvasTool, "select">
 
@@ -36,15 +34,26 @@ export type CanvasDraft = {
   surface: string | null
 }
 
+export type OpenTurn = {
+  requestId: string
+  chatId: string
+  panelId: string
+  anchor: Anchor | null
+  at: Point | null
+  surface: string | null
+}
+
 type CanvasToolState = {
   tool: CanvasTool
   draft: CanvasDraft | null
   openThreadId: string | null
+  openTurn: OpenTurn | null
   postedThreadId: string | null
   text: string
   setTool: (tool: CanvasTool) => void
   openDraft: (draft: CanvasDraft) => void
   openThread: (threadId: string) => void
+  showTurn: (turn: OpenTurn) => void
   close: () => void
   posted: (threadId: string) => void
   settled: (threadId: string) => void
@@ -52,27 +61,39 @@ type CanvasToolState = {
 }
 
 function holdsText(state: CanvasToolState): boolean {
-  return state.draft !== null && state.text.trim() !== ""
+  const composing = state.draft !== null || state.openTurn !== null
+  return composing && state.text.trim() !== ""
 }
 
 export const useCanvasTool = create<CanvasToolState>()((set) => ({
   tool: "select",
   draft: null,
   openThreadId: null,
+  openTurn: null,
   postedThreadId: null,
   text: "",
-  setTool: (tool) => set({ tool, draft: null, openThreadId: null, text: "" }),
+  setTool: (tool) =>
+    set({ tool, draft: null, openThreadId: null, openTurn: null, text: "" }),
   openDraft: (draft) =>
     set((state) =>
-      holdsText(state) ? state : { draft, openThreadId: null, text: "" }
+      holdsText(state)
+        ? state
+        : { draft, openThreadId: null, openTurn: null, text: "" }
     ),
   openThread: (threadId) =>
     set((state) =>
       holdsText(state)
         ? state
-        : { openThreadId: threadId, draft: null, text: "" }
+        : { openThreadId: threadId, draft: null, openTurn: null, text: "" }
     ),
-  close: () => set({ draft: null, openThreadId: null, text: "" }),
+  showTurn: (turn) =>
+    set((state) =>
+      holdsText(state)
+        ? state
+        : { openTurn: turn, draft: null, openThreadId: null, text: "" }
+    ),
+  close: () =>
+    set({ draft: null, openThreadId: null, openTurn: null, text: "" }),
   posted: (threadId) =>
     set({ draft: null, postedThreadId: threadId, text: "" }),
   settled: (threadId) =>
@@ -116,10 +137,25 @@ const toolNames: Record<CanvasTool, string> = {
 export const commentModeText =
   "Click a spot on a panel to comment on it. Esc returns to Select."
 
+export const askModeText =
+  "Click a spot on a panel to ask the agent about it. Esc returns to Select."
+
+const modeTexts: Record<DraftTool, string> = {
+  comment: commentModeText,
+  ask: askModeText,
+}
+
+export function activeTool(
+  tool: CanvasTool,
+  may: { comment: boolean; ask: boolean; idle: boolean }
+): CanvasTool {
+  if (!may.idle || tool === "select") return "select"
+  return may[tool] ? tool : "select"
+}
+
 type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
-  composerRef: RefObject<HTMLTextAreaElement | null>
 }
 
 const toolClass =
@@ -170,13 +206,16 @@ function ToolButton({
   )
 }
 
-export function CanvasTools({ permissions, idle, composerRef }: Props) {
+export function CanvasTools({ permissions, idle }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
-  const setSearch = useSetDashboardSearch()
   const agentAvailable = useAgentInfo().data?.available === true
   const mayAsk = permissions.comment && agentAvailable
-  const commenting = permissions.comment && idle && tool === "comment"
+  const active = activeTool(tool, {
+    comment: permissions.comment,
+    ask: mayAsk,
+    idle,
+  })
 
   useEffect(() => () => setTool("select"), [setTool])
 
@@ -185,29 +224,29 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
   return (
     <div className="sticky bottom-0 z-30 h-0 narrow:hidden">
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5">
-        {commenting ? (
+        {active === "select" ? null : (
           <p
             role="status"
             className="rounded-control border border-border bg-popover px-2.5 py-1 text-xs whitespace-nowrap text-muted-foreground"
           >
-            {commentModeText}
+            {modeTexts[active]}
           </p>
-        ) : null}
+        )}
         <div
           role="toolbar"
           aria-label="Canvas tools"
-          data-tool={commenting ? "comment" : "select"}
+          data-tool={active}
           className="flex h-10 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
         >
           <ToolButton
             tool="select"
-            pressed={!commenting}
+            pressed={active === "select"}
             onClick={() => setTool("select")}
             icon={<MousePointer2Icon aria-hidden="true" />}
           />
           <ToolButton
             tool="comment"
-            pressed={commenting}
+            pressed={active === "comment"}
             disabled={!idle}
             onClick={() => setTool("comment")}
             icon={<MessageSquarePlusIcon aria-hidden="true" />}
@@ -215,12 +254,9 @@ export function CanvasTools({ permissions, idle, composerRef }: Props) {
           {mayAsk ? (
             <ToolButton
               tool="ask"
+              pressed={active === "ask"}
               disabled={!idle}
-              onClick={() => {
-                setTool("select")
-                askAboutDashboard(setSearch)
-                requestAnimationFrame(() => composerRef.current?.focus())
-              }}
+              onClick={() => setTool("ask")}
               icon={<AtSignIcon aria-hidden="true" />}
             />
           ) : null}

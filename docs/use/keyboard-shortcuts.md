@@ -11,9 +11,9 @@ Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortc
 | `v` | View the panel at full size, or go back to the dashboard. |
 | `e` | Edit the panel, when you may edit the dashboard. |
 | `i` | Open Inspect for the panel, or close it. |
-| `a` | Ask the agent about the panel, when you may comment on the dashboard and a model is connected. |
+| `a` | Ask the agent about the whole panel in a box on the panel, when you may comment on the dashboard and a model is connected; with no panel it turns Ask mode on, and in Ask mode it turns it off. |
 | `c` | Comment on the whole panel in a composer on the panel, when you may comment on the dashboard; with no panel it turns Comment mode on, and in Comment mode it turns it off. |
-| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then leave Comment mode for Select, then clear the selected panel. |
+| `Esc` | Close Inspect, then the full-size view, then TV mode and full screen, then leave Comment or Ask mode for Select, then clear the selected panel. |
 | `t` then `z` | Zoom the time range out to twice its length. |
 | `t` then `←` | Move the time range back by half its length. |
 | `t` then `→` | Move the time range forward by half its length. |

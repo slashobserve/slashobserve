@@ -100,7 +100,9 @@ describe("placeKey", () => {
   it("tells places apart so a turned chip resets", () => {
     expect(placeKey(threadPlace("t1"))).not.toBe(placeKey(threadPlace("t2")))
     expect(placeKey(chat)).toBe("chat:")
-    expect(placeKey({ kind: "canvas", tool: "ask" })).toBe("canvas:ask")
+    expect(placeKey({ kind: "canvas", tool: "ask", chatId: "c1" })).toBe(
+      "canvas:ask"
+    )
   })
 })
 

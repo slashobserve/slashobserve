@@ -12,7 +12,7 @@ import { shortcutText } from "@/shortcuts/chords"
 import { panelTitle, type LayoutPanel } from "@/spec"
 
 import {
-  askAboutPanelAndFocus,
+  askAboutThisPanel,
   commentOnThisPanel,
   useConversationActions,
 } from "./panel-actions"
@@ -101,9 +101,7 @@ export function PanelHoverActions({
           label={`Ask about ${title}`}
           tooltip={`Ask (${shortcutText("ask")})${pause}`}
           disabled={!idle}
-          onClick={() =>
-            askAboutPanelAndFocus(setSearch, panel.id, composerRef)
-          }
+          onClick={() => askAboutThisPanel(setSearch, panel.id, onCanvas)}
         >
           <AtSignIcon aria-hidden="true" />
         </HoverAction>

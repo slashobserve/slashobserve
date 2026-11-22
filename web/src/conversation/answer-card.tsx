@@ -45,6 +45,7 @@ const threadLabelLength = 60
 type AnswerMenu = {
   shareTarget: string | null
   sharedThreadId: string | null
+  showToEveryone?: boolean
   subjectObservationId: string | null
 }
 
@@ -69,6 +70,7 @@ type Props = {
     onRevise: () => Promise<RevisionAsked>
     pending: boolean
     blocked: string | null
+    note?: string
     dashboardId: string
   }
   menu?: AnswerMenu
@@ -332,9 +334,11 @@ function AnswerMenuButton({
           </>
         ) : !shareable ? null : (
           <>
-            <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
-              <Choice title="Show to everyone" detail={showDetail(onPage)} />
-            </DropdownMenuItem>
+            {menu.showToEveryone === false ? null : (
+              <DropdownMenuItem disabled={busy} onClick={() => shareIn()}>
+                <Choice title="Show to everyone" detail={showDetail(onPage)} />
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSub>
               <DropdownMenuSubTrigger disabled={busy}>
                 <Choice
@@ -373,11 +377,20 @@ export function AnswerCard({
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const blockedId = useId()
+  const noteId = useId()
   const latest = useLatestChange(revise?.dashboardId ?? null)
   const refused = latest?.content === "none"
   const offered = refused ? undefined : revise
   const starter = refused && latest.provisioned ? revise : undefined
   const blocked = offered?.blocked ?? null
+  const reviseNote = offered?.note
+  const describedBy =
+    [
+      blocked === null ? null : blockedId,
+      reviseNote === undefined ? null : noteId,
+    ]
+      .filter((id) => id !== null)
+      .join(" ") || undefined
   const change = finding.suggested_change
   const observationId = finding.observation_id
   const promoted =
@@ -421,7 +434,7 @@ export function AnswerCard({
             disabled={offered.pending || revisionAsked || blocked !== null}
             focusableWhenDisabled
             aria-busy={offered.pending}
-            aria-describedby={blocked === null ? undefined : blockedId}
+            aria-describedby={describedBy}
             onClick={() =>
               void offered.onRevise().then((asked) => {
                 if (asked) markAsked(finding.id)
@@ -461,6 +474,11 @@ export function AnswerCard({
       {blocked === null || offered === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}
+        </p>
+      )}
+      {reviseNote === undefined || change === null ? null : (
+        <p id={noteId} className="text-xs text-muted-foreground">
+          {reviseNote}
         </p>
       )}
       {starter !== undefined && change !== null ? (

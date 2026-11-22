@@ -35,6 +35,12 @@ import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { offersFollowUps } from "./turn-model"
 import { RetryButton } from "./turn-failure"
+import {
+  panelChips,
+  panelTarget,
+  useFocusOnPanel,
+  type ChatPanel,
+} from "./panel-target"
 
 const stickThreshold = 80
 const stepsLoadedTurns = 3
@@ -205,6 +211,7 @@ function ConversationComposer({
   chatId,
   subject,
   dashboardTitle,
+  panel,
   disabled,
   runningRequestId,
   onSent,
@@ -212,6 +219,7 @@ function ConversationComposer({
   chatId: string | null
   subject: Subject | null
   dashboardTitle: string | undefined
+  panel: ChatPanel | null
   disabled: boolean
   runningRequestId: string | undefined
   onSent: (request: ObserveRequest, opens: Opens) => Promise<void>
@@ -219,22 +227,25 @@ function ConversationComposer({
   const model = useComposer({
     subject,
     place: { kind: "chat", chatId },
+    target: panelTarget(panel),
     gate: ungated,
     runningRequestId,
     onSent: (sent) =>
       sent.via === "chat" ? onSent(sent.request, sent.opens) : undefined,
   })
+  useFocusOnPanel(panel, model.field)
   return (
     <Composer
       model={model}
       layout="page"
       rows={2}
       disabled={disabled}
-      contextChips={
-        dashboardTitle === undefined
+      contextChips={[
+        ...(dashboardTitle === undefined
           ? []
-          : [{ id: "dashboard", label: dashboardTitle }]
-      }
+          : [{ id: "dashboard", label: dashboardTitle }]),
+        ...panelChips(panel),
+      ]}
       placeholder={
         subject?.kind === "dashboard"
           ? `Ask about ${dashboardTitle ?? "this dashboard"}`
@@ -258,6 +269,7 @@ type ViewProps = {
   retryHistory: () => void
   historyBusy: boolean
   readOnly: boolean
+  panel: ChatPanel | null
   onSent: (request: ObserveRequest) => void
 }
 
@@ -273,6 +285,7 @@ function ConversationView({
   retryHistory,
   historyBusy,
   readOnly,
+  panel,
   onSent,
 }: ViewProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
@@ -448,6 +461,7 @@ function ConversationView({
             chatId={chatId}
             subject={subject}
             dashboardTitle={dashboardTitle}
+            panel={panel}
             disabled={waitingForAnswer}
             runningRequestId={runningRequestId}
             onSent={openSent}
@@ -484,11 +498,13 @@ export function Conversation({
   requestId,
   layout,
   asks = true,
+  panel = null,
   onSent,
 }: {
   requestId: string
   layout: ConversationLayout
   asks?: boolean
+  panel?: ChatPanel | null
   onSent?: (request: ObserveRequest) => void
 }) {
   const queryClient = useQueryClient()
@@ -589,6 +605,7 @@ export function Conversation({
       }
       retryHistory={() => void revisions.refetch()}
       historyBusy={revisions.isFetching}
+      panel={panel}
       onSent={(request) => {
         setSent((previous) => [...previous, request])
         onSent?.(request)

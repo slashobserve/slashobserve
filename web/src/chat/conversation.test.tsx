@@ -10,6 +10,7 @@ import { redactedRun } from "@/test/agent-request"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { Conversation } from "./conversation"
+import type { ChatPanel } from "./panel-target"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -132,6 +133,7 @@ function renderChatPage(request: ObserveRequest) {
 
 function renderConversation(
   request: ObserveRequest = root,
+  panel: ChatPanel | null = null,
   layout: "page" | "pane" = "page"
 ) {
   const queryClient = seededClient(request)
@@ -139,7 +141,7 @@ function renderConversation(
     datasources: [{ uid: "prom", type: "prometheus", healthy: true }],
   })
   return renderWithProviders(
-    <Conversation requestId={rootId} layout={layout} />,
+    <Conversation requestId={rootId} layout={layout} panel={panel} />,
     { queryClient, route: { path: "/", url: "/" } }
   )
 }
@@ -218,6 +220,39 @@ describe("Conversation", () => {
       dashboard_id: dashboardId,
       chat_id: rootId,
     })
+  })
+
+  it("asks about the panel it was opened on, with its chip and the focus in the box", async () => {
+    const fetch = stubServer()
+    const onRemove = vi.fn()
+    const { user } = renderConversation(root, {
+      id: "p1",
+      title: "Latency",
+      onRemove,
+    })
+    const box = await screen.findByRole("textbox", {
+      name: "Message the agent",
+    })
+    await waitFor(() => expect(box).toHaveFocus())
+    expect(screen.getByRole("list", { name: "Context" })).toHaveTextContent(
+      "Latency"
+    )
+    await user.type(box, "why the spike?{Enter}")
+    const posted = await vi.waitFor(() => {
+      const found = fetch.mock.calls.find(
+        ([request]) =>
+          request.method === "POST" &&
+          new URL(request.url).pathname === "/api/v1/observe"
+      )
+      expect(found).toBeDefined()
+      return found![0]
+    })
+    expect(await posted.clone().json()).toMatchObject({
+      dashboard_id: dashboardId,
+      panel_id: "p1",
+    })
+    await user.click(screen.getByRole("button", { name: "Remove Latency" }))
+    expect(onRemove).toHaveBeenCalledTimes(1)
   })
 
   async function sentFollowUp(fetch: ReturnType<typeof stubServer>) {
@@ -636,7 +671,7 @@ describe("Conversation", () => {
 
   it("suggests two follow-ups in the side panel of a chat that nothing was asked in yet, and asks one there", async () => {
     const fetch = stubServer(chatAbout({ dashboard_id: dashboardId }))
-    const { user } = renderConversation(answered(), "pane")
+    const { user } = renderConversation(answered(), null, "pane")
     const group = await screen.findByRole("group", {
       name: "Suggested follow-ups",
     })

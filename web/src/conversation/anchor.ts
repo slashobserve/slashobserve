@@ -423,8 +423,23 @@ function subject(anchor: Anchor): string {
   }
 }
 
+export type AnchorParts = {
+  subject: string
+  shown: string | null
+  window: string | null
+}
+
+export function anchorParts(anchor: Anchor): AnchorParts {
+  return {
+    subject: subject(anchor),
+    shown: anchor.shown ? anchor.shown : null,
+    window: anchor.window ? describeWindow(anchor.window) : null,
+  }
+}
+
 export function describeAnchor(anchor: Anchor): string {
-  const shown = anchor.shown ? ` (${anchor.shown})` : ""
-  const window = anchor.window ? `, ${describeWindow(anchor.window)}` : ""
-  return `${subject(anchor)}${shown}${window}`
+  const parts = anchorParts(anchor)
+  const shown = parts.shown === null ? "" : ` (${parts.shown})`
+  const window = parts.window === null ? "" : `, ${parts.window}`
+  return `${parts.subject}${shown}${window}`
 }

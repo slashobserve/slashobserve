@@ -9,6 +9,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useActivityStore } from "@/activity/activity-store"
+import { useCanvasTool } from "@/dashboards/canvas-tools"
 import { useLayoutStore } from "@/dashboards/edit/layout-store"
 import { parseSearch, stringifySearch } from "@/lib/search"
 import { routeTree } from "@/routeTree.gen"
@@ -268,7 +269,6 @@ describe("dashboard page panel keys", () => {
     })
     expect(composer).toHaveAttribute("data-opened-by", "key")
     expect(composer).toHaveTextContent("Note, whole panel")
-    expect(useActivityStore.getState().askingAgent).toBe(false)
   })
 
   it("comments on a repeated panel's copy in the activity pane, since copies take no canvas comments", async () => {
@@ -358,27 +358,158 @@ describe("dashboard page panel keys", () => {
     await waitFor(() => expect(tools).toHaveAttribute("data-tool", "select"))
   })
 
-  it("asks about the hovered data panel with a", async () => {
-    useActivityStore.setState({ askingAgent: false })
-    const asked: boolean[] = []
-    const stop = useActivityStore.subscribe((state) =>
-      asked.push(state.askingAgent)
-    )
-    const { user, router } = renderDashboard()
+  it("opens the ask box on the whole hovered data panel with a", async () => {
+    const { user } = renderDashboard()
     const latency = await screen.findByRole("article", { name: "Latency" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
     await user.hover(latency)
     await waitFor(async () => {
       await user.keyboard("a")
-      expect(router.state.location.search).toMatchObject({
-        panel: "p_latency",
-      })
+      expect(
+        screen.getByRole("dialog", { name: "Ask about Latency, whole panel" })
+      ).toHaveAttribute("data-opened-by", "key")
     })
-    stop()
-    expect(asked).toContain(true)
+  })
+
+  it("asks about a repeated panel's copy in the Chat tab, since copies take no canvas questions", async () => {
+    const spec = envelope.version.spec
+    mockServer({
+      ...envelope,
+      version: {
+        ...envelope.version,
+        spec: {
+          ...spec,
+          variables: [
+            {
+              name: "env",
+              type: "custom",
+              options: ["a", "b"],
+              multi: true,
+              default: ["a", "b"],
+            },
+          ],
+          panels: [spec.panels[0], { ...spec.panels[1], repeat: "env" }],
+        },
+      },
+    })
+    const { user, router } = renderDashboard()
+    await waitFor(() =>
+      expect(screen.getAllByRole("article", { name: "Latency" })).toHaveLength(
+        2
+      )
+    )
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    const copy = screen.getAllByRole("article", { name: "Latency" })[1]
+    await user.hover(copy)
+    await waitFor(async () => {
+      await user.keyboard("a")
+      expect(router.state.location.search).toMatchObject({ tab: "chat" })
+    })
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("hides the ask box while the layout has unsaved moves and brings it back with the typed question", async () => {
+    const { user } = renderDashboard()
+    const latency = await screen.findByRole("article", { name: "Latency" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    await user.hover(latency)
+    await waitFor(async () => {
+      await user.keyboard("a")
+      expect(
+        screen.getByRole("dialog", { name: "Ask about Latency, whole panel" })
+      ).toBeInTheDocument()
+    })
+    const field = await screen.findByRole("textbox", { name: "Ask about this" })
+    await user.type(field, "why the spike")
+    act(() =>
+      useLayoutStore
+        .getState()
+        .ensure(dashboardId, 1, envelope.version.spec as never)
+    )
+    const session = useLayoutStore.getState().session!
+    act(() =>
+      useLayoutStore
+        .getState()
+        .setLayout(
+          session.layout.map((item, index) =>
+            index === 0 ? { ...item, x: item.x + 1 } : item
+          )
+        )
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Ask about Latency, whole panel" })
+      ).not.toBeInTheDocument()
+    )
+    act(() => useLayoutStore.getState().setLayout(session.baseline))
+    expect(
+      await screen.findByRole("textbox", { name: "Ask about this" })
+    ).toHaveValue("why the spike")
+    useLayoutStore.getState().end()
+  })
+
+  it("points Ask mode only at data panels, as the a key and the Ask buttons do", async () => {
+    renderDashboard()
+    const note = await screen.findByRole("article", { name: "Note" })
+    const latency = await screen.findByRole("article", { name: "Latency" })
+    await waitFor(() => expect(agentRequested()).toBe(true))
+    const pointed = (panel: HTMLElement) =>
+      panel.closest(".cursor-crosshair") !== null
+    act(() => useCanvasTool.getState().setTool("ask"))
+    await waitFor(() => expect(pointed(latency)).toBe(true))
+    expect(pointed(note)).toBe(false)
+    act(() => useCanvasTool.getState().setTool("comment"))
+    await waitFor(() => expect(pointed(note)).toBe(true))
+    act(() => useCanvasTool.getState().setTool("select"))
+  })
+
+  it.each([
+    ["reads", { comment: true, edit: true, manage: true, create: true }, true],
+    [
+      "does not read",
+      { comment: false, edit: false, manage: false, create: false },
+      false,
+    ],
+  ])(
+    "%s the anchored questions for pins by whether the viewer can ask",
+    async (_, permissions, fetched) => {
+      mockServer({
+        ...envelope,
+        dashboard: { ...envelope.dashboard, permissions },
+      })
+      renderDashboard()
+      await screen.findByRole("article", { name: "Latency" })
+      await waitFor(() => expect(agentRequested()).toBe(true))
+      const anchored = () =>
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([input]) =>
+            (typeof input === "string"
+              ? input
+              : (input as Request).url
+            ).includes("anchored=true")
+          )
+      if (fetched) await waitFor(() => expect(anchored()).toBe(true))
+      else {
+        await act(async () => {})
+        expect(anchored()).toBe(false)
+      }
+    }
+  )
+
+  it("enters Ask mode with a over no panel and leaves it with a again", async () => {
+    const { user } = renderDashboard()
+    await screen.findByRole("article", { name: "Note" })
+    const tools = await screen.findByRole("toolbar", { name: "Canvas tools" })
+    await waitFor(async () => {
+      await user.keyboard("a")
+      expect(tools).toHaveAttribute("data-tool", "ask")
+    })
+    await user.keyboard("a")
+    await waitFor(() => expect(tools).toHaveAttribute("data-tool", "select"))
   })
 
   it("does not ask about a panel without data", async () => {
-    useActivityStore.setState({ askingAgent: false })
     const { user, router } = renderDashboard()
     const note = await screen.findByRole("article", { name: "Note" })
     await waitFor(() => expect(agentRequested()).toBe(true))
@@ -386,6 +517,7 @@ describe("dashboard page panel keys", () => {
     await user.hover(note)
     await user.keyboard("a")
     expect(router.state.location.search).not.toHaveProperty("panel")
+    expect(screen.queryByRole("dialog")).toBeNull()
   })
 
   it("acts on the focused panel when none is hovered", async () => {
