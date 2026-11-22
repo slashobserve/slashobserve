@@ -25,7 +25,7 @@ export function AuditDashboards({
           onSearchChange={onSearchChange}
           settingsOpen={settingsOpen}
           onSettings={onSettings}
-          dashboardsOnly={{
+          dashboardsView={{
             heading: "Dashboards",
             documentTitle: auditPageTitles.dashboards,
           }}

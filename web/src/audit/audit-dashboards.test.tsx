@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Folder } from "@/folders/queries"
@@ -62,7 +62,21 @@ class IdleEventSource {
 
 let requestedPaths: string[] = []
 
-function serve(folders: Folder[]) {
+const savedSearch = {
+  id: "7c2a9b63-1d2e-4f8b-8b54-3e6f9a1b2c4d",
+  kind: "logs",
+  title: "Failed sign-ins",
+  datasource_uid: "slashobserve-audit",
+  query: "outcome:failed",
+  filters: {},
+  from: "now-24h",
+  to: "now",
+  folder: { id: auditId, title: "Audit", general: false, personal: false },
+  permissions: { comment: true, edit: true, manage: true, create: true },
+  updated_at: "2026-11-06T09:30:00Z",
+}
+
+function serve(folders: Folder[], searches: unknown[] = []) {
   requestedPaths = []
   const dashboardLists: URLSearchParams[] = []
   vi.stubGlobal("EventSource", IdleEventSource)
@@ -84,7 +98,7 @@ function serve(folders: Folder[]) {
         case "/api/v1/observations":
           return json({ observations: [], next_cursor: null })
         case "/api/v1/saved-searches":
-          return json({ saved_searches: [], next_cursor: null })
+          return json({ saved_searches: searches, next_cursor: null })
       }
       return new Response("{}", { status: 404 })
     })
@@ -168,8 +182,11 @@ describe("AuditDashboards", () => {
     expect(lists).toEqual([])
   })
 
-  it("lists no observations or saved searches and keeps the folder settings button", async () => {
-    serve([folder(auditId, "Audit", { audit: true, restricted: true })])
+  it("lists no observations, keeps the folder's saved searches and the folder settings button", async () => {
+    serve(
+      [folder(auditId, "Audit", { audit: true, restricted: true })],
+      [savedSearch]
+    )
     renderPage()
 
     expect(
@@ -177,7 +194,12 @@ describe("AuditDashboards", () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Observations" })).toBeNull()
     expect(requestedPaths).not.toContain("/api/v1/observations")
-    expect(requestedPaths).not.toContain("/api/v1/saved-searches")
+    const searches = await screen.findByRole("region", {
+      name: "Saved searches",
+    })
+    expect(
+      within(searches).getByRole("link", { name: "Failed sign-ins" })
+    ).toBeInTheDocument()
   })
 
   it("titles the tab Audit dashboards", async () => {

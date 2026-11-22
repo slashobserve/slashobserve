@@ -93,10 +93,11 @@ describe("preloadLogsSource", () => {
 })
 
 describe("logsSourceCrumbs", () => {
-  it("reads Audit then Explore on the audit datasource", () => {
+  it("reads Audit, Log and Explorer on the audit datasource", () => {
     expect(logsSourceCrumbs({ datasourceUid: auditDatasourceUid })).toEqual([
-      { label: "Audit", to: "/audit" },
-      { label: "Explore" },
+      { label: "Audit" },
+      { label: "Log", to: "/audit" },
+      { label: "Explorer" },
     ])
   })
 
@@ -132,6 +133,8 @@ describe("logsSourceCrumbs", () => {
       stringifySearch,
     })
     render(<RouterProvider router={router} />)
-    expect(await screen.findByText("Audit / Explore")).toBeInTheDocument()
+    expect(
+      await screen.findByText("Audit / Log / Explorer")
+    ).toBeInTheDocument()
   })
 })

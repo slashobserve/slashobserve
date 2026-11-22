@@ -27,7 +27,7 @@ type Props = {
   onSearchChange: (next: ListSearch) => void
   settingsOpen: boolean
   onSettings: (open: boolean) => void
-  dashboardsOnly?: { heading: string; documentTitle: string }
+  dashboardsView?: { heading: string; documentTitle: string }
 }
 
 function description(folder: Folder): string {
@@ -49,14 +49,14 @@ export function FolderPage({
   onSearchChange,
   settingsOpen,
   onSettings,
-  dashboardsOnly,
+  dashboardsView,
 }: Props) {
   const headingId = useId()
   const settingsButton = useRef<HTMLButtonElement>(null)
   const query = useQuery(folderQuery(folderId))
   const folder = query.data
   const name = folder?.title ?? "Folder"
-  useDocumentTitle(dashboardsOnly?.documentTitle ?? `${name} - SlashObserve`)
+  useDocumentTitle(dashboardsView?.documentTitle ?? `${name} - SlashObserve`)
 
   const crumb = (
     <TopRowTitle>
@@ -92,9 +92,9 @@ export function FolderPage({
       ) : (
         <PageHeader
           headingId={headingId}
-          title={dashboardsOnly?.heading ?? folder.title}
+          title={dashboardsView?.heading ?? folder.title}
           description={
-            dashboardsOnly === undefined
+            dashboardsView === undefined
               ? description(folder)
               : `${folder.title} folder. ${description(folder)}`
           }
@@ -119,9 +119,11 @@ export function FolderPage({
         onSearchChange={onSearchChange}
         folderId={folderId}
       />
-      {folder === undefined || dashboardsOnly !== undefined ? null : (
+      {folder === undefined ? null : (
         <>
-          <FolderObservations folderId={folderId} />
+          {dashboardsView === undefined ? (
+            <FolderObservations folderId={folderId} />
+          ) : null}
           <FolderSavedSearches folderId={folderId} />
         </>
       )}
