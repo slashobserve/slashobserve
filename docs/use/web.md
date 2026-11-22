@@ -241,7 +241,10 @@ The panel types not listed, and the alert list's count view, have nothing finer 
 ### Arrange panels
 
 There is no edit mode.
-When you can edit the dashboard, are on its latest version and the dashboard area is at least 768 pixels wide, the selected panel shows a grip in its title bar and a handle in its corner: drag the title bar to move the panel and the corner to resize it.
+When you can edit the dashboard, are on its latest version and the dashboard area is at least 768 pixels wide, the pointer turns into a hand over every panel's title bar and a faint grip with the tip "Drag to move" appears at its left end: press the title bar and drag, and the panel is selected and moves in one go.
+The selected panel shows a grip in its title bar, and while the pointer is over it, handles on its right edge, bottom edge and bottom right corner: drag an edge to change the width or the height, and the corner to change both.
+A dashed outline shows where the panel will land, the other panels slide out of its way, and it settles into place when you let go.
+The panel's buttons, such as its menu and the information icon, never start a move, and in Comment mode the hint, the grip and the handles are hidden and a click on a panel comments on that spot instead.
 With the grip focused, the arrow keys move the panel and `Shift` with an arrow resizes it.
 While a panel is selected for arranging, the grid shows the saved layout, so a repeated panel shows once and a row cannot be collapsed until you clear the selection.
 

@@ -9,6 +9,7 @@ import { rendererManifests } from "@/panels"
 import type { Dashboard } from "@/spec"
 
 import { membershipOf, rowCompactor } from "./edit/layout"
+import { panelDragCancel } from "./edit/panel-move-handle"
 import {
   columnsFor,
   fitLayout,
@@ -32,6 +33,7 @@ import {
 } from "./stack-heights"
 
 const singleColumnBelow = 768
+const resizeHandles = ["e", "s", "se"] as const
 const fadeIn =
   "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300"
 
@@ -216,9 +218,13 @@ export function DashboardGrid({
           dragConfig={{
             enabled: editable && !stacked,
             handle: ".panel-drag-handle",
+            cancel: panelDragCancel,
             threshold: 3,
           }}
-          resizeConfig={{ enabled: editable && !stacked, handles: ["se"] }}
+          resizeConfig={{
+            enabled: editable && !stacked,
+            handles: resizeHandles,
+          }}
           onLayoutChange={stacked ? undefined : reportLayout}
         >
           {ordered.map(({ entry }, index) => (
