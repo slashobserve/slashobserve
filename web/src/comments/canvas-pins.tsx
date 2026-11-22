@@ -1,4 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import { ChevronLeftIcon } from "lucide-react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
@@ -37,6 +44,23 @@ import {
 } from "./thread-queries"
 
 const pinSize = 22
+
+function useFocusOnArrival(
+  arriving: boolean,
+  marker: RefObject<HTMLButtonElement | null>
+) {
+  useEffect(() => {
+    const target = marker.current
+    if (!arriving || target === null) return
+    const active = document.activeElement
+    const panel = target.closest("article")
+    const kept =
+      active === null ||
+      active === document.body ||
+      (panel !== null && panel.contains(active))
+    if (kept) target.focus({ preventScroll: true })
+  }, [arriving, marker])
+}
 
 const markerShape = "rounded-[50%_50%_50%_2px]"
 
@@ -180,6 +204,8 @@ function Pin({
   const root = pin.entry.messages[0]
   const resolved = pin.entry.thread.status === "resolved"
   const label = pinLabel(pin)
+  const marker = useRef<HTMLButtonElement>(null)
+  useFocusOnArrival(arriving, marker)
   return (
     <PopoverPrimitive.Root
       open={open}
@@ -192,6 +218,7 @@ function Pin({
       }}
     >
       <PopoverPrimitive.Trigger
+        ref={marker}
         aria-label={label}
         title={pin.placement.gone ? goneTextOf(pin.anchor) : undefined}
         data-pin={id}
@@ -286,6 +313,8 @@ function StackedPins({
       state.postedThreadId !== null && ids.includes(state.postedThreadId)
   )
   const [listing, setListing] = useState(false)
+  const marker = useRef<HTMLButtonElement>(null)
+  useFocusOnArrival(arriving, marker)
   const shown = stack.pins.find(({ entry }) => entry.thread.id === openId)
   const allResolved = stack.pins.every(
     ({ entry }) => entry.thread.status === "resolved"
@@ -300,6 +329,7 @@ function StackedPins({
       }}
     >
       <PopoverPrimitive.Trigger
+        ref={marker}
         aria-label={stackLabel(stack)}
         data-pin-stack={stack.pins.length}
         className={cn(

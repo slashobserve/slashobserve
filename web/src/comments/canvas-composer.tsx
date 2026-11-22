@@ -110,6 +110,7 @@ type PopoverProps = {
   label: string
   id?: string
   initialFocus?: PopoverPrimitive.Popup.Props["initialFocus"]
+  finalFocus?: PopoverPrimitive.Popup.Props["finalFocus"]
   onClose: (reason: string) => void
   className?: string
   children: ReactNode
@@ -121,6 +122,7 @@ export function CanvasPopover({
   label,
   id,
   initialFocus,
+  finalFocus,
   onClose,
   className,
   children,
@@ -150,6 +152,7 @@ export function CanvasPopover({
             id={id}
             aria-label={label}
             initialFocus={initialFocus}
+            finalFocus={finalFocus}
             data-opened-by={clicked ? "pointer" : "key"}
             className={cn(
               "w-80 origin-(--transform-origin) rounded-card border border-border bg-popover text-popover-foreground outline-hidden",
@@ -204,6 +207,7 @@ export function CanvasComposer({
       at={draft.at}
       label={commentLabel}
       initialFocus={model.field}
+      finalFocus={() => surfaceRef.current?.closest("article") ?? true}
       className="p-2"
       onClose={(reason) => {
         const store = useCanvasTool.getState()
