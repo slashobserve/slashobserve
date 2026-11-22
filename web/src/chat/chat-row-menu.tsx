@@ -160,14 +160,15 @@ export function ChatRowMenu({
         return
       }
     }
-    remove.mutate(undefined, {
-      onSuccess: () => {
-        setConfirming(false)
-        afterDelete.current?.focus()
-        if (current) void navigate({ to: "/ask" })
-      },
-      onError: (error) => setProblem(failureText(error)),
-    })
+    try {
+      await remove.mutateAsync(undefined)
+    } catch (error) {
+      setProblem(failureText(error))
+      return
+    }
+    setConfirming(false)
+    afterDelete.current?.focus()
+    if (current) void navigate({ to: "/ask" })
   }
 
   return (

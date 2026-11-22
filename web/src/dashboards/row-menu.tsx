@@ -100,16 +100,13 @@ export function DashboardRowMenu({
   function moveTo(target: Target) {
     refocus.current = true
     neighbour.current = neighbourAfterDelete(listedDashboardIds(), dashboard.id)
-    move.mutate(
-      { id: dashboard.id, folderId: target.id },
-      {
-        onSuccess: () => toast.success(`${movedVerb} to ${target.title}`),
-        onError: (error) => {
-          refocus.current = false
-          toast.error(
-            `Could not move ${dashboard.title}. ${loadProblemText(error)}`
-          )
-        },
+    move.mutateAsync({ id: dashboard.id, folderId: target.id }).then(
+      () => toast.success(`${movedVerb} to ${target.title}`),
+      (error) => {
+        refocus.current = false
+        toast.error(
+          `Could not move ${dashboard.title}. ${loadProblemText(error)}`
+        )
       }
     )
   }

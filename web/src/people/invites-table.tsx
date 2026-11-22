@@ -60,11 +60,10 @@ function WithdrawButton({ invite }: { invite: Invite }) {
       aria-busy={withdraw.isPending}
       aria-label={`Withdraw the invite for ${invite.email}`}
       onClick={() =>
-        withdraw.mutate(invite.id, {
-          onSuccess: () =>
-            toast.success(`Withdrew the invite for ${invite.email}`),
-          onError: (error) => toast.error(inviteProblemText(error)),
-        })
+        withdraw.mutateAsync(invite.id).then(
+          () => toast.success(`Withdrew the invite for ${invite.email}`),
+          (error) => toast.error(inviteProblemText(error))
+        )
       }
     >
       {withdraw.isPending ? (

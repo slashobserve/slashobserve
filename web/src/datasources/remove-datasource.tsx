@@ -44,17 +44,17 @@ export function RemoveDatasourceButton({
   }
 
   function confirm() {
-    remove.mutate(datasource.uid, {
-      onSuccess: () => {
+    remove.mutateAsync(datasource.uid).then(
+      () => {
         toast.success(`Removed ${datasource.name}`)
         setOpen(false)
       },
-      onError: (error) => {
+      (error) => {
         if (error instanceof DatasourceError && error.status === 404) {
           setOpen(false)
         }
-      },
-    })
+      }
+    )
   }
 
   return (

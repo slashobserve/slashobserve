@@ -115,14 +115,12 @@ export function PersonMenu({ user }: { user: User }) {
   function confirm() {
     if (confirming === null) return
     const action = confirming
-    change.mutate(
-      { id: user.id, action },
-      {
-        onSuccess: () => {
-          toast.success(`${done[action]} ${user.name}`)
-          setConfirming(null)
-        },
-      }
+    change.mutateAsync({ id: user.id, action }).then(
+      () => {
+        toast.success(`${done[action]} ${user.name}`)
+        setConfirming(null)
+      },
+      () => {}
     )
   }
 

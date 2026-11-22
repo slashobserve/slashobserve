@@ -43,13 +43,14 @@ function DeleteAccountButton({ account, liveKeys, finalFocus }: DeleteProps) {
   }
 
   function confirm() {
-    remove.mutate(account.id, {
-      onSuccess: () => {
+    remove.mutateAsync(account.id).then(
+      () => {
         toast.success(`Deleted service account ${account.name}`)
         setOpen(false)
         finalFocus.current?.focus()
       },
-    })
+      () => {}
+    )
   }
 
   return (
