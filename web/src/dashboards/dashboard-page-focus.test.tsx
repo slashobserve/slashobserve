@@ -453,13 +453,18 @@ describe("dashboard page panel keys", () => {
     const note = await screen.findByRole("article", { name: "Note" })
     const latency = await screen.findByRole("article", { name: "Latency" })
     await waitFor(() => expect(agentRequested()).toBe(true))
-    const pointed = (panel: HTMLElement) =>
-      panel.closest(".cursor-crosshair") !== null
+    const pointed = (panel: HTMLElement, cursor: string) =>
+      panel.closest(`.${cursor}`) !== null
     act(() => useCanvasTool.getState().setTool("ask"))
-    await waitFor(() => expect(pointed(latency)).toBe(true))
-    expect(pointed(note)).toBe(false)
+    await waitFor(() =>
+      expect(pointed(latency, "cursor-canvas-ask")).toBe(true)
+    )
+    expect(pointed(note, "cursor-canvas-ask")).toBe(false)
     act(() => useCanvasTool.getState().setTool("comment"))
-    await waitFor(() => expect(pointed(note)).toBe(true))
+    await waitFor(() =>
+      expect(pointed(note, "cursor-canvas-comment")).toBe(true)
+    )
+    expect(pointed(latency, "cursor-canvas-ask")).toBe(false)
     act(() => useCanvasTool.getState().setTool("select"))
   })
 

@@ -190,7 +190,7 @@ While you have unsaved layout changes, Comment, Ask, Edit query and Add to obser
 
 At the bottom of the screen a tool bar offers **Select**, **Comment** and **Ask**, and it is hidden on a phone, in TV mode and when you cannot comment, as a Viewer cannot.
 **Comment**, or `c` with the pointer on no panel, turns on Comment mode, which stays on until you choose **Select**, press `Esc` or press `c` again.
-In Comment mode the pointer becomes a crosshair, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
+In Comment mode the pointer becomes a dark comment marker whose bottom left tip is the spot a click lands on, a line above the tool bar says what a click does, and the part of the panel under the pointer is outlined: the point, series, bar, row, cell or value the click would name, or the whole panel when the panel type cannot name one.
 A click opens a small composer at that spot, with chips naming the panel and the part you clicked, and the comment is saved as a thread on that part of the panel.
 On a time series, a heatmap, a state timeline or a status history, dragging across the time axis instead comments on the range you dragged over, which is outlined while you drag.
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
@@ -242,7 +242,7 @@ The panel types not listed, and the alert list's count view, have nothing finer 
 
 **Ask** in the bottom tool bar shows when a model is connected and turns on Ask mode, which stays on until you choose **Select**, press `Esc` or press `a` again; `a` turns it on too when no panel is under the pointer.
 Ask mode is off while you have unsaved layout changes.
-It points like Comment mode: a crosshair, a line above the tool bar that says what a click does, and an outline on the part of the panel under the pointer.
+It points like Comment mode, with a teal marker that carries the slash in place of the dark one: a line above the tool bar that says what a click does, and an outline on the part of the panel under the pointer.
 A click opens a small box at that spot with chips naming the panel, the part you clicked, the value under the pointer and the time window, and sends your question to the agent with all of them.
 Dragging across the time axis of a panel that takes a range, as in Comment mode, asks about the range you dragged over.
 In the table view of a panel that is not a table, a click or drag in Ask mode asks about the whole panel.

@@ -505,7 +505,9 @@ export const PanelContainer = memo(function PanelContainer({
       ref={ref}
       className={cn(
         "relative size-full",
-        pointing !== "select" && "cursor-crosshair **:cursor-crosshair"
+        pointing === "comment" &&
+          "cursor-canvas-comment **:cursor-canvas-comment",
+        pointing === "ask" && "cursor-canvas-ask **:cursor-canvas-ask"
       )}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
