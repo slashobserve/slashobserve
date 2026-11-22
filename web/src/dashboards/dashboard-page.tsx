@@ -461,6 +461,10 @@ function DashboardView({
   useEffect(() => {
     useSelectionStore.getState().clear()
   }, [dashboardId, search.version])
+  const selectionGone = storedSelection !== null && selection === null
+  useEffect(() => {
+    if (selectionGone) useSelectionStore.getState().clear()
+  }, [selectionGone])
   const tool = useCanvasTool((state) => state.tool)
   const canvasGate = useCanvasGate(permissions.comment, editing)
   const { chatId: askChatId, select: selectAskChat } = useOpenChat()
