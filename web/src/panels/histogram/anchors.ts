@@ -4,6 +4,7 @@ import {
   positionOf,
   type Anchor,
   type Point,
+  type Rect,
   type Size,
 } from "../anchors"
 
@@ -15,10 +16,16 @@ export type HistogramAnchorLayout = {
   format: (value: number) => string
 }
 
+function bucketLabel(layout: HistogramAnchorLayout, bucket: number): string {
+  const { edges, format } = layout
+  return clip(`${format(edges[bucket])} to ${format(edges[bucket + 1])}`)
+}
+
 export function hitTest(
-  { body, origin, plot, edges, format }: HistogramAnchorLayout,
+  layout: HistogramAnchorLayout,
   point: Point
 ): Anchor | null {
+  const { body, origin, plot, edges } = layout
   const x = point.x - origin.x
   const y = point.y - origin.y
   const buckets = edges.length - 1
@@ -28,6 +35,26 @@ export function hitTest(
   return fit({
     kind: "bar",
     pos: positionOf(point, body),
-    category: clip(`${format(edges[bucket])} to ${format(edges[bucket + 1])}`),
+    category: bucketLabel(layout, bucket),
   })
+}
+
+export function locate(
+  layout: HistogramAnchorLayout,
+  anchor: Anchor
+): Rect | null {
+  if (anchor.kind !== "bar") return null
+  const { origin, plot } = layout
+  const buckets = layout.edges.length - 1
+  for (let bucket = 0; bucket < buckets; bucket++) {
+    if (bucketLabel(layout, bucket) !== anchor.category) continue
+    const width = plot.width / buckets
+    return {
+      x: origin.x + bucket * width,
+      y: origin.y,
+      width,
+      height: plot.height,
+    }
+  }
+  return null
 }

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 
 import { zonedDateTime } from "@/lib/time"
 import { useTheme } from "@/lib/theme"
 
+import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { CursorLine, useCursorLine } from "../cursor-line"
 import { exemplarPoints } from "../timeseries/exemplars"
 import type { PanelRenderer } from "../types"
@@ -434,6 +435,33 @@ const HeatmapPanel: PanelRenderer = ({
       ? null
       : { ...focused, ...cellCenter(model, focused, plotWidth, plotHeight) })
   const ready = rows > 0 && columns > 0 && plotWidth > 0 && plotHeight > 0
+  const plotRef = useRef<HTMLDivElement>(null)
+  const publish = useAnchorPublisher("heatmap")
+  useLayoutEffect(() => {
+    const element = plotRef.current
+    if (element === null) {
+      publish(null)
+      return
+    }
+    const { x, y } = rectWithin(element, surfaceOf(element))
+    publish({
+      body: { width, height },
+      origin: { x, y },
+      plot: { width: plotWidth, height: plotHeight },
+      model,
+      format,
+    })
+  }, [
+    publish,
+    ready,
+    width,
+    height,
+    plotWidth,
+    plotHeight,
+    model,
+    format,
+    axis,
+  ])
   const { lineRef, move } = useCursorLine(cursor, (x) => {
     const col = columnAt(model.xs, x)
     return col === null ? null : ((col + 0.5) * plotWidth) / columns
@@ -466,7 +494,11 @@ const HeatmapPanel: PanelRenderer = ({
         <>
           <div className="flex">
             {axis.side === "left" ? labels("left") : null}
-            <div className="relative" style={{ width: plotWidth }}>
+            <div
+              ref={plotRef}
+              className="relative"
+              style={{ width: plotWidth }}
+            >
               <HeatmapCanvas
                 model={model}
                 look={look}
