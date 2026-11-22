@@ -20,6 +20,8 @@ import {
   type ShortcutAction,
 } from "@/shortcuts/chords"
 
+import { HeldDraft } from "./held-draft"
+
 import type { DashboardPermissions } from "./permissions"
 
 export type CanvasTool = "select" | "comment" | "ask"
@@ -27,7 +29,7 @@ export type CanvasTool = "select" | "comment" | "ask"
 export type DraftTool = Exclude<CanvasTool, "select">
 
 export type CanvasDraft = {
-  panelId: string
+  ownerId: string
   tool: DraftTool
   anchor: Anchor | null
   at: Point | null
@@ -37,11 +39,15 @@ export type CanvasDraft = {
 export type OpenTurn = {
   requestId: string
   chatId: string
-  panelId: string
+  ownerId: string
   anchor: Anchor | null
   at: Point | null
   surface: string | null
 }
+
+export type Leaving = CanvasTool | "close"
+
+export type DetachedDraft = { tool: DraftTool; text: string }
 
 type CanvasToolState = {
   tool: CanvasTool
@@ -50,7 +56,14 @@ type CanvasToolState = {
   openTurn: OpenTurn | null
   postedThreadId: string | null
   text: string
+  leaving: Leaving | null
+  detached: DetachedDraft | null
   setTool: (tool: CanvasTool) => void
+  leave: (to: Leaving) => void
+  keepTyping: () => void
+  discard: () => void
+  detach: () => void
+  dropDetached: () => void
   openDraft: (draft: CanvasDraft) => void
   openThread: (threadId: string) => void
   showTurn: (turn: OpenTurn) => void
@@ -65,6 +78,12 @@ function holdsText(state: CanvasToolState): boolean {
   return composing && state.text.trim() !== ""
 }
 
+const closed = { draft: null, openThreadId: null, openTurn: null, text: "" }
+
+function moved(to: Leaving) {
+  return to === "close" ? closed : { ...closed, tool: to }
+}
+
 export const useCanvasTool = create<CanvasToolState>()((set) => ({
   tool: "select",
   draft: null,
@@ -72,8 +91,29 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   openTurn: null,
   postedThreadId: null,
   text: "",
-  setTool: (tool) =>
-    set({ tool, draft: null, openThreadId: null, openTurn: null, text: "" }),
+  leaving: null,
+  detached: null,
+  setTool: (tool) => set({ ...closed, tool, leaving: null }),
+  leave: (to) =>
+    set((state) =>
+      holdsText(state) ? { leaving: to } : { ...moved(to), leaving: null }
+    ),
+  keepTyping: () => set({ leaving: null }),
+  discard: () =>
+    set((state) =>
+      state.leaving === null
+        ? state
+        : { ...moved(state.leaving), leaving: null }
+    ),
+  detach: () =>
+    set((state) => {
+      if (state.draft === null && state.openTurn === null) return state
+      const detached = holdsText(state)
+        ? { tool: state.draft?.tool ?? "ask", text: state.text }
+        : state.detached
+      return { ...closed, detached, leaving: null }
+    }),
+  dropDetached: () => set({ detached: null }),
   openDraft: (draft) =>
     set((state) =>
       holdsText(state)
@@ -92,8 +132,7 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
         ? state
         : { openTurn: turn, draft: null, openThreadId: null, text: "" }
     ),
-  close: () =>
-    set({ draft: null, openThreadId: null, openTurn: null, text: "" }),
+  close: () => set(closed),
   posted: (threadId) =>
     set({ draft: null, postedThreadId: threadId, text: "" }),
   settled: (threadId) =>
@@ -103,10 +142,10 @@ export const useCanvasTool = create<CanvasToolState>()((set) => ({
   setText: (text) => set({ text }),
 }))
 
-export function openKeyDraft(panelId: string, tool: DraftTool) {
+export function openKeyDraft(ownerId: string, tool: DraftTool) {
   useCanvasTool
     .getState()
-    .openDraft({ panelId, tool, anchor: null, at: null, surface: null })
+    .openDraft({ ownerId, tool, anchor: null, at: null, surface: null })
 }
 
 const toolShortcuts: Record<CanvasTool, ShortcutAction> = {
@@ -140,7 +179,9 @@ export const commentModeText =
 export const askModeText =
   "Click a spot on a panel to ask the agent about it. Esc returns to Select."
 
-const modeTexts: Record<DraftTool, string> = {
+export type ModeTexts = Record<DraftTool, string>
+
+const dashboardModeTexts: ModeTexts = {
   comment: commentModeText,
   ask: askModeText,
 }
@@ -156,6 +197,7 @@ export function activeTool(
 type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
+  modeTexts?: ModeTexts
 }
 
 const toolClass =
@@ -206,9 +248,14 @@ function ToolButton({
   )
 }
 
-export function CanvasTools({ permissions, idle }: Props) {
+export function CanvasTools({
+  permissions,
+  idle,
+  modeTexts = dashboardModeTexts,
+}: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
+  const leave = useCanvasTool((state) => state.leave)
   const agentAvailable = useAgentInfo().data?.available === true
   const mayAsk = permissions.comment && agentAvailable
   const active = activeTool(tool, {
@@ -219,8 +266,35 @@ export function CanvasTools({ permissions, idle }: Props) {
 
   useEffect(() => () => setTool("select"), [setTool])
 
-  if (!permissions.comment) return null
+  return (
+    <>
+      <HeldDraft />
+      {permissions.comment ? (
+        <ToolBar
+          active={active}
+          idle={idle}
+          mayAsk={mayAsk}
+          modeTexts={modeTexts}
+          leave={leave}
+        />
+      ) : null}
+    </>
+  )
+}
 
+function ToolBar({
+  active,
+  idle,
+  mayAsk,
+  modeTexts,
+  leave,
+}: {
+  active: CanvasTool
+  idle: boolean
+  mayAsk: boolean
+  modeTexts: ModeTexts
+  leave: (to: Leaving) => void
+}) {
   return (
     <div className="sticky bottom-0 z-30 h-0 narrow:hidden">
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5">
@@ -241,14 +315,14 @@ export function CanvasTools({ permissions, idle }: Props) {
           <ToolButton
             tool="select"
             pressed={active === "select"}
-            onClick={() => setTool("select")}
+            onClick={() => leave("select")}
             icon={<MousePointer2Icon aria-hidden="true" />}
           />
           <ToolButton
             tool="comment"
             pressed={active === "comment"}
             disabled={!idle}
-            onClick={() => setTool("comment")}
+            onClick={() => leave("comment")}
             icon={<MessageSquarePlusIcon aria-hidden="true" />}
           />
           {mayAsk ? (
@@ -256,7 +330,7 @@ export function CanvasTools({ permissions, idle }: Props) {
               tool="ask"
               pressed={active === "ask"}
               disabled={!idle}
-              onClick={() => setTool("ask")}
+              onClick={() => leave("ask")}
               icon={<AtSignIcon aria-hidden="true" />}
             />
           ) : null}

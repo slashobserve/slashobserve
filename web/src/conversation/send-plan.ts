@@ -90,11 +90,9 @@ function spotFields(
   if (subject.kind === "dashboard" && target.panelId !== undefined) {
     fields.panelId = target.panelId
   }
-  if (target.anchor !== undefined) {
-    fields.anchor = target.anchor
-    if (subject.kind === "observation" && target.blockId !== undefined) {
-      fields.blockId = target.blockId
-    }
+  if (target.anchor !== undefined) fields.anchor = target.anchor
+  if (subject.kind === "observation" && target.blockId !== undefined) {
+    fields.blockId = target.blockId
   }
   return fields
 }

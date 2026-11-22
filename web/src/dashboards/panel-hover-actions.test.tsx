@@ -115,7 +115,7 @@ describe("PanelHoverActions", () => {
       await screen.findByRole("button", { name: "Comment on Checkout latency" })
     )
     expect(useCanvasTool.getState().draft).toMatchObject({
-      panelId: "p1",
+      ownerId: "p1",
       tool: "comment",
       anchor: null,
     })

@@ -198,32 +198,32 @@ func (s *Service) replayTurn(ctx context.Context, by auth.Principal, clientID pg
 }
 
 func pointOf(req StartRequest) (Point, error) {
-	if req.Anchor == nil {
-		if req.BlockID != nil {
-			return Point{}, refused("block_id needs anchor")
+	if req.BlockID != nil && req.ObservationID == nil {
+		return Point{}, refused("block_id needs observation_id")
+	}
+	var point Point
+	if req.Anchor != nil {
+		if req.DashboardID == nil && req.ObservationID == nil {
+			return Point{}, refused("anchor needs dashboard_id or observation_id")
 		}
-		return Point{}, nil
+		if err := req.Anchor.Validate(); err != nil {
+			return Point{}, refused("anchor: %s", err.Error())
+		}
+		raw, err := json.Marshal(req.Anchor)
+		if err != nil {
+			return Point{}, fmt.Errorf("encode anchor: %w", err)
+		}
+		point.Anchor = raw
 	}
-	if req.DashboardID == nil && req.ObservationID == nil {
-		return Point{}, refused("anchor needs dashboard_id or observation_id")
-	}
-	if err := req.Anchor.Validate(); err != nil {
-		return Point{}, refused("anchor: %s", err.Error())
-	}
-	raw, err := json.Marshal(req.Anchor)
-	if err != nil {
-		return Point{}, fmt.Errorf("encode anchor: %w", err)
-	}
-	point := Point{Anchor: raw}
 	if req.BlockID == nil {
 		return point, nil
 	}
-	if req.ObservationID == nil {
-		return Point{}, refused("block_id needs observation_id")
+	if req.Anchor != nil {
+		if err := req.Anchor.CheckOnBlock(); err != nil {
+			return Point{}, refused("%s", err.Error())
+		}
 	}
-	if err := req.Anchor.CheckOnBlock(); err != nil {
-		return Point{}, refused("%s", err.Error())
-	}
+	var err error
 	if point.BlockID, err = uuidField("block_id", req.BlockID); err != nil {
 		return Point{}, err
 	}

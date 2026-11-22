@@ -36,9 +36,10 @@ import {
   spotTurnIds,
 } from "./ask-spot"
 import { CanvasPopover, keepsTyping } from "./canvas-composer"
+import { isAbout, ownerOf, spotTarget, type CanvasSubject } from "./canvas-host"
 
 export type AskSpot = {
-  panelId: string
+  ownerId: string
   anchor: Anchor | null
   at: Point | null
   surface: string | null
@@ -53,7 +54,7 @@ export const noModelAskText =
   "No model is connected to this server, so the agent cannot answer."
 
 type Props = {
-  dashboardId: string
+  subject: CanvasSubject
   panelTitle: string
   surfaceRef: RefObject<HTMLElement | null>
   gate: GateInput
@@ -69,25 +70,27 @@ export function openChatOf(chat: string | undefined): string | null {
   return chat === undefined || chat === newChat ? null : chat
 }
 
-type OpenChat = { read_only: boolean; dashboard_id: string | null }
+type OpenChat = {
+  read_only: boolean
+  dashboard_id: string | null
+  observation_id: string | null
+}
 
 function useContinuedChat(
   openChatId: string | null,
-  dashboardId: string
+  subject: CanvasSubject
 ): string | null {
   const open = useChat(openChatId ?? undefined).data?.chat
-  return continuedChat(openChatId, open, dashboardId)
+  return continuedChat(openChatId, open, subject)
 }
 
 function continuedChat(
   openChatId: string | null,
   open: OpenChat | undefined,
-  dashboardId: string
+  subject: CanvasSubject
 ): string | null {
   if (openChatId === null || open === undefined) return null
-  return !open.read_only && open.dashboard_id === dashboardId
-    ? openChatId
-    : null
+  return !open.read_only && isAbout(open, subject) ? openChatId : null
 }
 
 export function useOpenChat() {
@@ -126,13 +129,13 @@ function focusDropped(): boolean {
 }
 
 function closeAsk() {
-  useCanvasTool.getState().close()
+  useCanvasTool.getState().leave("close")
 }
 
 function leaveAsk(reason: string) {
   const store = useCanvasTool.getState()
   if (keepsTyping(reason, store.text)) return
-  store.close()
+  store.leave("close")
 }
 
 function useAskText() {
@@ -155,7 +158,7 @@ function PrivateFooter() {
 }
 
 function AskDraft({
-  dashboardId,
+  subject,
   panelTitle,
   gate,
   spot,
@@ -163,15 +166,12 @@ function AskDraft({
   onChatStarted,
 }: Omit<Props, "turn" | "surfaceRef">) {
   const [ownDraft] = useState(() => useCanvasTool.getState().draft)
-  const chatId = useContinuedChat(openChatId, dashboardId)
+  const chatId = useContinuedChat(openChatId, subject)
   const model = useComposer({
     draft: useAskText(),
-    subject: { kind: "dashboard", id: dashboardId },
+    subject,
     place: { kind: "canvas", tool: "ask", chatId },
-    target: {
-      panelId: spot.panelId,
-      ...(spot.anchor === null ? {} : { anchor: spot.anchor }),
-    },
+    target: spotTarget(subject, spot.ownerId, spot.anchor),
     gate,
     onSent: (sent) => {
       if (sent.via !== "chat") return
@@ -203,12 +203,12 @@ function AskDraft({
 
 function AgentPart({
   request,
-  dashboardId,
+  subject,
   arrived,
   onAsked,
 }: {
   request: ObserveRequest
-  dashboardId: string
+  subject: CanvasSubject
   arrived: boolean
   onAsked: (request: ObserveRequest) => void
 }) {
@@ -240,7 +240,7 @@ function AgentPart({
         request={request}
         finding={request.finding}
         own={request.requested_by.id === principal.id}
-        about={{ kind: "dashboard", id: dashboardId }}
+        about={subject}
         onRevised={async (next) => onAsked(next)}
         showToEveryone={false}
         reviseNote={reviseSharedText}
@@ -251,11 +251,11 @@ function AgentPart({
 
 function AskTurn({
   requestId,
-  dashboardId,
+  subject,
   onAsked,
 }: {
   requestId: string
-  dashboardId: string
+  subject: CanvasSubject
   onAsked: (request: ObserveRequest) => void
 }) {
   const query = useQuery(observeRequestQuery(requestId))
@@ -281,7 +281,7 @@ function AskTurn({
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <AgentPart
             request={request}
-            dashboardId={dashboardId}
+            subject={subject}
             arrived={!settledAtFirst}
             onAsked={onAsked}
           />
@@ -292,7 +292,7 @@ function AskTurn({
 }
 
 function AskThread({
-  dashboardId,
+  subject,
   panelTitle,
   gate,
   spot,
@@ -302,9 +302,13 @@ function AskThread({
 }) {
   const chat = useChat(turn.chatId)
   const [askedHere, setAskedHere] = useState<string[]>([])
+  const placed = (chat.data?.turns ?? []).map((each) => ({
+    ...each,
+    panel_id: ownerOf(subject, each),
+  }))
   const ids = spotTurnIds(
-    chat.data?.turns ?? [],
-    { requestId: turn.requestId, panelId: spot.panelId, anchor: spot.anchor },
+    placed,
+    { requestId: turn.requestId, panelId: spot.ownerId, anchor: spot.anchor },
     askedHere
   )
   function asked(request: ObserveRequest) {
@@ -314,12 +318,9 @@ function AskThread({
   }
   const model = useComposer({
     draft: useAskText(),
-    subject: { kind: "dashboard", id: dashboardId },
+    subject,
     place: { kind: "canvas", tool: "ask", chatId: turn.chatId },
-    target: {
-      panelId: spot.panelId,
-      ...(spot.anchor === null ? {} : { anchor: spot.anchor }),
-    },
+    target: spotTarget(subject, spot.ownerId, spot.anchor),
     gate,
     onSent: (sent) => {
       if (sent.via === "chat") asked(sent.request)
@@ -350,12 +351,7 @@ function AskThread({
         className="flex max-h-[min(28rem,60vh)] flex-col gap-3.5 overflow-y-auto p-3"
       >
         {ids.map((id) => (
-          <AskTurn
-            key={id}
-            requestId={id}
-            dashboardId={dashboardId}
-            onAsked={asked}
-          />
+          <AskTurn key={id} requestId={id} subject={subject} onAsked={asked} />
         ))}
       </ol>
       <div className="px-3 pb-2.5">

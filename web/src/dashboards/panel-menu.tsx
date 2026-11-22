@@ -66,6 +66,7 @@ type Props = {
   idle: boolean
   viewing: boolean
   onCanvas: boolean
+  ownerId?: string
   onDownloadCsv?: () => void
   onSavePng?: () => void
   downloadsReady?: boolean
@@ -121,6 +122,7 @@ export function PanelMenu({
   idle,
   viewing,
   onCanvas,
+  ownerId = panel.id,
   onDownloadCsv,
   onSavePng,
   downloadsReady = true,
@@ -144,14 +146,15 @@ export function PanelMenu({
   const items: MenuItem[] = []
   const data = isDataPanel(panel)
   const onDashboard = block === undefined
-  if (onDashboard && conversation.comment) {
+  const converses = onDashboard || onCanvas
+  if (converses && conversation.comment) {
     items.push({
       id: "comment",
       label: idle ? "Comment" : "Comment (finish the layout first)",
       icon: <MessageSquarePlusIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        const place = commentOnThisPanel(setSearch, panel.id, onCanvas)
+        const place = commentOnThisPanel(setSearch, ownerId, onCanvas)
         if (place === "pane") returnFocusToComposerUntilInput()
         else focusAfterClose = "none"
       },
@@ -166,14 +169,14 @@ export function PanelMenu({
       onSelect: () => {},
     })
   }
-  if (onDashboard && conversation.ask) {
+  if (converses && conversation.ask) {
     items.push({
       id: "ask",
       label: idle ? "Ask" : "Ask (finish the layout first)",
       icon: <AtSignIcon aria-hidden="true" />,
       disabled: !idle,
       onSelect: () => {
-        askAboutThisPanel(setSearch, panel.id, onCanvas)
+        askAboutThisPanel(setSearch, ownerId, onCanvas)
         focusAfterClose = "none"
       },
       shortcut: shortcutText("ask"),
@@ -341,9 +344,10 @@ export function PanelMenu({
   if (block) items.push(...block.actions)
   return (
     <>
-      {onDashboard && !inToolbar ? (
+      {converses && !inToolbar ? (
         <PanelHoverActions
           panel={panel}
+          ownerId={ownerId}
           canComment={canComment}
           idle={idle}
           viewing={viewing}

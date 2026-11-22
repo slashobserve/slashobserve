@@ -9,6 +9,7 @@ import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders } from "@/test/render"
 
 import { CanvasComposer, targetChips, useCanvasGate } from "./canvas-composer"
+import type { CanvasSubject } from "./canvas-host"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tanstack/react-router")>()),
@@ -76,12 +77,15 @@ function stubServer() {
   return posts
 }
 
-function renderDraft(draft: CanvasDraft) {
+function renderDraft(
+  draft: CanvasDraft,
+  subject: CanvasSubject = { kind: "dashboard", id: "d1" }
+) {
   useCanvasTool.setState({ tool: "comment", draft })
   const surfaceRef = createRef<HTMLElement>()
   return renderWithProviders(
     <CanvasComposer
-      dashboardId="d1"
+      subject={subject}
       panelTitle="Latency"
       draft={draft}
       surfaceRef={surfaceRef}
@@ -92,7 +96,7 @@ function renderDraft(draft: CanvasDraft) {
 }
 
 const clicked: CanvasDraft = {
-  panelId: "p1",
+  ownerId: "p1",
   tool: "comment",
   anchor: onBar,
   at: { x: 120, y: 80 },
@@ -171,6 +175,34 @@ describe("CanvasComposer", () => {
         postedThreadId: "t9",
       })
     )
+  })
+
+  it("posts a thread on an observation block with the selected text", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    const quoted = {
+      kind: "text",
+      pos: { x: 0.25, y: 0.5 },
+      quote: "checkout errors rose",
+    } as const
+    renderDraft(
+      { ...clicked, ownerId: "b1", anchor: quoted },
+      {
+        kind: "observation",
+        id: "o1",
+      }
+    )
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "Which deploy?{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toMatchObject({
+      target: "observation:o1",
+      block_id: "b1",
+      anchor: quoted,
+    })
+    expect(posts[0].body).not.toHaveProperty("panel_id")
   })
 
   it("opens by key on the whole panel with no motion", async () => {

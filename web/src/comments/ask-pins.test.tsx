@@ -2,11 +2,16 @@ import { act, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { useCanvasTool } from "@/dashboards/canvas-tools"
-import { createAnchorLayoutStore } from "@/panels/anchor-layout"
+import {
+  createAnchorLayoutStore,
+  type AnchorLayoutStore,
+} from "@/panels/anchor-layout"
 import type { Anchor } from "@/panels/anchors"
 import { renderWithProviders } from "@/test/render"
 
 import { AskPins } from "./ask-pins"
+import { useCanvasSurface } from "./canvas-composer"
+import type { CanvasSubject } from "./canvas-host"
 import type { PinView } from "./canvas-target"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -43,6 +48,8 @@ function summary(fields: Record<string, unknown>) {
     created_at: "2026-11-21T14:31:00Z",
     read_only: false,
     status: "succeeded",
+    trigger: "person",
+    observation_id: null,
     ...fields,
   }
 }
@@ -59,16 +66,43 @@ function stubRequests(requests: Record<string, unknown>[]) {
   return listed
 }
 
-function renderPins(view: PinView = "data", store = createAnchorLayoutStore()) {
-  return renderWithProviders(
+function StoredPins({
+  store,
+  view,
+  subject,
+  ownerId,
+}: {
+  store: AnchorLayoutStore
+  view: PinView
+  subject: CanvasSubject
+  ownerId: string
+}) {
+  return (
     <AskPins
-      dashboardId="d1"
-      panelId="p1"
+      subject={subject}
+      ownerId={ownerId}
       panelTitle="Slow services"
       surfaceId="s1"
-      store={store}
+      surface={useCanvasSurface(store)}
       body={{ width: 400, height: 200 }}
       view={view}
+    />
+  )
+}
+
+const onDashboard: CanvasSubject = { kind: "dashboard", id: "d1" }
+
+function renderPins(
+  view: PinView = "data",
+  store = createAnchorLayoutStore(),
+  { subject = onDashboard, ownerId = "p1" } = {}
+) {
+  return renderWithProviders(
+    <StoredPins
+      store={store}
+      view={view}
+      subject={subject}
+      ownerId={ownerId}
     />,
     { route: { path: "/", url: "/" } }
   )
@@ -103,7 +137,7 @@ describe("AskPins", () => {
     expect(useCanvasTool.getState().openTurn).toMatchObject({
       requestId: "r1",
       chatId: "c1",
-      panelId: "p1",
+      ownerId: "p1",
       anchor: onRow,
       surface: "s1",
     })
@@ -114,6 +148,38 @@ describe("AskPins", () => {
       anchored: "true",
     })
     expect(listed[0].searchParams.has("scope")).toBe(false)
+  })
+
+  it("pins only private asks, not an investigation or a mention that answers on the observation", async () => {
+    const listed = stubRequests([
+      summary({ id: "r1", panel_id: null, block_id: "b1" }),
+      summary({
+        id: "r2",
+        panel_id: null,
+        block_id: "b1",
+        observation_id: "o1",
+        anchor: { ...onRow, row: { service: "checkout" } },
+      }),
+      summary({
+        id: "r3",
+        panel_id: null,
+        block_id: "b1",
+        trigger: "mention",
+        anchor: { ...onRow, row: { service: "search" } },
+      }),
+    ])
+    renderPins("data", createAnchorLayoutStore(), {
+      subject: { kind: "observation", id: "o1" },
+      ownerId: "b1",
+    })
+    await screen.findByRole("button", {
+      name: "Your question on Slow services, The row payments, 440",
+    })
+    expect(screen.getAllByRole("button")).toHaveLength(1)
+    expect(Object.fromEntries(listed[0].searchParams)).toMatchObject({
+      observation_id: "o1",
+      anchored: "true",
+    })
   })
 
   it("stacks questions at one spot into a counted marker that lists them", async () => {

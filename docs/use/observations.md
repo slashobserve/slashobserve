@@ -223,6 +223,28 @@ The run writes nothing on the page, for an Editor as for a Commenter: when it en
 The line is not the model's text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
+### Comment and ask on the blocks
+
+The page has the same tool bar at the bottom of the screen as a dashboard, with **Select**, **Comment** and **Ask**, for a person who can comment on the observation; it is hidden on a phone, and **Ask** shows only when a model is connected.
+On a live panel block, Comment mode and Ask mode work as on a dashboard panel: a click names the spot under the pointer, a drag across a time series names the range, and pins mark the threads and your own questions, as described in [Comment pins](web.md#comment-pins) and [Ask mode](web.md#ask-mode).
+On a snapshot or a run block, a click in either mode comments on or asks about the whole block.
+`c` or `a` with the pointer over a block, or with a block focused (Tab reaches text, snapshot and run blocks), opens the composer or the ask box on the whole block, as do a panel block's menu and the **Comment** and **Ask** buttons in its header.
+A comment on the whole block goes into the discussion as a message on that block.
+A panel block that shows no data, such as a text panel, takes comments but no questions, as on a dashboard.
+
+Selecting text in a text block shows **Comment** and **Ask** under the selection, and `Esc` hides them; in Comment or Ask mode selecting text opens the composer or the ask box at once.
+The thread or the question points at the text you selected, up to its first 200 characters, and its pin sits on that text wherever it moves in the block; when the same words appear more than once, the pin takes the place nearest where you selected them.
+When the block no longer holds that text, the pin is faded in the block's top right corner and its thread says the text is no longer in the block.
+
+A question asked on the page is private: its box says "Only you and Admins can see this.", and the agent reads data and answers without writing anything on the page.
+Only those private questions get your pins; an investigation that writes into the observation is answered on the page instead.
+The questions you ask during one visit to the page are turns of one chat, which the [chat list](chat.md) keeps.
+While you move or resize blocks, the pins stay but nothing takes a click or a selection, and an open composer is hidden; it comes back with your text when the change is saved, as it does after you edit the block it is on.
+If the block goes away while you are writing, your text moves to a box in the corner of the page, with **Copy text** and **Discard**, and the rest of the page takes comments again.
+Once you have typed, `Esc`, **Select** or another tool first asks "Discard your draft?".
+A requested block takes no comments or questions until it is kept.
+Over the API, MCP and the CLI, a question names a whole block with `block_id` and no anchor, as in [`observe investigate`](cli.md) with `--block` and `--observation`.
+
 ### Add to an observation from a panel or from Logs
 
 **Add to observation** in a dashboard panel's menu copies that panel into an observation.

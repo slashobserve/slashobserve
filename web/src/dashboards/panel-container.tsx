@@ -14,14 +14,11 @@ import { toast } from "sonner"
 import { annotationsFor } from "@/annotations/markers"
 import { useDashboardAnnotations, type Annotation } from "@/annotations/queries"
 import type { Selections } from "@/api/keys"
-import {
-  CanvasComposer,
-  CanvasLayer,
-  useCanvasGate,
-} from "@/comments/canvas-composer"
+import { CanvasLayer, useCanvasSurface } from "@/comments/canvas-composer"
 import { AskPins } from "@/comments/ask-pins"
-import { AskPopover, useOpenChat } from "@/comments/ask-popover"
+import { blockSurfaceId, useCanvasHost } from "@/comments/canvas-host"
 import { CanvasPins } from "@/comments/canvas-pins"
+import { CanvasSpots } from "@/comments/canvas-spots"
 import { pinView } from "@/comments/canvas-target"
 import { PanelCommentBadge } from "@/comments/panel-comment-badge"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
@@ -56,12 +53,7 @@ import {
   type Variable,
 } from "@/spec"
 
-import {
-  activeTool,
-  useCanvasTool,
-  type CanvasDraft,
-  type OpenTurn,
-} from "./canvas-tools"
+import { activeTool, useCanvasTool } from "./canvas-tools"
 import { conversationActionsFor } from "./panel-actions"
 import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
@@ -110,34 +102,6 @@ function useFramePreparer(
     },
     [panel, vars, reusedFilter, datasources.data, gazetteers]
   )
-}
-
-function ownsDraft(
-  draft: CanvasDraft | null,
-  panelId: string,
-  surfaceId: string,
-  repeatOf: string | undefined
-): draft is CanvasDraft {
-  if (draft === null || draft.panelId !== panelId) return false
-  return draft.surface === null
-    ? repeatOf === undefined
-    : draft.surface === surfaceId
-}
-
-function spotKeyOf(spot: Pick<CanvasDraft, "panelId" | "at">): string {
-  return `${spot.panelId}:${spot.at?.x ?? ""}:${spot.at?.y ?? ""}`
-}
-
-function ownsTurn(
-  turn: OpenTurn | null,
-  panelId: string,
-  surfaceId: string,
-  repeatOf: string | undefined
-): turn is OpenTurn {
-  if (turn === null || turn.panelId !== panelId) return false
-  return turn.surface === null
-    ? repeatOf === undefined
-    : turn.surface === surfaceId
 }
 
 function focusPanel(root: HTMLElement | null) {
@@ -256,7 +220,9 @@ export const PanelContainer = memo(function PanelContainer({
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
-  const surfaceId = useId()
+  const mountId = useId()
+  const surfaceId =
+    source.kind === "block" ? blockSurfaceId(source.blockId) : mountId
   const [layoutStore] = useState(createAnchorLayoutStore)
   const { seen, inView } = useInView(ref)
   const [tableView, setTableView] = useState(false)
@@ -439,15 +405,16 @@ export const PanelContainer = memo(function PanelContainer({
   )
 
   const panelId = panel.id
+  const ownerId = source.kind === "block" ? source.blockId : panelId
   const onPointerEnter = useCallback(
-    () => useHoveredPanel.getState().enter(panelId, repeatOf !== undefined),
-    [panelId, repeatOf]
+    () => useHoveredPanel.getState().enter(ownerId, repeatOf !== undefined),
+    [ownerId, repeatOf]
   )
   const onPointerLeave = useCallback(
-    () => useHoveredPanel.getState().leave(panelId),
-    [panelId]
+    () => useHoveredPanel.getState().leave(ownerId),
+    [ownerId]
   )
-  useEffect(() => () => useHoveredPanel.getState().leave(panelId), [panelId])
+  useEffect(() => () => useHoveredPanel.getState().leave(ownerId), [ownerId])
 
   const permissions = useMemo(
     () => ({ comment: canComment, edit: canEdit, propose: canPropose }),
@@ -460,23 +427,16 @@ export const PanelContainer = memo(function PanelContainer({
         : () => useSelectionStore.getState().select(dashboardId, panelId),
     [dashboardId, panelId]
   )
-  const pointing = onCanvas
-    ? activeTool(canvasTool, {
-        ...conversationActionsFor(panel, canComment, agentAvailable),
-        idle: !layoutSession,
-      })
-    : "select"
-  const draft = useCanvasTool((state) =>
-    ownsDraft(state.draft, panelId, surfaceId, repeatOf) ? state.draft : null
-  )
-  const openTurn = useCanvasTool((state) =>
-    ownsTurn(state.openTurn, panelId, surfaceId, repeatOf)
-      ? state.openTurn
-      : null
-  )
-  const openChat = useOpenChat()
-  const askSpot = openTurn ?? (draft?.tool === "ask" ? draft : null)
-  const gateInput = useCanvasGate(canComment, layoutSession)
+  const host = useCanvasHost()
+  const canvas = onCanvas && host !== null ? host : null
+  const surface = useCanvasSurface(layoutStore)
+  const pointing =
+    canvas === null
+      ? "select"
+      : activeTool(canvasTool, {
+          ...conversationActionsFor(panel, canComment, agentAvailable),
+          idle: !canvas.gate.layoutEditing,
+        })
   const shownWindow = useMemo(
     () => ({ from: rangeFrom, to: rangeTo }),
     [rangeFrom, rangeTo]
@@ -519,7 +479,8 @@ export const PanelContainer = memo(function PanelContainer({
       onToggleTableView={() => setTableView((current) => !current)}
       idle={!layoutSession}
       viewing={viewing}
-      onCanvas={onCanvas}
+      onCanvas={canvas !== null}
+      ownerId={ownerId}
       onDownloadCsv={onDownloadCsv}
       onSavePng={onSavePng}
       downloadsReady={downloadsReady}
@@ -629,24 +590,24 @@ export const PanelContainer = memo(function PanelContainer({
                 />
               ) : null}
             </div>
-            {onCanvas && dashboardId !== undefined && repeatOf === undefined ? (
+            {canvas !== null && repeatOf === undefined ? (
               <CanvasPins
-                dashboardId={dashboardId}
-                panelId={panelId}
+                subject={canvas.subject}
+                ownerId={ownerId}
                 panelTitle={panelName}
-                store={layoutStore}
+                surface={surface}
                 body={body}
                 view={pinView(state, tableView)}
-                gateInput={gateInput}
+                gateInput={canvas.gate}
               />
             ) : null}
-            {onCanvas && dashboardId !== undefined && repeatOf === undefined ? (
+            {canvas !== null && repeatOf === undefined ? (
               <AskPins
-                dashboardId={dashboardId}
-                panelId={panelId}
+                subject={canvas.subject}
+                ownerId={ownerId}
                 panelTitle={panelName}
                 surfaceId={surfaceId}
-                store={layoutStore}
+                surface={surface}
                 body={body}
                 view={pinView(state, tableView)}
               />
@@ -660,40 +621,18 @@ export const PanelContainer = memo(function PanelContainer({
           surfaceRef={surfaceRef}
           store={layoutStore}
           surfaceId={surfaceId}
-          panelId={panelId}
+          ownerId={ownerId}
           tool={pointing}
           body={body}
           shownRange={shownWindow}
           wholePanel={tableView && panel.type !== "table"}
         />
       ) : null}
-      {askSpot !== null &&
-      onCanvas &&
-      !layoutSession &&
-      dashboardId !== undefined ? (
-        <AskPopover
-          key={spotKeyOf(askSpot)}
-          dashboardId={dashboardId}
+      {canvas !== null ? (
+        <CanvasSpots
+          owner={{ ownerId, surfaceId, copy: repeatOf !== undefined }}
           panelTitle={panelName}
           surfaceRef={surfaceRef}
-          gate={gateInput}
-          spot={askSpot}
-          turn={openTurn}
-          openChatId={openChat.chatId}
-          onChatStarted={openChat.select}
-        />
-      ) : null}
-      {draft?.tool === "comment" &&
-      onCanvas &&
-      !layoutSession &&
-      dashboardId !== undefined ? (
-        <CanvasComposer
-          key={spotKeyOf(draft)}
-          dashboardId={dashboardId}
-          panelTitle={panelName}
-          draft={draft}
-          surfaceRef={surfaceRef}
-          gate={gateInput}
         />
       ) : null}
       {selected && !viewing ? (
@@ -704,7 +643,7 @@ export const PanelContainer = memo(function PanelContainer({
           from={rangeFrom}
           to={rangeTo}
           idle={!layoutSession}
-          onCanvas={onCanvas}
+          onCanvas={canvas !== null}
           menu={panelMenu(true)}
           observationVariables={observationVariables}
         />

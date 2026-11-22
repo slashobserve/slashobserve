@@ -19,7 +19,10 @@ type Pointer struct {
 
 func anchorNote(p Pointer) string {
 	if p.Anchor == nil {
-		return ""
+		if p.BlockID == "" {
+			return ""
+		}
+		return fmt.Sprintf("The request is about the whole of block %s%s.", p.BlockID, ofObservation(p))
 	}
 	what := strings.Join(strings.Fields(p.Anchor.Describe()), " ")
 	if runes := []rune(what); len(runes) > maxAnchorRunes {
@@ -28,10 +31,14 @@ func anchorNote(p Pointer) string {
 	what = tagSafe.Replace(what)
 	where := ""
 	if p.BlockID != "" {
-		where = " on block " + p.BlockID
-		if p.ObservationID != "" {
-			where += " of observation " + p.ObservationID
-		}
+		where = " on block " + p.BlockID + ofObservation(p)
 	}
 	return fmt.Sprintf("The request points at %q%s.", what, where)
+}
+
+func ofObservation(p Pointer) string {
+	if p.ObservationID == "" {
+		return ""
+	}
+	return " of observation " + p.ObservationID
 }

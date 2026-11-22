@@ -213,6 +213,7 @@ function LoadedObservation({
                 observation={observation}
                 blocks={blocks}
                 canAdd={canAdd}
+                canComment={permissions.comment}
                 reveal={reveal}
                 onRevealed={revealed}
                 onAdded={added}

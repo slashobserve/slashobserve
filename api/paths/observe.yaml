@@ -157,7 +157,7 @@ observe:
       Without `chat_id` a new chat starts under the request's own id, except a `revise`, which joins your most recent live chat on that dashboard when there is one; `new_chat` true always starts a new chat and excludes `chat_id` (400 `invalid_request`).
       The agent is given the earlier questions and answers of the chat (the last six turns, at most 8000 characters), read when the turn starts running, and the turns of one chat run one at a time in the order they were sent; a queued turn with a stop requested does not hold the next one back.
       `client_id` is a UUID the client picks once per message so a resend starts nothing new: a second request of yours with the same `client_id` answers 200 with `replayed` true and the request the first one started, and one with another prompt or another `chat_id` answers 422 `client_id_reused`.
-      `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names the observation block the anchor sits on, needs `anchor` and `observation_id`, and must be a block of that observation, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`).
+      `anchor` points the turn at one spot on the dashboard or observation it is about, and needs `dashboard_id` or `observation_id`; `block_id` names a block of `observation_id` the turn is about, needs `observation_id`, and must be a block of that observation (404 `not_found`); with `anchor` it is the block the anchor sits on, under an anchor of a kind that can sit on a block, which `variable` cannot (400 `invalid_request`), and without it the turn is about the whole block.
       When a build in a chat about nothing saves a new dashboard, the chat becomes about that dashboard.
       With `kind` `investigate` the agent reads data and ends by saving a finding (`kind` is `investigate` on the request), optionally about `dashboard_id`, one of its panels (`panel_id`) and a window (`from` and `to`); starting one needs the Editor role or above and view access on the dashboard (403 `forbidden_role`).
       A caller may have at most 3 investigations queued or running (429 `too_many_requests`), and the instance at most 10 (429 `agent_busy`).
@@ -234,7 +234,7 @@ observe:
               block_id:
                 type: string
                 format: uuid
-                description: The block of `observation_id` the anchor sits on; needs `anchor`.
+                description: The block of `observation_id` the turn is about; with `anchor`, the block the anchor sits on, without it the whole block.
     responses:
       "200":
         description: The `client_id` was already sent with this prompt, or a request of yours already applies `applies_finding_id`; that request, with `replayed` true.

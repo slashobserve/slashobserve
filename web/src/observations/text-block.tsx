@@ -9,6 +9,7 @@ import { isModEnter } from "@/lib/shortcuts"
 import { foldAnswer } from "./blocks/answer-fold"
 import { blockWriteProblem } from "./errors"
 import { useUpdateBlock, type Block } from "./queries"
+import { TextCanvas } from "./text-canvas"
 
 const emptyProblem = "Write something, or delete the block"
 const conflictProblem = "Someone changed this block while you were editing"
@@ -157,7 +158,13 @@ function Answer({ block }: { block: Block }) {
   return <FoldedAnswer opening={fold.opening} rest={fold.rest} />
 }
 
-export function TextBlock({ block }: { block: Block }) {
+export function TextBlock({
+  block,
+  onCanvas = false,
+}: {
+  block: Block
+  onCanvas?: boolean
+}) {
   const canEdit = block.allowed_actions.includes("update")
   const [editing, setEditing] = useState(false)
   const editButton = useRef<HTMLButtonElement>(null)
@@ -179,7 +186,11 @@ export function TextBlock({ block }: { block: Block }) {
 
   return (
     <div className="relative">
-      <Answer block={block} />
+      {onCanvas ? (
+        <TextCanvas block={block} markdown={markdownOf(block)} />
+      ) : (
+        <Answer block={block} />
+      )}
       {canEdit ? (
         <Button
           ref={editButton}

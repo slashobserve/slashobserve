@@ -196,6 +196,7 @@ On a time series, a heatmap, a state timeline or a status history, dragging acro
 A click on the title bar comments on the panel's title, and Tab to the title and Enter, or `c` over a panel, comments on the whole panel.
 
 The composer closes when you post or press `Esc`, and Comment mode stays on for the next comment.
+Once you have typed, `Esc`, **Select** or another tool first asks "Discard your draft?", and **Keep editing** keeps the text.
 A click outside closes it only while it is empty: once you have typed, it stays open, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the composer is hidden, and it comes back with your text once the moves are saved or discarded.
 In the table view of a panel that is not a table, a click or drag in Comment mode comments on the whole panel.
@@ -252,7 +253,7 @@ The same turns show in the Chat tab, and only **Revise the dashboard** changes t
 The box says "Only you and Admins can see this.", and its answer menu has no **Show to everyone**: **Share to thread** adds your question and the answer to an open thread on the dashboard, where everyone who can read the thread sees it, until you choose **Withdraw**.
 When no model is connected the box says so and cannot send, and while you view an older version it asks you to open the latest one first.
 
-The box closes on its **Close** button or `Esc`, and the focus goes back to where it was.
+The box closes on its **Close** button or `Esc`, and the focus goes back to where it was; with a typed question it first asks "Discard your draft?".
 A click outside closes it only while it is empty: once you have typed a question, it stays open with your text, and a click on another spot or on a pin leaves it as it is.
 While the layout has unsaved moves the box is hidden, and it comes back with your text once the moves are saved or discarded.
 The copies of a repeated panel take no canvas questions: Ask mode does nothing on a copy, and **Ask** or `a` on a copy opens the dashboard's Chat tab on that panel.

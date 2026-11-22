@@ -261,14 +261,20 @@ func TestRequestsListFiltersAnchoredAndObservationAndShowsTheSpot(t *testing.T) 
 func TestChatsShowAndStatusNameTheSpotAQuestionPointsAt(t *testing.T) {
 	const spot = `"anchor":{"kind":"row","pos":{"x":0.4,"y":0.3},"row":{"service":"payments"},"shown":"440"},"block_id":"` + testThread + `"`
 	reply := `{"chat":{"id":"` + stoppedID + `","title":"T","dashboard_id":null,"dashboard_title":null,"observation_id":null,"pinned_at":null,"created_at":"x","last_turn_at":"x","turns":1,"last_turn":null},` +
-		`"turns":[{"id":"00000000-0000-4000-8000-000000000001","state":"succeeded","prompt":"first",` + spot + `},{"id":"00000000-0000-4000-8000-000000000002","state":"succeeded","prompt":"second","anchor":null,"block_id":null}]}`
+		`"turns":[{"id":"00000000-0000-4000-8000-000000000001","state":"succeeded","prompt":"first",` + spot + `},{"id":"00000000-0000-4000-8000-000000000002","state":"succeeded","prompt":"second","anchor":null,"block_id":null},` +
+		`{"id":"00000000-0000-4000-8000-000000000003","state":"succeeded","prompt":"third","anchor":null,"block_id":"` + testThread + `"}]}`
 	_, stdout, stderr, code := runAgainst(t, http.StatusOK, reply, "chats", "show", stoppedID)
-	if code != 0 || !strings.Contains(stdout, "Request 00000000-0000-4000-8000-000000000001 points at the row payments (440)") || strings.Contains(stdout, "000000000002 points") {
+	if code != 0 || !strings.Contains(stdout, "Request 00000000-0000-4000-8000-000000000001 points at the row payments (440)") || strings.Contains(stdout, "000000000002 points") || !strings.Contains(stdout, "Request 00000000-0000-4000-8000-000000000003 is about block "+testThread) {
 		t.Fatalf("chats show: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
 	}
 	status := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","intent":"ask",` + spot + `}}`
 	_, stdout, stderr, code = runAgainst(t, http.StatusOK, status, "status", stoppedID)
 	if code != 0 || !strings.Contains(stdout, "Points at      the row payments (440)") || !strings.Contains(stdout, "On block       "+testThread) {
 		t.Fatalf("status: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
+	}
+	whole := `{"request":{"id":"` + stoppedID + `","status":"succeeded","state":"succeeded","intent":"ask","anchor":null,"block_id":"` + testThread + `"}}`
+	_, stdout, stderr, code = runAgainst(t, http.StatusOK, whole, "status", stoppedID)
+	if code != 0 || strings.Contains(stdout, "Points at") || !strings.Contains(stdout, "On block") {
+		t.Fatalf("status of a whole-block question: exit %d, stdout:\n%s\nstderr %s", code, stdout, stderr)
 	}
 }

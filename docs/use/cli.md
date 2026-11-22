@@ -105,7 +105,7 @@ While a request waits for a worker, `observe status` prints `Queued, position N`
 The order can shift, because a request is skipped while another revision of its dashboard is running.
 
 `observe status` shows `Investigation yes` for a run started as an investigation that writes into an observation and `no` for an ask, and `--json` carries it as `investigation`; it never changes once the run is queued.
-When the request points at a spot, `observe status` prints `Points at`, and `On block` for an observation block.
+When the request points at a spot, `observe status` prints `Points at`, and `On block` for an observation block, which it prints alone for a question about a whole block.
 `observe status` also shows the request's trigger, what started it: `person` for a prompt, a follow-up or an investigation the requester asked for, and `mention` for a run that a comment asked for, as `--to agent` does.
 It ends with the request's `Title` and `Prompt`, so a request found in `observe requests list` can be told apart without opening the browser; for a request from someone else's private chat both read `hidden, asked in a private chat`.
 An ask about an observation adds `About observation <id>`, also after its answer is saved into another observation.
@@ -142,7 +142,7 @@ Every prompt you send is a turn of a chat, which you and Admins can read and nob
 `bin/observe chats list` prints your chats, pinned ones first and then the one most recently asked in, as a table of id, whether it is pinned, the state of the last turn, the number of turns, when it was last asked, its dashboard and its title.
 `--q` (a word of the title or any prompt), `--pinned` or `--pinned=false`, `--dashboard <id>` and `--observation <id>` narrow it, and it pages with `--limit` (at most 50), `--cursor` and `--all`.
 `--scope all` lists every person's chats with an `OWNER` column and needs an Admin key.
-`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt, and a `points at` line under a turn that pointed at a spot; `observe status <request-id>` prints one turn in full.
+`chats show <chat-id>` prints the chat and its turns, oldest first, each with its request id, state and the first line of its prompt, and a `points at` line under a turn that pointed at a spot, or an `is about block` line under one about a whole block; `observe status <request-id>` prints one turn in full.
 An Admin may show anyone's chat, read only.
 
 Every show is recorded in the audit trail as `chat.view` with the owner's id and every list as `chat.list` with its scope, each once per reader in 10 minutes.
@@ -335,7 +335,7 @@ bin/observe investigate --observation <observation-id> why did checkout errors r
 
 `--dashboard` makes it about one dashboard, `--panel` about one of its panels, and `--from` and `--to` set the window, together, as relative times such as `now-6h` or epoch milliseconds.
 `--observation` names an existing observation to write into, by its id.
-`--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at series:service=checkout`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks.
+`--at '<anchor JSON>'` points the question at one spot of the dashboard or observation, as the anchor JSON object, for example `--at '{"kind":"position","pos":{"x":0.4,"y":0.3}}'`, or as a short form such as `--at series:service=checkout`, and `--block <block-id>` with `--observation` puts that spot in one of its blocks, or without `--at` points the question at that whole block.
 `--panel` without `--dashboard`, one of `--from` and `--to` alone, an `--observation` that is not an id, or `--private` without exactly one of `--dashboard` and `--observation`, exits 2.
 
 `--private` asks privately about one of `--dashboard` or `--observation`: it needs only Comment on it, writes nothing into it and opens no observation, and the answer is read only by you and, read only, by Admins (see [Private asks](../concepts/agent.md#private-asks)).

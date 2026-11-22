@@ -13,7 +13,6 @@ import {
 import { threadKeys } from "@/api/keys"
 import { ungated } from "@/conversation/delivery"
 import { useCanvasTool } from "@/dashboards/canvas-tools"
-import { createAnchorLayoutStore } from "@/panels/anchor-layout"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import { CanvasPins } from "./canvas-pins"
@@ -133,10 +132,10 @@ function renderPins(replies: Message[] = []) {
   renderWithProviders(
     <div className="relative">
       <CanvasPins
-        dashboardId="d1"
-        panelId="p1"
+        subject={{ kind: "dashboard", id: "d1" }}
+        ownerId="p1"
         panelTitle="Latency"
-        store={createAnchorLayoutStore()}
+        surface={{ module: null, published: null }}
         body={{ width: 400, height: 200 }}
         view="data"
         gateInput={ungated}

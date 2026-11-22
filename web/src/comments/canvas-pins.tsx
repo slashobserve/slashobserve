@@ -12,21 +12,19 @@ import {
   type GateInput,
 } from "@/conversation/delivery"
 import { ThreadView } from "@/conversation/thread-view"
+import { threadTargetOf } from "@/conversation/send-plan"
 import { useComposer } from "@/conversation/use-composer"
 import { useCanvasTool } from "@/dashboards/canvas-tools"
 import { markOf } from "@/lib/author"
 import { plainText } from "@/search/plain-text"
 import { cn } from "@/lib/utils"
 import type { Point, Size } from "@/panels/anchors"
-import {
-  useAnchorsModule,
-  usePublished,
-  type AnchorLayoutStore,
-} from "@/panels/anchor-layout"
 
+import { sitsOn, type CanvasSubject } from "./canvas-host"
 import {
   placePin,
   revealAnchor,
+  type CanvasSurface,
   type PinPlacement,
   type PinView,
 } from "./canvas-target"
@@ -45,6 +43,13 @@ const markerShape = "rounded-[50%_50%_50%_2px]"
 const goneText =
   "The data this comment pointed at is no longer on the panel, so it sits where it was placed."
 
+const detachedText =
+  "The text this comment pointed at is no longer in this block, so it is set apart in the corner."
+
+function goneTextOf(anchor: Anchor): string {
+  return anchor.kind === "text" ? detachedText : goneText
+}
+
 export type PanelPin = {
   entry: ThreadWithMessages
   anchor: Anchor
@@ -53,12 +58,12 @@ export type PanelPin = {
 
 export function panelPins(
   threads: readonly ThreadWithMessages[],
-  panelId: string,
+  onSurface: (thread: ThreadWithMessages["thread"]) => boolean,
   place: (anchor: Anchor) => PinPlacement | null
 ): PanelPin[] {
   return threads.flatMap((entry) => {
-    const { anchor, panel_id: onPanel } = entry.thread
-    if (anchor === null || onPanel !== panelId) return []
+    const { anchor } = entry.thread
+    if (anchor === null || !onSurface(entry.thread)) return []
     if (entry.messages.length === 0) return []
     const placement = place(anchor)
     return placement === null ? [] : [{ entry, anchor, placement }]
@@ -94,27 +99,33 @@ export function pinLabel(pin: PanelPin): string {
   const excerpt = plainText(plainTitle(root.body)).slice(0, 80)
   const parts = [`Comment by ${root.actor.label}: ${excerpt}`]
   if (pin.entry.thread.status === "resolved") parts.push("resolved")
-  if (pin.placement.gone) parts.push("its data is no longer on the panel")
+  if (pin.placement.gone) {
+    parts.push(
+      pin.anchor.kind === "text"
+        ? "its text is no longer in the block"
+        : "its data is no longer on the panel"
+    )
+  }
   return parts.join(", ")
 }
 
 function PinThread({
   pin,
-  dashboardId,
+  subject,
   panelTitle,
   gateInput,
 }: {
   pin: PanelPin
-  dashboardId: string
+  subject: CanvasSubject
   panelTitle: string
   gateInput: GateInput
 }) {
   const { thread, messages } = pin.entry
-  const target = `dashboard:${dashboardId}`
+  const target = threadTargetOf(subject)
   const people = threadParticipants(messages.map((message) => message.actor))
   const canReply = thread.allowed_actions.includes("reply")
   const model = useComposer({
-    subject: { kind: "dashboard", id: dashboardId },
+    subject,
     place: threadPlace(thread.id, thread),
     gate: gateInput,
     people,
@@ -124,7 +135,9 @@ function PinThread({
   return (
     <div className="flex max-h-[min(32rem,70vh)] flex-col gap-2 overflow-y-auto">
       {pin.placement.gone ? (
-        <p className="text-xs text-muted-foreground">{goneText}</p>
+        <p className="text-xs text-muted-foreground">
+          {goneTextOf(pin.anchor)}
+        </p>
       ) : null}
       <ThreadView
         entry={pin.entry}
@@ -148,7 +161,7 @@ function PinThread({
 }
 
 type PinProps = {
-  dashboardId: string
+  subject: CanvasSubject
   panelTitle: string
   gateInput: GateInput
   onOpen: (anchor: Anchor) => void
@@ -156,7 +169,7 @@ type PinProps = {
 
 function Pin({
   pin,
-  dashboardId,
+  subject,
   panelTitle,
   gateInput,
   onOpen,
@@ -180,7 +193,7 @@ function Pin({
     >
       <PopoverPrimitive.Trigger
         aria-label={label}
-        title={pin.placement.gone ? goneText : undefined}
+        title={pin.placement.gone ? goneTextOf(pin.anchor) : undefined}
         data-pin={id}
         data-resolved={resolved ? "" : undefined}
         data-gone={pin.placement.gone ? "" : undefined}
@@ -200,7 +213,7 @@ function Pin({
       <PinPopup label={`Thread on ${panelTitle}`}>
         <PinThread
           pin={pin}
-          dashboardId={dashboardId}
+          subject={subject}
           panelTitle={panelTitle}
           gateInput={gateInput}
         />
@@ -257,7 +270,7 @@ export function PinPopup({
 
 function StackedPins({
   stack,
-  dashboardId,
+  subject,
   panelTitle,
   gateInput,
   onOpen,
@@ -350,7 +363,7 @@ function StackedPins({
             </Button>
             <PinThread
               pin={shown}
-              dashboardId={dashboardId}
+              subject={subject}
               panelTitle={panelTitle}
               gateInput={gateInput}
             />
@@ -362,38 +375,38 @@ function StackedPins({
 }
 
 type Props = {
-  dashboardId: string
-  panelId: string
+  subject: CanvasSubject
+  ownerId: string
   panelTitle: string
-  store: AnchorLayoutStore
+  surface: CanvasSurface
   body: Size
   view: PinView
   gateInput: GateInput
 }
 
 export function CanvasPins({
-  dashboardId,
-  panelId,
+  subject,
+  ownerId,
   panelTitle,
-  store,
+  surface,
   body,
   view,
   gateInput,
 }: Props) {
-  const { threads } = useThreads(`dashboard:${dashboardId}`)
-  const published = usePublished(store)
-  const module = useAnchorsModule(published?.type ?? null)
+  const { threads } = useThreads(threadTargetOf(subject))
   const stacks = useMemo(
     () =>
       stackPins(
-        panelPins(threads, panelId, (anchor) =>
-          placePin(anchor, body, { module, published }, view)
+        panelPins(
+          threads,
+          (thread) => sitsOn(subject, ownerId, thread),
+          (anchor) => placePin(anchor, body, surface, view)
         )
       ),
-    [threads, panelId, body, module, published, view]
+    [threads, subject, ownerId, body, surface, view]
   )
   const onOpen = (anchor: Anchor) => {
-    revealAnchor({ module, published }, anchor)
+    revealAnchor(surface, anchor)
   }
   if (stacks.length === 0) return null
   return (
@@ -403,7 +416,7 @@ export function CanvasPins({
           <Pin
             key={stack.pins[0].entry.thread.id}
             pin={stack.pins[0]}
-            dashboardId={dashboardId}
+            subject={subject}
             panelTitle={panelTitle}
             gateInput={gateInput}
             onOpen={onOpen}
@@ -412,7 +425,7 @@ export function CanvasPins({
           <StackedPins
             key={stack.pins[0].entry.thread.id}
             stack={stack}
-            dashboardId={dashboardId}
+            subject={subject}
             panelTitle={panelTitle}
             gateInput={gateInput}
             onOpen={onOpen}

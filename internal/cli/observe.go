@@ -366,10 +366,10 @@ func printRequest(out *output, req agentRequest) {
 }
 
 func pointedFields(req agentRequest) [][2]string {
-	if req.Anchor == nil {
-		return nil
+	var fields [][2]string
+	if req.Anchor != nil {
+		fields = append(fields, [2]string{"Points at", anchorText(req.Anchor)})
 	}
-	fields := [][2]string{{"Points at", anchorText(req.Anchor)}}
 	if req.BlockID != nil {
 		fields = append(fields, [2]string{"On block", text(*req.BlockID)})
 	}

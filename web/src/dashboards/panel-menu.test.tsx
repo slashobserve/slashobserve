@@ -164,7 +164,7 @@ describe("PanelMenu", () => {
     finishExit()
     await waitFor(() =>
       expect(useCanvasTool.getState().draft).toMatchObject({
-        panelId: panel.id,
+        ownerId: panel.id,
         tool: "comment",
         anchor: null,
       })
@@ -173,6 +173,66 @@ describe("PanelMenu", () => {
       screen.getByRole("textbox", { name: "Comment or request" })
     ).not.toHaveFocus()
     useCanvasTool.getState().close()
+  })
+
+  it("opens the canvas composer on the whole block of an observation on the canvas", async () => {
+    const { user } = renderWithProviders(
+      <PanelMenu
+        panel={panel}
+        range={dashboardRange}
+        selections={{}}
+        tableView={false}
+        onToggleTableView={() => {}}
+        idle
+        viewing={false}
+        onCanvas
+        ownerId="b1"
+        canComment
+        canEdit={false}
+        canPropose={false}
+        composerRef={createRef<HTMLTextAreaElement>()}
+        block={{ actions: [] }}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    expect(
+      await screen.findByRole("button", { name: "Comment on Checkout latency" })
+    ).toBeInTheDocument()
+    await chooseComment(user)
+    expect(useCanvasTool.getState().draft).toMatchObject({
+      ownerId: "b1",
+      tool: "comment",
+      anchor: null,
+    })
+    useCanvasTool.getState().close()
+  })
+
+  it("offers no Comment on an observation block off the canvas", async () => {
+    const { user } = renderWithProviders(
+      <PanelMenu
+        panel={panel}
+        range={dashboardRange}
+        selections={{}}
+        tableView={false}
+        onToggleTableView={() => {}}
+        idle
+        viewing={false}
+        onCanvas={false}
+        canComment
+        canEdit={false}
+        canPropose={false}
+        composerRef={createRef<HTMLTextAreaElement>()}
+        block={{ actions: [] }}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    await openMenu(user, "Checkout latency")
+    expect(
+      screen.queryByRole("menuitem", { name: /Comment/ })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Comment on Checkout latency" })
+    ).not.toBeInTheDocument()
   })
 
   it("leaves focus where the person clicked when the menu finishes closing after they moved on", async () => {

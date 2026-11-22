@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -23,6 +24,7 @@ import type { Anchor, Point, Rect } from "@/panels/anchors"
 import { useAnchorsModule, usePublished } from "@/panels/anchor-layout"
 import type { AnchorLayoutStore } from "@/panels/anchor-layout"
 
+import { spotTarget, type CanvasSubject } from "./canvas-host"
 import {
   dragAnchor,
   outlineOf,
@@ -66,12 +68,11 @@ export function useCanvasGate(
     select: (search: Record<string, unknown>) =>
       validateDashboardSearch(search).version !== undefined,
   })
-  return {
-    canComment,
-    agentAvailable: useAgentInfo().data?.available,
-    pinned,
-    layoutEditing,
-  }
+  const agentAvailable = useAgentInfo().data?.available
+  return useMemo(
+    () => ({ canComment, agentAvailable, pinned, layoutEditing }),
+    [canComment, agentAvailable, pinned, layoutEditing]
+  )
 }
 
 function spotAnchor(surface: HTMLElement | null, at: Point | null) {
@@ -164,7 +165,7 @@ const commentLabel = "Comment on the canvas"
 const commentPlaceholder = "Write a comment"
 
 type ComposerProps = {
-  dashboardId: string
+  subject: CanvasSubject
   panelTitle: string
   draft: CanvasDraft
   surfaceRef: RefObject<HTMLElement | null>
@@ -172,7 +173,7 @@ type ComposerProps = {
 }
 
 export function CanvasComposer({
-  dashboardId,
+  subject,
   panelTitle,
   draft,
   surfaceRef,
@@ -183,12 +184,9 @@ export function CanvasComposer({
   const setText = useCanvasTool((state) => state.setText)
   const model = useComposer({
     draft: { value: text, onChange: setText },
-    subject: { kind: "dashboard", id: dashboardId },
+    subject,
     place: { kind: "canvas", tool: "comment" },
-    target: {
-      panelId: draft.panelId,
-      ...(draft.anchor === null ? {} : { anchor: draft.anchor }),
-    },
+    target: spotTarget(subject, draft.ownerId, draft.anchor),
     gate,
     onSent: (sent) => {
       if (sent.via === "thread") posted(sent.sent.thread.id)
@@ -206,7 +204,7 @@ export function CanvasComposer({
         const store = useCanvasTool.getState()
         if (store.draft !== draft) return
         if (keepsTyping(reason, store.text)) return
-        store.close()
+        store.leave("close")
       }}
     >
       <Composer
@@ -234,17 +232,17 @@ type LayerProps = {
   surfaceRef: RefObject<HTMLElement | null>
   store: AnchorLayoutStore
   surfaceId: string
-  panelId: string
+  ownerId: string
   tool: CanvasDraft["tool"]
   body: { width: number; height: number }
   shownRange: { from: string; to: string }
   wholePanel?: boolean
 }
 
-function useSurface(store: AnchorLayoutStore): CanvasSurface {
+export function useCanvasSurface(store: AnchorLayoutStore): CanvasSurface {
   const published = usePublished(store)
   const module = useAnchorsModule(published?.type ?? null)
-  return { module, published }
+  return useMemo(() => ({ module, published }), [module, published])
 }
 
 function pointIn(element: HTMLElement, event: PointerEvent): Point {
@@ -267,13 +265,13 @@ export function CanvasLayer({
   surfaceRef,
   store,
   surfaceId,
-  panelId,
+  ownerId,
   tool,
   body,
   shownRange,
   wholePanel = false,
 }: LayerProps) {
-  const surface = useSurface(store)
+  const surface = useCanvasSurface(store)
   const [hover, setHover] = useState<Hover>(null)
   const current = useRef({ surface, body, shownRange, wholePanel })
   useLayoutEffect(() => {
@@ -356,7 +354,7 @@ export function CanvasLayer({
         setHover(null)
       }
       useCanvasTool.getState().openDraft({
-        panelId,
+        ownerId,
         tool,
         anchor: range ?? anchor,
         at: range === null ? at : end,
@@ -379,7 +377,7 @@ export function CanvasLayer({
       event.preventDefault()
       event.stopPropagation()
       useCanvasTool.getState().openDraft({
-        panelId,
+        ownerId,
         tool,
         anchor: null,
         at: null,
@@ -402,7 +400,7 @@ export function CanvasLayer({
       container.removeEventListener("click", onClick, true)
       container.removeEventListener("keydown", onKey, true)
     }
-  }, [containerRef, surfaceRef, current, panelId, tool, surfaceId])
+  }, [containerRef, surfaceRef, current, ownerId, tool, surfaceId])
 
   return (
     <div

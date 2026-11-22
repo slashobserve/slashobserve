@@ -12,6 +12,7 @@ import {
   spotTurnIds,
   type PinTurn,
 } from "./ask-spot"
+import { sitsOn } from "./canvas-host"
 
 const row: Anchor = {
   kind: "row",
@@ -41,9 +42,12 @@ function turn(
 ): PinTurn & { retried_by: string | null } {
   return {
     retried_by: null,
+    observation_id: null,
+    trigger: "person",
     prompt: "Why is payments slow?",
     chat_id: "c1",
     panel_id: "p1",
+    block_id: null,
     anchor: row,
     requested_by: { id: "me", kind: "user", name: "Me" },
     created_at: "2026-11-21T14:31:00Z",
@@ -58,6 +62,9 @@ describe("spotKey", () => {
   })
 })
 
+const onP1 = (row: PinTurn) =>
+  sitsOn({ kind: "dashboard", id: "d1" }, "p1", row)
+
 describe("privatePins", () => {
   it("draws one pin per spot of the viewer's own chat turns on the panel", () => {
     const pins = privatePins(
@@ -66,7 +73,7 @@ describe("privatePins", () => {
         turn({ id: "r1" }),
         turn({ id: "r3", anchor: point }),
       ],
-      "p1",
+      onP1,
       "me"
     )
     expect(pins).toEqual([
@@ -84,7 +91,7 @@ describe("privatePins", () => {
             requested_by: { id: "other", kind: "user", name: "Other" },
           }),
         ],
-        "p1",
+        onP1,
         "me"
       )
     ).toEqual([])
@@ -98,17 +105,32 @@ describe("privatePins", () => {
           turn({ id: "r3", panel_id: "p2" }),
           turn({ id: "r4", chat_id: null }),
         ],
-        "p1",
+        onP1,
         "me"
       )
     ).toEqual([])
+  })
+
+  it("draws the turns on one block of an observation", () => {
+    const onBlock = (row: PinTurn) =>
+      sitsOn({ kind: "observation", id: "o1" }, "b1", row)
+    expect(
+      privatePins(
+        [
+          turn({ id: "r1", panel_id: null, block_id: "b1" }),
+          turn({ id: "r2", panel_id: null, block_id: "b2" }),
+        ],
+        onBlock,
+        "me"
+      )
+    ).toEqual([expect.objectContaining({ requestId: "r1" })])
   })
 
   it("keeps the same spot in two chats as two pins", () => {
     expect(
       privatePins(
         [turn({ id: "r1" }), turn({ id: "r2", chat_id: "c2" })],
-        "p1",
+        onP1,
         "me"
       )
     ).toHaveLength(2)

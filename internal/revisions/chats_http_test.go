@@ -173,7 +173,7 @@ func TestTwoSendsWithOneClientIDAtOnceQueueOneRequest(t *testing.T) {
 	}
 }
 
-func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
+func TestAPointedTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 	r := newObservationRig(t)
 	router := observeRouterAs(r.svc, user)
 	first := investigate(t, r.svc, revisions.InvestigateParams{Prompt: "why are checkout errors up"})
@@ -185,7 +185,6 @@ func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 
 	for name, body := range map[string]string{
 		"anchor without a subject":      `{"prompt":"here?",` + spot + `}`,
-		"block without an anchor":       `{"prompt":"here?","kind":"investigate",` + observation + `,"block_id":"` + block + `"}`,
 		"block without an observation":  `{"prompt":"here?","kind":"investigate","dashboard_id":"` + seedDashboard(t, r.d, 1).String() + `",` + spot + `,"block_id":"` + block + `"}`,
 		"anchor that breaks its shape":  `{"prompt":"here?","kind":"investigate",` + observation + `,"anchor":{"kind":"position","pos":{"x":2,"y":0.5}}}`,
 		"block id that is not an id":    `{"prompt":"here?","kind":"investigate",` + observation + `,` + spot + `,"block_id":"nope"}`,
@@ -218,6 +217,18 @@ func TestAnAnchoredTurnNeedsItsSubjectAndABlockOfThatObservation(t *testing.T) {
 	turns := r.d.AuditEvents(t, "chat.turn")
 	if len(turns) != 1 || turns[0].Data["anchor_kind"] != "position" || turns[0].Data["body_length"] != float64(len("what happened here?")) {
 		t.Fatalf("chat.turn events = %+v, want one with anchor_kind position and body_length 19", turns)
+	}
+
+	if rec := call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"and this one?","kind":"ask",`+observation+`,"block_id":"`+otherBlock+`"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("whole block of another observation: %d %s", rec.Code, rec.Body)
+	}
+	rec = call(router, http.MethodPost, "/api/v1/observe", `{"prompt":"what is this block about?","kind":"ask",`+observation+`,"block_id":"`+block+`"}`)
+	if rec.Code != http.StatusAccepted || json.Unmarshal(rec.Body.Bytes(), &created) != nil {
+		t.Fatalf("whole block ask: %d %s", rec.Code, rec.Body)
+	}
+	var noAnchor bool
+	if err := r.d.SQLDB(t).QueryRowContext(t.Context(), `SELECT anchor IS NULL, block_id::text FROM agent_requests WHERE id = $1::uuid`, created.Request.ID).Scan(&noAnchor, &stored); err != nil || !noAnchor || stored != block {
+		t.Fatalf("whole block turn stored no anchor %v on %q, want none on %s (%v)", noAnchor, stored, block, err)
 	}
 }
 

@@ -39,7 +39,7 @@ function renderLayer(
         surfaceRef={surfaceRef as RefObject<HTMLElement | null>}
         store={store}
         surfaceId="s1"
-        panelId="p1"
+        ownerId="p1"
         tool={tool}
         body={body}
         shownRange={{ from: "now-1h", to: "now" }}
@@ -77,7 +77,7 @@ describe("CanvasLayer", () => {
       fireEvent.pointerUp(plot, { button: 0, clientX: 101, clientY: 50 })
     })
     expect(useCanvasTool.getState().draft).toMatchObject({
-      panelId: "p1",
+      ownerId: "p1",
       at: { x: 100, y: 50 },
       surface: "s1",
       anchor: { kind: "time", window: { from: "now-1h", to: "now" } },
@@ -206,7 +206,7 @@ describe("CanvasLayer", () => {
       fireEvent.pointerUp(plot, { button: 0, clientX: 101, clientY: 50 })
     })
     expect(useCanvasTool.getState().draft).toMatchObject({
-      panelId: "p1",
+      ownerId: "p1",
       anchor: null,
       at: { x: 100, y: 50 },
     })
@@ -228,7 +228,7 @@ describe("CanvasLayer", () => {
     })
     expect(useCanvasTool.getState().draft).toMatchObject({
       tool: "ask",
-      panelId: "p1",
+      ownerId: "p1",
       anchor: null,
     })
   })

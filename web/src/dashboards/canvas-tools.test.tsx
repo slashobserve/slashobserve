@@ -16,7 +16,7 @@ import {
 } from "./canvas-tools"
 
 const draft: CanvasDraft = {
-  panelId: "p1",
+  ownerId: "p1",
   tool: "comment",
   anchor: { kind: "position", pos: { x: 0.5, y: 0.5 } },
   at: { x: 40, y: 20 },
@@ -31,6 +31,8 @@ beforeEach(() => {
     openTurn: null,
     postedThreadId: null,
     text: "",
+    leaving: null,
+    detached: null,
   })
 })
 
@@ -137,7 +139,7 @@ describe("useCanvasTool", () => {
     const turn = {
       requestId: "r1",
       chatId: "c1",
-      panelId: "p1",
+      ownerId: "p1",
       anchor: draft.anchor,
       at: draft.at,
       surface: "s1",
@@ -171,7 +173,7 @@ describe("useCanvasTool", () => {
   it("opens a key draft on the whole panel with no spot", () => {
     openKeyDraft("p2", "ask")
     expect(useCanvasTool.getState().draft).toEqual({
-      panelId: "p2",
+      ownerId: "p2",
       tool: "ask",
       anchor: null,
       at: null,
@@ -201,6 +203,56 @@ async function renderTools(
   )
   await screen.findByText("page")
 }
+
+describe("leaving with typed text", () => {
+  it("asks before a tool change or a close drops the text, and moves on once discarded", () => {
+    useCanvasTool.setState({ tool: "comment" })
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("Which deploy?")
+    useCanvasTool.getState().leave("select")
+    expect(useCanvasTool.getState()).toMatchObject({
+      tool: "comment",
+      leaving: "select",
+      text: "Which deploy?",
+    })
+    useCanvasTool.getState().keepTyping()
+    expect(useCanvasTool.getState().leaving).toBeNull()
+    useCanvasTool.getState().leave("close")
+    useCanvasTool.getState().discard()
+    expect(useCanvasTool.getState()).toMatchObject({
+      tool: "comment",
+      draft: null,
+      text: "",
+      leaving: null,
+    })
+  })
+
+  it("leaves at once when nothing is typed", () => {
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().leave("ask")
+    expect(useCanvasTool.getState()).toMatchObject({
+      tool: "ask",
+      draft: null,
+      leaving: null,
+    })
+  })
+
+  it("sets a typed draft apart so the canvas is free again", () => {
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("Which deploy?")
+    useCanvasTool.getState().detach()
+    expect(useCanvasTool.getState()).toMatchObject({
+      draft: null,
+      text: "",
+      detached: { tool: "comment", text: "Which deploy?" },
+    })
+    const other = { ...draft, ownerId: "p2" }
+    useCanvasTool.getState().openDraft(other)
+    expect(useCanvasTool.getState().draft).toBe(other)
+    useCanvasTool.getState().dropDetached()
+    expect(useCanvasTool.getState().detached).toBeNull()
+  })
+})
 
 describe("activeTool", () => {
   const may = { comment: true, ask: true, idle: true }
@@ -282,6 +334,23 @@ describe("CanvasTools", () => {
     expect(screen.getByRole("status")).toHaveTextContent(askModeText)
     await user.click(screen.getByRole("button", { name: "Select" }))
     expect(screen.getByRole("toolbar")).toHaveAttribute("data-tool", "select")
+  })
+
+  it("asks before Select drops a typed draft", async () => {
+    const user = userEvent.setup()
+    useCanvasTool.setState({ tool: "comment" })
+    useCanvasTool.getState().openDraft(draft)
+    useCanvasTool.getState().setText("Which deploy?")
+    await renderTools({ comment: true, edit: false }, false)
+    await user.click(screen.getByRole("button", { name: "Select" }))
+    expect(
+      await screen.findByRole("alertdialog", { name: "Discard your draft?" })
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Keep editing" }))
+    expect(useCanvasTool.getState()).toMatchObject({
+      tool: "comment",
+      text: "Which deploy?",
+    })
   })
 
   it("shows Select while the layout is being edited, with Ask turned off", async () => {

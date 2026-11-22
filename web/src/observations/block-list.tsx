@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { CanvasHostProvider } from "@/comments/canvas-host"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,6 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { CanvasTools } from "@/dashboards/canvas-tools"
+import { HeldDraft } from "@/dashboards/held-draft"
 import { dashboardLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 
@@ -43,10 +46,16 @@ import {
   type Block,
   type Observation,
 } from "./queries"
+import {
+  observationModeTexts,
+  takesBlockComments,
+  useObservationCanvas,
+} from "./observation-canvas"
 import { RemoveBlockDialog } from "./remove-block-dialog"
 import { RequestedBlock } from "./requested-block"
 import { TextBlock } from "./text-block"
 import { useArrange, type Arrange } from "./use-arrange"
+import { WholeBlockCanvas } from "./whole-block-canvas"
 
 export type Reveal = { id: string; focus: boolean }
 
@@ -54,6 +63,7 @@ type Props = {
   observation: Observation
   blocks: readonly Block[]
   canAdd: boolean
+  canComment: boolean
   reveal: Reveal | null
   onRevealed: () => void
   onAdded: (blockId: string) => void
@@ -228,25 +238,33 @@ function BlockMenu({
 function BlockBody({
   block,
   blocks,
+  onCanvas,
 }: {
   block: Block
   blocks: readonly Block[]
+  onCanvas: boolean
 }): ReactNode {
   const height = blockHeight(block)
   switch (block.kind) {
     case "text":
-      return <TextBlock block={block} />
+      return <TextBlock block={block} onCanvas={onCanvas} />
     case "panel":
-      return <PanelBlock block={block} height={height} />
+      return <PanelBlock block={block} height={height} onCanvas={onCanvas} />
     case "snapshot":
-      return <SnapshotBlock block={block} height={height} />
+      return (
+        <WholeBlockCanvas block={block} onCanvas={onCanvas}>
+          <SnapshotBlock block={block} height={height} />
+        </WholeBlockCanvas>
+      )
     case "run":
       return (
-        <RunBlock
-          block={block}
-          blocks={blocks}
-          onCite={(id) => focusBlock(id, true)}
-        />
+        <WholeBlockCanvas block={block} onCanvas={onCanvas}>
+          <RunBlock
+            block={block}
+            blocks={blocks}
+            onCite={(id) => focusBlock(id, true)}
+          />
+        </WholeBlockCanvas>
       )
   }
 }
@@ -257,6 +275,7 @@ function BlockSection({
   blocks,
   arrange,
   canAdd,
+  onCanvas,
   onAdded,
 }: {
   observation: Observation
@@ -264,17 +283,18 @@ function BlockSection({
   blocks: readonly Block[]
   arrange: Arrange | null
   canAdd: boolean
+  onCanvas: boolean
   onAdded: (blockId: string) => void
 }) {
   const nextId = nextBlockId(blocks, block.id)
-  const body = <BlockBody block={block} blocks={blocks} />
+  const body = <BlockBody block={block} blocks={blocks} onCanvas={onCanvas} />
   const dragged = arrange?.dragging?.id === block.id
   return (
     <section
       id={sectionId(block.id)}
       data-block-id={block.id}
       aria-label={blockTitle(block)}
-      tabIndex={-1}
+      tabIndex={onCanvas && block.kind !== "panel" ? 0 : -1}
       className={`group/block relative min-w-0 rounded-card outline-none focus-visible:ring-2 focus-visible:ring-ring ${spanClass[block.width]} ${dragged ? "opacity-60" : ""}`}
     >
       {arrange === null ? null : (
@@ -312,6 +332,7 @@ export function BlockList({
   observation,
   blocks,
   canAdd,
+  canComment,
   reveal,
   onRevealed,
   onAdded,
@@ -325,6 +346,12 @@ export function BlockList({
   const canArrange = observation.allowed_actions.includes("update")
   const arrange = canArrange ? arranging : null
   const shown = arrange === null ? blocks : arrange.blocks
+  const canvasHost = useObservationCanvas({
+    observationId: observation.id,
+    blocks,
+    canComment,
+    arranging: arranging.arranging,
+  })
 
   useEffect(() => {
     if (reveal === null) return
@@ -335,19 +362,22 @@ export function BlockList({
 
   if (blocks.length === 0) {
     return (
-      <p
-        id={blocksListId}
-        tabIndex={-1}
-        className="text-[13px] text-muted-foreground outline-none"
-      >
-        Nothing on this page yet. Add a block, or ask @observe in the
-        discussion.
-      </p>
+      <>
+        <p
+          id={blocksListId}
+          tabIndex={-1}
+          className="text-[13px] text-muted-foreground outline-none"
+        >
+          Nothing on this page yet. Add a block, or ask @observe in the
+          discussion.
+        </p>
+        <HeldDraft />
+      </>
     )
   }
 
   return (
-    <>
+    <CanvasHostProvider value={canvasHost}>
       <ol
         id={blocksListId}
         ref={listRef}
@@ -366,6 +396,7 @@ export function BlockList({
                   blocks={shown}
                   arrange={arrange}
                   canAdd={canAdd}
+                  onCanvas={takesBlockComments(block, canComment)}
                   onAdded={onAdded}
                 />
               ))}
@@ -374,6 +405,11 @@ export function BlockList({
         ))}
       </ol>
       {arrange === null ? null : <ArrangeAnnouncer arrange={arrange} />}
-    </>
+      <CanvasTools
+        permissions={{ comment: canComment, edit: false }}
+        idle={!arranging.arranging}
+        modeTexts={observationModeTexts}
+      />
+    </CanvasHostProvider>
   )
 }

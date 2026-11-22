@@ -87,6 +87,25 @@ describe("planSend into a chat", () => {
     })
   })
 
+  it("asks about a whole observation block", () => {
+    expect(
+      planSend(newChat, observation, privately, {
+        ...draft,
+        target: { blockId: "b1" },
+      })
+    ).toEqual({
+      via: "chat.turn",
+      input: {
+        prompt: "why",
+        clientId: "k1",
+        kind: "ask",
+        observationId: "o1",
+        blockId: "b1",
+      },
+      opens: "same",
+    })
+  })
+
   it("imports into a new chat even from an open one", () => {
     expect(
       planSend(openChat, dashboard, privately, { ...draft, command: "import" })

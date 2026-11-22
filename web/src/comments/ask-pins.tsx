@@ -7,13 +7,14 @@ import { useCanvasTool } from "@/dashboards/canvas-tools"
 import { cn } from "@/lib/utils"
 import { useMyRequests } from "@/observe/queries"
 import type { Point, Size } from "@/panels/anchors"
-import {
-  useAnchorsModule,
-  usePublished,
-  type AnchorLayoutStore,
-} from "@/panels/anchor-layout"
 
 import { pinName, privatePins, type PrivatePin } from "./ask-spot"
+import {
+  askedHere,
+  isPrivateAsk,
+  sitsOn,
+  type CanvasSubject,
+} from "./canvas-host"
 import {
   placePin,
   revealAnchor,
@@ -37,7 +38,7 @@ const askMarkerClass =
 type PlacedPin = { pin: PrivatePin; placement: PinPlacement }
 
 type Spot = {
-  panelId: string
+  ownerId: string
   panelTitle: string
   surfaceId: string
   surface: CanvasSurface
@@ -52,7 +53,7 @@ function openPin(spot: Spot, pin: PrivatePin, at: Point) {
   useCanvasTool.getState().showTurn({
     requestId: pin.requestId,
     chatId: pin.chatId,
-    panelId: spot.panelId,
+    ownerId: spot.ownerId,
     anchor: pin.anchor,
     at,
     surface: spot.surfaceId,
@@ -137,46 +138,47 @@ function AskPinStack({
 }
 
 type Props = {
-  dashboardId: string
-  panelId: string
+  subject: CanvasSubject
+  ownerId: string
   panelTitle: string
   surfaceId: string
-  store: AnchorLayoutStore
+  surface: CanvasSurface
   body: Size
   view: PinView
 }
 
 export function AskPins({
-  dashboardId,
-  panelId,
+  subject,
+  ownerId,
   panelTitle,
   surfaceId,
-  store,
+  surface,
   body,
   view,
 }: Props) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const { requests } = useMyRequests(
-    { dashboardId, anchored: true },
+    askedHere(subject),
     listedTurns,
     true,
     false
   )
-  const published = usePublished(store)
-  const module = useAnchorsModule(published?.type ?? null)
-  const surface = useMemo(() => ({ module, published }), [module, published])
   const stacks = useMemo(
     () =>
       stackPins(
-        privatePins(requests, panelId, principal.id).flatMap((pin) => {
+        privatePins(
+          requests,
+          (turn) => isPrivateAsk(turn) && sitsOn(subject, ownerId, turn),
+          principal.id
+        ).flatMap((pin) => {
           const placement = placePin(pin.anchor, body, surface, view)
           return placement === null ? [] : [{ pin, placement }]
         })
       ),
-    [requests, panelId, principal.id, body, surface, view]
+    [requests, subject, ownerId, principal.id, body, surface, view]
   )
   if (stacks.length === 0) return null
-  const spot: Spot = { panelId, panelTitle, surfaceId, surface }
+  const spot: Spot = { ownerId, panelTitle, surfaceId, surface }
   return (
     <div className="pointer-events-none absolute inset-0 z-20 print:hidden">
       {stacks.map((stack) =>
