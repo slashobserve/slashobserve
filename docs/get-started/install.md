@@ -4,7 +4,7 @@ description: Pull the image and run SlashObserve against your own Postgres, iden
 ---
 
 SlashObserve is under active development, and releases before 1.0 can include breaking changes.
-Each release lists them under "Breaking changes" in the [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md); read that part before you move to a newer version.
+A release that has any lists them under "Breaking changes" in the [changelog](https://github.com/slashobserve/slashobserve/blob/main/CHANGELOG.md); read that part before you move to a newer version.
 
 ## Deploy with Docker
 
