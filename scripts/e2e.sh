@@ -282,7 +282,7 @@ checkout_metrics_present() {
 shop_metrics_present() {
   prom_above 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" \
     && checkout_metrics_present \
-    && prom_positive 'sum(rate(traces_span_metrics_calls_total{service_name="frontend",span_kind="SPAN_KIND_SERVER"}[4m]))'
+    && prom_above 'max(count_over_time(traces_span_metrics_calls_total{service_name="frontend",span_kind="SPAN_KIND_SERVER"}[5m]))' 2
 }
 
 span_history_held() {
