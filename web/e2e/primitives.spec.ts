@@ -99,7 +99,7 @@ test("a focused multi-value variable control has a 2px ring", async ({
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
-  const input = page.getByRole("combobox", { name: "Pod" })
+  const input = page.getByRole("combobox", { name: "Service" })
   await expect(input).toBeEnabled()
   const chips = page
     .locator('[data-slot="combobox-chips"]')

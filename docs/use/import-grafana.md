@@ -459,7 +459,8 @@ A `timeField` on a query is editor state: Grafana copies the datasource's time f
 A query variable saved as `{"find": "terms", "field": <field>, "query": <lucene>}` becomes `label_values(lucene:<query>, <field>)`, or `label_values(<field>)` without a query, and its `size` is reported.
 A `{"find": "fields"}` variable is dropped and reported.
 A variable query in any other form keeps its saved values as a fixed list, and is dropped when it has none.
-An ad hoc variable on Elasticsearch or OpenSearch imports as on ClickHouse, with `applyToAll`, the operators `<` and `>`, the condition OR, and dotted field names as keys.
+An ad hoc variable on Elasticsearch or OpenSearch imports as on ClickHouse, with the operators `<` and `>`, the condition OR, and dotted field names as keys.
+It does not set `applyToAll`, because these datasources filter every query anyway.
 
 #### ClickHouse queries from the Altinity plugin
 

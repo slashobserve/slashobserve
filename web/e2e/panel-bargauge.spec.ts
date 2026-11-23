@@ -29,7 +29,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openDashboard(page, await createBars(request))
       await expectPanelsReady(page)
 
-      const bars = panel(page, "Pods horizontal")
+      const bars = panel(page, "Services horizontal")
       await expect(bars.getByRole("region")).toHaveAttribute(
         "data-orientation",
         "horizontal"

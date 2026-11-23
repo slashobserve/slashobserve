@@ -1,0 +1,50 @@
+exporters:
+  clickhouse:
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s
+    database: otel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: true
+    ttl: 72h
+    logs_table_name: otel_logs
+    traces_table_name: otel_traces
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 2s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      batch:
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+    sending_queue:
+      batch:
+  otlp_http/tempo:
+    endpoint: http://tempo:4318
+    sending_queue:
+      batch:
+  otlp_grpc/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+    sending_queue:
+      batch:
+  otlp_http/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+    tls:
+      insecure: true
+    sending_queue:
+      batch:
+
+service:
+  pipelines:
+    traces:
+      exporters: [span_metrics, otlp_grpc/jaeger, otlp_http/tempo, clickhouse]
+    metrics:
+      receivers: [docker_stats, http_check/frontend-proxy, host_metrics, nginx, otlp, redis, postgresql, prometheus/ad, span_metrics, kafkametrics]
+      exporters: [otlp_http/prometheus]
+    logs:
+      exporters: [otlp_http/loki, clickhouse]
+    profiles:
+      exporters: [debug]

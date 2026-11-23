@@ -11,7 +11,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "100 * (1 - sum(rate(http_requests_total{status!~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])))"
+          "query": "100 * (1 - sum(rate(traces_span_metrics_calls_total{status_code!=\"STATUS_CODE_ERROR\",span_kind=\"SPAN_KIND_SERVER\"}[5m])) / sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m])))"
         }
       ],
       "unit": "percent",
@@ -26,13 +26,13 @@
     {
       "id": "g_pods",
       "type": "gauge",
-      "title": "Requests by pod",
+      "title": "Requests by service",
       "gridPos": { "x": 8, "y": 0, "w": 16, "h": 8 },
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (pod) (rate(http_requests_total[5m]))",
-          "legend": "{{pod}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         }
       ],
       "unit": "reqps",

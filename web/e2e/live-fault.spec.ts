@@ -1,37 +1,122 @@
+import { execFileSync } from "node:child_process"
+import { join } from "node:path"
+
+import type { APIRequestContext } from "@playwright/test"
+
 import { createDashboard, loadSpec, uniqueTitle } from "./api"
 import { openDashboard, panel } from "./dashboards"
 import { expect, test } from "./fixtures"
 
-const shopUrl = `http://localhost:${process.env.SLASHOBSERVE_SHOP_HOST_PORT ?? "18081"}`
+const astronomyScript = join(
+  import.meta.dirname,
+  "..",
+  "..",
+  "scripts",
+  "astronomy.sh"
+)
+const e2eProject = process.env.SLASHOBSERVE_E2E_PROJECT ?? "slashobserve-e2e"
+const astronomyEnv = {
+  ...process.env,
+  ASTRONOMY_PROJECT: process.env.ASTRONOMY_PROJECT ?? e2eProject,
+  ASTRONOMY_STATE_DIR:
+    process.env.ASTRONOMY_STATE_DIR ??
+    join(
+      import.meta.dirname,
+      "..",
+      "..",
+      "deploy",
+      "astronomy",
+      ".state",
+      e2eProject
+    ),
+}
+const shopUrl = `http://localhost:${process.env.ASTRONOMY_SHOP_HOST_PORT ?? "18081"}`
+const faultFlag = "paymentFailure"
 
-const errorRateWindowDecayMs = 120_000
+const errorRateWindowDecayMs = 240_000
+const trafficIntervalMs = 3_000
 
-test.afterEach(async ({ request }) => {
-  await request.delete(`${shopUrl}/fault`).catch(() => undefined)
+function setFlag(variant: string) {
+  execFileSync(astronomyScript, ["flag", faultFlag, variant], {
+    env: astronomyEnv,
+    stdio: "pipe",
+  })
+}
+
+const checkoutBody = {
+  email: "e2e@example.com",
+  address: {
+    streetAddress: "1600 Amphitheatre Parkway",
+    zipCode: "94043",
+    city: "Mountain View",
+    state: "CA",
+    country: "United States",
+  },
+  userCurrency: "USD",
+  creditCard: {
+    creditCardNumber: "4432-8015-6152-0454",
+    creditCardExpirationMonth: 1,
+    creditCardExpirationYear: 2039,
+    creditCardCvv: 672,
+  },
+}
+
+function startTraffic(request: APIRequestContext) {
+  let running = true
+  const loop = (async () => {
+    while (running) {
+      const userId = `e2e-${Date.now()}`
+      await request
+        .post(`${shopUrl}/api/cart`, {
+          data: { item: { productId: "OLJCESPC7Z", quantity: 1 }, userId },
+          timeout: 30_000,
+        })
+        .catch(() => undefined)
+      await request
+        .post(`${shopUrl}/api/checkout`, {
+          data: { ...checkoutBody, userId },
+          timeout: 30_000,
+        })
+        .catch(() => undefined)
+      await new Promise((resolve) => setTimeout(resolve, trafficIntervalMs))
+    }
+  })()
+  return async () => {
+    running = false
+    await loop
+  }
+}
+
+test.afterEach(() => {
+  setFlag("off")
 })
 
 test("an injected fault turns the error rate critical", async ({
   page,
   request,
 }) => {
-  test.setTimeout(30_000 + errorRateWindowDecayMs + 90_000 + 30_000)
-  const spec = loadSpec("fault")
-  spec.title = uniqueTitle("E2E live fault")
-  const { id } = await createDashboard(request, spec)
-  await openDashboard(page, id)
+  test.setTimeout(30_000 + errorRateWindowDecayMs + 240_000 + 30_000)
+  const stopTraffic = startTraffic(request)
+  try {
+    const spec = loadSpec("fault")
+    spec.title = uniqueTitle("E2E live fault")
+    const { id } = await createDashboard(request, spec)
+    await openDashboard(page, id)
 
-  const article = panel(page, "checkout-0 error rate")
-  const tile = article.getByRole("group")
-  await expect(tile).toBeVisible({ timeout: 30_000 })
-  await expect(tile).toHaveAttribute("data-threshold", "base", {
-    timeout: errorRateWindowDecayMs,
-  })
+    const article = panel(page, "Payment error rate")
+    const tile = article.getByRole("group")
+    await expect(tile).toBeVisible({ timeout: 30_000 })
+    await expect(tile).toHaveAttribute("data-threshold", "base", {
+      timeout: errorRateWindowDecayMs,
+    })
 
-  const injected = await request.post(`${shopUrl}/fault?type=errors&pct=100`)
-  expect(injected.status()).toBe(200)
+    setFlag("100%")
 
-  await expect(tile).toHaveAttribute("data-threshold", "critical", {
-    timeout: 90_000,
-  })
-  await expect(article.getByText("Critical", { exact: true })).toBeVisible()
+    await expect(tile).toHaveAttribute("data-threshold", "critical", {
+      timeout: 240_000,
+    })
+    await expect(article.getByText("Critical", { exact: true })).toBeVisible()
+  } finally {
+    await stopTraffic()
+  }
 })

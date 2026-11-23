@@ -27,7 +27,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum(rate(http_requests_total[5m]))"
+          "query": "sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m]))"
         }
       ],
       "unit": "reqps"
@@ -42,7 +42,7 @@
         "w": 12,
         "h": 10
       },
-      "content": "# Runbook for ${env}\n\n- Check [the checkout docs](https://example.com/docs)\n- Open [the dashboards](/dashboards)\n- [bad link](javascript:alert(1))\n\n| Pod | Owner |\n| --- | --- |\n| checkout-0 | payments |\n\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n\n`code`"
+      "content": "# Runbook for ${env}\n\n- Check [the checkout docs](https://example.com/docs)\n- Open [the dashboards](/dashboards)\n- [bad link](javascript:alert(1))\n\n| Service | Owner |\n| --- | --- |\n| checkout | payments |\n\n<script>alert(1)</script>\n<img src=x onerror=alert(1)>\n\n`code`"
     },
     {
       "id": "ph_bar",

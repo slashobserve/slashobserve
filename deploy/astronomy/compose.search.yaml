@@ -1,0 +1,15 @@
+services:
+  otel-collector:
+    command:
+      - --config=/etc/otelcol-config.yml
+      - --config=/etc/otelcol-config-full.yml
+      - --config=/etc/otelcol-config-extras.yml
+      - --config=/etc/otelcol-config-search.yml
+      - --feature-gates=service.profilesSupport
+    volumes:
+      - ${ASTRONOMY_DIR:?}/otelcol/config.search.yaml:/etc/otelcol-config-search.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy

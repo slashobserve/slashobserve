@@ -7,8 +7,8 @@
           "name": "save_finding",
           "input": {
             "title": "Missing reads a metric that does not exist",
-            "markdown": "The Missing panel queries slashobserve_e2e_missing_metric_total, which Prometheus does not have, so it returns no data.\n\nsum(up) returns data from the same datasource.",
-            "suggested_change": "Point the Missing panel at sum(up)"
+            "markdown": "The Missing panel queries slashobserve_e2e_missing_metric_total, which Prometheus does not have, so it returns no data.\n\nsum(traces_span_metrics_calls_total) returns data from the same datasource.",
+            "suggested_change": "Point the Missing panel at sum(traces_span_metrics_calls_total)"
           }
         }
       ]

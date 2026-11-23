@@ -2,22 +2,21 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJECT="slashobserve-e2e"
+PROJECT="${SLASHOBSERVE_E2E_PROJECT:-slashobserve-e2e}"
 PORT="${SLASHOBSERVE_E2E_PORT:-18080}"
 BASE_URL="http://localhost:${PORT}"
 export SLASHOBSERVE_HOST_PORT="$PORT"
 DEX_PORT="${SLASHOBSERVE_E2E_DEX_PORT:-15556}"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_E2E_PROMETHEUS_PORT:-19090}"
-export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
-export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_E2E_LOKI_PORT:-13100}"
-export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_E2E_TEMPO_PORT:-13200}"
-export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.e2e.yaml
+export ASTRONOMY_SHOP_HOST_PORT="${SLASHOBSERVE_E2E_SHOP_PORT:-18081}"
 export SLASHOBSERVE_API_CONTRACT_CHECK=true
 export SLASHOBSERVE_LLM_PROVIDER=replay
-export SLASHOBSERVE_LOADGEN_CURVE=flat
 export SLASHOBSERVE_SERVICE_ACCOUNTS_FILE=
-export SLASHOBSERVE_DEMO_MARKERS_URL=
+export ASTRONOMY_PROJECT="$PROJECT"
+export ASTRONOMY_STATE_DIR="$ROOT/deploy/astronomy/.state/$PROJECT"
+export ASTRONOMY_COMPOSE_FILES="$ROOT/deploy/astronomy/compose.e2e.yaml"
+ASTRONOMY="$ROOT/scripts/astronomy.sh"
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -46,49 +45,47 @@ fail() {
   exit 1
 }
 
+PREBUILT=0
 if [[ -n "${SLASHOBSERVE_IMAGE:-}" ]]; then
-  BUILD_FLAGS=(--no-build --pull missing)
-  COMPOSE_FILES=(-f "$ROOT/deploy/compose/compose.yaml")
+  PREBUILT=1
+  ASTRONOMY_COMPOSE_FILES="$ASTRONOMY_COMPOSE_FILES:$ROOT/deploy/astronomy/compose.prebuilt.yaml"
 else
   export SLASHOBSERVE_IMAGE="slashobserve-e2e:local"
-  export SLASHOBSERVE_SHOP_IMAGE="slashobserve-e2e-shop:local"
-  BUILD_FLAGS=(--build)
-  COMPOSE_FILES=(-f "$ROOT/deploy/compose/compose.yaml" -f "$ROOT/deploy/compose/compose.build.yaml")
 fi
+BOOT_TIMEOUT=900
 
 usage() {
   cat <<EOF
 Usage: scripts/e2e.sh [run|warm|up|browser|down|logs]
 
-  warm     reset the isolated ${PROJECT} compose stack and start every service
-           except the server, without waiting for health, then return; 'run',
-           'up' and 'browser' adopt that stack within ${WARM_MAX_AGE}s instead of
-           resetting it, so Prometheus history and the shop accumulate while the
-           server image is built; it builds the shop image, or with a prebuilt
-           image needs SLASHOBSERVE_SHOP_IMAGE present or pullable, not the server image
+  warm     reset the isolated ${PROJECT} compose stack, which runs the Astronomy
+           Shop of deploy/astronomy, and start every service except the server,
+           without waiting for health, then return; 'run', 'up' and 'browser'
+           adopt that stack within ${WARM_MAX_AGE}s instead of resetting it, so
+           the shop's telemetry accumulates while the server image is built
   run      reset the isolated ${PROJECT} compose stack, boot it, and run the
            API smoke suite (default); the stack is left running
   up       adopt a warm stack, or reuse the running, healthy ${PROJECT} stack, or reset and boot one,
-           as soon as Prometheus has scraped every target and ClickHouse holds
-           logs and traces; reuse does not rebuild, so rerun 'run' after code
-           changes
+           as soon as Prometheus holds the shop's span metrics and ClickHouse
+           holds logs and traces; reuse does not rebuild, so rerun 'run' after
+           code changes
   browser  'up', then run the Playwright suite in web/e2e against it
   down     tear the stack down, including volumes
   logs     print the stack's container logs
 
 Environment:
+  SLASHOBSERVE_E2E_PROJECT          compose project of the e2e stack (default slashobserve-e2e)
   SLASHOBSERVE_E2E_PORT             host port of the e2e server (default 18080)
   SLASHOBSERVE_E2E_DEX_PORT         host port of the e2e Dex (default 15556)
   SLASHOBSERVE_E2E_PROMETHEUS_PORT  host port of the e2e Prometheus (default 19090)
-  SLASHOBSERVE_E2E_SHOP_PORT        host port of the e2e shop fault API (default 18081)
+  SLASHOBSERVE_E2E_SHOP_PORT        host port of the e2e shop, its Jaeger UI and its flag UI (default 18081)
   SLASHOBSERVE_IMAGE                run this prebuilt server image instead of building the checkout
-  SLASHOBSERVE_SHOP_IMAGE           the prebuilt demo shop image, required with SLASHOBSERVE_IMAGE
 
-Requirements: docker with compose v2.20+, curl, perl; 'browser' also needs bun and web dependencies.
+Requirements: docker with compose v2.24.4+, git, curl, jq, openssl, perl; 'browser' also needs bun and web dependencies.
 EOF
 }
 
-COMPOSE_CMD=(docker compose "${COMPOSE_FILES[@]}" -p "$PROJECT")
+COMPOSE_CMD=("$ASTRONOMY" compose)
 
 read -r -d '' BOUNDED_PERL <<'PERL' || true
 my $secs = shift @ARGV;
@@ -179,7 +176,9 @@ logs_into() {
 }
 
 PROM_URL="http://localhost:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}"
-SHOP_URL="http://localhost:${SLASHOBSERVE_SHOP_HOST_PORT}"
+SHOP_URL="http://localhost:${ASTRONOMY_SHOP_HOST_PORT}"
+FAULT_FLAG=paymentFailure
+FRONTEND_JOB=opentelemetry-demo/frontend
 FAULT_SET=0
 
 prom_query() {
@@ -222,10 +221,12 @@ capture_merged() {
 }
 
 above() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 > t + 0) }'; }
+at_least() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 >= t + 0) }'; }
 positive() { above "$1" 0; }
 prom_is() { capture LAST prom_scalar "$1" || true; [[ "$LAST" == "$2" ]]; }
 prom_positive() { prom_above "$1" 0; }
 prom_above() { capture LAST prom_scalar "$1" || true; above "$LAST" "$2"; }
+prom_at_least() { capture LAST prom_scalar "$1" || true; at_least "$LAST" "$2"; }
 ch_is() { capture LAST ch "$1" || true; [[ "$LAST" == "$2" ]]; }
 ch_positive() { capture LAST ch "$1" || true; positive "$LAST"; }
 
@@ -253,107 +254,59 @@ poll() {
 is_number() { [[ "$1" =~ ^[0-9.eE+-]+$ ]]; }
 in_band() { awk -v v="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(v ~ /^[0-9.eE+-]+$/ && v + 0 >= lo && v + 0 <= hi) }'; }
 
-RATE_BAND_LO=0.85
-RATE_BAND_HI=1.15
-P95_BAND_LO=0.95
-P95_BAND_HI=1.6
-BUSY_RPS=1.5
-
-junction_rate() { printf 'sum by (service, route, pod) (rate(http_requests_total{job="shop"}[1m]%s))' "$1"; }
-junction_p95() { printf 'histogram_quantile(0.95, sum by (le, service, route, pod) (rate(http_request_duration_seconds_bucket{job="shop"}[1m]%s)))' "$1"; }
-
-junction_inner() {
-  local series="$1" before_at="$2" probe_at="$3" agg="$4"
-  printf '%s_over_time(((%s / %s) and on (service, route, pod) (%s > %s))[2m:5s] @ %s)' \
-    "$agg" "$("$series" "")" "$("$series" " @ $before_at")" "$(junction_rate " @ $before_at")" "$BUSY_RPS" "$probe_at"
-}
-
-junction_extreme() {
-  printf '%s(%s)' "$4" "$(junction_inner "$@")"
-}
-
-prom_worst() {
-  prom_query "$1" || { echo "query failed"; return 0; }
-  sed -nE 's/.*"metric":\{([^}]*)\}.*"value":\[[^,]*,"([^"]*)"\].*/\1 = \2/p' "$TMP/prom.body" | tr -d '"' || true
-}
-
-junction_offenders() {
-  local before_at="$1" probe_at="$2" kind series lo hi agg pick worst value out=""
-  for kind in rate p95; do
-    series="junction_${kind}"
-    if [[ "$kind" == rate ]]; then lo="$RATE_BAND_LO"; hi="$RATE_BAND_HI"; else lo="$P95_BAND_LO"; hi="$P95_BAND_HI"; fi
-    for agg in min max; do
-      if [[ "$agg" == min ]]; then pick=bottomk; else pick=topk; fi
-      capture worst prom_worst "${pick}(1, $(junction_inner "$series" "$before_at" "$probe_at" "$agg"))" || true
-      value="${worst##* = }"
-      if ! in_band "$value" "$lo" "$hi"; then out+="; ${kind} ${agg}: ${worst:-no series}"; fi
-    done
-  done
-  printf '%s' "$out"
-}
-
-loadgen_dropped() {
-  local logs dropped
-  capture_merged logs compose_logs --tail 100 loadgen || true
-  dropped="$(printf '%s\n' "$logs" | sed -nE 's/.*"msg":"loadgen summary".*"dropped":([0-9]+).*/\1/p' | tail -1)"
-  printf '%s' "${dropped:-unknown}"
-}
-
-backfill_joins_live() {
-  local boot end before_at probe_at rate_min rate_max p95_min p95_max
-  capture boot prom_scalar 'process_start_time_seconds{job="prometheus"}' || true
-  [[ "$boot" =~ ^[0-9.]+$ ]] || return 1
-  capture end compose_exec prometheus cat /prometheus/backfill-end || true
-  [[ "$end" =~ ^[0-9]+$ ]] || return 1
-  before_at=$((end - 35))
-  probe_at=$((end + 90))
-  if (($(date +%s) < probe_at + 10)); then
-    LAST="waiting for the window ending $((probe_at + 10 - $(date +%s)))s from now"
-    return 1
-  fi
-  capture rate_min prom_scalar "$(junction_extreme junction_rate "$before_at" "$probe_at" min)" || true
-  capture rate_max prom_scalar "$(junction_extreme junction_rate "$before_at" "$probe_at" max)" || true
-  capture p95_min prom_scalar "$(junction_extreme junction_p95 "$before_at" "$probe_at" min)" || true
-  capture p95_max prom_scalar "$(junction_extreme junction_p95 "$before_at" "$probe_at" max)" || true
-  LAST="boot ${boot}, end ${end}: per-series request rate ratio [${rate_min}, ${rate_max}], p95 ratio [${p95_min}, ${p95_max}]"
-  if in_band "$rate_min" "$RATE_BAND_LO" "$RATE_BAND_HI" && in_band "$rate_max" "$RATE_BAND_LO" "$RATE_BAND_HI" \
-    && in_band "$p95_min" "$P95_BAND_LO" "$P95_BAND_HI" && in_band "$p95_max" "$P95_BAND_LO" "$P95_BAND_HI"; then
-    return 0
-  fi
-  local offenders
-  offenders="$(junction_offenders "$before_at" "$probe_at" | cut -c3-)"
-  LAST="${LAST}, out of band: ${offenders:-none on re-query}, loadgen dropped $(loadgen_dropped) requests as of its last summary"
-  if is_number "$rate_min" && is_number "$rate_max" && is_number "$p95_min" && is_number "$p95_max"; then
-    dump_logs 50
-    fail "backfilled request rate and p95 latency continue into live data (out of band once the window settled, last observed: '${LAST}')"
-  fi
-  return 1
-}
-
-targets_scraped() {
-  prom_is 'count(up{job=~"shop|prometheus|node|cadvisor|otel-collector"} == 1)' 8
-}
-
 logs_and_traces_present() {
   ch_is "SELECT (SELECT count() FROM otel.otel_logs) > 0 AND (SELECT count() FROM otel.otel_traces) > 0" 1
 }
 
-# A 24h panel steps 87s (internal/queryproxy StepFor) and a 1m rate needs a minute of samples, so a shorter history can leave no grid point with data.
-NODE_SCRAPE_SECONDS=15
-PROMETHEUS_HISTORY_MINUTES=3
+SHOP_SERVICES_MIN=10
+SPAN_HISTORY_MINUTES=4
+FAULT_WINDOW_MINUTES=2
 
-prometheus_history_held() {
-  prom_is "count_over_time(up{job=\"node\"}[${PROMETHEUS_HISTORY_MINUTES}m]) >= bool $((PROMETHEUS_HISTORY_MINUTES * 60 / NODE_SCRAPE_SECONDS))" 1
+shop_post() {
+  foreground command curl -s --max-time 30 -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL$1" -H 'content-type: application/json' -d "$2"
+}
+
+place_order() {
+  local user="e2e-$RANDOM$RANDOM" product=OLJCESPC7Z
+  shop_post /api/cart "{\"item\":{\"productId\":\"$product\",\"quantity\":1},\"userId\":\"$user\"}" >/dev/null || true
+  shop_post /api/checkout "{\"userId\":\"$user\",\"email\":\"e2e@example.com\",\"address\":{\"streetAddress\":\"1600 Amphitheatre Parkway\",\"zipCode\":\"94043\",\"city\":\"Mountain View\",\"state\":\"CA\",\"country\":\"United States\"},\"userCurrency\":\"USD\",\"creditCard\":{\"creditCardNumber\":\"4432-8015-6152-0454\",\"creditCardExpirationMonth\":1,\"creditCardExpirationYear\":2039,\"creditCardCvv\":672}}" || true
+}
+
+order_then() {
+  place_order >/dev/null
+  "$@"
+}
+
+checkout_metrics_present() {
+  if prom_positive 'count(traces_span_metrics_calls_total{service_name="checkout",span_name="oteldemo.CheckoutService/PlaceOrder"})'; then return 0; fi
+  place_order >/dev/null
+  return 1
+}
+
+service_exported_thrice() {
+  prom_above "max(count_over_time(traces_span_metrics_calls_total{service_name=\"$1\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))" 2
+}
+
+shop_metrics_present() {
+  prom_at_least 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" \
+    && checkout_metrics_present \
+    && service_exported_thrice frontend \
+    && service_exported_thrice checkout \
+    && service_exported_thrice payment
+}
+
+span_history_held() {
+  prom_above "max(count_over_time(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[${SPAN_HISTORY_MINUTES}m]))" $((SPAN_HISTORY_MINUTES - 1))
 }
 
 await_history() {
-  poll 240 "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history" prometheus_history_held
-  pass "Prometheus holds ${PROMETHEUS_HISTORY_MINUTES} minutes of history"
+  poll 300 "Prometheus holds ${SPAN_HISTORY_MINUTES} minutes of span metrics" span_history_held
+  pass "Prometheus holds ${SPAN_HISTORY_MINUTES} minutes of span metrics"
 }
 
 wait_for_data() {
-  poll 180 "Prometheus scraped all targets" targets_scraped
-  pass "Prometheus scraped all targets"
+  poll 300 "Prometheus holds the shop's span metrics" shop_metrics_present
+  pass "Prometheus holds the shop's span metrics"
   poll 180 "ClickHouse has log and trace rows" logs_and_traces_present
   pass "ClickHouse has log and trace rows"
 }
@@ -395,14 +348,23 @@ warm_services() {
   grep -vx server <<<"$names"
 }
 
+prepare_stack() {
+  grouped "$ASTRONOMY" prepare || fail "the Astronomy Shop files could not be prepared"
+  "$ASTRONOMY" flag "$FAULT_FLAG" off >/dev/null 2>&1 || true
+}
+
+stop_stack() {
+  grouped "$ASTRONOMY" down --volumes >/dev/null 2>&1 || true
+}
+
 warm() {
   local services=()
-  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
   printf 'pending %s\n' "$$" >"$WARM_MARKER"
-  grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  stop_stack
+  prepare_stack
   mapfile -t services < <(warm_services)
   ((${#services[@]} > 0)) || { rm -f "$WARM_MARKER"; fail "docker compose config listed no services"; }
-  if ! grouped "${COMPOSE_CMD[@]}" up -d "${BUILD_FLAGS[@]}" "${services[@]}"; then
+  if ! grouped "${COMPOSE_CMD[@]}" up -d --no-build "${services[@]}"; then
     rm -f "$WARM_MARKER"
     dump_logs 200
     fail "the warm services did not start"
@@ -412,13 +374,17 @@ warm() {
 }
 
 boot() {
-  [[ -n "${SLASHOBSERVE_SHOP_IMAGE:-}" ]] || fail "SLASHOBSERVE_SHOP_IMAGE must be set with SLASHOBSERVE_IMAGE"
   if take_warm; then
     echo "Adopting the warm $PROJECT stack"
+    prepare_stack
   else
-    grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+    stop_stack
+    prepare_stack
   fi
-  if ! grouped "${COMPOSE_CMD[@]}" up -d "${BUILD_FLAGS[@]}" --wait --wait-timeout 300; then
+  if ((PREBUILT == 0)); then
+    grouped "${COMPOSE_CMD[@]}" build server || fail "the server image did not build"
+  fi
+  if ! grouped "${COMPOSE_CMD[@]}" up -d --no-build --remove-orphans --wait --wait-timeout "$BOOT_TIMEOUT"; then
     dump_logs 200
     fail "stack did not become healthy"
   fi
@@ -430,8 +396,8 @@ boot() {
 }
 
 TMP=""
-LOCK_FILE=/tmp/slashobserve-e2e-run.lock
-WARM_MARKER=/tmp/slashobserve-e2e-warm
+LOCK_FILE="/tmp/${PROJECT}-run.lock"
+WARM_MARKER="/tmp/${PROJECT}-warm"
 WARM_MAX_AGE=1800
 WARM_WAIT=600
 ORPHANED_LOCK_WAIT=60
@@ -506,7 +472,7 @@ cleanup() {
     wait "$CHILD_PID" 2>/dev/null || true
   fi
   release_claim_lock
-  if [[ "$FAULT_SET" == 1 ]]; then command curl -s --max-time 5 -X DELETE "$SHOP_URL/fault" >/dev/null 2>&1 || true; fi
+  if [[ "$FAULT_SET" == 1 ]]; then "$ASTRONOMY" flag "$FAULT_FLAG" off >/dev/null 2>&1 || true; fi
   if [[ -n "$TMP" ]]; then rm -rf "$TMP"; fi
 }
 trap cleanup EXIT
@@ -1135,54 +1101,6 @@ expect_import_error() {
   fi
 }
 
-demo_shop_panels_without_data() {
-  python3 -I - "$ROOT/pkg/grafana/testdata/corpus/slashobserve/demo-shop.json" "$PROM_URL" <<'PY'
-import json, re, sys, time, urllib.parse, urllib.request
-
-UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-
-def walk(panels):
-    for p in panels:
-        yield p
-        yield from walk(p.get("panels", []))
-
-def seconds(text):
-    amount, unit = re.fullmatch(r"(\d+)([smhd])", text).groups()
-    return int(amount) * UNITS[unit]
-
-def has_data(expr, start, end, step):
-    if step:
-        start, end = start // step * step, end // step * step
-        end = max(end, start + step)
-    query = urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": step or 60})
-    with urllib.request.urlopen(f"{sys.argv[2]}/api/v1/query_range?{query}", timeout=10) as resp:
-        return bool(json.load(resp)["data"]["result"])
-
-dashboard = json.load(open(sys.argv[1]))
-span = seconds(dashboard["time"]["from"].removeprefix("now-"))
-end = int(time.time())
-variables = [v["name"] for v in dashboard["templating"]["list"]]
-
-def resolve(expr):
-    expr = expr.replace("$__rate_interval", "1m").replace("$__range", f"{span}s")
-    for name in variables:
-        expr = re.sub(rf"\${name}\b", ".+", expr)
-    return expr
-
-for panel in walk(dashboard["panels"]):
-    targets = panel.get("targets", [])
-    if panel["type"] == "row" or not targets or any(t["datasource"]["type"] != "prometheus" for t in targets):
-        continue
-    if not any(has_data(resolve(t["expr"]), end - span, end, seconds(t.get("interval") or panel.get("interval") or "0s")) for t in targets):
-        print(panel["title"])
-PY
-}
-
-demo_shop_panels_have_data() {
-  capture LAST demo_shop_panels_without_data || return 1
-  [[ -z "$LAST" ]]
-}
-
 node_exporter_full_import() {
   local out node="$ROOT/pkg/grafana/testdata/corpus/rfmoz/node-exporter-full.json" mapping='{"${ds_prometheus}": "prom"}' counts node_id
 
@@ -1201,6 +1119,7 @@ import json, re, sys, time, urllib.parse, urllib.request
 
 KEPT = {"imported", "partial", "placeholder", "unverified"}
 NO_DATA = "The queries returned no data for the dashboard's default time range."
+UNRESOLVED = "could not be resolved"
 STRING = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`[^`]*`'
 SELECTOR = re.compile(rf"(?:{STRING})|(?<![\w:.$])([a-zA-Z_:][\w:]*)(?:\s*\{{((?:[^}}\"'`]|{STRING})*)\}})?(?![\w:]*\s*\()")
 MATCHER = re.compile(rf"[a-zA-Z_]\w*\s*(?:=~|!~|!=|=)\s*(?:{STRING})")
@@ -1262,8 +1181,8 @@ for line in lines:
         problems.append(f"{line['title']}: status {line['status']}")
     if line["status"] != "unverified":
         continue
-    failed = [r for r in line["reasons"] if r.startswith("Query ") and " failed on " in r]
-    if failed or NO_DATA not in line["reasons"]:
+    failed = [r for r in line["reasons"] if r.startswith("Query ") and " failed on " in r and UNRESOLVED not in r]
+    if failed or not any(r == NO_DATA or UNRESOLVED in r for r in line["reasons"]):
         problems.append(f"{line['title']}: unverified by a query error: {line['reasons']}")
         continue
     for query in spec_panels[line["panel_id"]]["queries"]:
@@ -1373,7 +1292,6 @@ PY
     || fail "an ambiguous datasource should list its candidates and never be guessed ($(head -c 600 "$TMP/api.body"))"
   pass "a datasource with two candidates is never guessed"
 
-  poll 180 "Prometheus has data for every Prometheus panel of the demo shop dashboard" demo_shop_panels_have_data
   import_body "$demo"
   out="$(api POST /imports --data-binary "@$TMP/import-body.json")"
   [[ "$out" == 201 ]] || fail "import demo-shop ($out: $(head -c 600 "$TMP/api.body"))"
@@ -1381,8 +1299,8 @@ PY
   grep -qi "^location: /api/v1/dashboards/$demo_id" "$TMP/api.headers" || fail "import response has no Location header ($(cat "$TMP/api.headers"))"
   import_check "d['version']['version'] == 1 and d['import']['report']['verified'] is True and d['import']['version'] == 1 and d['import']['dashboard_id'] == d['dashboard']['id']" \
     || fail "the import should save version 1 with a verified report"
-  import_check "all(p['status'] in ('imported', 'partial') for p in d['import']['report']['panels'] if p['queries'] and all(q['datasource'] == 'prom' for q in p['queries']))" \
-    || fail "every demo-shop Prometheus panel should be imported or partial ($(python3 -c 'import json,sys; print(json.dumps([(p["title"], p["status"], p["reasons"]) for p in json.load(open(sys.argv[1]))["import"]["report"]["panels"]]))' "$TMP/api.body"))"
+  import_check "all(p['status'] in ('imported', 'partial', 'unverified') and not any(' failed on ' in r and 'could not be resolved' not in r for r in p['reasons']) for p in d['import']['report']['panels'] if p['queries'] and all(q['datasource'] == 'prom' for q in p['queries']))" \
+    || fail "every demo-shop Prometheus panel should be kept, and may be unverified only for want of data ($(python3 -c 'import json,sys; print(json.dumps([(p["title"], p["status"], p["reasons"]) for p in json.load(open(sys.argv[1]))["import"]["report"]["panels"]]))' "$TMP/api.body"))"
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
   [[ -z "$leak" ]] || fail "import response exposes connection details ($leak)"
   out="$(api GET "/dashboards/$demo_id")"
@@ -1394,7 +1312,7 @@ PY
   [[ "$out" == 201 ]] || fail "import the unverified fixture ($out: $(head -c 600 "$TMP/api.body"))"
   cp "$TMP/api.body" "$TMP/import-created.json"
   unverified_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dashboard"]["id"])' "$TMP/api.body")"
-  import_check "{p['title']: p['status'] for p in d['import']['report']['panels']}.get('Missing') == 'unverified' and {p['title']: p['status'] for p in d['import']['report']['panels']}.get('Up') != 'unverified'" \
+  import_check "{p['title']: p['status'] for p in d['import']['report']['panels']}.get('Missing') == 'unverified' and {p['title']: p['status'] for p in d['import']['report']['panels']}.get('Calls') == 'imported'" \
     || fail "only the Missing panel should be unverified ($(head -c 800 "$TMP/api.body"))"
   import_check "any('no data' in r for p in d['import']['report']['panels'] if p['title'] == 'Missing' for r in p['reasons']) and d['import']['report']['counts']['unverified'] == 1" \
     || fail "the Missing panel should say it returned no data and the counts should show 1 unverified"
@@ -1805,7 +1723,7 @@ revisions_suite() {
   fi
   out="$(api GET "/dashboards/$id/versions/2")"
   if [[ "$out" != 200 ]] || ! grep -qF '"summary":"Renamed \"Requests per second\" to \"Requests per second by route\"; changed \"Requests per second by route\"."' "$TMP/api.body" \
-    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (route)' "$TMP/api.body"; then
+    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (span_name)' "$TMP/api.body"; then
     fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/comments")"
@@ -2020,7 +1938,7 @@ s = json.load(open(sys.argv[1]))["suggestion"]
 errors = [i for i, x in enumerate(s["steps"]) if x["status"] == "error"]
 proposed = [i for i, x in enumerate(s["steps"]) if x["message"].startswith("Proposed a change to panel")]
 sys.exit(0 if s["status"] == "succeeded" and errors and proposed and errors[0] < proposed[-1] else 1)' "$TMP/api.body" \
-    || ! grep -q 'sum(rate(http_requests_total\[5m\]))' "$TMP/api.body"; then
+    || ! grep -qF 'sum(rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))' "$TMP/api.body"; then
     fail "the suggestion repairs a rejected query before proposing ($(cat "$TMP/api.body"))"
   fi
   pass "a suggestion whose first query is rejected is repaired before the panel is proposed"
@@ -2130,7 +2048,7 @@ observe_suite() {
   [[ "$out" == 401 ]] || fail "read the agent configuration without a token ($out)"
   pass "the agent configuration names the replay provider with no effort and needs a token"
 
-  out="$(api POST /observe -d '{"prompt":"demo shop RED metrics by endpoint"}')"
+  out="$(api POST /observe -d '{"prompt":"astronomy shop RED metrics by endpoint"}')"
   [[ "$out" == 202 ]] || fail "queue a new dashboard request ($out: $(cat "$TMP/api.body"))"
   observe_expect "the queued observe request" '"kind":"build"' '"intent":"ask"' '"status":"queued"' '"dashboard_id":null' '"base_version":null' '"steps":[]' '"usage":null' '"url":null' '"origin":"api"'
   id="$(observe_id_of "$TMP/api.body")"
@@ -2149,12 +2067,12 @@ observe_suite() {
     fail "the observed dashboard ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards?limit=50")"
-  [[ "$out" == 200 && "$(grep -o '"title":"Demo shop RED metrics"' "$TMP/api.body" | wc -l | tr -d ' ')" == 1 ]] \
+  [[ "$out" == 200 && "$(grep -o '"title":"Astronomy shop RED metrics"' "$TMP/api.body" | wc -l | tr -d ' ')" == 1 ]] \
     || fail "exactly one dashboard per observe request ($out: $(cat "$TMP/api.body"))"
   expect_version_data "$did" 1
   pass "the observed dashboard has version 1, exists once, and every panel returns data"
 
-  out="$(api POST /observe -d '{"prompt":"add a requests by pod panel","kind":"revise","dashboard_id":"'"$did"'"}')"
+  out="$(api POST /observe -d '{"prompt":"add a requests by service panel","kind":"revise","dashboard_id":"'"$did"'"}')"
   [[ "$out" == 202 ]] || fail "queue a follow-up prompt ($out: $(cat "$TMP/api.body"))"
   observe_expect "the queued follow-up" '"intent":"apply"' '"base_version":1' "\"dashboard_id\":\"$did\""
   fid="$(observe_id_of "$TMP/api.body")"
@@ -2175,7 +2093,7 @@ observe_suite() {
 
   out="$(api GET "/observe?limit=100")"
   if [[ "$out" != 200 ]] || ! grep -qF "\"id\":\"$fid\"" "$TMP/api.body" || ! grep -qF "\"id\":\"$id\"" "$TMP/api.body" \
-    || ! grep -qF '"dashboard_title":"Demo shop RED metrics"' "$TMP/api.body"; then
+    || ! grep -qF '"dashboard_title":"Astronomy shop RED metrics"' "$TMP/api.body"; then
     fail "the observe list holds the follow-up and the chat request with the dashboard title ($out: $(cat "$TMP/api.body"))"
   fi
   fpos="$(tr ',' '\n' <"$TMP/api.body" | grep -nF "\"id\":\"$fid\"" | head -1 | cut -d: -f1)"
@@ -2333,7 +2251,7 @@ mcp_suite() {
   mcp_expect "get_spec_guide" '## Queries'
   pass "MCP get_spec_guide teaches evolved ObserveSpec v0"
 
-  mcp_tool create_dashboard '{"summary":"Placeholder","spec":{"specVersion":"0","title":"Placeholder check","time":{"from":"now-15m","to":"now"},"panels":[{"id":"p_up","type":"stat","title":"Up","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"query":"count(up)"}]},{"id":"p_x","type":"placeholder","gridPos":{"x":6,"y":0,"w":6,"h":4},"reason":"not supported"}]}}'
+  mcp_tool create_dashboard '{"summary":"Placeholder","spec":{"specVersion":"0","title":"Placeholder check","time":{"from":"now-15m","to":"now"},"panels":[{"id":"p_up","type":"stat","title":"Calls","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"query":"count(traces_span_metrics_calls_total)"}]},{"id":"p_x","type":"placeholder","gridPos":{"x":6,"y":0,"w":6,"h":4},"reason":"not supported"}]}}'
   [[ "$MCP_ERROR" == true ]] || fail "MCP create_dashboard accepted a placeholder panel ($(head -c 1500 "$TMP/mcp.body"))"
   grep -q 'placeholder_not_allowed' "$TMP/mcp.body" || fail "MCP create_dashboard placeholder rejection lacks placeholder_not_allowed ($(head -c 1500 "$TMP/mcp.body"))"
   pass "MCP clients cannot create placeholder panels"
@@ -2343,11 +2261,11 @@ mcp_suite() {
   mcp_expect "list_datasources" '"uid":"ch"'
   pass "MCP list_datasources returns both datasources"
 
-  mcp_tool list_metrics '{"datasource":"prom","search":"http_requests"}'
-  mcp_expect "list_metrics" 'http_requests_total'
-  mcp_tool list_labels '{"datasource":"prom","metric":"http_requests_total"}'
-  mcp_expect "list_labels" '"pod"'
-  mcp_tool list_label_values '{"datasource":"prom","label":"service","metric":"http_requests_total"}'
+  mcp_tool list_metrics '{"datasource":"prom","search":"traces_span_metrics"}'
+  mcp_expect "list_metrics" 'traces_span_metrics_calls_total'
+  mcp_tool list_labels '{"datasource":"prom","metric":"traces_span_metrics_calls_total"}'
+  mcp_expect "list_labels" '"span_name"'
+  mcp_tool list_label_values '{"datasource":"prom","label":"service_name","metric":"traces_span_metrics_calls_total"}'
   mcp_expect "list_label_values" '"checkout"'
   pass "MCP discovers Prometheus metrics, labels and label values"
 
@@ -2365,10 +2283,10 @@ mcp_suite() {
   mcp_expect "lint_query" '"ok":false'
   pass "MCP lint_query reports an unparseable query"
 
-  mcp_tool query_range '{"datasource":"prom","query":"sum(rate(http_requests_total[$__rate_interval]))","from":"now-15m"}'
+  mcp_tool query_range '{"datasource":"prom","query":"sum(rate(traces_span_metrics_calls_total[$__rate_interval]))","from":"now-15m"}'
   mcp_expect "query_range" '"empty":false'
   mcp_expect "query_range" '"series"'
-  mcp_tool query_instant '{"datasource":"prom","query":"sum(http_requests_total)"}'
+  mcp_tool query_instant '{"datasource":"prom","query":"sum(traces_span_metrics_calls_total)"}'
   mcp_expect "query_instant" '"empty":false'
   pass "MCP runs range and instant queries and returns a summary"
 
@@ -2555,6 +2473,10 @@ urlencode() {
   printf '%s' "$out"
 }
 
+has_job() {
+  grep -qF "\"job\":\"$1\"" "$TMP/api.body"
+}
+
 first_value() {
   grep -o '"values":\["[^"]*"' "$TMP/api.body" | head -1 | cut -d'"' -f4 || true
 }
@@ -2738,16 +2660,16 @@ sys.exit(0 if ok else 1)' "$TMP/api.body"
   [[ "$out" == 400 ]] || fail "lint with an empty query ($out)"
   pass "lint returns diagnostics without data and rejects unknown datasources and empty queries"
 
-  out="$(proxy_call GET "/datasources/prom/metrics?search=http_requests&limit=5")"
-  if [[ "$out" != 200 ]] || ! grep -q '"name":"http_requests_total"' "$TMP/api.body" || ! grep -q '"truncated":' "$TMP/api.body"; then
+  out="$(proxy_call GET "/datasources/prom/metrics?search=traces_span_metrics&limit=5")"
+  if [[ "$out" != 200 ]] || ! grep -q '"name":"traces_span_metrics_calls_total"' "$TMP/api.body" || ! grep -q '"truncated":' "$TMP/api.body"; then
     fail "list Prometheus metric names ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(proxy_call GET "/datasources/prom/labels?metric=http_requests_total")"
-  if [[ "$out" != 200 ]] || ! grep -q '"pod"' "$TMP/api.body"; then
+  out="$(proxy_call GET "/datasources/prom/labels?metric=traces_span_metrics_calls_total")"
+  if [[ "$out" != 200 ]] || ! grep -q '"span_name"' "$TMP/api.body"; then
     fail "list Prometheus label names for a metric ($out: $(cat "$TMP/api.body"))"
   fi
-  out="$(proxy_call GET "/datasources/prom/labels/service/values?metric=http_requests_total")"
-  if [[ "$out" != 200 ]] || ! grep -q '"checkout"' "$TMP/api.body" || ! grep -q '"label":"service"' "$TMP/api.body"; then
+  out="$(proxy_call GET "/datasources/prom/labels/service_name/values?metric=traces_span_metrics_calls_total")"
+  if [[ "$out" != 200 ]] || ! grep -q '"checkout"' "$TMP/api.body" || ! grep -q '"label":"service_name"' "$TMP/api.body"; then
     fail "list Prometheus label values for a metric ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(proxy_call GET "/datasources/ch/labels?table=otel_logs")"
@@ -2832,21 +2754,20 @@ sys.exit(0 if ok else 1)' "$TMP/api.body"
   expect_proxy_error "$base/panels/p_vars/data?$stable&var-const=other" 400 invalid_request "a constant with another value"
   pass "new variable types resolve on the server"
 
-  # Prometheus scrapes its own job at a staggered offset after boot, so $stable can end before that job has a sample; wait for a window that has one.
   for _ in $(seq 1 45); do
     to_ms=$((($(date +%s) * 1000 - 30000) / 5000 * 5000))
     adhoc="from=$((to_ms - 900000))&to=$to_ms"
     out="$(proxy_call GET "$base/panels/p_adhoc/data?$adhoc")"
     job_count="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | wc -l | tr -d ' ')"
-    if [[ "$out" == 200 && "$job_count" -gt 1 ]] && grep -q '"job":"prometheus"' "$TMP/api.body"; then break; fi
+    if [[ "$out" == 200 && "$job_count" -gt 1 ]] && has_job "$FRONTEND_JOB"; then break; fi
     sleep 2
   done
   [[ "$out" == 200 ]] || fail "the unfiltered adhoc panel ($out: $(cat "$TMP/api.body"))"
   [[ "$job_count" -gt 1 ]] || fail "the unfiltered adhoc panel returns more than one job ($job_count: $(cat "$TMP/api.body"))"
-  grep -q '"job":"prometheus"' "$TMP/api.body" || fail "the unfiltered adhoc panel returns the prometheus job ($(cat "$TMP/api.body"))"
-  out="$(proxy_call GET "$base/panels/p_adhoc/data?$adhoc&var-pf=job%7C%3D%7Cprometheus")"
-  others="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | { grep -v '^"job":"prometheus"$' || true; })"
-  if [[ "$out" != 200 ]] || ! grep -q '"job":"prometheus"' "$TMP/api.body" || [[ -n "$others" ]]; then
+  has_job "$FRONTEND_JOB" || fail "the unfiltered adhoc panel returns the frontend job ($(cat "$TMP/api.body"))"
+  out="$(proxy_call GET "$base/panels/p_adhoc/data?$adhoc&var-pf=job%7C%3D%7C$(urlencode "$FRONTEND_JOB")")"
+  others="$({ grep -o '"job":"[^"]*"' "$TMP/api.body" || true; } | sort -u | { grep -vxF "\"job\":\"$FRONTEND_JOB\"" || true; })"
+  if [[ "$out" != 200 ]] || ! has_job "$FRONTEND_JOB" || [[ -n "$others" ]]; then
     fail "an adhoc filter narrows a Prometheus query ($out: $others: $(cat "$TMP/api.body"))"
   fi
   pass "an adhoc filter narrows every Prometheus query on its datasource"
@@ -3241,7 +3162,7 @@ dashboard_list_suite() {
 
   out="$(api GET "/dashboards?made_by=agent&limit=200")"
   [[ "$out" == 200 ]] || fail "list dashboards made by the agent ($out: $(cat "$TMP/api.body"))"
-  grep -qF '"title":"Demo shop RED metrics"' "$TMP/api.body" || fail "made_by=agent should list the observe dashboard ($(head -c 1500 "$TMP/api.body"))"
+  grep -qF '"title":"Astronomy shop RED metrics"' "$TMP/api.body" || fail "made_by=agent should list the observe dashboard ($(head -c 1500 "$TMP/api.body"))"
   ! grep -qF '"via":"direct"' "$TMP/api.body" || fail "made_by=agent should list no direct dashboard"
 
   out="$(api GET "/dashboards?datasource=ch&limit=200")"
@@ -3251,8 +3172,8 @@ dashboard_list_suite() {
     fail "an unused datasource should match nothing ($out: $(cat "$TMP/api.body"))"
   fi
 
-  out="$(api GET "/dashboards?q=demo%20SHOP%20red&limit=200")"
-  [[ "$out" == 200 ]] && grep -qF '"title":"Demo shop RED metrics"' "$TMP/api.body" || fail "q should match a title case-insensitively ($out: $(head -c 1500 "$TMP/api.body"))"
+  out="$(api GET "/dashboards?q=astronomy%20SHOP%20red&limit=200")"
+  [[ "$out" == 200 ]] && grep -qF '"title":"Astronomy shop RED metrics"' "$TMP/api.body" || fail "q should match a title case-insensitively ($out: $(head -c 1500 "$TMP/api.body"))"
   out="$(api GET "/dashboards?q=zzzz-no-match")"
   if [[ "$out" != 200 ]] || ! grep -qF '"total_count":0' "$TMP/api.body"; then
     fail "q should match nothing ($out: $(cat "$TMP/api.body"))"
@@ -3340,34 +3261,35 @@ people_suite() {
   pass "people are listed with activity, and anyone can sign a person out everywhere"
 }
 
+container_series() { printf 'count(count by (container_name) (%s{container_name=~"%s-.+-1"}))' "$1" "$PROJECT"; }
+
+payment_errors_in_metrics() {
+  place_order >/dev/null
+  prom_positive "sum(increase(traces_span_metrics_calls_total{service_name=\"payment\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[${FAULT_WINDOW_MINUTES}m]))"
+}
+
 stack_suite() {
   local out ro_out
 
-  prom_is 'count(count by (pod) (http_requests_total{service="checkout"}))' 2 || fail "checkout metrics should carry 2 pods (got: $LAST)"
-  pass "shop metrics vary by pod"
-  prom_is 'count(count by (service) (http_requests_total))' 3 || fail "http_requests_total should carry 3 services (got: $LAST)"
-  pass "shop metrics vary by service"
-  prom_positive 'count(http_request_duration_seconds_bucket{service="checkout"})' || fail "checkout latency histogram missing (got: $LAST)"
-  pass "latency histogram exported"
-  prom_is 'count(count by (pod) (container_memory_working_set_bytes{pod=~"frontend-0|checkout-0|checkout-1|payments-0"}))' 4 \
-    || fail "cAdvisor should label the 4 shop containers by pod (got: $LAST)"
-  pass "cAdvisor labels containers by pod"
-  prom_positive 'count(container_cpu_usage_seconds_total{service="checkout"})' || fail "cAdvisor CPU series should carry the service label (got: $LAST)"
-  pass "cAdvisor labels containers by service"
-  prom_is 'count(count by (compose_project) (container_memory_working_set_bytes))' 1 || fail "cAdvisor should see exactly one compose project (got: $LAST)"
-  pass "cAdvisor metrics limited to this stack"
-  prom_positive 'count(machine_cpu_cores) and count(machine_memory_bytes)' || fail "cAdvisor machine metrics missing (got: $LAST)"
-  pass "cAdvisor machine metrics ingested"
-  { prom_positive 'count(node_filesystem_avail_bytes{instance="demo-node"})' \
-    && prom_positive 'count(node_filesystem_files_free{instance="demo-node"})'; } \
-    || fail "node disk and inode metrics missing for demo-node (last: $LAST)"
-  pass "node disk and inode metrics present"
-  prom_positive 'sum(rate(http_requests_total{service="checkout"}[5m] offset 1d))' || fail "no checkout request rate one day ago (got: $LAST)"
-  pass "yesterday's request rate is backfilled"
-  prom_positive 'histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="checkout"}[5m] offset 1d)))' || fail "no checkout p95 latency one day ago (got: $LAST)"
-  pass "yesterday's latency histogram is backfilled"
-  poll 240 "backfilled request rate and p95 latency continue into live data" backfill_joins_live
-  pass "backfill joins live data without a level jump"
+  prom_at_least 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" || fail "span metrics should carry at least $SHOP_SERVICES_MIN services (got: $LAST)"
+  pass "span metrics vary by service"
+  prom_above 'count(count by (span_name) (traces_span_metrics_calls_total{service_name="checkout"}))' 2 || fail "checkout span metrics should carry several span names (got: $LAST)"
+  pass "span metrics vary by span name"
+  prom_positive 'count(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout"})' || fail "checkout span duration histogram missing (got: $LAST)"
+  pass "span duration histogram exported"
+  prom_positive 'count(http_server_request_duration_seconds_bucket{service_name="frontend"})' || fail "frontend HTTP latency histogram missing (got: $LAST)"
+  pass "service HTTP latency histogram exported"
+  prom_above "$(container_series container_memory_usage_total_bytes)" 3 \
+    || fail "container metrics should label at least 4 stack containers by name (got: $LAST)"
+  pass "container metrics label containers by name"
+  prom_above "$(container_series container_cpu_utilization_ratio)" 3 || fail "container CPU metrics should label at least 4 stack containers by name (got: $LAST)"
+  pass "container CPU metrics label containers by name"
+  prom_positive 'count(system_cpu_logical_count) and count(system_memory_limit_bytes)' || fail "host metrics missing (got: $LAST)"
+  pass "host metrics ingested"
+  { prom_positive 'count(system_filesystem_usage_bytes)' \
+    && prom_positive 'count(system_filesystem_inodes_usage)'; } \
+    || fail "host disk and inode metrics missing (last: $LAST)"
+  pass "host disk and inode metrics present"
 
   ch_is "SELECT getSetting('readonly')" 2 \
     || fail "ClickHouse readonly setting is not 2 (got: '$LAST', client: $LAST_ERR)"
@@ -3381,42 +3303,45 @@ stack_suite() {
   fi
   [[ "$ro_out" == *READONLY* || "$ro_out" == *"Code: 164"* || "$ro_out" == *ACCESS_DENIED* || "$ro_out" == *"Code: 497"* ]] || fail "ClickHouse insert refusal is not READONLY ($ro_out)"
   pass "ClickHouse user is read-only"
-  poll 60 "traces span frontend, checkout and payments" ch_positive \
-    "SELECT count() FROM (SELECT TraceId FROM otel.otel_traces GROUP BY TraceId HAVING uniqExact(ServiceName) = 3)"
-  pass "traces span frontend, checkout and payments"
-  poll 60 "checkout logs carry 2 pods" ch_is \
-    "SELECT uniqExact(ResourceAttributes['k8s.pod.name']) FROM otel.otel_logs WHERE ServiceName = 'checkout'" 2
-  pass "logs vary by pod"
-  poll 60 "checkout error logs present" ch_positive \
-    "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'checkout' AND SeverityText = 'ERROR'"
-  pass "checkout error logs present"
+  poll 120 "traces span frontend, checkout and payment" order_then ch_positive \
+    "SELECT count() FROM (SELECT TraceId FROM otel.otel_traces GROUP BY TraceId HAVING hasAll(groupUniqArray(ServiceName), ['frontend', 'checkout', 'payment']))"
+  pass "traces span frontend, checkout and payment"
+  poll 60 "logs vary by service" ch_is "SELECT uniqExact(ServiceName) >= 5 FROM otel.otel_logs" 1
+  pass "logs vary by service"
+  poll 60 "checkout logs are present" ch_positive "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'checkout'"
+  pass "checkout logs are present"
   poll 60 "logs carry trace ids" ch_is "SELECT countIf(TraceId != '') > 0 FROM otel.otel_logs" 1
   pass "logs carry trace ids"
 
   FAULT_SET=1
-  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X POST "$SHOP_URL/fault?type=errors&pct=100" || true)"
-  if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":100' "$TMP/fault"; then
-    fail "set error fault ($out: $(cat "$TMP/fault"))"
+  if ! "$ASTRONOMY" flag "$FAULT_FLAG" 100% >"$TMP/flag.out" 2>&1; then
+    fail "set the $FAULT_FLAG flag ($(cat "$TMP/flag.out"))"
   fi
-  pass "error fault accepted"
-  poll 90 "checkout-0 serves mostly 500s" prom_above \
-    'sum(increase(http_requests_total{pod="checkout-0",status="500"}[30s])) / sum(increase(http_requests_total{pod="checkout-0"}[30s]))' 0.9
-  pass "error fault shows in metrics"
-  poll 60 "error fault shows in logs" ch_positive \
-    "SELECT count() FROM otel.otel_logs WHERE ResourceAttributes['k8s.pod.name'] = 'checkout-0' AND Body = 'database connection refused'"
-  pass "error fault shows in logs"
-  out="$(curl -sS -o "$TMP/fault" -w '%{http_code}' -X DELETE "$SHOP_URL/fault" || true)"
-  if [[ "$out" != 200 ]] || ! grep -q '"errors_pct":0' "$TMP/fault"; then
-    fail "reset fault ($out: $(cat "$TMP/fault"))"
+  pass "payment fault accepted"
+  poll 300 "failed charges show in the payment span metrics" payment_errors_in_metrics
+  pass "payment fault shows in metrics"
+  poll 120 "failed charges show in traces" order_then ch_positive \
+    "SELECT count() FROM otel.otel_traces WHERE ServiceName = 'payment' AND SpanName = 'charge' AND StatusCode = 'Error' AND Timestamp > now() - INTERVAL ${FAULT_WINDOW_MINUTES} MINUTE"
+  pass "payment fault shows in traces"
+  poll 120 "payment fault shows in logs" order_then ch_positive \
+    "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'payment' AND Body LIKE 'Payment request failed%' AND Timestamp > now() - INTERVAL ${FAULT_WINDOW_MINUTES} MINUTE"
+  pass "payment fault shows in logs"
+  if ! "$ASTRONOMY" flag "$FAULT_FLAG" off >"$TMP/flag.out" 2>&1; then
+    fail "reset the $FAULT_FLAG flag ($(cat "$TMP/flag.out"))"
   fi
+  [[ "$("$ASTRONOMY" flag | awk -v f="$FAULT_FLAG" '$1 == f { print $2 }')" == off ]] || fail "$FAULT_FLAG should be off after the reset"
   FAULT_SET=0
   pass "fault resets"
-  out="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL/fault?type=bogus" || true)"
-  [[ "$out" == 400 ]] || fail "invalid fault type ($out)"
-  pass "invalid fault rejected"
+  if "$ASTRONOMY" flag "$FAULT_FLAG" bogus >"$TMP/flag.out" 2>&1; then
+    fail "an unknown flag variant was accepted ($(cat "$TMP/flag.out"))"
+  fi
+  if "$ASTRONOMY" flag noSuchFlag on >"$TMP/flag.out" 2>&1; then
+    fail "an unknown flag was accepted ($(cat "$TMP/flag.out"))"
+  fi
+  pass "invalid flag rejected"
 }
 
-data_ready() { targets_scraped && logs_and_traces_present; }
+data_ready() { shop_metrics_present && logs_and_traces_present; }
 
 ensure_stack() {
   if stack_reusable; then
@@ -3465,7 +3390,11 @@ case "${1:-run}" in
   browser) browser ;;
   down)
     rm -f "$WARM_MARKER"
-    grouped "${COMPOSE_CMD[@]}" down -v --remove-orphans
+    if [[ -d "$ROOT/deploy/astronomy/.upstream/.git" ]]; then
+      grouped "$ASTRONOMY" down --volumes
+    else
+      echo "Nothing to stop: the Astronomy Shop has not been fetched"
+    fi
     ;;
   logs) all_logs ;;
   -h | --help | help) usage ;;

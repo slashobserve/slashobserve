@@ -12,7 +12,7 @@ import {
 import { signInThroughDex } from "./dex"
 import { expect, test } from "./fixtures"
 
-const rpsTitle = "Checkout requests per second"
+const rpsTitle = "Shop requests per second"
 
 const themes = [
   {
@@ -325,23 +325,21 @@ test("keeps a multi-value variable inside the box on a phone", async ({
   await openDashboard(
     page,
     id,
-    "?var-pod=checkout-0&var-pod=checkout-1&var-pod=checkout-2"
+    "?var-service=checkout&var-service=payment&var-service=cart"
   )
 
-  const input = page.getByRole("combobox", { name: "Pod" })
+  const input = page.getByRole("combobox", { name: "Service" })
   await expect(input).toBeVisible()
   const control = page
     .locator('[data-slot="combobox-chips"]')
     .filter({ has: input })
     .locator("xpath=..")
   await expect(
-    page
-      .locator('[data-slot="combobox-chip"]')
-      .filter({ hasText: "checkout-2" })
+    page.locator('[data-slot="combobox-chip"]').filter({ hasText: "cart" })
   ).toBeVisible()
   const box = await control.boundingBox()
   const chevron = await page
-    .locator('[aria-label="Show Pod values"]')
+    .locator('[aria-label="Show Service values"]')
     .boundingBox()
   expect((chevron?.x ?? 0) + (chevron?.width ?? 0)).toBeLessThanOrEqual(
     (box?.x ?? 0) + (box?.width ?? 0)

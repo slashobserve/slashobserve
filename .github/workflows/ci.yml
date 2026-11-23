@@ -292,7 +292,6 @@ jobs:
     timeout-minutes: 30
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
-      SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -303,7 +302,6 @@ jobs:
         uses: ./.github/actions/stack-images
         with:
           server-tag: slashobserve-e2e:ci
-          shop-tag: slashobserve-demo-shop:ci
           warm: make e2e-warm
 
       - name: API smoke suite
@@ -334,7 +332,6 @@ jobs:
         shard: [1, 2, 3, 4]
     env:
       SLASHOBSERVE_IMAGE: slashobserve-e2e:ci
-      SLASHOBSERVE_SHOP_IMAGE: slashobserve-demo-shop:ci
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -345,7 +342,6 @@ jobs:
         uses: ./.github/actions/stack-images
         with:
           server-tag: slashobserve-e2e:ci
-          shop-tag: slashobserve-demo-shop:ci
           warm: make e2e-warm
 
       - name: Read the Playwright version
