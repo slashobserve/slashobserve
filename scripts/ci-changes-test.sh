@@ -41,6 +41,8 @@ expect "a Go handler skips web" \
   "go=true web=false build=true stack=true image=false audit=false" internal/observations/http.go
 expect "a Go unit test skips web and the stack" \
   "go=true web=false build=true stack=false image=false audit=false" internal/agent/tools/query_test.go
+expect "an agent tool needs the stack" \
+  "go=true web=false build=true stack=true image=false audit=false" internal/agent/tools/query.go
 expect "an agent prompt is not prose" \
   "go=true web=true build=true stack=true image=false audit=false" internal/agent/prompts/spec_guide.md
 expect "the sidecar does not run Go" \
@@ -49,6 +51,10 @@ expect "the sidecar protocol runs Go too" \
   "go=true web=true build=true stack=true image=false audit=false" observe-agent/src/protocol.ts
 expect "a test fixture that the web reads runs web" \
   "go=true web=true build=true stack=true image=false audit=false" internal/kql/testdata/cases.json
+expect "a datasource adapter needs the stack" \
+  "go=true web=false build=true stack=true image=false audit=false" internal/datasource/loki/query.go
+expect "the importer needs the stack" \
+  "go=true web=false build=true stack=true image=false audit=false" pkg/grafana/convert.go
 expect "the Dockerfile builds the image from its own stages" \
   "go=true web=true build=true stack=true image=true audit=false" Dockerfile
 expect "a lockfile runs the audit" \
