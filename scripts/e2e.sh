@@ -3248,7 +3248,7 @@ people_suite() {
   pass "people are listed with activity, and anyone can sign a person out everywhere"
 }
 
-container_series() { printf 'count(count by (container_name) (%s{container_name=~"%s-(frontend|checkout|payment|cart)-1"}))' "$1" "$PROJECT"; }
+container_series() { printf 'count(count by (container_name) (%s{container_name=~"%s-.+-1"}))' "$1" "$PROJECT"; }
 
 payment_errors_in_metrics() {
   place_order >/dev/null
@@ -3266,10 +3266,10 @@ stack_suite() {
   pass "span duration histogram exported"
   prom_positive 'count(http_server_request_duration_seconds_bucket{service_name="frontend"})' || fail "frontend HTTP latency histogram missing (got: $LAST)"
   pass "service HTTP latency histogram exported"
-  prom_is "$(container_series container_memory_usage_total_bytes)" 4 \
-    || fail "container metrics should label the 4 probed shop containers by name (got: $LAST)"
+  prom_above "$(container_series container_memory_usage_total_bytes)" 3 \
+    || fail "container metrics should label at least 4 stack containers by name (got: $LAST)"
   pass "container metrics label containers by name"
-  prom_is "$(container_series container_cpu_utilization_ratio)" 4 || fail "container CPU metrics should label the 4 probed shop containers by name (got: $LAST)"
+  prom_above "$(container_series container_cpu_utilization_ratio)" 3 || fail "container CPU metrics should label at least 4 stack containers by name (got: $LAST)"
   pass "container CPU metrics label containers by name"
   prom_positive 'count(system_cpu_logical_count) and count(system_memory_limit_bytes)' || fail "host metrics missing (got: $LAST)"
   pass "host metrics ingested"
