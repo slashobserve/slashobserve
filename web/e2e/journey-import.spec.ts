@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test"
 
 import { card, entries, entryWith } from "./activity"
 import { panel } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { expect, failedResourceLogged, test } from "./fixtures"
 
 const agentTimeout = 90_000
 const repoRoot = join(import.meta.dirname, "..", "..")
@@ -115,7 +115,10 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
 
-    test("imports a Grafana dashboard from the chat", async ({ page }) => {
+    test("imports a Grafana dashboard from the chat", async ({
+      page,
+      consoleErrors,
+    }) => {
       test.setTimeout(120_000)
       await page.route("**/api/v1/news?*", (route) =>
         route.fulfill({
