@@ -14,7 +14,7 @@ export SLASHOBSERVE_API_CONTRACT_CHECK=true
 export SLASHOBSERVE_LLM_PROVIDER=replay
 export SLASHOBSERVE_SERVICE_ACCOUNTS_FILE=
 export ASTRONOMY_PROJECT="$PROJECT"
-export ASTRONOMY_STATE_DIR="$ROOT/deploy/astronomy/.state/e2e"
+export ASTRONOMY_STATE_DIR="$ROOT/deploy/astronomy/.state/$PROJECT"
 export ASTRONOMY_COMPOSE_FILES="$ROOT/deploy/astronomy/compose.e2e.yaml"
 ASTRONOMY="$ROOT/scripts/astronomy.sh"
 
@@ -48,6 +48,7 @@ fail() {
 PREBUILT=0
 if [[ -n "${SLASHOBSERVE_IMAGE:-}" ]]; then
   PREBUILT=1
+  ASTRONOMY_COMPOSE_FILES="$ASTRONOMY_COMPOSE_FILES:$ROOT/deploy/astronomy/compose.prebuilt.yaml"
 else
   export SLASHOBSERVE_IMAGE="slashobserve-e2e:local"
 fi

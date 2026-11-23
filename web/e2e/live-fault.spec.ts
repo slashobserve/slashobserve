@@ -14,6 +14,22 @@ const astronomyScript = join(
   "scripts",
   "astronomy.sh"
 )
+const e2eProject = process.env.SLASHOBSERVE_E2E_PROJECT ?? "slashobserve-e2e"
+const astronomyEnv = {
+  ...process.env,
+  ASTRONOMY_PROJECT: process.env.ASTRONOMY_PROJECT ?? e2eProject,
+  ASTRONOMY_STATE_DIR:
+    process.env.ASTRONOMY_STATE_DIR ??
+    join(
+      import.meta.dirname,
+      "..",
+      "..",
+      "deploy",
+      "astronomy",
+      ".state",
+      e2eProject
+    ),
+}
 const shopUrl = `http://localhost:${process.env.ASTRONOMY_SHOP_HOST_PORT ?? "18081"}`
 const faultFlag = "paymentFailure"
 
@@ -22,6 +38,7 @@ const trafficIntervalMs = 3_000
 
 function setFlag(variant: string) {
   execFileSync(astronomyScript, ["flag", faultFlag, variant], {
+    env: astronomyEnv,
     stdio: "pipe",
   })
 }

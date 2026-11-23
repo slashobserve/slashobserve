@@ -1,0 +1,4 @@
+services:
+  server:
+    build: !reset null
+    pull_policy: missing
