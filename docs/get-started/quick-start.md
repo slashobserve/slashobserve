@@ -5,12 +5,13 @@ description: Run the demo stack with Docker Compose and send your first prompt.
 
 ## Requirements
 
-Requirements: Docker with Compose v2.20 or newer, and git.
-You do not need Go or Bun, and the images are pulled, not built.
+Requirements: Docker with Compose v2.24.4 or newer, `git`, `curl`, `jq` and `openssl`.
+You do not need Go or Bun, and the SlashObserve image is pulled, not built.
+The demo runs about thirty containers and needs about 4 GiB of memory and 12 GB of disk; [The demo](../operate/demo.md) has the measurements.
 
 ## Start the demo
 
-Get the repository, which holds the Compose file and the configs it mounts, and run the demo stack with an Anthropic key so the agent can answer prompts:
+Get the repository, which holds the Compose files and the configs they mount, and run the demo with an Anthropic key so the agent can answer prompts:
 
 ```sh
 git clone https://github.com/slashobserve/slashobserve && cd slashobserve
@@ -19,38 +20,32 @@ export SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
 make demo
 ```
 
-Without `make`, run the same stack with `docker compose -f deploy/compose/compose.yaml up -d --wait`.
-
 ## Sign in
 
-Open http://localhost:8080 and sign in as `admin@example.com` / `password`.
+Open http://localhost:58080 and sign in as `admin@example.com` / `password`.
 
 The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewer@example.com` with the same password; they start as Editors, and an Admin sets their roles on the People page.
 A person appears on that page only after their first sign-in, so sign in once as each of them, then sign back in as the Admin to change their roles.
 To give a role before the first sign-in, [invite](../teams/people.md#invite-people) the email with that role.
 
+## Open the dashboard
+
+The shop's load generator sends traffic from the first minute, and a few minutes after the start the folder Demo holds **Astronomy Shop overview**: traffic, errors and latency by service, orders and payments, the shop's database, its logs and traces.
+Until it appears, the stores are still filling; [The demo](../operate/demo.md#the-dashboard) says why.
+
 ## Send a prompt
 
 Sign-in opens [Home](../use/home.md).
-Type a prompt such as `checkout health by pod, last 6h` into the chat composer on its **Ask Observe Agent** tab.
+Type a prompt such as `checkout health by service, last 6h` into the chat composer on its **Ask Observe Agent** tab.
 Once a dashboard exists you can also ask the agent about it from the dashboard itself: in its **Chat** tab, in a comment thread, or by pointing at a spot on a panel with **Ask**; see [Ask and comment on a dashboard](../use/ask-and-comment.md).
-
-## Dashboards the demo provisions
-
-The demo provisions three dashboards from `deploy/compose/dashboards`, so the Dashboards page has live data before you send a prompt, with or without a key:
-
-- Demo shop overview, in the Demo folder: is the shop's traffic healthy, are orders flowing, is the database keeping up, what checkout's logs and traces say, and one panel of every type the product draws.
-- Node health, in the Demo folder: CPU, memory, disks and network of the machine running the stack, and what each of its containers uses.
-- SlashObserve internals, in the SlashObserve folder: the server's own API, agent, model calls, query proxy, database pool and scheduler, read from its `/metrics`.
-
-They appear within a minute of the stack becoming healthy; [Provisioning](../operate/provisioning.md) explains how a file in that directory becomes a dashboard.
 
 ## What make demo does
 
 ### Services and images
 
-`make demo` pulls the server and demo shop images and starts them with Postgres, Dex, Prometheus, ClickHouse, Loki, Tempo, an OpenTelemetry Collector, node-exporter, cAdvisor and the shop, and waits until they are healthy.
-The first run downloads about 0.7 GB of images, which take about 2.7 GB on disk, and took about a minute on a fast connection.
+`make demo` pulls the published SlashObserve image and starts it with the OpenTelemetry Astronomy Shop, Postgres, Dex, Prometheus, ClickHouse, Loki, Tempo and Jaeger, and waits until they are healthy.
+The first run fetches the pinned release of the shop and pulls about 12 GB of images, and the stack is healthy about a minute after that.
+The shop's addresses, the stores it feeds and the datasources the server reads are on [The demo](../operate/demo.md).
 
 ### Model provider settings
 
@@ -61,24 +56,21 @@ Home's **Ask Observe Agent** tab then says no model is connected and offers **Im
 
 ### Ports, rebuilds and shutdown
 
-To build the server and shop images from your working tree instead of pulling them, which is for people changing the code, run `make demo-build`.
+To build the server image from your working tree instead of pulling it, which is for people changing the code, run `make demo-build`.
 The image is stamped with `git describe`, so Settings shows that version instead of `dev`.
-Prometheus is on http://localhost:9090 and the shop's fault API on http://localhost:8081/fault.
+The shop is on http://localhost:58081.
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 
-On first boot, and again after `make demo-reset`, Prometheus backfills 26 hours of synthetic request and latency history, so prompts that compare today with yesterday have data.
+The stores start empty, so history builds up while the demo runs; a prompt that compares today with yesterday needs a day of running.
 
 ## Add Elasticsearch and OpenSearch
 
 To see the shop's logs in Elasticsearch and OpenSearch as well, run `make demo-search` instead of `make demo`.
-It builds the server and shop images from your checkout, as `make demo-build` does, and adds Elasticsearch 8 on http://localhost:9200, OpenSearch 2 on http://localhost:9201 and a second OpenTelemetry Collector that writes the shop's logs to both, and the Elasticsearch and OpenSearch datasources of the demo then answer.
+It builds the server image from your checkout, as `make demo-build` does, and adds Elasticsearch 8 and OpenSearch 2, which the shop's collector feeds its logs, and the Elasticsearch and OpenSearch datasources of the demo then answer.
 Without it those two datasources report that they are not answering, and nothing else depends on them.
 
 Each store is capped at 1 GiB of memory and the two images take about 3.5 GB on disk, so leave this for when you want to look at them.
-Elasticsearch gets ECS field names (`message`, `log.level`, `service.name`, `trace.id`, `span.id`) in the `logs-demo-shop` data stream, and OpenSearch gets the Simple Schema for Observability fields (`body`, `severity.text`, `resource.service.name`, `traceId`, `spanId`) in `ss4o_logs-demo-shop`.
-
-Both run with their security features off, which is for this local demo only; a real cluster needs the API key or credentials described on its [datasource page](../connect/elasticsearch.md).
-`make demo-search-down` stops only the two stores and their collector, and `make demo-down` and `make demo-reset` remove them too.
+`make demo-build` removes the two stores again, and `make demo-down` and `make demo-reset` remove them with the rest.
 
 ## Run with a local model
 
@@ -87,19 +79,8 @@ The agent also runs on a model served on your own machine through any OpenAI-com
 
 ## Inject a fault
 
-To see the dashboards react to a failure, break the checkout service with `make demo-fault TYPE=errors PCT=50` (or `TYPE=latency`) and undo it with `make demo-fault-reset`.
-
-## Node Exporter Full on the demo
-
-The demo's node-exporter enables the processes, TCP statistics and interrupts collectors and reports the root filesystem, so importing Grafana's Node Exporter Full finds data for those panels.
-A container cannot see some hardware and host services, so these Node Exporter Full panels stay empty on the demo:
-
-- Systemd Units State and Systemd Sockets Current, Accepted and Refused: the systemd collector needs the host's D-Bus socket, which the demo does not mount.
-- Hardware Temperature Monitor, Hardware Fan Speed, Cooling Device Utilization and Power Supply: they read hwmon, thermal and power supply sysfs, which Docker Desktop's Linux VM does not expose.
-- CPU Frequency Scaling: it reads cpufreq sysfs, which Docker Desktop's VM and most cloud VMs lack.
-- CPU Saturation per Core and CPU Schedule Timeslices: they read `/proc/schedstat`, which Docker Desktop's kernel does not enable.
-- Memory DirectMap: `/proc/meminfo` only reports it on x86 hosts, so it is empty on Apple Silicon.
-- TCP Stat Transient: it only has data while connections sit in short-lived states such as SYN_SENT or FIN_WAIT1, and the exporter sees only its own container's connections.
+To see the dashboards react to a failure, switch on one of the shop's feature flags, for example `make demo-fault FLAG=paymentFailure VARIANT=50%`, and undo it with `make demo-fault-reset`.
+`make demo-fault` with no flag lists them all; [The demo](../operate/demo.md#faults) explains what each does to the shop.
 
 ## ClickHouse unhealthy after an upgrade
 

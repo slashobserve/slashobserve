@@ -31,9 +31,9 @@ runs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
+        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
         restore-keys: |
-          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-
+          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-
           go-${{ inputs.cache-name }}-${{ runner.os }}-
 
     - name: Restore the Go caches
@@ -43,7 +43,7 @@ runs:
         path: |
           ~/go/pkg/mod
           ~/.cache/go-build
-        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
+        key: go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-${{ steps.week.outputs.week }}
         restore-keys: |
-          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'demo/go.sum', 'tools/*/go.sum') }}-
+          go-${{ inputs.cache-name }}-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum', 'tools/*/go.sum') }}-
           go-${{ inputs.cache-name }}-${{ runner.os }}-

@@ -59,7 +59,7 @@ Their next sign-in is refused with "This account was deactivated by an Admin. As
 If the server reaches the provider at another address than browsers do, for example by a Docker service name, set `SLASHOBSERVE_OIDC_INTERNAL_URL` to that origin.
 Only the server's own calls to the provider use it.
 The issuer and the browser redirects keep the public address.
-The demo stack does this: browsers use `http://localhost:5556/dex` and the server uses `http://dex:5556`.
+The demo stack does this: browsers use `http://localhost:55556/dex` and the server uses `http://dex:5556`.
 
 ## Check why sign-in fails
 

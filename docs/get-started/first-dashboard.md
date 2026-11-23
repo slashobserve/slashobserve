@@ -3,7 +3,7 @@ title: Your first dashboard
 description: Ask the agent for a dashboard on the demo stack, watch it work, and change the result.
 ---
 
-This walkthrough starts where the [quick start](quick-start.md) stops: the demo stack is running at http://localhost:8080, you set `SLASHOBSERVE_LLM_PROVIDER` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`, and you are signed in as `admin@example.com`.
+This walkthrough starts where the [quick start](quick-start.md) stops: the demo is running at http://localhost:58080, you set `SLASHOBSERVE_LLM_PROVIDER` and `SLASHOBSERVE_LLM_API_KEY` before `make demo`, and you are signed in as `admin@example.com`.
 Without a model the chat shows "No model is connected to this server." and prompts get `503 agent_unavailable`; see [LLM providers](../connect/llm-providers.md).
 
 ## Ask for a dashboard
@@ -13,11 +13,11 @@ Type a prompt and press Enter, or choose **Send**.
 Shift+Enter starts a new line, and pressing `/` anywhere on the page moves focus to the box.
 
 ```text
-checkout health by pod, last 6h
+checkout health by service, last 6h
 ```
 
 Under the box, a chip lists each healthy datasource the agent may use, followed by the name of the model.
-In the demo the datasources are `prom` (Prometheus), `ch` (ClickHouse), `loki` (Loki) and `tempo` (Tempo), and `es` (Elasticsearch) and `os` (OpenSearch) when you started the stack with `make demo-search`.
+In the demo the datasources are `prom` (Prometheus), `ch` (ClickHouse), `loki` (Loki) and `tempo` (Tempo) and `jaeger` (Jaeger), and `es` (Elasticsearch) and `os` (OpenSearch) when you started the stack with `make demo-search`.
 The buttons under "Example prompts" send a ready-made prompt at once, such as "Service health by pod, last 6h" or "Error logs by service, last hour", and which ones you see follows your datasources.
 
 A prompt is 1 to 4000 characters.

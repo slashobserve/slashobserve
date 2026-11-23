@@ -30,7 +30,8 @@ A server with no model configured shows zero agent runs and model calls rather t
 
 ## How it is provisioned
 
-- **The compose demo** mounts `deploy/compose/dashboards` as its [provisioning directory](provisioning.md), and its Prometheus scrapes the server as the `slashobserve` job behind the `prom` datasource.
+- **The replicas stack** of the repository's load test mounts `deploy/compose/dashboards/SlashObserve` as its [provisioning directory](provisioning.md), and its Prometheus scrapes both servers as the `slashobserve` job behind the `prom` datasource.
+  The [demo](demo.md) does not provision it, because its Prometheus does not scrape the server.
 - **The Helm chart** carries its own copy of the file and mounts it as the folder `SlashObserve` while `provisioning.internals` is `true`, the default; see [Run on Kubernetes](kubernetes.md).
   Add a datasource with uid `prom` under `datasources` that points at a Prometheus scraping the pod.
   `make lint` fails when the chart's copy differs from the compose copy.

@@ -19,8 +19,8 @@ type mcpCall struct {
 func mcpRotation(d dashboardInfo) []mcpCall {
 	return []mcpCall{
 		{"list_datasources", map[string]any{}},
-		{"list_metrics", map[string]any{"datasource": "prom", "search": "http_"}},
-		{"query_instant", map[string]any{"datasource": "prom", "query": "sum(rate(http_requests_total[5m]))"}},
+		{"list_metrics", map[string]any{"datasource": "prom", "search": "slashobserve_http_"}},
+		{"query_instant", map[string]any{"datasource": "prom", "query": "sum(rate(slashobserve_http_request_duration_seconds_count[5m]))"}},
 		{"get_dashboard", map[string]any{"dashboard_id": d.id}},
 	}
 }

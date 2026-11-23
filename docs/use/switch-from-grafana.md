@@ -25,7 +25,7 @@ The screens come from the [demo stack](../operate/demo.md), which runs no Grafan
 
 The chat page at `/ask` lists the dashboards you can see below the chat composer, with **Import from Grafana** beside the composer's datasources.
 
-![The Ask page with the chat composer, its datasources and Import from Grafana, and the dashboard list with Demo shop overview, Node health and SlashObserve internals](images/switch-from-grafana/01-home.png)
+![The Ask page with the chat composer, its datasources and Import from Grafana, and the dashboard list](images/switch-from-grafana/01-home.png)
 
 ## Connect
 
@@ -119,7 +119,7 @@ See [Dashboard health](dashboard-health.md) for the rules and the API.
 
 Grafana's public dashboards and kiosk mode have their counterparts here.
 
-![The Demo shop overview dashboard over the last 6 hours, with the Share button in its top row and the Activity pane beside the panels](images/switch-from-grafana/06-shop-overview.png)
+![A dashboard over the last 6 hours, with the Share button in its top row and the Activity pane beside the panels](images/switch-from-grafana/06-shop-overview.png)
 
 - A [public link](public-links.md) lets someone without an account, such as a vendor or a status screen, open one dashboard at `/p/<token>`.
   A person who manages the dashboard's folder creates it in the dashboard's **Share** pane, chooses whether viewers may change the variables, can set an expiry, and can revoke it at any time.

@@ -119,9 +119,10 @@ Apply refuses a dashboard that came from the provisioning directory with 409 `pr
 
 ## Demo stack
 
-The compose demo mounts `deploy/compose/dashboards` read-only at `/provision` and sets `SLASHOBSERVE_PROVISION_DIR=/provision`.
-Put a Spec file there and it appears in the demo within 30 seconds.
-The internals dashboard in `SlashObserve/internals.json` is described in [Observe SlashObserve](observe-slashobserve.md).
+The [demo](demo.md) mounts `deploy/compose/dashboards/Demo` read-only at `/provision/Demo` and sets `SLASHOBSERVE_PROVISION_DIR=/provision`.
+Put a Spec file there and it appears in the Demo folder within 30 seconds.
+It holds `astronomy-overview.json`, the Astronomy Shop overview.
+The demo does not load the internals dashboard, because its Prometheus does not scrape the server; the dashboard in `SlashObserve/internals.json` is described in [Observe SlashObserve](observe-slashobserve.md).
 
 ## Kubernetes
 

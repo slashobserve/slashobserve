@@ -1,8 +1,12 @@
 services:
   server:
-    volumes:
+    environment:
+      SLASHOBSERVE_PROVISION_DIR: !reset null
+    volumes: !override
       - ${SLASHOBSERVE_COMPOSE_DIR:?}/datasources.e2e.yaml:/etc/slashobserve/datasources.yaml:ro
       - ${ASTRONOMY_DIR:?}/../../e2e/fixtures/llm:/etc/slashobserve/llm-fixtures:ro
+      - ${ASTRONOMY_DIR:?}/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
+      - ${ASTRONOMY_STATE_DIR:?}/keys:/astronomy-keys:ro
   prometheus:
     ports:
       - 127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT:?}:9090

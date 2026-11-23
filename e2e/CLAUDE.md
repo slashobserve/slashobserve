@@ -13,7 +13,7 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
 ## The e2e stack
 
 - It is the full OpenTelemetry Astronomy Shop of `deploy/astronomy`, run through `scripts/astronomy.sh compose` with the extra layer `deploy/astronomy/compose.e2e.yaml`, plus the server and Dex.
-  The compose project is `slashobserve-e2e` on host port 18080 (override it with `SLASHOBSERVE_E2E_PROJECT` and the `SLASHOBSERVE_E2E_*_PORT` variables), reset with `down --volumes` on every `make e2e`, so it never touches a developer's `make astronomy-build` stack.
+  The compose project is `slashobserve-e2e` on host port 18080 (override it with `SLASHOBSERVE_E2E_PROJECT` and the `SLASHOBSERVE_E2E_*_PORT` variables), reset with `down --volumes` on every `make e2e`, so it never touches a developer's `make demo` stack.
 - The shop's state (its flag file and key) lives in `deploy/astronomy/.state/<project>`, apart from the developer stack's and from the state of an e2e stack of another project, so parallel stacks never share a flag file or a key, and one run's `down --volumes` cannot wipe another's.
   The live fault spec derives the same directory from `SLASHOBSERVE_E2E_PROJECT`, so a direct `bun run e2e live-fault` edits the e2e stack's flag file and never the developer stack's.
   `SLASHOBSERVE_IMAGE` runs a prebuilt server image: `deploy/astronomy/compose.prebuilt.yaml` replaces the build layer, and compose pulls the image when it is missing.

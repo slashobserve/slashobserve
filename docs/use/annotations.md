@@ -118,10 +118,6 @@ The built-in agent reads annotations with `list_annotations` in every run, as th
 No tool deletes an annotation.
 See [MCP](mcp.md).
 
-## Deploy markers in the demo
-
-The [demo stack](../operate/demo.md#deploy-markers) posts a global deploy marker at 00:00, 06:00, 12:00 and 18:00 UTC, tagged `deploy` and the service it names, so the charts of the provisioned dashboards show markers on the first run.
-
 ## Tags
 
 Tags group annotations so a dashboard can show only the kinds it cares about.

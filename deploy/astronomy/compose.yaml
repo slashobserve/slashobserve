@@ -218,9 +218,10 @@ services:
       file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
       service: server
     environment:
-      SLASHOBSERVE_PROVISION_DIR: !reset null
+      SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
     volumes: !override
       - ${ASTRONOMY_DIR:?}/datasources.yaml:/etc/slashobserve/datasources.yaml:ro
+      - ${SLASHOBSERVE_COMPOSE_DIR:?}/dashboards/Demo:/provision/Demo:ro
       - ${ASTRONOMY_DIR:?}/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
       - ${ASTRONOMY_STATE_DIR:?}/keys:/astronomy-keys:ro
     group_add:
