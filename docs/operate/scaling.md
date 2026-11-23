@@ -16,22 +16,7 @@ These steps run two servers on Kubernetes against a Postgres behind a pooler.
 
 1. Create the Secret `slashobserve-database`.
    It holds the pooled address under `url` and the direct address under `direct-url`.
-2. Set these Helm values:
-
-   ```yaml
-   replicaCount: 2
-   database:
-     existingSecret: slashobserve-database
-     urlKey: url
-     directUrlKey: direct-url
-   env:
-     - name: SLASHOBSERVE_AGENT_WORKERS
-       value: "8"
-   resources:
-     requests:
-       cpu: "1"
-   ```
-
+2. Set the [Helm values for two or more servers](#helm-values-for-two-or-more-servers).
 3. Upgrade the release.
    A rolling upgrade migrates on the first new pod while the others wait on the lock.
 4. Check that both servers report in, as [Check it is working](#check-it-is-working) shows.
@@ -133,6 +118,24 @@ It takes about 50 minutes and writes `loadtest/reports/<time>-<label>/report.md`
 The report has one table per scenario, the peak CPU and memory of every container, and a pass or fail for each gate.
 
 ## Reference
+
+### Helm values for two or more servers
+
+These values run two servers against a Postgres behind a pooler.
+
+```yaml
+replicaCount: 2
+database:
+  existingSecret: slashobserve-database
+  urlKey: url
+  directUrlKey: direct-url
+env:
+  - name: SLASHOBSERVE_AGENT_WORKERS
+    value: "8"
+resources:
+  requests:
+    cpu: "1"
+```
 
 ### Per server and fleet-wide limits
 

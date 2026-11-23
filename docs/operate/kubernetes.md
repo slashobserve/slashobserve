@@ -248,7 +248,7 @@ Set `ingress.tlsSecretName` to add a TLS block.
 The Ingress adds a second Service, `<release>-no-metrics`, which only holds the `/metrics` path back; it selects no pods.
 
 The controller must follow the proxy rules in [Run in production](production.md#put-tls-in-front).
-That means no response buffering and no short read timeout on the Server-Sent Events streams, and request bodies of at least 8 MiB.
+That means no response buffering and no short read timeout on the four Server-Sent Events streams listed under [Keep live streams open](production.md#keep-live-streams-open), and request bodies of at least 8 MiB.
 For ingress-nginx, for example:
 
 ```yaml

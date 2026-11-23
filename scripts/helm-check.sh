@@ -124,7 +124,7 @@ grep -q 'name: t-slashobserve-no-metrics' "$work/everything.out" || die "the eve
 run helm template t "$CHART" -f "$work/required.yaml" -f "$work/everything.yaml" --set ingress.exposeMetrics=true >"$work/exposed.out"
 ! grep -q 'no-metrics' "$work/exposed.out" || die "ingress.exposeMetrics=true still holds /metrics back"
 
-awk '/^## Helm values for two or more servers$/ {s=1; next} s && /^```yaml$/ {p=1; next} p && /^```$/ {exit} p' docs/operate/scaling.md >"$work/scaling.yaml"
+awk '/^##+ Helm values for two or more servers$/ {s=1; next} s && /^```yaml$/ {p=1; next} p && /^```$/ {exit} p' docs/operate/scaling.md >"$work/scaling.yaml"
 [[ -s "$work/scaling.yaml" ]] || die "docs/operate/scaling.md has no yaml block under 'Helm values for two or more servers'"
 run helm lint --strict "$CHART" -f "$work/required.yaml" -f "$work/scaling.yaml" >/dev/null
 run helm template t "$CHART" -f "$work/required.yaml" -f "$work/scaling.yaml" >"$work/scaling.out"

@@ -25,7 +25,7 @@ The server copies the child's log lines into its own log with `component=observe
 ## Find out why a request failed
 
 Every line about a failure carries a short fixed `error_code` and the ids that locate it.
-The server logs no error message, because a message from a driver or library can echo a query, a connection detail or a credential.
+The server logs no error message from a driver or library, because it can echo a query, a connection detail or a credential.
 
 1. Find the line for the failure and read its `error_code`, such as `tool_failed`, `session_lookup_failed` or `readiness_check_failed`.
 2. Read the ids on the line, such as `agent_request_id`, `dashboard_id`, `principal_id` or a datasource `uid`.

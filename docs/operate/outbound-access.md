@@ -18,7 +18,7 @@ A datasource an Admin adds in the app is held to the list in a narrower way, des
 ## Allow a domain
 
 1. Sign in to the web app as an Admin and open **Settings**, then **Outbound access**.
-2. In **Allowed domains**, type the domain and choose **Allow**.
+2. In the **Allowed domains** card, type the domain and choose **Allow domain**.
    Use `example.com` for that host only, or `*.example.com` for its subdomains but not `example.com` itself.
 3. To take a domain away again, choose the remove button on its entry, then **Remove domain**.
    The confirmation names the webhooks, connections and datasources that use it.
