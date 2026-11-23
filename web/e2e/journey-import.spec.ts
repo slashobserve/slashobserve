@@ -192,6 +192,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(page.locator('article[data-state="error"]')).toHaveCount(
           routeVariablePanels.length
         )
+        failedResourceLogged(consoleErrors, "422", routeVariablePanels.length)
         const placeholder = panel(page, "Alert groups")
         await expect(placeholder).toHaveAttribute("data-state", "ready")
         await expect(placeholder).toContainText(
