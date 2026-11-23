@@ -84,6 +84,10 @@ func (f *loginFailure) outcome() audit.Outcome {
 func (s *Service) login(c *gin.Context) {
 	ctx := c.Request.Context()
 	provider, err := s.provider(ctx)
+	if errors.Is(err, errSignInOff) {
+		refuseLogin(c, "sign_in_off")
+		return
+	}
 	if err != nil {
 		s.logger.WarnContext(ctx, "oidc discovery failed", logattrs.Failure("oidc_unavailable", err)...)
 		refuseLogin(c, "unavailable")
@@ -141,6 +145,10 @@ func newLoginSecrets() (state string, stateHash []byte, nonce, verifier string, 
 
 func (s *Service) callback(c *gin.Context) {
 	ctx := c.Request.Context()
+	if !s.signInOn() {
+		refuseLogin(c, "sign_in_off")
+		return
+	}
 	state := c.Query("state")
 	cookie, cookieErr := c.Request.Cookie(s.loginCookie)
 	s.clearCookie(c, s.loginCookie)
