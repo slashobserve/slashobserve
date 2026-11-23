@@ -20,7 +20,7 @@ type State struct {
 	Turn          Turn            `json:"turn"`
 	Counts        Counts          `json:"counts"`
 
-	InvestigationCalls int `json:"-"`
+	InvestigationCalls int `json:"investigation_calls,omitempty"`
 }
 
 type Window struct {

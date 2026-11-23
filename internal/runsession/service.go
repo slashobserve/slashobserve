@@ -173,7 +173,9 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if err := json.Unmarshal(raw, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
 	}
-	sess.state.Guard.InvestigationCalls = s.investigationCalls
+	if sess.state.Guard.InvestigationCalls == 0 {
+		sess.state.Guard.InvestigationCalls = s.investigationCalls
+	}
 	return sess, nil
 }
 
