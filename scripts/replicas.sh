@@ -31,6 +31,7 @@ COMPOSE_CMD=(docker compose
   -f "$ROOT/deploy/compose/compose.replicas.yaml"
   -p "$PROJECT")
 SERVICES=(server haproxy pgbouncer prometheus)
+REQUEST_RATE_QUERY="sum(rate(slashobserve_http_request_duration_seconds_count[1m]))"
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -154,6 +155,19 @@ wait_ready() {
   die "$url/readyz did not answer 200 within ${seconds}s"
 }
 
+wait_prometheus_series() {
+  local query="$1" seconds="$2" waited=0 body
+  while ((waited < seconds)); do
+    body="$(curl -fsS --get --data-urlencode "query=$query" "http://localhost:${SLASHOBSERVE_PROMETHEUS_HOST_PORT}/api/v1/query" 2>/dev/null || true)"
+    if [[ "$body" == *'"status":"success"'* && "$body" != *'"result":[]'* ]]; then
+      return 0
+    fi
+    sleep "${REPLICAS_POLL_SECONDS:-2}"
+    waited=$((waited + ${REPLICAS_POLL_SECONDS:-2}))
+  done
+  die "Prometheus returned no value for $query within ${seconds}s"
+}
+
 dex_login() {
   local jar="$1" authorize form_url final
   scratch
@@ -242,6 +256,7 @@ up() {
   wait_ready "$LB" 60
   wait_ready "$ONE" 60
   wait_ready "$TWO" 60
+  wait_prometheus_series "$REQUEST_RATE_QUERY" 180
   keys
   say "up: $LB (round-robin), $ONE (server 1), $TWO (server 2)"
 }
@@ -1181,4 +1196,4 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
