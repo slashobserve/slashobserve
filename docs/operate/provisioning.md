@@ -165,9 +165,9 @@ It answers 409 `provisioning_off` when `SLASHOBSERVE_PROVISION_DIR` is unset, an
 | --- | --- | --- |
 | `file_unreadable` | The file cannot be read. | The file cannot be opened. |
 | `invalid_spec` | The spec is invalid, followed by each path and problem. | The file does not parse as a valid Spec, or a query fails. |
-| `version_conflict` | The dashboard got a newer version while the file was saved. | The next run saves it again. |
+| `version_conflict` | The dashboard got a newer version while the file was saved; the next run saves it again. | Someone saved the dashboard while the file was being saved. |
 | `forbidden` | The provisioning account cannot save into this folder or dashboard. | The folder or dashboard is out of the account's reach. |
-| `restricted_content` | The dashboard reads a datasource only Admins can query. | The file's folder is not one only Admins can read; see [Who can query a datasource](../reference/datasources-file.md#who-can-query-a-datasource). |
+| `restricted_content` | This dashboard reads the datasource, named by its uid in quotes, which only Admins can query; save it in a folder only Admins can read. | The file's folder is not one only Admins can read; see [Who can query a datasource](../reference/datasources-file.md#who-can-query-a-datasource). |
 | `internal` | The save failed; the server log has the cause. | Any other failure, a link that leaves the directory included. |
 
 A message is cut at 2048 bytes.
