@@ -69,6 +69,14 @@ flag adFailure on >/dev/null
 [[ "$(jq -r '.flags | keys | join(",")' "$tmp/flagd/demo.flagd.json")" == adFailure ]] || fail "flag-reset restores the upstream file"
 [[ "$(ls -A "$tmp/flagd")" == demo.flagd.json ]] || fail "flag-reset leaves no temporary file behind"
 
+pulls=""
+compose() { pulls="$pulls $*"; }
+(SLASHOBSERVE_IMAGE="" pull_published; [[ "$pulls" == " pull server" ]]) || fail "the published path pulls the server image when SLASHOBSERVE_IMAGE is unset"
+(unset SLASHOBSERVE_IMAGE; pulls=""; pull_published; [[ "$pulls" == " pull server" ]]) || fail "the published path pulls the server image when SLASHOBSERVE_IMAGE is not in the environment"
+(SLASHOBSERVE_IMAGE=slashobserve-local:dev; pulls=""; pull_published; [[ -z "$pulls" ]]) || fail "the published path does not pull a server image the caller named"
+unset -f compose
+source "$here/astronomy.sh"
+
 mkdir -p "$tmp/keys"
 echo sok_test >"$tmp/keys/astronomy.key"
 started=$SECONDS

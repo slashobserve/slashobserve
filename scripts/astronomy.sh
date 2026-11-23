@@ -53,7 +53,7 @@ Environment:
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
   SLASHOBSERVE_IMAGE          the server image: the tag a build gets (default
                               slashobserve-astronomy-server:local), or the image --published runs,
-                              pulled unless it already exists locally
+                              never pulled when you set it, so it can be a local build
                               (default ghcr.io/slashobserve/slashobserve:latest)
 
 Model provider: put SLASHOBSERVE_LLM_PROVIDER, SLASHOBSERVE_LLM_MODEL and
@@ -168,6 +168,10 @@ remove_search_stores() {
   compose rm --stop --force elasticsearch opensearch
 }
 
+pull_published() {
+  if [[ -z "${SLASHOBSERVE_IMAGE:-}" ]]; then compose pull server; fi
+}
+
 cmd_up() {
   parse_options "$@"
   check_tools
@@ -175,9 +179,7 @@ cmd_up() {
   prepare_state
   if [[ "$SEARCH" == 1 ]]; then verify_search_command; fi
   if [[ "$PUBLISHED" == 1 ]]; then
-    if [[ -z "${SLASHOBSERVE_IMAGE:-}" ]] || ! docker image inspect "$SLASHOBSERVE_IMAGE" >/dev/null 2>&1; then
-      compose pull server
-    fi
+    pull_published
   else
     export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
     compose build server
