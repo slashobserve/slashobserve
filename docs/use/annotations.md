@@ -39,7 +39,7 @@ Kiosk mode and a viewer without Edit hide **Add annotation** and the Cmd-click g
 
 ## See the markers
 
-Time series, candlestick and state timeline panels draw every annotation in their time range.
+Time series and state timeline panels draw every annotation in their time range.
 A moment is a vertical line in the info colour, and a range is a light band between two lines.
 A small flag at the bottom of each line opens a card when you hover, focus or tap it.
 
