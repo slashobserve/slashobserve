@@ -15,6 +15,12 @@ function legendOf(article: Locator) {
   return article.getByRole("group", { name: "Series" })
 }
 
+async function hoverLatestPoint(plot: Locator) {
+  const box = await plot.boundingBox()
+  if (!box) throw new Error("the chart has no plot area")
+  await plot.hover({ position: { x: box.width - 4, y: box.height / 2 } })
+}
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
@@ -100,7 +106,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expectPanelsReady(page)
 
       const article = panel(page, "Requests and errors")
-      await article.locator(".u-over").hover()
+      await hoverLatestPoint(article.locator(".u-over"))
       const tooltip = article.locator('[data-slot="chart-tooltip"]')
       await expect(tooltip).toBeVisible()
       expect(await tooltip.locator(".ts-tooltip-row").count()).toBeGreaterThan(
