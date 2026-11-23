@@ -12,7 +12,7 @@ The dependency audit runs daily and on a pull request that changes a lockfile or
 
 ## Unit tests
 
-`make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, `bun test` for `observe-agent`, and the tests of the release, install, docs lint and CI change scripts.
+`make test` runs `go test -race ./...`, the web Vitest suite, `bun test` for `observe-agent`, and the tests of the release, install, docs lint and CI change scripts.
 Run one part on its own with `make test-go`, `make test-web`, `make test-agent`, `make test-scripts` or `make test-benchmarks` (the Python unit tests of the benchmark adapter, see [Running benchmarks](benchmarks.md)), or with `go test -race ./...` from the repository root or `bun run test` from `web/`.
 `make lint` and `make test` together with the module tidy check and `make build` are what `make ci` runs, which is what the CI `check` job runs.
 
@@ -64,7 +64,7 @@ Locally the suite runs with one worker, no retries and the list reporter.
 
 ## Two servers and the load test
 
-`make replicas-up` builds this checkout and boots the isolated `slashobserve-replicas` compose stack: two servers behind HAProxy and PgBouncer in transaction mode, with `SLASHOBSERVE_DATABASE_DIRECT_URL` pointing straight at Postgres, the replay model provider, and the shop's Prometheus.
+`make replicas-up` builds this checkout and boots the isolated `slashobserve-replicas` compose stack: two servers behind HAProxy and PgBouncer in transaction mode, with `SLASHOBSERVE_DATABASE_DIRECT_URL` pointing straight at Postgres, the replay model provider, and a Prometheus that scrapes both servers, which is the data source of the load test's dashboard.
 HAProxy answers on http://localhost:48080 and spreads requests over both servers.
 Server 1 alone answers on http://localhost:48081 and server 2 alone on http://localhost:48082, so a check can write on one server and read on the other.
 The stack's project name, ports and volumes differ from the demo, the e2e stack and the evals stack, so it runs beside them and never stops, resets or reads them.
@@ -85,7 +85,7 @@ It runs four scenarios: viewers who reload one dashboard of 12 panels every 10 s
 Each build takes about 6 seconds of model time, so the builds measure the queue and the database, not a model.
 The series runs on one server, on two servers with 8 agent workers, and then the agent builds alone with 2 and with 16 workers, and takes about 50 minutes.
 `scripts/replicas.sh load [--only viewers|streams|mcp|agent] <label>` runs one pass on the stack as it is, with the running servers as replicas.
-The tool refuses to run against anything but this stack: a loopback target on port 8080 is the demo and is rejected, and another host needs `--remote <host>` with that exact host name.
+The tool refuses to run against anything but this stack: a loopback target on port 58080 is the demo, and one on 8080 is a local server, and both are rejected, and another host needs `--remote <host>` with that exact host name.
 It never prints a key and deletes or resets nothing.
 
 Each pass writes `loadtest/reports/<time>-<label>/`, which is git-ignored.

@@ -9,8 +9,6 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
-SHOP_DIR := demo
-SHOP_LINT := go tool -modfile=../tools/golangci-lint/go.mod golangci-lint
 EVALS_STACK_MODE ?= replay
 EVALS_MATRIX ?= evals/matrix.yaml
 EVALS_REPORT_DIR ?= evals/reports/live
@@ -22,7 +20,7 @@ WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 # hono and @hono/node-server under the MCP SDK's server transports, which observe-agent never loads; drop once hono 4.13.16 and @hono/node-server 2.1.6 are 14 days old (2026-11-16)
 AGENT_AUDIT_IGNORE := GHSA-qv5m-9pm6-hqp3 GHSA-jpvv-r467-5p4w GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6 GHSA-46wx-v44x-9hh2 GHSA-4h7h-rv7c-7m2v
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-shop test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-down demo-reset demo-check demo-fault demo-fault-reset demo-k8s demo-k8s-down helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -51,14 +49,11 @@ generate: web-deps
 	cd web && bun run spec:generate
 	cd web && bun run api:generate
 
-test: test-go test-shop test-web test-agent test-scripts test-benchmarks
+test: test-go test-web test-agent test-scripts test-benchmarks
 
 test-go:
 	go test $(GO_TEST_FLAGS) $(GO_TEST_PKGS)
 	$(if $(COVER),go tool cover -func=coverage.out | tail -1)
-
-test-shop:
-	cd $(SHOP_DIR) && go test -race ./...
 
 test-web: web-deps
 	cd web && bun run test $(WEB_TEST_FLAGS)
@@ -82,8 +77,6 @@ lint-go:
 	$(GOLANGCI_LINT) config verify
 	$(GOLANGCI_LINT) fmt --diff
 	$(GOLANGCI_LINT) run ./...
-	cd $(SHOP_DIR) && $(SHOP_LINT) fmt --config ../.golangci.yaml --diff
-	cd $(SHOP_DIR) && $(SHOP_LINT) run --config ../.golangci.yaml ./...
 	$(SQLC) diff
 
 lint-web: lint-web-types lint-web-eslint lint-web-knip lint-web-format
@@ -115,7 +108,6 @@ golden:
 
 tidy-check:
 	go mod tidy -diff
-	cd $(SHOP_DIR) && go mod tidy -diff
 
 ci:
 	$(MAKE) lint test tidy-check
@@ -123,7 +115,6 @@ ci:
 
 audit:
 	go tool -modfile=tools/govulncheck/go.mod govulncheck ./...
-	cd $(SHOP_DIR) && go tool -modfile=../tools/govulncheck/go.mod govulncheck ./...
 	cd web && bun audit --prod
 	cd web && bun audit --audit-level=high $(addprefix --ignore=,$(WEB_AUDIT_IGNORE))
 	cd observe-agent && bun audit --prod $(addprefix --ignore=,$(AGENT_AUDIT_IGNORE))
@@ -152,12 +143,6 @@ demo-fault:
 
 demo-fault-reset:
 	scripts/astronomy.sh flag-reset
-
-demo-k8s:
-	scripts/demo-k8s.sh up
-
-demo-k8s-down:
-	scripts/demo-k8s.sh down
 
 helm-kind:
 	scripts/helm-kind.sh up

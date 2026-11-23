@@ -34,7 +34,7 @@ The conventions for each area are in [internal/CLAUDE.md](internal/CLAUDE.md), [
 | Command | What it does |
 | --- | --- |
 | `make lint` | Go and web linters, formatting, type checks, and checks that generated files match their sources. |
-| `make test` | Go tests with the race detector for the server and the demo shop, then the web unit tests. |
+| `make test` | Go tests with the race detector, then the web unit tests. |
 | `make ci` | `lint`, `test`, a `go mod tidy` check and `make build`, which is what the `check` job in CI runs. |
 | `make generate` | Regenerates the sqlc code, the Spec types and validator for the web app, and the API types, after you edit migrations, queries, the schema or `api/`. |
 
