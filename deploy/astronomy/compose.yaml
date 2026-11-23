@@ -139,7 +139,10 @@ services:
         condition: service_started
 
   jaeger:
-    image: quay.io/jaegertracing/jaeger:2.23.0@sha256:3823829974ccfc2485d2e48b165579091f32295022ae80ca49704e2f4834116e
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: jaeger
+    profiles: !reset []
     command: ["--config=file:/etc/jaeger/config.yml"]
     environment:
       - JAEGER_HOST
@@ -154,7 +157,6 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
-    restart: unless-stopped
     logging: *logging
     deploy:
       resources:
