@@ -38,7 +38,7 @@
         "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "up" }
+          { "query": "traces_span_metrics_calls_total" }
         ]
       }
     ]

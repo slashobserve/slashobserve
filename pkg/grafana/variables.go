@@ -918,7 +918,7 @@ func (c *converter) adhocVariable(raw map[string]any, path, name string) (spec.V
 		return spec.Variable{}, false
 	}
 	c.adhocSources[name] = ref.src
-	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref(), ApplyToAll: filtersAppliedByRunner(ref.src.kind)}
+	v := spec.Variable{Type: spec.AdhocVariable, Datasource: ref.src.ref(), ApplyToAll: ref.src.kind == kindClickHouse}
 	if filters := c.adhocFilterList(raw, "filters", path, subject, ref.src.kind); len(filters) > 0 {
 		v.Default = &spec.Selection{Filters: filters}
 	}

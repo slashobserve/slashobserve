@@ -50,7 +50,7 @@
         {
           "id": "p_up",
           "type": "timeseries",
-          "title": "Targets up",
+          "title": "Calls",
           "gridPos": {
             "x": 0,
             "y": 5,
@@ -60,7 +60,7 @@
           "datasource": "prom",
           "queries": [
             {
-              "query": "count(up)"
+              "query": "count(traces_span_metrics_calls_total)"
             }
           ]
         },

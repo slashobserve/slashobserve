@@ -145,11 +145,11 @@ test("drags and resizes a panel and saves a new version", async ({
   await expect(unsavedLayout(page)).toBeVisible()
   await expectNoAnimations(page.locator(".react-grid-item"))
 
-  await selectPanelToArrange(page, "Checkout requests per second")
+  await selectPanelToArrange(page, "Shop requests per second")
   const resize = await box(
     gridItem(page, "rps").locator(".react-resizable-handle-se")
   )
-  const rps = await box(panel(page, "Checkout requests per second"))
+  const rps = await box(panel(page, "Shop requests per second"))
   await dragTo(
     page,
     { x: resize.x + resize.width / 2, y: resize.y + resize.height / 2 },
@@ -242,7 +242,7 @@ test("announces when a key press changes nothing and clears after a mouse drag",
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  const rpsTitle = "Checkout requests per second"
+  const rpsTitle = "Shop requests per second"
   await selectPanelToArrange(page, rpsTitle)
 
   await moveHandle(page, rpsTitle).focus()
@@ -284,7 +284,7 @@ test("pushes a neighbour down when a keyboard move overlaps it", async ({
     `${errorRateTitle}: column 14, row 1, 6 by 4`
   )
   await expect
-    .poll(async () => (await box(panel(page, "Requests by pod"))).y)
+    .poll(async () => (await box(panel(page, "Requests by service"))).y)
     .toBeGreaterThan((await box(panel(page, errorRateTitle))).y)
 
   await page.keyboard.press("ArrowLeft")
@@ -324,7 +324,7 @@ test("lists the conflicts and reloads when another version moved the same panel"
     dialog.getByText("Version 2 changed the same things")
   ).toBeVisible()
   await expect(
-    dialog.getByRole("listitem").filter({ hasText: "Requests by pod" })
+    dialog.getByRole("listitem").filter({ hasText: "Requests by service" })
   ).toHaveCount(1)
   expectConflictLogged(consoleErrors)
   await expect(
@@ -638,7 +638,7 @@ test("shows the edge and corner resize handles on hover", async ({
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
-  await selectPanelToArrange(page, "Checkout requests per second")
+  await selectPanelToArrange(page, "Shop requests per second")
 
   const item = gridItem(page, "rps")
   await item.hover()

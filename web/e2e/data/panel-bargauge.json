@@ -6,13 +6,13 @@
     {
       "id": "bg_h",
       "type": "bargauge",
-      "title": "Pods horizontal",
+      "title": "Services horizontal",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (pod) (rate(http_requests_total[5m]))",
-          "legend": "{{pod}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         }
       ],
       "min": 0,
@@ -26,8 +26,8 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (service) (rate(http_requests_total[5m]))",
-          "legend": "{{service}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|frontend|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         }
       ],
       "display": { "orientation": "vertical" },

@@ -7,7 +7,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[5m]))",
+            "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
             "from": "now-6h",
             "to": "now"
           }
@@ -16,7 +16,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
             "from": "now-6h",
             "to": "now"
           }
@@ -48,7 +48,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[5m]))",
+            "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
             "from": "now-5h",
             "to": "now"
           }
@@ -57,7 +57,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
             "from": "now-5h",
             "to": "now"
           }
@@ -89,7 +89,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[5m]))",
+            "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
             "from": "now-4h",
             "to": "now"
           }
@@ -98,7 +98,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
             "from": "now-4h",
             "to": "now"
           }
@@ -130,7 +130,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[5m]))",
+            "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
             "from": "now-3h",
             "to": "now"
           }
@@ -139,7 +139,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
             "from": "now-3h",
             "to": "now"
           }
@@ -171,7 +171,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[5m]))",
+            "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
             "from": "now-2h",
             "to": "now"
           }
@@ -180,7 +180,7 @@
           "name": "query_range",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))",
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
             "from": "now-2h",
             "to": "now"
           }
@@ -226,7 +226,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "sum(rate(http_requests_total[$__rate_interval]))"
+                      "query": "sum(rate(traces_span_metrics_calls_total[$__rate_interval]))"
                     }
                   ]
                 },
@@ -250,7 +250,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                      "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
                     }
                   ]
                 }

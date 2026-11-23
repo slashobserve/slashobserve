@@ -25,9 +25,9 @@ import {
 } from "./fixtures"
 
 const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A"
-const rpsTitle = "Checkout requests per second"
+const rpsTitle = "Shop requests per second"
 const savedQuery =
-  'sum(rate(http_requests_total{service="checkout"}[$__rate_interval]))'
+  'sum(rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))'
 const newerNotice = /saved version 2 while you were editing\./i
 const newerTimeout = 10_000
 const saveVersionButton = /^Save as version \d+$/
@@ -366,7 +366,8 @@ test("applying my title keeps a panel query changed in the newer version", async
   await openFromMenu(page, rpsTitle)
   await sheet(page).getByRole("textbox", { name: "Title" }).fill("My title")
 
-  const newerQuery = 'sum(rate(http_requests_total{service="checkout"}[1m]))'
+  const newerQuery =
+    'sum(rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[5m]))'
   await addVersion(
     request,
     id,
@@ -397,7 +398,8 @@ test("moves focus to the conflict list when a save conflicts with a newer versio
   await openFromMenu(page, rpsTitle)
   await replaceQuery(page, savedQuery)
 
-  const newerQuery = 'sum(rate(http_requests_total{service="payments"}[1m]))'
+  const newerQuery =
+    'sum(rate(traces_span_metrics_calls_total{service_name="payment",span_kind="SPAN_KIND_SERVER"}[5m]))'
   await addVersion(
     request,
     id,
@@ -770,7 +772,7 @@ test("keeps a rejected query's message on its own row when another row is remove
   await openDashboard(page, id)
   await openFromMenu(page, rpsTitle)
   await addSecondQuery(page)
-  await page.keyboard.insertText("count(up)")
+  await page.keyboard.insertText("count(traces_span_metrics_calls_total)")
 
   await mockSaveResponse(page, [
     {
@@ -1300,11 +1302,11 @@ for (const colorScheme of ["light", "dark"] as const) {
 
       await addSecondQuery(page)
       await expect(sheet(page).getByText("New", { exact: true })).toBeVisible()
-      await page.keyboard.insertText("count(up)")
+      await page.keyboard.insertText("count(traces_span_metrics_calls_total)")
       await sheet(page)
         .getByRole("textbox", { name: "Legend" })
         .nth(1)
-        .fill("up")
+        .fill("calls")
       await expect(sheet(page).getByText("1 change: new query B")).toBeVisible()
 
       await sheet(page).getByRole("button", { name: "Add a note" }).click()
@@ -1324,7 +1326,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       )
       expect(rps?.queries).toMatchObject([
         { query: firstQuery(spec.panels.find((item) => item.id === "rps")) },
-        { query: "count(up)", legend: "up" },
+        { query: "count(traces_span_metrics_calls_total)", legend: "calls" },
       ])
     })
 

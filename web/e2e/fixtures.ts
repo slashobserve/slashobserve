@@ -19,12 +19,18 @@ export const test = base.extend<{ consoleErrors: string[] }>({
   ],
 })
 
-export function failedResourceLogged(consoleErrors: string[], status: string) {
+export function failedResourceLogged(
+  consoleErrors: string[],
+  status: string,
+  count = 1
+) {
   const logged = consoleErrors.filter((message) =>
     message.includes(`status of ${status}`)
   )
-  expect(logged).toHaveLength(1)
-  consoleErrors.splice(consoleErrors.indexOf(logged[0]), 1)
+  expect(logged).toHaveLength(count)
+  for (const message of logged) {
+    consoleErrors.splice(consoleErrors.indexOf(message), 1)
+  }
 }
 
 export async function draftPreviewRejectionLogged(consoleErrors: string[]) {

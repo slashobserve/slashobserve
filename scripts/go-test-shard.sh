@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-named="grafana evals db datasource agent"
+named="grafana db datasource agent"
 
 packages() {
   case "$1" in
     grafana) echo "./pkg/grafana/..." ;;
-    evals) echo "./evals/..." ;;
     db) echo "./internal/db/..." ;;
     datasource) echo "./internal/datasource/..." ;;
     agent) echo "./internal/agent/... ./pkg/spec/..." ;;

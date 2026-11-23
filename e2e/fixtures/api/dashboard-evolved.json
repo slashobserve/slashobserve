@@ -37,7 +37,7 @@
             "title": "Targets up",
             "gridPos": { "x": 0, "y": 5, "w": 12, "h": 8 },
             "datasource": "prom",
-            "queries": [{ "query": "count(up)" }]
+            "queries": [{ "query": "count(traces_span_metrics_calls_total)" }]
           },
           {
             "id": "p_world",

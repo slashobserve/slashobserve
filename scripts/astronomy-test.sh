@@ -110,6 +110,18 @@ if search_command_matches "$upstream" "$drifted"; then fail "a copy that dropped
 grown='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--feature-gates=service.profilesSupport","--set=x=y","--config=/etc/otelcol-config-search.yml"]'
 if search_command_matches "$upstream" "$grown"; then fail "a copy with an argument upstream lacks is refused"; fi
 if search_command_matches "$upstream" "$upstream"; then fail "a command without the search config is refused"; fi
+docker() { printf '%s\n' "$@"; }
+SEARCH=0
+layered="$(ASTRONOMY_COMPOSE_FILES="/one.yaml:/two.yaml" compose ps | tr '\n' ' ')"
+[[ "$layered" == *"compose.build.yaml -f /one.yaml -f /two.yaml ps "* ]] || fail "extra compose files follow the stack's own, in order, then the arguments: $layered"
+plain="$(ASTRONOMY_COMPOSE_FILES="" compose ps | tr '\n' ' ')"
+[[ "$plain" != *"/one.yaml"* ]] || fail "no extra files without ASTRONOMY_COMPOSE_FILES: $plain"
+unset -f docker
+[[ "$(ASTRONOMY_PROJECT=slashobserve-e2e bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-e2e ]] || fail "ASTRONOMY_PROJECT names the compose project"
+[[ "$(bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-astronomy ]] || fail "the compose project defaults to slashobserve-astronomy"
+
+if message="$("$here/astronomy.sh" up --no-build 2>&1)"; then fail "up has no --no-build option"; fi
+[[ "$message" == *"unknown option --no-build"* ]] || fail "up refuses --no-build by name: $message"
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1

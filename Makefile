@@ -9,9 +9,6 @@ GO_LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 SQLC := go tool -modfile=tools/sqlc/go.mod sqlc
 GOLANGCI_LINT := go tool -modfile=tools/golangci-lint/go.mod golangci-lint
-EVALS_STACK_MODE ?= replay
-EVALS_MATRIX ?= evals/matrix.yaml
-EVALS_REPORT_DIR ?= evals/reports/live
 GO_TEST_FLAGS := -race -timeout 20m $(if $(COVER),-coverprofile=coverage.out -covermode=atomic)
 GO_TEST_PKGS ?= ./...
 WEB_TEST_FLAGS := $(if $(COVER),--coverage)
@@ -20,7 +17,7 @@ WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 # hono and @hono/node-server under the MCP SDK's server transports, which observe-agent never loads; drop once hono 4.13.16 and @hono/node-server 2.1.6 are 14 days old (2026-11-16)
 AGENT_AUDIT_IGNORE := GHSA-qv5m-9pm6-hqp3 GHSA-jpvv-r467-5p4w GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6 GHSA-46wx-v44x-9hh2 GHSA-4h7h-rv7c-7m2v
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all evals evals-stack-up evals-stack-down evals-replay evals-live evals-compare golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -191,26 +188,6 @@ e2e-browser: web-deps
 e2e-all:
 	scripts/e2e.sh
 	$(MAKE) e2e-browser
-
-evals:
-	go run ./evals/runner $(EVALS_ARGS)
-
-evals-stack-up:
-	scripts/evals-stack.sh up $(EVALS_STACK_MODE)
-
-evals-stack-down:
-	scripts/evals-stack.sh down
-
-evals-replay:
-	scripts/evals-stack.sh up --no-history replay
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite replay --await-history --bootstrap-dex --min-pass 1 $(if $(EVALS_OUT),--out "$(EVALS_OUT)")
-
-evals-live:
-	go run ./evals/runner --server "http://localhost:$${SLASHOBSERVE_EVALS_PORT:-28080}" --prometheus "http://localhost:$${SLASHOBSERVE_EVALS_PROMETHEUS_PORT:-29090}" --suite live --matrix $(EVALS_MATRIX) --bootstrap-dex --out $(EVALS_REPORT_DIR)
-
-evals-compare:
-	@test -n "$(EVALS_BASE)" -a -n "$(EVALS_NEW)" || { echo "usage: make evals-compare EVALS_BASE=<report.json> EVALS_NEW=<report.json>" >&2; exit 2; }
-	go run ./evals/runner --compare "$(EVALS_BASE)" "$(EVALS_NEW)"
 
 clean:
 	rm -rf bin web/dist web/playwright-report web/test-results web/coverage coverage.out

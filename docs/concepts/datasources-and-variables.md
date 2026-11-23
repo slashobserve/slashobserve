@@ -114,7 +114,8 @@ Otherwise a query that uses it fails, and the fix is to use the `regex` format, 
 ## Datasource variables
 
 A `datasource` variable lets a viewer switch a whole dashboard between datasources of one type, such as a production and a staging Prometheus.
-`datasourceType` is `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`, the optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
+`datasourceType` is `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`; it is not `jaeger`, because the ObserveSpec schema does not list Jaeger yet, so a panel names a [Jaeger](../connect/jaeger.md) datasource by its uid.
+The optional `regex` keeps only the uids it matches, and the optional `default` is a uid, never a `${name}`.
 A viewer picks exactly one datasource, so it has no `multi` or `includeAll`.
 
 To use it, write `${name}` as the `datasource` of a panel, of a query, of a `query` variable or of an `adhoc` variable.

@@ -27,13 +27,13 @@
     {
       "id": "rps",
       "type": "timeseries",
-      "title": "Checkout requests per second",
+      "title": "Shop requests per second",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (pod) (rate(http_requests_total{service=\"checkout\"}[$__rate_interval]))",
-          "legend": "{{pod}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
+          "legend": "{{service_name}}"
         }
       ],
       "unit": "reqps",
@@ -52,7 +52,7 @@
       "title": "Nothing here",
       "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
       "datasource": "prom",
-      "queries": [{ "query": "count(up)" }],
+      "queries": [{ "query": "count(traces_span_metrics_calls_total)" }],
       "noValue": "Nothing yet"
     }
   ]

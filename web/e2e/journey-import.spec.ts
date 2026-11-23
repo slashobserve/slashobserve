@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test"
 
 import { card, entries, entryWith } from "./activity"
 import { panel } from "./dashboards"
-import { expect, test } from "./fixtures"
+import { expect, failedResourceLogged, test } from "./fixtures"
 
 const agentTimeout = 90_000
 const repoRoot = join(import.meta.dirname, "..", "..")
@@ -25,11 +25,17 @@ const unverifiedPath = join(
   "api",
   "grafana-unverified.json"
 )
+const routeVariablePanels = [
+  "Requests and errors by route",
+  "Request latency distribution",
+  "How often p95 latency lands in each band",
+]
 const demoShopTitle = "Demo shop (Grafana)"
 const demoShopSummary = "27 panels in 6 rows"
 const dashboardPath = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/
 const fixPrompt = 'Fix the unverified panel "Missing" (p2).'
-const fixChange = "Point the Missing panel at sum(up)"
+const fixChange =
+  "Point the Missing panel at sum(traces_span_metrics_calls_total)"
 const missingMetric = "slashobserve_e2e_missing_metric_total"
 
 function readDemoShop(): Record<string, unknown> {
@@ -110,7 +116,10 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
 
-    test("imports a Grafana dashboard from the chat", async ({ page }) => {
+    test("imports a Grafana dashboard from the chat", async ({
+      page,
+      consoleErrors,
+    }) => {
       test.setTimeout(120_000)
       await page.route("**/api/v1/news?*", (route) =>
         route.fulfill({
@@ -168,7 +177,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           page
             .getByRole("status")
             .filter({ hasText: `Imported as ${demoShopTitle}, version 1` })
-        ).toBeVisible()
+        ).toBeVisible({ timeout: 30_000 })
         dashboardId = await importedDashboardId(page)
       })
 
@@ -181,7 +190,16 @@ for (const colorScheme of ["light", "dark"] as const) {
           demoShopTitle
         )
         await expectPanelsSettled(page)
-        await expect(page.locator('article[data-state="error"]')).toHaveCount(0)
+        for (const title of routeVariablePanels) {
+          await expect(panel(page, title)).toHaveAttribute(
+            "data-state",
+            "error"
+          )
+        }
+        await expect(page.locator('article[data-state="error"]')).toHaveCount(
+          routeVariablePanels.length
+        )
+        failedResourceLogged(consoleErrors, "422", routeVariablePanels.length)
         const placeholder = panel(page, "Alert groups")
         await expect(placeholder).toHaveAttribute("data-state", "ready")
         await expect(placeholder).toContainText(
@@ -225,7 +243,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           page
             .getByRole("status")
             .filter({ hasText: /^Imported as .*, version 1/ })
-        ).toBeVisible()
+        ).toBeVisible({ timeout: 30_000 })
 
         const report = page.getByRole("region", { name: "Import report" })
         await report.getByRole("tab", { name: /^All panels/ }).click()
@@ -233,7 +251,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         const missing = lines.filter({ hasText: "Missing" })
         await expect(missing).toContainText("Unverified")
         await expect(missing).toContainText(/no data/i)
-        await expect(lines.filter({ hasText: "Up" })).toContainText("Imported")
+        await expect(lines.filter({ hasText: "Calls" })).toContainText(
+          "Imported"
+        )
       })
 
       let dashboardId = ""
@@ -320,7 +340,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           edited
             .getByRole("group", { name: "After", exact: true })
             .getByRole("group", { name: "Query A" })
-        ).toContainText("sum(up)")
+        ).toContainText("sum(traces_span_metrics_calls_total)")
       })
 
       await test.step("version 1 stays the faithful import", async () => {

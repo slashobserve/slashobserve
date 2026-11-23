@@ -6,7 +6,7 @@ datasources:
     grafanaUids: [prometheus]
     prometheus:
       url: http://prometheus:9090
-      scrapeInterval: 15s
+      scrapeInterval: 60s
   - uid: ch
     type: clickhouse
     name: ClickHouse
@@ -21,7 +21,7 @@ datasources:
     name: Prometheus (tight limits)
     prometheus:
       url: http://prometheus:9090
-      scrapeInterval: 15s
+      scrapeInterval: 60s
     limits:
       maxSeries: 3
       maxPoints: 500

@@ -5,8 +5,8 @@ description: The unit, component, API and browser suites, coverage and the docs 
 
 SlashObserve has four test suites and one docs check.
 CI runs on every pull request only the jobs its changed files need, and every job on `main`.
-`scripts/ci-changes.sh` makes that decision from the list of changed files: a web-only change skips the Go jobs, a Go-only change skips the web jobs, a change to unit tests or docs skips the two end-to-end suites, and the replay evals run when the agent, its prompts, the Spec or the stack change.
-A draft pull request runs neither end-to-end suite nor the replay evals; marking it ready for review runs them.
+`scripts/ci-changes.sh` makes that decision from the list of changed files: a web-only change skips the Go jobs, a Go-only change skips the web jobs, and a change to unit tests or docs skips the two end-to-end suites.
+A draft pull request runs neither end-to-end suite; marking it ready for review runs them.
 The `check` job passes when every lint, test and build job that ran has passed.
 The dependency audit runs daily and on a pull request that changes a lockfile or `go.mod`.
 
@@ -67,7 +67,7 @@ Locally the suite runs with one worker, no retries and the list reporter.
 `make replicas-up` builds this checkout and boots the isolated `slashobserve-replicas` compose stack: two servers behind HAProxy and PgBouncer in transaction mode, with `SLASHOBSERVE_DATABASE_DIRECT_URL` pointing straight at Postgres, the replay model provider, and a Prometheus that scrapes both servers, which is the data source of the load test's dashboard.
 HAProxy answers on http://localhost:48080 and spreads requests over both servers.
 Server 1 alone answers on http://localhost:48081 and server 2 alone on http://localhost:48082, so a check can write on one server and read on the other.
-The stack's project name, ports and volumes differ from the demo, the e2e stack and the evals stack, so it runs beside them and never stops, resets or reads them.
+The stack's project name, ports and volumes differ from the demo and the e2e stack, so it runs beside them and never stops, resets or reads them.
 `make replicas-down` removes only its containers and volumes.
 Nothing here runs in CI.
 

@@ -29,7 +29,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "sum(rate(http_requests_total[5m])"
+                      "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m])"
                     }
                   ]
                 },
@@ -84,7 +84,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "sum(rate(http_requests_total[5m]))"
+                      "query": "sum(rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))"
                     }
                   ]
                 },

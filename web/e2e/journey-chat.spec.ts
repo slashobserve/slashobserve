@@ -10,11 +10,11 @@ import { expectPanelsReady } from "./dashboards"
 import { expect, test } from "./fixtures"
 
 const agentTimeout = 90_000
-const askPrompt = "demo shop RED metrics by endpoint"
+const askPrompt = "astronomy shop RED metrics by endpoint"
 const followUpQuestion = "Can this panel show each route?"
 const followUpPrompt = "Show this per route"
 const requestPath = /\/c\/([0-9a-f-]{36})$/
-const dashboardTitle = "Demo shop RED metrics"
+const dashboardTitle = "Astronomy shop RED metrics"
 const refinedDashboardTitle = "E2E dashboard"
 
 function turnWith(page: Page, prompt: string) {

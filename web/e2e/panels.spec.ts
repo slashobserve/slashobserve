@@ -9,7 +9,7 @@ import {
 } from "./dashboards"
 import { chunkFailureLogged, expect, switchTheme, test } from "./fixtures"
 
-const rpsTitle = "Checkout requests per second"
+const rpsTitle = "Shop requests per second"
 
 async function createOverview(request: APIRequestContext, tooltip?: "all") {
   const spec = loadSpec("overview")
@@ -34,12 +34,12 @@ function swatchColor(article: Locator, name: string) {
     .evaluate((element) => getComputedStyle(element).color)
 }
 
-async function choosePod(page: Page, option: string, selected: string) {
-  await page.getByRole("combobox", { name: "Pod" }).click()
+async function chooseService(page: Page, option: string, selected: string) {
+  await page.getByRole("combobox", { name: "Service" }).click()
   const response = panelDataResponse(
     page,
     "rps",
-    (url) => url.searchParams.getAll("var-pod").join(",") === selected
+    (url) => url.searchParams.getAll("var-service").join(",") === selected
   )
   await page.getByRole("option", { name: option, exact: true }).click()
   await response
@@ -80,12 +80,12 @@ test("draws every panel type with data", async ({ page, request }) => {
 
   const rps = panel(page, rpsTitle)
   await expect(rps.locator("canvas")).toHaveCount(1)
-  await expect(legendButton(rps, "checkout-0")).toBeVisible()
-  await expect(legendButton(rps, "checkout-1")).toBeVisible()
+  await expect(legendButton(rps, "checkout")).toBeVisible()
+  await expect(legendButton(rps, "payment")).toBeVisible()
 
   await expect(panel(page, "Checkout error rate").getByText(/%$/)).toBeVisible()
 
-  const meters = panel(page, "Requests by pod").getByRole("meter")
+  const meters = panel(page, "Requests by service").getByRole("meter")
   await expect(meters).toHaveCount(2)
   for (let index = 0; index < 2; index++) {
     await expect(meters.nth(index)).toHaveAttribute("aria-valuetext", /\S/)
@@ -110,7 +110,7 @@ test("shows a crosshair tooltip and toggles series", async ({
   await expect(tooltip).toContainText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)
   await expect(tooltip.locator(".ts-tooltip-row")).toHaveCount(2)
 
-  const button = legendButton(rps, "checkout-1")
+  const button = legendButton(rps, "payment")
   await expect(button).toHaveAttribute("aria-pressed", "true")
   await button.click()
   await expect(button).toHaveAttribute("aria-pressed", "false")
@@ -166,14 +166,14 @@ test("keeps the tooltip inside a short panel with many series", async ({
     {
       id: "many",
       type: "timeseries",
-      title: "Requests by service, route and pod",
+      title: "Requests by nine services",
       gridPos: { x: 0, y: 0, w: 12, h: 4 },
       datasource: "prom",
       queries: [
         {
           query:
-            "sum by (service, route, pod) (rate(http_requests_total[$__rate_interval]))",
-          legend: "{{service}} {{route}} {{pod}}",
+            'sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~"checkout|frontend|payment|cart|currency|shipping|product-catalog|email|recommendation",span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))',
+          legend: "{{service_name}}",
         },
       ],
       unit: "reqps",
@@ -184,7 +184,7 @@ test("keeps the tooltip inside a short panel with many series", async ({
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
-  const many = panel(page, "Requests by service, route and pod")
+  const many = panel(page, "Requests by nine services")
   await many.locator(".u-over").hover()
   const tooltip = many.locator('[data-slot="chart-tooltip"]')
   await expect(tooltip).toBeVisible()
@@ -234,7 +234,9 @@ test("switches between chart and table view", async ({ page, request }) => {
   const menu = rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
   await menu.click()
   await page.getByRole("menuitem", { name: "View as table" }).click()
-  await expect(rps.getByRole("columnheader", { name: "pod" })).toBeVisible()
+  await expect(
+    rps.getByRole("columnheader", { name: "service_name" })
+  ).toBeVisible()
   await expect(rps.locator("canvas")).toHaveCount(0)
 
   await menu.click()
@@ -256,7 +258,9 @@ test("keeps other panels working when a renderer chunk fails and reloads the pag
   await expect(stat.getByText("Could not load this panel")).toBeVisible()
   await expect(stat.getByRole("button", { name: "Reload page" })).toBeVisible()
   await expect(panel(page, rpsTitle).locator("canvas")).toHaveCount(1)
-  await expect(panel(page, "Requests by pod").getByRole("meter")).toHaveCount(2)
+  await expect(
+    panel(page, "Requests by service").getByRole("meter")
+  ).toHaveCount(2)
 
   await page.unroute(chunk)
   await Promise.all([
@@ -300,18 +304,18 @@ test("keeps series colors when a variable filters series", async ({
   await expectPanelsReady(page)
 
   const rps = panel(page, rpsTitle)
-  const first = await swatchColor(rps, "checkout-1")
-  expect(first).not.toBe(await swatchColor(rps, "checkout-0"))
+  const first = await swatchColor(rps, "payment")
+  expect(first).not.toBe(await swatchColor(rps, "checkout"))
 
-  await choosePod(page, "checkout-1", "checkout-1")
+  await chooseService(page, "payment", "payment")
   await expect(rps.getByRole("group", { name: "Series" })).toHaveCount(0)
   await expect(rps.locator("canvas")).toHaveCount(1)
 
-  await choosePod(page, "All", "$__all")
+  await chooseService(page, "All", "$__all")
 
-  await expect(legendButton(rps, "checkout-0")).toBeVisible()
-  expect(await swatchColor(rps, "checkout-1")).toBe(first)
-  expect(await swatchColor(rps, "checkout-0")).not.toBe(first)
+  await expect(legendButton(rps, "checkout")).toBeVisible()
+  expect(await swatchColor(rps, "payment")).toBe(first)
+  expect(await swatchColor(rps, "checkout")).not.toBe(first)
 })
 
 test("keeps a hidden series hidden across the table view", async ({
@@ -323,8 +327,8 @@ test("keeps a hidden series hidden across the table view", async ({
   await expectPanelsReady(page)
 
   const rps = panel(page, rpsTitle)
-  const button = legendButton(rps, "checkout-1")
-  const color = await swatchColor(rps, "checkout-1")
+  const button = legendButton(rps, "payment")
+  const color = await swatchColor(rps, "payment")
   await button.click()
   await expect(button).toHaveAttribute("aria-pressed", "false")
 
@@ -336,11 +340,11 @@ test("keeps a hidden series hidden across the table view", async ({
   await page.getByRole("menuitem", { name: "View as chart" }).click()
 
   await expect(rps.locator("canvas")).toHaveCount(1)
-  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+  await expect(legendButton(rps, "payment")).toHaveAttribute(
     "aria-pressed",
     "false"
   )
-  expect(await swatchColor(rps, "checkout-1")).toBe(color)
+  expect(await swatchColor(rps, "payment")).toBe(color)
 })
 
 test("draws the only remaining series even if it was hidden", async ({
@@ -352,8 +356,8 @@ test("draws the only remaining series even if it was hidden", async ({
   await expectPanelsReady(page)
 
   const rps = panel(page, rpsTitle)
-  await legendButton(rps, "checkout-1").click()
-  await choosePod(page, "checkout-1", "checkout-1")
+  await legendButton(rps, "payment").click()
+  await chooseService(page, "payment", "payment")
   await expect(rps.getByRole("group", { name: "Series" })).toHaveCount(0)
 
   await expect
@@ -370,15 +374,15 @@ test("shows a series again after it left and came back", async ({
   await expectPanelsReady(page)
 
   const rps = panel(page, rpsTitle)
-  await legendButton(rps, "checkout-1").click()
-  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+  await legendButton(rps, "payment").click()
+  await expect(legendButton(rps, "payment")).toHaveAttribute(
     "aria-pressed",
     "false"
   )
-  await choosePod(page, "checkout-0", "checkout-0")
-  await choosePod(page, "All", "$__all")
+  await chooseService(page, "checkout", "checkout")
+  await chooseService(page, "All", "$__all")
 
-  await expect(legendButton(rps, "checkout-1")).toHaveAttribute(
+  await expect(legendButton(rps, "payment")).toHaveAttribute(
     "aria-pressed",
     "true"
   )
@@ -399,8 +403,11 @@ test("labels each query's series with its own legend", async ({
       gridPos: { x: 0, y: 0, w: 12, h: 8 },
       datasource: "prom",
       queries: [
-        { query: "count(up)", legend: "all" },
-        { query: 'count(up{job=~".+"})', legend: "job" },
+        { query: "count(traces_span_metrics_calls_total)", legend: "all" },
+        {
+          query: 'count(traces_span_metrics_calls_total{job=~".+"})',
+          legend: "job",
+        },
       ],
     },
   ]

@@ -154,14 +154,14 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       await openStats(page, request)
 
-      const pods = tiles(page, "Pods")
+      const services = tiles(page, "Services")
       await expect
-        .poll(() => pods.count(), { message: "one tile per pod" })
+        .poll(() => services.count(), { message: "one tile per service" })
         .toBeGreaterThanOrEqual(2)
-      const count = await pods.count()
+      const count = await services.count()
       const tops = new Set<number>()
       for (let index = 0; index < count; index++) {
-        const tile = pods.nth(index)
+        const tile = services.nth(index)
         const box = await tile.boundingBox()
         tops.add(box?.y ?? -1)
         const label = (await tile.getAttribute("aria-label")) ?? ""

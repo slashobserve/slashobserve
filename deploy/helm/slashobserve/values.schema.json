@@ -3,7 +3,7 @@
   "title": "SlashObserve chart values",
   "type": "object",
   "additionalProperties": false,
-  "required": ["image", "publicURL", "database", "oidc", "auth"],
+  "required": ["image", "publicURL", "database"],
   "definitions": {
     "nonEmpty": { "type": "string", "minLength": 1 },
     "secretRef": {
@@ -70,30 +70,30 @@
     "oidc": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["issuerURL", "clientID", "existingSecret", "clientSecretKey"],
+      "required": ["clientSecretKey"],
+      "description": "Browser sign-in. Set issuerURL, clientID and existingSecret together, or leave all three empty for a server that only takes service-account keys; the render fails when only some are set.",
       "properties": {
         "issuerURL": {
           "type": "string",
-          "pattern": "^https?://.+",
+          "pattern": "^(https?://.+)?$",
           "description": "SLASHOBSERVE_OIDC_ISSUER_URL, used exactly as written."
         },
-        "clientID": { "$ref": "#/definitions/nonEmpty", "description": "SLASHOBSERVE_OIDC_CLIENT_ID." },
-        "existingSecret": { "$ref": "#/definitions/nonEmpty", "description": "Secret holding SLASHOBSERVE_OIDC_CLIENT_SECRET." },
+        "clientID": { "type": "string", "description": "SLASHOBSERVE_OIDC_CLIENT_ID." },
+        "existingSecret": { "type": "string", "description": "Secret holding SLASHOBSERVE_OIDC_CLIENT_SECRET." },
         "clientSecretKey": { "$ref": "#/definitions/nonEmpty", "description": "Key of the client secret in that Secret." }
       }
     },
     "auth": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["allowedEmailDomains"],
       "properties": {
         "allowedEmailDomains": {
-          "allOf": [{ "$ref": "#/definitions/stringList" }, { "minItems": 1 }],
-          "description": "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS: domains that may sign in, or [\"*\"] for every account."
+          "$ref": "#/definitions/stringList",
+          "description": "SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS: domains that may sign in, or [\"*\"] for every account. Required with browser sign-in, and refused without it."
         },
         "adminEmails": {
           "$ref": "#/definitions/stringList",
-          "description": "SLASHOBSERVE_ADMIN_EMAILS: addresses that are always Admins. Empty makes the earliest person to sign in the Admin."
+          "description": "SLASHOBSERVE_ADMIN_EMAILS: addresses that are always Admins. Empty makes the earliest person to sign in the Admin. Refused without browser sign-in."
         }
       }
     },
