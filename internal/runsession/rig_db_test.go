@@ -238,6 +238,10 @@ func withMaxCost(limit float64, prices pricing.Table) rigOption {
 	return func(c *Config) { c.MaxRunCostUSD, c.Prices = limit, prices }
 }
 
+func withInvestigationCalls(n int) rigOption {
+	return func(c *Config) { c.InvestigationCalls = n }
+}
+
 func newRig(t *testing.T, options ...rigOption) *rig {
 	t.Helper()
 	d := dbtest.New(t)

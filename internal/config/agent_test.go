@@ -87,3 +87,39 @@ func TestAgentWorkersSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentInvestigationCallsSetting(t *testing.T) {
+	const message = envAgentInvestigationCalls + ": must be a whole number from 6 to 60"
+	tests := []struct {
+		name    string
+		set     map[string]string
+		want    int
+		wantErr string
+	}{
+		{name: "unset gives the default", want: 12},
+		{name: "raised", set: map[string]string{envAgentInvestigationCalls: "20"}, want: 20},
+		{name: "lowest", set: map[string]string{envAgentInvestigationCalls: "6"}, want: 6},
+		{name: "highest", set: map[string]string{envAgentInvestigationCalls: "60"}, want: 60},
+		{name: "below the lowest", set: map[string]string{envAgentInvestigationCalls: "5"}, wantErr: message},
+		{name: "above the highest", set: map[string]string{envAgentInvestigationCalls: "61"}, wantErr: message},
+		{name: "fraction", set: map[string]string{envAgentInvestigationCalls: "12.5"}, wantErr: message},
+		{name: "not a number", set: map[string]string{envAgentInvestigationCalls: "abc"}, wantErr: message},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.InvestigationCalls != tt.want {
+				t.Fatalf("InvestigationCalls = %d, want %d", cfg.Agent.InvestigationCalls, tt.want)
+			}
+		})
+	}
+}
