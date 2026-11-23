@@ -146,7 +146,7 @@
                     "query": "histogram_quantile(0.99, sum by (le, span_name) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
                   }
                 ],
-                "unit": "s"
+                "unit": "ms"
               }
             ],
             "finish": true
