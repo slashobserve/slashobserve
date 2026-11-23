@@ -13,7 +13,7 @@ Without one, the chat shows "No model is connected to this server." and prompts 
 ## Ask for a dashboard
 
 1. Open Home at `/`.
-   Its **Ask Observe Agent** tab has a box with the placeholder "Ask a question or describe a dashboard".
+   Its **Ask Observe Agent** tab has a box with the placeholder "Ask a question or describe a dashboard, like: checkout health by pod, last 6h".
    Pressing `/` anywhere on the page moves focus to the box.
 2. Type a prompt:
 
@@ -22,7 +22,7 @@ Without one, the chat shows "No model is connected to this server." and prompts 
    ```
 
 3. Press Enter, or choose **Send**.
-   Shift+Enter starts a new line, and the Up arrow recalls an earlier prompt.
+   Shift+Enter starts a new line, and the Up arrow in an empty box recalls an earlier prompt.
 
 A prompt is 1 to 4000 characters.
 
@@ -118,7 +118,7 @@ The button at the top of the dashboard shows the current range, for example "Las
 On a time series panel you can also drag across the chart to zoom to that range.
 The range, the refresh interval and the variable selections live in the page address, as `from`, `to`, `refresh` and `var-<name>`.
 You can share a link that carries them, and nothing is saved to the dashboard.
-To change the saved default range for everyone, ask the agent in a follow-up, such as "make the default range the last 24 hours".
+To change the saved default range for everyone, choose **Save as default** in the same box if you can edit the dashboard, or ask the agent in a follow-up, such as "make the default range the last 24 hours".
 
 ### What From and To accept
 
@@ -127,7 +127,7 @@ To change the saved default range for everyone, ask the agent in a follow-up, su
 - A typed date and time is read in the dashboard's time zone (UTC or the zone it names).
   When the dashboard follows the browser, it is read in the browser's zone.
   The box shows times in that same zone.
-- A number typed into the boxes is an epoch: 10 digits are read as seconds and 13 digits as milliseconds.
+- A number typed into the boxes is an epoch: 10 digits are read as seconds and 11 to 15 digits as milliseconds.
   A time before the year 2000 is refused with a message.
 - A `from` or `to` written in an address or a Spec is always milliseconds when it is all digits.
 
@@ -182,4 +182,4 @@ A choice that differs from the dashboard's saved `cursorSync` goes into the addr
 | `/` | Moves focus to the box. |
 | Enter | Sends the prompt. |
 | Shift+Enter | Starts a new line. |
-| Up arrow | Recalls an earlier prompt. |
+| Up arrow | Recalls an earlier prompt when the box is empty. |
