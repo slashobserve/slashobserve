@@ -71,8 +71,8 @@ export const modelSettings = z
     base_url: z.string().default(""),
     effort: z.string().default(""),
     max_tokens: count.default(0),
-    request_timeout_seconds: count.default(0),
-    idle_timeout_seconds: count.default(0),
+    request_timeout_seconds: count.default(defaultRequestTimeoutSeconds),
+    idle_timeout_seconds: count.default(defaultIdleTimeoutSeconds),
     replay_dir: z.string().default(""),
     log_provider_errors: z.boolean().default(false),
     session_renew_bytes: count.default(0),
@@ -85,14 +85,6 @@ export const modelSettings = z
         : settings.effort,
     max_tokens:
       settings.max_tokens === 0 ? defaultMaxTokens : settings.max_tokens,
-    request_timeout_seconds:
-      settings.request_timeout_seconds === 0
-        ? defaultRequestTimeoutSeconds
-        : settings.request_timeout_seconds,
-    idle_timeout_seconds:
-      settings.idle_timeout_seconds === 0
-        ? defaultIdleTimeoutSeconds
-        : settings.idle_timeout_seconds,
   }))
 export type ModelSettings = z.infer<typeof modelSettings>
 
