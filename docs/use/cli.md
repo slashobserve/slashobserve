@@ -1802,6 +1802,8 @@ observe webhooks test <webhook id>
 ```
 
 A server holds at most 20 webhooks, and a 21st answers 422 `too_many_webhooks`.
+A server with no `SLASHOBSERVE_SECRET_KEY` answers 409 `secret_key_missing`, because it cannot store a signing secret.
+A webhook whose secret the current key cannot read answers 409 `secret_unreadable`, and `rotate-secret` makes a new one.
 `--json` prints the response body of each request unchanged.
 
 - `list` prints each webhook's id, name, address, number of event types and status.
