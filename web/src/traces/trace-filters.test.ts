@@ -1,40 +1,46 @@
 import { describe, expect, it } from "vitest"
 
-import { traceFilterChips } from "./trace-filters"
+import { queryLabel, traceFilterChips } from "./trace-filters"
 
 describe("traceFilterChips", () => {
   it("gives no chip for an empty search", () => {
-    expect(traceFilterChips({})).toEqual([])
+    expect(traceFilterChips("tempo", {})).toEqual([])
   })
 
   it("ignores keys that are not filters", () => {
     expect(
-      traceFilterChips({ ask: "slow checkout", from: "now-1h", to: "now" })
+      traceFilterChips("tempo", {
+        ask: "slow checkout",
+        from: "now-1h",
+        to: "now",
+      })
     ).toEqual([])
   })
 
   it("gives chips for service and min duration in order, with the form's labels", () => {
-    expect(traceFilterChips({ min: "500ms", service: "frontend" })).toEqual([
+    expect(
+      traceFilterChips("tempo", { min: "500ms", service: "frontend" })
+    ).toEqual([
       { key: "service", label: "Service", value: "frontend" },
       { key: "min", label: "Min span duration", value: "500ms" },
     ])
   })
 
   it("shows errors as its label alone", () => {
-    expect(traceFilterChips({ errors: "1" })).toEqual([
+    expect(traceFilterChips("tempo", { errors: "1" })).toEqual([
       { key: "errors", label: "Errors only", value: "" },
     ])
   })
 
   it("gives one chip for a TraceQL query alone", () => {
-    expect(traceFilterChips({ q: "{ duration > 1s }" })).toEqual([
+    expect(traceFilterChips("tempo", { q: "{ duration > 1s }" })).toEqual([
       { key: "q", label: "TraceQL", value: "{ duration > 1s }" },
     ])
   })
 
   it("gives all six chips in order", () => {
     expect(
-      traceFilterChips({
+      traceFilterChips("tempo", {
         q: "{ }",
         errors: "1",
         max: "2s",
@@ -50,5 +56,14 @@ describe("traceFilterChips", () => {
       ["errors", "Errors only", ""],
       ["q", "TraceQL", "{ }"],
     ])
+  })
+
+  it("labels a written query by the datasource's language", () => {
+    expect(
+      traceFilterChips("jaeger", { q: "service=cart" }).map(
+        (chip) => chip.label
+      )
+    ).toEqual(["Search"])
+    expect(queryLabel("tempo")).toBe("TraceQL")
   })
 })

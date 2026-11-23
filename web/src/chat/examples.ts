@@ -43,7 +43,7 @@ export function questionPrompts(input: SourceTypes): Example[] {
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
   const ch = input.types.includes("clickhouse")
-  const traces = input.types.includes("tempo")
+  const traces = input.types.includes("tempo") || input.types.includes("jaeger")
   const questions: Example[] = []
   if (prom || logs || ch) {
     questions.push(
@@ -66,7 +66,7 @@ export function examplePrompts(
   const prom = input.types.includes("prometheus")
   const logs = input.types.includes("loki")
   const ch = input.types.includes("clickhouse")
-  const traces = input.types.includes("tempo")
+  const traces = input.types.includes("tempo") || input.types.includes("jaeger")
   const first = dashboardToRevise(input.dashboards, input.personId)
   const builds: Example[] = []
   if (prom && first !== undefined) {

@@ -1,0 +1,8 @@
+## Jaeger (search keys)
+- A request about single requests or spans, slow or failing calls, or one trace is a traces question: answer it from Jaeger when it is the traces datasource; call `get_schema` on Jaeger instead of `list_metrics` with a `scope`.
+- `get_schema` lists every service with its span names; `list_label_values` lists them too, with the label `service`, or `operation` and the metric `service=checkout`. Tags are free-form and cannot be listed.
+- A search is `key=value` pairs separated by spaces, such as `service=checkout operation="GET /cart" error=true minDuration=500ms`. `service` and `operation` name a span, `minDuration` and `maxDuration` bound that span's duration (`250ms`, `2s`), and every other key is a span or resource tag compared for equality, such as `http.status_code=500`; quote a value that holds a space.
+- Jaeger has no regex, negation, comparison other than the two durations, or aggregation: filter on what the pairs express, then read the traces.
+- A search returns one row per trace, newest first, with `TraceId`, `SpanId` (the same id), `SpanName` and `ServiceName` of the root span, `StartTime`, `Duration` in nanoseconds, `Spans` and `Errors`; show it as a `table` with the override `{"match": {"field": "Duration"}, "unit": "ns"}`.
+- A trace id, 32 hex characters or `${trace_id}` of a `textbox` variable, returns every span of that trace with `ParentSpanId`, `StatusCode`, `SpanAttributes` and `ResourceAttributes` as well; show it in a `traces` panel.
+- Jaeger returns no series: chart span counts or latency over time from `otel_traces` or Prometheus, never from Jaeger.

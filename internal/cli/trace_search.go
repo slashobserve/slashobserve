@@ -73,6 +73,35 @@ func tempoTraceQL(f traceFilters) string {
 	return "{" + strings.Join(conditions, " && ") + "}"
 }
 
+func logfmtValue(s string) string {
+	if s == "" || strings.ContainsAny(s, " \t\n\r\"=\\") {
+		return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+	}
+	return s
+}
+
+const jaegerNoFilter = "minDuration=0s"
+
+func jaegerSearch(f traceFilters) string {
+	var pairs []string
+	add := func(key, value string) {
+		if value != "" {
+			pairs = append(pairs, key+"="+logfmtValue(value))
+		}
+	}
+	add("service", f.Service)
+	add("operation", f.Span)
+	add("minDuration", strings.Replace(f.Min, "µs", "us", 1))
+	add("maxDuration", strings.Replace(f.Max, "µs", "us", 1))
+	if f.Errors {
+		add("error", "true")
+	}
+	if len(pairs) == 0 {
+		return jaegerNoFilter
+	}
+	return strings.Join(pairs, " ")
+}
+
 const clickhouseErrorStatus = "lower(StatusCode) IN ('error', 'status_code_error')"
 
 const clickhouseTraceTime = "otel_traces.Timestamp"

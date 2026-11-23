@@ -1,0 +1,21 @@
+{"result":{"resourceSpans":[
+  {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"checkout"}},{"key":"k8s.pod.name","value":{"stringValue":"checkout-0"}}]},
+   "scopeSpans":[{"scope":{"name":"shop"},"spans":[
+     {"traceId":"0af7651916cd43dd8448eb211c80319c","spanId":"00f067aa0ba902b7","parentSpanId":"b7ad6b7169203331","name":"charge","kind":3,
+      "startTimeUnixNano":"1793966399960000000","endTimeUnixNano":"1793966399990000000","status":{},
+      "events":[{"timeUnixNano":"1793966399970000000","name":"retry","attributes":[{"key":"attempt","value":{"intValue":"2"}}]}],
+      "links":[{"traceId":"1b2c3d4e5f60718293a4b5c6d7e8f901","spanId":"00f067aa0ba902b8"}]},
+     {"traceId":"0af7651916cd43dd8448eb211c80319c","spanId":"b7ad6b7169203331","name":"POST /checkout","kind":"SPAN_KIND_SERVER",
+      "startTimeUnixNano":"1793966399950000000","endTimeUnixNano":"1793966400000000000",
+      "attributes":[{"key":"http.method","value":{"stringValue":"POST"}},{"key":"http.status_code","value":{"intValue":"500"}},
+        {"key":"retry","value":{"boolValue":true}},{"key":"ratio","value":{"doubleValue":0.5}},
+        {"key":"tags","value":{"arrayValue":{"values":[{"stringValue":"a"},{"intValue":"2"}]}}},
+        {"key":"nested","value":{"kvlistValue":{"values":[{"key":"k","value":{"stringValue":"v"}}]}}}],
+      "status":{"code":2,"message":"boom"}}
+   ]}]},
+  {"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"payments"}}]},
+   "scopeSpans":[{"spans":[
+     {"traceId":"CvdlGRbNQ92ESOshHIAxnA==","spanId":"APBnqgupArg=","parentSpanId":"APBnqgupArc=","name":"authorize","kind":"SPAN_KIND_SERVER",
+      "startTimeUnixNano":"1793966399965000000","endTimeUnixNano":"1793966399985000000","status":{"code":"STATUS_CODE_OK"}}
+   ]}]}
+]}}

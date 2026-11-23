@@ -247,6 +247,11 @@ describe("fieldsOf", () => {
     })
     expect(fieldsOf("loki")).toMatchObject({ tenantId: true, apiKey: false })
     expect(fieldsOf("opensearch")).toMatchObject({ index: true, apiKey: true })
+    expect(fieldsOf("jaeger")).toMatchObject({
+      bearerToken: true,
+      headers: true,
+      index: false,
+    })
     expect(fieldsOf("")).toMatchObject({ headers: false })
   })
 })

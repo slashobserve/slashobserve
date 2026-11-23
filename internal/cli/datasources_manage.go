@@ -70,7 +70,7 @@ type datasourceInUse struct {
 func (f *datasourceFlags) register(cmd *cobra.Command, withType bool) {
 	flags := cmd.Flags()
 	if withType {
-		flags.StringVar(&f.kind, "type", "", "prometheus, loki, tempo, clickhouse, elasticsearch or opensearch")
+		flags.StringVar(&f.kind, "type", "", "prometheus, loki, tempo, jaeger, clickhouse, elasticsearch or opensearch")
 	}
 	flags.StringVar(&f.name, "name", "", "the display name; the uid when empty")
 	flags.StringVar(&f.audience, "audience", "", "who can query it: everyone, the default, or admins")

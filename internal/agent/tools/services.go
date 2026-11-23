@@ -20,8 +20,8 @@ const (
 	nameListServices   = "list_services"
 	servicesConcurrent = 4
 	maxServiceBytes    = 200
-	descListServices   = "List the services a log or trace datasource has seen over a recent window, or find which datasources hold a service. Pass datasource for one source; leave it out to ask every Loki, Tempo, ClickHouse, Elastic or OpenSearch source. Pass service to keep only the sources that hold a name containing it, case-insensitive. The window ends now and defaults to 1 hour, at most 6 hours, so a service quiet for longer is not listed. Each source says which field holds the service, so filter on that field in a query. A source that cannot answer in time says so under unavailable and the others still answer. Answers are cached for about a minute."
-	propServicesSignal = `"signal":{"type":"string","enum":["logs","traces"],"description":"Which signal. Default: logs, and traces on Tempo; ClickHouse holds both and answers both when this is left out and no datasource is given."}`
+	descListServices   = "List the services a log or trace datasource has seen over a recent window, or find which datasources hold a service. Pass datasource for one source; leave it out to ask every Loki, Tempo, Jaeger, ClickHouse, Elastic or OpenSearch source. Pass service to keep only the sources that hold a name containing it, case-insensitive. The window ends now and defaults to 1 hour, at most 6 hours, so a service quiet for longer is not listed, except on Jaeger, which lists every service it retains whatever the window. Each source says which field holds the service, so filter on that field in a query. A source that cannot answer in time says so under unavailable and the others still answer. Answers are cached for about a minute."
+	propServicesSignal = `"signal":{"type":"string","enum":["logs","traces"],"description":"Which signal. Default: logs, and traces on Tempo and Jaeger; ClickHouse holds both and answers both when this is left out and no datasource is given."}`
 	propServicesWindow = `"window":{"type":"string","maxLength":16,"description":"How far back to look, such as 15m or 1h. Default 1h, at most 6h."}`
 	propServicesFind   = `"service":{"type":"string","maxLength":200,"description":"Keep only sources with a service whose name contains this text."}`
 	schemaListServices = `{"type":"object","properties":{"datasource":{"type":"string","description":"Datasource uid from list_datasources. Leave out to ask every log and trace source."},` + propServicesSignal + `,` + propServicesWindow + `,` + propServicesFind + `},"additionalProperties":false}`
@@ -108,7 +108,7 @@ func (r *Registry) serviceTargets(ctx context.Context, uid, signal string) ([]se
 		}
 		dsType := inst.Datasource.Type()
 		if len(datasource.ServiceSignals(dsType)) == 0 {
-			return nil, invalid("list_services works on Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType), false
+			return nil, invalid("list_services works on Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource", clip(uid, maxStepNameBytes), dsType), false
 		}
 		if signal == "" {
 			signal = datasource.ServiceSignals(dsType)[0]

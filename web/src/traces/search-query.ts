@@ -3,7 +3,7 @@ import { defaultPageSize } from "@/lib/paging"
 import { matcherInsert } from "@/panel-editor/insert-text"
 
 import type { Selection } from "./scatter"
-import { tracesTimeRange, type TraceSearch } from "./search"
+import { hasQueryText, tracesTimeRange, type TraceSearch } from "./search"
 import { decodeSort, pageSortParam } from "./trace-rows"
 
 const durationPattern = /^(\d+(?:\.\d+)?)(ns|us|µs|ms|s|m|h)$/
@@ -104,8 +104,8 @@ export function withDurationBounds(
   min: string,
   max: string | undefined
 ): string | null {
-  const conditions = [`duration >= ${traceQLDuration(min)}`]
-  if (max !== undefined) conditions.push(`duration <= ${traceQLDuration(max)}`)
+  const conditions = [`duration >= ${goDuration(min)}`]
+  if (max !== undefined) conditions.push(`duration <= ${goDuration(max)}`)
   return withSpansetConditions(q, conditions)
 }
 
@@ -129,8 +129,17 @@ export function attributeFilter(
   value: string
 ): Partial<TraceSearch> | null {
   if (type !== "tempo") {
-    if (attribute === "name") return { span: value }
-    if (attribute === "resource.service.name") return { service: value }
+    const written = type === "jaeger" ? search.q : undefined
+    if (attribute === "name") {
+      return written === undefined
+        ? { span: value }
+        : { q: withJaegerPair(written, "operation", value) }
+    }
+    if (attribute === "resource.service.name") {
+      return written === undefined
+        ? { service: value }
+        : { q: withJaegerPair(written, "service", value) }
+    }
     return null
   }
   const condition = compareCondition(attribute, value)
@@ -157,6 +166,7 @@ function tighterBound(
 }
 
 export function keepSelectionSearch(
+  type: string,
   search: TraceSearch,
   selection: Selection
 ): Partial<TraceSearch> | null {
@@ -171,7 +181,9 @@ export function keepSelectionSearch(
   const q =
     search.q === undefined
       ? undefined
-      : withDurationBounds(search.q, floor, ceiling)
+      : type === "jaeger"
+        ? withJaegerDurationBounds(search.q, floor, ceiling)
+        : withDurationBounds(search.q, floor, ceiling)
   if (q === null) return null
   return {
     from: new Date(selection.from).toISOString(),
@@ -182,7 +194,7 @@ export function keepSelectionSearch(
   }
 }
 
-function traceQLDuration(text: string): string {
+function goDuration(text: string): string {
   return text.replace("µs", "us")
 }
 
@@ -190,11 +202,70 @@ export function traceQLFor(form: TraceForm): string {
   const conditions = [
     form.service && `resource.service.name = ${quoted(form.service)}`,
     form.span && `name = ${quoted(form.span)}`,
-    form.min && `duration >= ${traceQLDuration(form.min)}`,
-    form.max && `duration <= ${traceQLDuration(form.max)}`,
+    form.min && `duration >= ${goDuration(form.min)}`,
+    form.max && `duration <= ${goDuration(form.max)}`,
     form.errors && "status = error",
   ].filter(Boolean)
   return `{${conditions.join(" && ")}}`
+}
+
+const jaegerNoFilter = "minDuration=0s"
+
+function jaegerValue(text: string): string {
+  return /[\s"=\\]/.test(text) ? quoted(text) : text
+}
+
+export function jaegerSearchFor(form: TraceForm): string {
+  const pairs = [
+    form.service && `service=${jaegerValue(form.service)}`,
+    form.span && `operation=${jaegerValue(form.span)}`,
+    form.min && `minDuration=${goDuration(form.min)}`,
+    form.max && `maxDuration=${goDuration(form.max)}`,
+    form.errors && "error=true",
+  ].filter(Boolean)
+  return pairs.length === 0 ? jaegerNoFilter : pairs.join(" ")
+}
+
+const jaegerPair = /(^|\s)([^\s="]+)=("(?:[^"\\]|\\.)*"|\S*)/g
+
+function takeJaegerPairs(
+  q: string,
+  keys: string[]
+): { rest: string; taken: Record<string, string> } {
+  const taken: Record<string, string> = {}
+  const rest = q
+    .replace(jaegerPair, (match, _lead, key: string, value: string) => {
+      if (!keys.includes(key)) return match
+      taken[key] = value.startsWith('"') ? value.slice(1, -1) : value
+      return ""
+    })
+    .trim()
+  return { rest: rest === jaegerNoFilter ? "" : rest, taken }
+}
+
+export function withJaegerDurationBounds(
+  q: string,
+  min: string,
+  max: string | undefined
+): string {
+  const { rest, taken } = takeJaegerPairs(q, ["minDuration", "maxDuration"])
+  const floor = tighterBound(taken.minDuration, min, (a, b) => a > b)
+  const ceiling =
+    max === undefined
+      ? taken.maxDuration
+      : tighterBound(taken.maxDuration, max, (a, b) => a < b)
+  return [
+    rest,
+    `minDuration=${goDuration(floor)}`,
+    ceiling === undefined ? "" : `maxDuration=${goDuration(ceiling)}`,
+  ]
+    .filter(Boolean)
+    .join(" ")
+}
+
+function withJaegerPair(q: string, key: string, value: string): string {
+  const { rest } = takeJaegerPairs(q, [key])
+  return [rest, `${key}=${jaegerValue(value)}`].filter(Boolean).join(" ")
 }
 
 const clickhouseErrorStatus =
@@ -254,21 +325,27 @@ export function clickhouseTraceSpans(traceId: string): string {
 }
 
 export function traceStatsFilter(type: string, search: TraceSearch): string {
-  const form = traceForm(search)
-  if (type === "tempo") return search.q ?? traceQLFor(form)
-  return clickhouseConditions(form, "").join(" AND ")
+  if (type === "tempo") return textSearchFor(type, search)
+  return clickhouseConditions(traceForm(search), "").join(" AND ")
+}
+
+export function textSearchFor(type: string, search: TraceSearch): string {
+  return (
+    search.q ??
+    (type === "jaeger"
+      ? jaegerSearchFor(traceForm(search))
+      : traceQLFor(traceForm(search)))
+  )
 }
 
 export function traceSearchParams(
   type: string,
   search: TraceSearch
 ): ExploreParams {
-  const form = traceForm(search)
   return {
-    query:
-      type === "tempo"
-        ? (search.q ?? traceQLFor(form))
-        : clickhouseTraceSearch(form),
+    query: hasQueryText(type)
+      ? textSearchFor(type, search)
+      : clickhouseTraceSearch(traceForm(search)),
     kind: "instant",
     ...tracesTimeRange(search),
     pageSize: search.size ?? defaultPageSize,

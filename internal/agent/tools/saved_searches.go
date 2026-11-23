@@ -38,7 +38,7 @@ const (
 
 	schemaSaveSearch = `{"type":"object","properties":{` + propSearchKind + `,` +
 		`"title":{"type":"string","minLength":1,"maxLength":120,"description":"Short title."},` +
-		`"datasource":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo or ClickHouse (traces), Prometheus (metrics)."},` +
+		`"datasource":{"type":"string","description":"From list_datasources: Loki, Elasticsearch, OpenSearch or ClickHouse (logs), Tempo, Jaeger or ClickHouse (traces), Prometheus (metrics)."},` +
 		`"query":{"type":"string","minLength":1,"maxLength":8000,"description":"The query as it runs. Required for logs and metrics (PromQL); optional for traces: TraceQL on Tempo, SQL on ClickHouse."},` +
 		`"filters":{"type":"object","properties":{` + propSearchFilters + `},"additionalProperties":false},` +
 		`"from":{"type":"string","description":"Start of the range, such as now-1h or RFC 3339. Default now-1h."},` +

@@ -16,6 +16,7 @@ const (
 	TypeClickHouse    = "clickhouse"
 	TypeLoki          = "loki"
 	TypeTempo         = "tempo"
+	TypeJaeger        = "jaeger"
 	TypeElasticsearch = "elasticsearch"
 	TypeOpenSearch    = "opensearch"
 
@@ -131,6 +132,8 @@ func (d Definition) Config(secrets Secrets) (config.Datasource, []config.FieldEr
 		out.Loki = &config.LokiDatasource{HTTPConnection: conn, TenantID: d.TenantID}
 	case TypeTempo:
 		out.Tempo = &config.TempoDatasource{HTTPConnection: conn}
+	case TypeJaeger:
+		out.Jaeger = &config.JaegerDatasource{HTTPConnection: conn}
 	case TypeElasticsearch:
 		search := d.search(conn, secrets)
 		out.Elasticsearch = &search

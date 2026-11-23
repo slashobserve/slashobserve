@@ -53,7 +53,15 @@ export type TraceViewSearch = {
 const traceIdPattern = /^(?:[0-9a-f]{16}|[0-9a-f]{32})$/
 const spanIdPattern = /^[0-9a-f]{16}$/
 
-export const traceDatasourceTypes = ["tempo", "clickhouse"] as const
+export const traceDatasourceTypes = ["tempo", "jaeger", "clickhouse"] as const
+
+export function hasQueryText(type: string): boolean {
+  return type === "tempo" || type === "jaeger"
+}
+
+export function hasTraceStats(type: string): boolean {
+  return type === "tempo" || type === "clickhouse"
+}
 
 const maxNameLength = 200
 const controlCharacters = /\p{Cc}/u

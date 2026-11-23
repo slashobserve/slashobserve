@@ -25,7 +25,10 @@ export function traceDatasourceFor(
   all: readonly DatasourceStatus[]
 ): string | null {
   if (logs.type === "clickhouse") return logs.uid
-  return all.find((datasource) => datasource.type === "tempo")?.uid ?? null
+  const traces = all.filter((datasource) =>
+    ["tempo", "jaeger"].includes(datasource.type)
+  )
+  return (traces.find((d) => d.type === "tempo") ?? traces[0])?.uid ?? null
 }
 
 export function traceRangeAround(timeMs: number): { from: string; to: string } {

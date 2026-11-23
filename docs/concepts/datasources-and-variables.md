@@ -10,7 +10,7 @@ Both are fields of the [ObserveSpec](observespec.md) document.
 
 The `uid` of an entry in the [datasources file](../reference/datasources-file.md), or of a datasource an Admin [added in the app](../connect/datasources-in-the-app.md), is the name a dashboard uses.
 A uid is up to 40 letters, digits, `_` or `-`, starting with a letter or digit.
-The entry's `type`, `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`, decides the query language and which macros a query may use.
+The entry's `type`, `prometheus`, `clickhouse`, `loki`, `tempo`, `jaeger`, `elasticsearch` or `opensearch`, decides the query language and which macros a query may use.
 
 A data panel sets `datasource`, and any of its queries can set its own `datasource` to use a different one.
 A `query` variable and an `adhoc` variable set `datasource` too.
@@ -44,7 +44,7 @@ Each type has its own fields:
 
 A `query` variable on Prometheus uses `label_values(label)` or `label_values(selector, label)`.
 On ClickHouse it is one `SELECT`, and the first column gives the values.
-On Loki it is `label_values(label)` or `label_values({selector}, label)`, and on Elasticsearch and OpenSearch `label_values(field)`, as the [Loki](../connect/loki.md#variables-and-discovery) and [Elasticsearch](../connect/elasticsearch.md#variables-and-discovery) pages describe; Tempo has no query variables.
+On Loki it is `label_values(label)` or `label_values({selector}, label)`, and on Elasticsearch and OpenSearch `label_values(field)`, as the [Loki](../connect/loki.md#variables-and-discovery) and [Elasticsearch](../connect/elasticsearch.md#variables-and-discovery) pages describe; Tempo and Jaeger have no query variables.
 `regex` keeps only the values it matches, or the part of each value it captures; named groups `text` and `value` set what the picker shows and what is selected, a `text` group alone keeps the whole value, and `sort` (which orders by the shown text) is one of:
 
 - `alpha` and `alphaDesc` compare by character, so every capital letter sorts before every lowercase letter.
@@ -96,6 +96,7 @@ When a reference gives no format, the server picks one from where the variable s
 | ------------------------- | ------------------------- | ------------------------------------------------------------------------------- |
 | Prometheus, Loki, Tempo   | In a `=~` or `!~` matcher | `regex`                                                                         |
 | Prometheus, Loki, Tempo   | Anywhere else             | `raw`                                                                           |
+| Jaeger                    | Anywhere                  | `raw`                                                                           |
 | ClickHouse                | Inside a quoted string    | `raw`                                                                           |
 | ClickHouse                | Outside quotes            | `sqlstring`                                                                     |
 | Elasticsearch, OpenSearch | Inside a quoted string    | The one value, JSON-escaped; several values need a format such as `${var:pipe}` |
@@ -179,7 +180,7 @@ An instant query passes the selected step on as its minimum interval, and the fa
 ## Ad hoc filters
 
 An `adhoc` variable lets a viewer add key, operator and value filters (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, Elasticsearch and OpenSearch).
-The filters apply to queries on Prometheus, ClickHouse, Elasticsearch and OpenSearch datasources; a Loki or Tempo query takes no ad hoc filters.
+The filters apply to queries on Prometheus, ClickHouse, Elasticsearch and OpenSearch datasources; a Loki, Tempo or Jaeger query takes no ad hoc filters.
 On Prometheus the filters are added as label matchers to every selector in every query on that datasource, and a query cannot refer to the variable.
 A ClickHouse query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`, which becomes the filters joined by `AND` (a filter that starts an `or` group opens a new group, so `a, b, or c` is `(a AND b) OR c`), or `1 = 1` when there are none.
 `<` and `>` compare as numbers when both sides are plain numbers and as text otherwise.

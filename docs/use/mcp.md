@@ -197,14 +197,14 @@ It returns at least one panel, and a panel too large to return is listed in `too
 `list_labels` and `list_label_values` also take `from` and `to`, both or neither, so Loki and Tempo answer only the names seen in that window instead of their own default one.
 
 `list_services` lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
-With `datasource` it reads that one source; without it, it asks every Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
-`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now, and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
+With `datasource` it reads that one source; without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
+`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now (Jaeger ignores it and lists every service it retains), and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
 Each source answers its `field`, the label, column or attribute that holds the service, so a query can filter on it, and a source that does not answer in time says why under `unavailable` while the others still answer.
 Answers are cached for about a minute and a source lists at most 200 services, with `truncated` set when there were more.
 
 `recheck_datasource` runs a fresh health check on one datasource instead of reading the cached one and answers its status, and calls within 2 seconds of the last check return that check.
 
-`get_trace` reads one trace by id from a Tempo or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans.
+`get_trace` reads one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans.
 A trace over 20,000 spans is cut to its earliest spans and says so.
 `trace_stats` counts spans and errors per time bucket (at most 60) and gives p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
 `compare_traces` takes up to 50 `selected` trace ids and up to 150 `baseline` ids from a Tempo or ClickHouse datasource and returns the attribute values whose share of traces differs most between the two sets, to explain why some traces are slow or failing.
@@ -239,10 +239,11 @@ Each datasource type answers these discovery tools:
 - ClickHouse: the same on the OpenTelemetry tables, plus `get_schema` and `sample_rows`.
 - Loki: `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`; `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`; and `list_metrics` with a stream selector as `scope`.
 - Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
+- Jaeger: `list_label_values` for the services, or for the operations of one service with `service=checkout` as `metric`, and `get_schema` for every service with its span names as `columns` and `rows`; tags are free-form and are not listed.
 - Elasticsearch and OpenSearch: `list_labels` for the fields you can group or filter by, `list_label_values` for a field's top values over the range, `get_schema` for the concrete indices of the index pattern, or with `table` set to an index name every mapped field with its kind, and `sample_rows` for up to 20 of the newest documents of the index pattern with no `table`.
   `list_metrics` with a `scope` answers an empty inventory there.
 
-`list_metrics` without a `scope` on Loki, Tempo, Elasticsearch or OpenSearch, and `get_schema` on Prometheus or Loki, answer `invalid_request` and name the datasource types they read, instead of an empty list or the datasource's own wording.
+`list_metrics` without a `scope` on Loki, Tempo, Jaeger, Elasticsearch or OpenSearch, and `get_schema` on Prometheus or Loki, answer `invalid_request` and name the datasource types they read, instead of an empty list or the datasource's own wording.
 
 On Loki each family of a scoped `list_metrics` is a stream label key, and its `series` counts the streams that carry it.
 That inventory, and the empty one of Elasticsearch and OpenSearch, never replaces the one `uncovered` reads.
@@ -327,7 +328,7 @@ The query is linted as `lint_query` does it, and one with a lint error is refuse
 When the lint check itself cannot run, for example because the datasource is unreachable, the search is saved anyway.
 A repeat of a search you already saved, with the same title, datasource, query, filters, range and folder, returns that search with `replayed` true and saves no second copy.
 `POST /api/v1/saved-searches` and `observe saved-searches save` apply the same two checks to a service-account key, and refuse a lint error with 422 `query_invalid` and answer a repeat with 200 and `replayed` true; a person's browser session saves as before.
-A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo or ClickHouse datasource, takes an optional `query`, TraceQL on Tempo and SQL on ClickHouse, which reopens the search in the SQL view, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
+A logs search needs a `query` and a Loki, ClickHouse, Elasticsearch or OpenSearch datasource, and its `filters` takes only `columns`; a traces search needs a Tempo, Jaeger or ClickHouse datasource, takes an optional `query`, TraceQL on Tempo, `key=value` pairs on Jaeger and SQL on ClickHouse, which reopens the search in the SQL view, and its `filters` takes `service`, `span`, `min`, `max` and `errors`; a metrics search needs a PromQL `query` and a Prometheus datasource, and its `filters` takes only `mode`, `graph` (the default) or `table`.
 `from` and `to` default to `now-1h` and `now`, and are saved as written.
 
 A search is filed in `folder_id`, by default the key's My Dashboards when it has one, else General, and the folder's readers can open it.
@@ -394,7 +395,7 @@ It lists the dashboards with [health problems](dashboard-health.md) in the folde
 A client repairs a failing panel itself: it reads the panel with `get_panels` and saves the fix with `update_panels`.
 
 `draft_query` is available over MCP only.
-It turns a question into a checked LogQL, ClickHouse SQL, KQL, PromQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus or Tempo datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
+It turns a question into a checked LogQL, ClickHouse SQL, KQL, PromQL or TraceQL query, or trace search filters, for one Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus, Tempo or Jaeger datasource, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
 `signal` is `logs`, `traces` or `metrics`; it defaults to the one the datasource holds, and a ClickHouse datasource needs it.
 A Prometheus datasource answers with `language` `promql`, evaluated at the end of the range.
 It spends at most two of this server's model calls per question, checks the query with the lint and a short sample, and never runs the full query; run the answer with `query_instant`.

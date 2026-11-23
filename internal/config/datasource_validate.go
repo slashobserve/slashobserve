@@ -26,11 +26,12 @@ func (d Datasource) Validate() []FieldError {
 		typeClickHouse:    d.ClickHouse != nil,
 		typeLoki:          d.Loki != nil,
 		typeTempo:         d.Tempo != nil,
+		typeJaeger:        d.Jaeger != nil,
 		typeElasticsearch: d.Elasticsearch != nil,
 		typeOpenSearch:    d.OpenSearch != nil,
 	}
 	if _, known := blocks[d.Type]; !known {
-		return append(errs, FieldError{"type", fmt.Sprintf("must be %s, %s, %s, %s, %s or %s", typePrometheus, typeClickHouse, typeLoki, typeTempo, typeElasticsearch, typeOpenSearch)})
+		return append(errs, FieldError{"type", fmt.Sprintf("must be %s, %s, %s, %s, %s, %s or %s", typePrometheus, typeClickHouse, typeLoki, typeTempo, typeJaeger, typeElasticsearch, typeOpenSearch)})
 	}
 	if !blocks[d.Type] {
 		return append(errs, FieldError{d.Type, "required for type " + d.Type})
@@ -100,6 +101,8 @@ func (d Datasource) validateBlock() []FieldError {
 		return validateConnection(d.Loki.HTTPConnection)
 	case typeTempo:
 		return validateConnection(d.Tempo.HTTPConnection)
+	case typeJaeger:
+		return validateConnection(d.Jaeger.HTTPConnection)
 	case typeElasticsearch:
 		return validateSearch(*d.Elasticsearch)
 	case typeOpenSearch:

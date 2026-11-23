@@ -1,9 +1,9 @@
 ---
 title: Datasources file
-description: The YAML file that lists the Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers, and its rules for secrets and limits.
+description: The YAML file that lists the Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch servers, and its rules for secrets and limits.
 ---
 
-The datasources file lists the Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch servers SlashObserve queries.
+The datasources file lists the Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch servers SlashObserve queries.
 `SLASHOBSERVE_DATASOURCES_FILE` names its path; with it unset the server has no file datasources.
 It is a single YAML document with a top-level `datasources` list; unknown fields are rejected, a missing `datasources` key or a second YAML document stops the server at startup, and an empty list logs a warning.
 The server reads it once at startup, and its entries show as "From file", read-only, on the Datasources page.
@@ -44,6 +44,11 @@ datasources:
     name: Tempo
     tempo:
       url: http://tempo:3200
+  - uid: jaeger
+    type: jaeger
+    name: Jaeger
+    jaeger:
+      url: http://jaeger:16686
   - uid: es
     type: elasticsearch
     name: Elasticsearch
@@ -76,7 +81,7 @@ To make an entry `admins`:
 | Field         | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `uid`         | Required, unique. Up to 40 letters, digits, `_` or `-`, starting with a letter or digit. Dashboards refer to a datasource by it. Quote a value that looks like a number, such as `"0123"`, because an unquoted number is refused.                                                                                                                                                                                                    |
-| `type`        | Required: `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`. Give only the block that matches (`prometheus:`, `clickhouse:`, `loki:`, `tempo:`, `elasticsearch:` or `opensearch:`).                                                                                                                                                                                                                      |
+| `type`        | Required: `prometheus`, `clickhouse`, `loki`, `tempo`, `jaeger`, `elasticsearch` or `opensearch`. Give only the block that matches (`prometheus:`, `clickhouse:`, `loki:`, `tempo:`, `jaeger:`, `elasticsearch:` or `opensearch:`).                                                                                                                                                                                                                      |
 | `name`        | A display name. Quote a value that looks like a number, such as `"0123"`, because an unquoted number is refused.                                                                                                                                                                                                                                                                                                                     |
 | `limits`      | Optional: `timeout` (a Go duration), `maxSeries`, `maxPoints`, `maxRows` and `maxConcurrentQueries` (whole numbers, not negative). An omitted value or `0` keeps the default. See below.                                                                                                                                                                                                                                                                                                                |
 | `audience`    | Optional: `everyone` (the default) or `admins`. See [Who can query a datasource](#who-can-query-a-datasource). |
@@ -86,7 +91,7 @@ The `uid`, `name`, `audience` and `grafanaUids` values must not carry a YAML tag
 
 The Grafana importer matches a dashboard's datasources by the mapping given with the import, then by a Grafana datasource uid that equals one of your datasource uids (so a dashboard exported from a Grafana that already uses your uids needs no `grafanaUids`), then by `grafanaUids`, then by being the only datasource of that type; it never guesses between two datasources of the same type.
 
-The fields of each block are described under [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md), [Tempo](../connect/tempo.md), [Elasticsearch](../connect/elasticsearch.md) and [OpenSearch](../connect/opensearch.md).
+The fields of each block are described under [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md), [Tempo](../connect/tempo.md), [Jaeger](../connect/jaeger.md), [Elasticsearch](../connect/elasticsearch.md) and [OpenSearch](../connect/opensearch.md).
 
 ## Rules for secrets
 
@@ -94,7 +99,7 @@ The fields of each block are described under [Prometheus](../connect/prometheus.
 - A file's content is used with trailing newlines removed; an empty file is an error.
 - Set only one of the env and file forms for the same secret.
 - A header name may appear in only one of `headers`, `headersFromEnv` and `headersFromFile`.
-  Prometheus, Loki, Tempo, Elasticsearch and OpenSearch reject an `Authorization` header there; use `basicAuth`, a bearer token or, on Elasticsearch and OpenSearch, an API key instead.
+  Prometheus, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch reject an `Authorization` header there; use `basicAuth`, a bearer token or, on Elasticsearch and OpenSearch, an API key instead.
 
 ## Limits
 
@@ -109,5 +114,5 @@ A panel waits for a slot until its deadline; the logs page, traces, label lists 
 The agent's and MCP's ad-hoc queries, the draft preview in the panel editor on dashboards and observations, the logs page, the trace view and `POST /api/v1/datasources/{uid}/query` use tighter limits still (15 seconds, 200 series, 100,000 points and 1,000 rows), or the datasource's limits when those are lower.
 
 For ClickHouse table results (the `table` and `logs` formats, and instant queries) each row counts as one point, so the row limit bounds them.
-A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo query returns at most the row limit of spans or traces.
-Separate from these limits, the server refuses a Prometheus, Loki, Tempo, Elasticsearch or OpenSearch response over 64 MiB and a ClickHouse result over 32 MiB.
+A Loki log query reads at most the row limit or 5,000 lines, and each line counts as one point; a Tempo or Jaeger query returns at most the row limit of spans or traces.
+Separate from these limits, the server refuses a Prometheus, Loki, Tempo, Jaeger, Elasticsearch or OpenSearch response over 64 MiB and a ClickHouse result over 32 MiB.

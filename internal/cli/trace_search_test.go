@@ -137,3 +137,22 @@ func raws(values ...string) []json.RawMessage {
 	}
 	return out
 }
+
+func TestJaegerSearchWritesOnlyTheSetFilters(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   traceFilters
+		want string
+	}{
+		{"none", traceFilters{}, "minDuration=0s"},
+		{"all", traceFilters{Service: "checkout", Span: "POST /pay", Min: "500ms", Max: "2s", Errors: true}, `service=checkout operation="POST /pay" minDuration=500ms maxDuration=2s error=true`},
+		{"microseconds", traceFilters{Min: "250µs"}, "minDuration=250us"},
+		{"quote", traceFilters{Span: `say "hi"`}, `operation="say \"hi\""`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := jaegerSearch(tc.in); got != tc.want {
+				t.Fatalf("jaegerSearch = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

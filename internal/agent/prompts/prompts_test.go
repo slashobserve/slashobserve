@@ -17,6 +17,7 @@ var sectionHeadings = map[spec.DatasourceType]string{
 	spec.ClickHouse: "## ClickHouse (OpenTelemetry exporter tables)",
 	spec.Loki:       "## Loki (LogQL)",
 	spec.Tempo:      "## Tempo (TraceQL)",
+	spec.Jaeger:     "## Jaeger (search keys)",
 
 	spec.Elasticsearch: searchHeading,
 }
@@ -60,7 +61,7 @@ func TestGuideForKeepsTheFixedOrderAndIgnoresDuplicatesAndUnknownTypes(t *testin
 }
 
 func TestSpecGuideHoldsEverySection(t *testing.T) {
-	all := []spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Elasticsearch, spec.OpenSearch}
+	all := []spec.DatasourceType{spec.Prometheus, spec.ClickHouse, spec.Loki, spec.Tempo, spec.Jaeger, spec.Elasticsearch, spec.OpenSearch}
 	if prompts.SpecGuide() != prompts.GuideFor(all) {
 		t.Fatal("SpecGuide is not the guide for every type")
 	}

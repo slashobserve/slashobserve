@@ -66,6 +66,10 @@ var logsQueryLanguages = map[spec.DatasourceType]string{
 	spec.OpenSearch:    languageKQL,
 }
 
+func filtersOnly(dsType spec.DatasourceType, signal string) bool {
+	return signal == signalTraces && (dsType == spec.ClickHouse || dsType == spec.Jaeger)
+}
+
 func languageFor(dsType spec.DatasourceType, signal string, hasQuery bool) (string, bool) {
 	if language, ok := logsQueryLanguages[dsType]; ok && signal == signalLogs && hasQuery {
 		return language, true
@@ -73,7 +77,7 @@ func languageFor(dsType spec.DatasourceType, signal string, hasQuery bool) (stri
 	switch {
 	case dsType == spec.Prometheus && signal == signalMetrics && hasQuery:
 		return languagePromQL, true
-	case dsType == spec.ClickHouse && signal == signalTraces && !hasQuery:
+	case filtersOnly(dsType, signal) && !hasQuery:
 		return languageFilters, true
 	case dsType == spec.Tempo && signal == signalTraces && hasQuery:
 		return languageTraceQL, true
@@ -93,7 +97,7 @@ func languageRule(dsType spec.DatasourceType, signal string) string {
 		return "answer: a ClickHouse SQL query in submit_query's query."
 	case isSearch(dsType):
 		return "answer: a KQL query in submit_query's query (Kibana query language, such as service.name:checkout and log.level:error); prefix lucene: only when KQL cannot express it."
-	case dsType == spec.ClickHouse:
+	case dsType == spec.ClickHouse || dsType == spec.Jaeger:
 		return "answer: trace_filters in submit_query; this datasource takes no query."
 	}
 	return "answer: trace_filters in submit_query, or a TraceQL query in query only when the filters cannot express the question."
@@ -102,7 +106,7 @@ func languageRule(dsType spec.DatasourceType, signal string) string {
 func submitSchema(dsType spec.DatasourceType, signal string) json.RawMessage {
 	var props, required string
 	switch {
-	case dsType == spec.ClickHouse && signal == signalTraces:
+	case filtersOnly(dsType, signal):
 		props, required = propTraceFilters, `"trace_filters","explanation"`
 	case dsType == spec.Tempo:
 		props, required = propDraftedQuery+","+propTraceFilters, `"explanation"`

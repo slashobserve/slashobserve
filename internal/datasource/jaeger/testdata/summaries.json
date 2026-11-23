@@ -1,0 +1,4 @@
+{"summaries":[
+  {"traceId":"f7651916cd43dd8448eb211c80319c","rootServiceName":"checkout","rootOperationName":"POST /checkout","minStartTimeUnixNano":"1793966399000000000","maxEndTimeUnixNano":"1793966399050000000","spanCount":8,"errorSpanCount":3,"services":["checkout","payments"]},
+  {"traceId":"1b2c3d4e5f60718293a4b5c6d7e8f901","rootServiceName":"frontend","rootOperationName":"GET /","minStartTimeUnixNano":"1793966400000000000","maxEndTimeUnixNano":"1793966400000000000","spanCount":1,"errorSpanCount":0,"services":["frontend"]}
+]}

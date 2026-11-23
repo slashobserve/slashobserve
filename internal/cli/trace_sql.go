@@ -9,7 +9,8 @@ import (
 
 func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 	opts := a.traces
-	if err := traceQueryUsage(cmd, opts, args); err != nil {
+	sort, err := traceQueryUsage(cmd, opts, args)
+	if err != nil {
 		return err
 	}
 	c, err := a.newClient()
@@ -21,8 +22,15 @@ func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := tracesKindUsage(opts.datasource, kind); err != nil {
+		return err
+	}
 	if kind != "clickhouse" {
-		return usagef("--query runs SQL on a ClickHouse datasource; %s is %s", text(opts.datasource), text(kind))
+		request := exploreRequest{Query: opts.query, Kind: "instant", From: opts.from, To: opts.to, Limit: traceSearchLimit}
+		return a.printTraceSearch(ctx, c, request, sort)
+	}
+	if sort != nil {
+		return usagef("--sort does not apply to SQL on a ClickHouse datasource; write an ORDER BY")
 	}
 	data, body, err := explore(ctx, c, opts.datasource, exploreRequest{Query: opts.query, Kind: "instant", From: opts.from, To: opts.to, PageSize: traceSearchLimit, Page: 1, AsWritten: true})
 	if err != nil {
@@ -45,26 +53,27 @@ func (a *app) queryTraces(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func traceQueryUsage(cmd *cobra.Command, opts tracesOptions, args []string) error {
+func traceQueryUsage(cmd *cobra.Command, opts tracesOptions, args []string) (*traceSort, error) {
 	if cmd.Flags().Changed("compare") {
-		return usagef("give --compare or --query, not both")
+		return nil, usagef("give --compare or --query, not both")
 	}
-	if _, err := tracesFlagsUsage(cmd, opts); err != nil {
-		return err
+	sort, err := tracesFlagsUsage(cmd, opts)
+	if err != nil {
+		return nil, err
 	}
 	switch {
 	case strings.TrimSpace(opts.query) == "":
-		return usagef("--query needs SQL")
+		return nil, usagef("--query needs a query: SQL on ClickHouse, TraceQL on Tempo, key=value pairs on Jaeger")
 	case len(args) > 0:
-		return usagef("give a trace id or --query, not both")
+		return nil, usagef("give a trace id or --query, not both")
 	case opts.ask != "":
-		return usagef("give --ask or --query, not both")
+		return nil, usagef("give --ask or --query, not both")
 	case opts.dryRun:
-		return usagef("--dry-run needs --ask")
+		return nil, usagef("--dry-run needs --ask")
 	case opts.datasource == "":
-		return usagef("%s needs --datasource <uid>; observe doctor lists them", cmd.CommandPath())
+		return nil, usagef("%s needs --datasource <uid>; observe doctor lists them", cmd.CommandPath())
 	}
-	return nil
+	return sort, nil
 }
 
 func resultTable(frames []frame) ([]string, [][]string) {

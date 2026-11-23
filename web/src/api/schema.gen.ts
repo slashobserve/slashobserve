@@ -1831,7 +1831,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read one trace whole from a Tempo or ClickHouse datasource.
+         * Read one trace whole from a Tempo, Jaeger or ClickHouse datasource.
          * @description Answers every span of the trace as one frame with ref `A` and the columns `TraceId`, `SpanId`, `ParentSpanId`, `SpanName`, `ServiceName`, `StartTime`, `Duration`, `StatusCode`, `StatusMessage`, `SpanAttributes`, `ResourceAttributes`, `SpanKind`, `SpanEvents` and `SpanLinks`, sorted by `StartTime` then `SpanId`. `SpanKind` is one of `Server`, `Client`, `Producer`, `Consumer`, `Internal` or `Unspecified`, `SpanEvents` is a JSON array string of `{"time_ms", "name", "attributes"}` objects, and `SpanLinks` a JSON array string of `{"trace_id", "span_id", "attributes"}` objects with lowercase hex ids; both are `[]` when the span has none. A trace over 20,000 spans is cut to its earliest 20,000: `meta.rows` is the number of spans returned, `meta.rows_total` the number in the trace and `meta.truncated` says the two differ. `meta.bytes` is the size of Tempo's payload in bytes and `meta.elapsed_ms` the time the upstream read took; ClickHouse reports no `bytes`. `meta.kind` is `instant` and `meta.cached` is always false. `from` and `to` bound the search and default to the last 24 hours; they take relative expressions such as `now-1h`, epoch milliseconds or RFC 3339 times. The call runs with the agent tools' 15 second timeout, is never cached, and counts against the caller's 8 in-flight query requests. Viewers and above may call it, service-account keys included.
          */
         get: operations["getTrace"];
@@ -2097,7 +2097,7 @@ export interface paths {
         };
         /**
          * List the services a log or trace datasource has seen over a recent window.
-         * @description The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log or trace sources has `checkout` without opening each one. Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, and Elasticsearch and OpenSearch the service field of the mapping. `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field. `signal` is `logs` or `traces`; without it the answer is `logs`, and `traces` on Tempo, and a datasource that does not hold the signal answers 422 `query_invalid`. ClickHouse holds both, so a client that wants both asks twice. `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed. At most 200 services come back, sorted by name, with `truncated` true when there were more. An answer is cached for about a minute per datasource, signal and window, and calls for the same key in flight share one upstream request. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, and counts against the per-caller in-flight limit. A source that does not answer within 5 seconds answers 504 `query_timeout`, so a client can show that the services are unavailable while the other sources answer. Any query parameter not listed below, or one given twice, is a 400. Viewers and above may call it, service-account keys included, and it reads only datasources that are configured on the server.
+         * @description The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log or trace sources has `checkout` without opening each one. Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, Jaeger its list of every retained service, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, and Elasticsearch and OpenSearch the service field of the mapping. `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field. `signal` is `logs` or `traces`; without it the answer is `logs`, and `traces` on Tempo, and a datasource that does not hold the signal answers 422 `query_invalid`. ClickHouse holds both, so a client that wants both asks twice. `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed, except on Jaeger, which lists every service it retains whatever the window. At most 200 services come back, sorted by name, with `truncated` true when there were more. An answer is cached for about a minute per datasource, signal and window, and calls for the same key in flight share one upstream request. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, and counts against the per-caller in-flight limit. A source that does not answer within 5 seconds answers 504 `query_timeout`, so a client can show that the services are unavailable while the other sources answer. Any query parameter not listed below, or one given twice, is a 400. Viewers and above may call it, service-account keys included, and it reads only datasources that are configured on the server.
          */
         get: operations["listDatasourceServices"];
         put?: never;
@@ -5030,7 +5030,7 @@ export interface components {
         DatasourceDraft: {
             uid?: string;
             /** @enum {string} */
-            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "elasticsearch" | "opensearch";
+            type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "jaeger" | "elasticsearch" | "opensearch";
             /** @description The display name; the uid when empty. */
             name?: string;
             /**
@@ -13560,7 +13560,7 @@ export interface operations {
                     "application/json": components["schemas"]["PanelData"];
                 };
             };
-            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo or ClickHouse (`invalid_request`). */
+            /** @description The trace id is not 16 or 32 hex characters, `from` or `to` is not a valid time, or the datasource is not Tempo, Jaeger or ClickHouse (`invalid_request`). */
             400: {
                 headers: {
                     [name: string]: unknown;

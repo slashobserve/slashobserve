@@ -1,6 +1,6 @@
 import type { DraftAnswer } from "@/ask/draft-query"
 
-import type { TraceFormSearch } from "./search"
+import { hasQueryText, type TraceFormSearch } from "./search"
 import { parseDuration } from "./search-query"
 
 function readableDuration(text: string | undefined): string | undefined {
@@ -24,6 +24,6 @@ export function traceSearchFromAnswer(
     min: readableDuration(filters.min),
     max: readableDuration(filters.max),
     errors: filters.errors === true ? "1" : undefined,
-    q: type === "tempo" ? filled(answer.query) : undefined,
+    q: hasQueryText(type) ? filled(answer.query) : undefined,
   }
 }

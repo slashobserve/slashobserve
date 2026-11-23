@@ -120,6 +120,17 @@ loki:
 	}
 }
 
+func TestLoadJaeger(t *testing.T) {
+	got, err := load(t, entry("traces", "jaeger", "jaeger:\n  url: http://jaeger:16686\n  headers:\n    X-Tenant: shop"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jaeger := got[0].Jaeger
+	if jaeger == nil || got[0].Type != "jaeger" || jaeger.URL != "http://jaeger:16686" || jaeger.Headers["X-Tenant"] != "shop" || got[0].Tempo != nil {
+		t.Fatalf("jaeger = %+v in %+v", jaeger, got[0])
+	}
+}
+
 func TestLoadElasticsearchAndOpenSearch(t *testing.T) {
 	env := map[string]string{"SLASHOBSERVE_ES_API_KEY": "key", "SLASHOBSERVE_OS_PASSWORD": "pw"}
 	got, err := load(t, entry("es", "elasticsearch", `
@@ -188,7 +199,7 @@ func TestSearchBlockValidation(t *testing.T) {
 		{"elasticsearch without its block", entry("a", "elasticsearch", lokiBlock), "datasources[0].elasticsearch: required for type elasticsearch"},
 		{"opensearch without a url", entry("a", "opensearch", "opensearch:\n  index: logs-*"), "datasources[0].opensearch.url: required"},
 		{"search has no tenant", es("index: logs-*\ntenantId: t"), `unknown field "tenantId"`},
-		{"unknown type lists both", entry("a", "elastic", lokiBlock), "must be prometheus, clickhouse, loki, tempo, elasticsearch or opensearch"},
+		{"unknown type lists both", entry("a", "elastic", lokiBlock), "must be prometheus, clickhouse, loki, tempo, jaeger, elasticsearch or opensearch"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -206,6 +217,8 @@ func TestDatasourceBlockMustMatchType(t *testing.T) {
 	}{
 		{"loki with a prometheus block", entry("a", "loki", lokiBlock+"\n"+promBlock), "datasources[0].prometheus: not allowed for type loki"},
 		{"loki with a tempo block", entry("a", "loki", lokiBlock+"\n"+tempoBlock), "datasources[0].tempo: not allowed for type loki"},
+		{"jaeger with a tempo block", entry("a", "jaeger", "jaeger:\n  url: http://jaeger:16686\n"+tempoBlock), "datasources[0].tempo: not allowed for type jaeger"},
+		{"jaeger without its block", entry("a", "jaeger", lokiBlock), "datasources[0].jaeger: required for type jaeger"},
 		{"tempo with a loki block", entry("a", "tempo", tempoBlock+"\n"+lokiBlock), "datasources[0].loki: not allowed for type tempo"},
 		{"tempo with a clickhouse block", entry("a", "tempo", tempoBlock+"\n"+chBlock), "datasources[0].clickhouse: not allowed for type tempo"},
 		{"prometheus with a loki block", entry("a", "prometheus", promBlock+"\n"+lokiBlock), "datasources[0].loki: not allowed for type prometheus"},
@@ -274,7 +287,7 @@ func TestLoadDatasourcesStructure(t *testing.T) {
     url: http://other:9090
 `, "  "), `datasources[1].uid: duplicate "prom"`},
 		{"invalid uid", strings.Replace(validPrometheus, "uid: prom", "uid: -bad", 1), "datasources[0].uid: must match"},
-		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: graphite", 1), `datasources[0].type: must be prometheus, clickhouse, loki, tempo, elasticsearch or opensearch, got "graphite"`},
+		{"unknown type", strings.Replace(validPrometheus, "type: prometheus", "type: graphite", 1), `datasources[0].type: must be prometheus, clickhouse, loki, tempo, jaeger, elasticsearch or opensearch, got "graphite"`},
 		{"missing block", "datasources:\n  - uid: a\n    type: prometheus\n", "datasources[0].prometheus: required"},
 		{"wrong block", validPrometheus + "    clickhouse:\n      addr: x\n", "datasources[0].clickhouse: not allowed"},
 		{"negative limit", validPrometheus + "    limits:\n      maxRows: -1\n", "datasources[0].limits.maxRows: must not be negative"},

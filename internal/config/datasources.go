@@ -28,6 +28,7 @@ const (
 	typeClickHouse    = "clickhouse"
 	typeLoki          = "loki"
 	typeTempo         = "tempo"
+	typeJaeger        = "jaeger"
 	typeElasticsearch = "elasticsearch"
 	typeOpenSearch    = "opensearch"
 
@@ -51,6 +52,7 @@ type Datasource struct {
 	ClickHouse      *ClickHouseDatasource
 	Loki            *LokiDatasource
 	Tempo           *TempoDatasource
+	Jaeger          *JaegerDatasource
 	Elasticsearch   *SearchDatasource
 	OpenSearch      *SearchDatasource
 	Limits          datasource.Limits
@@ -83,6 +85,10 @@ type LokiDatasource struct {
 }
 
 type TempoDatasource struct {
+	HTTPConnection
+}
+
+type JaegerDatasource struct {
 	HTTPConnection
 }
 
@@ -119,6 +125,7 @@ type fileDatasource struct {
 	ClickHouse    *fileClickHouse `yaml:"clickhouse"`
 	Loki          *fileLoki       `yaml:"loki"`
 	Tempo         *fileHTTP       `yaml:"tempo"`
+	Jaeger        *fileHTTP       `yaml:"jaeger"`
 	Elasticsearch *fileSearch     `yaml:"elasticsearch"`
 	OpenSearch    *fileSearch     `yaml:"opensearch"`
 	Limits        fileLimits      `yaml:"limits"`
@@ -370,11 +377,12 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		typeClickHouse:    raw.ClickHouse != nil,
 		typeLoki:          raw.Loki != nil,
 		typeTempo:         raw.Tempo != nil,
+		typeJaeger:        raw.Jaeger != nil,
 		typeElasticsearch: raw.Elasticsearch != nil,
 		typeOpenSearch:    raw.OpenSearch != nil,
 	}
 	if _, known := present[raw.Type]; !known {
-		fail("type", "must be %s, %s, %s, %s, %s or %s, got %q", typePrometheus, typeClickHouse, typeLoki, typeTempo, typeElasticsearch, typeOpenSearch, raw.Type)
+		fail("type", "must be %s, %s, %s, %s, %s, %s or %s, got %q", typePrometheus, typeClickHouse, typeLoki, typeTempo, typeJaeger, typeElasticsearch, typeOpenSearch, raw.Type)
 		return ds, errs
 	}
 	for _, block := range slices.Sorted(maps.Keys(present)) {
@@ -387,7 +395,11 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		return ds, errs
 	}
 
-	block := path + "." + raw.Type
+	blockErrs := convertBlock(path+"."+raw.Type, raw, &ds, lookup)
+	return ds, append(errs, blockErrs...)
+}
+
+func convertBlock(block string, raw fileDatasource, ds *Datasource, lookup func(string) (string, bool)) []error {
 	var blockErrs []error
 	switch raw.Type {
 	case typePrometheus:
@@ -402,6 +414,9 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 	case typeTempo:
 		conn, cErrs := convertHTTP(block, *raw.Tempo, lookup)
 		ds.Tempo, blockErrs = &TempoDatasource{HTTPConnection: conn}, cErrs
+	case typeJaeger:
+		conn, cErrs := convertHTTP(block, *raw.Jaeger, lookup)
+		ds.Jaeger, blockErrs = &JaegerDatasource{HTTPConnection: conn}, cErrs
 	case typeElasticsearch:
 		s, sErrs := convertSearch(block, *raw.Elasticsearch, lookup)
 		ds.Elasticsearch, blockErrs = &s, sErrs
@@ -409,7 +424,7 @@ func convertDatasource(path string, raw fileDatasource, lookup func(string) (str
 		s, sErrs := convertSearch(block, *raw.OpenSearch, lookup)
 		ds.OpenSearch, blockErrs = &s, sErrs
 	}
-	return ds, append(errs, blockErrs...)
+	return blockErrs
 }
 
 func convertSearch(path string, raw fileSearch, lookup func(string) (string, bool)) (SearchDatasource, []error) {

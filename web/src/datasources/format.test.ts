@@ -30,6 +30,7 @@ describe("typeLabel", () => {
     expect(typeLabel("clickhouse")).toBe("ClickHouse, read only")
     expect(typeLabel("loki")).toBe("Loki")
     expect(typeLabel("tempo")).toBe("Tempo")
+    expect(typeLabel("jaeger")).toBe("Jaeger")
     expect(typeLabel("elasticsearch")).toBe("Elasticsearch")
     expect(typeLabel("opensearch")).toBe("OpenSearch")
   })
@@ -55,6 +56,7 @@ describe("exploreTargets", () => {
   test("offers logs for Loki and traces for Tempo", () => {
     expect(exploreTargets("loki")).toEqual(["logs"])
     expect(exploreTargets("tempo")).toEqual(["traces"])
+    expect(exploreTargets("jaeger")).toEqual(["traces"])
   })
 
   test("offers logs for Elasticsearch and OpenSearch", () => {

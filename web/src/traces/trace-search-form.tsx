@@ -16,9 +16,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { languageReference } from "@/datasources/sources"
 import { labelValuesQuery } from "@/panel-editor/queries"
 
-import type { TraceFormSearch, TraceSearch } from "./search"
+import { hasQueryText, type TraceFormSearch, type TraceSearch } from "./search"
 import { parseDuration } from "./search-query"
-import { traceFilterLabels } from "./trace-filters"
+import { queryLabel, traceFilterLabels } from "./trace-filters"
 
 const durationProblem = "Use a number and a unit, like 250ms or 1.5s."
 const maxNameLength = 200
@@ -86,6 +86,7 @@ function ServiceCombobox({
   value,
   onChange,
   uid,
+  type,
   disabled,
 }: {
   ref?: Ref<HTMLInputElement>
@@ -93,10 +94,13 @@ function ServiceCombobox({
   value: string
   onChange: (value: string) => void
   uid: string
+  type: string
   disabled: boolean
 }) {
   const services = useQuery(
-    labelValuesQuery(uid, "ServiceName", { table: "otel_traces" })
+    type === "jaeger"
+      ? labelValuesQuery(uid, "service", {})
+      : labelValuesQuery(uid, "ServiceName", { table: "otel_traces" })
   )
   return (
     <div className="flex flex-col gap-1.5">
@@ -166,10 +170,10 @@ export function TraceSearchForm({
   const [errors, setErrors] = useState(value.errors === "1")
   const [q, setQ] = useState(value.q ?? "")
   const [checked, setChecked] = useState(false)
-  const tempo = type === "tempo"
+  const queryText = hasQueryText(type)
   const reference = languageReference("traces", type)
-  const clickhouse = type === "clickhouse"
-  const queryReplacesFields = tempo && q.trim() !== ""
+  const services = type !== "tempo"
+  const queryReplacesFields = queryText && q.trim() !== ""
   const minProblem =
     checked && !queryReplacesFields && durationInvalid(min)
       ? durationProblem
@@ -202,7 +206,7 @@ export function TraceSearchForm({
       min: optional(min),
       max: optional(max),
       errors: errors ? "1" : undefined,
-      q: tempo ? optional(q) : undefined,
+      q: queryText ? optional(q) : undefined,
     })
   }
 
@@ -215,13 +219,14 @@ export function TraceSearchForm({
       className="flex flex-col gap-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {clickhouse ? (
+        {services ? (
           <ServiceCombobox
             ref={serviceRef}
             id={`${ids}-service`}
             value={service}
             onChange={edited(setService)}
             uid={uid}
+            type={type}
             disabled={queryReplacesFields}
           />
         ) : (
@@ -268,10 +273,10 @@ export function TraceSearchForm({
         />
         {traceFilterLabels.errors}
       </Label>
-      {tempo ? (
+      {queryText ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${ids}-q`} className="text-[13px]">
-            {traceFilterLabels.q}
+            {queryLabel(type)}
           </Label>
           <Textarea
             id={`${ids}-q`}

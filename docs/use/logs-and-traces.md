@@ -1,10 +1,10 @@
 ---
 title: Logs and traces
-description: Search logs from Loki, ClickHouse, Elasticsearch or OpenSearch and traces from Tempo or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
+description: Search logs from Loki, ClickHouse, Elasticsearch or OpenSearch and traces from Tempo, Jaeger or ClickHouse with a query or a plain-language question, follow a line to its trace, tail new lines and keep a query as a dashboard panel.
 ---
 
 The logs page and the trace view let you look at raw lines and spans without building a dashboard first.
-They read from the datasources an Admin configured, as described in [Connect Loki](../connect/loki.md), [Connect Tempo](../connect/tempo.md) and [Connect ClickHouse](../connect/clickhouse.md).
+They read from the datasources an Admin configured, as described in [Connect Loki](../connect/loki.md), [Connect Tempo](../connect/tempo.md), [Connect Jaeger](../connect/jaeger.md) and [Connect ClickHouse](../connect/clickhouse.md).
 
 ## Logs page
 
@@ -389,7 +389,7 @@ A trace opens at `/t/<trace id>?ds=<datasource uid>`.
 The title in the top bar reads **Traces / <source> / <root service> <root span>**, such as **Traces / Tempo / frontend POST /checkout**, and under it a summary gives the duration, the number of spans, services and errors, the start time, and the slowest service on the critical path with the time it spent there.
 The summary ends with the short trace id, and **Copy trace id** beside it copies the whole id.
 **Open trace** on a log line opens it when the line carries a `TraceId`, `traceID`, `trace_id` or `traceId` field.
-A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, so the trace has to be in that Tempo too, and a ClickHouse line opens in the same ClickHouse datasource.
+A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, or in the first Jaeger datasource when there is no Tempo, so the trace has to be in that datasource too, and a ClickHouse line opens in the same ClickHouse datasource.
 An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
@@ -456,8 +456,8 @@ The source name in the title opens the trace search on the same source at `/trac
 
 Open **Traces** in the sidebar to see the trace sources and the saved trace searches, then open a source to find traces by service, span name, minimum and maximum duration, and errors only.
 The search runs as soon as the page opens, with the fields the address carries, or with none.
-Each trace source, a Tempo or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
-With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on ClickHouse, the five you used last on this browser first and then by name, and **More** opens the Traces list; with one, nothing is listed.
+Each trace source, a Tempo, Jaeger or ClickHouse datasource, has its own page at `/traces/<datasource uid>`.
+With two or more trace sources they are listed under **Traces** in the sidebar with their language, TraceQL on Tempo and Search on Jaeger and ClickHouse, the five you used last on this browser first and then by name, and **More** opens the Traces list; with one, nothing is listed.
 As for logs, the order is set when the app loads and stays fixed until you reload.
 The collapsed sidebar and the phone title open the sources as they do for logs, and the title names the source and its language.
 
@@ -476,7 +476,12 @@ Durations take a number and a unit, such as `250ms` or `1.5s`.
 The minimum and maximum are span durations: a trace matches when a span that also fits the service and span name is that long, so a span name with a minimum of `1s` finds nothing when that span runs for 100 ms, even if a later span makes the whole trace slower.
 On Tempo you can also write TraceQL, which replaces the fields: while the TraceQL field has text the other fields are disabled, and only the TraceQL goes into the address.
 The link under the TraceQL field opens the TraceQL reference.
-On ClickHouse the **Service** field is a box with the services in `otel_traces`: open it for the list, type to narrow it, or type a name that is not listed.
+
+On Jaeger the same place takes a **Search** written as `key=value` pairs, such as `service=checkout http.status_code=500`, which replaces the fields the same way and is how you search on any tag; [Connect Jaeger](../connect/jaeger.md#queries) lists the keys.
+Jaeger searches an operation or a tag only within one service, so a search with `operation` or a tag and no `service` shows the problem instead of running.
+With no filter set the page searches with `minDuration=0s`, which Jaeger answers with its newest traces.
+
+On ClickHouse and Jaeger the **Service** field is a box with the services in `otel_traces` or in Jaeger: open it for the list, type to narrow it, or type a name that is not listed.
 Press **Search traces**, or Enter in Service, Span name or a duration field, to run it; Enter in the TraceQL field adds a line.
 A TraceQL syntax error reads "Invalid TraceQL at line 1, column 9 after \"{ name =\": unexpected end of the query.", which names the position and the text before it; the API, the CLI and MCP return the same sentence, without the parser's own `$end` and doubled prefix.
 
@@ -501,7 +506,7 @@ That p95 is of every trace the search matches in the range, not only the listed 
 While that answer is loading, or when it fails, the line and the ticks fall back to the p95 of the listed traces, and a failed answer shows a warning icon beside the count line with the reason.
 
 The table opens slowest first, and a column header sorts by that column, ascending, descending, then back to the original order.
-On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range and the sort is in the address as `sort`, such as `sort=-spans`; on Tempo only the traces on the current page are sorted, and the line above the table says so.
+On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range and the sort is in the address as `sort`, such as `sort=-spans`; on Tempo and Jaeger only the traces on the current page are sorted, and the line above the table says so.
 Each row shows **Root service**, **Root span**, **Duration** with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line, **Spans**, **Errors** and **Started**, which opens the trace.
 **Columns** hides a column.
 **Add to dashboard**, beside **Columns**, adds a full-width traces panel with the same query under the last row of a dashboard you can edit, as it does for logs; **Add to observation** copies the search you ran into an [observation](observations.md) as a traces panel over the time range the page shows: the TraceQL on Tempo, or on ClickHouse a query for the spans of the latest matching trace.
@@ -510,6 +515,7 @@ Each row shows **Root service**, **Root span**, **Duration** with a bar scaled t
 
 - ClickHouse lists each trace that has a matching span as a whole: the root span's service and name, the number of spans in the whole trace, and the full length of the trace from its first start to its last end, so a row agrees with the trace it opens.
   With a filter set, a smaller "N matching" under the span count says how many of those spans matched.
+- Jaeger shows the root span of each trace with the span and error span counts of the whole trace, from the summary Jaeger keeps for it.
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats; when Tempo does not report those stats, both columns are left out.
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them: either the page filled up, which says "Showing the newest 50 traces that match" because the server asks Tempo for the most recent matches first (`with (most_recent=true)`, unless the TraceQL carries its own `with` hints) and a reload shows the same traces, or Tempo stopped at its time limit, so some matching traces may be missing.
@@ -519,7 +525,7 @@ The explore query and `query_instant` return the same result with `meta.partial`
 The scatter then plots only the times the found traces cover, so a full page that sits in a few seconds is not squeezed against the edge of the range.
 On a phone the table becomes a list.
 
-The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces.
+The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo and ClickHouse; the trace search shows no duration tick or comparison on Jaeger.
 On Tempo its query is TraceQL; on ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
 A statement such as `SELECT 1`, a second statement, a comment or unbalanced parentheses is refused with that example, and a condition ClickHouse cannot run is reported without the SQL the server built around it.
 
@@ -529,18 +535,19 @@ The table pages 50 traces at a time, and the bar under it sets 50, 100, 250 or 5
 ClickHouse offers numbered pages and an exact total of matching traces.
 Tempo pages by start time from the last trace shown, with **Previous** and **Next** and a running total that reads "at least N" until the last page makes it exact, and no total while a search is partial.
 The page and size are in the address as `page` and `size`, and sorting a column resets to page 1.
+Jaeger pages by position, like ClickHouse, but only through the newest traces up to the datasource's row limit; a page past that is refused with a message that says to narrow the range or the search.
 A Tempo address beyond page 1 reopens on page 1 with a note, because a Tempo page is reached through the page before it, so **Copy link** on a Tempo source leaves the page out and a shared link opens on page 1.
 
 ### Compare selected traces
 
 Drag across the duration scatter to select traces by time and duration; the dots outside the selection fade, and the selection's start, end and duration floor are handles that the arrow keys move.
-The table then shows only the selection, and **Keep only the selection** turns it into the search: the time range and the duration bounds go into the fields, or on Tempo into the written TraceQL, where the button is disabled when the query has no spanset to add them to.
+The table then shows only the selection, and **Keep only the selection** turns it into the search: the time range and the duration bounds go into the fields, or on Tempo into the written TraceQL, where the button is disabled when the query has no spanset to add them to; on Jaeger the bounds replace the `minDuration` and `maxDuration` pairs of the written search.
 **Clear** brings every trace back, and both buttons sit in the header of the scatter.
 
-While a selection exists, the **What is different about the selected traces** panel opens beside the scatter, and under it on a screen 1,100 pixels wide or narrower.
+While a selection exists, the **What is different about the selected traces** panel, which Jaeger does not offer, opens beside the scatter, and under it on a screen 1,100 pixels wide or narrower.
 It ranks the attribute values that appear in a larger share of the selected traces than of the other matching traces: span names, kinds, statuses and the span and resource attributes, each with its share of both sets.
 It reads every span of the newest 50 selected and 150 other loaded traces, says when it could not read them all, and keeps the weaker differences behind **Show weaker differences**.
-**Filter** on a row adds that attribute value to the search: on Tempo it appends the condition to the TraceQL, and on ClickHouse it fills the Span name or Service field, so the other attributes have no **Filter** there.
+**Filter** on a row adds that attribute value to the search: on Tempo it appends the condition to the TraceQL and on ClickHouse it fills the Span name or Service field, so the other attributes have no **Filter** there.
 Applying a filter, or **Keep only the selection**, switches the query card to Query so the written TraceQL or the filled fields are visible, and drops the Ask question from the address.
 
 ## Ask on the trace search
@@ -588,7 +595,7 @@ A saved search keeps what the logs page or the trace view shows so that anyone w
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 A logs search takes a Loki, ClickHouse, Elasticsearch or OpenSearch datasource and needs a query.
 The query may span lines but holds no NUL character, and a column name holds no control characters; the server answers 422 `invalid_saved_search` with the rule in `error`.
-A trace search takes a Tempo or ClickHouse datasource, and its query is optional: TraceQL on Tempo, or on ClickHouse the SQL of the SQL view.
+A trace search takes a Tempo, Jaeger or ClickHouse datasource, and its query is optional: TraceQL on Tempo, `key=value` pairs on Jaeger, or on ClickHouse the SQL of the SQL view.
 
 On the logs page and the trace search, **Save search** in the top bar asks for a title and a folder and saves the search you are looking at, and the **Saved searches** box next to it opens one of the searches you can view.
 The title starts as the query with all of it selected, so typing a name replaces it.
@@ -646,9 +653,9 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 ```
 
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
-`field` is the one the server reads as the service: on Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, on Tempo the `resource.service.name` attribute, on ClickHouse the `ServiceName` column, and on Elasticsearch and OpenSearch the service field of the datasource, empty when its mapping has none.
+`field` is the one the server reads as the service: on Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, on Tempo the `resource.service.name` attribute, on Jaeger its list of services, on ClickHouse the `ServiceName` column, and on Elasticsearch and OpenSearch the service field of the datasource, empty when its mapping has none.
 `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
-`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
+`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour; Jaeger ignores it and lists every service it retains.
 The server asks the source once, over that window only, and waits at most 5 seconds for it, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept, `429` `too_many_requests` means the server's shared upstream slots were busy, and a datasource that does not hold the signal gives `422` `query_invalid`.
 It lists at most 200 services and sets `truncated` when more exist.
 Every signed-in role from Viewer can read it, because any Viewer can already query any datasource.

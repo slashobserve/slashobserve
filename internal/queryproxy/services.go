@@ -80,7 +80,7 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 	}
 	source, ok := inst.Datasource.(datasource.ServiceSource)
 	if !ok {
-		return Services{}, invalidNamesf("services are read on Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource", inst.UID, inst.Datasource.Type())
+		return Services{}, invalidNamesf("services are read on Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource", inst.UID, inst.Datasource.Type())
 	}
 	now := datasource.Now(ctx)
 	key := servicesKey{datasource: inst.UID, signal: req.Signal, window: window, asOf: pinnedUnixNano(ctx)}

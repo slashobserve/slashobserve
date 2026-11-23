@@ -10,6 +10,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
+	"github.com/slashobserve/slashobserve/internal/datasource/jaeger"
 	"github.com/slashobserve/slashobserve/internal/datasource/loki"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
 	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
@@ -123,6 +124,20 @@ func Open(src config.Datasource) (datasource.Datasource, error) {
 			BasicAuthUser:     t.BasicAuthUser,
 			BasicAuthPassword: t.BasicAuthPassword,
 			BearerToken:       t.BearerToken,
+			Limits:            src.Limits,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ds, nil
+	case src.Jaeger != nil:
+		j := src.Jaeger
+		ds, err := jaeger.New(jaeger.Options{
+			URL:               j.URL,
+			Headers:           mergeHeaders(j.Headers, j.SecretHeaders),
+			BasicAuthUser:     j.BasicAuthUser,
+			BasicAuthPassword: j.BasicAuthPassword,
+			BearerToken:       j.BearerToken,
 			Limits:            src.Limits,
 		})
 		if err != nil {

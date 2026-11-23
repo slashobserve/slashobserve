@@ -21,6 +21,7 @@ const (
 	TraceQL
 	Elasticsearch
 	OpenSearch
+	Jaeger
 )
 
 const (
@@ -101,7 +102,7 @@ func Expand(d Dialect, query string, env Env) (Expansion, error) {
 
 func lexicalDialect(d Dialect) Dialect {
 	switch d {
-	case LogQL, TraceQL:
+	case LogQL, TraceQL, Jaeger:
 		return PromQL
 	case OpenSearch:
 		return Elasticsearch
@@ -252,6 +253,8 @@ func datasourceType(d Dialect) (spec.DatasourceType, error) {
 		return spec.Elasticsearch, nil
 	case OpenSearch:
 		return spec.OpenSearch, nil
+	case Jaeger:
+		return spec.Jaeger, nil
 	}
 	return "", datasource.Errorf(datasource.ErrInvalidQuery, "unknown dialect %d", int(d))
 }

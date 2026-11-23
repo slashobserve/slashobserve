@@ -16,7 +16,7 @@ An agent that reads the run over MCP or the CLI sees the same text as `live_text
 ## The tool loop
 
 The model starts with the prompt, the configured datasources and whether each is healthy, the authoring guide and an example.
-The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki, Tempo, and one shared by Elasticsearch and OpenSearch, and the system text carries only the sections of the configured types.
+The authoring guide is a core plus one section per datasource type, Prometheus, ClickHouse, Loki, Tempo, Jaeger, and one shared by Elasticsearch and OpenSearch, and the system text carries only the sections of the configured types.
 An Admin's runs also get a section on the built-in audit datasource, which no one else can read.
 The JSON Schema is not in that text: the model reads it on demand with `get_spec_guide`, which inside a run returns only the schema.
 For a revision it also gets the current version of the dashboard.
@@ -37,6 +37,7 @@ It then works in this order: discover, draft, lint, run, save, and repair if the
 - `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six, or finds which datasources hold one, and names the field a query filters on.
 - `get_schema` and `sample_rows` list the tables and columns of a ClickHouse datasource and read a few rows.
 - On Loki, `list_labels` and `list_label_values` find stream labels and their values, narrowed by a stream selector in `metric`, `sample_rows` reads up to 20 lines of the last 15 minutes from every stream or from a stream selector in `table`, and `list_metrics` with a stream selector as `scope` lists each stream label key with the number of streams that carry it.
+- On Jaeger, `list_label_values` finds services, and the operations of one service, and `get_schema` lists every service with its span names; tags are free-form.
 - On Tempo, `list_labels` and `list_label_values` find TraceQL attributes and their values, and `get_schema` lists every service with its span names, plus the attributes.
 - On Elasticsearch and OpenSearch, `list_labels` and `list_label_values` find the fields you can group or filter by and a field's top values, `get_schema` lists the indices of the index pattern or, with a `table`, the fields of one index, and `sample_rows` reads up to 20 of the newest documents.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.

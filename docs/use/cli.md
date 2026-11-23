@@ -160,13 +160,13 @@ A script or an agent with only a shell finds what to query with `bin/observe dat
 `--search` filters by substring and `--limit` takes 1 to 500; when more exist the command says so and names the two ways to see them.
 On ClickHouse, `labels` and `label-values` need `--table` or `--metric`, and `--from` with `--to` narrows the window Loki and Tempo look in.
 
-`services [uid]` lists the services a Loki, Tempo, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour, with the label, column or attribute that holds them; `--window` takes a duration such as 15m, up to 6h, and `--signal` picks `logs` or `traces`.
+`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour, with the label, column or attribute that holds them; `--window` takes a duration such as 15m, up to 6h, and `--signal` picks `logs` or `traces`.
 Without a uid it asks every such datasource and prints one row per source and signal, and a source that cannot answer in time says so while the others still answer.
 `--service checkout` keeps only the sources that hold a service whose name contains the text, case-insensitive, which answers which source holds a service.
 The server caches an answer for about a minute and lists at most 200 services per source.
 
 `schema <uid>` lists the tables of a ClickHouse, Elasticsearch or OpenSearch datasource, and `--table` lists one table's columns with their types.
-A cut list names the `--offset` that reads the next page; a Tempo datasource has no tables, so `schema` lists its services, span names and attribute names.
+A cut list names the `--offset` that reads the next page; a Tempo or Jaeger datasource has no tables, so `schema` lists its services and span names, and on Tempo its attribute names.
 `sample <uid>` prints up to 20 recent rows or log lines (5 by default, `--limit` sets it), cut to 300 bytes a cell, so the real values show before a query is written.
 ClickHouse needs `--table`; on Loki `--table` is a stream selector and leaving it out reads every stream.
 They answer what the agent's `get_schema` and `sample_rows` tools answer.
@@ -428,7 +428,7 @@ A service-account key has no My Dashboards, so a search saved with a key lands i
 The search's id is printed on standard error as `Saved search <id>`, which `-q` hides, and `--json` prints it too.
 A query with a lint error is refused with `query_invalid` and nothing is saved, and a search you already saved with the same title, datasource, query, filters, range and folder prints `Search <id> was already saved` and its address instead of a second copy; `--json` shows `replayed: true`.
 `--from` and `--to` default to `now-1h` and `now` and are kept as written.
-A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource (TraceQL) or a ClickHouse datasource (SQL, which reopens the search in the SQL view); a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
+A logs search needs `--query` and may set `--columns a,b`; a trace search may set `--service`, `--span`, `--min`, `--max` and `--errors`, and `--query` on a Tempo datasource (TraceQL), a Jaeger datasource (`key=value` pairs, such as `service=checkout minDuration=1s`) or a ClickHouse datasource (SQL, which reopens the search in the SQL view); a metrics search needs `--query` on a Prometheus datasource and may set `--mode graph|table`.
 `--min` and `--max` are span durations: a trace matches when one span that also fits the service and span name is that long.
 A flag of another kind is refused with exit code 2 before any request is sent.
 
@@ -644,7 +644,7 @@ Any role can list and recheck; `--json` prints the API response.
 
 An Admin can also run `datasources get <uid>` (address, login and which credentials are set, never their values), `add <uid> --type <type> --address <address>`, `edit <uid>`, `test <uid> [--saved]` and `remove <uid>`.
 They manage the datasources added in the app; one from the datasources file cannot be changed here.
-`--type` is `prometheus`, `loki`, `tempo`, `clickhouse`, `elasticsearch` or `opensearch`, and `--address` is an `http` or `https` URL that passes the [outbound allowlist](../operate/outbound-access.md), or `host:port` for ClickHouse.
+`--type` is `prometheus`, `loki`, `tempo`, `jaeger`, `clickhouse`, `elasticsearch` or `opensearch`, and `--address` is an `http` or `https` URL that passes the [outbound allowlist](../operate/outbound-access.md), or `host:port` for ClickHouse.
 `add` and `edit` also take `--name`, `--audience` (`everyone`, the default, or `admins`, who alone can then query it), `--username`, `--timeout`, the limits `--max-series`, `--max-points`, `--max-rows` and `--max-concurrent-queries`, `--grafana-uid` (repeatable, the Grafana datasource uids this one stands for on import), and the settings of one type: `--scrape-interval` for Prometheus, `--tenant-id` for Loki, `--database` and `--tls` for ClickHouse, and `--index`, `--time-field`, `--query-language` (`kql` or `lucene`) and the `--field-level`, `--field-message`, `--field-service`, `--field-span-id` and `--field-trace-id` index fields for Elasticsearch and OpenSearch.
 Credentials come from `--password-file`, `--bearer-token-file`, `--api-key-file` or `--header NAME=FILE`, where `-` reads standard input once, and `edit --clear` removes a stored one (`password`, `bearer_token`, `api_key` or `header:<name>`), while a credential you do not pass keeps its stored value.
 `test` runs the health check on the definition you give and saves nothing; with `--saved` it starts from the saved datasource, so its stored credentials are used.
@@ -711,7 +711,7 @@ A question the server cannot turn into a query exits 1 with the reason, and so d
 
 ## Traces
 
-`bin/observe traces [<trace id>] --datasource <uid>` prints the spans of one trace from a Tempo or ClickHouse datasource as a tree:
+`bin/observe traces [<trace id>] --datasource <uid>` prints the spans of one trace from a Tempo, Jaeger or ClickHouse datasource as a tree:
 
 ```sh
 bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo
@@ -720,7 +720,7 @@ bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --fr
 
 The id is 16 or 32 hexadecimal characters, and `--from` and `--to` (`now-24h` and `now` by default) bound the search.
 On ClickHouse it reads the OpenTelemetry `otel_traces` table.
-It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`.
+It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`, with the span's status message after `error:` when it has one, such as `error: card declined`.
 A trace with no spans in the range exits 1, and `--json` prints the response body.
 
 ### Ask for traces in plain language
@@ -734,25 +734,33 @@ bin/observe traces --ask "checkout requests with errors" --datasource clickhouse
 ```
 
 It prints the answer on standard error, as `Filters: service=checkout min=2s errors` or `Query: <TraceQL>`, with the explanation and any warnings.
-Then it runs the same search as the Traces page: TraceQL on Tempo, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
-`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo sorts only the 100 it returns.
+Then it runs the same search as the Traces page: TraceQL on Tempo, `key=value` pairs on Jaeger, and on ClickHouse a query over `otel_traces` grouped by trace, so each row is the whole trace with its root, its span count and its full length.
+`--sort start|service|span|duration|spans|errors` orders the traces, with a minus in front for descending, such as `-duration`: ClickHouse sorts everything that matches before it takes the 100, and Tempo and Jaeger sort only the 100 they return.
 Each row shows the trace's start, service, span, duration, span count and error count, and a column the datasource does not return stays blank.
 When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
-### Run SQL over ClickHouse traces
+### Search traces with your own query
 
-`--query` takes SQL over `otel_traces` on a ClickHouse datasource instead of the trace id, and runs it as the SQL view of the Traces page does:
+`--query` takes a search instead of the trace id, in the language of the datasource, and needs no model:
 
 ```sh
+bin/observe traces --query 'service=checkout error=true' --datasource jaeger --sort -duration
+bin/observe traces --query '{ resource.service.name = "checkout" && status = error }' --datasource tempo
 bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse
 ```
+
+On Jaeger it takes the `key=value` pairs of the Traces page (`service`, `operation`, `minDuration`, `maxDuration`, `error`, and tags), and on Tempo TraceQL.
+Both run as the search of `--ask` does and print the same table of 100 traces, the newest unless `--sort start|service|span|duration|spans|errors` says otherwise, with a minus in front for descending: the sort applies to the 100 traces returned.
+A `Note:` line on standard error says when the list is incomplete, and `--json` prints the response body.
+
+On ClickHouse it takes SQL over `otel_traces` and runs it as the SQL view of the Traces page does:
 
 It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
 It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
 The rows come back as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns even when it selects `Timestamp`, and a `LIMIT` above 100 is cut to the first 100 rows.
 Single quotes keep the shell from expanding `$__timeFilter`.
-`--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
+`--query` takes no trace id and cannot be combined with `--ask`, `--dry-run` or `--compare`, and `--sort` does not apply to SQL, which has its own `ORDER BY`; each mistake exits 2.
 
 ### Compare traces
 

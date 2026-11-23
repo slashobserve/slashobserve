@@ -86,6 +86,7 @@ import type { Selection } from "./scatter"
 import {
   askAfterSubmit,
   changesQuery,
+  hasTraceStats,
   linkWithoutPage,
   rangeInFuture,
   tracesTimeRange,
@@ -193,7 +194,7 @@ export function TracesPage({ uid }: { uid: string }) {
       <>
         <h1 className="sr-only">Traces</h1>
         <p className="text-[13px] text-muted-foreground">
-          No traces datasource is configured. An Admin adds a Tempo or
+          No traces datasource is configured. An Admin adds a Tempo, Jaeger or
           ClickHouse datasource in the datasources file.
         </p>
       </>
@@ -495,7 +496,7 @@ function TraceSearchWorkspace({
 
   const answered = search.ask !== undefined
 
-  const chips = traceFilterChips(search)
+  const chips = traceFilterChips(type, search)
   const explanation = ask.answer?.explanation ?? ""
   const askRow = shown === "ask"
   const sqlRow = inputMode.sqlShown
@@ -764,7 +765,7 @@ function TraceResults({
       ...range,
     }),
     ...polling,
-    enabled: !future && statsReady,
+    enabled: !future && statsReady && hasTraceStats(datasource.type),
   })
   const [lastGood, setLastGood] = useState<LoadedPage | null>(null)
   const [lost, setLost] = useState<{ scope: string; page: number } | null>(null)
@@ -1038,13 +1039,13 @@ function SelectableTraceTable({
       selectionActions={
         selection === null ? undefined : (
           <KeepSelectionButton
-            next={keepSelectionSearch(search, selection)}
+            next={keepSelectionSearch(datasource.type, search, selection)}
             onKeep={keep}
           />
         )
       }
       selectionPanel={
-        selection === null ? undefined : (
+        selection === null || !hasTraceStats(datasource.type) ? undefined : (
           <ComparePanel
             datasource={datasource}
             rows={rows}
