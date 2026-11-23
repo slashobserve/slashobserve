@@ -25,6 +25,11 @@ const unverifiedPath = join(
   "api",
   "grafana-unverified.json"
 )
+const routeVariablePanels = [
+  "Requests and errors by route",
+  "Request latency distribution",
+  "How often p95 latency lands in each band",
+]
 const demoShopTitle = "Demo shop (Grafana)"
 const demoShopSummary = "27 panels in 6 rows"
 const dashboardPath = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/
@@ -181,7 +186,12 @@ for (const colorScheme of ["light", "dark"] as const) {
           demoShopTitle
         )
         await expectPanelsSettled(page)
-        await expect(page.locator('article[data-state="error"]')).toHaveCount(0)
+        for (const title of routeVariablePanels) {
+          await expect(panel(page, title)).toHaveAttribute("data-state", "error")
+        }
+        await expect(page.locator('article[data-state="error"]')).toHaveCount(
+          routeVariablePanels.length
+        )
         const placeholder = panel(page, "Alert groups")
         await expect(placeholder).toHaveAttribute("data-state", "ready")
         await expect(placeholder).toContainText(
