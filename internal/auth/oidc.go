@@ -40,8 +40,12 @@ func (s *Service) backChannel(ctx context.Context) context.Context {
 
 var errSignInOff = errors.New("browser sign-in is off: no OIDC issuer is configured")
 
+func (s *Service) signInOn() bool {
+	return s.cfg.IssuerURL != ""
+}
+
 func (s *Service) provider(ctx context.Context) (*oidc.Provider, error) {
-	if s.cfg.IssuerURL == "" {
+	if !s.signInOn() {
 		return nil, errSignInOff
 	}
 	s.providerMu.Lock()

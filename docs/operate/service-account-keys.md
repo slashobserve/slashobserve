@@ -71,9 +71,11 @@ Removing an account from the file leaves it and its key in place.
 ## Run with no browser sign-in
 
 A server that only tools use, such as one a benchmark harness starts in a container, can run with no identity provider.
-Leave all three of `SLASHOBSERVE_OIDC_ISSUER_URL`, `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` unset, and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` may be left out too.
+Leave all three of `SLASHOBSERVE_OIDC_ISSUER_URL`, `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` unset.
 Setting only some of the three is refused at start, so a normal install that misses one fails instead of losing its sign-in.
+The settings that only browser sign-in reads are refused too: `SLASHOBSERVE_OIDC_INTERNAL_URL`, `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`, `SLASHOBSERVE_ADMIN_EMAILS`, `SLASHOBSERVE_OIDC_GROUP_ROLES` and `SLASHOBSERVE_AUTH_PROVIDER_NAME`.
 The server then starts without contacting any identity provider, logs that browser sign-in is off, and refuses a browser sign-in with the message that sign-in is not set up.
+A session cookie from before no longer authenticates.
 Every request authenticates with a key from the service-accounts file, so give the file an `admin` account when the tool needs Admin calls.
 
 A minimal start, with the keys and datasources in files:

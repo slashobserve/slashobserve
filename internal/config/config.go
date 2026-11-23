@@ -340,8 +340,14 @@ func loadOIDC(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 	if len(missing) == len(settings) {
-		if get(lookup, envOIDCInternalURL) != "" {
-			return []error{fmt.Errorf("%s needs %s", envOIDCInternalURL, envOIDCIssuerURL)}
+		var signInOnly []string
+		for _, name := range []string{envOIDCInternalURL, envAllowedEmailDomain, envAdminEmails, envOIDCGroupRoles, envAuthProviderName} {
+			if get(lookup, name) != "" {
+				signInOnly = append(signInOnly, name)
+			}
+		}
+		if len(signInOnly) > 0 {
+			return []error{fmt.Errorf("%s: only browser sign-in reads them; set all of %s, or remove them for a server that only takes keys", strings.Join(signInOnly, ", "), strings.Join(settings, ", "))}
 		}
 		return nil
 	}
@@ -412,12 +418,12 @@ func loadRetention(lookup func(string) (string, bool), name string, lowest, high
 }
 
 func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {
+	if !cfg.BrowserSignIn {
+		return nil
+	}
 	var errs []error
 
 	if v := get(lookup, envAllowedEmailDomain); v == "" {
-		if !cfg.BrowserSignIn {
-			return nil
-		}
 		errs = append(errs, fmt.Errorf("%s is required; list the allowed domains or set it to %s to allow every account", envAllowedEmailDomain, allowAnyDomain))
 	} else if v == allowAnyDomain {
 		cfg.AllowAnyEmailDomain = true

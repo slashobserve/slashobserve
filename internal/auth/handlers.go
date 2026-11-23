@@ -145,6 +145,10 @@ func newLoginSecrets() (state string, stateHash []byte, nonce, verifier string, 
 
 func (s *Service) callback(c *gin.Context) {
 	ctx := c.Request.Context()
+	if !s.signInOn() {
+		refuseLogin(c, "sign_in_off")
+		return
+	}
 	state := c.Query("state")
 	cookie, cookieErr := c.Request.Cookie(s.loginCookie)
 	s.clearCookie(c, s.loginCookie)

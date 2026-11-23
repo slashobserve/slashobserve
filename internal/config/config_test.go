@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -433,10 +434,15 @@ func TestSomeOIDCSettingsAreRefusedNamingTheMissingOnes(t *testing.T) {
 	}
 }
 
-func TestInternalOIDCURLNeedsAnIssuer(t *testing.T) {
-	_, err := Load(envOf(llmEnv(map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envOIDCInternalURL: "http://dex:5556"})))
-	if err == nil || !strings.Contains(err.Error(), envOIDCInternalURL+" needs "+envOIDCIssuerURL) {
-		t.Fatalf("Load err = %v, want the internal URL refused without an issuer", err)
+func TestSignInSettingsWithoutOIDCAreRefused(t *testing.T) {
+	noOIDC := map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envAllowedEmailDomain: ""}
+	for _, name := range []string{envOIDCInternalURL, envAllowedEmailDomain, envAdminEmails, envOIDCGroupRoles, envAuthProviderName} {
+		env := maps.Clone(noOIDC)
+		env[name] = map[string]string{envOIDCInternalURL: "http://dex:5556", envAllowedEmailDomain: "example.com", envAdminEmails: "ada@example.com", envOIDCGroupRoles: "ops=admin", envAuthProviderName: "Dex"}[name]
+		_, err := Load(envOf(llmEnv(env)))
+		if err == nil || !strings.Contains(err.Error(), name+": only browser sign-in reads them") {
+			t.Errorf("%s without OIDC: Load err = %v, want it refused", name, err)
+		}
 	}
 }
 
