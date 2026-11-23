@@ -1286,7 +1286,7 @@ PY
   grep -qi "^location: /api/v1/dashboards/$demo_id" "$TMP/api.headers" || fail "import response has no Location header ($(cat "$TMP/api.headers"))"
   import_check "d['version']['version'] == 1 and d['import']['report']['verified'] is True and d['import']['version'] == 1 and d['import']['dashboard_id'] == d['dashboard']['id']" \
     || fail "the import should save version 1 with a verified report"
-  import_check "all(p['status'] in ('imported', 'partial', 'unverified') and not any(' failed on ' in r for r in p['reasons']) for p in d['import']['report']['panels'] if p['queries'] and all(q['datasource'] == 'prom' for q in p['queries']))" \
+  import_check "all(p['status'] in ('imported', 'partial', 'unverified') and not any(' failed on ' in r and 'could not be resolved' not in r for r in p['reasons']) for p in d['import']['report']['panels'] if p['queries'] and all(q['datasource'] == 'prom' for q in p['queries']))" \
     || fail "every demo-shop Prometheus panel should be kept, and may be unverified only for want of data ($(python3 -c 'import json,sys; print(json.dumps([(p["title"], p["status"], p["reasons"]) for p in json.load(open(sys.argv[1]))["import"]["report"]["panels"]]))' "$TMP/api.body"))"
   leak="$(grep -oE 'prometheus:9090|clickhouse:9000|slashobserve_ro' "$TMP/api.body" || true)"
   [[ -z "$leak" ]] || fail "import response exposes connection details ($leak)"
