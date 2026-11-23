@@ -733,7 +733,7 @@ A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
 The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it:
 
-- The save-now window: after 6 turns without a save, 12 in an investigate or suggest run, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
+- The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (12 by default) in an investigate run, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
 - Identical reads: a third identical read is refused, and an errored read or a query result runs again.
 - One save per turn: a second save in one turn is refused.
 - Repeated saves: a save identical to an earlier one is refused.
