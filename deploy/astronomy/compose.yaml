@@ -217,6 +217,8 @@ services:
     extends:
       file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
       service: server
+    environment:
+      SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
     volumes: !override
       - ${ASTRONOMY_DIR:?}/datasources.yaml:/etc/slashobserve/datasources.yaml:ro
       - ${SLASHOBSERVE_COMPOSE_DIR:?}/dashboards/Demo:/provision/Demo:ro
