@@ -881,6 +881,7 @@ Each row shows these columns:
 - **Started**, which opens the trace.
 
 **Columns** hides a column.
+On Jaeger the search shows no duration tick and has no comparison, because Jaeger has no trace statistics.
 On a phone the table becomes a list.
 
 On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range.
@@ -921,7 +922,6 @@ The scatter then plots only the times the found traces cover, so a full page tha
 #### Count spans over time
 
 The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo and ClickHouse.
-The trace search shows no duration tick or comparison on Jaeger.
 
 - On Tempo its query is TraceQL.
 - On ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
@@ -977,7 +977,7 @@ It stores these:
 
 A range written like that stays relative, so the search opens on the latest hour and not on the hour it was saved in.
 
-1. Run the search on the logs page or the trace search.
+1. Run the search on the logs page, the trace search or the metrics page.
 2. Choose **Save search** in the top bar.
 3. Enter a title and choose a folder.
    The title starts as the query with all of it selected, so typing a name replaces it.
@@ -1036,7 +1036,7 @@ The server answers 422 `invalid_saved_search` with the rule in `error` when a sa
 | `title` | At most 120 characters. |
 | `query` | Not blank, at most 8,000 characters, no NUL character. It may span lines. |
 | `columns` | At most 20 names of a logs search, each 1 to 256 characters with no comma or control character. |
-| Trace filters | Only `service`, `span`, `min`, `max` and `errors`, each at most 200 characters with no control character. |
+| Trace filters | Only `service`, `span`, `min`, `max` and `errors`. `service` and `span` are at most 200 characters with no control character, and `min` and `max` are durations such as `250ms` or `2s`. |
 | `from`, `to` | At most 64 characters. |
 
 ### Saved searches over HTTP

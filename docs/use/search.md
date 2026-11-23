@@ -58,7 +58,7 @@ A hyphen before a digit, as in `node-1`, matches a title written the same way.
 A hyphen at the start of a word still excludes it, and `-demo-shop` excludes the words `demo shop` written next to each other, whether the title has a hyphen or a space.
 
 A query is 1 to 200 characters and holds no control characters.
-It needs at least one word that is not a `-` term, so `-staging` alone answers 400.
+It needs at least one letter or digit outside a `-` term, so `-staging` alone answers 400.
 
 ## Search only one kind of object
 
