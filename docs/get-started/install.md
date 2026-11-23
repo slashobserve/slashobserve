@@ -41,6 +41,7 @@ A release that has any lists them under "Breaking changes" in the [changelog](ht
    ```
 
    Only the database URL, the public URL, the three OIDC settings and the allowed domains are required.
+   A server that only scripts and benchmark harnesses use can leave out the OIDC settings and the allowed domains; see [Run with no browser sign-in](../operate/service-account-keys.md#run-with-no-browser-sign-in).
    Without `SLASHOBSERVE_ADMIN_EMAILS` the first person to sign in is the Admin; an address in the list counts only when your provider reports it as verified (see [Sign-in with OIDC](../connect/oidc.md) and [Roles](../teams/roles.md)).
    `SLASHOBSERVE_SECRET_KEY` encrypts what the server stores for you: the credentials of datasources added in the app, the tokens of Grafana connections and the signing secrets of webhooks.
    Keep it with your backups, because those stored values cannot be read after a restore without it.
