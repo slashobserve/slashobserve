@@ -37,7 +37,7 @@ Grading reads only `agent/trajectory.json`, so it can be repeated without the se
 
 ## Requirements
 
-- Docker, with the image of the server build under test (`docker build -t slashobserve-server:local .` from a checkout that has run `as_of`, which the released images lack until it ships).
+- Docker, with the image of the server build under test (`docker build -t slashobserve-server:local .` from a checkout of main or v0.1.5 or later, because `as_of` needs a server built from main or from v0.1.5 on).
 - `uv`.
   It installs Python and Harbor 0.24.0, the version o11y-bench pins, into `benchmarks/.venv`.
 - A checkout of [grafana/o11y-bench](https://github.com/grafana/o11y-bench) and `mise`, which o11y-bench uses to generate its tasks and build its images.
