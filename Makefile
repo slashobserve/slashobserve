@@ -84,7 +84,7 @@ test-scripts:
 	scripts/ci-changes-test.sh
 
 test-benchmarks:
-	uv run --project benchmarks pytest benchmarks/tests
+	uv run --locked --project benchmarks pytest benchmarks/tests
 
 lint: lint-go lint-web lint-agent lint-deploy
 

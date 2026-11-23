@@ -15,10 +15,10 @@ export O11Y_SCENARIO_TIME_ISO
 
 (cd "$o11y_dir" && mise run setup:sync && mise run setup:preflight)
 
-uv run --project "$bench_dir" python -m slashobserve_bench.replay \
+uv run --locked --project "$bench_dir" python -m slashobserve_bench.replay \
   --tasks "$o11y_dir/tasks" --task "$task" --out "$fixtures"
 
-uv run --project "$bench_dir" harbor run --yes \
+uv run --locked --project "$bench_dir" harbor run --yes \
   --path "$o11y_dir/tasks" --include-task-name "$task" \
   --agent slashobserve_bench.agent:SlashObserveAgent --model replay/replay \
   --ak "server_image=$image" --ak "replay_dir=$fixtures" \
