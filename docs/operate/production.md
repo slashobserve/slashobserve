@@ -109,7 +109,7 @@ Datasources never affect `/readyz`; an unreachable Prometheus shows up as a data
 The image's Docker health check runs `slashobserve-server healthcheck`.
 It requests `/readyz` on the listen address and exits 1 unless it answers 200.
 
-## Run behind a connection pooler
+## Behind a connection pooler
 
 A transaction-mode pooler such as PgBouncer breaks the two things that need one Postgres session for a long time.
 They are `LISTEN`, which carries live dashboard updates and wakes the agent workers, and the lock that makes concurrent migrations safe.

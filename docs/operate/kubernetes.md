@@ -30,7 +30,7 @@ It ships no Postgres and creates no Secret: you bring the database and the crede
    ```
 
    Delete the files afterwards.
-   [The Secrets](#secrets) lists what each one holds.
+   [The Secrets](#the-secrets) lists what each one holds.
 
 3. Write a values file, here with browser sign-in:
 

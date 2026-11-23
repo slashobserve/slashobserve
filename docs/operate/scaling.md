@@ -79,7 +79,7 @@ Each server with a model provider runs one `observe-agent` child process that wo
 Measured on a compose stack with the replay model, an idle child holds about 50 MiB resident (`docker top`).
 The whole server container, child included, shows about 48 MiB in `docker stats`, and the compose server limit is 512M.
 
-## Count database connections
+## Connections
 
 Each server opens a pool on `SLASHOBSERVE_DATABASE_URL`.
 The pool holds at most the largest of 16, `2 x workers + 8` and the machine's CPU count.
