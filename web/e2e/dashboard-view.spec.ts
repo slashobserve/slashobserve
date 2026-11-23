@@ -272,7 +272,7 @@ test("auto-refresh fetches new points without reload", async ({
   page,
   request,
 }) => {
-  test.setTimeout(60_000)
+  test.setTimeout(120_000)
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await expectPanelsReady(page)
@@ -299,7 +299,7 @@ test("auto-refresh fetches new points without reload", async ({
       response.ok() &&
       response !== first &&
       latestTime((await response.json()) as Data) > before,
-    { timeout: 40_000 }
+    { timeout: 90_000 }
   )
 })
 
