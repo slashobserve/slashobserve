@@ -188,3 +188,20 @@ func TestRequestPrincipalNamesTheSignedInPerson(t *testing.T) {
 		t.Fatalf("after sign out = %t, %v; want false", ok, err)
 	}
 }
+
+func TestASessionStopsAuthenticatingWhenBrowserSignInIsOff(t *testing.T) {
+	r := newSessionRigWithIssuer(t, slog.New(slog.DiscardHandler), "")
+	if got := r.request(http.MethodGet, "/api/v1/ping", ""); got != http.StatusUnauthorized {
+		t.Fatalf("GET with a session cookie and sign-in off = %d, want 401", got)
+	}
+}
+
+func TestTheCallbackSaysSignInIsOffWhenItIs(t *testing.T) {
+	r := newSessionRigWithIssuer(t, slog.New(slog.DiscardHandler), "")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback?state=s&code=c", nil)
+	rec := httptest.NewRecorder()
+	r.engine.ServeHTTP(rec, req)
+	if got := rec.Header().Get("Location"); got != "/login?error=sign_in_off" {
+		t.Fatalf("callback Location = %q (status %d), want /login?error=sign_in_off", got, rec.Code)
+	}
+}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -388,5 +389,66 @@ func TestDatabaseDirectURLSetting(t *testing.T) {
 				t.Fatalf("DatabaseDirectURL = %q, want %q", cfg.DatabaseDirectURL, tt.want)
 			}
 		})
+	}
+}
+
+func TestNoOIDCSettingsTurnBrowserSignInOff(t *testing.T) {
+	cfg, err := Load(envOf(llmEnv(map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envAllowedEmailDomain: ""})))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.BrowserSignIn || cfg.OIDCIssuerURL != "" || cfg.OIDCClientID != "" || !cfg.OIDCClientSecret.IsZero() {
+		t.Fatalf("BrowserSignIn = %v with issuer %q and client %q, want sign-in off and no OIDC values", cfg.BrowserSignIn, cfg.OIDCIssuerURL, cfg.OIDCClientID)
+	}
+}
+
+func TestAllOIDCSettingsTurnBrowserSignInOn(t *testing.T) {
+	cfg, err := Load(envOf(llmEnv(nil)))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.BrowserSignIn || cfg.OIDCIssuerURL != "http://dex/dex" || cfg.OIDCClientID != "id" || cfg.OIDCClientSecret.Reveal() != "secret" {
+		t.Fatalf("BrowserSignIn = %v with issuer %q and client %q, want sign-in on with the configured values", cfg.BrowserSignIn, cfg.OIDCIssuerURL, cfg.OIDCClientID)
+	}
+}
+
+func TestSomeOIDCSettingsAreRefusedNamingTheMissingOnes(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		unset []string
+	}{
+		{"issuer only", []string{envOIDCClientID, envOIDCClientSecret}},
+		{"no secret", []string{envOIDCClientSecret}},
+		{"no issuer", []string{envOIDCIssuerURL}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			extra := map[string]string{}
+			for _, name := range tt.unset {
+				extra[name] = ""
+			}
+			_, err := Load(envOf(llmEnv(extra)))
+			if err == nil || !strings.Contains(err.Error(), strings.Join(tt.unset, ", ")+": set all of") {
+				t.Fatalf("Load err = %v, want one naming %v", err, tt.unset)
+			}
+		})
+	}
+}
+
+func TestSignInSettingsWithoutOIDCAreRefused(t *testing.T) {
+	noOIDC := map[string]string{envOIDCIssuerURL: "", envOIDCClientID: "", envOIDCClientSecret: "", envAllowedEmailDomain: ""}
+	for _, name := range []string{envOIDCInternalURL, envAllowedEmailDomain, envAdminEmails, envOIDCGroupRoles, envAuthProviderName} {
+		env := maps.Clone(noOIDC)
+		env[name] = map[string]string{envOIDCInternalURL: "http://dex:5556", envAllowedEmailDomain: "example.com", envAdminEmails: "ada@example.com", envOIDCGroupRoles: "ops=admin", envAuthProviderName: "Dex"}[name]
+		_, err := Load(envOf(llmEnv(env)))
+		if err == nil || !strings.Contains(err.Error(), name+": only browser sign-in reads them") {
+			t.Errorf("%s without OIDC: Load err = %v, want it refused", name, err)
+		}
+	}
+}
+
+func TestAllowedDomainsStayRequiredWithBrowserSignIn(t *testing.T) {
+	_, err := Load(envOf(llmEnv(map[string]string{envAllowedEmailDomain: ""})))
+	if err == nil || !strings.Contains(err.Error(), envAllowedEmailDomain+" is required") {
+		t.Fatalf("Load err = %v, want the allowed domains required", err)
 	}
 }

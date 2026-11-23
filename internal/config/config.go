@@ -205,6 +205,7 @@ type Config struct {
 	LogFormat         LogFormat
 
 	PublicURL           *url.URL
+	BrowserSignIn       bool
 	OIDCIssuerURL       string
 	OIDCInternalURL     *url.URL
 	OIDCClientID        string
@@ -271,7 +272,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 	}
 
 	errs = append(errs, loadURLs(lookup, &cfg)...)
-	errs = append(errs, loadClient(lookup, &cfg)...)
+	errs = append(errs, loadOIDC(lookup, &cfg)...)
 	errs = append(errs, loadSessionTTL(lookup, &cfg)...)
 	errs = append(errs, loadActivityRetention(lookup, &cfg)...)
 	errs = append(errs, loadAuditRetention(lookup, &cfg)...)
@@ -333,14 +334,40 @@ func loadURLs(lookup func(string) (string, bool), cfg *Config) []error {
 		cfg.PublicURL = u
 	}
 
-	if v := get(lookup, envOIDCIssuerURL); v == "" {
-		errs = append(errs, fmt.Errorf("%s is required", envOIDCIssuerURL))
-	} else if u, err := url.Parse(v); err != nil || !isAbsoluteHTTP(u) {
-		errs = append(errs, fmt.Errorf("%s: must be an absolute http or https URL", envOIDCIssuerURL))
-	} else {
-		cfg.OIDCIssuerURL = v
+	return errs
+}
+
+func loadOIDC(lookup func(string) (string, bool), cfg *Config) []error {
+	settings := []string{envOIDCIssuerURL, envOIDCClientID, envOIDCClientSecret}
+	var missing []string
+	for _, name := range settings {
+		if get(lookup, name) == "" {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == len(settings) {
+		var signInOnly []string
+		for _, name := range []string{envOIDCInternalURL, envAllowedEmailDomain, envAdminEmails, envOIDCGroupRoles, envAuthProviderName} {
+			if get(lookup, name) != "" {
+				signInOnly = append(signInOnly, name)
+			}
+		}
+		if len(signInOnly) > 0 {
+			return []error{fmt.Errorf("%s: only browser sign-in reads them; set all of %s, or remove them for a server that only takes keys", strings.Join(signInOnly, ", "), strings.Join(settings, ", "))}
+		}
+		return nil
+	}
+	if len(missing) > 0 {
+		return []error{fmt.Errorf("%s: set all of %s for browser sign-in, or none of them for a server that only takes keys", strings.Join(missing, ", "), strings.Join(settings, ", "))}
 	}
 
+	var errs []error
+	issuer := get(lookup, envOIDCIssuerURL)
+	if u, err := url.Parse(issuer); err != nil || !isAbsoluteHTTP(u) {
+		errs = append(errs, fmt.Errorf("%s: must be an absolute http or https URL", envOIDCIssuerURL))
+	} else {
+		cfg.OIDCIssuerURL = issuer
+	}
 	if v := get(lookup, envOIDCInternalURL); v != "" {
 		if u, err := parseBaseURL(v); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", envOIDCInternalURL, err))
@@ -348,23 +375,9 @@ func loadURLs(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.OIDCInternalURL = u
 		}
 	}
-
-	return errs
-}
-
-func loadClient(lookup func(string) (string, bool), cfg *Config) []error {
-	var errs []error
-
 	cfg.OIDCClientID = get(lookup, envOIDCClientID)
-	if cfg.OIDCClientID == "" {
-		errs = append(errs, fmt.Errorf("%s is required", envOIDCClientID))
-	}
-
 	cfg.OIDCClientSecret = datasource.NewSecret(get(lookup, envOIDCClientSecret))
-	if cfg.OIDCClientSecret.IsZero() {
-		errs = append(errs, fmt.Errorf("%s is required", envOIDCClientSecret))
-	}
-
+	cfg.BrowserSignIn = true
 	return errs
 }
 
@@ -411,6 +424,9 @@ func loadRetention(lookup func(string) (string, bool), name string, lowest, high
 }
 
 func loadEmailDomains(lookup func(string) (string, bool), cfg *Config) []error {
+	if !cfg.BrowserSignIn {
+		return nil
+	}
 	var errs []error
 
 	if v := get(lookup, envAllowedEmailDomain); v == "" {

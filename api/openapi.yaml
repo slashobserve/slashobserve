@@ -629,7 +629,7 @@ components:
           format: uri
         oidc_issuer_url:
           type: string
-          description: The identity provider's issuer, as browsers reach it.
+          description: The identity provider's issuer, as browsers reach it, or an empty string when browser sign-in is off and only service-account keys authenticate.
         oidc_provider_name:
           type: string
           description: The identity provider's display name, empty when none is configured.

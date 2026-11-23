@@ -4440,7 +4440,7 @@ export interface components {
             public_url: string;
             /** Format: uri */
             mcp_url: string;
-            /** @description The identity provider's issuer, as browsers reach it. */
+            /** @description The identity provider's issuer, as browsers reach it, or an empty string when browser sign-in is off and only service-account keys authenticate. */
             oidc_issuer_url: string;
             /** @description The identity provider's display name, empty when none is configured. */
             oidc_provider_name: string;

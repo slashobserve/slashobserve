@@ -4,6 +4,7 @@ description: Set up sign-in through an OpenID Connect identity provider and deci
 ---
 
 People sign in through an OIDC identity provider; there are no local passwords.
+A server with no identity provider has no browser sign-in and takes only service-account keys; see [Run with no browser sign-in](../operate/service-account-keys.md#run-with-no-browser-sign-in).
 
 ## Configure the client
 
