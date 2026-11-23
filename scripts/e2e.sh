@@ -348,8 +348,8 @@ stop_stack() {
 warm() {
   local services=()
   printf 'pending %s\n' "$$" >"$WARM_MARKER"
-  prepare_stack
   stop_stack
+  prepare_stack
   mapfile -t services < <(warm_services)
   ((${#services[@]} > 0)) || { rm -f "$WARM_MARKER"; fail "docker compose config listed no services"; }
   if ! grouped "${COMPOSE_CMD[@]}" up -d --no-build "${services[@]}"; then
@@ -366,8 +366,8 @@ boot() {
     echo "Adopting the warm $PROJECT stack"
     prepare_stack
   else
-    prepare_stack
     stop_stack
+    prepare_stack
   fi
   if ((PREBUILT == 0)); then
     grouped "${COMPOSE_CMD[@]}" build server || fail "the server image did not build"
