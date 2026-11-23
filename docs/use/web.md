@@ -70,8 +70,7 @@ The page reads only the time range, the refresh interval and, on a free link, th
 
 `/dashboards` lists the dashboards you can see, folder by folder.
 
-- **Create dashboard** opens the chat at `/ask`, where you describe the dashboard you want.
-  The page has no blank-canvas form.
+- **Create dashboard** is a menu with **Ask the agent**, which opens the chat at `/ask` where you describe the dashboard you want, and **Blank dashboard**; see [Start from a blank dashboard](edit-panel.md#start-from-a-blank-dashboard).
 - **New folder**, offered to an Editor or an Admin, asks for a name and creates a folder you own.
   It appears in the list as soon as it is created.
 - The box above the list filters by title, and the folder and tag menus narrow it further.
@@ -472,6 +471,7 @@ The zone a dashboard sets itself, and a zone you pick in that box (which goes in
 It is also the zone the **From** and **To** boxes of every time range picker read and show a typed time such as `2026-10-17 09:00` in.
 On a dashboard they follow the dashboard's own zone and use this one only when it sets none.
 It changes only how times are drawn and typed: a relative range such as `now/d` still resolves on the server in the dashboard's own zone, and the Logs and Traces pages keep showing times in your browser's zone.
+The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.
 
 ## Pick a time range
 
@@ -485,7 +485,6 @@ The time range button opens the quick ranges and the **From** and **To** boxes.
 A time or range the picker refuses is explained under the box it comes from, for example when the range is longer than 400 days.
 On a dashboard, someone who may edit it also sees **Save as default**, which applies the range and saves it as the dashboard's default range in a new version.
 The button is missing on an older version and while a layout or panel is being edited, and it is disabled for a range that already is the default.
-The choice stays in this browser's local storage and never reaches the server, like the theme, so it does not follow you to another browser.
 
 ## Reference
 
