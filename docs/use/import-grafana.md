@@ -216,7 +216,7 @@ A query's `alias` imports as the legend, with `{{term <field>}}` rewritten to `{
 A `timeField` on a query is editor state: Grafana copies the datasource's time field onto every query, and a date histogram without a field uses it.
 
 An Elasticsearch or OpenSearch query variable saved as `{"find": "terms", "field": <field>, "query": <lucene>}` becomes `label_values(lucene:<query>, <field>)`, or `label_values(<field>)` without a query, and its `size` is reported; a variable query in any other form keeps its saved values as a fixed list.
-An ad hoc variable on Elasticsearch or OpenSearch imports as on ClickHouse: with `applyToAll`, the operators `<` and `>`, the condition OR, and dotted field names as keys.
+An ad hoc variable on Elasticsearch or OpenSearch imports as on ClickHouse, with the operators `<` and `>`, the condition OR, and dotted field names as keys, but without `applyToAll`, because these datasources filter every query anyway.
 
 ### ClickHouse queries from the Altinity plugin
 

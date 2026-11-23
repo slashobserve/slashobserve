@@ -14343,7 +14343,6 @@
    ],
    "values": {
     "type:elasticsearch": [
-     "applyToAll",
      "datasource"
     ],
     "type:grafana-clickhouse-datasource": [
@@ -14351,7 +14350,6 @@
      "datasource"
     ],
     "type:grafana-opensearch-datasource": [
-     "applyToAll",
      "datasource"
     ]
    }

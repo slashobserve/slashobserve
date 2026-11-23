@@ -214,8 +214,8 @@ func TestElasticAdhocFiltersConvertLikeClickHouse(t *testing.T) {
 	res := convertVariables(t, adhocWith(esRef, `{"key":"service.name","operator":"=","value":"web"},{"key":"bytes","operator":">","value":"100","condition":"OR"}`))
 	v := variableNamed(t, res, "v")
 	want := []spec.AdhocFilter{{Key: "service.name", Operator: "=", Value: "web"}, {Key: "bytes", Operator: ">", Value: "100", Condition: "or"}}
-	if !v.ApplyToAll || v.Datasource != "es" || v.Default == nil || !slices.Equal(v.Default.Filters, want) {
-		t.Fatalf("variable = %+v, want applyToAll with %+v", v, want)
+	if v.ApplyToAll || v.Datasource != "es" || v.Default == nil || !slices.Equal(v.Default.Filters, want) {
+		t.Fatalf("variable = %+v, want no applyToAll with %+v", v, want)
 	}
 	if notes := notesFor(res, "variable v"); len(notes) != 0 {
 		t.Fatalf("notes = %+v, want none", notes)
@@ -224,6 +224,27 @@ func TestElasticAdhocFiltersConvertLikeClickHouse(t *testing.T) {
 	notes := notesFor(res, "variable v")
 	if len(notes) != 1 || !strings.Contains(notes[0].Reason, "on OpenSearch; saved filters that use =| are not kept.") {
 		t.Fatalf("notes = %+v, want the OpenSearch operator refusal", notes)
+	}
+}
+
+func TestSearchAdhocVariablesOnDatasourceVariablesAreKept(t *testing.T) {
+	for _, tc := range []struct{ name, query string }{
+		{"elasticsearch", "elasticsearch"},
+		{"opensearch", "grafana-opensearch-datasource"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := convertVariables(t,
+				`{"name":"ds","type":"datasource","query":"`+tc.query+`"}`,
+				adhocWith(`{"type":"`+tc.query+`","uid":"${ds}"}`, `{"key":"service.name","operator":"=","value":"web"}`),
+			)
+			v := variableNamed(t, res, "v")
+			if v.ApplyToAll || v.Datasource != "${ds}" {
+				t.Fatalf("variable = %+v, want it kept on ${ds} without applyToAll", v)
+			}
+			if notes := notesFor(res, "variable v"); len(notes) != 0 {
+				t.Fatalf("notes = %+v, want none", notes)
+			}
+		})
 	}
 }
 
