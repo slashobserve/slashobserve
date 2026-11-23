@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slashobserve-bench"
+version = "0.1.0"
+description = "Harbor agent that runs the SlashObserve Observe Agent on benchmark tasks"
+requires-python = ">=3.12"
+dependencies = [
+    "harbor==0.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["slashobserve_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+exclude-newer = "2026-11-09T00:00:00Z"

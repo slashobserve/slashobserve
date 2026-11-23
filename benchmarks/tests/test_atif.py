@@ -1,0 +1,66 @@
+import copy
+
+from harbor.models.trajectories import Trajectory
+
+from slashobserve_bench import atif
+
+
+def build(request, model_name="anthropic/claude-haiku-5-5"):
+    return atif.build_trajectory(
+        request, "Why did checkout fail?", agent_name="slashobserve", agent_version="0.1.0", model_name=model_name
+    )
+
+
+def test_trajectory_is_valid_atif(finished_request):
+    Trajectory.model_validate(build(finished_request))
+
+
+def test_trajectory_has_user_tool_and_answer_steps(finished_request):
+    steps = build(finished_request)["steps"]
+    assert [step["source"] for step in steps] == ["user", "agent", "agent", "agent"]
+    assert [step["step_id"] for step in steps] == [1, 2, 3, 4]
+    assert steps[0]["message"] == "Why did checkout fail?"
+    assert steps[1]["tool_calls"][0]["function_name"] == "list_labels"
+    assert steps[2]["observation"]["results"][0]["content"] == "error: The query was refused"
+
+
+def test_last_step_is_the_finding_without_tool_calls(finished_request):
+    last = build(finished_request)["steps"][-1]
+    assert last["message"] == finished_request["finding"]["markdown"]
+    assert "tool_calls" not in last
+    assert last["model_name"] == "anthropic/claude-haiku-5-5"
+
+
+def test_final_metrics_count_cache_in_prompt_tokens(finished_request):
+    metrics = build(finished_request)["final_metrics"]
+    assert metrics["total_prompt_tokens"] == 1350
+    assert metrics["total_completion_tokens"] == 200
+    assert metrics["total_cached_tokens"] == 300
+    assert metrics["total_cost_usd"] == 0.0123
+    assert metrics["total_steps"] == 4
+    assert metrics["extra"]["as_of"] == "2026-11-20T10:00:00Z"
+
+
+def test_failed_run_ends_with_a_reason_instead_of_an_answer(finished_request):
+    request = copy.deepcopy(finished_request)
+    request.update(state="failed", failure_code="budget_exhausted", error="cost limit reached", finding=None)
+    trajectory = build(request)
+    Trajectory.model_validate(trajectory)
+    message = trajectory["steps"][-1]["message"]
+    assert "failed (budget_exhausted)" in message
+    assert "cost limit reached" in message
+
+
+def test_succeeded_run_without_a_finding_says_so(finished_request):
+    request = {**finished_request, "finding": None}
+    assert atif.answer_text(request) == "The run finished without saving a finding."
+
+
+def test_run_with_no_usage_and_no_steps(finished_request):
+    request = {**finished_request, "usage": None, "steps": [], "finished_at": None}
+    trajectory = build(request, model_name=None)
+    Trajectory.model_validate(trajectory)
+    assert len(trajectory["steps"]) == 2
+    assert trajectory["final_metrics"]["total_prompt_tokens"] == 0
+    assert trajectory["final_metrics"]["total_cost_usd"] is None
+    assert "model_name" not in trajectory["agent"]
