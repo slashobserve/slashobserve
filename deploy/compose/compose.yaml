@@ -242,6 +242,15 @@ services:
         limits:
           memory: 1G
 
+  jaeger:
+    image: quay.io/jaegertracing/jaeger:2.23.0@sha256:3823829974ccfc2485d2e48b165579091f32295022ae80ca49704e2f4834116e
+    profiles: [jaeger]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.161.0@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
     environment:

@@ -1,0 +1,251 @@
+name: slashobserve-astronomy
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 5m
+    max-file: "2"
+
+networks:
+  default:
+    name: !reset null
+
+services:
+  ad:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-ad@sha256:dfd7a4697116d7f961f2c6e8be1bd187f2af7555d6d4138c016097921d7c7ed0
+  cart:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-cart@sha256:17c881cf29af5032e47d3dbd677afb132cbde66aad6355c7c2af8a6dbfc80581
+  checkout:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-checkout@sha256:d4448ff541290fc57cca71d4bfd35d522959edf62a8bb55158467583f9fad4e2
+    environment:
+      GOMEMLIMIT: 48MiB
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+  currency:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-currency@sha256:ba65e72d5841f909e0ee09498572092923f59e249ae4bf084ab63a82b33811c1
+  email:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-email@sha256:bd7754c1e0986f892b86ed6ab9067a372640d342ff8eee2074bedb61c649ce71
+  frontend:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-frontend@sha256:28358db4620686eda30dfabfc770b9ff0db73819ebac0895064271b446110289
+  image-provider:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-image-provider@sha256:46d1a7e95109c0064122ca0bfb49cd05191fb90a6264b6be508e0d98f2c963f1
+  load-generator:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-load-generator@sha256:b130d6cee6cb36a2799787a553168811e3ccc5408fe5dad0bc4b4d8302c7a63c
+  payment:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-payment@sha256:10d6bd20d8a00abe7705d553ab23a4f35e29b2816ab021049e63e89d07cc9192
+  product-catalog:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-product-catalog@sha256:7578cbf65fa4f0fc68e077e4f299ecccaa31d9778d407e41ab5973d247fd4b8e
+    environment:
+      GOMEMLIMIT: 48MiB
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+  quote:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-quote@sha256:e0b1ab3784fdbf0112521d3c5c733643f1cefa4eef5f592f845977465400181e
+  recommendation:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-recommendation@sha256:9dd7d7c320d2794a87c78cf534892519dace661a9022eb2cad5de1b75d994c18
+  shipping:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-shipping@sha256:7130dba0e77e90575b3f04fa8be39182cffe05f39df586a6620e9d221ee31e77
+  accounting:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-accounting@sha256:bfd9d13ac58a4eb5eb5130aa9ac1920686e2214030f4f2ab8bf178121879fcd9
+  fraud-detection:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-fraud-detection@sha256:a07ee694304b23e3e4e1ca9bdaa7a02e3eb30d1805d87dfe95e7ea31cd3aa703
+  kafka:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-kafka@sha256:4402ba7fd54470782a445f07c67e1d3f44d88ac8c5c0abf5d8298190a3f7a6ee
+  telemetry-docs:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-telemetry-docs@sha256:3f257a843222df2462d903fd57b12af5f31dc99a0f174b45136a4f3ba5c71203
+  valkey-cart:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/valkey-io/valkey:9.0.4-alpine3.23@sha256:107b203169a20ef7c87548c157f4e4a833dbbbd20fefd3a26740b7f98ac80216
+  astronomy-db:
+    container_name: !reset null
+    ports: !reset []
+    image: postgres:18.4@sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636
+
+  flagd:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-feature/flagd:v0.16.0@sha256:32234e63c1d0634883aabd31cbd46802934aaaef0153dfd653b5d1017940bb4e
+    volumes: !override
+      - ${ASTRONOMY_STATE_DIR:?}/flagd:/etc/flagd
+  flagd-ui:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/demo:3.1.0-flagd-ui@sha256:97a3d37e709f80e2018cdc0d45ea12d5b59092693e0e003d65089da966107062
+    volumes: !override
+      - ${ASTRONOMY_STATE_DIR:?}/flagd:/app/data
+
+  frontend-proxy:
+    container_name: !reset null
+    image: ghcr.io/open-telemetry/demo:3.1.0-frontend-proxy@sha256:fd4da88bfeaadd9437a4ee00f708e129a9eedb9c48874cea8e94b034983280a1
+    ports: !override
+      - 127.0.0.1:${ASTRONOMY_SHOP_HOST_PORT:?}:${ENVOY_PORT}
+
+  otel-collector:
+    container_name: !reset null
+    ports: !reset []
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.159.0@sha256:1f2c54a30e713fac6b3ae77a1ec84010c2007e29ced8ec666214fc2f6739c1cc
+    environment:
+      CLICKHOUSE_USER: otel
+      CLICKHOUSE_PASSWORD: otel
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  jaeger:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: jaeger
+    profiles: !reset []
+    command: ["--config=file:/etc/jaeger/config.yml"]
+    environment:
+      - JAEGER_HOST
+      - JAEGER_GRPC_PORT
+      - PROMETHEUS_ADDR
+      - OTEL_COLLECTOR_HOST
+      - OTEL_COLLECTOR_PORT_HTTP
+      - MEMORY_MAX_TRACES=25000
+    volumes:
+      - ./src/jaeger/config.yml:/etc/jaeger/config.yml:ro
+      - ./src/jaeger/ui-config.json:/etc/jaeger/ui-config.json:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1200M
+
+  prometheus:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: prometheus
+    entrypoint: ["/bin/prometheus"]
+    command:
+      - --config.file=/etc/prometheus/prometheus-config.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=3d
+      - --web.enable-otlp-receiver
+    environment: !reset {}
+    ports: !reset []
+    volumes: !override
+      - ./src/prometheus/prometheus-config.yaml:/etc/prometheus/prometheus-config.yaml:ro
+      - prometheus-data:/prometheus
+
+  clickhouse:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: clickhouse
+  loki:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: loki
+    ports: !reset []
+  tempo:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: tempo
+    ports: !reset []
+  elasticsearch:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: elasticsearch
+    ports: !reset []
+  opensearch:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: opensearch
+    ports: !reset []
+
+  postgres:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: postgres
+  dex:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: dex
+
+  server:
+    extends:
+      file: ${SLASHOBSERVE_COMPOSE_DIR:?}/compose.yaml
+      service: server
+    environment:
+      SLASHOBSERVE_PROVISION_DIR: !reset null
+    volumes: !override
+      - ${ASTRONOMY_DIR:?}/datasources.yaml:/etc/slashobserve/datasources.yaml:ro
+      - ${ASTRONOMY_DIR:?}/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
+      - ${ASTRONOMY_STATE_DIR:?}/keys:/astronomy-keys:ro
+    group_add:
+      - ${ASTRONOMY_GID:?}
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+      dex:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      jaeger:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  clickhouse-data:
+  loki-data:
+  tempo-data:
+  elasticsearch-data:
+  opensearch-data:
