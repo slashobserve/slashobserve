@@ -105,7 +105,6 @@ func parseSearch(text string) (search, *problem) {
 	}
 	s := search{tags: map[string]string{}}
 	seen := map[string]bool{}
-	var needsService *pair
 	for _, p := range pairs {
 		if seen[p.key] {
 			return search{}, &problem{p.key + " is given twice", p.start, p.end}
@@ -116,9 +115,6 @@ func parseSearch(text string) (search, *problem) {
 			s.service = p.value
 		case keyOperation:
 			s.operation = p.value
-			if needsService == nil {
-				needsService = &p
-			}
 		case keyMinDuration, keyMaxDuration:
 			d, err := time.ParseDuration(p.value)
 			if err != nil || d < 0 {
@@ -134,22 +130,31 @@ func parseSearch(text string) (search, *problem) {
 				return search{}, &problem{p.key + " is not valid UTF-8", p.valueStart, p.end}
 			}
 			s.tags[p.key] = p.value
-			if needsService == nil {
-				needsService = &p
-			}
 		}
 	}
-	if s.service == "" && needsService != nil {
-		what := "tags need"
-		if needsService.key == keyOperation {
-			what = keyOperation + " needs"
-		}
-		return search{}, &problem{what + " " + keyService + "=<name>", needsService.start, needsService.end}
+	if bad := missingService(s, pairs); bad != nil {
+		return search{}, bad
 	}
 	if s.maxDuration > 0 && s.minDuration > s.maxDuration {
 		return search{}, &problem{keyMinDuration + " is above " + keyMaxDuration, 0, len(text)}
 	}
 	return s, nil
+}
+
+func missingService(s search, pairs []pair) *problem {
+	if s.service != "" {
+		return nil
+	}
+	for _, p := range pairs {
+		switch p.key {
+		case keyService, keyMinDuration, keyMaxDuration:
+		case keyOperation:
+			return &problem{keyOperation + " needs " + keyService + "=<name>", p.start, p.end}
+		default:
+			return &problem{"tags need " + keyService + "=<name>", p.start, p.end}
+		}
+	}
+	return nil
 }
 
 func (s search) attributesJSON() (string, error) {
