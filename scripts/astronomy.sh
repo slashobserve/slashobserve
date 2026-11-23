@@ -27,11 +27,10 @@ usage() {
   cat <<EOF
 Usage: scripts/astronomy.sh <command>
 
-  up [--build] [--search]
-                      fetch the pinned upstream release if needed, then start the shop and the
-                      SlashObserve stack and wait until everything is healthy;
-                      --build builds the server image from this checkout, --search adds
-                      Elasticsearch and OpenSearch and feeds them the shop's logs
+  up [--search]       fetch the pinned upstream release if needed, build the server image from
+                      this checkout, then start the shop and the SlashObserve stack and wait
+                      until everything is healthy; --search adds Elasticsearch and OpenSearch
+                      and feeds them the shop's logs
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
   check [--search]    check the health of every datasource through the SlashObserve API and
@@ -45,7 +44,7 @@ Environment:
   SLASHOBSERVE_HOST_PORT      host port of the server (default 58080)
   SLASHOBSERVE_DEX_HOST_PORT  host port of Dex (default 55556)
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
-  SLASHOBSERVE_IMAGE          run this server image instead of the published one (with --build, the tag it is built as)
+  SLASHOBSERVE_IMAGE          the tag the server image is built as (default slashobserve-astronomy-server:local)
 
 Model provider: put SLASHOBSERVE_LLM_PROVIDER, SLASHOBSERVE_LLM_MODEL and
 SLASHOBSERVE_LLM_API_KEY in deploy/astronomy/.env (git-ignored), then run 'up' again.
@@ -101,9 +100,8 @@ prepare_state() {
 }
 
 compose() {
-  local files=(-f "$UPSTREAM_DIR/compose.yaml" -f "$UPSTREAM_DIR/compose.full.yaml" -f "$ASTRONOMY_DIR/compose.yaml")
+  local files=(-f "$UPSTREAM_DIR/compose.yaml" -f "$UPSTREAM_DIR/compose.full.yaml" -f "$ASTRONOMY_DIR/compose.yaml" -f "$ASTRONOMY_DIR/compose.build.yaml")
   local envs=(--env-file "$UPSTREAM_DIR/.env" --env-file "$ASTRONOMY_DIR/astronomy.env")
-  if [[ "$BUILD" == 1 ]]; then files+=(-f "$ASTRONOMY_DIR/compose.build.yaml"); fi
   local profiles=()
   if [[ "$SEARCH" == 1 ]]; then
     files+=(-f "$ASTRONOMY_DIR/compose.search.yaml")
@@ -114,13 +112,11 @@ compose() {
 }
 
 parse_options() {
-  BUILD=0
   SEARCH=0
   VOLUMES=0
   local arg
   for arg in "$@"; do
     case "$arg" in
-      --build) BUILD=1 ;;
       --search) SEARCH=1 ;;
       --volumes) VOLUMES=1 ;;
       *) die "unknown option $arg" ;;
@@ -133,10 +129,8 @@ cmd_up() {
   check_tools
   fetch_upstream
   prepare_state
-  if [[ "$BUILD" == 1 ]]; then
-    export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
-    compose build server
-  fi
+  export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
+  compose build server
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
   cat <<EOF
 The Astronomy Shop is running at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}

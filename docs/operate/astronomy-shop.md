@@ -16,7 +16,6 @@ make astronomy-build
 ```
 
 This builds the server from your checkout and starts the stack as the Compose project `slashobserve-astronomy`.
-`make astronomy` runs the published server image instead, which works once a release includes the Jaeger datasource.
 The first start fetches the pinned upstream release and pulls about 12 GB of images, and the stack is healthy about a minute after that.
 
 | Address | What it is |
