@@ -77,10 +77,16 @@ def test_missing_store_urls_are_named():
         o11y.Stores.from_env({"PROMETHEUS_URL": "http://s:9090"})
 
 
-def test_empty_subset_is_refused(tmp_path, capsys):
+def test_subset_is_ten_distinct_tasks_none_skipped():
+    assert len(set(o11y.SUBSET)) == len(o11y.SUBSET) == 10
+    assert not [task for task in o11y.SUBSET if o11y.skip_reason(task)]
+
+
+def test_subset_flag_keeps_only_subset_tasks(tmp_path, capsys):
     write_task(tmp_path, "promql-error-rate", "prometheus_query")
-    assert o11y.main(["include-flags", "--tasks", str(tmp_path), "--subset"]) == 1
-    assert "subset list is empty" in capsys.readouterr().err
+    write_task(tmp_path, "query-cpu-metrics", "prometheus_query")
+    assert o11y.main(["include-flags", "--tasks", str(tmp_path), "--subset"]) == 0
+    assert capsys.readouterr().out.strip() == "--include-task-name promql-error-rate"
 
 
 def test_include_flags_command_prints_flags(tmp_path, capsys):

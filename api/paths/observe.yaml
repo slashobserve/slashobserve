@@ -700,6 +700,7 @@ observe-id-continue:
       A request is continuable when it is `failed`, its build was not saved, it still has its build, and nothing continues it yet; otherwise the call answers 409 `not_continuable`.
       Continue and `POST /observe/{id}/build/save` on the same request are exclusive: Continue after a save answers 409 `not_continuable`, and a save after Continue answers 404 `not_found` because the build moved to the new request.
       Only the principal that made the request may call it, with the same access as starting a run; someone else gets 403 `forbidden` on a revision they can see and 404 on a new-dashboard request.
+      The new request keeps the stopped request's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one.
       A revision whose dashboard has a newer version than the build's base answers 409 `version_conflict` with `latest_version`.
       The new request counts against the same caps as `POST /observe`, and is assigned to the same agent as the stopped one.
       The optional `note` is stored on the new request as `continue_note` and given to the agent in every seed of that run, including its restarts.
@@ -784,6 +785,7 @@ observe-id-retry:
       A request hidden from the caller, including any request without a dashboard that is not the caller's, answers 404 `not_found`.
       A caller who can see the request but lacks the role or folder level to start that kind of request answers 403 `forbidden_role`, the same answer as `POST /observe`.
       The new request is assigned to the same agent as the original; when that is a revoked, expired or foreign grant, or a service account that no longer takes runs, the call answers 409 `assignee_unavailable` and queues nothing.
+      The new request keeps the original's `as_of`, and a caller who is not an Admin gets 403 `forbidden_role` for a request that has one, because only an Admin may set `as_of`.
       Retrying a request that succeeded queues a new request on every call.
       Without a configured LLM provider the endpoint answers 503 `agent_unavailable` for a request the built-in agent took.
     responses:

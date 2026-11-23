@@ -37,7 +37,7 @@ Grading reads only `agent/trajectory.json`, so it can be repeated without the se
 
 ## Requirements
 
-- Docker, with the image of the server build under test (`docker build -t slashobserve-server:local .` from a checkout that has run `as_of`, which the released images lack until it ships).
+- Docker, with the image of the server build under test (`docker build -t slashobserve-server:local .` from a checkout of main or v0.1.5 or later, because `as_of` needs a server built from main or from v0.1.5 on).
 - `uv`.
   It installs Python and Harbor 0.24.0, the version o11y-bench pins, into `benchmarks/.venv`.
 - A checkout of [grafana/o11y-bench](https://github.com/grafana/o11y-bench) and `mise`, which o11y-bench uses to generate its tasks and build its images.
@@ -88,7 +88,8 @@ To name every store task at once, print the flags:
 uv run --project benchmarks python -m slashobserve_bench.o11y include-flags --tasks /path/to/o11y-bench/tasks
 ```
 
-`include-flags --subset` prints the flags for the ten-task subset in `o11y.SUBSET`, which is empty until the subset is chosen.
+`include-flags --subset` prints the flags for the fixed ten-task subset in `o11y.SUBSET`: three Prometheus, two Loki, two Tempo and three investigation tasks.
+Every development run uses these ten, so results stay comparable; change the list only together with a new baseline.
 
 ### Options
 

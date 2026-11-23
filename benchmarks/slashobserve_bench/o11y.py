@@ -11,7 +11,18 @@ SCENARIO_TIME_ENV = "O11Y_SCENARIO_TIME_ISO"
 STORE_QUESTION_CATEGORIES = ("prometheus_query", "loki_query", "tempo_query")
 STORE_CATEGORIES = (*STORE_QUESTION_CATEGORIES, "investigation")
 
-SUBSET: tuple[str, ...] = ()
+SUBSET: tuple[str, ...] = (
+    "promql-error-rate",
+    "promql-topk-5xx-share",
+    "promql-offset-traffic-compare",
+    "logql-top-5xx-endpoint",
+    "logql-unwrap-orders-p95-latency",
+    "traceql-checkout-p99-by-service",
+    "traceql-error-chain-orders",
+    "incident-triage",
+    "payments-path-root-cause",
+    "dependency-outage-false-lead",
+)
 
 _DASHBOARD_STATE = "graded on the dashboard saved in Grafana, which this agent never writes"
 _GRAFANA_RESOURCES = "graded on Grafana's own datasources and dashboards, which this agent never reads"
@@ -107,9 +118,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     names = store_task_names(args.tasks)
     if args.subset:
-        if not SUBSET:
-            print("the subset list is empty", file=sys.stderr)
-            return 1
         names = [name for name in names if name in SUBSET]
     print(" ".join(include_flags(names)))
     return 0
