@@ -317,6 +317,7 @@ A gate fails the run when any of these happens:
 - a stream that was refused or dropped
 - a stream event that was lost or duplicated
 - an agent build that fails or runs more than once
+- a JSON-RPC or tool error in the MCP scenario, or an MCP call shed while each server's share of the calls fits its cap
 - a container that restarted or was killed for memory
 
 ### What CI runs
@@ -324,16 +325,16 @@ A gate fails the run when any of these happens:
 | Job | Runs when | What it runs |
 | --- | --- | --- |
 | `changes` | Always. | `scripts/ci-changes.sh`, which decides which of the other jobs run. |
-| `go-lint` | Go files changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
-| `go-test` | Go files changed. | `make test-go` in six shards: `grafana`, `db`, `datasource`, `agent`, `rest-1` and `rest-2`, split by `scripts/go-test-shard.sh`. |
-| `web-lint` | Web files changed. | `make lint-web lint-agent test-agent test-scripts test-benchmarks`. |
-| `web-test` | Web files changed. | The web Vitest suite in two shards. |
+| `go-lint` | A file outside `web/` and `observe-agent/` changed. | `make lint-go lint-deploy tidy-check`: golangci-lint, `sqlc diff`, the docs lint, the Helm chart checks and the tidy check. |
+| `go-test` | A file outside `web/` and `observe-agent/` changed. | `make test-go` in six shards: `grafana`, `db`, `datasource`, `agent`, `rest-1` and `rest-2`, split by `scripts/go-test-shard.sh`. |
+| `web-lint` | A file other than Go or prose changed. | `make lint-web lint-agent test-agent test-scripts test-benchmarks`. |
+| `web-test` | A file other than Go or prose changed. | The web Vitest suite in two shards. |
 | `build` | Non-prose files changed. | `make build`, then `make generate`, which must leave every file unchanged. |
 | `image` | `Dockerfile` or `.dockerignore` changed. | A build of the `Dockerfile` from its own stages. |
 | `e2e-api` | Non-test, non-prose files changed. | `make e2e`, with a 30 minute limit. |
 | `e2e-browser` | Non-test, non-prose files changed. | `make e2e-browser` in four shards, each on its own stack, with a 30 minute limit. |
-| `audit` | A lockfile, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
-| `check` | Always. | Passes when every job that ran has passed. |
+| `audit` | A lockfile, `package.json`, `go.mod` or `tools/` changed, on `main` and daily. | `make audit`. |
+| `check` | Always. | Passes when every lint, test, build and image job that ran has passed; `audit` and the two end-to-end jobs are separate. |
 
 Details of how CI picks jobs:
 
