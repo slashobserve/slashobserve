@@ -12,8 +12,9 @@ Work through that list after [switching from Grafana](switch-from-grafana.md), a
    That address opens the dashboards list filtered to dashboards with any problem, and keeps `kind` and `folder`.
 2. Read the **Health** column.
    Each dashboard with a problem shows its first problem, "+N more problems" for the others, and the state of its repair.
-3. Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair**.
+3. Choose the problem to open a popover with every problem, when and on which version the dashboard was last checked, and **Repair** (**Repair all** when several panels or variables fail).
 4. Narrow the list with the **Problem** menu, which holds one kind of problem or any problem.
+   Its items are "Query fails" (`query_failed`), "Variable resolves to nothing" (`variable_failed`), "No data" (`no_data`), "Duplicate title" (`duplicate_title`) and "Not opened in 90 days" (`unopened`).
 
 Health shows in two places: the [dashboards list](#in-the-dashboards-list) and [a dashboard](web.md#health-on-a-dashboard).
 
@@ -37,9 +38,10 @@ It shows to everyone when there is something to report, and an Admin always sees
 An Editor can ask the agent to repair a dashboard whose last check found a `no_data`, `query_failed` or `variable_failed` problem.
 
 1. Open the problem popover in the dashboards list, or open the dashboard.
-2. Choose **Repair**.
+2. Choose **Repair** (**Repair all** when several panels or variables fail).
 3. Watch the repair state in the Health column.
-   It shows queued, running, repaired, still failing or failed.
+   It shows Repair queued, Repairing, Repaired or Repair failed.
+   When a repaired version still fails, **Repair** is offered again.
 
 The repair is an ordinary revision with a prompt that names each failing panel and variable.
 It shows in the dashboard's history and can be reviewed and reverted like any other.

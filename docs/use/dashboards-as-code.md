@@ -3,7 +3,7 @@ title: Dashboards as code
 description: Export a folder's dashboards to ObserveSpec files, keep them in Git, and apply them back from your machine or a CI job.
 ---
 
-A dashboard is an ObserveSpec JSON document, so a folder of dashboards fits in a Git repository as a folder of files.
+A dashboard is an [ObserveSpec](../concepts/observespec.md) JSON document, so a folder of dashboards fits in a Git repository as a folder of files.
 `observe dashboards export` writes a folder's dashboards to files, and `observe dashboards apply` saves the files back as dashboards.
 Both run with the [CLI](cli.md) and act with the folder access of the person or key running them.
 
@@ -33,7 +33,7 @@ Running it again overwrites the files in place, and leaves alone a file whose da
 If more than one folder has the title, pass the folder id.
 
 Export always writes into a folder directory, including for General.
-The next section shows the layout.
+[The directory layout](#the-directory-layout) shows it.
 
 ## Apply a directory
 

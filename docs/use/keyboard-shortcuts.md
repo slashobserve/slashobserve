@@ -35,11 +35,7 @@ The keys and the panel menu still work there.
 Press the first key, then the second within one second.
 Any other key in between cancels the pair.
 
-| Keys | What they do |
-| --- | --- |
-| `t` then `z` | Zoom the time range out to twice its length. |
-| `t` then `←` | Move the time range back by half its length. |
-| `t` then `→` | Move the time range forward by half its length. |
+`t` then `z` zooms the time range out, and `t` then `←` or `→` moves it back or forward; the [dashboard keys table](#dashboard-keys) says by how much.
 
 These keys turn the time range into fixed times, so the address of the page keeps the range you moved to.
 A range that would end in the future ends now instead and keeps its length.

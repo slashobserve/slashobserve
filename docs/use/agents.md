@@ -30,7 +30,7 @@ With no connection, the page says "No connected agents yet."
 **Service accounts that take runs** lists each account with its status.
 An Admin also sees its runs and failures for the last 7 days, and an **API keys** link that opens the page that creates keys (`/keys`).
 
-The page needs the Viewer role or higher and a signed-in person.
+The page and `GET /api/v1/agents` need the Viewer role or higher and a signed-in person.
 A service-account key gets 403 `user_session_required`.
 
 ## Connect an agent

@@ -12,6 +12,8 @@ No observation is made until you choose **Create observation** on the answer, or
 
 ## Start an investigation
 
+You need the Editor role or above.
+
 1. Open a chat box.
    Use Home, or a chat about a dashboard.
 2. Type `/investigate`, a space, and your question.
@@ -32,7 +34,7 @@ On a dashboard, **Ask** in a panel's menu opens the [ask box](ask-and-comment.md
 It asks the agent privately in your chat about that dashboard.
 To ask in a thread the team reads, choose the "To:" chip in a comment; see [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment).
 
-The panel menu item shows only on data panels, when you can edit the dashboard and a model is connected.
+The panel menu item shows only on data panels, when you can comment on the dashboard and a model is connected.
 While you have unsaved layout changes it reads "Ask (finish the layout first)" and cannot be chosen.
 
 The activity pane has no Investigate chip and takes no slash command.

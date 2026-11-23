@@ -18,7 +18,7 @@ A service-account key gets 403 `user_session_required`, and the `observe` comman
    Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
 3. Select an item to open it.
    Opening it marks it read.
-4. Act on it: merge a proposal, reply to a mention, or try a failed run again.
+4. Act on it: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
 5. Mark the item done, with **Mark done**.
    A "Marked done" toast offers **Undo**.
 
