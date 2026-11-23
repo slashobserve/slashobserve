@@ -2,6 +2,8 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+. "$here/astronomy.sh"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 failures=0
@@ -67,6 +69,15 @@ output="$(ASTRONOMY_STATE_DIR="$tmp" ASTRONOMY_CHECK_WAIT=4 SLASHOBSERVE_HOST_PO
 [[ "$status" == 1 ]] || fail "check exits 1 when the server never answers, got $status"
 [[ "$output" == *"FAIL"*"the datasource list is not available"* ]] || fail "check prints a FAIL line for the list: $output"
 ((SECONDS - started >= 4)) || fail "check keeps retrying the list until its deadline"
+
+upstream='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--feature-gates=service.profilesSupport"]'
+copied='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--config=/etc/otelcol-config-search.yml","--feature-gates=service.profilesSupport"]'
+search_command_matches "$upstream" "$copied" || fail "a search command equal to upstream's plus the search config is accepted"
+drifted='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-extras.yml","--config=/etc/otelcol-config-search.yml","--feature-gates=service.profilesSupport"]'
+if search_command_matches "$upstream" "$drifted"; then fail "a copy that dropped an upstream argument is refused"; fi
+grown='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--feature-gates=service.profilesSupport","--set=x=y","--config=/etc/otelcol-config-search.yml"]'
+if search_command_matches "$upstream" "$grown"; then fail "a copy with an argument upstream lacks is refused"; fi
+if search_command_matches "$upstream" "$upstream"; then fail "a command without the search config is refused"; fi
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1

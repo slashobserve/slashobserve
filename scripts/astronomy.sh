@@ -23,6 +23,7 @@ SERVER="http://localhost:${SLASHOBSERVE_HOST_PORT}"
 KEY_FILE="$STATE_DIR/keys/astronomy.key"
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
 FLAGS_FILE_MODE=666
+SEARCH_CONFIG_ARG="--config=/etc/otelcol-config-search.yml"
 
 usage() {
   cat <<EOF
@@ -130,6 +131,23 @@ parse_options() {
   done
 }
 
+search_command_matches() {
+  jq -ne --argjson plain "$1" --argjson searched "$2" --arg extra "$SEARCH_CONFIG_ARG" \
+    '($searched | index($extra)) != null and ($searched | map(select(. != $extra))) == $plain' >/dev/null
+}
+
+collector_command() {
+  compose config --format json 2>/dev/null | jq -c '.services["otel-collector"].command'
+}
+
+verify_search_command() {
+  local plain searched
+  plain="$(SEARCH=0 collector_command)"
+  searched="$(SEARCH=1 collector_command)"
+  search_command_matches "$plain" "$searched" ||
+    die "compose.search.yaml copies the collector command of the pinned upstream release and it no longer matches; update it from $UPSTREAM_DIR/compose.full.yaml"
+}
+
 remove_search_stores() {
   local SEARCH=1
   compose rm --stop --force elasticsearch opensearch
@@ -140,6 +158,7 @@ cmd_up() {
   check_tools
   fetch_upstream
   prepare_state
+  if [[ "$SEARCH" == 1 ]]; then verify_search_command; fi
   export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
   compose build server
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
@@ -270,18 +289,22 @@ cmd_key() {
   printf '%s\n' "$KEY_FILE"
 }
 
-command="${1:-}"
-if [[ $# -gt 0 ]]; then shift; fi
-case "$command" in
-  up) cmd_up "$@" ;;
-  down) cmd_down "$@" ;;
-  status) cmd_status ;;
-  check) cmd_check "$@" ;;
-  flag) cmd_flag "$@" ;;
-  key) cmd_key ;;
-  -h | --help | help | "") usage ;;
-  *)
-    usage >&2
-    exit 2
-    ;;
-esac
+main() {
+  local command="${1:-}"
+  if [[ $# -gt 0 ]]; then shift; fi
+  case "$command" in
+    up) cmd_up "$@" ;;
+    down) cmd_down "$@" ;;
+    status) cmd_status ;;
+    check) cmd_check "$@" ;;
+    flag) cmd_flag "$@" ;;
+    key) cmd_key ;;
+    -h | --help | help | "") usage ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
