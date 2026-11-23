@@ -18,7 +18,7 @@ Harbor starts the task, and `slashobserve_bench.agent:SlashObserveAgent` does th
 4. It starts a run with the task statement as the prompt and `as_of` set to the scenario time, so every relative time the agent resolves is relative to where the task's data ends.
    An `investigation` task is a `kind: investigate` run.
    A `prometheus_query`, `loki_query` or `tempo_query` task is a `kind: ask` run on a new throwaway observation, because the server accepts `as_of` only for an investigation or an ask about a dashboard or an observation.
-5. It polls the run until it is `succeeded`, `failed` or `canceled`, or until `wall_timeout_sec` passes, which cancels the run and records a timeout.
+5. It polls the run until it is `succeeded`, `failed` or `canceled`, or until `wall_timeout_sec` from the start of step 2 passes, which cancels the run, waits up to 30 seconds for it to stop and records a timeout.
 6. It writes the result into the trial's `agent/` folder and removes both containers.
 
 The answer is the finding's Markdown text.
@@ -101,7 +101,7 @@ uv run --project benchmarks python -m slashobserve_bench.o11y include-flags --ta
 | `investigation_calls` | server default (12) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
-| `wall_timeout_sec` | 540 | How long a trial waits for its run, under Harbor's 600 second agent timeout. |
+| `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |
 
 ## Cost
 
@@ -110,7 +110,8 @@ The store tasks are 51, and a full job of three attempts each is 153 trials.
 The o11y-bench judge costs extra and runs in the verifier, not here.
 
 `spend_cap_usd` is a cap for the whole Harbor job.
-Every finished trial appends its cost to the ledger file, which is locked so concurrent trials never lose a line.
+Every trial that started a run appends the run's last seen cost to the ledger file, also when polling fails or Harbor stops the trial.
+The file is locked, so concurrent trials never lose a line.
 A trial that starts when the total has reached the cap fails in `setup` with a spend cap error, which Harbor records as an agent exception, not as a pass or a fail.
 Trials already running are not interrupted, so a job can pass the cap by up to `--n-concurrent` runs; `run_max_cost_usd` bounds each of them.
 A run whose cost the server could not price counts as $0.00 in the ledger.

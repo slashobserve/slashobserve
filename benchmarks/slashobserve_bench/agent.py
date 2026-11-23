@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from pathlib import Path
 
 from harbor.agents.base import BaseAgent
@@ -17,6 +18,7 @@ from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, ensur
 AGENT_NAME = "slashobserve"
 AGENT_VERSION = "0.1.0"
 LLM_KEY_FILE_ENV = "SLASHOBSERVE_BENCH_LLM_KEY_FILE"
+CANCEL_GRACE_SEC = 30
 
 
 class TaskSkipped(Exception):
@@ -101,6 +103,7 @@ class SlashObserveAgent(BaseAgent):
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         options = self._options
+        deadline = time.monotonic() + options.wall_timeout_sec
         ledger = self._ledger
         if ledger is not None:
             await asyncio.to_thread(ledger.ensure_room)
@@ -123,7 +126,7 @@ class SlashObserveAgent(BaseAgent):
         stack = Stack(config, stores, self.logs_dir, self._llm_key(provider))
         try:
             await stack.start()
-            await self._answer(stack, instruction, as_of, environment.environment_name, context)
+            await self._answer(stack, instruction, as_of, environment.environment_name, context, deadline)
         finally:
             await asyncio.to_thread(stack.stop)
 
@@ -142,6 +145,7 @@ class SlashObserveAgent(BaseAgent):
         as_of: str,
         task_id: str,
         context: AgentContext,
+        deadline: float,
     ) -> None:
         client = Client(stack.base_url, stack.key)
         observation_id = None
@@ -149,22 +153,32 @@ class SlashObserveAgent(BaseAgent):
             observation_id = await asyncio.to_thread(client.create_observation, f"o11y-bench {task_id}")
         body = o11y.start_body(self._category, instruction, as_of, observation_id)
         run_id = await asyncio.to_thread(client.start_run, body)
-        timed_out = None
+        seen: dict[str, dict] = {}
+
+        def poll() -> dict:
+            seen["request"] = client.get_run(run_id)
+            return seen["request"]
+
         try:
-            request = await asyncio.to_thread(
-                wait_for_terminal, lambda: client.get_run(run_id), self._options.wall_timeout_sec
-            )
-        except RunTimeout as error:
-            timed_out = error
-            await asyncio.to_thread(self._cancel, client, run_id)
-            request = await asyncio.to_thread(client.get_run, run_id)
-        self._save(request, instruction, context)
+            try:
+                request = await asyncio.to_thread(wait_for_terminal, poll, max(deadline - time.monotonic(), 0))
+            except RunTimeout:
+                await asyncio.to_thread(self._cancel, client, run_id)
+                try:
+                    request = await asyncio.to_thread(wait_for_terminal, poll, CANCEL_GRACE_SEC)
+                except RunTimeout:
+                    request = seen["request"]
+                self._save(request, instruction, context)
+                raise
+            self._save(request, instruction, context)
+        finally:
+            self._record_spend(seen.get("request"))
+
+    def _record_spend(self, request: dict | None) -> None:
         ledger = self._ledger
-        if ledger is not None:
-            cost = atif.Usage.from_request(request).cost_usd or 0.0
-            await asyncio.to_thread(ledger.record, self.logs_dir.parent.name, cost)
-        if timed_out is not None:
-            raise timed_out
+        if ledger is None or request is None:
+            return
+        ledger.record(self.logs_dir.parent.name, atif.Usage.from_request(request).cost_usd or 0.0)
 
     @staticmethod
     def _cancel(client: Client, run_id: str) -> None:

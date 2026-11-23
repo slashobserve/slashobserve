@@ -127,3 +127,63 @@ def test_setup_refuses_to_start_a_trial_once_the_cap_is_reached(tmp_path):
     )
     with pytest.raises(SpendCapReached):
         asyncio.run(instance.setup(environment))
+
+
+class FakeClient:
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.canceled = False
+
+    def create_observation(self, title):
+        return "obs-1"
+
+    def start_run(self, body):
+        return "run-1"
+
+    def get_run(self, run_id):
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    def cancel_run(self, run_id):
+        self.canceled = True
+
+
+def run_state(base, state, cost):
+    return {**base, "state": state, "usage": {**base["usage"], "cost_usd": cost}}
+
+
+def answer_with(tmp_path, monkeypatch, client, deadline):
+    monkeypatch.setattr(bench_agent, "Client", lambda base_url, key: client)
+    ledger_path = tmp_path / "ledger.jsonl"
+    instance = bench_agent.SlashObserveAgent(
+        logs_dir=tmp_path / "trial" / "agent",
+        model_name="replay/replay",
+        spend_cap_usd=10,
+        ledger_path=str(ledger_path),
+    )
+    instance._category = "prometheus_query"
+    stack = SimpleNamespace(base_url="http://127.0.0.1:1", key="sok_test")
+    run = instance._answer(stack, "How many errors?", "2026-11-20T10:00:00Z", "promql-error-rate", AgentContext(), deadline)
+    return instance, ledger_path, run
+
+
+def test_spend_is_recorded_when_polling_fails_after_the_run_spent(tmp_path, monkeypatch, finished_request):
+    client = FakeClient([run_state(finished_request, "running", 0.25), bench_agent.ApiError(502, "bad gateway")])
+    monkeypatch.setattr(bench_agent.time, "monotonic", lambda: 0.0)
+    monkeypatch.setattr("slashobserve_bench.api.time.sleep", lambda seconds: None)
+    _, ledger_path, run = answer_with(tmp_path, monkeypatch, client, deadline=100.0)
+    with pytest.raises(bench_agent.ApiError):
+        asyncio.run(run)
+    assert SpendLedger(ledger_path, 10).total() == 0.25
+
+
+def test_a_timed_out_run_is_canceled_saved_and_charged_its_final_cost(tmp_path, monkeypatch, finished_request):
+    client = FakeClient([run_state(finished_request, "running", 0.25), run_state(finished_request, "canceled", 0.4)])
+    instance, ledger_path, run = answer_with(tmp_path, monkeypatch, client, deadline=0.0)
+    with pytest.raises(bench_agent.RunTimeout):
+        asyncio.run(run)
+    assert client.canceled
+    assert json.loads((instance.logs_dir / "run.json").read_text())["state"] == "canceled"
+    assert SpendLedger(ledger_path, 10).total() == 0.4
