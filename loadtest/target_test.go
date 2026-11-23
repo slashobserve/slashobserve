@@ -17,7 +17,7 @@ func TestCheckTarget(t *testing.T) {
 		{name: "ipv6 loopback on the replicas port", target: "http://[::1]:48080"},
 		{name: "loopback without a port", target: "http://localhost"},
 		{name: "demo port on ipv4 loopback", target: "http://127.0.0.1:58080", wantErr: "58080 is the demo stack; run make replicas-up and target http://localhost:48080"},
-		{name: "a local server's default port", target: "http://127.0.0.1:8080", wantErr: "8080 is the demo stack; run make replicas-up and target http://localhost:48080"},
+		{name: "a local server's default port", target: "http://127.0.0.1:8080", wantErr: "8080 is the default port of a server that is not the replicas stack; run make replicas-up and target http://localhost:48080"},
 		{name: "demo port on localhost", target: "http://localhost:58080", wantErr: "58080 is the demo stack"},
 		{name: "demo port on ipv6 loopback", target: "http://[::1]:58080", wantErr: "58080 is the demo stack"},
 		{name: "remote host without --remote", target: "https://so.example.com", wantErr: "--remote so.example.com"},

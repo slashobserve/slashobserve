@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"slices"
 	"strings"
 )
 
-var demoPorts = []string{"58080", "8080"}
+const demoPort = "58080"
+
+const defaultServerPort = "8080"
 
 func isLoopback(host string) bool {
 	if strings.EqualFold(host, "localhost") {
@@ -31,8 +32,11 @@ func checkTarget(target string, remote string) (*url.URL, error) {
 		return nil, fmt.Errorf("%q names no host", target)
 	}
 	if isLoopback(host) {
-		if slices.Contains(demoPorts, u.Port()) {
+		switch u.Port() {
+		case demoPort:
 			return nil, fmt.Errorf("%s is the demo stack; run make replicas-up and target http://localhost:48080", u.Port())
+		case defaultServerPort:
+			return nil, fmt.Errorf("%s is the default port of a server that is not the replicas stack; run make replicas-up and target http://localhost:48080", u.Port())
 		}
 		return u, nil
 	}
