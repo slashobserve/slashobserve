@@ -22,7 +22,7 @@ Docker runs the database-backed tests through testcontainers, and the demo.
     make build
     make demo-build
 
-`make build` installs the web dependencies and builds `bin/slashobserve-server` and `bin/observe`.
+`make build` installs the web dependencies, builds the web app, and builds `bin/slashobserve-server`, `bin/observe` and `bin/observe-agent`.
 `make demo-build` builds the server image from your working tree and starts the demo with it; `make demo` pulls the published image instead.
 The demo is for local use only; see the [quick start](docs/get-started/quick-start.md).
 
@@ -33,11 +33,12 @@ The conventions for each area are in [internal/CLAUDE.md](internal/CLAUDE.md), [
 
 | Command | What it does |
 | --- | --- |
-| `make lint` | Go and web linters, formatting, type checks, and checks that generated files match their sources. |
-| `make test` | Go tests with the race detector, then the web unit tests. |
+| `make lint` | Go, web and agent linters, formatting and type checks, checks that generated files match their sources, the docs lint and the Helm chart checks. |
+| `make test` | Go tests with the race detector, the web unit tests, the `observe-agent` tests, the benchmark adapter tests (they need `uv`) and the script tests. |
 | `make ci` | `lint`, `test`, a `go mod tidy` check and `make build`, which is what the `check` job in CI runs. |
 | `make generate` | Regenerates the sqlc code, the Spec types and validator for the web app, and the API types, after you edit migrations, queries, the schema or `api/`. |
 
+[Testing](docs/contributing/testing.md) covers the end-to-end suites, the load test and what CI runs for each change.
 CI also runs `make generate` and fails when it changes any file, so commit generated files with their sources and never edit them by hand.
 A change to how the Grafana importer converts a dashboard needs `make golden`; read every changed golden file before you commit it.
 
