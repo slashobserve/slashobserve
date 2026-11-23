@@ -49,7 +49,7 @@ Grading reads only `agent/trajectory.json`, so it can be repeated without the se
 benchmarks/run-replay.sh /path/to/o11y-bench promql-error-rate
 ```
 
-The script runs `mise run setup:sync` and `mise run setup:preflight` in the o11y-bench checkout, writes a replay fixture for the task's statement, and runs Harbor with `--disable-verification`, so no key and no model is used.
+The script runs `mise run setup:sync` and `mise run setup:preflight` in the o11y-bench checkout, writes a replay fixture for the task's statement, and runs Harbor with `--disable-verification`, so no key and no model is used; Harbor still asks for the judge's `ANTHROPIC_API_KEY`, so the script passes a placeholder with `--verifier-env`.
 The replay model answers with a fixed text, so the answer is gradable but wrong; the run proves the plumbing.
 It prints the path of the trajectory.
 Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:local`.

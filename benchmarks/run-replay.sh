@@ -22,7 +22,8 @@ uv run --locked --project "$bench_dir" harbor run --yes \
   --path "$o11y_dir/tasks" --include-task-name "$task" \
   --agent slashobserve_bench.agent:SlashObserveAgent --model replay/replay \
   --ak "server_image=$image" --ak "replay_dir=$fixtures" \
-  --disable-verification --n-concurrent 1 \
+  --disable-verification --verifier-env ANTHROPIC_API_KEY=unused --n-concurrent 1 \
   --jobs-dir "$bench_dir/jobs" --job-name "$job"
 
-echo "trajectory: $(ls "$bench_dir"/jobs/"$job"/*/agent/trajectory.json)"
+trajectory="$(ls "$bench_dir"/jobs/"$job"/*/agent/trajectory.json)"
+echo "trajectory: $trajectory"
