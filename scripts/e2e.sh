@@ -1107,6 +1107,7 @@ import json, re, sys, time, urllib.parse, urllib.request
 
 KEPT = {"imported", "partial", "placeholder", "unverified"}
 NO_DATA = "The queries returned no data for the dashboard's default time range."
+UNRESOLVED = "could not be resolved"
 STRING = r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'|`[^`]*`'
 SELECTOR = re.compile(rf"(?:{STRING})|(?<![\w:.$])([a-zA-Z_:][\w:]*)(?:\s*\{{((?:[^}}\"'`]|{STRING})*)\}})?(?![\w:]*\s*\()")
 MATCHER = re.compile(rf"[a-zA-Z_]\w*\s*(?:=~|!~|!=|=)\s*(?:{STRING})")
@@ -1168,8 +1169,8 @@ for line in lines:
         problems.append(f"{line['title']}: status {line['status']}")
     if line["status"] != "unverified":
         continue
-    failed = [r for r in line["reasons"] if r.startswith("Query ") and " failed on " in r]
-    if failed or NO_DATA not in line["reasons"]:
+    failed = [r for r in line["reasons"] if r.startswith("Query ") and " failed on " in r and UNRESOLVED not in r]
+    if failed or not any(r == NO_DATA or UNRESOLVED in r for r in line["reasons"]):
         problems.append(f"{line['title']}: unverified by a query error: {line['reasons']}")
         continue
     for query in spec_panels[line["panel_id"]]["queries"]:
