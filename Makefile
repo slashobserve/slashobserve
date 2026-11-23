@@ -121,10 +121,10 @@ demo:
 	scripts/astronomy.sh up --published
 
 demo-build:
-	scripts/astronomy.sh up
+	VERSION=$(VERSION) COMMIT=$(COMMIT) scripts/astronomy.sh up
 
 demo-search:
-	scripts/astronomy.sh up --search
+	VERSION=$(VERSION) COMMIT=$(COMMIT) scripts/astronomy.sh up --search
 
 demo-down:
 	scripts/astronomy.sh down
