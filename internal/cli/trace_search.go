@@ -80,6 +80,8 @@ func logfmtValue(s string) string {
 	return s
 }
 
+const jaegerNoFilter = "minDuration=0s"
+
 func jaegerSearch(f traceFilters) string {
 	var pairs []string
 	add := func(key, value string) {
@@ -93,6 +95,9 @@ func jaegerSearch(f traceFilters) string {
 	add("maxDuration", strings.Replace(f.Max, "µs", "us", 1))
 	if f.Errors {
 		add("error", "true")
+	}
+	if len(pairs) == 0 {
+		return jaegerNoFilter
 	}
 	return strings.Join(pairs, " ")
 }
