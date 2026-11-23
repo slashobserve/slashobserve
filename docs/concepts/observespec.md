@@ -7,6 +7,32 @@ ObserveSpec is the JSON format of a SlashObserve dashboard.
 Every saved version of a dashboard is one ObserveSpec document, and the web app, the agent, MCP clients, the API and the Grafana importer all read and write the same one.
 The current format is version `0`, and each document says so in `specVersion`.
 
+For example, this is a whole dashboard with one panel:
+
+```json
+{
+  "specVersion": "0",
+  "title": "Checkout traffic",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": "p_rps",
+      "type": "timeseries",
+      "title": "Requests per second",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "datasource": "prom",
+      "queries": [
+        { "query": "sum(rate(http_requests_total{service=\"checkout\"}[$__rate_interval]))" }
+      ]
+    }
+  ]
+}
+```
+
+The panel names its datasource by the `uid` `prom` and holds no address or credential.
+Its query runs when someone opens the dashboard, over the range at the top.
+Adding a panel adds an object to `panels`, and saving the change makes the next [version](versions.md).
+
 ## Why a spec
 
 The server checks a document against one closed JSON Schema (unknown fields are refused) and against a set of rules the schema cannot express before it stores anything.
@@ -25,16 +51,25 @@ Three choices in the format follow from how dashboards are used here:
 A Grafana dashboard is not stored as is.
 The importer converts it into this format and keeps a `placeholder` panel for each panel it cannot convert yet (see [Import Grafana dashboards](../use/import-grafana.md)).
 
-**Export spec JSON** in the dashboard's **More** menu downloads the document of the version you are viewing, and **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI (see [Dashboards as code](../use/dashboards-as-code.md)).
-**Edit details** in the same menu changes the title, description and tags and saves them as a new version; it needs Edit on the dashboard and works on the latest version.
-**Edit Spec JSON** in the same menu opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
-It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`, and **Save as version N** saves it with the note you give, or "Edit the dashboard JSON", running every panel query as any whole-document save does.
-A version saved by someone else meanwhile is merged when it changed other things; when it changed the same things the pane lists them with **Reload version N**.
+## Export and edit the JSON
+
+Open the **More** menu of a dashboard.
+
+1. **Export spec JSON** downloads the document of the version you are viewing.
+   **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI; see [Dashboards as code](../use/dashboards-as-code.md).
+2. **Edit details** changes the title, description and tags and saves them as a new version.
+   It needs Edit on the dashboard and works on the latest version.
+3. **Edit Spec JSON** opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
+   It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`
+4. **Save as version N** saves the edit with the note you give, or "Edit the dashboard JSON", and runs every panel query as any whole-document save does.
+
+A version saved by someone else meanwhile is merged when it changed other things.
+When it changed the same things, the pane lists them with **Reload version N**.
 Closing the pane with unsaved edits asks "Discard your JSON edits?".
 
 ## An example
 
-This is `spec/examples/checkout-service-health.json` from the repository.
+A larger one is `spec/examples/checkout-service-health.json` from the repository.
 It has one variable, two Prometheus panels and a ClickHouse table:
 
 ```json
@@ -112,15 +147,15 @@ The rest is optional, and an absent field means its default.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `title`                | 1 to 200 characters.                                                                                                                                                                                                |
 | `description`          | Up to 2000 characters.                                                                                                                                                                                              |
-| `tags`                 | Up to 20 lowercase tags of 1 to 40 characters, each starting with a letter or digit.                                                                                                                                |
+| `tags`                 | Up to 20 unique tags of 1 to 40 characters: lowercase letters, digits, `_`, `.` and `-`, each starting with a letter or digit.                                                                                                                                |
 | `time`                 | The default range, `from` and `to`. A value is relative, such as `now-6h`, `now-1d/d` or `now/fy`, or an RFC 3339 time.                                                                                             |
 | `refresh`              | An auto-refresh interval such as `30s`, `1m`, `1h` or `1d`.                                                                                                                                                         |
-| `timePicker`           | What the time picker offers: `hidden` removes it, `refreshIntervals` (1 to 20) replaces the auto-refresh choices and `quickRanges` (1 to 30 of `display`, `from` and `to`) the preset ranges.                       |
+| `timePicker`           | What the time picker offers: `hidden` removes it, `refreshIntervals` (1 to 20) replaces the auto-refresh choices and `quickRanges` (1 to 30 of `display`, `from` and `to`) the preset ranges. A `refresh` that is not in `refreshIntervals` is still allowed, and the default choices are `5s`, `10s`, `30s`, `1m`, `5m`, `15m`, `30m`, `1h`, `2h` and `1d`.                       |
 | `liveNow`              | `true` refreshes the dashboard every 5 seconds until someone picks another interval.                                                                                                                                |
 | `timezone`             | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`. Relative times resolve in this zone, and every panel draws its times in it unless the panel sets its own `timezone`.                                        |
 | `weekStart`            | The first day of the week for `now/w`: `monday` (the default), `sunday` or `saturday`.                                                                                                                              |
 | `fiscalYearStartMonth` | The month the fiscal year starts in for `now/fy` and `now/fQ`, from 0 (January, the default) to 11 (December).                                                                                                      |
-| `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`.                                                                                                                               |
+| `nowDelay`             | How far behind the real time `now` is for every relative time, such as `30s` or `1m`, in seconds, minutes or hours.                                                                                                                               |
 | `cursorSync`           | How hovering one time chart shows on the others: `off`, `crosshair` or `tooltip`.                                                                                                                                   |
 | `variables`            | Up to 20 [variables](datasources-and-variables.md#variables).                                                                                                                                                       |
 | `links`                | Up to 20 links: a `title` with a `url` (and optionally `newTab`, `keepTime`, `includeVars`, `tooltip`), or `"type": "dashboards"` with `tags` to list the other dashboards that carry every tag (`asDropdown` shows one menu). |
@@ -137,8 +172,6 @@ Seconds, minutes and hours are exact durations.
 With `browser`, the web app sends the browser's zone to the server; without a zone, and with `utc`, times resolve in UTC.
 `nowDelay` moves `now` back before anything else, for both ends of the range.
 
-Relative times used to resolve in UTC whatever the `timezone` said, so a dashboard whose zone is not UTC now shows different ranges for `now/d`, `now/w`, `now/M`, `now/y` and day, week, month and year offsets than it did before.
-
 ## Panels and layout
 
 ### Ids and grid position
@@ -146,7 +179,7 @@ Relative times used to resolve in UTC whatever the `timezone` said, so a dashboa
 Every panel has an `id`, a `type` and a `gridPos`.
 An `id` starts with a letter, continues with letters, digits, `_` or `-`, is at most 64 characters, and is unique across the whole dashboard, row children included.
 
-`gridPos` places a panel on a grid 24 columns wide with `x`, `y`, `w` and `h`.
+`gridPos` places a panel on a grid 24 columns wide with `x` (0 to 23), `y` (0 to 10000), `w` (1 to 24) and `h` (1 to 100).
 `x + w` cannot exceed 24, and panels cannot overlap.
 
 ### Responsive layout
@@ -161,22 +194,28 @@ The panel menu's **Keep this size** sets it, and **Make responsive** removes it.
 
 ### Panel types
 
-A data panel also has a `title`, a `datasource` and `queries`.
+A data panel also has a `title` (up to 200 characters), a `datasource` and `queries`.
+A `table`, `logs`, `nodeGraph`, `traces`, `flamegraph`, `geomap` or `alertlist` panel always runs its queries as instant queries, whatever `instant` says.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.
 The other panel types are:
 
-- `text`, which holds Markdown in `content`, rendered sanitized.
+- `text`, which holds up to 20,000 characters of Markdown in `content` (required), rendered sanitized.
   - An image in the Markdown loads through the server, and only from an https address on an allowed domain (see [Outbound access](../operate/outbound-access.md#images-and-geojson)); otherwise the panel shows its alt text.
   - Its optional `mode` is `markdown` (the default), `html` (sanitized HTML) or `code` (the content shown as code, with `code.language` and `code.lineNumbers`).
+  - `code.language` is `plaintext`, `json`, `yaml`, `xml`, `sql`, `go`, `typescript`, `markdown` or `html`.
   - People and Grafana imports can write `html`; the agent and MCP clients cannot (see [Maps, canvases and actions](#maps-canvases-and-actions)).
   - In `markdown` and `html` modes HTML is cleaned before it is drawn: scripts, styles, forms, embedded frames, SVG and event handlers are removed, links keep only http, https and mailto addresses, and every image loads through the server.
   - Inline `style` attributes keep colours, fonts, spacing, borders, sizes and simple layout, and drop positioning, backgrounds with images, `var()` and anything that loads a resource.
   - Whatever the HTML draws stays inside its panel.
   - Variable values are inserted as text in all three modes, never as HTML.
-- `dashlist` and `news`, which list other dashboards and the items of an RSS or Atom feed.
-  They have no datasource and no queries.
+- `dashlist`, which lists other dashboards on this server.
+  Its `display` takes `query` (text to match, up to 200 characters), `tags` (up to 10), `limit` (1 to 100, 10 by default), and `keepTime` and `includeVars`, which carry the time range and the variable selections into each link.
+- `news`, which lists the latest items of one RSS or Atom feed.
+  Its `display.feedUrl` is an `https` address of up to 2000 characters, and the server fetches it only when its domain is on the outbound allowlist (see [Outbound access](../operate/outbound-access.md#news-feeds)).
+- `dashlist` and `news` have no datasource and no queries.
 - `row`, described below.
 - `placeholder`, which only the importer writes.
+  It carries the `reason` the panel could not be converted (up to 500 characters) and the Grafana `sourceType` (up to 100).
   The agent may move or delete one but never creates or edits one.
 
 ### Panel timezone, time overrides and step
@@ -185,8 +224,8 @@ A data panel can set its own `timezone` (`browser`, `utc` or an IANA zone), whic
 
 It can also set:
 
-- `timeFrom` and `timeShift`, which override the dashboard's time range (the panel header names the override, and `hideTimeOverride: true` hides that note without changing the queries).
-- `interval` (the same forms as a query's) and `maxDataPoints`, which shape the step of its queries.
+- `timeFrom` (such as `now-1h`) and `timeShift` (such as `1d`), which override the dashboard's time range (the panel header names the override, and `hideTimeOverride: true` hides that note without changing the queries).
+- `interval` (the same forms as a query's) and `maxDataPoints` (10 to 11000), which shape the step of its queries.
 - `description` (up to 2000 characters), `transparent: true` to draw it without a border or background, and `titleHidden: true` to keep the title as the panel's name for menus and screen readers without showing it.
 - `display`, a small set of options that depend on its type, such as the legend of a `timeseries` or the `header` of a `table`.
 
@@ -200,6 +239,7 @@ The legend of a `timeseries` or `trend` panel:
 - takes a width when it sits on the right (`legendWidth`).
 - hides all-zero or empty series (`legendHideZero`, `legendHideEmpty`).
 
+`legend` is `bottom` (the default), `right` or `hidden`, and `tooltip` is `single` (the default), `all` or `hidden`.
 When `legendMode` is absent the legend is a table if `legendValues` is not empty and a list otherwise.
 A panel with one series shows its legend only when `legendValues` is not empty, since the legend then carries the values.
 
@@ -214,11 +254,15 @@ A `timeseries`, `trend` or `candlestick` panel can hide its x axis with `xAxis: 
 
 A `candlestick` panel draws only its open, high, low, close and volume fields unless `includeAllFields` is `true`, which draws its other number fields as lines.
 `flatColor` paints a candle whose open equals its close, a color token or a hex color, and adds a Flat swatch to the Up and Down legend; without it a flat candle takes the up color.
+`mode` is `candles+volume` (the default), `candles` or `volume`, and `candleStyle` is `candles` (the default) or `ohlcbars`.
+`colorStrategy` decides which candles are up: `open-close` (the default) compares the close with the same candle's open, and `close-close` compares it with the previous candle's close.
+`upColor` (`ok` by default) and `downColor` (`critical` by default) are the candle colors.
+`open`, `high`, `low`, `close` and `volume` name the number field that holds each value; without a name the panel looks for a number field called that, in any case.
 A `candlestick` legend takes the same `legendValues`, `legendMode`, `legendSortBy`, `legendSortDesc` and `legendWidth` as a `timeseries` one; with legend values or table mode it lists every drawn series (open, high, low, close, volume and any extra) through the shared legend instead of the Up and Down swatches.
 
 ### Table display options
 
-A `table` panel's `display` also takes:
+A `table` panel's `display` takes `header` (shown by default) and `footer` (up to 5 reducers, each shown as a footer row over the number columns), and also:
 
 - `cellHeight` (`sm`, the default, `md` or `lg` row padding, or `auto`, which fits each row to its content).
 - `maxRowHeight` (20 to 1000 pixels, the tallest an `auto` row or a `dynamicHeight` cell grows).
@@ -231,7 +275,6 @@ A `table` panel's `display` also takes:
 - `footerCountRows` (a footer row with the number of rows).
 
 The footer and the row count cover the rows left after filtering.
-The agent prompt does not list these options.
 
 ### Heatmap display options
 
@@ -256,7 +299,6 @@ A heatmap panel whose data holds the output of the `heatmap` transformation (a f
 
 `exemplars` (on by default) draws the exemplars of queries with `exemplar: true` as diamonds in `exemplarColor` (the foreground color when absent), placed by time and value.
 `legend: "hidden"` removes the color legend under the chart.
-The agent prompt does not list these options.
 
 ### Traces display options
 
@@ -266,14 +308,13 @@ The spans that do not match are dimmed and a note counts the matches, and `match
 
 `criticalPathOnly: true` shows only the spans on the critical path, the chain that decides how long the trace takes: from the end of the trace it takes the span that finishes last, then the span that finished last before that one started, and descends into each the same way, so spans that ran at the same time as a later-finishing sibling are left out; a span that ends after its parent, or starts after the parent ended, still counts.
 When both options are on, only the spans that match and sit on the critical path stay.
-The agent prompt does not list these options.
 
 ### State timeline and status history display options
 
 A `state-timeline` or `status-history` panel sizes its bars with `rowHeight`, the share of each row the bar fills (0.1 to 1), and a `status-history` panel sizes its cells with `columnWidth`, the share of each cell's width (0.1 to 1).
 When either is absent the bar leaves a 2 pixel gap under it and a cell a 1 pixel inset on each side.
 
-`alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.
+`mergeValues` (on by default) joins consecutive samples with the same value into one segment, and `alignValue` (`left`, `center` or `right`) places a `state-timeline` segment's text.
 `perPage` (1 to 100) shows that many rows at a time, with previous and next buttons and a page indicator, and the row height follows the rows on the page.
 
 These two types take the same `legend`, `legendMode` and `legendWidth` as a time series, where the legend lists the states and clicking one hides its segments, and `tooltip` (`single`, `all` or `hidden`), `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
@@ -303,6 +344,9 @@ A `stat` panel has more optional `display` keys.
 - `percentChangeColor` colors only the arrow: `standard` (up is green, down is red), `inverted` (the reverse) or `value` (the color of the value).
 - `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
 - `percentSize` sets the font size of the percent change in pixels (1 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
+- `graph` (on by default) draws that sparkline in each tile, and `graph: false` leaves it out.
+- `textMode` is `value`, `name`, `valueAndName` or `none`; `name` shows the name as the tile's text, and when it is absent the name appears beside the value only when the panel has several tiles.
+- `orientation` lays the tiles out in one row (`horizontal`), one column (`vertical`) or to fit the panel (`auto`, the default).
 
 ### Pie chart display options
 
@@ -311,14 +355,15 @@ A `piechart` panel has more optional `display` keys.
 - `sliceLabels` is a list of `name`, `value` and `percent` written on the slices that are big enough, with `titleSize` for the name and `valueSize` for the rest (1 to 200 pixels, 12 by default).
 - Its legend takes `legend` (`bottom`, `right` or `hidden`), `legendMode` (`list` or `table`), `legendShow` (a list of `value` and `percent`, both by default), `legendSortBy` (`name` or `value`), `legendSortDesc` and `legendWidth`, and clicking an entry hides its slice.
 - Its tooltip takes `tooltip` (`single`, `all` or `hidden`), `tooltipSort` (`none`, `asc` or `desc`), `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight`.
+- `pieType` is `pie` (the default) or `donut`.
 - `sort` orders the slices by value: `desc` (largest first, the default), `asc` or `none` (the order of the data); the legend keeps the order of the data.
 
 ### Gauge and bar gauge display options
 
-A `gauge` panel's `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
+A `gauge` panel draws a marker at each threshold on its arc unless `thresholdMarkers` is `false`, and its `thresholdLabels: true` writes the value of each threshold, formatted with the field's unit, along the arc.
 A gauge narrower than 120 pixels leaves those labels out, and one narrower than 160 pixels shortens its value to at most six characters, first with fewer decimals and then, for a number without a unit, with a K, Mil or Bil scale; a mapped text, the no-value text and a value that would round to zero stay as they are.
 
-A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value).
+A `bargauge` panel draws its bars as `barStyle` `basic` (a filled track) or `lcd` (equal cells lit up to the value), horizontal or vertical by `orientation` (`auto` by default).
 Its `valueMode` is `color` or `text`, which both draw the value in the foreground color with the threshold icon and word beside it, or `hidden`, which leaves the value out and keeps the threshold icon and word.
 Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertical one), `top` (over both), `left` (in front of a horizontal bar) or `hidden`, and `showUnfilled: false` leaves out the unfilled part of the track.
 
@@ -329,6 +374,42 @@ Its `namePlacement` is `auto` (the name over a horizontal bar and under a vertic
 
 A `barchart` panel takes its categories from the first text field, else the time field, unless `xField` names one.
 When every frame holds one row, as an instant query returns, and `xField` is absent, each frame is one category, named by its text field or else by its series label (see [Queries and datasources](#queries-and-datasources)), and the bars of one number field form one series.
+
+More `display` keys shape the bars and the labels:
+
+- `orientation` is `auto` (the default), `horizontal` or `vertical`.
+- `barWidth` (0.97 by default) and `groupWidth` (0.7 by default) are the shares of the space a bar and a group of bars fill, above 0 and at most 1.
+- `barRadius` (0 to 0.5, 0 by default) rounds the bar ends as a share of the bar width, and `fullHighlight: true` highlights the whole category on hover.
+- `colorByField` names a number field whose thresholds and colors color each bar.
+- `xTickRotation` (-90 to 90 degrees, 0 by default), `xTickSpacing` (the least pixels between labels, 0 to 500, 0 for automatic) and `xTickMaxLength` (1 to 200 characters) shape the category labels.
+- `valueSize` (6 to 100 pixels, 12 by default) sizes the value text.
+- `legend`, `tooltip` and their options are the same as a time series, without the zero and empty legend options.
+
+### Histogram display options
+
+A `histogram` panel counts every number field into buckets.
+`bucketCount` (1 to 1000) or `bucketSize` (above 0) sets them, `bucketOffset` shifts them, and `combine: true` counts all fields together.
+`stack` is `none`, `normal` (the default) or `percent`.
+The legend and tooltip options are the same as a bar chart's, with `tooltip` `all` by default.
+
+### XY chart display options
+
+An `xychart` panel's `display` takes:
+
+- `show`: `points` (the default), `lines` or `points+lines`.
+- `xField`, the field on the x axis.
+- `pointSize` (1 to 40, 5 by default), and `pointSizeMin` and `pointSizeMax` (1 to 100, 4 and 30 by default), the sizes of the smallest and largest points when a size field is mapped.
+- `series`, up to 20 mappings that each pick a frame and its fields: `query` (a ref), `frame` (a frame name, or a pattern written between slashes), `x`, `y`, `size`, `color` and `name`.
+- `legend`, `tooltip` and their options, the same as a bar chart's.
+
+A `trend` panel takes `xField` as well.
+
+### Node graph and alert list display options
+
+A `nodeGraph` panel's `layout` is `layered` (the default), `grid` or `force`, and `wheelZoom: true` zooms it with the scroll wheel.
+
+An `alertlist` panel shows up to `limit` alerts (1 to 100, 20 by default) ordered by `sort` (`alphaAsc`, the default, `alphaDesc`, `importance`, `timeAsc` or `timeDesc`).
+Its `viewMode` is `list` (the default) or `stat`, which shows a count.
 
 ### Logs display options
 
@@ -351,13 +432,15 @@ These options are all optional.
 ### Geomap
 
 A `geomap` panel can load map tiles and draw several layers.
+Without `layers`, one marker layer is drawn from the panel's data with the flat options `location` (`auto`, the default, `coords` or `geohash`), `latField`, `lonField`, `geohashField`, `sizeField`, `colorField`, `markerSize` (1 to 100, 5 by default) and `markerSizeMax` (1 to 100, 15 by default).
 Its `display` takes:
 
 - `view`: `fit`, `world`, `coords` or a region (`north-america`, `south-america`, `europe`, `africa`, `west-asia`, `south-asia`, `south-east-asia`, `east-asia`, `australia` or `oceania`).
 - `basemap`: `outline` (the default), `carto`, `esri`, `osm`, `xyz` or `none`, with `basemapTheme`, `basemapLabels`, `esriServer`, `basemapUrl` for `xyz`, `basemapAttribution` and `basemapOpacity`.
   `basemapMinZoom` and `basemapMaxZoom` (whole levels from 0 to 18) are the zoom levels an `xyz` tile server serves: tiles are requested only at those levels, and outside them the nearest served level is scaled.
   `noRepeat: true` draws the basemap and tile layers once, instead of repeating the world sideways when it is narrower than the panel.
-- `minZoom`, `maxZoom` and `zoom`: `minZoom` cannot exceed `maxZoom`, and when all three are set `zoom` lies between them.
+- `lat` (-85 to 85), `lon` (-180 to 180) and `zoom` (1 to 18), the centre and zoom of the `coords` view.
+- `minZoom`, `maxZoom` and `zoom`: `minZoom` and `maxZoom` are 0 to 18, `minZoom` cannot exceed `maxZoom`, and when all three are set `zoom` lies between them.
 - Fit and controls: `fitLayer`, `fitLastOnly`, `fitPadding`, `sharedView`, `showZoom`, `mouseWheelZoom`, `showAttribution`, `showScale`, `showMeasure`, `showDebug` and `tooltip` (`details` or `none`).
 
 ### Geomap layers
@@ -371,7 +454,14 @@ Its `display` takes:
 - `location` `wkt` reads the position from the field named by `wktField` (else a field called `wkt` or `geometry`): only `POINT (lon lat)` text places a marker, with an optional `SRID=...;` prefix and in any case, and rows holding lines, polygons or anything else count as having no location.
 - `showLegend: true` lists the layer in the map legend at the bottom right: its name, then one swatch for a fixed color, one entry per threshold step (the lower bound in the field's unit, the base step as Base) when the color field has thresholds, else the smallest and largest color values; absent means no legend.
 - A heatmap layer without `weightField` gives every point the `weight` (0 to 1, 1 when absent); with `weightField` the values are scaled by the largest value and then into `weightMin` to `weightMax` (0 to 100, 0 and 1 when absent), and a weight above 1 draws as 1.
-- A network layer draws its edges in `edgeColor` when set, else in the node `color`.
+- A network layer draws its edges in `edgeColor` when set, else in the node `color`, with `arrow` (`none`, `forward`, `reverse` or `both`) and `lineWidth` (1 to 20).
+- A heatmap layer's `radius` (1 to 100) and `blur` (0 to 100) are 15 when absent.
+- A geojson layer reads `source` (`countries` or `usa-states`) or an https `url`, and styles what it draws by `rules`: up to 20 of a feature `property`, an `operation` (`eq`, `neq`, `lt`, `lte`, `gt` or `gte`), a `value` and a `color` or `opacity`, where the first rule that matches a feature applies.
+- `lookup` reads the position from `lookupField` through a `gazetteer` (`countries`, `usa-states` or `airports`).
+- A markers layer takes a fixed `color` and a `symbol` (`circle`, `square`, `triangle`, `star`, `cross` or `x`), and every layer takes a `name` (up to 100 characters) and `tooltip`.
+- A tile layer (`carto`, `esri`, `osm` or `xyz`) takes `theme` (`auto`, `light` or `dark`), `labels`, an Esri `server` (`streets`, `world-imagery`, `world-physical`, `topo`, `usa-topo` or `ocean`), a `url` for `xyz` and an `attribution` of up to 200 characters.
+- A day and night layer draws the sun when `showSun` is `true`, and the night in `nightColor`.
+- A photos layer reads each photo from `imageField`, in a `shape` of `square` (the default) or `circle`, with a `border` of 0 to 20 pixels.
 - A day and night layer shows the night at the end of the dashboard time range, or at its start with `nightAt` `from` (`to` when absent).
 - A photos layer shows each whole photo inside its frame, or fills the frame and cuts the photo to it with `crop: true`, and `shadow: true` adds a drop shadow.
 - When `layers` is set, the list is the whole layer set, so the flat marker options (`location`, `latField`, `lonField`, `geohashField`, `sizeField`, `colorField`, `markerSize`, `markerSizeMax`) are refused with `geomap_layers_conflict`.
@@ -381,13 +471,26 @@ Its `display` takes:
 A `canvas` panel takes a background (`backgroundColor`, `backgroundImage`, `backgroundSize`), a border (`borderColor`, `borderWidth`, `borderRadius`), `panZoom`, `infinitePan` and `tooltip`.
 An image is `{ "url": "https://..." }` or `{ "field": "<field>" }`.
 
-A canvas element can have the kinds `icon`, `button`, `server`, `triangle`, `cloud`, `parallelogram`, `windTurbine`, `droneTop`, `droneFront` and `droneSide` next to `metric`, `text`, `rectangle` and `ellipse`, and options such as `placement`, `rotation`, `valign`, `image`, `links` and `actions`.
-`placement` wins over `left`, `top`, `width` and `height` when present: numbers are pixels of the panel body, or percent on an axis whose mode is `scale`.
+A canvas panel holds up to 50 `elements` and up to 100 `connections`.
+Each element has an `id`, a `kind` and a position in `left`, `top`, `width` and `height`, which are percentages of the panel body from 0 to 100 (`width` and `height` above 0).
+The kinds are `metric`, `text`, `rectangle`, `ellipse`, `icon`, `button`, `server`, `triangle`, `cloud`, `parallelogram`, `windTurbine`, `droneTop`, `droneFront` and `droneSide`.
+
+An element can also set:
+
+- `placement`, with a `horizontal` of `left`, `right`, `leftright`, `center` or `scale`, a `vertical` of `top`, `bottom`, `topbottom`, `center` or `scale`, and the numbers `left`, `right`, `top`, `bottom`, `width` and `height` they use.
+  It wins over the percentages when present: the numbers are pixels of the panel body, or percent on an axis whose mode is `scale`.
+- `field`, the field of the panel's data it is bound to.
+- `fill`, `stroke`, `textColor`, `iconColor` and `accentColor`, each a color, or `field` to take the bound field's threshold or mapping color.
+- `borderWidth` (0 to 20 pixels), `radius` (0 to 100, 0 by default), `fontSize` (8 to 72, 14 by default), `align` (`left`, `center`, the default, or `right`), `valign` (`top`, `middle`, the default, or `bottom`) and `rotation` (-360 to 360 degrees).
+- `backgroundImage`, `backgroundSize` (`original`, `contain`, `cover`, `fill` or `tile`) and `image`, which are images as above.
+- `icon`, the name of an icon (lowercase letters, digits and `-`, up to 64 characters), `server` (`single`, `stack`, `database` or `terminal`) and `buttonStyle` (`primary`, `secondary`, `success` or `destructive`).
+- `rateField`, which gives a `windTurbine` its rate, and `yawField`, `rollField` and `pitchField`, which give a `droneTop`, `droneFront` and `droneSide` its angle.
+- `links` and `actions`, up to 10 each, and `oneClick`.
 
 An icon's `stroke` and `strokeWidth` (a whole number of pixels from 0 to 20, 0 by default) draw its outline; no outline is drawn while the width is 0.
 `textTemplate` is a text of 1 to 200 characters whose `${...}` data references, such as `${__data.fields.cpu}` and `${__value.text}`, are replaced with the element's field values, and a reference to a missing field becomes an empty string; it is never combined with `text`.
 
-A connection can set `path`, `vertices`, `lineStyle`, `arrow`, `widthField`, `minWidth` and `maxWidth`.
+A connection joins two elements by their ids in `from` and `to`, and can set `color`, `field`, `width` (1 to 10, 2 by default), `path` (`straight`, the default, or `curved`), `vertices` (up to 20 points of `x` and `y`, 0 to 100), `lineStyle` (`solid`, `dashed` or `dotted`), `arrow` (`none`, `forward`, `reverse` or `both`), and `widthField` with `minWidth` and `maxWidth` (1 to 10).
 
 ### Actions
 
@@ -412,12 +515,14 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
 - A person with Edit on the dashboard runs an action, and the server sends it on their behalf to an allowed domain; see [Actions](../operate/outbound-access.md#actions).
   An action is sent as the latest saved version describes it, and it carries no credentials.
 - `variables` lists up to 10 values the person types when running the action, each a `key` (letters, digits and underscores, starting with a letter, unique within the action) and a `name` for the form; `${key}` refers to the typed value in the `url`, `body` and header and query values, and shadows a dashboard variable of the same name.
+- `method` is `GET`, `POST` (the default), `PUT`, `PATCH` or `DELETE`, and `contentType` is `application/json` (the default), `text/plain` or `application/x-www-form-urlencoded`.
+- `title` is up to 100 characters, `body` up to 10,000, `headers` up to 10 pairs and `query` up to 20, each with a `name` of up to 64 characters and a `value` of up to 1000, and `confirm` (up to 500 characters) is the question asked before it runs.
 - `color` is the color of the action's button.
 - `oneClick` (fields only; a canvas element keeps its own `oneClick`, and one set on a canvas element's action is refused with `invalid_reference`) makes a click on the cell, tile, gauge or bar run the action when it is the field's only link or action.
 
 ### Field actions
 
-Field props take `actions` too, on any panel and on any override, with the same fields, and a stat tile, gauge, bar gauge or table cell offers them (the table cell type `actions` shows them as buttons).
+Field props take `actions` too (1 to 10), on any panel and on any override, with the same fields, and a stat tile, gauge, bar gauge or table cell offers them (the table cell type `actions` shows them as buttons).
 
 ### What the agent and MCP clients cannot write
 
@@ -430,10 +535,10 @@ They may still move or delete such a panel or element.
 ### Query fields
 
 A data panel has 1 to 26 `queries`.
-A query has the text in `query` and, optionally:
+A query has the text in `query` (1 to 20,000 characters) and, optionally:
 
 - `ref`, its name for overrides, which defaults to `A`, `B`, `C` by position.
-- `legend`, a template such as `{{pod}}`.
+- `legend`, a template such as `{{pod}}`, up to 200 characters.
 - `datasource`, to run this query on a datasource other than the panel's.
 - `instant`, to ask for one value per series instead of a range.
 - `format`, one of `timeseries`, `table`, `heatmap` or `logs`.
@@ -540,6 +645,7 @@ A name that is not known is left as written.
 ### Data links
 
 A link with `oneClick: true` is a data link on stat, gauge, bar gauge and table panels: when it is the only data link, the whole tile, bar, gauge or cell is the link.
+A field has up to 20 `links`, each a `title`, a `url` of up to 2000 characters, `newTab` and `oneClick`.
 A link `url` is a relative address or starts with `http:`, `https:` or `mailto:`; any other scheme, `javascript:` and `data:` included, is refused with `unsafe_link` at `/links/N/url` (dashboard links) or at the `url` of the panel, override or canvas element link.
 A `url` that starts with a variable is checked when it is drawn, and a link whose address is unsafe then is not shown.
 A link `url` may use `${__url_time_range}`, which becomes `from=...&to=...` for the time range of the page, and `${__all_variables}`, which becomes `var-<name>=<value>` for every dashboard variable's selection (an All selection is written as `$__all`), next to `${name:queryparam}` for one variable.
@@ -548,6 +654,7 @@ On those panels a field's actions show in the same menu after its links (a bar g
 
 ### Lines and points
 
+- `style` is `line` (the default), `bars` or `points`.
 - `lineInterpolation` is `linear`, `smooth`, `stepBefore` or `stepAfter`, and stacked series always draw linear.
 - `lineStyle` is `solid` (the default), `dashed`, `dotted` (round dots) or `square` (square dots as long as the line is wide), and `lineDash` is a dash length and a gap length in pixels, 1 to 100 each, that replaces the pattern of a dashed line.
 - `lineColor`, `fillColor` and `pointColor` fix the color of the line, the area fill (still drawn at the `fill` opacity) and the points, and each falls back to the series color; the legend and tooltip keep the series color.
@@ -606,7 +713,7 @@ Its `type` is:
 
 `valueMode` (`color`, `text`, the default, or `hidden`) sets how a gauge or sparkline cell shows its value, and `wrap` lets the cell's text wrap onto several lines.
 A column's field actions also show in the menu beside its cell's value, and a one-click action runs from the whole cell.
-Other panel types ignore `cell`, and the agent prompt does not list it.
+Other panel types ignore `cell`.
 
 A `table` column also takes:
 
@@ -618,8 +725,6 @@ A `table` column also takes:
 - `wrapHeader` (the header text wraps onto several lines).
 - `fieldDescription` (a tooltip on the column header; it is named apart from the panel's `description` because field props sit beside it on the panel).
 - `tooltipField` with `tooltipPlacement` (`auto`, the default, `top`, `bottom`, `left` or `right`), which show the value of another field in the same row as a tooltip on this column's cells.
-
-The agent prompt does not list these options.
 
 A column with `width` has exactly that width, the other columns share what is left and never get narrower than their `minWidth`, and the table scrolls sideways when they do not fit; with none of them set the browser sizes the columns from their content.
 
@@ -638,17 +743,36 @@ A column with `width` has exactly that width, the other columns share what is le
 `colorBy` is the value of a series that picks its color under `thresholds` and `scheme`: `last` (the default), `min` or `max`.
 Time series and trend panels draw every `colorMode`, while stat, gauge, bar gauge, table cells with colored values, bar chart and XY chart draw `scheme`; stat, gauge, bar gauge, table, bar chart, pie chart and XY chart already color values by their thresholds.
 
+### Value mappings
+
+`mappings` change how a value is shown: a field has up to 50, each with a `text` of up to 200 characters, a `color`, or both.
+Each mapping matches in one of four ways:
+
+- `value`, a text of 1 to 200 characters that equals the value, or the number it spells.
+- `range`, a pair `[from, to]` of numbers, either of them `null` for no limit, with both ends included.
+- `regex`, a pattern of up to 500 characters.
+- `special`, one of `null`, `nan`, `empty`, `true` or `false`.
+
+The first mapping that matches wins.
+A missing, `NaN` or empty value is matched only by a `special` mapping, and shows `noValue` (up to 100 characters) or a dash when none does.
+
 ### Thresholds and color names
 
-Thresholds ascend, and the first step may leave out `value` to act as the base color.
+A field has 1 to 10 thresholds, strictly ascending by `value`, and the first step may leave out `value` to act as the base color.
+`thresholdMode` is `absolute` (the default), where each `value` is in the field's unit, or `percentage`, where it is a percent of the range from the field's `min` to its `max`.
 A color is `ok`, `info`, `warning`, `critical`, `text` (the theme's text color, which follows the light and dark themes) or a `#rrggbb` hex value.
 Beside a stat, gauge or bar gauge value, a step colored `ok`, `info`, `warning` or `critical` is named by that word, and a step with any other color by its value in the field's unit, such as `80%`.
 
 ### Units
 
-A unit is any Grafana unit id such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom `suffix:`, `prefix:`, `time:`, `si:`, `count:` or `currency:` text.
+A unit is one of the Grafana unit ids the schema lists, such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom text: `suffix:` or `prefix:` with 1 to 20 characters after it, or `time:`, `si:`, `count:` or `currency:` with 1 to 40.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
-The agent prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them.
+
+### Reducers
+
+A reducer turns a field into one value, for a stat, gauge, bar gauge, pie chart or canvas `reduce`, a legend value, a table footer and a `reduce` or `groupBy` transform.
+The names are `last`, `lastNotNull`, `first`, `firstNotNull`, `min`, `max`, `mean`, `median`, `sum`, `count`, `range`, `delta`, `diff`, `stdDev`, `distinctCount` and `changeCount`, and also `variance`, `step`, `diffperc`, `logmin`, `countAll` and the percentiles `p1` to `p99`.
+Legend values and the `reduce` and `groupBy` transforms take `allIsNull`, `allIsZero`, `allValues` and `uniqueValues` as well, and an override's `value` match takes `allIsNull` and `allIsZero`.
 
 ### Overrides
 
@@ -664,17 +788,25 @@ A panel has at most 50 overrides.
 
 `transform` is an ordered list of up to 20 steps that reshape the result in the browser after the query runs.
 The steps are `merge`, `seriesToRows`, `organize`, `reduce`, `joinByField`, `filterFieldsByName`, `calculateField`, `sortBy` and `limit`.
-The `reducers` of a `reduce` step may be any reducer: a number reducer gives a number field, `allIsNull` and `allIsZero` a true or false field, and `allValues` and `uniqueValues` a text field.
+
+- `merge` and `seriesToRows` take only `queries`, which every step takes (see [Using transforms](#using-transforms)).
+- `organize` takes `exclude`, `rename` (a map from the old name to the new one) and `order`, up to 100 each.
+- `reduce` takes `reducers` (1 to 10) and a `mode` of `seriesToRows` (the default, one row per series) or `reduceFields` (each number field reduced where it is).
+  A number reducer gives a number field, `allIsNull` and `allIsZero` a true or false field, and `allValues` and `uniqueValues` a text field.
+- `joinByField` takes the `field` to join on and a `mode` of `outer` or `inner`.
+- `filterFieldsByName` takes `include`, `includeRegex`, `exclude` and `excludeRegex`.
+- `calculateField` takes an `alias` for the new field and an `expr` such as `Value #A * 2`, or `reduceRow` to reduce each row.
+- `sortBy` takes a `field` and `desc`, and `limit` takes a `count` from 1 to 100000.
 
 ### Field and row transform steps
 
 Seven more steps reshape single fields and filter rows:
 
 - `convertFieldType` (`conversions` of `field` and `to`: `number`, `string`, `time`, `boolean`, `enum` or `other`, with `dateFormat` and `joinWith`).
-- `formatString` (`field`, `format` and, for `substring`, `start` and `end`).
+- `formatString` (`field`, a `format` of `upper`, `lower`, `title`, `trim`, `substring`, `sentence`, `pascal`, `camel`, `snake` or `kebab` and, for `substring`, `start` and `end` from 0 to 10000).
 - `formatTime` (`field`, a date `format` made of `YYYY YY MM M DD D HH H hh h mm ss SSS A a`, and `utc`).
 - `renameByRegex` (`regex` and `renameTo`, where `$1` is a captured group).
-- `filterByValue` (`keep` and `match`, and `filters` of `field`, `op` and `value`, or `from` and `to` for `range`).
+- `filterByValue` (`keep` of `include` or `exclude`, `match` of `any` or `all`, and up to 20 `filters` of `field`, `op` (`gt`, `gte`, `lt`, `lte`, `eq`, `neq`, `null`, `notNull`, `regex` or `range`) and `value`, or `from` and `to` for `range`).
 - `filterByRefId` (`include` lists the query refs to keep).
 - `extractFields` (`field`, `format` of `auto`, `json`, `kvp`, `delimiter` or `regexp`, `paths`, `delimiter`, `regex`, `replace` and `keepTime`).
 
