@@ -68,7 +68,7 @@ Jaeger has no query variables; use a custom or text box variable for trace ids o
 
 The agent lists the values of `service`, and of `operation` for one service when the metric is `service=checkout`; tags are free-form and cannot be listed.
 `get_schema` lists every service with its span names, for at most 30 services and 50 span names each, and marks the list as cut when it is longer.
-The services list reads Jaeger's list of services.
+The services list reads Jaeger's list of services, which holds every service Jaeger retains, so the window of `list_services` and `observe datasources services` does not narrow it.
 The query editor's lint checks that each pair has a key and a value, that a duration parses and that no key repeats.
 
 ## Not covered

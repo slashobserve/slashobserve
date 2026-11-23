@@ -652,9 +652,9 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 ```
 
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
-`field` is the one the server reads as the service: on Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, on Tempo the `resource.service.name` attribute, on ClickHouse the `ServiceName` column, and on Elasticsearch and OpenSearch the service field of the datasource, empty when its mapping has none.
+`field` is the one the server reads as the service: on Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, on Tempo the `resource.service.name` attribute, on Jaeger its list of services, on ClickHouse the `ServiceName` column, and on Elasticsearch and OpenSearch the service field of the datasource, empty when its mapping has none.
 `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
-`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
+`window` is a duration such as `15m`, one minute to six hours, and defaults to one hour; Jaeger ignores it and lists every service it retains.
 The server asks the source once, over that window only, and waits at most 5 seconds for it, and keeps the answer for about a minute, so reloading the page does not ask the source again; a source that does not answer in time gives `504` `query_timeout` or `502` `datasource_unavailable` and the failure is not kept, `429` `too_many_requests` means the server's shared upstream slots were busy, and a datasource that does not hold the signal gives `422` `query_invalid`.
 It lists at most 200 services and sets `truncated` when more exist.
 Every signed-in role from Viewer can read it, because any Viewer can already query any datasource.

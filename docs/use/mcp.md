@@ -198,7 +198,7 @@ It returns at least one panel, and a panel too large to return is listed in `too
 
 `list_services` lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
 With `datasource` it reads that one source; without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
-`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now, and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
+`signal` (`logs` or `traces`) picks one signal, `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now (Jaeger ignores it and lists every service it retains), and `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
 Each source answers its `field`, the label, column or attribute that holds the service, so a query can filter on it, and a source that does not answer in time says why under `unavailable` while the others still answer.
 Answers are cached for about a minute and a source lists at most 200 services, with `truncated` set when there were more.
 
