@@ -130,6 +130,11 @@ parse_options() {
   done
 }
 
+remove_search_stores() {
+  local SEARCH=1
+  compose rm --stop --force elasticsearch opensearch
+}
+
 cmd_up() {
   parse_options "$@"
   check_tools
@@ -138,6 +143,7 @@ cmd_up() {
   export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
   compose build server
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
+  if [[ "$SEARCH" == 0 ]]; then remove_search_stores; fi
   cat <<EOF
 The Astronomy Shop is running at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}
 Its Jaeger UI is at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/jaeger/ui and its feature flags at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/feature/
