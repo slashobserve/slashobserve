@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 )
 
 func TestCheckAsOf(t *testing.T) {
@@ -48,5 +51,25 @@ func TestTheRunClockIsAsOfWhenSet(t *testing.T) {
 	}
 	if col := asOfColumn(t.Context()); col.Valid {
 		t.Fatalf("a live run stores as_of %+v", col)
+	}
+}
+
+func TestOnlyAnAdminKeepsAnAsOfRunsClock(t *testing.T) {
+	admin := auth.Principal{Kind: auth.KindUser, Role: auth.RoleAdmin}
+	editor := auth.Principal{Kind: auth.KindUser, Role: auth.RoleEditor}
+	past := dbsqlc.AgentRequest{AsOf: pgtype.Timestamptz{Time: time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC), Valid: true}}
+	for _, tc := range []struct {
+		name string
+		row  dbsqlc.AgentRequest
+		by   auth.Principal
+		err  error
+	}{
+		{"an admin keeps it", past, admin, nil},
+		{"an editor may not", past, editor, ErrForbidden},
+		{"a live run needs no admin", dbsqlc.AgentRequest{}, editor, nil},
+	} {
+		if err := keepAsOf(tc.row, tc.by); !errors.Is(err, tc.err) {
+			t.Errorf("%s: keepAsOf = %v, want %v", tc.name, err, tc.err)
+		}
 	}
 }

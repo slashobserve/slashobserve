@@ -82,7 +82,7 @@ func (a *app) investigateCommand() *cobra.Command {
 	flags.StringVar(&a.investigating.block, "block", "", "a block of --observation the question is about, from observe o show; with --at, the block --at points into")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")
-	flags.StringVar(&a.investigating.asOf, "as-of", "", "Admin only: the time to investigate as of, as epoch milliseconds or an RFC 3339 time in the past; now-1h then means the hour before it")
+	flags.StringVar(&a.investigating.asOf, "as-of", "", "Admin only: the time to investigate as of, as epoch milliseconds or an RFC 3339 time in the past; now-1h then means the hour before it, and --to must not be later")
 	flags.BoolVar(&a.investigating.private, "private", false, "answer privately about --dashboard or --observation, writing nothing shared until you share the answer")
 	flags.BoolVar(&a.investigating.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.investigating.timeout, "timeout", defaultTimeout, "stop waiting after this long; the investigation keeps running on the server")

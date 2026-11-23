@@ -242,6 +242,9 @@ func pointOf(req StartRequest) (Point, error) {
 }
 
 func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
+	if req.AsOf != nil {
+		return dbsqlc.AgentRequest{}, refused("as_of needs an investigation or an ask about a dashboard or an observation, not a dashboard build or revision")
+	}
 	if message := buildShapeConflict(req); message != "" {
 		return dbsqlc.AgentRequest{}, refused("%s", message)
 	}
@@ -348,7 +351,8 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 	if params.ObservationID, err = uuidField("observation_id", req.ObservationID); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if params.From, params.To, err = investigateWindow(req.From, req.To, clockOf(ctx)); err != nil {
+	_, pinned := asOfOf(ctx)
+	if params.From, params.To, err = investigateWindow(req.From, req.To, clockOf(ctx), pinned); err != nil {
 		return dbsqlc.AgentRequest{}, refused("%s", err.Error())
 	}
 	if !s.Available() {

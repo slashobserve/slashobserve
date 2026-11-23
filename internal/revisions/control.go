@@ -255,6 +255,9 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err := s.checkRun(ctx, targetOf(row), by); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	if err := keepAsOf(row, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
 	ctx = WithAsOf(ctx, row.AsOf.Time)
 	var next dbsqlc.AgentRequest
@@ -372,6 +375,9 @@ func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, bui
 }
 
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
+	if err := keepAsOf(row, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	threadMessage, threadContext := threadOf(row)
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
 	ctx = WithAsOf(ctx, row.AsOf.Time)

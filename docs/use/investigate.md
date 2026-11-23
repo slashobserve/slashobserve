@@ -108,8 +108,10 @@ The other failures read as they do for a build; see [Read a turn](chat.md#read-a
 An Admin can run an investigation as of a past time, to replay an incident that is over or to check a finding against what was known then.
 `observe investigate --as-of <time>` or `as_of` on `POST /api/v1/observe` sets the run's now, as an RFC 3339 time such as `2026-11-20T10:30:00Z` or epoch milliseconds.
 Every relative time in the run resolves to it: `--from now-1h --to now` is the hour before that time, and so is every `now` in a query the agent runs.
-The agent is told the time, the request and its finding carry it as `as_of`, and a retry or continue keeps it.
-A relative time or a time in the future answers `400` `invalid_request`, and anyone below Admin gets `403` `forbidden_role`.
+The agent is told the time, the request and its finding carry it as `as_of`, and a retry or continue keeps it for an Admin, so an Editor who retries the run gets `403` `forbidden_role`.
+Each turn of a chat passes `as_of` again; a later turn without it runs on the live clock.
+A relative time, a time in the future, a `--to` later than it, or a run that builds or revises a dashboard answers `400` `invalid_request`, and anyone below Admin gets `403` `forbidden_role`.
+`as_of` is for an investigation and for an ask about a dashboard or an observation.
 
 ## Who can investigate
 
