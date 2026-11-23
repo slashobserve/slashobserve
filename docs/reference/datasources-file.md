@@ -57,7 +57,7 @@ datasources:
       index: logs-*
 ```
 
-`deploy/compose/datasources.yaml` is the minimal exemplar used by the demo.
+`deploy/astronomy/datasources.yaml` is the exemplar used by the [demo](../operate/demo.md).
 
 ## Who can query a datasource
 

@@ -52,11 +52,6 @@ jobs:
             context: .
             title: SlashObserve
             description: Agentic Grafana replacement - describe a dashboard in plain language and get a live one.
-          - name: demo-shop
-            repository: ghcr.io/slashobserve/demo-shop
-            context: demo
-            title: SlashObserve demo shop
-            description: Demo shop that emits the metrics, logs and traces of the SlashObserve demo stack.
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -143,8 +138,6 @@ jobs:
         image:
           - name: slashobserve
             repository: ghcr.io/slashobserve/slashobserve
-          - name: demo-shop
-            repository: ghcr.io/slashobserve/demo-shop
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -76,11 +76,11 @@ all="$("$here/ci-changes.sh" all | tr '\n' ' ')"
 
 declared="$("$here/ci-changes.sh" go-reads | LC_ALL=C sort)"
 literal_paths() {
-  grep -rhoE '"(\.\./)+(web|observe-agent)/[^"]+"' --include='*.go' internal pkg cmd demo loadtest | tr -d '"'
+  grep -rhoE '"(\.\./)+(web|observe-agent)/[^"]+"' --include='*.go' internal pkg cmd loadtest | tr -d '"'
 }
 
 joined_paths() {
-  grep -rhoE 'filepath\.Join\("\.\."(, "[^"]+")*, "(web|observe-agent)"(, "[^"]+")+\)' --include='*.go' internal pkg cmd demo loadtest |
+  grep -rhoE 'filepath\.Join\("\.\."(, "[^"]+")*, "(web|observe-agent)"(, "[^"]+")+\)' --include='*.go' internal pkg cmd loadtest |
     sed -E 's/^filepath\.Join\(//; s/\)$//; s/", "/\//g' | tr -d '"'
 }
 

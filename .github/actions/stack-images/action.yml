@@ -1,16 +1,12 @@
 name: Build the stack images
-description: Build the server and demo shop images a compose stack job runs, from binaries compiled on the runner so the Go and Bun caches apply.
+description: Build the server image a compose stack job runs, from binaries compiled on the runner so the Go and Bun caches apply.
 
 inputs:
   server-tag:
     description: Tag of the server image.
     required: true
-  shop-tag:
-    description: Tag of the demo shop image; leave it empty for a stack that needs no demo shop image.
-    required: false
-    default: ""
   warm:
-    description: Command that starts the services which need no server image; it runs in the background as soon as the shop image, if any, exists.
+    description: Command that starts the services which need no server image; it runs in the background right away.
     required: false
     default: ""
 
@@ -22,40 +18,12 @@ runs:
       with:
         cache-name: build
 
-    - name: Restore the demo shop image
-      id: shop
-      if: inputs.shop-tag != ''
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ runner.temp }}/shop-image.tar
-        key: shop-image-${{ runner.os }}-${{ hashFiles('demo/**') }}
-
-    - name: Load the demo shop image
-      if: inputs.shop-tag != '' && steps.shop.outputs.cache-hit == 'true'
-      shell: bash
-      run: docker load -i "$RUNNER_TEMP/shop-image.tar"
-
-    - name: Build the demo shop image
-      if: inputs.shop-tag != '' && steps.shop.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        docker build -t slashobserve-demo-shop:cached demo
-        docker save -o "$RUNNER_TEMP/shop-image.tar" slashobserve-demo-shop:cached
-
-    - name: Tag the demo shop image
-      if: inputs.shop-tag != ''
-      shell: bash
-      env:
-        SHOP_TAG: ${{ inputs.shop-tag }}
-      run: docker tag slashobserve-demo-shop:cached "$SHOP_TAG"
-
     - name: Start the services that need no server image
       if: inputs.warm != ''
       shell: bash
       env:
         WARM: ${{ inputs.warm }}
         SLASHOBSERVE_IMAGE: ${{ inputs.server-tag }}
-        SLASHOBSERVE_SHOP_IMAGE: ${{ inputs.shop-tag }}
       run: setsid nohup bash -c "$WARM" > "$RUNNER_TEMP/warm.log" 2>&1 < /dev/null &
 
     - name: Set up Bun

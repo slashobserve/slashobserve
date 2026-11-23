@@ -30,7 +30,7 @@ matches_any() {
 is_prose() {
   matches_any "$1" 'docs/*' && return 0
   [[ "$1" == *.md ]] || return 1
-  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'observe-agent/*' 'e2e/*' 'spec/*' 'demo/*'
+  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'observe-agent/*' 'e2e/*' 'spec/*'
 }
 
 is_unit_test() {
@@ -80,7 +80,7 @@ while IFS= read -r path; do
     go=true
   fi
 
-  if ! { matches_any "$path" '*.go' go.mod go.sum 'demo/go.*' 'tools/*' || is_prose "$path"; }; then
+  if ! { matches_any "$path" '*.go' go.mod go.sum 'tools/*' || is_prose "$path"; }; then
     web=true
   fi
 
@@ -93,7 +93,7 @@ while IFS= read -r path; do
     image=true
   fi
 
-  if matches_any "$path" go.mod go.sum 'demo/go.*' 'tools/*' web/package.json web/bun.lock \
+  if matches_any "$path" go.mod go.sum 'tools/*' web/package.json web/bun.lock \
     observe-agent/package.json observe-agent/bun.lock; then
     audit=true
   fi

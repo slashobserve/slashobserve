@@ -116,7 +116,7 @@ While you have unsaved layout moves, the items that would change the dashboard s
 
 The chat page at `/ask` lists your dashboards below the chat composer and its example prompts, or above the model note when no model is connected.
 It shows Recently viewed: the last five dashboards you opened in this browser.
-When you have none, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its three provisioned dashboards.
+When you have none, it lists the first eight dashboards you can see, folder by folder, so a fresh demo shows its provisioned dashboard.
 The search box below them finds dashboards by title or description, and `tag:` words narrow it to tags: `tag:prod latency` finds dashboards tagged `prod` that mention `latency`.
 Arrow keys move through the results and Enter opens one.
 

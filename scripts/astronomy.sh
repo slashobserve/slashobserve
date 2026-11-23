@@ -26,15 +26,17 @@ KEY_FILE="$STATE_DIR/keys/astronomy.key"
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
 FLAGS_FILE_MODE=644
 SEARCH_CONFIG_ARG="--config=/etc/otelcol-config-search.yml"
+PUBLISHED=0
 
 usage() {
   cat <<EOF
 Usage: scripts/astronomy.sh <command>
 
-  up [--search]       fetch the pinned upstream release if needed, build the server image from
-                      this checkout, then start the shop and the SlashObserve stack and wait
-                      until everything is healthy; --search adds Elasticsearch and OpenSearch
-                      and feeds them the shop's logs
+  up [--search] [--published]
+                      fetch the pinned upstream release if needed, build the server image from
+                      this checkout (or pull the published one with --published), then start the
+                      shop and the SlashObserve stack and wait until everything is healthy;
+                      --search adds Elasticsearch and OpenSearch and feeds them the shop's logs
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
   check [--search]    check the health of every datasource through the SlashObserve API and
@@ -42,6 +44,7 @@ Usage: scripts/astronomy.sh <command>
   flag [<name> [<variant>]]
                       without a name, list the feature flags and their variants;
                       with one, set it to <variant> (default 'on'); 'off' switches it off
+  flag-reset          set every flag back to the variant of the pinned upstream release
   key                 print the path of the file that holds the service-account key
   prepare             fetch the pinned upstream release and create the state directory, which
                       'compose' needs before its first call
@@ -54,7 +57,10 @@ Environment:
   SLASHOBSERVE_HOST_PORT      host port of the server (default 58080)
   SLASHOBSERVE_DEX_HOST_PORT  host port of Dex (default 55556)
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
-  SLASHOBSERVE_IMAGE          the tag the server image is built as (default slashobserve-astronomy-server:local)
+  SLASHOBSERVE_IMAGE          the server image: the tag a build gets (default
+                              slashobserve-astronomy-server:local), or the image --published runs,
+                              never pulled when you set it, so it can be a local build
+                              (default ghcr.io/slashobserve/slashobserve:latest)
 
 Model provider: put SLASHOBSERVE_LLM_PROVIDER, SLASHOBSERVE_LLM_MODEL and
 SLASHOBSERVE_LLM_API_KEY in deploy/astronomy/.env (git-ignored), then run 'up' again.
@@ -119,7 +125,8 @@ prepare_state() {
 }
 
 compose() {
-  local files=(-f "$UPSTREAM_DIR/compose.yaml" -f "$UPSTREAM_DIR/compose.full.yaml" -f "$ASTRONOMY_DIR/compose.yaml" -f "$ASTRONOMY_DIR/compose.build.yaml")
+  local files=(-f "$UPSTREAM_DIR/compose.yaml" -f "$UPSTREAM_DIR/compose.full.yaml" -f "$ASTRONOMY_DIR/compose.yaml")
+  if [[ "$PUBLISHED" != 1 ]]; then files+=(-f "$ASTRONOMY_DIR/compose.build.yaml"); fi
   local envs=(--env-file "$UPSTREAM_DIR/.env" --env-file "$ASTRONOMY_DIR/astronomy.env")
   local profiles=() extra extras=()
   if [[ "$SEARCH" == 1 ]]; then
@@ -137,11 +144,13 @@ compose() {
 parse_options() {
   SEARCH=0
   VOLUMES=0
+  PUBLISHED=0
   local arg
   for arg in "$@"; do
     case "$arg" in
       --search) SEARCH=1 ;;
       --volumes) VOLUMES=1 ;;
+      --published) PUBLISHED=1 ;;
       *) die "unknown option $arg" ;;
     esac
   done
@@ -169,14 +178,22 @@ remove_search_stores() {
   compose rm --stop --force elasticsearch opensearch
 }
 
+pull_published() {
+  if [[ -z "${SLASHOBSERVE_IMAGE:-}" ]]; then compose pull server; fi
+}
+
 cmd_up() {
   parse_options "$@"
   check_tools
   fetch_upstream
   prepare_state
   if [[ "$SEARCH" == 1 ]]; then verify_search_command; fi
-  export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
-  compose build server
+  if [[ "$PUBLISHED" == 1 ]]; then
+    pull_published
+  else
+    export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
+    compose build server
+  fi
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
   if [[ "$SEARCH" == 0 ]]; then remove_search_stores; fi
   cat <<EOF
@@ -191,15 +208,16 @@ EOF
 cmd_down() {
   parse_options "$@"
   check_tools
-  [[ -d "$UPSTREAM_DIR/.git" ]] || die "nothing to stop: no upstream checkout"
-  SEARCH=1
-  prepare_state
-  if [[ "$VOLUMES" == 1 ]]; then
-    compose down --remove-orphans --volumes
-    rm -f "$FLAGS_FILE"
+  local args=(--remove-orphans)
+  if [[ "$VOLUMES" == 1 ]]; then args+=(--volumes); fi
+  if [[ -d "$UPSTREAM_DIR/.git" ]]; then
+    SEARCH=1
+    prepare_state
+    compose down "${args[@]}"
   else
-    compose down --remove-orphans
+    docker compose --project-name "$PROJECT" down "${args[@]}"
   fi
+  if [[ "$VOLUMES" == 1 ]]; then rm -f "$FLAGS_FILE"; fi
 }
 
 cmd_status() {
@@ -300,6 +318,17 @@ cmd_flag() {
   printf '%s is now %s; flagd reloads the file within a few seconds\n' "$name" "$variant"
 }
 
+cmd_flag_reset() {
+  [[ -f "$FLAGS_FILE" ]] || die "no flag file; run 'up' first"
+  [[ -f "$UPSTREAM_DIR/src/flagd/demo.flagd.json" ]] || die "no upstream checkout; run 'up' first"
+  local restored
+  restored="$(mktemp "$FLAGS_FILE.XXXXXX")"
+  cp "$UPSTREAM_DIR/src/flagd/demo.flagd.json" "$restored"
+  chmod "$FLAGS_FILE_MODE" "$restored"
+  mv "$restored" "$FLAGS_FILE"
+  printf 'every flag is back to the upstream release; flagd reloads the file within a few seconds\n'
+}
+
 cmd_prepare() {
   check_tools
   fetch_upstream
@@ -325,6 +354,7 @@ main() {
     status) cmd_status ;;
     check) cmd_check "$@" ;;
     flag) cmd_flag "$@" ;;
+    flag-reset) cmd_flag_reset ;;
     key) cmd_key ;;
     prepare) cmd_prepare ;;
     compose) cmd_compose "$@" ;;

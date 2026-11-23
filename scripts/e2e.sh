@@ -3390,11 +3390,7 @@ case "${1:-run}" in
   browser) browser ;;
   down)
     rm -f "$WARM_MARKER"
-    if [[ -d "$ROOT/deploy/astronomy/.upstream/.git" ]]; then
-      grouped "$ASTRONOMY" down --volumes
-    else
-      echo "Nothing to stop: the Astronomy Shop has not been fetched"
-    fi
+    grouped "$ASTRONOMY" down --volumes
     ;;
   logs) all_logs ;;
   -h | --help | help) usage ;;

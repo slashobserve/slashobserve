@@ -18,7 +18,7 @@ Create a client in your provider and give SlashObserve its settings:
   While discovery fails, the sign-in page shows an error and the log has `oidc discovery failed` with `error_code` `oidc_unavailable`.
 - If the server reaches the provider at a different address than browsers do (for example by a Docker service name), set `SLASHOBSERVE_OIDC_INTERNAL_URL` to that origin.
   Only the server's own calls to the provider are rewritten; the issuer and the browser redirects keep the public address.
-  The demo stack does this: browsers use `http://localhost:5556/dex` and the server uses `http://dex:5556`.
+  The demo stack does this: browsers use `http://localhost:55556/dex` and the server uses `http://dex:5556`.
 
 ## Decide who may sign in
 

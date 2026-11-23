@@ -1,17 +1,17 @@
 # Astronomy Shop stack
 
 The OpenTelemetry Astronomy Shop running with SlashObserve's stores, for investigating faults you switch on with feature flags.
-The full guide is `docs/operate/astronomy-shop.md`.
+The full guide is `docs/operate/demo.md`.
 
 ```sh
-make astronomy-build
-make astronomy-check
-make astronomy-flag FLAG=paymentFailure VARIANT=50%
-make astronomy-flag FLAG=paymentFailure VARIANT=off
-make astronomy-down
+make demo-build
+make demo-check
+make demo-fault FLAG=paymentFailure VARIANT=50%
+make demo-fault FLAG=paymentFailure VARIANT=off
+make demo-down
 ```
 
-`scripts/astronomy.sh` runs all of it, and `make astronomy-search` adds Elasticsearch and OpenSearch.
+`scripts/astronomy.sh` runs all of it, and `make demo-search` adds Elasticsearch and OpenSearch.
 
 ## What it needs
 

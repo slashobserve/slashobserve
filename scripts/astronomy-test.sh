@@ -61,6 +61,22 @@ flag adFailure on >/dev/null
 mode="$(ls -l "$tmp/flagd/demo.flagd.json" | cut -c2-10)"
 [[ "$mode" == rw-r--r-- ]] || fail "the replaced file is readable by flagd and writable only by its owner, got $mode"
 
+mkdir -p "$tmp/up/src/flagd"
+echo '{"flags":{"adFailure":{"state":"ENABLED","variants":{"on":true,"off":false},"defaultVariant":"off"}}}' >"$tmp/up/src/flagd/demo.flagd.json"
+flag adFailure on >/dev/null
+(UPSTREAM_DIR="$tmp/up" FLAGS_FILE="$tmp/flagd/demo.flagd.json" cmd_flag_reset >/dev/null)
+[[ "$(variant_of adFailure)" == off ]] || fail "flag-reset puts a flag back to the upstream variant"
+[[ "$(jq -r '.flags | keys | join(",")' "$tmp/flagd/demo.flagd.json")" == adFailure ]] || fail "flag-reset restores the upstream file"
+[[ "$(ls -A "$tmp/flagd")" == demo.flagd.json ]] || fail "flag-reset leaves no temporary file behind"
+
+pulls=""
+compose() { pulls="$pulls $*"; }
+(SLASHOBSERVE_IMAGE="" pull_published; [[ "$pulls" == " pull server" ]]) || fail "the published path pulls the server image when SLASHOBSERVE_IMAGE is unset"
+(unset SLASHOBSERVE_IMAGE; pulls=""; pull_published; [[ "$pulls" == " pull server" ]]) || fail "the published path pulls the server image when SLASHOBSERVE_IMAGE is not in the environment"
+(SLASHOBSERVE_IMAGE=slashobserve-local:dev; pulls=""; pull_published; [[ -z "$pulls" ]]) || fail "the published path does not pull a server image the caller named"
+unset -f compose
+source "$here/astronomy.sh"
+
 mkdir -p "$tmp/keys"
 echo sok_test >"$tmp/keys/astronomy.key"
 started=$SECONDS
@@ -94,7 +110,6 @@ if search_command_matches "$upstream" "$drifted"; then fail "a copy that dropped
 grown='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--feature-gates=service.profilesSupport","--set=x=y","--config=/etc/otelcol-config-search.yml"]'
 if search_command_matches "$upstream" "$grown"; then fail "a copy with an argument upstream lacks is refused"; fi
 if search_command_matches "$upstream" "$upstream"; then fail "a command without the search config is refused"; fi
-
 docker() { printf '%s\n' "$@"; }
 SEARCH=0
 layered="$(ASTRONOMY_COMPOSE_FILES="/one.yaml:/two.yaml" compose ps | tr '\n' ' ')"
@@ -107,6 +122,22 @@ unset -f docker
 
 if message="$("$here/astronomy.sh" up --no-build 2>&1)"; then fail "up has no --no-build option"; fi
 [[ "$message" == *"unknown option --no-build"* ]] || fail "up refuses --no-build by name: $message"
+
+recorded="$tmp/docker.args"
+docker() {
+  if [[ "$1 $2" == "compose version" ]]; then echo 2.30.0; return; fi
+  printf '%s\n' "$*" >>"$recorded"
+}
+no_upstream="$tmp/no-upstream"
+mkdir -p "$no_upstream" "$tmp/down-state/flagd"
+echo '{}' >"$tmp/down-state/flagd/demo.flagd.json"
+(UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" FLAGS_FILE="$tmp/down-state/flagd/demo.flagd.json" PROJECT=leftover-project cmd_down --volumes) || fail "down succeeds with no upstream checkout"
+[[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans --volumes" ]] || fail "down with no upstream checkout removes the project by name: $(cat "$recorded")"
+[[ ! -e "$tmp/down-state/flagd/demo.flagd.json" ]] || fail "down --volumes removes the flag file even with no upstream checkout"
+: >"$recorded"
+(UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" PROJECT=leftover-project cmd_down)
+[[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans" ]] || fail "down without --volumes keeps the volumes: $(cat "$recorded")"
+unset -f docker
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1
