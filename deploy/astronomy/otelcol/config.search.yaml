@@ -1,0 +1,35 @@
+processors:
+  batch:
+  transform/ecs:
+    log_statements:
+      - statements:
+          - set(scope.attributes["elastic.mapping.mode"], "ecs")
+
+connectors:
+  forward/search:
+
+exporters:
+  elasticsearch/logs:
+    endpoints: [http://elasticsearch:9200]
+    logs_index: logs-demo-shop
+    retry:
+      enabled: true
+      max_retries: 5
+  opensearch/logs:
+    http:
+      endpoint: http://opensearch:9200
+    dataset: demo
+    namespace: shop
+
+service:
+  pipelines:
+    logs:
+      exporters: [otlp_http/loki, clickhouse, forward/search]
+    logs/elasticsearch:
+      receivers: [forward/search]
+      processors: [transform/ecs, batch]
+      exporters: [elasticsearch/logs]
+    logs/opensearch:
+      receivers: [forward/search]
+      processors: [batch]
+      exporters: [opensearch/logs]

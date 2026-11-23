@@ -22,3 +22,5 @@ coverage.*
 /plans/
 /.claude/
 /loadtest/reports/
+/deploy/astronomy/.upstream/
+/deploy/astronomy/.state/

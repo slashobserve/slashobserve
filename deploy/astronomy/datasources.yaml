@@ -1,0 +1,42 @@
+datasources:
+  - uid: prom
+    type: prometheus
+    name: Prometheus
+    prometheus:
+      url: http://prometheus:9090
+      scrapeInterval: 60s
+  - uid: ch
+    type: clickhouse
+    name: ClickHouse
+    clickhouse:
+      addr: clickhouse:9000
+      database: otel
+      username: slashobserve_ro
+      passwordEnv: SLASHOBSERVE_CLICKHOUSE_PASSWORD
+  - uid: loki
+    type: loki
+    name: Loki
+    loki:
+      url: http://loki:3100
+  - uid: tempo
+    type: tempo
+    name: Tempo
+    tempo:
+      url: http://tempo:3200
+  - uid: jaeger
+    type: jaeger
+    name: Jaeger
+    jaeger:
+      url: http://jaeger:16686/jaeger/ui
+  - uid: es
+    type: elasticsearch
+    name: Elasticsearch
+    elasticsearch:
+      url: http://elasticsearch:9200
+      index: "logs-demo*"
+  - uid: os
+    type: opensearch
+    name: OpenSearch
+    opensearch:
+      url: http://opensearch:9200
+      index: "ss4o_logs-demo-shop*"

@@ -1,0 +1,9 @@
+services:
+  server:
+    build:
+      context: ${ASTRONOMY_DIR:?}/../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+    pull_policy: build
