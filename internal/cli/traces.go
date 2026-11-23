@@ -43,6 +43,7 @@ type span struct {
 	Start    time.Time
 	Duration time.Duration
 	Status   string
+	Message  string
 }
 
 type treeRow struct {
@@ -54,11 +55,13 @@ func (a *app) tracesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "traces [<trace id>] --datasource <uid>",
 		Short: "Print the spans of a trace from a Tempo, Jaeger or ClickHouse datasource",
-		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints 100 matching traces, the newest unless --sort says otherwise.\nWith --query on a ClickHouse datasource it runs your SQL over otel_traces as the SQL view of the trace search does, and prints the first 100 rows as a table.",
+		Long:  "traces finds a trace by its 16 or 32 hexadecimal character id and prints its spans as a tree.\nWith --ask the server turns a question into a trace search, and traces prints 100 matching traces, the newest unless --sort says otherwise.\nWith --query it runs your own search: SQL over otel_traces on ClickHouse, as the SQL view of the trace search does, printing the first 100 rows as a table; TraceQL on Tempo; key=value pairs on Jaeger, such as service=checkout error=true.\nOn Tempo and Jaeger --query prints the same 100-trace table as --ask, with no model involved.",
 		Example: "  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo\n" +
 			"  observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --from now-7d\n" +
 			"  observe traces --ask \"checkout requests slower than 2s with errors\" --datasource tempo\n" +
 			"  observe traces --ask \"checkout requests with errors\" --datasource clickhouse --sort -duration\n" +
+			"  observe traces --query 'service=checkout error=true' --datasource jaeger --sort -duration\n" +
+			"  observe traces --query '{ resource.service.name = \"checkout\" && status = error }' --datasource tempo\n" +
 			"  observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse\n" +
 			"  observe traces --compare 4bf92f3577b34da6a3ce929d0e0e4736 --baseline 5c1d7a2e9f8b4a3d8e6f0b1c2d3e4f50 --datasource tempo",
 		Args: cobra.ArbitraryArgs,
@@ -69,9 +72,9 @@ func (a *app) tracesCommand() *cobra.Command {
 	flags.StringVar(&a.traces.from, "from", "now-24h", "start of the range to search, such as now-7d or an RFC 3339 time")
 	flags.StringVar(&a.traces.to, "to", "now", "end of the range")
 	flags.StringVar(&a.traces.ask, "ask", "", "a question the server turns into a trace search, instead of the trace id")
-	flags.StringVar(&a.traces.query, "query", "", "on ClickHouse, SQL over otel_traces to run instead of the trace id, with the time range through a macro such as $__timeFilter(Timestamp)")
+	flags.StringVar(&a.traces.query, "query", "", "a search to run instead of the trace id: SQL over otel_traces on ClickHouse, with the time range through a macro such as $__timeFilter(Timestamp); TraceQL on Tempo; key=value pairs on Jaeger, such as service=checkout error=true")
 	flags.BoolVar(&a.traces.dryRun, "dry-run", false, "with --ask, print the search without running it")
-	flags.StringVar(&a.traces.sort, "sort", "", "with --ask, order the traces by start, service, span, duration, spans or errors, a minus in front for descending, such as -duration; ClickHouse sorts everything that matches, Tempo and Jaeger only the 100 they return")
+	flags.StringVar(&a.traces.sort, "sort", "", "with --ask or --query on Tempo or Jaeger, order the traces by start, service, span, duration, spans or errors, a minus in front for descending, such as -duration; with --ask on ClickHouse it sorts everything that matches, otherwise only the 100 traces returned; SQL takes its own ORDER BY")
 	flags.StringSliceVar(&a.traces.compare, "compare", nil, "the trace ids to explain, comma separated or repeated")
 	flags.StringSliceVar(&a.traces.baseline, "baseline", nil, "with --compare, the trace ids to compare them with, comma separated or repeated")
 	flags.IntVar(&a.traces.limit, "limit", defaultCompareLimit, "with --compare, the most differences to print, 1 to 100")
@@ -111,8 +114,8 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if kind != "tempo" && kind != "jaeger" && kind != "clickhouse" {
-		return usagef("traces reads Tempo, Jaeger or ClickHouse datasources; %s is %s", text(opts.datasource), text(kind))
+	if err := tracesKindUsage(opts.datasource, kind); err != nil {
+		return err
 	}
 	if opts.ask != "" {
 		return a.searchTraces(ctx, c, kind, sort)
@@ -120,9 +123,16 @@ func (a *app) runTraces(cmd *cobra.Command, args []string) error {
 	return a.showTrace(ctx, c, kind, strings.ToLower(args[0]))
 }
 
+func tracesKindUsage(uid, kind string) error {
+	if kind != "tempo" && kind != "jaeger" && kind != "clickhouse" {
+		return usagef("traces reads Tempo, Jaeger or ClickHouse datasources; %s is %s", text(uid), text(kind))
+	}
+	return nil
+}
+
 func tracesFlagsUsage(cmd *cobra.Command, opts tracesOptions) (*traceSort, error) {
-	if cmd.Flags().Changed("sort") && opts.ask == "" {
-		return nil, usagef("--sort needs --ask")
+	if cmd.Flags().Changed("sort") && opts.ask == "" && opts.query == "" {
+		return nil, usagef("--sort needs --ask or --query")
 	}
 	for _, name := range []string{"baseline", "limit"} {
 		if cmd.Flags().Changed(name) {
@@ -179,6 +189,12 @@ func (a *app) searchTraces(ctx context.Context, c *client, kind string, sort *tr
 	} else {
 		clientSort = sort
 	}
+	return a.printTraceSearch(ctx, c, request, clientSort)
+}
+
+func (a *app) printTraceSearch(ctx context.Context, c *client, request exploreRequest, clientSort *traceSort) error {
+	opts := a.traces
+	out := a.output()
 	data, body, err := explore(ctx, c, opts.datasource, request)
 	if err != nil {
 		return err
@@ -216,7 +232,7 @@ func traceQuery(kind, id string) string {
 	if kind == "tempo" || kind == "jaeger" {
 		return id
 	}
-	return "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode FROM otel_traces WHERE TraceId = '" + id + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT " + strconv.Itoa(maxTraceSpans)
+	return "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, StatusMessage FROM otel_traces WHERE TraceId = '" + id + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT " + strconv.Itoa(maxTraceSpans)
 }
 
 func spanRows(frames []frame) ([]span, error) {
@@ -231,6 +247,7 @@ func spanRows(frames []frame) ([]span, error) {
 				return nil, fmt.Errorf("the datasource answered without a %s column; traces needs %s", name, strings.Join(spanColumns, ", "))
 			}
 		}
+		message := fieldIndex(f, "StatusMessage")
 		for row := range f.rows() {
 			startMs, ok := f.numberAt(columns[5], row)
 			if !ok {
@@ -245,6 +262,7 @@ func spanRows(frames []frame) ([]span, error) {
 				Start:    time.UnixMilli(int64(startMs)).UTC(),
 				Duration: time.Duration(nanosAt(f, columns[6], row)),
 				Status:   f.stringAt(columns[7], row),
+				Message:  f.stringAt(message, row),
 			})
 		}
 	}
@@ -319,6 +337,14 @@ func spanStatus(code string) string {
 	return "-"
 }
 
+func spanStatusText(s span) string {
+	status := spanStatus(s.Status)
+	if status == "error" && s.Message != "" {
+		return status + ": " + text(s.Message)
+	}
+	return status
+}
+
 func printTrace(out *output, id string, rows []treeRow) {
 	start, end := rows[0].span.Start, rows[0].span.Start
 	for _, row := range rows {
@@ -339,7 +365,7 @@ func printTrace(out *output, id string, rows []treeRow) {
 			strings.Repeat("  ", row.depth) + text(s.Name),
 			"+" + formatSpanDuration(s.Start.Sub(start)),
 			formatSpanDuration(s.Duration),
-			spanStatus(s.Status),
+			spanStatusText(s),
 		})
 	}
 	out.table([]string{"SERVICE", "SPAN", "START", "DURATION", "STATUS"}, table)

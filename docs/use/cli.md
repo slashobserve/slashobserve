@@ -719,7 +719,7 @@ bin/observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource clickhouse --fr
 
 The id is 16 or 32 hexadecimal characters, and `--from` and `--to` (`now-24h` and `now` by default) bound the search.
 On ClickHouse it reads the OpenTelemetry `otel_traces` table.
-It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`.
+It prints a header with the span count, the total duration and the root span, then one row per span with its service, its name indented under its parent, its start after the trace start, its duration and `ok`, `error` or `-`, with the span's status message after `error:` when it has one, such as `error: card declined`.
 A trace with no spans in the range exits 1, and `--json` prints the response body.
 
 ### Ask for traces in plain language
@@ -739,19 +739,27 @@ Each row shows the trace's start, service, span, duration, span count and error 
 When the list is incomplete, a `Note:` line on standard error says why and how to get more, such as that the page is full, when it tells you to narrow `--from` and `--to` or the question, or that Tempo stopped before it searched everything; the same sentence is `meta.note` in the response body and `note` in the MCP query tools' result.
 `--dry-run` prints the answer and searches nothing, and `--json` prints the search's response body.
 
-### Run SQL over ClickHouse traces
+### Search traces with your own query
 
-`--query` takes SQL over `otel_traces` on a ClickHouse datasource instead of the trace id, and runs it as the SQL view of the Traces page does:
+`--query` takes a search instead of the trace id, in the language of the datasource, and needs no model:
 
 ```sh
+bin/observe traces --query 'service=checkout error=true' --datasource jaeger --sort -duration
+bin/observe traces --query '{ resource.service.name = "checkout" && status = error }' --datasource tempo
 bin/observe traces --query 'SELECT TraceId, ServiceName, Duration FROM otel_traces WHERE $__timeFilter(Timestamp) ORDER BY Duration DESC' --datasource clickhouse
 ```
+
+On Jaeger it takes the `key=value` pairs of the Traces page (`service`, `operation`, `minDuration`, `maxDuration`, `error`, and tags), and on Tempo TraceQL.
+Both run as the search of `--ask` does and print the same table of 100 traces, the newest unless `--sort start|service|span|duration|spans|errors` says otherwise, with a minus in front for descending: the sort applies to the 100 traces returned.
+A `Note:` line on standard error says when the list is incomplete, and `--json` prints the response body.
+
+On ClickHouse it takes SQL over `otel_traces` and runs it as the SQL view of the Traces page does:
 
 It goes through the same checks as that view and the SQL of `observe logs`: one read-only `SELECT`, the range of `--from` and `--to` read through a macro such as `$__timeFilter(Timestamp)`, and the 15 second limit, and a query that breaks one exits 1 with the server's sentence.
 It prints the first 100 rows as a table with a column per selected column and times in RFC 3339, says on standard error when more rows match, and `--json` prints the response body.
 The rows come back as the SQL wrote them, with its own `ORDER BY`, `LIMIT` and columns even when it selects `Timestamp`, and a `LIMIT` above 100 is cut to the first 100 rows.
 Single quotes keep the shell from expanding `$__timeFilter`.
-`--query` works on ClickHouse only, takes no trace id and cannot be combined with `--ask`, `--dry-run`, `--sort` or `--compare`; each mistake exits 2.
+`--query` takes no trace id and cannot be combined with `--ask`, `--dry-run` or `--compare`, and `--sort` does not apply to SQL, which has its own `ORDER BY`; each mistake exits 2.
 
 ### Compare traces
 

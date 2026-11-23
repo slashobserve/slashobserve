@@ -78,7 +78,7 @@ func TestTracesClickHouseSendsSQLWithTheID(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 	query, _ := f.queries[0]["query"].(string)
-	want := "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode FROM otel_traces WHERE TraceId = '" + traceID[:16] + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT 1000"
+	want := "SELECT TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Timestamp AS StartTime, Duration, StatusCode, StatusMessage FROM otel_traces WHERE TraceId = '" + traceID[:16] + "' AND $__timeFilter(Timestamp) ORDER BY Timestamp LIMIT 1000"
 	if query != want || f.queries[0]["from"] != "now-7d" {
 		t.Fatalf("query %q", query)
 	}
@@ -178,6 +178,21 @@ func TestSpanRowsNamesAMissingColumn(t *testing.T) {
 	_, err = spanRows(body.Frames)
 	if err == nil || !strings.Contains(err.Error(), "without a SpanId column") || !strings.Contains(err.Error(), "TraceId, SpanId, ParentSpanId") {
 		t.Fatalf("err %v", err)
+	}
+}
+
+func TestTracesTreeShowsTheStatusMessageBesideTheError(t *testing.T) {
+	f := newTracesFake(t, "jaeger")
+	f.answer = strings.Replace(traceFrames, `"Error"]}
+]}]`, `"Error"]},
+	{"name":"StatusMessage","type":"string","values":["","","card declined","",""]}
+]}]`, 1)
+	stdout, _, code := f.run(traceID, "--datasource", "traces")
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(strings.Join(strings.Fields(stdout), " "), "12.4ms error: card declined") || strings.Contains(stdout, "ok: ") {
+		t.Fatalf("stdout %q", stdout)
 	}
 }
 
@@ -400,12 +415,13 @@ func TestTracesQueryUsageErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"tempo", "tempo", []string{"--query", traceSQL, "--datasource", "traces"}, "--query runs SQL on a ClickHouse datasource; traces is tempo"},
-		{"empty", "clickhouse", []string{"--query", " ", "--datasource", "traces"}, "--query needs SQL"},
+		{"prometheus", "prometheus", []string{"--query", "up", "--datasource", "traces"}, "traces reads Tempo, Jaeger or ClickHouse datasources; traces is prometheus"},
+		{"empty", "clickhouse", []string{"--query", " ", "--datasource", "traces"}, "--query needs a query"},
 		{"with an id", "clickhouse", []string{traceID, "--query", traceSQL, "--datasource", "traces"}, "give a trace id or --query, not both"},
 		{"with ask", "clickhouse", []string{"--query", traceSQL, "--ask", "slow", "--datasource", "traces"}, "give --ask or --query, not both"},
 		{"with dry run", "clickhouse", []string{"--query", traceSQL, "--dry-run", "--datasource", "traces"}, "--dry-run needs --ask"},
-		{"with sort", "clickhouse", []string{"--query", traceSQL, "--sort", "-duration", "--datasource", "traces"}, "--sort needs --ask"},
+		{"with a bad sort", "jaeger", []string{"--query", "service=checkout", "--sort", "Duration", "--datasource", "traces"}, "--sort takes start"},
+		{"sort with an id", "tempo", []string{traceID, "--sort", "duration", "--datasource", "traces"}, "--sort needs --ask or --query"},
 		{"with compare", "clickhouse", []string{"--query", traceSQL, "--compare", traceID, "--datasource", "traces"}, "give --compare or --query, not both"},
 		{"no datasource", "clickhouse", []string{"--query", traceSQL}, "needs --datasource"},
 	}
@@ -417,6 +433,56 @@ func TestTracesQueryUsageErrors(t *testing.T) {
 				t.Fatalf("exit %d, stderr %q, queries %d", code, stderr, len(f.queries))
 			}
 		})
+	}
+}
+
+func TestTracesQueryRefusesSortOnClickHouseSQL(t *testing.T) {
+	f := newTracesFake(t, "clickhouse")
+	_, stderr, code := f.run("--query", traceSQL, "--sort", "-duration", "--datasource", "traces")
+	if code != 2 || !strings.Contains(stderr, "--sort does not apply to SQL") || len(f.queries) != 0 {
+		t.Fatalf("exit %d, stderr %q, queries %d", code, stderr, len(f.queries))
+	}
+}
+
+func TestTracesQueryRunsAJaegerOrTempoSearchAsTheAskResultDoes(t *testing.T) {
+	cases := []struct {
+		kind  string
+		query string
+	}{
+		{"jaeger", "service=checkout error=true"},
+		{"tempo", `{ resource.service.name = "checkout" && status = error }`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			f := newTracesFake(t, tc.kind)
+			f.answer = traceSearchFrames
+			stdout, stderr, code := f.run("--query", tc.query, "--datasource", "traces", "--from", "now-6h", "--sort", "duration")
+			if code != 0 {
+				t.Fatalf("exit %d, stderr %q", code, stderr)
+			}
+			q := f.queries[0]
+			if len(f.queries) != 1 || q["query"] != tc.query || q["kind"] != "instant" || q["from"] != "now-6h" || q["to"] != "now" || q["limit"] != float64(100) || q["sort"] != nil || q["page_size"] != nil || q["as_written"] != nil {
+				t.Fatalf("query %v", q)
+			}
+			lines := strings.Split(strings.TrimRight(stdout, "\n"), "\n")
+			if len(lines) != 3 || strings.Fields(lines[0])[0] != "STARTED" || !strings.Contains(lines[1], "charge") || !strings.Contains(lines[2], "POST /checkout") {
+				t.Fatalf("stdout %q", stdout)
+			}
+		})
+	}
+}
+
+func TestTracesQueryOnJaegerPrintsTheNoteAndJSON(t *testing.T) {
+	f := newTracesFake(t, "jaeger")
+	f.answer = `{"frames":[],"meta":{}}`
+	stdout, stderr, code := f.run("--query", "service=nope", "--datasource", "traces")
+	if code != 0 || stdout != "" || !strings.Contains(stderr, "No traces between now-24h and now") {
+		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	f.answer = traceSearchFrames
+	stdout, _, code = f.run("--query", "service=checkout", "--datasource", "traces", "--json")
+	if code != 0 || strings.TrimSpace(stdout) != strings.TrimSpace(traceSearchFrames) {
+		t.Fatalf("exit %d, stdout %q", code, stdout)
 	}
 }
 
