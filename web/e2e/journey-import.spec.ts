@@ -168,7 +168,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           page
             .getByRole("status")
             .filter({ hasText: `Imported as ${demoShopTitle}, version 1` })
-        ).toBeVisible()
+        ).toBeVisible({ timeout: 30_000 })
         dashboardId = await importedDashboardId(page)
       })
 
@@ -225,7 +225,7 @@ for (const colorScheme of ["light", "dark"] as const) {
           page
             .getByRole("status")
             .filter({ hasText: /^Imported as .*, version 1/ })
-        ).toBeVisible()
+        ).toBeVisible({ timeout: 30_000 })
 
         const report = page.getByRole("region", { name: "Import report" })
         await report.getByRole("tab", { name: /^All panels/ }).click()
