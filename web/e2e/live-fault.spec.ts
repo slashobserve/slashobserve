@@ -15,7 +15,7 @@ const astronomyScript = join(
   "astronomy.sh"
 )
 const shopUrl = `http://localhost:${process.env.ASTRONOMY_SHOP_HOST_PORT ?? "18081"}`
-const faultFlag = "cartFailure"
+const faultFlag = "paymentFailure"
 
 const errorRateWindowDecayMs = 240_000
 const trafficIntervalMs = 3_000
@@ -26,16 +26,38 @@ function setFlag(variant: string) {
   })
 }
 
+const checkoutBody = {
+  email: "e2e@example.com",
+  address: {
+    streetAddress: "1600 Amphitheatre Parkway",
+    zipCode: "94043",
+    city: "Mountain View",
+    state: "CA",
+    country: "United States",
+  },
+  userCurrency: "USD",
+  creditCard: {
+    creditCardNumber: "4432-8015-6152-0454",
+    creditCardExpirationMonth: 1,
+    creditCardExpirationYear: 2039,
+    creditCardCvv: 672,
+  },
+}
+
 function startTraffic(request: APIRequestContext) {
   let running = true
   const loop = (async () => {
     while (running) {
+      const userId = `e2e-${Date.now()}`
       await request
         .post(`${shopUrl}/api/cart`, {
-          data: {
-            item: { productId: "OLJCESPC7Z", quantity: 1 },
-            userId: `e2e-${Date.now()}`,
-          },
+          data: { item: { productId: "OLJCESPC7Z", quantity: 1 }, userId },
+          timeout: 30_000,
+        })
+        .catch(() => undefined)
+      await request
+        .post(`${shopUrl}/api/checkout`, {
+          data: { ...checkoutBody, userId },
           timeout: 30_000,
         })
         .catch(() => undefined)
@@ -64,7 +86,7 @@ test("an injected fault turns the error rate critical", async ({
     const { id } = await createDashboard(request, spec)
     await openDashboard(page, id)
 
-    const article = panel(page, "Cart error rate")
+    const article = panel(page, "Payment error rate")
     const tile = article.getByRole("group")
     await expect(tile).toBeVisible({ timeout: 30_000 })
     await expect(tile).toHaveAttribute("data-threshold", "base", {

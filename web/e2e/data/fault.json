@@ -7,12 +7,12 @@
     {
       "id": "fault_rate",
       "type": "stat",
-      "title": "Cart error rate",
+      "title": "Payment error rate",
       "gridPos": { "x": 0, "y": 0, "w": 8, "h": 5 },
       "datasource": "prom",
       "queries": [
         {
-          "query": "(sum(rate(traces_span_metrics_calls_total{service_name=\"cart\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[3m])) or vector(0)) / sum(rate(traces_span_metrics_calls_total{service_name=\"cart\",span_kind=\"SPAN_KIND_SERVER\"}[3m]))"
+          "query": "(sum(rate(traces_span_metrics_calls_total{service_name=\"payment\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[3m])) or vector(0)) / sum(rate(traces_span_metrics_calls_total{service_name=\"payment\",span_kind=\"SPAN_KIND_SERVER\"}[3m]))"
         }
       ],
       "unit": "percentunit",

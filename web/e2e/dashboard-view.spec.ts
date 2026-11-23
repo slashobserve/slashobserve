@@ -148,7 +148,8 @@ function dependentVariablesSpec() {
       type: "query",
       refresh: "timeRange",
       datasource,
-      query: "label_values(traces_span_metrics_calls_total, service_name)",
+      query:
+        'label_values(traces_span_metrics_calls_total{service_name=~"checkout|shipping"}, service_name)',
     },
     {
       name: "route",

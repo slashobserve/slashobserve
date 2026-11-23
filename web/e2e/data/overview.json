@@ -22,7 +22,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"$service\",service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
           "legend": "{{service_name}}"
         }
       ],
@@ -54,7 +54,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"$service\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"$service\",service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
           "legend": "{{service_name}}"
         }
       ],
