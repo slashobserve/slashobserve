@@ -17,9 +17,10 @@ make astronomy-down
 
 Measured on an 8 CPU, 22 GB Linux host, with the shop running for a few minutes:
 
-- Memory: 4.3 GiB for the 31 containers, 6.2 GiB with the `search` profile.
-- Disk: 12 GB of images, 0.5 GB of volumes after the first hour, 3.5 GB more of images for Elasticsearch and OpenSearch.
-- CPU: the load generator's headless browser is the largest consumer.
+- Memory: 3.2 to 4.3 GiB for the 31 containers, and about 2 GiB more with the `search` profile.
+- Disk: 12 GB of images, 0.3 GB of volumes after the first half hour, and 3.5 GB more of images for Elasticsearch and OpenSearch.
+- CPU: up to four cores in the first minutes, then one or two.
+- Time: about a minute from an empty state with the images already pulled, and about ten minutes with the pull.
 
 ## How it is put together
 

@@ -17,7 +17,7 @@ make astronomy-build
 
 This builds the server from your checkout and starts the stack as the Compose project `slashobserve-astronomy`.
 `make astronomy` runs the published server image instead, which works once a release includes the Jaeger datasource.
-The first start fetches the pinned upstream release and pulls about 12 GB of images, and the stack is healthy a minute or two after that.
+The first start fetches the pinned upstream release and pulls about 12 GB of images, and the stack is healthy about a minute after that.
 
 | Address | What it is |
 | --- | --- |
@@ -31,8 +31,8 @@ Every port binds to 127.0.0.1.
 
 ## What it needs
 
-On a host with 8 CPUs the 31 containers use about 4.3 GiB of memory once the shop has run for a few minutes, and the load generator's headless browser takes a share of the CPU.
-The images take about 12 GB of disk, and the stores' volumes about 0.5 GB after the first hour.
+On a host with 8 CPUs and 22 GB of memory, the 31 containers use 3.2 to 4.3 GiB of memory once the shop has run for a few minutes, and up to four cores in the first minutes and one or two afterwards.
+The images take about 12 GB of disk, and the stores' volumes about 0.3 GB after the first half hour.
 `make astronomy-search` adds Elasticsearch and OpenSearch, which take about 2 GiB more memory and, if you have not pulled them for the demo, 3.5 GB of disk.
 The stores keep 72 hours of data.
 
