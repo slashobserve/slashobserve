@@ -26,8 +26,8 @@ A change adds no new check unless the owner asks for one (see Workflow in the ro
 - `boot` waits for the shop's span metrics and for logs and traces in ClickHouse, and places orders through the shop port if checkout has none yet.
   A check that reads four minutes of Prometheus history (the imports) calls `await_history` first and runs near the end of `run`, so the wait elapses while other checks run.
 - Faults are upstream flagd flags, set with `scripts/astronomy.sh flag <name> <variant>`.
-  The API suite uses `paymentFailure` and the Playwright live fault spec uses `cartFailure`, so the error windows of one never leak into the other.
-  Both reset their flag when they finish.
+  The API suite and the Playwright live fault spec both set `paymentFailure` and reset it when they finish, so run them one after the other (`make e2e-all` does) and never at the same time against one stack.
+  The API suite's fault checks read only the last two minutes of metrics, traces and logs, so an error from an earlier run does not satisfy them.
 
 ## Replay model
 

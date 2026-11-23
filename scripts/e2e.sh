@@ -258,6 +258,7 @@ logs_and_traces_present() {
 
 SHOP_SERVICES_MIN=10
 SPAN_HISTORY_MINUTES=4
+FAULT_WINDOW_MINUTES=2
 
 shop_post() {
   foreground command curl -s --max-time 30 -o /dev/null -w '%{http_code}' -X POST "$SHOP_URL$1" -H 'content-type: application/json' -d "$2"
@@ -3262,7 +3263,7 @@ container_series() { printf 'count(count by (container_name) (%s{container_name=
 
 payment_errors_in_metrics() {
   place_order >/dev/null
-  prom_positive 'sum(traces_span_metrics_calls_total{service_name="payment",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"})'
+  prom_positive "sum(increase(traces_span_metrics_calls_total{service_name=\"payment\",span_kind=\"SPAN_KIND_SERVER\",status_code=\"STATUS_CODE_ERROR\"}[${FAULT_WINDOW_MINUTES}m]))"
 }
 
 stack_suite() {
@@ -3318,10 +3319,10 @@ stack_suite() {
   poll 300 "failed charges show in the payment span metrics" payment_errors_in_metrics
   pass "payment fault shows in metrics"
   poll 120 "failed charges show in traces" order_then ch_positive \
-    "SELECT count() FROM otel.otel_traces WHERE ServiceName = 'payment' AND SpanName = 'charge' AND StatusCode = 'Error'"
+    "SELECT count() FROM otel.otel_traces WHERE ServiceName = 'payment' AND SpanName = 'charge' AND StatusCode = 'Error' AND Timestamp > now() - INTERVAL ${FAULT_WINDOW_MINUTES} MINUTE"
   pass "payment fault shows in traces"
   poll 120 "payment fault shows in logs" order_then ch_positive \
-    "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'payment' AND Body LIKE 'Payment request failed%'"
+    "SELECT count() FROM otel.otel_logs WHERE ServiceName = 'payment' AND Body LIKE 'Payment request failed%' AND Timestamp > now() - INTERVAL ${FAULT_WINDOW_MINUTES} MINUTE"
   pass "payment fault shows in logs"
   if ! "$ASTRONOMY" flag "$FAULT_FLAG" off >"$TMP/flag.out" 2>&1; then
     fail "reset the $FAULT_FLAG flag ($(cat "$TMP/flag.out"))"
