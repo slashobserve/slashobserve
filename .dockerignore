@@ -6,6 +6,7 @@ demo
 deploy
 scripts
 tools
+benchmarks
 *.md
 LICENSE
 NOTICE

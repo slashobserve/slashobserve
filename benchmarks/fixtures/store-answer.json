@@ -1,0 +1,26 @@
+{
+  "prompt": "replaced by the task instruction",
+  "turns": [
+    {
+      "tool_calls": [
+        {
+          "name": "list_labels",
+          "input": {
+            "datasource": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "tool_calls": [
+        {
+          "name": "save_finding",
+          "input": {
+            "title": "Replay answer",
+            "markdown": "This answer comes from the replay model provider, so it holds no analysis of the data.\nIt exists to prove that a benchmark task runs end to end and that the answer reaches the trajectory."
+          }
+        }
+      ]
+    }
+  ]
+}
