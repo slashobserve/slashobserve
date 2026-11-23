@@ -8,7 +8,7 @@ The server applies it on the web, over the API, through the CLI and over MCP, an
 
 ## Fix text the server refused
 
-A refused write answers with the endpoint's usual error code and a `reason` from the [reason table](#reason-codes).
+A refused write answers with the endpoint's usual error code and, where the endpoint reports one, a `reason` from the [reason table](#reason-codes).
 A dashboard or panel title reports the reason as the `code` of its issue at `/title` or `/panels/{i}/title`.
 
 1. Read the `error` message.

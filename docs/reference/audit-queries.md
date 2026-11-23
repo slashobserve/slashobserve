@@ -9,7 +9,7 @@ Every read of the trail is itself recorded, so the trail shows who searched it f
 
 ## Search the trail
 
-The web app shows the trail on the **Audit** page and the Logs page; see [Audit folder](../use/activity.md#audit-folder).
+In the web app, choose **Audit**, then **Log**; see [Audit log](../use/activity.md#audit-log).
 To search from a terminal or a script, use the CLI, the HTTP API or MCP.
 All three read through the same server code and need an Admin credential.
 
@@ -130,6 +130,7 @@ An agent pages the same events with `search_audit_events`.
 ## Follow new events
 
 `GET /api/v1/audit/stream?q=<query>` is a server-sent event stream.
+It takes the same query text as a search and no window.
 It sends each event that matches the query and is recorded after it opens, in the order the events committed.
 The CLI does the same:
 
@@ -220,11 +221,11 @@ The server keeps only the fields an action declares, and no event holds a messag
 | Action | Data | What it holds |
 | ------ | ---- | ------------- |
 | `dashboard.view` | `version` | The version number the reader was shown |
-| `observation.view` | `updated_at` | When the observation last changed before the reader opened it |
+| `observation.view` | `updated_at` | When the observation last changed before the reader opened it, as an RFC 3339 time |
 | `observation.arrange` | `title`, `changed` | Which of `height`, `order` and `width` changed |
 | `saved_prompt.*` changes | `owner_id`, `changed`, `from_name` | A change to a shared prompt; see the details below |
 | `datasource.test`, `grafana_connection.test` | `type`, `host`, `healthy` | An Admin's connection test |
-| `grafana_connection.fetch_dashboard` | `host` | The connection's host |
+| `grafana_connection.fetch_dashboard` | `host` | The connection used and its host |
 | any action that was denied | `needed_role`, `needed_access` | What the refusal said the request needed |
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model and tokens the run reported |
 | `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The message length in characters, and the anchor kind |
@@ -239,7 +240,7 @@ Who can see a run is recorded by the `run.share` and `run.withdraw` events inste
 
 ### Details of event data
 
-- `observation.view` records a time because an observation has no versions.
+- `observation.view` records a time, as an RFC 3339 time, because an observation has no versions.
 - `observation.arrange` is an arrangement of an observation's blocks that changed something, and is not an `observation.update`.
   Over the API, a request that changes nothing is still recorded, with reason `no_change` and without `changed`.
 - A `saved_prompt.create`, `saved_prompt.update`, `saved_prompt.share`, `saved_prompt.unshare` or `saved_prompt.delete` event covers a prompt that is shared, or that becomes shared or private.
@@ -253,7 +254,7 @@ Who can see a run is recorded by the `run.share` and `run.withdraw` events inste
 - A connection test records the datasource's `type` (datasources only), the `host` that was called and whether it answered `healthy`.
   An unhealthy test has outcome `failed` and reason `unhealthy`.
   The address, any credential and the response are never recorded.
-- `grafana_connection.fetch_dashboard` is an Admin's fetch of a dashboard from a link.
+- `grafana_connection.fetch_dashboard` is an Admin's fetch of a dashboard from a link, naming the connection that was used and its host.
   The link and the dashboard are never recorded.
 - `needed_role` and `needed_access` hold the role or the folder access level the refusal said the request needed, over the API and over MCP.
   They are left out when the refusal named none.
@@ -340,7 +341,7 @@ Every read covers a window from `since`, inclusive, to `until`, exclusive.
 | --- | --- |
 | `since`, `until` | An RFC 3339 time, epoch milliseconds or a relative time such as `now-7d`. |
 | Default window | `until` is now, and `since` is 24 hours before `until`. |
-| Longest window | 366 days. A longer one answers 400 `invalid_request`. |
+| Longest window | 366 days. A longer one answers 400 `invalid_request`; read a longer period one window at a time. |
 | Statement timeout | 30 seconds. A read past it answers 422 `query_timeout`. |
 | Search page | 100 events by default, at most 1,000. |
 | Search order | Newest first by `occurred_at`, then `id`. |
@@ -399,7 +400,7 @@ The `query` of a Query DSL body takes `bool` (`must`, `filter`, `should`, `must_
 - A caller may hold 5 audit streams and a server 20.
   One more answers 429 `too_many_streams` for a caller over its limit and 503 `too_many_streams` for a server over its limit.
 - Each stream reads the trail every 2 seconds, one read at a time, under a 5 second statement timeout.
-  A stream whose read times out twice in a row ends with an `error` frame (`query_too_expensive`).
+  A stream whose read times out twice in a row ends with an `error` frame (`query_too_expensive`) saying the query is too expensive to follow.
   Narrow the query or search instead.
 
 ### API, MCP and the CLI

@@ -90,7 +90,7 @@ The server records the client address as `client_ip` on audit events; see [Put T
 | `SLASHOBSERVE_AUTH_PROVIDER_NAME` | unset | Provider display name, up to 64 characters. |
 | `SLASHOBSERVE_ADMIN_EMAILS` | unset | Comma-separated Admin email addresses, at most 100. |
 | `SLASHOBSERVE_OIDC_GROUP_ROLES` | unset | Comma-separated `group=role` entries, at most 100. |
-| `SLASHOBSERVE_SESSION_TTL` | `168h` | Session length, a Go duration from `5m` to `720h`. |
+| `SLASHOBSERVE_SESSION_TTL` | `168h` | A session lasts this long from sign-in, a Go duration from `5m` to `720h`. |
 
 Browser sign-in is all or nothing.
 Set the issuer URL, client ID and client secret together, or set none of them.

@@ -21,12 +21,12 @@ It does not send alerts, and it reads only the seven datasource types above; [Kn
 
 ## See it work
 
-Type `/observe checkout health by pod, last 6h` and the agent builds a dashboard.
+On Home, type `checkout health by pod, last 6h` in the chat composer on the **Ask Observe Agent** tab, and the agent builds a dashboard.
 You refine it in plain language.
-Outside agents connect over MCP and act as the person who connected them.
+Outside agents such as Claude Code connect over MCP, read the `/observe` guide that the server offers as an MCP prompt, and act as the person who connected them.
 
 To try it on your own machine with sample data, follow the [quick start](quick-start.md).
-It needs Docker, git and a model API key.
+It needs Docker and git, plus a model API key if you want the agent to answer prompts.
 To import dashboards you already have, see [Switch from Grafana](../use/switch-from-grafana.md).
 
 ## Ask the agent where you are working
