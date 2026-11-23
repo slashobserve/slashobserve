@@ -44,7 +44,7 @@ Other ways to comment:
 - Drag across the time axis of a time series, heatmap, state timeline or status history to comment on the range you dragged over.
 - Click a panel's title bar to comment on its title.
 - With the pointer over a panel or a panel selected, press `c`, choose **Comment** in the panel's menu or use its header button, to comment on the whole panel.
-  Tab to the title and press Enter does the same.
+  Tabbing to the title and pressing Enter does the same.
 - In the full-size view and TV mode there is no canvas to point at, so **Comment** opens the **Activity** tab of the side pane, scoped to the panel.
 
 ### Comment mode
