@@ -129,8 +129,17 @@ export function attributeFilter(
   value: string
 ): Partial<TraceSearch> | null {
   if (type !== "tempo") {
-    if (attribute === "name") return { span: value }
-    if (attribute === "resource.service.name") return { service: value }
+    const written = type === "jaeger" ? search.q : undefined
+    if (attribute === "name") {
+      return written === undefined
+        ? { span: value }
+        : { q: withJaegerPair(written, "operation", value) }
+    }
+    if (attribute === "resource.service.name") {
+      return written === undefined
+        ? { service: value }
+        : { q: withJaegerPair(written, "service", value) }
+    }
     return null
   }
   const condition = compareCondition(attribute, value)
@@ -217,22 +226,46 @@ export function jaegerSearchFor(form: TraceForm): string {
   return pairs.length === 0 ? jaegerNoFilter : pairs.join(" ")
 }
 
-const jaegerDurationPair =
-  /(?:^|\s)(?:minDuration|maxDuration)=(?:"(?:[^"\\]|\\.)*"|\S*)/g
+const jaegerPair = /(^|\s)([^\s="]+)=("(?:[^"\\]|\\.)*"|\S*)/g
+
+function takeJaegerPairs(
+  q: string,
+  keys: string[]
+): { rest: string; taken: Record<string, string> } {
+  const taken: Record<string, string> = {}
+  const rest = q
+    .replace(jaegerPair, (match, _lead, key: string, value: string) => {
+      if (!keys.includes(key)) return match
+      taken[key] = value.startsWith('"') ? value.slice(1, -1) : value
+      return ""
+    })
+    .trim()
+  return { rest: rest === jaegerNoFilter ? "" : rest, taken }
+}
 
 export function withJaegerDurationBounds(
   q: string,
   min: string,
   max: string | undefined
 ): string {
-  const kept = q.replace(jaegerDurationPair, "").trim()
+  const { rest, taken } = takeJaegerPairs(q, ["minDuration", "maxDuration"])
+  const floor = tighterBound(taken.minDuration, min, (a, b) => a > b)
+  const ceiling =
+    max === undefined
+      ? taken.maxDuration
+      : tighterBound(taken.maxDuration, max, (a, b) => a < b)
   return [
-    kept === jaegerNoFilter ? "" : kept,
-    `minDuration=${goDuration(min)}`,
-    max === undefined ? "" : `maxDuration=${goDuration(max)}`,
+    rest,
+    `minDuration=${goDuration(floor)}`,
+    ceiling === undefined ? "" : `maxDuration=${goDuration(ceiling)}`,
   ]
     .filter(Boolean)
     .join(" ")
+}
+
+function withJaegerPair(q: string, key: string, value: string): string {
+  const { rest } = takeJaegerPairs(q, [key])
+  return [rest, `${key}=${jaegerValue(value)}`].filter(Boolean).join(" ")
 }
 
 const clickhouseErrorStatus =

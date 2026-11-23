@@ -497,17 +497,30 @@ describe("Jaeger searches", () => {
     expect(traceSearchParams("jaeger", { sort: "spans" }).sort).toBeUndefined()
   })
 
-  it("replaces the bounds of a written search with the selection's", () => {
+  it("keeps the tighter of the written bounds and the selection's", () => {
     expect(
       withJaegerDurationBounds(
         'service=checkout minDuration=1s maxDuration="5s" http.method=GET',
         "800ms",
         "2s"
       )
-    ).toBe("service=checkout http.method=GET minDuration=800ms maxDuration=2s")
+    ).toBe("service=checkout http.method=GET minDuration=1s maxDuration=2s")
+    expect(
+      withJaegerDurationBounds(
+        "service=checkout minDuration=500ms maxDuration=1s",
+        "800ms",
+        "2s"
+      )
+    ).toBe("service=checkout minDuration=800ms maxDuration=1s")
     expect(withJaegerDurationBounds("minDuration=0s", "800ms", undefined)).toBe(
       "minDuration=800ms"
     )
+  })
+
+  it("keeps the written maximum when the selection has no ceiling", () => {
+    expect(
+      withJaegerDurationBounds("service=a maxDuration=3s", "800ms", undefined)
+    ).toBe("service=a minDuration=800ms maxDuration=3s")
     expect(
       keepSelectionSearch(
         "jaeger",
@@ -515,5 +528,50 @@ describe("Jaeger searches", () => {
         { from, to, minMs: 800, maxMs: null }
       )
     ).toMatchObject({ q: "service=checkout minDuration=800ms" })
+  })
+
+  it("leaves a duration pair inside a quoted value alone", () => {
+    expect(
+      withJaegerDurationBounds('note="x minDuration=9s"', "800ms", undefined)
+    ).toBe('note="x minDuration=9s" minDuration=800ms')
+  })
+
+  it("adds or replaces the service and the operation in a written search", () => {
+    expect(
+      attributeFilter(
+        "jaeger",
+        { q: "service=checkout http.method=GET" },
+        "name",
+        "POST /pay"
+      )
+    ).toEqual({ q: 'service=checkout http.method=GET operation="POST /pay"' })
+    expect(
+      attributeFilter(
+        "jaeger",
+        { q: "service=checkout operation=old minDuration=1s" },
+        "name",
+        "new"
+      )
+    ).toEqual({ q: "service=checkout minDuration=1s operation=new" })
+    expect(
+      attributeFilter(
+        "jaeger",
+        { q: "service=checkout operation=old" },
+        "resource.service.name",
+        "payments"
+      )
+    ).toEqual({ q: "operation=old service=payments" })
+    expect(
+      attributeFilter("jaeger", { q: "minDuration=0s" }, "name", "GET /")
+    ).toEqual({ q: 'operation="GET /"' })
+  })
+
+  it("sets the fields on Jaeger when no search is written", () => {
+    expect(attributeFilter("jaeger", {}, "name", "GET /")).toEqual({
+      span: "GET /",
+    })
+    expect(
+      attributeFilter("jaeger", { q: "service=a" }, "span.x", "1")
+    ).toBeNull()
   })
 })
