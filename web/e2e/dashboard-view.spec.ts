@@ -111,30 +111,30 @@ test("a variable filters the series and survives reload", async ({
   await openDashboard(page, id)
   await expectPanelsReady(page)
 
-  const pod = page.getByRole("combobox", { name: "Pod" })
-  await pod.click()
+  const service = page.getByRole("combobox", { name: "Service" })
+  await service.click()
   const filtered = panelDataResponse(
     page,
     "rps",
-    (url) => url.searchParams.getAll("var-pod").join(",") === "checkout-0"
+    (url) => url.searchParams.getAll("var-service").join(",") === "checkout"
   )
-  await page.getByRole("option", { name: "checkout-0" }).click()
-  await expect(page).toHaveURL(/var-pod=checkout-0(&|$)/)
+  await page.getByRole("option", { name: "checkout" }).click()
+  await expect(page).toHaveURL(/var-service=checkout(&|$)/)
   const body = (await (await filtered).json()) as {
-    frames: { labels?: { pod?: string } }[]
+    frames: { labels?: { service_name?: string } }[]
   }
   expect(body.frames.length).toBeGreaterThan(0)
-  for (const frame of body.frames) expect(frame.labels?.pod).toBe("checkout-0")
+  for (const frame of body.frames) expect(frame.labels?.service_name).toBe("checkout")
   await page.keyboard.press("Escape")
 
   await page.reload()
   const chips = page.locator('[data-slot="combobox-chips"]')
-  await expect(chips).toContainText("checkout-0")
+  await expect(chips).toContainText("checkout")
   await expectPanelsReady(page)
 
-  await page.getByRole("combobox", { name: "Pod" }).click()
+  await page.getByRole("combobox", { name: "Service" }).click()
   await page.getByRole("option", { name: "All", exact: true }).click()
-  await expect(page).toHaveURL(/var-pod=%24__all/)
+  await expect(page).toHaveURL(/var-service=%24__all/)
 })
 
 function dependentVariablesSpec() {
@@ -148,7 +148,7 @@ function dependentVariablesSpec() {
       type: "query",
       refresh: "timeRange",
       datasource,
-      query: "label_values(http_requests_total, service)",
+      query: "label_values(traces_span_metrics_calls_total, service_name)",
     },
     {
       name: "route",
@@ -156,16 +156,16 @@ function dependentVariablesSpec() {
       type: "query",
       refresh: "timeRange",
       datasource,
-      query: 'label_values(http_requests_total{service="$service"}, route)',
+      query: 'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_name)',
     },
     {
-      name: "pod",
-      label: "Pod",
+      name: "kind",
+      label: "Kind",
       type: "query",
       refresh: "timeRange",
       multi: true,
       datasource,
-      query: 'label_values(http_requests_total{service="$service"}, pod)',
+      query: 'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_kind)',
     },
   ]
   spec.panels = [
@@ -174,7 +174,7 @@ function dependentVariablesSpec() {
       queries: [
         {
           query:
-            'sum by (pod) (rate(http_requests_total{service="$service",route="$route",pod=~"$pod"}[$__rate_interval]))',
+            'sum by (span_kind) (rate(traces_span_metrics_calls_total{service_name="$service",span_name="$route",span_kind=~"$kind"}[$__rate_interval]))',
         },
       ],
     },
@@ -199,7 +199,7 @@ async function holdVariableValues(page: Page) {
 
 async function labelPositions(page: Page) {
   const positions: number[] = []
-  for (const name of ["Service", "Route", "Pod"]) {
+  for (const name of ["Service", "Route", "Kind"]) {
     const box = await page
       .locator("label", { hasText: new RegExp(`^${name}$`) })
       .boundingBox()
@@ -217,7 +217,7 @@ test("dependent variables stay in place while they reload", async ({
   await expectPanelsReady(page)
 
   const route = page.getByRole("combobox", { name: "Route" })
-  const pod = page.getByRole("combobox", { name: "Pod" })
+  const kind = page.getByRole("combobox", { name: "Kind" })
   const idle = await labelPositions(page)
   expect(new Set(idle).size).toBe(3)
 
@@ -230,13 +230,13 @@ test("dependent variables stay in place while they reload", async ({
   await page.getByRole("button", { name: /^Time range/ }).click()
   await page.getByRole("button", { name: "Last 1 hour", exact: true }).click()
   await expect(route).toBeDisabled()
-  await expect(pod).toBeDisabled()
+  await expect(kind).toBeDisabled()
   await expect(route).toHaveAttribute("aria-busy", "true")
   expect(await labelPositions(page)).toEqual(idle)
   await reloaded
   await release()
   await expect(route).toBeEnabled()
-  await expect(pod).toBeEnabled()
+  await expect(kind).toBeEnabled()
   expect(await labelPositions(page)).toEqual(idle)
 
   release = await holdVariableValues(page)
@@ -254,13 +254,13 @@ test("dependent variables stay in place while they reload", async ({
   }
   await expect(route).toBeDisabled()
   await expect(
-    page.getByRole("button", { name: "Pod, loading" })
+    page.getByRole("button", { name: "Kind, loading" })
   ).toBeDisabled()
   await expect(route).toContainText("Loading...")
   expect(await labelPositions(page)).toEqual(idle)
   await release()
   await expect(route).toBeEnabled()
-  await expect(pod).toBeEnabled()
+  await expect(kind).toBeEnabled()
   await expectPanelsReady(page)
 })
 
@@ -313,7 +313,7 @@ test("shows a panel error and recovers", async ({
     })
   )
   await openDashboard(page, id)
-  const rps = panel(page, "Checkout requests per second")
+  const rps = panel(page, "Shop requests per second")
   await expect(rps).toHaveAttribute("data-state", "error", { timeout: 10_000 })
   await expect(rps.getByText("Query timed out", { exact: true })).toBeVisible()
 

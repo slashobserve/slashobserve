@@ -11,11 +11,11 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (pod) (rate(http_requests_total[5m]))",
-          "legend": "{{pod}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         },
         {
-          "query": "sum(rate(http_requests_total[5m]))",
+          "query": "sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
           "legend": "total"
         }
       ],
@@ -32,7 +32,7 @@
           "color": "critical",
           "lineStyle": "dashed"
         },
-        { "match": { "seriesRegex": "checkout-1" }, "hidden": true }
+        { "match": { "seriesRegex": "payment" }, "hidden": true }
       ]
     },
     {
@@ -43,8 +43,8 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (service) (rate(http_requests_total[5m]))",
-          "legend": "{{service}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|frontend|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         }
       ],
       "unit": "reqps",
@@ -60,8 +60,8 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (service) (rate(http_requests_total[5m]))",
-          "legend": "{{service}}"
+          "query": "sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~\"checkout|frontend|payment\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
+          "legend": "{{service_name}}"
         }
       ],
       "stack": "percent",
@@ -73,7 +73,7 @@
       "title": "Points",
       "gridPos": { "x": 0, "y": 17, "w": 12, "h": 8 },
       "datasource": "prom",
-      "queries": [{ "query": "sum(rate(http_requests_total[5m]))" }],
+      "queries": [{ "query": "sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m]))" }],
       "unit": "reqps",
       "style": "points",
       "display": { "legend": "hidden", "tooltip": "single" }

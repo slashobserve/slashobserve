@@ -47,11 +47,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       await openGauges(page, await createGauges(request))
 
-      const meters = panel(page, "Requests by pod").getByRole("meter")
+      const meters = panel(page, "Requests by service").getByRole("meter")
       await expect.poll(() => meters.count()).toBeGreaterThanOrEqual(2)
       for (const meter of await meters.all()) {
         await expect(meter).toHaveAttribute("data-markers", "false")
-        await expect(meter).toHaveAttribute("aria-label", /^[a-z]+-\d+$/)
+        await expect(meter).toHaveAttribute("aria-label", /^[a-z-]+$/)
       }
     })
   })

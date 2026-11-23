@@ -27,7 +27,7 @@ import {
 import { expect, test } from "./fixtures"
 
 const agentTimeout = 90_000
-const rpsTitle = "Checkout requests per second"
+const rpsTitle = "Shop requests per second"
 const logsTitle = "Log rows by service"
 const agentRpsTitle = "Requests per second"
 const you = "admin"

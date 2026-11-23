@@ -15,10 +15,10 @@ import {
 import { expect, test } from "./fixtures"
 
 const simplifiedQuery =
-  'sum(rate(http_requests_total{service="checkout"}[$__rate_interval]))'
+  'sum(rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))'
 
-const byPodQuery =
-  'sum by (pod) (rate(http_requests_total{service="checkout"}[$__rate_interval]))'
+const byServiceQuery =
+  'sum by (service_name) (rate(traces_span_metrics_calls_total{service_name=~"checkout|payment",span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))'
 
 async function createHistory(request: APIRequestContext) {
   const spec = loadSpec("overview")
@@ -32,7 +32,7 @@ async function createHistory(request: APIRequestContext) {
           ...panel,
           queries: [
             { query: simplifiedQuery },
-            { query: byPodQuery, legend: "per pod" },
+            { query: byServiceQuery, legend: "per service" },
           ],
         }
       : panel
@@ -128,7 +128,7 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
     page.getByRole("heading", { level: 2, name: "Changes from v2 to v3" })
   ).toBeVisible()
   const panelGroup = page.getByRole("region", {
-    name: 'Panel "Checkout requests per second"',
+    name: 'Panel "Shop requests per second"',
   })
   const changes = panelGroup.getByRole("listitem")
 
@@ -137,7 +137,7 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   const before = edited.getByRole("group", { name: "Before", exact: true })
   const after = edited.getByRole("group", { name: "After", exact: true })
   await expect(before.getByRole("group", { name: "Query A" })).toContainText(
-    "sum by (pod)"
+    "sum by (service_name)"
   )
   await expect(before).not.toContainText('"query":')
   await expect(after.getByRole("group", { name: "Query A" })).toContainText(
@@ -149,7 +149,7 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   await expect(legend.getByText("Removed")).toBeVisible()
   await expect(
     legend.getByRole("group", { name: "Before", exact: true })
-  ).toContainText("{{pod}}")
+  ).toContainText("{{service_name}}")
 
   const added = changes.filter({
     has: page.getByText("queries.B", { exact: true }),
@@ -158,8 +158,8 @@ test("shows the Spec diff between two versions", async ({ page, request }) => {
   const addedAfter = added.getByRole("group", { name: "After", exact: true })
   await expect(
     addedAfter.getByRole("group", { name: "Query B" })
-  ).toContainText(byPodQuery)
-  await expect(addedAfter.getByText("legend: per pod")).toBeVisible()
+  ).toContainText(byServiceQuery)
+  await expect(addedAfter.getByText("legend: per service")).toBeVisible()
   await expect(addedAfter).not.toContainText('"query":')
 
   await page.getByRole("combobox", { name: "From" }).click()
@@ -203,8 +203,8 @@ test("shows a changed second query as its own line", async ({
     ),
   })
   const byRouteQuery =
-    'sum by (route) (rate(http_requests_total{service="checkout"}[$__rate_interval]))'
-  const { id } = await createDashboard(request, withQueries(byPodQuery))
+    'sum by (span_name) (rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[$__rate_interval]))'
+  const { id } = await createDashboard(request, withQueries(byServiceQuery))
   await addVersion(request, id, withQueries(byRouteQuery), 1, "Group by route")
   await openHistory(page, id)
 
@@ -212,7 +212,7 @@ test("shows a changed second query as its own line", async ({
     page.getByRole("heading", { level: 2, name: "Changes from v1 to v2" })
   ).toBeVisible()
   const panelGroup = page.getByRole("region", {
-    name: 'Panel "Checkout requests per second"',
+    name: 'Panel "Shop requests per second"',
   })
   const changes = panelGroup.getByRole("listitem")
   await expect(changes).toHaveCount(1)
@@ -222,7 +222,7 @@ test("shows a changed second query as its own line", async ({
       .first()
       .getByRole("group", { name: "Before", exact: true })
       .getByRole("group", { name: "Query B" })
-  ).toContainText(byPodQuery)
+  ).toContainText(byServiceQuery)
   await expect(
     changes
       .first()
@@ -324,7 +324,7 @@ test("restores a pinned version from the Versions page", async ({
   await openDashboard(
     page,
     id,
-    "?version=1&from=now-6h&refresh=30s&var-pod=checkout-1"
+    "?version=1&from=now-6h&refresh=30s&var-service=payment"
   )
   await expect(versionButton(page)).toHaveText("v1 of 3")
 
@@ -339,7 +339,7 @@ test("restores a pinned version from the Versions page", async ({
   await expect(page).not.toHaveURL(/version=/)
   await expect(page).toHaveURL(/from=now-6h/)
   await expect(page).toHaveURL(/refresh=30s/)
-  await expect(page).toHaveURL(/var-pod=checkout-1/)
+  await expect(page).toHaveURL(/var-service=payment/)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
   await expect(versionButton(page)).toHaveText(/v4$/)
 })
@@ -524,14 +524,14 @@ test("keeps the dashboard view through history and back", async ({
   request,
 }) => {
   const { id, spec } = await createHistory(request)
-  await openDashboard(page, id, "?from=now-6h&refresh=30s&var-pod=checkout-1")
+  await openDashboard(page, id, "?from=now-6h&refresh=30s&var-service=payment")
 
   await openVersionsFromMenu(page)
   await expect(page).toHaveURL(new RegExp(`/d/${id}/versions\\?back=`))
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
     new RegExp(
-      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-service=payment$`
     )
   )
 
@@ -543,7 +543,7 @@ test("keeps the dashboard view through history and back", async ({
   await expect(page.getByText("Restored version 1 as version 4")).toBeVisible()
   await expect(page).toHaveURL(
     new RegExp(
-      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-pod=checkout-1$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&refresh=30s&var-service=payment$`
     )
   )
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(spec.title)
@@ -585,21 +585,21 @@ test("Compare versions keeps a pinned version and drops it after a restore", asy
 test("the View links keep the dashboard search", async ({ page, request }) => {
   const { id } = await createHistory(request)
   const back = encodeURIComponent(
-    "from=now-6h&var-pod=checkout-1&version=2&panel=rps&edit=query"
+    "from=now-6h&var-service=payment&version=2&panel=rps&edit=query"
   )
   await openHistory(page, id, `?back=${back}`)
 
   await page.getByRole("link", { name: "View version 1" }).click()
   await expect(page).toHaveURL(
     new RegExp(
-      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1&version=1$`
+      `/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-service=payment&version=1$`
     )
   )
 
   await openHistory(page, id, `?back=${back}`)
   await page.getByRole("link", { name: "View version 3" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1$`)
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-service=payment$`)
   )
 })
 
@@ -609,13 +609,13 @@ test("accepts only dashboard search keys in the back parameter", async ({
 }) => {
   const { id } = await createHistory(request)
   const back = encodeURIComponent(
-    "from=now-6h&redirect=https://evil.example&version=zz&var-pod=checkout-1"
+    "from=now-6h&redirect=https://evil.example&version=zz&var-service=payment"
   )
   await openHistory(page, id, `?back=${back}`)
 
   await page.getByRole("link", { name: "Back to dashboard" }).click()
   await expect(page).toHaveURL(
-    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-pod=checkout-1$`)
+    new RegExp(`/d/${id}(/[a-z0-9-]+)?\\?from=now-6h&var-service=payment$`)
   )
 })
 

@@ -12,7 +12,7 @@ const panelTitle = "Requests per second"
 const editedTitle = "Requests per second, edited"
 const note = "Added p95 and a warning"
 const suggestPrompt = fixturePrompt("suggest-p95.json")
-const unclosedQuery = "sum(rate(http_requests_total[5m])"
+const unclosedQuery = "sum(rate(traces_span_metrics_calls_total[5m])"
 const closedQuery = `${unclosedQuery})`
 
 function editor(page: Page) {
@@ -135,10 +135,10 @@ for (const colorScheme of ["light", "dark"] as const) {
         })
         await browser
           .getByRole("textbox", { name: "Search metrics" })
-          .fill("http_requests")
+          .fill("traces_span_metrics")
         await expect(
           browser.getByRole("button", {
-            name: "http_requests_total",
+            name: "traces_span_metrics_calls_total",
             exact: true,
           })
         ).toBeVisible()

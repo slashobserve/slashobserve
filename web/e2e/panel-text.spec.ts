@@ -27,7 +27,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         notes.getByRole("heading", { name: "Runbook for prod" })
       ).toBeVisible()
       await expect(
-        notes.getByRole("cell", { name: "checkout-0" })
+        notes.getByRole("cell", { name: "checkout" })
       ).toBeVisible()
       await expect(notes.locator("code", { hasText: "code" })).toBeVisible()
     })

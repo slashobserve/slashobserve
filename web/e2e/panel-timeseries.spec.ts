@@ -33,7 +33,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         legend.getByRole("button", { name: "total", exact: true })
       ).toBeVisible()
       await expect(
-        legend.getByRole("button", { name: /checkout-1/ })
+        legend.getByRole("button", { name: /payment/ })
       ).toHaveCount(0)
       await expect(
         legend.getByRole("columnheader", { name: "Mean" })
@@ -107,7 +107,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         1
       )
       await expect(
-        tooltip.locator(".ts-tooltip-row", { hasText: "checkout-1" })
+        tooltip.locator(".ts-tooltip-row", { hasText: "payment" })
       ).toHaveCount(0)
     })
   })

@@ -95,7 +95,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const { id } = await createDashboard(request, spec)
       await openTables(page, id)
 
-      const title = "Checkout requests per second"
+      const title = "Shop requests per second"
       const rps = panel(page, title)
       await rps.getByRole("button", { name: `Panel menu: ${title}` }).click()
       await page.getByRole("menuitem", { name: "View as table" }).click()
