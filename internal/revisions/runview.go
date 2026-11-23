@@ -118,7 +118,7 @@ func (r *RunDesk) listBody(ctx context.Context, caller auth.Principal, filter Li
 			if err != nil {
 				return requestListJSON{}, fmt.Errorf("check who may keep a listed agent request's build: %w", err)
 			}
-			allowed = allowedActions(newFacts(State(row.State), listedSource(row), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit))
+			allowed = allowedActions(newFacts(State(row.State), listedSource(row), row.DashboardID, row.BuildSavedAt.Valid, states[row.ID], mine, mayStart, mayEdit, asOfBars(row.AsOf, caller)))
 		}
 		state := states[row.ID]
 		state.build = state.progressFor(requester, caller)

@@ -27,11 +27,15 @@ func mayRunAsOf(by auth.Principal) error {
 	return nil
 }
 
+func asOfBars(asOf pgtype.Timestamptz, by auth.Principal) bool {
+	return asOf.Valid && mayRunAsOf(by) != nil
+}
+
 func keepAsOf(row dbsqlc.AgentRequest, by auth.Principal) error {
-	if !row.AsOf.Valid {
-		return nil
+	if asOfBars(row.AsOf, by) {
+		return ErrForbidden
 	}
-	return mayRunAsOf(by)
+	return nil
 }
 
 func CheckAsOf(raw string, by auth.Principal, now time.Time) (time.Time, error) {

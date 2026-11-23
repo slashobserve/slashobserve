@@ -2,6 +2,7 @@ package revisions
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -70,6 +71,35 @@ func TestOnlyAnAdminKeepsAnAsOfRunsClock(t *testing.T) {
 	} {
 		if err := keepAsOf(tc.row, tc.by); !errors.Is(err, tc.err) {
 			t.Errorf("%s: keepAsOf = %v, want %v", tc.name, err, tc.err)
+		}
+	}
+}
+
+func TestAnAsOfRunOffersRetryAndContinueOnlyToAnAdmin(t *testing.T) {
+	admin := auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleAdmin}
+	editor := auth.Principal{Kind: auth.KindUser, ID: "u1", Role: auth.RoleEditor}
+	row := dbsqlc.AgentRequest{
+		State:           string(StateFailed),
+		RequestedByKind: string(auth.KindUser),
+		RequestedByID:   pgtype.UUID{},
+		AsOf:            pgtype.Timestamptz{Time: time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC), Valid: true},
+	}
+	for _, tc := range []struct {
+		name  string
+		row   dbsqlc.AgentRequest
+		by    auth.Principal
+		retry bool
+	}{
+		{"an admin on an as_of run", row, admin, true},
+		{"an editor on an as_of run", row, editor, false},
+		{"an editor on a live run", func() dbsqlc.AgentRequest { r := row; r.AsOf = pgtype.Timestamptz{}; return r }(), editor, true},
+	} {
+		facts := factsOf(tc.row, buildState{}, tc.by, true, true)
+		if got := slices.Contains(allowedActions(facts), ActionRetry); got != tc.retry {
+			t.Errorf("%s: retry offered = %v, want %v", tc.name, got, tc.retry)
+		}
+		if slices.Contains(allowedActions(facts), ActionContinue) && !tc.retry {
+			t.Errorf("%s: continue offered", tc.name)
 		}
 	}
 }

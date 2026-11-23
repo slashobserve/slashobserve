@@ -77,7 +77,7 @@ func (s *Service) buildStates(ctx context.Context, ids []pgtype.UUID) (map[pgtyp
 	return states, nil
 }
 
-func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart, mayEdit bool) runFacts {
+func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart, mayEdit, asOfBarred bool) runFacts {
 	f := runFacts{
 		state:       state,
 		source:      source,
@@ -85,6 +85,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 		requester:   requester,
 		mayStart:    mayStart,
 		mayEdit:     mayEdit,
+		asOfBarred:  asOfBarred,
 		buildSaved:  buildSaved,
 		continued:   build.continuedBy != nil,
 		retried:     build.retriedBy != nil,
@@ -96,7 +97,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit, asOfBars(row.AsOf, by))
 }
 
 type startChecks struct {

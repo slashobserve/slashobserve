@@ -1981,6 +1981,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
+  r.as_of,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
@@ -2056,6 +2057,7 @@ type ListAgentRequestsAllRow struct {
 	CommentID            pgtype.UUID
 	ThreadMessageID      pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	AsOf                 pgtype.Timestamptz
 	RequestedByKind      string
 	RequestedByID        pgtype.UUID
 	RequestedByName      string
@@ -2119,6 +2121,7 @@ func (q *Queries) ListAgentRequestsAll(ctx context.Context, arg ListAgentRequest
 			&i.CommentID,
 			&i.ThreadMessageID,
 			&i.SubjectObservationID,
+			&i.AsOf,
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,
@@ -2145,6 +2148,7 @@ SELECT r.id, r.intent, r.kind, r.investigation, r.trigger, r.prompt, r.dashboard
   r.failure_code, r.build_saved_at, r.continues_id, r.continue_note,
   r.title, r.pinned_at, r.observation_id, r.chat_id,
   r.base_version, r.comment_id, r.thread_message_id, r.subject_observation_id,
+  r.as_of,
   r.requested_by_kind, r.requested_by_id, r.requested_by_name, r.anchor, r.block_id,
   ch.observation_id AS chat_observation_id,
   d.title AS dashboard_title,
@@ -2227,6 +2231,7 @@ type ListAgentRequestsByRow struct {
 	CommentID            pgtype.UUID
 	ThreadMessageID      pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	AsOf                 pgtype.Timestamptz
 	RequestedByKind      string
 	RequestedByID        pgtype.UUID
 	RequestedByName      string
@@ -2294,6 +2299,7 @@ func (q *Queries) ListAgentRequestsBy(ctx context.Context, arg ListAgentRequests
 			&i.CommentID,
 			&i.ThreadMessageID,
 			&i.SubjectObservationID,
+			&i.AsOf,
 			&i.RequestedByKind,
 			&i.RequestedByID,
 			&i.RequestedByName,

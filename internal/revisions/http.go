@@ -251,7 +251,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
 		view := s.viewFor(ctx, rev.audience, caller)
-		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit)
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit, false)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 		if view != viewFull {
 			views[i].redact()
