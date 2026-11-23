@@ -335,9 +335,7 @@ test("keeps a multi-value variable inside the box on a phone", async ({
     .filter({ has: input })
     .locator("xpath=..")
   await expect(
-    page
-      .locator('[data-slot="combobox-chip"]')
-      .filter({ hasText: "cart" })
+    page.locator('[data-slot="combobox-chip"]').filter({ hasText: "cart" })
   ).toBeVisible()
   const box = await control.boundingBox()
   const chevron = await page

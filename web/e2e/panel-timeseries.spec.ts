@@ -32,9 +32,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         legend.getByRole("button", { name: "total", exact: true })
       ).toBeVisible()
-      await expect(
-        legend.getByRole("button", { name: /payment/ })
-      ).toHaveCount(0)
+      await expect(legend.getByRole("button", { name: /payment/ })).toHaveCount(
+        0
+      )
       await expect(
         legend.getByRole("columnheader", { name: "Mean" })
       ).toBeVisible()

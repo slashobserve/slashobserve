@@ -124,7 +124,8 @@ test("a variable filters the series and survives reload", async ({
     frames: { labels?: { service_name?: string } }[]
   }
   expect(body.frames.length).toBeGreaterThan(0)
-  for (const frame of body.frames) expect(frame.labels?.service_name).toBe("checkout")
+  for (const frame of body.frames)
+    expect(frame.labels?.service_name).toBe("checkout")
   await page.keyboard.press("Escape")
 
   await page.reload()
@@ -157,7 +158,8 @@ function dependentVariablesSpec() {
       type: "query",
       refresh: "timeRange",
       datasource,
-      query: 'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_name)',
+      query:
+        'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_name)',
     },
     {
       name: "kind",
@@ -166,7 +168,8 @@ function dependentVariablesSpec() {
       refresh: "timeRange",
       multi: true,
       datasource,
-      query: 'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_kind)',
+      query:
+        'label_values(traces_span_metrics_calls_total{service_name="$service"}, span_kind)',
     },
   ]
   spec.panels = [

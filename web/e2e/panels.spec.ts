@@ -234,7 +234,9 @@ test("switches between chart and table view", async ({ page, request }) => {
   const menu = rps.getByRole("button", { name: `Panel menu: ${rpsTitle}` })
   await menu.click()
   await page.getByRole("menuitem", { name: "View as table" }).click()
-  await expect(rps.getByRole("columnheader", { name: "service_name" })).toBeVisible()
+  await expect(
+    rps.getByRole("columnheader", { name: "service_name" })
+  ).toBeVisible()
   await expect(rps.locator("canvas")).toHaveCount(0)
 
   await menu.click()
@@ -256,7 +258,9 @@ test("keeps other panels working when a renderer chunk fails and reloads the pag
   await expect(stat.getByText("Could not load this panel")).toBeVisible()
   await expect(stat.getByRole("button", { name: "Reload page" })).toBeVisible()
   await expect(panel(page, rpsTitle).locator("canvas")).toHaveCount(1)
-  await expect(panel(page, "Requests by service").getByRole("meter")).toHaveCount(2)
+  await expect(
+    panel(page, "Requests by service").getByRole("meter")
+  ).toHaveCount(2)
 
   await page.unroute(chunk)
   await Promise.all([
@@ -400,7 +404,10 @@ test("labels each query's series with its own legend", async ({
       datasource: "prom",
       queries: [
         { query: "count(traces_span_metrics_calls_total)", legend: "all" },
-        { query: 'count(traces_span_metrics_calls_total{job=~".+"})', legend: "job" },
+        {
+          query: 'count(traces_span_metrics_calls_total{job=~".+"})',
+          legend: "job",
+        },
       ],
     },
   ]

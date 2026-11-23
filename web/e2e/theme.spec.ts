@@ -79,7 +79,9 @@ test("keeps plain search parameters", async ({ page }) => {
   await expect(
     page.getByRole("heading", { level: 1, name: "What do you want to see?" })
   ).toBeVisible()
-  await expect(page).toHaveURL(/\/ask\?from=now-1h&var-service=a&var-service=b$/)
+  await expect(page).toHaveURL(
+    /\/ask\?from=now-1h&var-service=a&var-service=b$/
+  )
 })
 
 test("switches the theme from the keyboard", async ({ page }) => {

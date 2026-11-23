@@ -73,7 +73,11 @@
       "title": "Points",
       "gridPos": { "x": 0, "y": 17, "w": 12, "h": 8 },
       "datasource": "prom",
-      "queries": [{ "query": "sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m]))" }],
+      "queries": [
+        {
+          "query": "sum(rate(traces_span_metrics_calls_total{span_kind=\"SPAN_KIND_SERVER\"}[5m]))"
+        }
+      ],
       "unit": "reqps",
       "style": "points",
       "display": { "legend": "hidden", "tooltip": "single" }

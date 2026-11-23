@@ -34,7 +34,8 @@ const demoShopTitle = "Demo shop (Grafana)"
 const demoShopSummary = "27 panels in 6 rows"
 const dashboardPath = /\/d\/([0-9a-f-]{36})(?:\/[a-z0-9-]+)?$/
 const fixPrompt = 'Fix the unverified panel "Missing" (p2).'
-const fixChange = "Point the Missing panel at sum(traces_span_metrics_calls_total)"
+const fixChange =
+  "Point the Missing panel at sum(traces_span_metrics_calls_total)"
 const missingMetric = "slashobserve_e2e_missing_metric_total"
 
 function readDemoShop(): Record<string, unknown> {
@@ -190,7 +191,10 @@ for (const colorScheme of ["light", "dark"] as const) {
         )
         await expectPanelsSettled(page)
         for (const title of routeVariablePanels) {
-          await expect(panel(page, title)).toHaveAttribute("data-state", "error")
+          await expect(panel(page, title)).toHaveAttribute(
+            "data-state",
+            "error"
+          )
         }
         await expect(page.locator('article[data-state="error"]')).toHaveCount(
           routeVariablePanels.length
@@ -247,7 +251,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         const missing = lines.filter({ hasText: "Missing" })
         await expect(missing).toContainText("Unverified")
         await expect(missing).toContainText(/no data/i)
-        await expect(lines.filter({ hasText: "Calls" })).toContainText("Imported")
+        await expect(lines.filter({ hasText: "Calls" })).toContainText(
+          "Imported"
+        )
       })
 
       let dashboardId = ""

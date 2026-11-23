@@ -366,7 +366,8 @@ test("applying my title keeps a panel query changed in the newer version", async
   await openFromMenu(page, rpsTitle)
   await sheet(page).getByRole("textbox", { name: "Title" }).fill("My title")
 
-  const newerQuery = 'sum(rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[5m]))'
+  const newerQuery =
+    'sum(rate(traces_span_metrics_calls_total{service_name="checkout",span_kind="SPAN_KIND_SERVER"}[5m]))'
   await addVersion(
     request,
     id,
@@ -397,7 +398,8 @@ test("moves focus to the conflict list when a save conflicts with a newer versio
   await openFromMenu(page, rpsTitle)
   await replaceQuery(page, savedQuery)
 
-  const newerQuery = 'sum(rate(traces_span_metrics_calls_total{service_name="payment",span_kind="SPAN_KIND_SERVER"}[5m]))'
+  const newerQuery =
+    'sum(rate(traces_span_metrics_calls_total{service_name="payment",span_kind="SPAN_KIND_SERVER"}[5m]))'
   await addVersion(
     request,
     id,
