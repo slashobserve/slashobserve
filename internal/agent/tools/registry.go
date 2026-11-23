@@ -219,6 +219,21 @@ type Run struct {
 	Observations  []string
 	WriteFolders  []pgtype.UUID
 	Investigation bool
+	AsOf          time.Time
+}
+
+func (run Run) asOf() *time.Time {
+	if run.AsOf.IsZero() {
+		return nil
+	}
+	return &run.AsOf
+}
+
+func Now(ctx context.Context) time.Time {
+	if run, ok := RunFrom(ctx); ok && !run.AsOf.IsZero() {
+		return run.AsOf
+	}
+	return time.Now()
 }
 
 func (run Run) about(id string) bool {
@@ -267,6 +282,9 @@ func (r *Registry) DatasourceTypes(ctx context.Context) []spec.DatasourceType {
 }
 
 func WithRun(ctx context.Context, run Run) context.Context {
+	if !run.AsOf.IsZero() {
+		ctx = datasource.WithNow(ctx, run.AsOf)
+	}
 	return context.WithValue(ctx, runKey{}, run)
 }
 

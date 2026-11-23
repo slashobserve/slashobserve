@@ -21,6 +21,7 @@ type investigateOptions struct {
 	at          string
 	from        string
 	to          string
+	asOf        string
 	private     bool
 	noWait      bool
 	timeout     time.Duration
@@ -68,6 +69,7 @@ func (a *app) investigateCommand() *cobra.Command {
 		Example: "  observe investigate why did checkout errors rise after 10:00\n" +
 			"  observe investigate --dashboard <id> --panel <panel-id> --from now-6h --to now what changed\n" +
 			"  observe investigate --observation <id> why did checkout errors rise\n" +
+			"  observe investigate --as-of 2026-11-20T10:30:00Z --from now-1h --to now why did checkout errors rise\n" +
 			"  observe investigate --private --dashboard <id> why is this panel flat",
 		Args: minimumArgs(1, "a question"),
 		RunE: a.runInvestigate,
@@ -80,6 +82,7 @@ func (a *app) investigateCommand() *cobra.Command {
 	flags.StringVar(&a.investigating.block, "block", "", "a block of --observation the question is about, from observe o show; with --at, the block --at points into")
 	flags.StringVar(&a.investigating.from, "from", "", "start of the window to look at, such as now-6h or epoch milliseconds; needs --to")
 	flags.StringVar(&a.investigating.to, "to", "", "end of the window to look at, such as now or epoch milliseconds; needs --from")
+	flags.StringVar(&a.investigating.asOf, "as-of", "", "Admin only: the time to investigate as of, as epoch milliseconds or an RFC 3339 time in the past; now-1h then means the hour before it, and --to must not be later")
 	flags.BoolVar(&a.investigating.private, "private", false, "answer privately about --dashboard or --observation, writing nothing shared until you share the answer")
 	flags.BoolVar(&a.investigating.noWait, "no-wait", false, "print the request id and exit without waiting")
 	flags.DurationVar(&a.investigating.timeout, "timeout", defaultTimeout, "stop waiting after this long; the investigation keeps running on the server")
@@ -159,6 +162,9 @@ func investigatePayload(args []string, o investigateOptions) (map[string]any, er
 	}
 	if o.from != "" {
 		payload["from"], payload["to"] = o.from, o.to
+	}
+	if o.asOf != "" {
+		payload["as_of"] = o.asOf
 	}
 	return payload, nil
 }

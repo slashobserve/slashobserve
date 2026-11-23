@@ -102,6 +102,41 @@ func TestServicesDefaultsTheWindowToOneHourEndingNow(t *testing.T) {
 	}
 }
 
+func TestServicesOfAPinnedClockEndAtItAndKeepTheirOwnCacheEntry(t *testing.T) {
+	fake := newServicesFake(fixedServices("shop"))
+	fake.ranges = make(chan datasource.TimeRange, 3)
+	runner := servicesRunner(t, fake)
+	at := time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC)
+	pinned := datasource.WithNow(reading(context.Background()), at)
+	req := ServicesRequest{Datasource: "loki"}
+
+	if _, err := runner.Services(pinned, req); err != nil {
+		t.Fatal(err)
+	}
+	if rng := <-fake.ranges; !rng.To.Equal(at) || rng.To.Sub(rng.From) != time.Hour {
+		t.Fatalf("range = %v to %v, want the hour ending %s", rng.From, rng.To, at)
+	}
+	if _, err := runner.Services(pinned, req); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.calls.Load(); got != 1 {
+		t.Fatalf("source asked %d times for the same pinned clock, want 1", got)
+	}
+	if _, err := runner.Services(reading(context.Background()), req); err != nil {
+		t.Fatal(err)
+	}
+	if rng := <-fake.ranges; rng.To.Equal(at) {
+		t.Fatalf("a live read ended at the pinned clock %s", rng.To)
+	}
+	other := datasource.WithNow(reading(context.Background()), at.Add(time.Hour))
+	if _, err := runner.Services(other, req); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.calls.Load(); got != 3 {
+		t.Fatalf("source asked %d times across three clocks, want 3", got)
+	}
+}
+
 func TestServicesCutsAtTheLimitAndSaysSo(t *testing.T) {
 	names := make([]string, MaxServices+1)
 	for i := range names {

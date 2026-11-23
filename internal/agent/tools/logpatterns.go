@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -92,7 +91,7 @@ func (r *Registry) logPatterns(ctx context.Context, input json.RawMessage) (Resu
 	if res, ok := checkQueryText(in.Query); !ok {
 		return res, nil
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}

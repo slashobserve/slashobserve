@@ -76,7 +76,7 @@ type Finding struct {
 	Restricted                                    bool
 	Evidence                                      []spec.Panel
 	From, To, CreatedAt                           time.Time
-	RequestTo                                     *time.Time
+	RequestTo, AsOf                               *time.Time
 	SharedIn                                      pgtype.UUID
 	CreatedBy                                     Author
 	RequestedBy                                   Author

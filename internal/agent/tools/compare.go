@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -87,7 +86,7 @@ func (r *Registry) compareTraces(ctx context.Context, input json.RawMessage) (Re
 	if !ok {
 		return invalid("%s", compareSourcesText), nil
 	}
-	rng, res, ok := resolveRange(cmp.Or(in.From, traceDefaultFrom), in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, cmp.Or(in.From, traceDefaultFrom), in.To)
 	if !ok {
 		return res, nil
 	}

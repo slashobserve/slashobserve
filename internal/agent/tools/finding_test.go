@@ -750,3 +750,34 @@ func TestAnAskTargetOnlyBelongsToARunWithoutADashboard(t *testing.T) {
 		}
 	}
 }
+
+func TestAFindingOfAnAsOfRunSaysItsNowAndEndsItsDefaultWindowThere(t *testing.T) {
+	r := newFindingRig(t)
+	at := time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC)
+	for _, asOf := range []time.Time{at, {}} {
+		run := investigateRun(time.Time{}, time.Time{})
+		run.AsOf = asOf
+		res := r.callIn(t, &run, editorCaller, nameSaveFinding, findingBody("checkout-0 throws 5xx since 09:12"))
+		saved, ok := res.Content.(findingSavedOut)
+		if res.IsError || !ok {
+			t.Fatalf("save: %#v", res.Content)
+		}
+		id, err := db.ParseUUID(saved.FindingID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if asOf.IsZero() {
+			if f.AsOf != nil {
+				t.Errorf("a live run's finding says as_of %s", f.AsOf)
+			}
+			continue
+		}
+		if f.AsOf == nil || !f.AsOf.Equal(at) || !f.To.Equal(at) || !f.From.Equal(at.Add(-defaultWindow)) {
+			t.Errorf("finding as of %v covers %s to %s, want the default window ending at %s", f.AsOf, f.From, f.To, at)
+		}
+	}
+}

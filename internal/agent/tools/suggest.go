@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -58,7 +57,7 @@ func (r *Registry) proposePanel(ctx context.Context, principal auth.Principal, r
 		return suggestionRejected(issues), nil
 	}
 	if head.Type.IsData() {
-		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, time.Now(), queryproxy.UserFor(principal), []string{run.PanelID})
+		issues, err := r.deps.Runner.CheckPanels(ctx, candidate, Now(ctx), queryproxy.UserFor(principal), []string{run.PanelID})
 		if err != nil {
 			return Result{}, err
 		}

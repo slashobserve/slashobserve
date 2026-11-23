@@ -248,7 +248,7 @@ func (r *Registry) draftRequest(ctx context.Context, in DraftInput) (draftRun, s
 	if err != nil {
 		return draftRun{}, "", err
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return draftRun{}, "", invalidDraftf("%s", resultMessage(res))
 	}

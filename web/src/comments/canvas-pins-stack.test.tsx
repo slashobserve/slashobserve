@@ -99,6 +99,7 @@ const answeredReply: Message = {
       evidence: [],
       from: "2026-11-06T08:00:00Z",
       to: "2026-11-06T09:00:00Z",
+      as_of: null,
       annotation_id: null,
       created_by: { kind: "user", id: "u1", name: "Ada" },
       actor: agent,

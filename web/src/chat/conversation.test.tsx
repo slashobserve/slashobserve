@@ -161,6 +161,7 @@ const finding: Finding = {
   evidence: [],
   from: "2026-11-21T09:00:00Z",
   to: "2026-11-21T10:00:00Z",
+  as_of: null,
   annotation_id: null,
   created_by: { kind: "user", id: "u1", name: "Ada" },
   actor: {

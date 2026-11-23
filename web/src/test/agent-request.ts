@@ -49,6 +49,7 @@ export function redactedRun(patch: Partial<ObserveRequest>): ObserveRequest {
     archived_at: null,
     from: null,
     to: null,
+    as_of: null,
     chat_id: null,
     observation_id: null,
     subject_observation_id: null,

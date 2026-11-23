@@ -2,6 +2,7 @@ package revisions
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -26,7 +27,7 @@ func TestInvestigateWindowResolvesBothEnds(t *testing.T) {
 		{"too long", text("now-401d"), text("now"), errWindowTooLong, time.Time{}},
 	}
 	for _, c := range cases {
-		from, to, err := investigateWindow(c.from, c.to, now)
+		from, to, err := investigateWindow(c.from, c.to, now, false)
 		switch {
 		case !errors.Is(err, c.want):
 			t.Errorf("%s: error %v, want %v", c.name, err, c.want)
@@ -58,5 +59,30 @@ func TestListCursorsKeepWhetherTheLastRowWasPinned(t *testing.T) {
 func TestEscapeLikeTreatsWildcardsLiterally(t *testing.T) {
 	if got, want := escapeLike(`50%_off\`), `50\%\_off\\`; got != want {
 		t.Fatalf("escapeLike = %q, want %q", got, want)
+	}
+}
+
+func TestInvestigateWindowOfAnAsOfRunEndsAtOrBeforeIt(t *testing.T) {
+	asOf := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	epoch := func(offset time.Duration) *string {
+		ms := strconv.FormatInt(asOf.Add(offset).UnixMilli(), 10)
+		return &ms
+	}
+	text := func(s string) *string { return &s }
+	for _, c := range []struct {
+		name     string
+		from, to *string
+		want     error
+	}{
+		{"relative to as_of", text("now-1h"), text("now"), nil},
+		{"epoch at as_of", epoch(-time.Hour), epoch(0), nil},
+		{"epoch after as_of", epoch(-time.Hour), epoch(time.Minute), errWindowAfterAsOf},
+	} {
+		if _, _, err := investigateWindow(c.from, c.to, asOf, true); !errors.Is(err, c.want) {
+			t.Errorf("%s: error %v, want %v", c.name, err, c.want)
+		}
+	}
+	if _, _, err := investigateWindow(epoch(-time.Hour), epoch(time.Minute), asOf, false); err != nil {
+		t.Errorf("a live run refused a window ending after now: %v", err)
 	}
 }
