@@ -223,6 +223,8 @@ services:
       - ${ASTRONOMY_DIR:?}/datasources.yaml:/etc/slashobserve/datasources.yaml:ro
       - ${ASTRONOMY_DIR:?}/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
       - ${ASTRONOMY_STATE_DIR:?}/keys:/astronomy-keys:ro
+    group_add:
+      - ${ASTRONOMY_GID:?}
     depends_on: !override
       postgres:
         condition: service_healthy

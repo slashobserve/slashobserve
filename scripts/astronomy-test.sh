@@ -52,14 +52,14 @@ if message="$(flag nope 2>&1)"; then fail "an unknown flag is refused"; fi
 [[ "$message" == *"no flag named nope"* ]] || fail "the refusal names the flag: $message"
 [[ "$(cat "$tmp/flagd/demo.flagd.json")" == "$before" ]] || fail "a refused change leaves the file alone"
 
-chmod 640 "$tmp/flagd/demo.flagd.json"
+chmod 600 "$tmp/flagd/demo.flagd.json"
 inode_before="$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)"
 flag adFailure on >/dev/null
 [[ "$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)" != "$inode_before" ]] || fail "the flag file is replaced by a rename, not rewritten in place"
 [[ "$(variant_of adFailure)" == on ]] || fail "the replaced file has the new variant"
 [[ "$(ls -A "$tmp/flagd")" == demo.flagd.json ]] || fail "no temporary file is left in the flag directory: $(ls -A "$tmp/flagd")"
 mode="$(ls -l "$tmp/flagd/demo.flagd.json" | cut -c2-10)"
-[[ "$mode" == rw-rw-rw- ]] || fail "the replaced file is readable and writable by the services, got $mode"
+[[ "$mode" == rw-r--r-- ]] || fail "the replaced file is readable by flagd and writable only by its owner, got $mode"
 
 mkdir -p "$tmp/keys"
 echo sok_test >"$tmp/keys/astronomy.key"
@@ -69,6 +69,22 @@ output="$(ASTRONOMY_STATE_DIR="$tmp" ASTRONOMY_CHECK_WAIT=4 SLASHOBSERVE_HOST_PO
 [[ "$status" == 1 ]] || fail "check exits 1 when the server never answers, got $status"
 [[ "$output" == *"FAIL"*"the datasource list is not available"* ]] || fail "check prints a FAIL line for the list: $output"
 ((SECONDS - started >= 4)) || fail "check keeps retrying the list until its deadline"
+
+state="$tmp/state"
+mkdir -p "$tmp/up/src/flagd"
+echo '{"flags":{}}' >"$tmp/up/src/flagd/demo.flagd.json"
+UPSTREAM_DIR="$tmp/up" STATE_DIR="$state" KEY_FILE="$state/keys/astronomy.key" FLAGS_FILE="$state/flagd/demo.flagd.json"
+prepare_state
+first_key="$(cat "$KEY_FILE")"
+echo '{"flags":{"kept":{}}}' >"$FLAGS_FILE"
+prepare_state
+[[ "$(cat "$KEY_FILE")" == "$first_key" ]] || fail "a second prepare keeps the key"
+[[ "$(cat "$FLAGS_FILE")" == *kept* ]] || fail "a second prepare keeps the flag file"
+[[ "$first_key" == sok_* ]] || fail "the generated key has the sok_ prefix"
+[[ "$(ls -ld "$state/keys" | cut -c1-10)" == drwxr-x--- ]] || fail "the keys directory is closed to others"
+[[ "$(ls -l "$KEY_FILE" | cut -c1-10)" == -rw-r----- ]] || fail "the key is closed to others"
+[[ "$(ls -ld "$state/flagd" | cut -c1-10)" == drwxr-xr-x ]] || fail "the flag directory is not writable by others"
+[[ "$(ls -l "$FLAGS_FILE" | cut -c1-10)" == -rw-r--r-- ]] || fail "the flag file is not writable by others"
 
 upstream='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--feature-gates=service.profilesSupport"]'
 copied='["--config=/etc/otelcol-config.yml","--config=/etc/otelcol-config-full.yml","--config=/etc/otelcol-config-extras.yml","--config=/etc/otelcol-config-search.yml","--feature-gates=service.profilesSupport"]'

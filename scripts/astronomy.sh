@@ -15,6 +15,8 @@ export SLASHOBSERVE_DEX_HOST_PORT="${SLASHOBSERVE_DEX_HOST_PORT:-55556}"
 export ASTRONOMY_SHOP_HOST_PORT="${ASTRONOMY_SHOP_HOST_PORT:-58081}"
 export ASTRONOMY_DIR
 export ASTRONOMY_STATE_DIR="$STATE_DIR"
+ASTRONOMY_GID="$(id -g)"
+export ASTRONOMY_GID
 export SLASHOBSERVE_COMPOSE_DIR="$ROOT/deploy/compose"
 export OTEL_COLLECTOR_CONFIG_EXTRAS="$ASTRONOMY_DIR/otelcol/config.yaml"
 export COMPOSE_PROJECT_NAME="$PROJECT"
@@ -22,7 +24,7 @@ export COMPOSE_PROJECT_NAME="$PROJECT"
 SERVER="http://localhost:${SLASHOBSERVE_HOST_PORT}"
 KEY_FILE="$STATE_DIR/keys/astronomy.key"
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
-FLAGS_FILE_MODE=666
+FLAGS_FILE_MODE=644
 SEARCH_CONFIG_ARG="--config=/etc/otelcol-config-search.yml"
 
 usage() {
@@ -93,17 +95,21 @@ fetch_upstream() {
 }
 
 prepare_state() {
+  local gid
+  gid="$(id -g)"
   mkdir -p "$STATE_DIR/keys" "$STATE_DIR/flagd"
-  chmod 755 "$STATE_DIR/keys"
-  chmod 777 "$STATE_DIR/flagd"
+  chgrp "$gid" "$STATE_DIR/keys"
+  chmod 750 "$STATE_DIR/keys"
+  chmod 755 "$STATE_DIR/flagd"
   if [[ ! -f "$KEY_FILE" ]]; then
     printf 'sok_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')" >"$KEY_FILE"
   fi
-  chmod 644 "$KEY_FILE"
+  chgrp "$gid" "$KEY_FILE"
+  chmod 640 "$KEY_FILE"
   if [[ ! -f "$FLAGS_FILE" ]]; then
     cp "$UPSTREAM_DIR/src/flagd/demo.flagd.json" "$FLAGS_FILE"
+    chmod "$FLAGS_FILE_MODE" "$FLAGS_FILE"
   fi
-  chmod "$FLAGS_FILE_MODE" "$FLAGS_FILE"
 }
 
 compose() {
