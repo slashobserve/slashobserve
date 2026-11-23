@@ -424,7 +424,7 @@ The key may also carry `usage`, the same cumulative object as `report_run`, coun
 The cost limit is checked only on `report_run` and `finish_run`.
 
 Every result of a run session carries `_meta["slashobserve.com/run"]` with `{"settled", "build"}`.
-`settled` is one of these:
+`settled` is `saved`, `proposed`, `finding`, `suggested`, `restarted`, `ended` or `null`:
 
 - `saved`, `proposed`, `finding` or `suggested` once the run has its result.
   `proposed` means the save became a proposal, which ends the run as succeeded with the result kind `proposal`.
