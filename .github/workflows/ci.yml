@@ -149,8 +149,13 @@ jobs:
           key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock', 'observe-agent/bun.lock') }}
           restore-keys: bun-${{ runner.os }}-
 
-      - name: Web and agent lint, script tests
-        run: make -j4 --output-sync=target lint-web lint-agent test-agent test-scripts
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: 0.11.19
+
+      - name: Web and agent lint, script and benchmark adapter tests
+        run: make -j4 --output-sync=target lint-web lint-agent test-agent test-scripts test-benchmarks
 
   web-test:
     name: web-test (${{ matrix.shard }}/2)

@@ -13,7 +13,7 @@ The dependency audit runs daily and on a pull request that changes a lockfile or
 ## Unit tests
 
 `make test` runs `go test -race ./...` for the root module and the `demo` module, the web Vitest suite, `bun test` for `observe-agent`, and the tests of the release, install, docs lint and CI change scripts.
-Run one part on its own with `make test-go`, `make test-web`, `make test-agent` or `make test-scripts`, or with `go test -race ./...` from the repository root or `bun run test` from `web/`.
+Run one part on its own with `make test-go`, `make test-web`, `make test-agent`, `make test-scripts` or `make test-benchmarks` (the Python unit tests of the benchmark adapter, see [Running benchmarks](benchmarks.md)), or with `go test -race ./...` from the repository root or `bun run test` from `web/`.
 `make lint` and `make test` together with the module tidy check and `make build` are what `make ci` runs, which is what the CI `check` job runs.
 
 A server built from source starts `observe-agent` whenever a model provider is configured, so run `make agent` first: start-up fails when it cannot find `observe-agent`.
