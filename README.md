@@ -17,7 +17,7 @@ You need Docker with Compose v2.24.4 or newer, `git`, `curl`, `jq` and `openssl`
 `make demo` pulls the published SlashObserve image and runs it beside the OpenTelemetry Astronomy Shop, so nothing compiles on your machine.
 The first run fetches the shop and pulls about 12 GB of images, and needs about 4 GiB of memory.
 
-Open http://localhost:58080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by service, last 6h` into the chat composer on the **Ask Observe Agent** tab of Home.
+Open http://localhost:58080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by service, last hour` on Home, in its **Ask Observe Agent** tab.
 The shop is at http://localhost:58081, and `make demo-fault FLAG=paymentFailure VARIANT=50%` switches on one of its faults for you to investigate; see [The demo](docs/operate/demo.md).
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 Without an LLM provider the demo still starts, but prompts answer `503 agent_unavailable`.
