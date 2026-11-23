@@ -70,10 +70,13 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- if or .Values.auth.allowedEmailDomains .Values.auth.adminEmails -}}
 {{- fail "auth.allowedEmailDomains and auth.adminEmails only apply to browser sign-in: set oidc.issuerURL, oidc.clientID and oidc.existingSecret, or leave all of them empty" -}}
 {{- end -}}
+{{- if not .Values.serviceAccounts.existingSecret -}}
+{{- fail "nobody could sign in: set oidc.issuerURL, oidc.clientID and oidc.existingSecret for browser sign-in, or serviceAccounts.existingSecret for service-account keys" -}}
+{{- end -}}
 {{- else if $missing -}}
 {{- fail (printf "set all of oidc.issuerURL, oidc.clientID and oidc.existingSecret for browser sign-in, or none of them for a server that only takes keys; missing %s" (join ", " $missing)) -}}
 {{- else -}}
-{{- if not .Values.auth.allowedEmailDomains -}}
+{{- if not (trimAll ", " (join "," .Values.auth.allowedEmailDomains)) -}}
 {{- fail "auth.allowedEmailDomains is required with browser sign-in: list the allowed domains or set it to [\"*\"]" -}}
 {{- end -}}
 true

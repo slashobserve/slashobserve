@@ -11,8 +11,9 @@ It provisions the [internals dashboard](observe-slashobserve.md) by default.
 
 - A Postgres database the cluster can reach, and its connection string.
   See [Upgrades and backups](upgrades-and-backups.md) for backing it up.
-- An OIDC client at your identity provider with the redirect URI `<public url>/api/v1/auth/callback`; see [Sign-in with OIDC](../connect/oidc.md).
-  A server that only tools use needs none; see [Run with no browser sign-in](#run-with-no-browser-sign-in).
+- For browser sign-in, an OIDC client at your identity provider with the redirect URI `<public url>/api/v1/auth/callback`; see [Sign-in with OIDC](../connect/oidc.md).
+  A server that only tools use needs none and takes service-account keys instead; see [Run with no browser sign-in](#run-with-no-browser-sign-in).
+  The chart refuses an install that has neither sign-in nor a service-accounts Secret.
 - Helm 3 or later (the chart is an `apiVersion: v2` chart, and its checks run on Helm 4) and `kubectl` pointed at the cluster.
 - A Prometheus that scrapes the pod, and a datasource with uid `prom` that reads from it, if you want the internals dashboard to show data.
 
@@ -39,7 +40,7 @@ The key names above are the chart's defaults; `database.urlKey`, `oidc.clientSec
 
 ## Install
 
-Write a values file with the required settings:
+Write a values file with the required settings, here with browser sign-in:
 
 ```yaml
 publicURL: https://slashobserve.example.com
@@ -70,9 +71,10 @@ helm install slashobserve deploy/helm/slashobserve --namespace slashobserve -f v
 ```
 
 The image defaults to `ghcr.io/slashobserve/slashobserve` at the chart's `appVersion`; set `image.tag`, and `image.digest` to pin the digest too.
-`values.schema.json` in the chart describes every value, and the install fails before it reaches the cluster when a required one is missing.
+`values.schema.json` in the chart describes every value, and the install fails before it reaches the cluster when a required one is missing, or when the OIDC values are incomplete.
 The chart sets the environment variables of the [configuration reference](../reference/configuration.md) from the values; add any other `SLASHOBSERVE_*` setting under `env`, in Kubernetes `EnvVar` form.
-For example, `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` has no value of its own; set it under `env`, with the number quoted because `value` is a string:
+For example, `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` has no chart value, so set it under `env`, with the number quoted because `value` is a string.
+It takes a whole number from 6 to 60 and defaults to 12:
 
 ```yaml
 env:
@@ -92,8 +94,9 @@ Set `trustedProxies` to the narrowest addresses or ranges your Ingress controlle
 A server that only tools use can run without an identity provider, as [Run with no browser sign-in](service-account-keys.md#run-with-no-browser-sign-in) describes.
 Leave `oidc.issuerURL`, `oidc.clientID` and `oidc.existingSecret` empty, and the chart sets none of the three OIDC variables and references no client secret.
 Setting only some of the three fails the render and names the missing ones, as the server refuses to start with only some of them.
+Leaving all three empty without `serviceAccounts.existingSecret` fails the render too, because nobody could sign in.
 `auth.allowedEmailDomains` and `auth.adminEmails` only apply to browser sign-in, so the render fails when either is set without the three.
-Every request then authenticates with a key from the service-accounts file, so also set `serviceAccounts.existingSecret`; see [Service accounts from a file](#service-accounts-from-a-file).
+Every request then authenticates with a key from the service-accounts file, so `serviceAccounts.existingSecret` is required; see [Service accounts from a file](#service-accounts-from-a-file).
 
 ```yaml
 publicURL: https://slashobserve.example.com

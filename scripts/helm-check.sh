@@ -154,7 +154,12 @@ refused() {
   grep -q "$want" <<<"$out" || die "the render with $name does not say '$want'"
 }
 refused "only some OIDC settings" "missing oidc.clientID" --set oidc.clientID=
+refused "blank allowed email domains" "auth.allowedEmailDomains is required" --set-json 'auth.allowedEmailDomains=[" "]'
 refused "no allowed email domains" "auth.allowedEmailDomains is required" --set-json 'auth.allowedEmailDomains=[]'
+if out="$(helm template t "$CHART" -f "$work/sign-in-off.yaml" --set-json 'serviceAccounts.existingSecret=""' 2>&1)"; then
+  die "the chart renders with neither sign-in nor service-account keys"
+fi
+grep -q 'nobody could sign in' <<<"$out" || die "the render with neither sign-in nor service-account keys does not say nobody could sign in"
 if out="$(helm template t "$CHART" -f "$work/sign-in-off.yaml" --set 'auth.adminEmails={a@example.com}' 2>&1)"; then
   die "the chart renders admin emails with sign-in off"
 fi
