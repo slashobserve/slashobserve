@@ -61,6 +61,14 @@ flag adFailure on >/dev/null
 mode="$(ls -l "$tmp/flagd/demo.flagd.json" | cut -c2-10)"
 [[ "$mode" == rw-r--r-- ]] || fail "the replaced file is readable by flagd and writable only by its owner, got $mode"
 
+mkdir -p "$tmp/up/src/flagd"
+echo '{"flags":{"adFailure":{"state":"ENABLED","variants":{"on":true,"off":false},"defaultVariant":"off"}}}' >"$tmp/up/src/flagd/demo.flagd.json"
+flag adFailure on >/dev/null
+(UPSTREAM_DIR="$tmp/up" FLAGS_FILE="$tmp/flagd/demo.flagd.json" cmd_flag_reset >/dev/null)
+[[ "$(variant_of adFailure)" == off ]] || fail "flag-reset puts a flag back to the upstream variant"
+[[ "$(jq -r '.flags | keys | join(",")' "$tmp/flagd/demo.flagd.json")" == adFailure ]] || fail "flag-reset restores the upstream file"
+[[ "$(ls -A "$tmp/flagd")" == demo.flagd.json ]] || fail "flag-reset leaves no temporary file behind"
+
 mkdir -p "$tmp/keys"
 echo sok_test >"$tmp/keys/astronomy.key"
 started=$SECONDS

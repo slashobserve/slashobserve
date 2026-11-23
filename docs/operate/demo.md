@@ -1,83 +1,108 @@
 ---
-title: The demo shop
-description: The services, signals and faults of the demo stack's shop, so you know what to ask for and what to break.
+title: The demo
+description: The OpenTelemetry Astronomy Shop running on SlashObserve's stores, with feature-flag faults you switch on to have an incident to investigate.
 ---
 
-The demo stack from the [quick start](../get-started/quick-start.md) runs a small shop with three services: `frontend` (pod `frontend-0`), `checkout` (pods `checkout-0` and `checkout-1`) and `payments` (pod `payments-0`).
-A load generator sends it traffic all the time on a daily curve, so every chart has live data.
-The rate is lowest at 04:00, at 0.4 times the base rate of 20 requests per second, and highest at 14:00, at 1.6 times it.
-Those hours are in the containers' local time, which is UTC unless `TZ` is set on both the `loadgen` and `prometheus` services.
-The 26 hours of history the stack writes on its first boot follow the same curve, so yesterday's chart joins today's without a step.
-Its metrics are in the `prom` datasource.
-Its logs and traces are in `ch` (ClickHouse), its logs also in `loki` and its traces also in `tempo`; the `es` and `os` datasources hold the logs only when you start the stack with `make demo-search`, as the [quick start](../get-started/quick-start.md#add-elasticsearch-and-opensearch) describes.
+The demo is the OpenTelemetry project's own Astronomy Shop: about twenty services in many languages that sell telescopes, a browser and HTTP load generator, and faults you switch on with feature flags.
+It runs a pinned release of the shop next to SlashObserve, with every signal the shop emits sent to Prometheus, Loki, Tempo, ClickHouse and Jaeger and one SlashObserve server reading all five.
+The [quick start](../get-started/quick-start.md) takes you from nothing to a signed-in server on it.
 
-## Traffic
+## Start it
 
-`SLASHOBSERVE_LOADGEN_CURVE=flat make demo` keeps the request rate constant at 20 requests per second.
-Setting `SLASHOBSERVE_LOADGEN_CURVE=flat` in the compose `.env` file does the same.
-A stack that already wrote its history keeps that history until `make demo-reset`, so reset it after switching the curve.
-
-## Deploy markers
-
-The load generator also posts [annotations](../use/annotations.md) that look like deploys, so the markers on the provisioned dashboards are not empty on the first run.
-At start, and again after 00:00, 06:00, 12:00 and 18:00 UTC, it lists the global annotations tagged `deploy` of the last 26 hours and posts each missing one at those times, such as `Deploy checkout v1.12.3: tune the connection pool`, tagged `deploy` and the service name.
-The texts and services come from the load generator's seed, so every stack shows the same ones.
-
-It posts as the `demo-loadgen` service account, an Editor because global annotations need that role.
-The account and its key come from `deploy/compose/service-accounts.yaml`, the [service-accounts file](service-account-keys.md#declare-service-accounts-in-a-file) the server reads at boot.
-The one-shot `demo-keys` service writes a new random key to the `demo-keys` volume on the first start, and leaves it alone afterwards, so no key is ever stored in the repository; `make demo-reset` drops the volume, and the next start writes a new key.
-
-To turn the markers off, set both variables to empty, in the shell or in the compose `.env` file:
+You need Docker with Compose 2.24.4 or newer, `git`, `curl`, `jq` and `openssl`, and a clone of the repository, which holds the Compose files.
 
 ```sh
-SLASHOBSERVE_DEMO_MARKERS_URL= SLASHOBSERVE_SERVICE_ACCOUNTS_FILE= make demo
+make demo
 ```
 
-`SLASHOBSERVE_DEMO_MARKERS_URL` empty stops the posting, and `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` empty stops the server from creating the account.
-The markers already posted stay until you delete them or reset the stack.
+This pulls the published SlashObserve image and starts the stack as the Compose project `slashobserve-astronomy`.
+`make demo-build` builds the server from your checkout instead, which is for people changing the code.
+The first start fetches the pinned upstream release of the shop and pulls about 12 GB of images, and the stack is healthy about a minute after that.
 
-## Metrics
+| Address | What it is |
+| --- | --- |
+| http://localhost:58081 | The shop. |
+| http://localhost:58081/jaeger/ui | Its Jaeger UI. |
+| http://localhost:58081/feature/ | Its feature flag UI. |
+| http://localhost:58080 | SlashObserve, signed in as `admin@example.com` with `password` through Dex (development only). |
 
-| Metric | Type | Labels | What it shows |
-| --- | --- | --- | --- |
-| `http_requests_total` | counter | `service`, `route`, `pod`, `status` | Requests each route handled. |
-| `http_request_duration_seconds` | histogram | `service`, `route`, `pod` | How long each route took. |
-| `shop_orders_queue_depth` | gauge | `service`, `pod` | Orders waiting in a checkout pod's orders queue. |
-| `shop_orders_queue_oldest_age_seconds` | gauge | `service`, `pod` | How long the oldest waiting order has waited, 0 when none waits. |
-| `shop_orders_processed_total` | counter | `service`, `pod`, `result` | Orders the queue workers finished, with `result` `ok` or `failed`. |
-| `shop_order_processing_seconds` | histogram | `service`, `pod` | How long a worker spent on one order. |
-| `shop_product_cache_requests_total` | counter | `service`, `pod`, `result` | Frontend product cache lookups, with `result` `hit` (about 85%) or `miss`. |
-| `shop_db_pool_in_use` | gauge | `service`, `pod` | Inventory database connections in use on a frontend or checkout pod. |
-| `shop_db_pool_max` | gauge | `service`, `pod` | The size of that pod's connection pool, 5. |
-| `shop_db_query_duration_seconds` | histogram | `service`, `pod`, `query` | How long a database query took, with `query` `get_product` (a cache miss) or `reserve_stock` (a checkout). |
+Set `ASTRONOMY_SHOP_HOST_PORT`, `SLASHOBSERVE_HOST_PORT` or `SLASHOBSERVE_DEX_HOST_PORT` to move a port.
+Every port binds to 127.0.0.1.
 
-## Logs and traces
+The stores start empty, and the shop's load generator sends traffic all the time, so every chart has live data a minute or two after the start and gains history while the demo runs.
+Prometheus keeps 3 days and the other stores 72 hours.
+Stopping the demo keeps the data, and starting it again carries on from it.
 
-Every request logs `request handled` and has a trace that follows it from the frontend through checkout to payments.
-Checkout answers without waiting for the order: the order waits in the pod's orders queue, and a worker processes it in a `process_order` span under the same trace.
-That span logs `order processed` with `order_id`, `queue_wait_ms` and `result`.
-About 1% of orders fail, and those log the same line at error level with `result` `failed`, so the error lines of the shop overview read `order processed (result failed)`.
-Every database query has a `db.query` span with `db.system=postgresql`, and a query slower than 200 ms logs `slow query` at warn level.
+## What it needs
+
+On a host with 8 CPUs and 22 GB of memory, the 31 containers use 3.2 to 4.3 GiB of memory once the shop has run for a few minutes, and up to four cores in the first minutes and one or two afterwards.
+The images take about 12 GB of disk, and the stores' volumes about 0.3 GB after the first half hour.
+`make demo-search` adds Elasticsearch and OpenSearch, which take about 2 GiB more memory and 3.5 GB more disk.
+
+## What is running
+
+The shop is the upstream release in `deploy/astronomy/upstream.env`, fetched by commit into `deploy/astronomy/.upstream/`, with its full profile of Kafka, accounting and fraud detection.
+Nothing in it is forked: the stack adds a Compose file and an OpenTelemetry Collector config on top of the upstream files.
+The collector sends metrics to Prometheus, logs to Loki and ClickHouse, and traces to Tempo, ClickHouse and Jaeger.
+Upstream's own Grafana, OpenSearch, OpAMP server and Prometheus are not started.
+
+Two settings differ from upstream.
+Jaeger is 2.23.0 and not upstream's 2.19.0, because the [Jaeger datasource](../connect/jaeger.md) needs 2.21 or newer.
+The `checkout` and `product-catalog` services get 64 MB of memory instead of 20 MB, because at 20 MB their working set pages in and out of the file cache all the time, and on a busy host their health checks fail.
+
+The server reads `deploy/astronomy/datasources.yaml`: `prom`, `ch`, `loki`, `tempo` and `jaeger`, plus `es` and `os`, which answer only after `make demo-search`.
+It also reads `deploy/astronomy/service-accounts.yaml`, which declares the `astronomy` service account.
+Its key is generated into `deploy/astronomy/.state/keys/astronomy.key` on the first start and never leaves your machine; `scripts/astronomy.sh key` prints the path.
+
+## Search stores
+
+`make demo-search` builds the server from your checkout, as `make demo-build` does, and adds Elasticsearch 8 on the `es` datasource and OpenSearch 2 on the `os` datasource, which the shop's collector feeds its logs.
+Elasticsearch gets ECS field names (`message`, `log.level`, `service.name`, `trace.id`, `span.id`) in the `logs-demo-shop` data stream, and OpenSearch gets the Simple Schema for Observability fields (`body`, `severity.text`, `resource.service.name`, `traceId`, `spanId`) in `ss4o_logs-demo-shop`.
+Both run with their security features off, which is for this local demo only; a real cluster needs the API key or credentials described on its [datasource page](../connect/elasticsearch.md).
+Running `make demo-build` again removes the two stores.
+
+## Check the datasources
+
+```sh
+make demo-check
+```
+
+The check lists the datasources through the API, runs a fresh health check on each, and reads one row of the shop's data from it: a span-metrics series from Prometheus, frontend log lines from ClickHouse and Loki, and frontend traces from ClickHouse, Tempo and Jaeger.
+It waits up to three minutes for each, and exits 1 if any fails.
+`scripts/astronomy.sh check --search` also reads the logs from `es` and `os`.
 
 ## Faults
 
-Each fault affects one pod, the one whose fault API you call.
-`make demo-fault TYPE=<type> PCT=N` sets a fault on `checkout-0` through http://localhost:8081/fault, and `make demo-fault-reset` clears every fault.
-Set `SLASHOBSERVE_SHOP_HOST_PORT` to move that port, and the two targets follow it.
+```sh
+make demo-fault
+make demo-fault FLAG=paymentFailure VARIANT=50%
+make demo-fault FLAG=paymentFailure VARIANT=off
+make demo-fault-reset
+```
 
-| Type | What `PCT=N` does |
-| --- | --- |
-| `errors` | N% of requests fail with 500 and log `database connection refused`. |
-| `latency` | N% of requests take 500 to 1500 ms longer. |
-| `queue` | N% of the pod's 4 queue workers, rounded up, stop taking orders, so the queue's depth and oldest age climb; at `PCT=30` 2 workers stop. |
-| `slow_db` | N% of the pod's database queries take 300 to 900 ms longer and keep their connection meanwhile, so the pool's connections in use climb and requests that query get slower. |
+The first command lists the shop's flags with their current and possible variants.
+The second sets one, and `on` is the default variant for a flag that has one.
+The third switches it off again, and the fourth sets every flag back to the variant of the upstream release.
+The change reaches the services within a few seconds, because flagd watches the file the targets edit.
+The flag UI at `/feature/` reads the file only when it starts and writes its own copy back whole on every save.
+It does not show a change the targets made, and a save in the UI overwrites that change, so use one of the two, or restart the UI with `docker restart slashobserve-astronomy-flagd-ui-1` after the target.
 
-`GET /fault` shows every fault's current percentage.
+With `paymentFailure` at `50%`, the `payment` service starts to return errors for about half of the charges, so error spans appear on `payment` and on `checkout` above it, and fall back to none a minute after you switch it off.
 
-## On Kubernetes
+## Turn on the agent
 
-`make demo-k8s` runs the same shop on a local three-node kind cluster named `slashobserve-demo`, next to kube-state-metrics, node-exporter and a Prometheus with the kube-prometheus recording rules, so the public Kubernetes dashboards you import from Grafana have data.
-Each pod name (`frontend-0`, `checkout-0`, `checkout-1` and `payments-0`) is its own Deployment and keeps its own fault state.
-Prometheus is on http://localhost:39090, and the fault APIs of `checkout-0` and `checkout-1` are on http://localhost:38081 and http://localhost:38082.
-Set a fault on `checkout-0` or `checkout-1` with `scripts/demo-k8s.sh fault <pod> <type> <pct>`, where the type is `errors` or `latency` and a percentage of 0 clears it, for example `scripts/demo-k8s.sh fault checkout-1 errors 30`.
-`make demo-k8s-down` deletes only that cluster, and the cluster runs beside the compose demo without touching it.
+The stack has no model provider, so the agent is off.
+Export the provider settings before `make demo`, or put them in `deploy/astronomy/.env`, which Git ignores, and run the target again:
+
+```sh
+SLASHOBSERVE_LLM_PROVIDER=anthropic
+SLASHOBSERVE_LLM_MODEL=<model>
+SLASHOBSERVE_LLM_API_KEY=<key>
+```
+
+Then start an investigation from the web app, or with the `astronomy` key over the API, the CLI or MCP.
+
+## Stop it
+
+`make demo-down` stops the stack and keeps its data.
+`make demo-reset` also drops the volumes and the flag state, so the next start begins empty.

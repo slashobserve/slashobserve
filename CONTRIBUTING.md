@@ -15,7 +15,7 @@ Use the "Grafana import failure" issue template and attach the JSON, with creden
 ## Set up
 
 You need Go 1.27.4 (a Go 1.21 or newer toolchain downloads it automatically), Bun 1.4.2 and Docker.
-Docker runs the database-backed tests through testcontainers, and the demo stack.
+Docker runs the database-backed tests through testcontainers, and the demo.
 
     git clone https://github.com/slashobserve/slashobserve
     cd slashobserve
@@ -23,7 +23,7 @@ Docker runs the database-backed tests through testcontainers, and the demo stack
     make demo-build
 
 `make build` installs the web dependencies and builds `bin/slashobserve-server` and `bin/observe`.
-`make demo-build` builds the images from your working tree and starts the demo stack with them; `make demo` pulls the published images instead.
+`make demo-build` builds the server image from your working tree and starts the demo with it; `make demo` pulls the published image instead.
 The demo is for local use only; see the [quick start](docs/get-started/quick-start.md).
 
 [CLAUDE.md](CLAUDE.md) describes the layout, every command and the conventions that apply across the repository.
