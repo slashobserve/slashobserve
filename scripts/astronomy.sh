@@ -8,7 +8,7 @@ STATE_DIR="${ASTRONOMY_STATE_DIR:-$ASTRONOMY_DIR/.state}"
 PROJECT="slashobserve-astronomy"
 MIN_COMPOSE="2.24.4"
 WAIT_TIMEOUT=900
-CHECK_WAIT=180
+CHECK_WAIT="${ASTRONOMY_CHECK_WAIT:-180}"
 
 export SLASHOBSERVE_HOST_PORT="${SLASHOBSERVE_HOST_PORT:-58080}"
 export SLASHOBSERVE_DEX_HOST_PORT="${SLASHOBSERVE_DEX_HOST_PORT:-55556}"
@@ -58,11 +58,16 @@ die() {
   exit 1
 }
 
-check_tools() {
-  local tool version
-  for tool in docker git curl jq openssl; do
+require_commands() {
+  local tool
+  for tool in "$@"; do
     command -v "$tool" >/dev/null 2>&1 || die "$tool is required"
   done
+}
+
+check_tools() {
+  local version
+  require_commands docker git curl jq openssl
   version="$(docker compose version --short 2>/dev/null || true)"
   [[ -n "$version" ]] || die "docker compose is required"
   [[ "$(printf '%s\n%s\n' "$MIN_COMPOSE" "${version#v}" | sort -V | head -n 1)" == "$MIN_COMPOSE" ]] ||
@@ -202,12 +207,22 @@ check_datasource() {
   printf 'ok   %-8s healthy, %s: %s rows\n' "$uid" "$what" "$rows"
 }
 
+list_datasources() {
+  api "$SERVER/api/v1/datasources" | jq -r '[.datasources[].uid] | sort | join(" ")'
+}
+
 cmd_check() {
   parse_options "$@"
-  check_tools
+  require_commands curl jq
   [[ -f "$KEY_FILE" ]] || die "no key yet; run 'up' first"
-  local failed=0
-  LISTED="$(api "$SERVER/api/v1/datasources" | jq -r '[.datasources[].uid] | sort | join(" ")')"
+  local failed=0 deadline=$((SECONDS + CHECK_WAIT))
+  until LISTED="$(list_datasources 2>/dev/null)"; do
+    if ((SECONDS >= deadline)); then
+      printf 'FAIL %-8s the datasource list is not available at %s\n' "list" "$SERVER"
+      return 1
+    fi
+    sleep 3
+  done
   printf 'datasources: %s\n' "$LISTED"
   check_datasource prom "shop span metrics" 'sum(traces_span_metrics_calls_total{service_name="frontend"})' || failed=1
   check_datasource ch "frontend log lines" "SELECT Timestamp, Body FROM otel_logs WHERE ServiceName = 'frontend' AND \$__timeFilter(Timestamp) LIMIT 5" || failed=1

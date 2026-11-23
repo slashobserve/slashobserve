@@ -54,6 +54,15 @@ inode_before="$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)"
 flag adFailure on >/dev/null
 [[ "$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)" == "$inode_before" ]] || fail "the flag file is rewritten in place"
 
+mkdir -p "$tmp/keys"
+echo sok_test >"$tmp/keys/astronomy.key"
+started=$SECONDS
+status=0
+output="$(ASTRONOMY_STATE_DIR="$tmp" ASTRONOMY_CHECK_WAIT=4 SLASHOBSERVE_HOST_PORT=1 "$here/astronomy.sh" check 2>&1)" || status=$?
+[[ "$status" == 1 ]] || fail "check exits 1 when the server never answers, got $status"
+[[ "$output" == *"FAIL"*"the datasource list is not available"* ]] || fail "check prints a FAIL line for the list: $output"
+((SECONDS - started >= 4)) || fail "check keeps retrying the list until its deadline"
+
 if [[ "$failures" -gt 0 ]]; then
   exit 1
 fi
