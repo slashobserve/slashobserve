@@ -71,7 +71,9 @@ make astronomy-flag FLAG=paymentFailure VARIANT=off
 The first command lists the shop's flags with their current and possible variants.
 The second sets one, and `on` is the default variant for a flag that has one.
 The third switches it off again.
-The change reaches the services within a few seconds, because flagd watches the file the target edits, and the flag UI at `/feature/` edits the same file.
+The change reaches the services within a few seconds, because flagd watches the file the target edits.
+The flag UI at `/feature/` reads the file only when it starts and writes its own copy back whole on every save.
+It does not show a change the target made, and a save in the UI overwrites that change, so use one of the two, or restart the UI with `docker restart slashobserve-astronomy-flagd-ui-1` after the target.
 
 With `paymentFailure` at `50%`, the `payment` service starts to return errors for about half of the charges, so error spans appear on `payment` and on `checkout` above it, and fall back to none a minute after you switch it off.
 
