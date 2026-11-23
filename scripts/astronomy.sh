@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ASTRONOMY_DIR="$ROOT/deploy/astronomy"
 UPSTREAM_DIR="$ASTRONOMY_DIR/.upstream"
-STATE_DIR="$ASTRONOMY_DIR/.state"
+STATE_DIR="${ASTRONOMY_STATE_DIR:-$ASTRONOMY_DIR/.state}"
 PROJECT="slashobserve-astronomy"
 MIN_COMPOSE="2.24.4"
 WAIT_TIMEOUT=900
@@ -236,8 +236,8 @@ cmd_flag() {
       column -t -s "$(printf '\t')"
     return
   fi
-  jq -e --arg f "$name" '.flags[$f]' "$FLAGS_FILE" >/dev/null || die "no flag named $name; run 'flag' to list them"
-  jq -e --arg f "$name" --arg v "$variant" '.flags[$f].variants[$v]' "$FLAGS_FILE" >/dev/null ||
+  jq -e --arg f "$name" '.flags | has($f)' "$FLAGS_FILE" >/dev/null || die "no flag named $name; run 'flag' to list them"
+  jq -e --arg f "$name" --arg v "$variant" '.flags[$f].variants | has($v)' "$FLAGS_FILE" >/dev/null ||
     die "$name has no variant $variant; it has $(jq -r --arg f "$name" '.flags[$f].variants | keys | join(", ")' "$FLAGS_FILE")"
   updated="$(jq --arg f "$name" --arg v "$variant" '.flags[$f].defaultVariant = $v' "$FLAGS_FILE")"
   printf '%s\n' "$updated" >"$FLAGS_FILE"

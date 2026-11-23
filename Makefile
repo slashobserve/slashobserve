@@ -82,6 +82,7 @@ test-scripts:
 	scripts/install-test.sh
 	scripts/docs-lint-test.sh
 	scripts/ci-changes-test.sh
+	scripts/astronomy-test.sh
 
 test-benchmarks:
 	uv run --locked --project benchmarks pytest benchmarks/tests
