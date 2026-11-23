@@ -61,6 +61,7 @@ The server checks every save by running its queries, so a weak model produces fe
 
 These changes help:
 
+<<<<<<< HEAD
 - Give the model the largest context window the server allows, because the agent's instructions, tool definitions and tool results all go into it.
   With Ollama, set `OLLAMA_CONTEXT_LENGTH` before you start it.
 - Raise `SLASHOBSERVE_LLM_IDLE_TIMEOUT` for a model that takes longer than 180 seconds before its first token.
@@ -85,6 +86,13 @@ The server refuses to start when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set an
 To price a local model, see [Price a model that is not in the table](llm-providers.md#price-a-model-that-is-not-in-the-table).
 
 ## Reference
+=======
+- Give the model the largest context window the server allows, because the agent's instructions, tool definitions and tool results all go into it; with Ollama, set `OLLAMA_CONTEXT_LENGTH` before you start it.
+- `SLASHOBSERVE_LLM_IDLE_TIMEOUT`, 180 seconds by default, retries a call that receives nothing from the server for that long; raise it for a model that takes longer than that before its first token, or set `0` for no limit.
+- `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`, 10 minutes by default, bounds each call with its retries; `0` sets no limit.
+- With both timeouts at `0` and `SLASHOBSERVE_AGENT_RUN_TIMEOUT` at its default `0`, a model call that stalls keeps running until someone cancels the run, so keep at least one bound.
+- `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS=true` adds the server's own error message to the log line of a failed call, which shows why a server refused a request.
+>>>>>>> origin/main
 
 [Configuration](../reference/configuration.md#llm) lists every LLM setting, and [LLM providers](llm-providers.md) covers Anthropic and hosted OpenAI-compatible servers.
 

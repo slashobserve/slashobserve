@@ -246,6 +246,7 @@ All LLM settings are optional.
 Unset `SLASHOBSERVE_LLM_PROVIDER` turns the built-in agent off.
 See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 
+<<<<<<< HEAD
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `SLASHOBSERVE_LLM_PROVIDER` | unset | `anthropic`, `openai` or `replay`, in any case. |
@@ -355,6 +356,27 @@ The server removes the API key, replaces control characters and keeps at most 10
 A provider can echo parts of the prompt back in that message.
 Use it for debugging, and not on a server whose logs many people read.
 See [Logging](../operate/logging.md).
+=======
+| Variable                           | Default                             | Notes                                                                                                                       |
+| ---------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `SLASHOBSERVE_LLM_PROVIDER`        | unset                               | `anthropic`, `openai` or `replay` (not case-sensitive). Unset turns the agent off.                                          |
+| `SLASHOBSERVE_LLM_MODEL`           | `claude-sonnet-5-5` for `anthropic` | Required for `openai`. Ignored by `replay`.                                                                                 |
+| `SLASHOBSERVE_LLM_API_KEY`         | unset                               | The provider credential. Required for `anthropic`, optional for `openai`. Never logged or echoed in an error.               |
+| `SLASHOBSERVE_LLM_API_KEY_FILE`    | unset                               | A file holding the credential, with surrounding whitespace trimmed. Set at most one of this and `SLASHOBSERVE_LLM_API_KEY`. |
+| `SLASHOBSERVE_LLM_BASE_URL`        | the provider's own endpoint         | An absolute `http` or `https` URL. A path is allowed; a query, fragment or user info is not. For `anthropic` give the root without `/v1`, which the agent adds; for `openai` the URL is used as written. |
+| `SLASHOBSERVE_LLM_EFFORT`          | unset                               | For `anthropic`: `low`, `medium`, `high`, `xhigh` or `max`; unset means `medium`. For `openai`: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`; unset sends nothing to the provider. The value is checked against the provider's list and ignored by `replay`. The first call of a new build runs one step higher (`low` becomes `medium`, `medium` becomes `high`, anything else stays); every later call runs at this value. |
+| `SLASHOBSERVE_LLM_MAX_TOKENS`      | `16000`                             | Output token cap for a model call, `1024` to `64000`. The first call of a new build uses it as is; later calls cap their output at half of it, but at least `8192` and never above it, and a call cut off at that lower cap is sent once more at this value. |
+| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m`                               | A Go duration from `10s` to `60m`, applied to each model call including its retries (up to 4 attempts with backoff). `0` sets no limit on a call; with this, the idle timeout and `SLASHOBSERVE_AGENT_RUN_TIMEOUT` all at `0`, a stalled call runs until the run is canceled. A call that hits the limit fails with `call_timeout`. |
+| `SLASHOBSERVE_LLM_IDLE_TIMEOUT`    | `180s`                              | A Go duration from `10s` to `60m`. Model calls stream, and an attempt that receives no bytes from the provider for this long, from its start or since the last byte, is retried with backoff within the request timeout. `0` turns the check off; see the request timeout for what happens with every bound at `0`. |
+| `SLASHOBSERVE_AGENT_RUN_TIMEOUT`   | `0`                                 | `0` is no limit: a run ends at the agent's own limits, a cancel or a shutdown. Set a Go duration of at least `1m` to cap each run of an agent request; a run that hits the cap fails with `run_timeout`. |
+| `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | `0` is no limit. A number of US dollars above 0, at most 10000. Once an attempt's estimated cost (see [Run cost](../connect/llm-providers.md#run-cost)) reaches it, the agent starts no further model call and the request fails with `budget_exhausted`, build kept. The call that crosses the limit still finishes, so a run can pass it by one call. The server does not start when this is set and the configured model has no price for every token class. |
+| `SLASHOBSERVE_AGENT_WORKERS` | `8` | A whole number from `1` to `64`: how many agent requests this server runs at once. Each server of a fleet runs its own workers, so the fleet runs replicas times this many. One request per dashboard still runs at a time, and the model provider's rate limits stay the real ceiling. `slashobserve_agent_queue_wait_seconds` shows whether more workers would help. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | A whole number from `6` to `60`: how many model calls an investigation makes before only `save_finding` can run. The call before the limit gets a note to save the finding next, and reads in the same call as the finding still run. It covers every agent that runs an investigation, the built-in one and connected ones. Suggest runs keep 12 and dashboard runs keep 6. Raise it for questions that need many reads; a longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is the cap on spend. |
+| `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | A whole number of KiB from `32` to `4096`. After a save to a build, the agent shortens its conversation to its last few turns, the build and the names it discovered once the session's tool calls, results and text pass this size, so a long build stays inside the model's context window. Lower it for a model with a small context window. |
+| `SLASHOBSERVE_LLM_PRICES_FILE`     | the built-in table                  | A YAML file of model prices in US dollars per million tokens that replaces the built-in table, so a request's estimated cost (`usage.cost_usd`) covers other models. See [Run cost](../connect/llm-providers.md#run-cost). The server refuses to start when the file is unreadable or invalid. |
+| `SLASHOBSERVE_LLM_REPLAY_DIR`      | unset                               | Required for `replay`: a folder of recorded model scripts. This provider exists for end-to-end tests, not for real use.     |
+| `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS` | `false` | `true` or `false`. `true` adds the provider's own error message to the `llm call finished` line of a failed call, as `provider_error_message`, with the API key removed, control characters replaced and at most 1024 bytes kept. A provider can echo parts of the prompt back in that message, so use it for debugging, not on a server whose logs are widely readable. See [Logging](../operate/logging.md). |
+>>>>>>> origin/main
 
 ## Testing only
 
