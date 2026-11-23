@@ -183,6 +183,11 @@ func TestDoctorVersionMismatch(t *testing.T) {
 		{"dev", "v1.4.0", "ok"},
 		{"v1.4.0", "dev", "ok"},
 		{"v1.4.0", "", "ok"},
+		{"0.1.5", "0.1.4", "warn"},
+		{"0.1.5", "0.1.5", "ok"},
+		{"v0.1.5", "0.1.5", "ok"},
+		{"0.1.5", "v0.1.4", "warn"},
+		{"dev", "0.1.4", "ok"},
 	}
 	for _, tc := range cases {
 		f := newDoctorFake(t)
