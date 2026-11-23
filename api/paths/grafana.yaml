@@ -159,7 +159,7 @@ grafana-id:
     operationId: deleteGrafanaConnection
     x-audit: { action: grafana_connection.delete, target: { kind: grafana_connection, id: path.id } }
     summary: Delete a connection and its stored token.
-    description: Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
+    description: Only Admins can call this endpoint. Imported dashboards stay. The host's outbound allowlist entry, when the connection added it, is removed unless a webhook, a datasource or another connection still uses the host.
     responses:
       "204":
         description: The connection is deleted.

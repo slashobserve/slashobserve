@@ -3381,7 +3381,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a connection and its stored token.
-         * @description Only Admins can call this endpoint. Imported dashboards and the outbound allowlist entry stay.
+         * @description Only Admins can call this endpoint. Imported dashboards stay. The host's outbound allowlist entry, when the connection added it, is removed unless a webhook, a datasource or another connection still uses the host.
          */
         delete: operations["deleteGrafanaConnection"];
         options?: never;
