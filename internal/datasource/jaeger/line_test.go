@@ -42,6 +42,8 @@ func TestParseSearchProblems(t *testing.T) {
 		{"duplicate key", `service=a service=b`, "service is given twice", 10, 19},
 		{"bad duration", `minDuration=fast`, "minDuration must be a duration", 12, 16},
 		{"negative duration", `maxDuration=-1s`, "maxDuration must be a duration", 12, 15},
+		{"tags without a service", `minDuration=1s http.status_code=500`, "tags need service=<name>", 15, 35},
+		{"operation without a service", `operation=pay`, "operation needs service=<name>", 0, 13},
 		{"inverted durations", `minDuration=2s maxDuration=1s`, "minDuration is above maxDuration", 0, 29},
 	}
 	for _, tc := range cases {

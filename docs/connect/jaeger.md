@@ -53,6 +53,7 @@ A query that is empty lists the newest traces, but the query API and a panel nee
 
 Quote a value that holds a space, as in `operation="GET /cart"`, and escape a quote inside it with a backslash.
 A key may appear once.
+Jaeger needs a service to search on an operation or a tag, so `operation` or any other key without `service` is refused with "tags need service=<name>" before the search is sent.
 Jaeger's search has no regex, negation or comparison other than the two durations, so the search says what to filter on and the rest is read from the traces.
 
 A search returns one row per trace, newest first and at most the row limit, with `TraceId`, `SpanName` and `ServiceName` of the root span, `StartTime`, `Duration` and the counts `Spans` and `Errors`.
@@ -69,7 +70,7 @@ Jaeger has no query variables; use a custom or text box variable for trace ids o
 The agent lists the values of `service`, and of `operation` for one service when the metric is `service=checkout`; tags are free-form and cannot be listed.
 `get_schema` lists every service with its span names, for at most 30 services and 50 span names each, and marks the list as cut when it is longer.
 The services list reads Jaeger's list of services, which holds every service Jaeger retains, so the window of `list_services` and `observe datasources services` does not narrow it.
-The query editor's lint checks that each pair has a key and a value, that a duration parses and that no key repeats.
+The query editor's lint checks that each pair has a key and a value, that a duration parses, that no key repeats and that an `operation` or tag comes with a `service`.
 
 ## Not covered
 

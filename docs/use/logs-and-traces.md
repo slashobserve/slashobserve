@@ -478,6 +478,7 @@ On Tempo you can also write TraceQL, which replaces the fields: while the TraceQ
 The link under the TraceQL field opens the TraceQL reference.
 
 On Jaeger the same place takes a **Search** written as `key=value` pairs, such as `service=checkout http.status_code=500`, which replaces the fields the same way and is how you search on any tag; [Connect Jaeger](../connect/jaeger.md#queries) lists the keys.
+Jaeger searches an operation or a tag only within one service, so a search with `operation` or a tag and no `service` shows the problem instead of running.
 With no filter set the page searches with `minDuration=0s`, which Jaeger answers with its newest traces.
 
 On ClickHouse and Jaeger the **Service** field is a box with the services in `otel_traces` or in Jaeger: open it for the list, type to narrow it, or type a name that is not listed.
