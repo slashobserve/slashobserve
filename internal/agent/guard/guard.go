@@ -13,12 +13,12 @@ const (
 	maxIdenticalReads      = 3
 	maxCallsBeforeSave     = 6
 	maxCallsBeforeProposal = 12
+	maxStalledTurns        = 2
+	maxChangesPerPanel     = 4
+	maxChurnedSavesInRow   = 3
+	maxIssueCodes          = 3
 
 	DefaultInvestigationCalls = 12
-	maxStalledTurns           = 2
-	maxChangesPerPanel        = 4
-	maxChurnedSavesInRow      = 3
-	maxIssueCodes             = 3
 
 	PhaseRepair = "repair"
 

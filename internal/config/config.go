@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
@@ -84,9 +85,8 @@ const (
 	minAgentWorkers     = 1
 	maxAgentWorkers     = 64
 
-	defaultAgentInvestigationCalls = 12
-	minAgentInvestigationCalls     = 6
-	maxAgentInvestigationCalls     = 60
+	minAgentInvestigationCalls = 6
+	maxAgentInvestigationCalls = 60
 
 	minSecretKeyBytes = 32
 )
@@ -695,7 +695,7 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.Agent.Workers = n
 		}
 	}
-	cfg.Agent.InvestigationCalls = defaultAgentInvestigationCalls
+	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < minAgentInvestigationCalls || n > maxAgentInvestigationCalls {
