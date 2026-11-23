@@ -12,6 +12,7 @@ It provisions the [internals dashboard](observe-slashobserve.md) by default.
 - A Postgres database the cluster can reach, and its connection string.
   See [Upgrades and backups](upgrades-and-backups.md) for backing it up.
 - An OIDC client at your identity provider with the redirect URI `<public url>/api/v1/auth/callback`; see [Sign-in with OIDC](../connect/oidc.md).
+  A server that only tools use needs none; see [Run with no browser sign-in](#run-with-no-browser-sign-in).
 - Helm 3 or later (the chart is an `apiVersion: v2` chart, and its checks run on Helm 4) and `kubectl` pointed at the cluster.
 - A Prometheus that scrapes the pod, and a datasource with uid `prom` that reads from it, if you want the internals dashboard to show data.
 
@@ -85,6 +86,22 @@ The server starts `observe-agent` from the image whenever `llm.provider` is set,
 The chart also has `imagePullSecrets`, `logLevel`, `logFormat`, `outboundDomains`, `trustedProxies`, `service.type` and `service.port`, `serviceAccount.create` and `serviceAccount.name`, `podAnnotations`, `nodeSelector`, `tolerations`, `affinity` and `metrics.enabled`.
 `logLevel`, `logFormat`, `outboundDomains`, `trustedProxies` and `metrics.enabled` set `SLASHOBSERVE_LOG_LEVEL`, `SLASHOBSERVE_LOG_FORMAT`, `SLASHOBSERVE_OUTBOUND_DOMAINS`, `SLASHOBSERVE_TRUSTED_PROXIES` and `SLASHOBSERVE_METRICS`.
 Set `trustedProxies` to the narrowest addresses or ranges your Ingress controller connects from, not the pod network, so the audit trail records the real client address; see [Put TLS in front](production.md#put-tls-in-front).
+
+## Run with no browser sign-in
+
+A server that only tools use can run without an identity provider, as [Run with no browser sign-in](service-account-keys.md#run-with-no-browser-sign-in) describes.
+Leave `oidc.issuerURL`, `oidc.clientID` and `oidc.existingSecret` empty, and the chart sets none of the three OIDC variables and references no client secret.
+Setting only some of the three fails the render and names the missing ones, as the server refuses to start with only some of them.
+`auth.allowedEmailDomains` and `auth.adminEmails` only apply to browser sign-in, so the render fails when either is set without the three.
+Every request then authenticates with a key from the service-accounts file, so also set `serviceAccounts.existingSecret`; see [Service accounts from a file](#service-accounts-from-a-file).
+
+```yaml
+publicURL: https://slashobserve.example.com
+database:
+  existingSecret: slashobserve-database
+serviceAccounts:
+  existingSecret: slashobserve-service-accounts
+```
 
 ## Datasources
 

@@ -60,3 +60,22 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- $folders = concat $folders .Values.provisioning.folders -}}
 {{- toJson $folders -}}
 {{- end -}}
+
+{{- define "slashobserve.signInOn" -}}
+{{- $missing := list -}}
+{{- if not .Values.oidc.issuerURL }}{{ $missing = append $missing "oidc.issuerURL" }}{{ end -}}
+{{- if not .Values.oidc.clientID }}{{ $missing = append $missing "oidc.clientID" }}{{ end -}}
+{{- if not .Values.oidc.existingSecret }}{{ $missing = append $missing "oidc.existingSecret" }}{{ end -}}
+{{- if eq (len $missing) 3 -}}
+{{- if or .Values.auth.allowedEmailDomains .Values.auth.adminEmails -}}
+{{- fail "auth.allowedEmailDomains and auth.adminEmails only apply to browser sign-in: set oidc.issuerURL, oidc.clientID and oidc.existingSecret, or leave all of them empty" -}}
+{{- end -}}
+{{- else if $missing -}}
+{{- fail (printf "set all of oidc.issuerURL, oidc.clientID and oidc.existingSecret for browser sign-in, or none of them for a server that only takes keys; missing %s" (join ", " $missing)) -}}
+{{- else -}}
+{{- if not .Values.auth.allowedEmailDomains -}}
+{{- fail "auth.allowedEmailDomains is required with browser sign-in: list the allowed domains or set it to [\"*\"]" -}}
+{{- end -}}
+true
+{{- end -}}
+{{- end -}}
