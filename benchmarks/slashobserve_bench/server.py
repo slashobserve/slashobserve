@@ -240,7 +240,7 @@ class Stack:
 
     def _postgres_ready(self) -> bool:
         done = subprocess.run(
-            ["docker", "exec", self.postgres_name, "pg_isready", "-U", "slashobserve", "-d", "slashobserve"],
+            ["docker", "exec", self.postgres_name, "pg_isready", "-h", "127.0.0.1", "-U", "slashobserve", "-d", "slashobserve"],
             capture_output=True,
             check=False,
         )
