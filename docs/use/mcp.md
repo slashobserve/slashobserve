@@ -15,7 +15,7 @@ The token is either a person's OAuth access token, which [Connect your own agent
 
 Add `<public url>/mcp` to an MCP client, approve it once in your browser, and the client acts as you.
 The steps below use Claude Code and a server at `https://observe.example.com`.
-For the demo stack, use `http://localhost:8080/mcp`.
+For the demo stack, use `http://localhost:58080/mcp`.
 The **Connect an agent** button on the [Agents page](agents.md) shows the Claude Code command with your address filled in.
 
 1. Add the server to Claude Code:
