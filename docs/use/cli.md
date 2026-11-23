@@ -7,7 +7,7 @@ description: Install the observe command line client, sign in with a service-acc
 Use it to send a prompt to the agent and get back a dashboard address, to query your datasources from a terminal, and to script what you do in the web app.
 
 It calls the server's HTTP API with a service-account key, so it can do what that key's role allows.
-Every command accepts `--json`, which prints the API response unchanged, so a script or an agent can read it.
+Most commands accept `--json`, which prints the API response unchanged, so a script or an agent can read it.
 This page starts with your first ten minutes: install, sign in and a first prompt.
 Later sections group the commands by what you do with them, and [Reference](#reference) lists every command and flag.
 
@@ -19,7 +19,7 @@ Later sections group the commands by what you do with them, and [Reference](#ref
    curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/install.sh | sh
    ```
 
-   You see `Downloading observe <version> for <os>/<arch>`, then `Installed <version> to <directory>/observe`.
+   You see `Downloading observe v<version> for <os>/<arch>`, then `Installed <version> to <directory>/observe`.
 
 2. Check that the command runs:
 
@@ -41,7 +41,7 @@ curl -fsSL https://raw.githubusercontent.com/slashobserve/slashobserve/main/inst
 ```
 
 `OBSERVE_RELEASES_URL` points the script at another release location, which the installer's own tests use.
-The script fails when `HOME` is unset and `OBSERVE_INSTALL_DIR` is not set.
+The script fails when `HOME` is unset, `OBSERVE_INSTALL_DIR` is not set and `/usr/local/bin` is not writable.
 
 ### Install by hand or build from source
 
@@ -119,7 +119,7 @@ The agent runs on the server's model, so each prompt costs model usage.
    ```
 
 3. Read the last line.
-   It is the dashboard address, after a `Saved version N` line:
+   On a terminal it is one line with `Saved version N` and the dashboard address:
 
    ```text
    Saved version 1  https://observe.example.com/d/<dashboard id>/<slug>
@@ -197,7 +197,7 @@ CHECK       STATUS  DETAIL
 server      ok      https://observe.example.com is ready
 key         ok      ci-deploy (service_account)
 role        ok      editor
-version     ok      CLI v0.2.0, server v0.2.0
+version     ok      CLI 0.2.0, server 0.2.0
 datasource  ok      prom (prometheus)
 datasource  fail    logs (loki): The datasource is not answering (The server could not connect to the datasource's address)
 model       ok      anthropic claude-haiku-5-5, effort low
@@ -214,6 +214,7 @@ Details of the checks:
   When this check is not `ok`, whether the server cannot be reached or answers not ready, every later check is `skip` with no detail.
 - `key` reads `/api/v1/me` with the saved or given key.
   With no key it fails with `no key; run observe login`, and with a refused key with `the server refused the key; run observe login`.
+  After a failed `key` check, the later checks are `skip` too.
 - `role` warns for a Viewer or Commenter key, because those roles cannot create dashboards or annotations.
 - `version` warns when the CLI and the server are different releases.
   A local build such as `dev` never warns.
@@ -1219,12 +1220,12 @@ The table has the columns `ID`, `THREAD`, `PANEL`, `STATUS`, `AUTHOR`, `CREATED`
 `COMMENT` is cut at the first line and 80 characters, and for a run's reply it shows the answer's title after `Answered.`
 
 `--json` prints the server's page of `threads` and `messages`, with `next_cursor` and `can_comment`.
-A script reads the messages with `jq '.messages[]'`:
+A script reads the messages with `jq '.messages[]'`, which replaces `.comments[]`:
 
-- A thread carries its `anchor`, the spot it points at in the shape `--at` takes as JSON, and its `status`, `panel_id`, `panel_present` and `resolved_by_version`.
-- A message's `thread_id` names its thread in `threads`.
+- A thread carries its `anchor`, the spot it points at in the shape `--at` takes as JSON, and its `status`, `panel_id`, `panel_present` and `resolved_by_version`, which moved there from the comment.
+- A message's `thread_id` names its thread in `threads` and replaces `parent_id`.
   A reply is a message whose `thread_id` is not its own `id`.
-- A message's `actor.label` is the text the AUTHOR column shows.
+- A message's `actor.label` replaces `author.name` and is the text the AUTHOR column shows.
 - A run's reply carries its `answer` when you can read it.
 
 #### Start a thread
@@ -1303,7 +1304,7 @@ It deletes the thread when the share opened it, and otherwise only the shared qu
 
 `comments apply <comment-id> <finding-id>` makes the change that an answer in a dashboard thread suggests.
 The finding id is the answer's, from `observe status <request-id> --json`, and the answer must have been given in that thread.
-Another kind of thread answers `wrong_thread`.
+Another kind of thread answers 400 `invalid_thread`, and a finding that is not in that thread answers `not_found`.
 
 It posts `Revise the dashboard: <suggested change>` in the thread as you, and prints `Asked to revise the dashboard in thread <id>`.
 Then it starts a run, yours and taken by the agent that answered.
