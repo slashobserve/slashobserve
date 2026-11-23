@@ -31,12 +31,10 @@ usage() {
   cat <<EOF
 Usage: scripts/astronomy.sh <command>
 
-  up [--search] [--no-build]
-                      fetch the pinned upstream release if needed, build the server image from
+  up [--search]       fetch the pinned upstream release if needed, build the server image from
                       this checkout, then start the shop and the SlashObserve stack and wait
                       until everything is healthy; --search adds Elasticsearch and OpenSearch
-                      and feeds them the shop's logs; --no-build runs the image named by
-                      SLASHOBSERVE_IMAGE as it is
+                      and feeds them the shop's logs
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
   check [--search]    check the health of every datasource through the SlashObserve API and
@@ -139,13 +137,11 @@ compose() {
 parse_options() {
   SEARCH=0
   VOLUMES=0
-  BUILD=1
   local arg
   for arg in "$@"; do
     case "$arg" in
       --search) SEARCH=1 ;;
       --volumes) VOLUMES=1 ;;
-      --no-build) BUILD=0 ;;
       *) die "unknown option $arg" ;;
     esac
   done
@@ -180,7 +176,7 @@ cmd_up() {
   prepare_state
   if [[ "$SEARCH" == 1 ]]; then verify_search_command; fi
   export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
-  if [[ "$BUILD" == 1 ]]; then compose build server; fi
+  compose build server
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
   if [[ "$SEARCH" == 0 ]]; then remove_search_stores; fi
   cat <<EOF

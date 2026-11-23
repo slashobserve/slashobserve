@@ -105,6 +105,9 @@ unset -f docker
 [[ "$(ASTRONOMY_PROJECT=slashobserve-e2e bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-e2e ]] || fail "ASTRONOMY_PROJECT names the compose project"
 [[ "$(bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-astronomy ]] || fail "the compose project defaults to slashobserve-astronomy"
 
+if message="$("$here/astronomy.sh" up --no-build 2>&1)"; then fail "up has no --no-build option"; fi
+[[ "$message" == *"unknown option --no-build"* ]] || fail "up refuses --no-build by name: $message"
+
 if [[ "$failures" -gt 0 ]]; then
   exit 1
 fi
