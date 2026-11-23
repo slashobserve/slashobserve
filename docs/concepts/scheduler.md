@@ -46,7 +46,7 @@ When the lease ends, the job's context is cancelled, so a job must stop when its
 
 ## Run the health check now
 
-An Admin can start the `dashboard_health` job from the dashboards list with **Run now**; see [Run now](../use/dashboard-health.md#run-now).
+An Admin can start the `dashboard_health` job from the dashboards list with **Run now**; see [Run now](../use/dashboard-health.md#run-a-check-now).
 The run takes the job's lease like a scheduled run and is recorded with a `trigger` of `manual`.
 No other job can be started by hand.
 When the job already holds a lease, the request records a `job.run` event with the outcome `denied` and the reason `already_running`.
