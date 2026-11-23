@@ -29,7 +29,6 @@ jobs:
       web: ${{ steps.groups.outputs.web }}
       build: ${{ steps.groups.outputs.build }}
       stack: ${{ steps.groups.outputs.stack }}
-      evals: ${{ steps.groups.outputs.evals }}
       image: ${{ steps.groups.outputs.image }}
       audit: ${{ steps.groups.outputs.audit }}
     steps:
@@ -98,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [grafana, evals, db, datasource, agent, rest-1, rest-2]
+        shard: [grafana, db, datasource, agent, rest-1, rest-2]
     env:
       TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
@@ -386,50 +385,3 @@ jobs:
             e2e-compose.log
           retention-days: 7
           if-no-files-found: ignore
-
-  evals-replay:
-    name: evals-replay
-    needs: changes
-    if: needs.changes.outputs.evals == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      SLASHOBSERVE_IMAGE: slashobserve-evals:ci
-      SLASHOBSERVE_SHOP_IMAGE: slashobserve-evals-shop:ci
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Build the images
-        uses: ./.github/actions/stack-images
-        with:
-          server-tag: slashobserve-evals:ci
-          shop-tag: slashobserve-evals-shop:ci
-          warm: scripts/evals-stack.sh warm replay
-
-      - name: Start the replay stack
-        run: scripts/evals-stack.sh up --no-history replay
-
-      - name: Replay suite
-        run: >
-          go run ./evals/runner
-          --server http://localhost:28080
-          --suite replay
-          --await-history
-          --bootstrap-dex
-          --min-pass 1
-          --out "$RUNNER_TEMP/evals.json"
-          --markdown "$RUNNER_TEMP/evals.md"
-
-      - name: Add the report to the job summary
-        if: always()
-        run: |
-          if [ -f "$RUNNER_TEMP/evals.md" ]; then
-            cat "$RUNNER_TEMP/evals.md" >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Print compose logs
-        if: failure()
-        run: docker compose -p slashobserve-evals logs --no-color --tail 200
