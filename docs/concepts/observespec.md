@@ -568,14 +568,14 @@ When the panels of a dashboard read more than one datasource, each panel header 
 
 ### Ad hoc and group by variables
 
-An `adhoc` variable filters Prometheus queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
+An `adhoc` variable filters Prometheus, Elasticsearch and OpenSearch queries automatically, and filters ClickHouse queries that leave out `$name` only when it sets `applyToAll`.
 
 An `adhoc` variable's `default` and `baseFilters` are lists of up to 20 filters, each with:
 
 - a `key`.
-- an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, which compare as numbers when both sides are plain numbers and as text otherwise).
+- an `operator` (`=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, Elasticsearch and OpenSearch, which compare as numbers when both sides are plain numbers and as text otherwise).
 - a `value`.
-- an optional `condition` (`and`, the default, or `or`, ClickHouse only).
+- an optional `condition` (`and`, the default, or `or`, on ClickHouse, Elasticsearch and OpenSearch).
 - the chip texts `keyLabel` and `valueLabel`, which change what is shown and never what is filtered or put in the URL.
 
 Filters combine left to right and `or` starts a new group, so `a, b, or c` means `(a AND b) OR c`.
