@@ -59,6 +59,8 @@ Jaeger's search has no regex, negation or comparison other than the two duration
 A search returns one row per trace, newest first and at most the row limit, with `TraceId`, `SpanName` and `ServiceName` of the root span, `StartTime`, `Duration` and the counts `Spans` and `Errors`.
 A search result names no spans, so its `SpanId` is the trace id and each trace shows as one bar.
 Jaeger's search is bound by the start time of a trace, and the server asks for at most 10,000 traces, so a page beyond that window is refused and the message says to narrow the range or the search.
+Jaeger has no offset, so a page asks again for the first traces up to the end of that page and keeps the last ones.
+That is exact only where the storage returns the newest traces when it cuts a search at its depth: Elasticsearch, OpenSearch, Badger and the in-memory store do, but Cassandra and ClickHouse storage cut the search in no stated order, so there the newest-first order, the row limit and the pages are approximate and a page can repeat or skip a trace.
 
 Queries take dashboard variables and the time macros `$__interval`, `$__range`, `$__from` and `$__to`, plus `$__dashboard` and the `$__user` macros.
 A variable that holds a trace id works bare or in quotes.
