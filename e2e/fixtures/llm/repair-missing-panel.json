@@ -1,5 +1,5 @@
 {
-  "prompt": "Point the Missing panel at sum(up)",
+  "prompt": "Point the Missing panel at sum(traces_span_metrics_calls_total)",
   "turns": [
     {
       "tool_calls": [
@@ -7,7 +7,7 @@
           "name": "lint_query",
           "input": {
             "datasource": "prom",
-            "query": "sum(up)"
+            "query": "sum(traces_span_metrics_calls_total)"
           }
         }
       ]
@@ -26,10 +26,10 @@
                 {
                   "id": "p1",
                   "type": "stat",
-                  "title": "Up",
+                  "title": "Calls",
                   "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
                   "datasource": "prom",
-                  "queries": [{ "query": "sum(up)" }]
+                  "queries": [{ "query": "sum(traces_span_metrics_calls_total)" }]
                 },
                 {
                   "id": "p2",
@@ -37,7 +37,7 @@
                   "title": "Missing",
                   "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
                   "datasource": "prom",
-                  "queries": [{ "query": "sum(up)" }]
+                  "queries": [{ "query": "sum(traces_span_metrics_calls_total)" }]
                 }
               ]
             }

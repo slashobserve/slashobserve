@@ -10,7 +10,7 @@
         "name": "job",
         "type": "query",
         "datasource": "prom",
-        "query": "label_values(up, job)"
+        "query": "label_values(traces_span_metrics_calls_total, job)"
       },
       {
         "name": "n",
@@ -72,11 +72,11 @@
       {
         "id": "p_up",
         "type": "timeseries",
-        "title": "Targets up",
+        "title": "Calls by job",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "count(up{job=~\"$job\"})" }
+          { "query": "count(traces_span_metrics_calls_total{job=~\"$job\"})" }
         ]
       },
       {
@@ -99,7 +99,7 @@
         "datasource": "prom_tight",
         "queries": [
           {
-            "query": "topk($n, count by (__name__) ({__name__=~\"prometheus_.+\"}))"
+            "query": "topk($n, count by (__name__) ({__name__=~\"(traces|http|rpc|jvm|dotnet)_.+\"}))"
           }
         ]
       },
@@ -110,7 +110,7 @@
         "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
         "datasource": "prom_tight",
         "queries": [
-          { "query": "up{job=\"prometheus\"}", "interval": "1s" }
+          { "query": "vector(1)", "interval": "1s" }
         ]
       },
       {
@@ -142,10 +142,10 @@
         "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "count(up)", "legend": "all" },
+          { "query": "count(traces_span_metrics_calls_total)", "legend": "all" },
           {
             "ref": "B",
-            "query": "count(up{job=~\"$job\"})",
+            "query": "count(traces_span_metrics_calls_total{job=~\"$job\"})",
             "legend": "job"
           },
           { "query": "vector(1)", "hide": true }
@@ -158,10 +158,10 @@
         "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
         "datasource": "prom_tight",
         "queries": [
-          { "query": "count(up)" },
+          { "query": "count(traces_span_metrics_calls_total)" },
           {
             "ref": "B",
-            "query": "topk($n, count by (__name__) ({__name__=~\"prometheus_.+\"}))"
+            "query": "topk($n, count by (__name__) ({__name__=~\"(traces|http|rpc|jvm|dotnet)_.+\"}))"
           }
         ]
       },
@@ -208,7 +208,7 @@
         "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "count by (job) (up)" }
+          { "query": "count by (job) (traces_span_metrics_calls_total)" }
         ]
       },
       {
