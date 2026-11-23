@@ -123,7 +123,7 @@ describe("protocol", () => {
     expect(parsed.model).toMatchObject({ effort: "medium", max_tokens: 16000 })
   })
 
-  test("zero timeouts get Go's defaults and configured ones are kept", () => {
+  test("absent timeouts get Go's defaults, set ones are kept and zero means no limit", () => {
     const unset = claimAnswer.parse({
       ...claimed,
       model: { provider: "openai" },
@@ -143,6 +143,18 @@ describe("protocol", () => {
     expect(set.model).toMatchObject({
       request_timeout_seconds: 30,
       idle_timeout_seconds: 20,
+    })
+    const none = claimAnswer.parse({
+      ...claimed,
+      model: {
+        provider: "openai",
+        request_timeout_seconds: 0,
+        idle_timeout_seconds: 0,
+      },
+    })
+    expect(none.model).toMatchObject({
+      request_timeout_seconds: 0,
+      idle_timeout_seconds: 0,
     })
   })
 

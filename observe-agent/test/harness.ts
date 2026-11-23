@@ -12,6 +12,8 @@ import {
   type RunMeta,
   type TurnMeta,
   ToolError,
+  defaultIdleTimeoutSeconds,
+  defaultRequestTimeoutSeconds,
   noRunMeta,
 } from "../src/protocol"
 import type { ClaimedRun } from "../src/run"
@@ -168,8 +170,8 @@ export function claimed(
       base_url: "",
       effort: "",
       max_tokens: extra.maxTokens ?? 0,
-      request_timeout_seconds: 0,
-      idle_timeout_seconds: 0,
+      request_timeout_seconds: defaultRequestTimeoutSeconds,
+      idle_timeout_seconds: defaultIdleTimeoutSeconds,
       replay_dir: fixtureDir,
       log_provider_errors: false,
       session_renew_bytes: extra.renew ?? 0,
