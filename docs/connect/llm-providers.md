@@ -1,49 +1,52 @@
 ---
 title: LLM providers
-description: Turn the built-in agent on with Anthropic or an OpenAI-compatible server.
+description: Turn the built-in agent on with an Anthropic key or an OpenAI-compatible server, see what a run costs, and know what happens with no provider.
 ---
 
-The agent turns a prompt into a saved dashboard or an investigation by calling tools against your datasources.
-It is on only when `SLASHOBSERVE_LLM_PROVIDER` is set.
-With it unset the server starts normally, and:
+The built-in agent turns a prompt into a saved dashboard or an investigation by calling tools against your datasources.
+It needs a language model, which you connect by setting `SLASHOBSERVE_LLM_PROVIDER`.
+You pick Anthropic or any server that speaks the OpenAI Chat Completions API.
 
-- The endpoints that start the built-in agent answer `503 agent_unavailable`: `POST /api/v1/observe` for a request the built-in agent would take, revision prompts, suggestions, health repairs and query drafts.
-- A message that mentions `@observe` is saved, and its `run_refusal` is `agent_unavailable`; a comment sent with `request_revision` is saved and queues no revision, and turning the agent on later does not replay either.
-- Home's **Ask Observe Agent** tab says no model is connected.
-- `GET /api/v1/agent` answers `available: false`, and `observe doctor` reports that no model is configured.
-- You can still create and edit dashboards through the API, and an agent of your own connects over [MCP](../use/mcp.md) and takes runs with its own model, so it needs no provider here.
+## Turn the agent on
+
+1. Create an API key with your provider.
+2. Set these variables on the server and restart it:
+
+   ```text
+   SLASHOBSERVE_LLM_PROVIDER=anthropic
+   SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
+   ```
+
+   The default model is `claude-sonnet-5-5`.
+   For an OpenAI-compatible server, see [Use an OpenAI-compatible server](#use-an-openai-compatible-server).
+3. Check that the model is configured:
+
+   ```sh
+   observe doctor
+   ```
+
+   The model check passes and shows the provider, the model and the effort, instead of failing with "no model is configured; prompts cannot run".
+4. In the web app, open Home and use **Ask Observe Agent**.
+   Without a model that tab says "No model is connected to this server."
+   `GET /api/v1/agent` answers `available: true`.
 
 The agent sends what its tools return to the provider: datasource and metric names, label values, sampled rows and query results.
 Choose a provider whose data handling fits what your datasources contain.
 
-The model calls come from `observe-agent`, the process the server starts whenever a provider is configured, not from the server itself.
-The server hands it the provider settings, including the key, when it claims a run, so the process needs no settings of its own.
-It calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
-These calls are not covered by the [outbound allowlist](../operate/outbound-access.md), so a firewall that restricts egress must allow the host.
-The server gives the process only `PATH`, `HOME` and `TZ` from its own environment, so a proxy variable such as `HTTPS_PROXY` set on the server does not reach it, and neither do the provider's own variables such as `ANTHROPIC_API_KEY` or `OPENAI_BASE_URL`; set every value through `SLASHOBSERVE_LLM_*`.
-A call that fails with a rate limit, a timeout, a server error or a dropped connection is tried up to 4 times with backoff, inside the request timeout.
+## Use another Anthropic model
 
-## Anthropic
+Set `SLASHOBSERVE_LLM_MODEL`, for example `claude-opus-5-5` for harder prompts or `claude-haiku-5-5` for lower cost.
+The server does not check the model name.
+`SLASHOBSERVE_LLM_EFFORT` sets the effort level: `low`, `medium`, `high`, `xhigh` or `max`, and `medium` when unset.
+To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOBSERVE_LLM_API_KEY_FILE` instead.
+Set only one of the two.
 
-Anthropic is the default model family.
-Only the key is required:
+To send `anthropic` calls through a gateway, set `SLASHOBSERVE_LLM_BASE_URL` to its root without `/v1`, because the agent adds that path itself.
 
-```text
-SLASHOBSERVE_LLM_PROVIDER=anthropic
-SLASHOBSERVE_LLM_API_KEY=<your Anthropic API key>
-```
-
-The default model is `claude-sonnet-5-5`.
-Set `SLASHOBSERVE_LLM_MODEL` to use another, for example `claude-opus-5-5` for harder prompts or `claude-haiku-5-5` for lower cost.
-The server does not validate the model name itself.
-`SLASHOBSERVE_LLM_EFFORT` sets the model's effort level: `low`, `medium`, `high`, `xhigh` or `max`, and `medium` when unset.
-To read the key from a file, such as a Docker or Kubernetes secret, use `SLASHOBSERVE_LLM_API_KEY_FILE` instead; set only one of the two.
-To send `anthropic` calls through a gateway, set `SLASHOBSERVE_LLM_BASE_URL` to its root without `/v1`, because the agent adds that path itself; for `openai` the URL is used as written, so include `/v1` as in the examples below.
-
-## OpenAI-compatible
+## Use an OpenAI-compatible server
 
 `openai` talks to any server that implements the Chat Completions API with tool calling.
-The model is required, because there is no safe default:
+The model is required, because there is no safe default.
 
 ```text
 SLASHOBSERVE_LLM_PROVIDER=openai
@@ -52,8 +55,8 @@ SLASHOBSERVE_LLM_API_KEY=<API key>
 ```
 
 Leave `SLASHOBSERVE_LLM_BASE_URL` unset to use OpenAI.
-Point it at another server to use that instead.
-For a local Ollama:
+Set it to use another server, written as the server expects, so include `/v1`.
+For a local Ollama, which needs no key:
 
 ```text
 SLASHOBSERVE_LLM_PROVIDER=openai
@@ -61,39 +64,65 @@ SLASHOBSERVE_LLM_MODEL=llama3.1
 SLASHOBSERVE_LLM_BASE_URL=http://localhost:11434/v1
 ```
 
-The key is optional for servers that need none, as Ollama does.
 The model must support tool calling.
-Inside a container, `localhost` is the container itself; use an address the container can reach, such as `http://host.docker.internal:11434/v1` on Docker Desktop.
+Inside a container, `localhost` is the container itself.
+Use an address the container can reach, such as `http://host.docker.internal:11434/v1` on Docker Desktop.
 The project does not vouch for any particular local model, and dashboard quality depends heavily on the model.
 [Local models](local-models.md) covers running the agent on a model you serve yourself.
 
 `SLASHOBSERVE_LLM_EFFORT` sets the reasoning effort sent with each call: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`.
 Unset, nothing is sent and the server uses its own default.
 A reasoning model spends output tokens on reasoning before it answers, so a lower effort such as `low` can shorten each call on some gateways.
-A gateway that does not accept the parameter answers every call with a provider error; unset the variable if that happens.
+A gateway that does not accept the parameter answers every call with a provider error, so unset the variable if that happens.
+
+## Run the agent with no provider
+
+With `SLASHOBSERVE_LLM_PROVIDER` unset, the server starts normally and everything except the built-in agent works.
+You can still create and edit dashboards through the API.
+An agent of your own connects over [MCP](../use/mcp.md) and takes runs with its own model, so it needs no provider here.
+
+These behave differently without a provider:
+
+- The endpoints that start the built-in agent answer `503 agent_unavailable`.
+  They are `POST /api/v1/observe` for a request the built-in agent would take, revision prompts, suggestions, health repairs and query drafts.
+- A message that mentions `@observe` is saved, and its `run_refusal` is `agent_unavailable`.
+- A comment sent with `request_revision` is saved and queues no revision.
+  Turning the agent on later replays neither.
+- Home's **Ask Observe Agent** tab says no model is connected.
+- `GET /api/v1/agent` answers `available: false`, and `observe doctor` reports that no model is configured.
+
+## Allow the agent's network calls
+
+The model calls come from `observe-agent`, the process the server starts whenever a provider is configured, not from the server itself.
+It calls `api.anthropic.com` for `anthropic` and `api.openai.com` for `openai`, over HTTPS, unless `SLASHOBSERVE_LLM_BASE_URL` names another server.
+The [outbound allowlist](../operate/outbound-access.md) does not cover these calls, so a firewall that restricts egress must allow the host.
+
+The server hands the process the provider settings, including the key, when it claims a run, so the process needs no settings of its own.
+It gives the process only `PATH`, `HOME` and `TZ` from its own environment.
+A proxy variable such as `HTTPS_PROXY` set on the server does not reach it, and neither do the provider's own variables such as `ANTHROPIC_API_KEY` or `OPENAI_BASE_URL`.
+Set every value through `SLASHOBSERVE_LLM_*`.
+
+A call that fails with a rate limit, a timeout, a server error or a dropped connection is tried up to 4 times with backoff, inside the request timeout.
 
 ## Run cost
 
 Every finished request reports `usage.cost_usd`, an estimate in US dollars of what the attempt that finished it cost.
 It comes from the token counts of the attempt's model calls and the server's price table, so it is not an invoice.
 A request that is retried after a lost lease reports the attempt that finished, not the sum of its attempts.
-The cost shows in the web app, in `observe status`, in the request's `usage` and on the `run.succeeded`, `run.failed` and `run.canceled` events of the [activity log](../use/activity.md).
+
+The cost shows in these places:
+
+- The web app.
+- `observe status`.
+- The request's `usage`.
+- The `run.succeeded`, `run.failed` and `run.canceled` events of the [activity log](../use/activity.md).
+
 The Agents page adds up the recorded costs of each agent's runs over the last 7 days, and shows "Not priced" when a finished run has none.
 
-The built-in table lists these models, in US dollars per million tokens:
-
-| Model               | Input | Output | Cache read | Cache write |
-| ------------------- | ----- | ------ | ---------- | ----------- |
-| `claude-opus-5-5`   | 4.00  | 20.00  | 0.20       | 5.00        |
-| `claude-sonnet-5-5` | 2.00  | 10.00  | 0.20       | 2.50        |
-| `claude-haiku-5-5`  | 0.10  | 0.50   | 0.01       | 0.125       |
-
-A model is priced by its exact name, and otherwise by the longest listed prefix, so a dated id such as `claude-haiku-5-5-20261001` is priced too.
-A token class the model used that has no rate leaves the cost empty, never zero, and a model that is not in the table has no cost.
-The table holds one rate per token class and models no long-prompt pricing tier, so the cost of a model that has such a tier is underestimated above its threshold.
+### Price a model that is not in the table
 
 `SLASHOBSERVE_LLM_PRICES_FILE` replaces the whole table with a file of the same shape, so an OpenAI-compatible model can be priced.
-The file is not merged with the built-in table; list every model you use.
+The file is not merged with the built-in table, so list every model you use.
 Each entry gives `input`, `output`, `cache_read` and `cache_write` rates, and an optional `match` list of name prefixes:
 
 ```yaml
@@ -102,4 +131,36 @@ models:
     { input: 0.2, output: 0.6, cache_read: 0, cache_write: 0, match: [llama3.1] }
 ```
 
-The server refuses to start when the file is unreadable, malformed, has a negative rate or lists a prefix twice.
+The server refuses to start when the file is unreadable, malformed, empty, has a negative rate, has an unknown field, lists a prefix twice, or holds more than one YAML document.
+It also refuses to start when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and the model has no price for every token class.
+
+### The built-in price table
+
+The table lists these models, in US dollars per million tokens:
+
+| Model | Input | Output | Cache read | Cache write |
+| --- | --- | --- | --- | --- |
+| `claude-opus-5-5` | 4.00 | 20.00 | 0.20 | 5.00 |
+| `claude-sonnet-5-5` | 2.00 | 10.00 | 0.20 | 2.50 |
+| `claude-haiku-5-5` | 0.10 | 0.50 | 0.01 | 0.125 |
+
+A model is priced by its exact name, and otherwise by the longest listed prefix, so a dated id such as `claude-haiku-5-5-20261001` is priced too.
+A token class the model used that has no rate leaves the cost empty, never zero, and a model that is not in the table has no cost.
+The table holds one rate per token class and models no long-prompt pricing tier, so the cost of a model that has such a tier is underestimated above its threshold.
+It also holds a `replay` model, priced at zero, for the replay provider that tests use.
+
+## Reference
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SLASHOBSERVE_LLM_PROVIDER` | unset | `anthropic`, `openai` or `replay`. Unset turns the agent off. |
+| `SLASHOBSERVE_LLM_MODEL` | `claude-sonnet-5-5` for `anthropic` | Required for `openai`. |
+| `SLASHOBSERVE_LLM_API_KEY` | none | Required for `anthropic`. |
+| `SLASHOBSERVE_LLM_API_KEY_FILE` | none | A file holding the key. Not with `SLASHOBSERVE_LLM_API_KEY`. |
+| `SLASHOBSERVE_LLM_BASE_URL` | the provider's own | Without `/v1` for `anthropic`, with it for `openai`. |
+| `SLASHOBSERVE_LLM_EFFORT` | `medium` for `anthropic` | Values depend on the provider. |
+| `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | Replaces the price table. |
+
+The provider is lower-cased, so `Anthropic` works.
+A key file must be readable and not empty, and the server trims it.
+`SLASHOBSERVE_LLM_MAX_TOKENS`, `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`, `SLASHOBSERVE_LLM_IDLE_TIMEOUT` and the other agent settings are in [Configuration](../reference/configuration.md).
