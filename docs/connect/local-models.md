@@ -68,6 +68,7 @@ A few settings help a slow or small model:
 - Give the model the largest context window the server allows, because the agent's instructions, tool definitions and tool results all go into it; with Ollama, set `OLLAMA_CONTEXT_LENGTH` before you start it.
 - `SLASHOBSERVE_LLM_IDLE_TIMEOUT`, 180 seconds by default, retries a call that receives nothing from the server for that long; raise it for a model that takes longer than that before its first token, or set `0` for no limit.
 - `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`, 10 minutes by default, bounds each call with its retries; `0` sets no limit.
+- With both timeouts at `0` and `SLASHOBSERVE_AGENT_RUN_TIMEOUT` at its default `0`, a model call that stalls keeps running until someone cancels the run, so keep at least one bound.
 - `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS=true` adds the server's own error message to the log line of a failed call, which shows why a server refused a request.
 
 Name the metric, service or table in the prompt, so the model has less to find.
