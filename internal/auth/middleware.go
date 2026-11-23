@@ -105,7 +105,7 @@ func (s *Service) sessionPrincipal(c *gin.Context) (Principal, bool, error) {
 
 func (s *Service) sessionRow(r *http.Request) (dbsqlc.GetSessionUserRow, bool, error) {
 	cookie, err := r.Cookie(s.sessionCookie)
-	if err != nil || cookie.Value == "" {
+	if err != nil || cookie.Value == "" || !s.signInOn() {
 		return dbsqlc.GetSessionUserRow{}, false, nil
 	}
 	row, err := s.queries.GetSessionUser(r.Context(), opaquetoken.Hash(cookie.Value))

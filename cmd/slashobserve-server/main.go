@@ -311,7 +311,11 @@ func newAuthService(ctx context.Context, cfg config.Config, queries *dbsqlc.Quer
 	if err != nil {
 		return nil, withheld("auth_setup_failed", err)
 	}
-	logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
+	if cfg.BrowserSignIn {
+		logger.Info("oidc login configured", slog.String("oidc_issuer", cfg.OIDCIssuerURL))
+	} else {
+		logger.Warn("browser sign-in is off; only service-account keys can authenticate")
+	}
 	if cfg.AllowAnyEmailDomain {
 		logger.Warn("all identity-provider accounts may sign in")
 	}
