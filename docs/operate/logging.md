@@ -70,4 +70,4 @@ No line holds a tool input or result.
 Set `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS=true` to add the provider's own error message to a failed `llm call finished` line as `provider_error_message`.
 The message has the API key removed, newlines and other control characters replaced by spaces, and is cut to 1024 bytes.
 It is never added to the error stored on an agent request or returned by the API.
-A provider can echo parts of the prompt in its message, and the server logs one `WARN` at startup while the setting is on, so use it for evals and debugging only.
+A provider can echo parts of the prompt in its message, and the server logs one `WARN` at startup while the setting is on, so use it for debugging only.

@@ -576,11 +576,7 @@ describe("loading", () => {
 
 describe("recorded fixtures", () => {
   const repoRoot = resolve(import.meta.dir, "..", "..")
-  const directories = [
-    "e2e/fixtures/llm",
-    "evals/fixtures/llm",
-    "deploy/compose/replicas/llm",
-  ]
+  const directories = ["e2e/fixtures/llm", "deploy/compose/replicas/llm"]
   for (const directory of directories) {
     test(`${directory} loads without error`, async () => {
       const provider = await ReplayProvider.load(
