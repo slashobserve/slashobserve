@@ -105,7 +105,7 @@ func (r *Registry) getTrace(ctx context.Context, input json.RawMessage) (Result,
 	if !ok {
 		return invalid("%s", traceSourcesMessage), nil
 	}
-	rng, res, ok := resolveRange(cmp.Or(in.From, traceDefaultFrom), in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, cmp.Or(in.From, traceDefaultFrom), in.To)
 	if !ok {
 		return res, nil
 	}
@@ -356,7 +356,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	rng, res, ok := resolveRange(in.From, in.To, time.Now())
+	rng, res, ok := resolveRunRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}

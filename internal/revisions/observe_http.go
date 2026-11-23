@@ -31,10 +31,11 @@ const (
 var listableStates = []State{StateQueued, StateRunning, StateCanceling, StateSucceeded, StateFailed, StateCanceled}
 
 var (
-	errWindowPair    = errors.New("from and to go together")
-	errWindowTime    = errors.New("from and to must be relative times like now-1h or epoch milliseconds")
-	errWindowOrder   = errors.New("from must be before to")
-	errWindowTooLong = errors.New("the time range is too long")
+	errWindowPair      = errors.New("from and to go together")
+	errWindowTime      = errors.New("from and to must be relative times like now-1h or epoch milliseconds")
+	errWindowOrder     = errors.New("from must be before to")
+	errWindowTooLong   = errors.New("the time range is too long")
+	errWindowAfterAsOf = errors.New("to must not be after as_of")
 )
 
 type ObserveOptions struct {
@@ -124,6 +125,7 @@ type agentRequestJSON struct {
 	ArchivedAt    *string         `json:"archived_at"`
 	From          *string         `json:"from"`
 	To            *string         `json:"to"`
+	AsOf          *string         `json:"as_of"`
 	ObservationID *string         `json:"observation_id"`
 	SubjectID     *string         `json:"subject_observation_id"`
 	ChatID        *string         `json:"chat_id"`
@@ -259,7 +261,7 @@ func (h *ObserveHandler) createObserve(c *gin.Context) {
 	c.JSON(status, agentRequestEnvelopeJSON{Request: view})
 }
 
-func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time, error) {
+func investigateWindow(from, to *string, now time.Time, asOf bool) (*time.Time, *time.Time, error) {
 	if from == nil && to == nil {
 		return nil, nil, nil
 	}
@@ -279,6 +281,8 @@ func investigateWindow(from, to *string, now time.Time) (*time.Time, *time.Time,
 		return nil, nil, errWindowOrder
 	case end.Sub(start) > queryproxy.MaxRange:
 		return nil, nil, errWindowTooLong
+	case asOf && end.After(now):
+		return nil, nil, errWindowAfterAsOf
 	}
 	start, end = start.UTC(), end.UTC()
 	return &start, &end, nil

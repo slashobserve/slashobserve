@@ -77,7 +77,7 @@ func (s *Service) buildStates(ctx context.Context, ids []pgtype.UUID) (map[pgtyp
 	return states, nil
 }
 
-func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart, mayEdit bool) runFacts {
+func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bool, build buildState, requester, mayStart, mayEdit, asOfBarred bool) runFacts {
 	f := runFacts{
 		state:       state,
 		source:      source,
@@ -85,6 +85,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 		requester:   requester,
 		mayStart:    mayStart,
 		mayEdit:     mayEdit,
+		asOfBarred:  asOfBarred,
 		buildSaved:  buildSaved,
 		continued:   build.continuedBy != nil,
 		retried:     build.retriedBy != nil,
@@ -96,7 +97,7 @@ func newFacts(state State, source Source, dashboardID pgtype.UUID, buildSaved bo
 }
 
 func factsOf(row dbsqlc.AgentRequest, build buildState, by auth.Principal, mayStart, mayEdit bool) runFacts {
-	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit)
+	return newFacts(State(row.State), SourceOf(row), row.DashboardID, row.BuildSavedAt.Valid, build, isRequester(row, by), mayStart, mayEdit, asOfBars(row.AsOf, by))
 }
 
 type startChecks struct {
@@ -245,6 +246,9 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	if err := keepAsOf(row, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	assignee := assigneeOf(row)
 	if assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
@@ -256,6 +260,7 @@ func (s *Service) Continue(ctx context.Context, id pgtype.UUID, by auth.Principa
 		return dbsqlc.AgentRequest{}, err
 	}
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
+	ctx = WithAsOf(ctx, row.AsOf.Time)
 	var next dbsqlc.AgentRequest
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		if err := checkContinuable(ctx, q, row); err != nil {
@@ -325,6 +330,9 @@ func (s *Service) Retry(ctx context.Context, id pgtype.UUID, by auth.Principal) 
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
+	if err := keepAsOf(row, by); err != nil {
+		return dbsqlc.AgentRequest{}, err
+	}
 	assignee := assigneeOf(row)
 	if assignee.builtin() && !s.Available() {
 		return dbsqlc.AgentRequest{}, ErrUnavailable
@@ -373,6 +381,7 @@ func (s *Service) retryRefusal(ctx context.Context, row dbsqlc.AgentRequest, bui
 func (s *Service) resubmit(ctx context.Context, row dbsqlc.AgentRequest, by auth.Principal, assignee Assignee, retries pgtype.UUID) (dbsqlc.AgentRequest, error) {
 	threadMessage, threadContext := threadOf(row)
 	ctx = WithTimeZone(ctx, row.TimeZone.String)
+	ctx = WithAsOf(ctx, row.AsOf.Time)
 	switch SourceOf(row) {
 	case SourceObserve:
 		return s.submitObserve(ctx, by, row.Prompt, observeTurn{chat: againChat(row, by), retries: retries})

@@ -240,3 +240,14 @@ func TestPromptPayloadCarriesTheAnchor(t *testing.T) {
 		t.Errorf("payload = %s\nwant %s", raw, want)
 	}
 }
+
+func TestInvestigateSendsAsOfOnlyWhenGiven(t *testing.T) {
+	got, err := investigatePayload([]string{"why"}, investigateOptions{asOf: "2026-11-20T10:30:00Z", from: "now-1h", to: "now", timeout: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(got)
+	if want := `{"as_of":"2026-11-20T10:30:00Z","from":"now-1h","kind":"investigate","prompt":"why","to":"now"}`; string(raw) != want {
+		t.Errorf("payload = %s\nwant %s", raw, want)
+	}
+}

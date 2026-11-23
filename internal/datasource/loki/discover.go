@@ -116,7 +116,7 @@ func (d *Datasource) discoverSample(ctx context.Context, req datasource.Discover
 		n = defaultSampleLines
 	}
 	n = min(n, maxSampleLines)
-	end := time.Now()
+	end := datasource.Now(ctx)
 	start := end.Add(-sampleWindow)
 	selector := strings.TrimSpace(req.Table)
 	if selector != "" && !strings.HasPrefix(selector, "{") {
@@ -233,7 +233,7 @@ func (d *Datasource) discoverStreams(ctx context.Context, req datasource.Discove
 	if !strings.HasPrefix(scope, "{") {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "scope must be a stream selector such as {service_name=\"checkout\"}")
 	}
-	end := time.Now()
+	end := datasource.Now(ctx)
 	raw, err := d.get(ctx, "/loki/api/v1/series", url.Values{
 		"match[]": {scope},
 		"start":   {lokiTime(end.Add(-inventoryWindow))},

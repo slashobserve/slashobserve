@@ -336,6 +336,8 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		To:   optionalTime(row.ContextTo),
 
 		TimeZone: row.TimeZone.String,
+
+		AsOf: optionalTime(row.AsOf),
 	}
 }
 

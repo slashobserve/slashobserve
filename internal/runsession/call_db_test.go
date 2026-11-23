@@ -342,6 +342,30 @@ func TestTwoServicesOnOneDatabaseDecideAsOne(t *testing.T) {
 	}
 }
 
+func TestAnInvestigationKeepsTheCallLimitItStartedWithWhenTheSettingIsLowered(t *testing.T) {
+	r := newRig(t, withInvestigationCalls(20))
+	lowered := New(Config{DB: r.d.DB, Runs: r.runs, Claims: r.claims, Builds: r.store, Dashboards: r.store, Statuses: healthy{}, Steps: r.steps, InvestigationCalls: 12})
+	req := r.investigate()
+	for n := range 14 {
+		if got := r.read(req, n); got.IsError {
+			t.Fatalf("read %d was refused under 20: %s", n+1, got.Content)
+		}
+	}
+	for n := 14; n < 19; n++ {
+		got, err := lowered.Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"` + strconv.Itoa(n) + `"}`)}, readOK)
+		if err != nil || got.IsError {
+			t.Fatalf("read %d on the lowered service: refused %v, err %v", n+1, got.IsError, err)
+		}
+		if nudged := hasNote(got, "One more read at most"); nudged != (n == 18) {
+			t.Fatalf("read %d: nudge = %v, notes %q", n+1, nudged, got.Notes)
+		}
+	}
+	refused, err := lowered.Call(context.Background(), req, Call{Name: "list_metrics", Input: json.RawMessage(`{"q":"z"}`)}, readOK)
+	if err != nil || !refused.IsError || contentCode(t, refused) != "invalid_request" {
+		t.Fatalf("read 20 = %s, err %v, want refused at the limit of 20", refused.Content, err)
+	}
+}
+
 func TestParentVersionStaysPinnedUntilTheBrief(t *testing.T) {
 	r := newRig(t)
 	req := r.revise()

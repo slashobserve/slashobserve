@@ -4733,6 +4733,7 @@ components:
         - archived_at
         - from
         - to
+        - as_of
         - observation_id
         - subject_observation_id
         - chat_id
@@ -4954,6 +4955,11 @@ components:
           format: date-time
           nullable: true
           description: The end of the window an investigation was asked to look at; null when none was given.
+        as_of:
+          type: string
+          format: date-time
+          nullable: true
+          description: The now the run resolved every relative time to, set by an Admin to replay a past incident; null for a run on the live clock.
         chat_id:
           type: string
           format: uuid
@@ -5381,6 +5387,7 @@ components:
         - restricted
         - from
         - to
+        - as_of
         - annotation_id
         - created_by
         - actor
@@ -5455,6 +5462,11 @@ components:
           type: string
           format: date-time
           description: The end of the window the evidence shows.
+        as_of:
+          type: string
+          format: date-time
+          nullable: true
+          description: The now the investigation was done as of, when its run was started with `as_of`; null for a run on the live clock.
         annotation_id:
           type: string
           format: uuid

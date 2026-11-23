@@ -451,6 +451,7 @@ To make that change, use `update_panels` on that dashboard yourself, or ask the 
 `start_run`, `cancel_run` and `retry_run` control the built-in agent's runs as the person who connected the client, with their role and folder access, and are over MCP only.
 `start_run` takes a `prompt` (1 to 4000 characters) and optionally a `kind`, `ask` (the default) or `revise`, a `dashboard_id`, with `base_version` for a revise, an `observation_id`, a `chat_id`, one of your chats from `list_chats` whose next turn the run is, an `anchor`, the spot on the dashboard or observation the prompt is about, shaped as `list_comments` shows it, and a `block_id`, a block of `observation_id`: the one the anchor sits on, or without an anchor the whole block the prompt is about; it queues a run and answers with it at once, and you follow it with `get_run`.
 Without a `dashboard_id` an `ask` builds a new dashboard or answers in the chat, and `kind: revise` with a `dashboard_id` changes that dashboard and saves a version.
+An Admin may pass `as_of`, an RFC 3339 time or epoch milliseconds in the past, to run as of that time, for an `ask` about a dashboard or an observation and not for `revise`: every relative time in the run, such as `now-1h`, resolves to it, and `get_run` and the finding give it back as `as_of`; see [Investigate a past incident](investigate.md#investigate-a-past-incident).
 With `kind: revise`, `applies_finding_id` in place of `prompt` makes the change an answer about that dashboard suggests: the answer's `suggested_change` from `get_run` is the prompt, and while a run applying it is queued or running, or after it succeeded, the call returns your run with `replayed: true` or answers `already_applied` for someone else's.
 An `ask` with one of `dashboard_id` or `observation_id` is a [private ask](../concepts/agent.md#private-asks): it only answers, changes nothing, and is read only by you and Admins; `kind: investigate` is refused, because an investigation is a person's decision.
 
@@ -734,7 +735,7 @@ A run that no outside agent took within 10 minutes fails as `agent_unavailable`.
 
 The server enforces the guards of [SlashObserve's own agent](../concepts/agent.md#guards) on every run session, whatever agent works in it:
 
-- The save-now window: after 6 turns without a save, 12 in an investigate or suggest run, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
+- The save-now window: after 6 turns without a save, 12 in a suggest run and `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (12 by default) in an investigate run, only a save runs and a read in a turn without a save is refused; the call before the limit gets a note.
 - Identical reads: a third identical read is refused, and an errored read or a query result runs again.
 - One save per turn: a second save in one turn is refused.
 - Repeated saves: a save identical to an earlier one is refused.

@@ -164,6 +164,14 @@ func FormatTime(t time.Time) string {
 	return t.UTC().Format(time.RFC3339Nano)
 }
 
+func FormatOptionalTime(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := FormatTime(*t)
+	return &s
+}
+
 func OptionalString(s string) *string {
 	if s == "" {
 		return nil

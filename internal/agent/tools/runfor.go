@@ -99,6 +99,9 @@ func RunFor(req revisions.Request) (Run, error) {
 			run.From, run.To = *req.From, *req.To
 		}
 	}
+	if req.AsOf != nil {
+		run.AsOf = *req.AsOf
+	}
 	if req.Investigation && req.ObservationID != "" {
 		run.Observations = append(run.Observations, req.ObservationID)
 	}

@@ -18,6 +18,8 @@ const (
 	maxChurnedSavesInRow   = 3
 	maxIssueCodes          = 3
 
+	DefaultInvestigationCalls = 12
+
 	PhaseRepair = "repair"
 
 	codeInvalidRequest = "invalid_request"
@@ -54,11 +56,6 @@ var rules = map[string]rule{
 		refused: fmt.Sprintf("%d model calls passed without a save", maxCallsBeforeSave),
 		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", maxCallsBeforeSave),
 	},
-	guardFindingNow: {
-		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked, and say in it what you did not read.", maxCallsBeforeProposal),
-		refused: fmt.Sprintf("%d model calls passed without a finding", maxCallsBeforeProposal),
-		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a finding", maxCallsBeforeProposal),
-	},
 	guardProposeNow: {
 		message: fmt.Sprintf("%d model calls without a proposal; only a proposal can run now. Propose the panel you have checked.", maxCallsBeforeProposal),
 		refused: fmt.Sprintf("%d model calls passed without a proposal", maxCallsBeforeProposal),
@@ -74,6 +71,28 @@ var rules = map[string]rule{
 		refused: "the same save was sent again",
 		stopped: "Stopped: the same save was sent again and again",
 	},
+}
+
+func findingRule(calls int) rule {
+	return rule{
+		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked, and say in it what you did not read.", calls),
+		refused: fmt.Sprintf("%d model calls passed without a finding", calls),
+		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a finding", calls),
+	}
+}
+
+func (s *State) rule(name string) rule {
+	if name == guardFindingNow {
+		return findingRule(s.investigationCalls())
+	}
+	return rules[name]
+}
+
+func (s *State) investigationCalls() int {
+	if s.InvestigationCalls > 0 {
+		return s.InvestigationCalls
+	}
+	return DefaultInvestigationCalls
 }
 
 type Call struct {
@@ -131,18 +150,21 @@ func (s *State) Phase(name string) string {
 	return PhaseFor(name, s.Rejections > 0)
 }
 
-func windowLimit(mode tools.Mode) int {
-	if mode == tools.ModeSuggest || mode == tools.ModeInvestigate {
+func (s *State) windowLimit() int {
+	switch s.Mode {
+	case tools.ModeSuggest:
 		return maxCallsBeforeProposal
+	case tools.ModeInvestigate:
+		return s.investigationCalls()
 	}
 	return maxCallsBeforeSave
 }
 
-func readRefusal(mode tools.Mode, w Window, hasSave bool) string {
-	if hasSave || w.Diagnose || w.Calls < windowLimit(mode) {
+func (s *State) readRefusal(hasSave bool) string {
+	if hasSave || s.Window.Diagnose || s.Window.Calls < s.windowLimit() {
 		return ""
 	}
-	switch mode {
+	switch s.Mode {
 	case tools.ModeSuggest:
 		return guardProposeNow
 	case tools.ModeInvestigate:
@@ -151,11 +173,11 @@ func readRefusal(mode tools.Mode, w Window, hasSave bool) string {
 	return guardSaveNow
 }
 
-func nudgeFor(mode tools.Mode, w Window) string {
-	if w.Calls != windowLimit(mode)-1 {
+func (s *State) nudge() string {
+	if s.Window.Calls != s.windowLimit()-1 {
 		return ""
 	}
-	switch mode {
+	switch s.Mode {
 	case tools.ModeSuggest:
 		return messageProposeNext
 	case tools.ModeInvestigate:
@@ -257,8 +279,8 @@ func (s *State) reject(c Call, adm Admission, reason string) Admission {
 
 func (s *State) refuse(c Call, adm Admission, name string) Admission {
 	s.LastGuard = name
-	adm = s.reject(c, adm, rules[name].message)
-	adm.Step = "Refused " + c.label() + ": " + rules[name].refused
+	adm = s.reject(c, adm, s.rule(name).message)
+	adm.Step = "Refused " + c.label() + ": " + s.rule(name).refused
 	return adm
 }
 
@@ -273,7 +295,7 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 		}
 	}
 	if !s.Turn.Progress {
-		if nudge = nudgeFor(s.Mode, s.Window); nudge != "" {
+		if nudge = s.nudge(); nudge != "" {
 			s.Counts.Nudges++
 		}
 	}
@@ -287,7 +309,7 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 }
 
 func (s *State) stalledReason() string {
-	if reason := rules[s.LastGuard].stopped; reason != "" {
+	if reason := s.rule(s.LastGuard).stopped; reason != "" {
 		return reason
 	}
 	return fmt.Sprintf("Stopped: %d turns in a row had every call refused", maxStalledTurns)

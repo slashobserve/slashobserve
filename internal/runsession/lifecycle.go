@@ -273,8 +273,8 @@ func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
 	return brief.Task{
 		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
 		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
-		TimeZone: req.TimeZone,
-		Pointer:  brief.Pointer{Anchor: req.Anchor, BlockID: req.BlockID, ObservationID: observationOf(req)},
+		TimeZone: req.TimeZone, AsOf: req.AsOf,
+		Pointer: brief.Pointer{Anchor: req.Anchor, BlockID: req.BlockID, ObservationID: observationOf(req)},
 	}
 }
 

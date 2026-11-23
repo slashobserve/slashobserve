@@ -23,12 +23,14 @@ const (
 	maxDiscoverItems  = 500
 	defaultSampleRows = 5
 	maxSampleRows     = 20
-	maxNameBytes      = 256
-	maxCellBytes      = 300
-	maxSampleColumns  = 50
-	maxStepNameBytes  = 64
-	columnsBudget     = 3 << 10
-	sampleRowsBudget  = 10 << 10
+
+	defaultNamesWindow = time.Hour
+	maxNameBytes       = 256
+	maxCellBytes       = 300
+	maxSampleColumns   = 50
+	maxStepNameBytes   = 64
+	columnsBudget      = 3 << 10
+	sampleRowsBudget   = 10 << 10
 )
 
 func init() { registerEntries((*Registry).discoveryEntries) }
@@ -257,14 +259,22 @@ type listLabelValuesInput struct {
 	Offset     *int   `json:"offset"`
 }
 
-func namesRange(from, to string) (datasource.TimeRange, Result, bool) {
+func namesRange(ctx context.Context, from, to string) (datasource.TimeRange, Result, bool) {
 	switch {
 	case from == "" && to == "":
-		return datasource.TimeRange{}, Result{}, true
+		return defaultNamesRange(ctx), Result{}, true
 	case from == "" || to == "":
 		return datasource.TimeRange{}, invalid("from and to must be given together"), false
 	}
-	return resolveRange(from, to, time.Now())
+	return resolveRunRange(ctx, from, to)
+}
+
+func defaultNamesRange(ctx context.Context) datasource.TimeRange {
+	at, ok := datasource.PinnedNow(ctx)
+	if !ok {
+		return datasource.TimeRange{}
+	}
+	return datasource.TimeRange{From: at.Add(-defaultNamesWindow), To: at}
 }
 
 func namesLimit(p *int) int {
@@ -510,7 +520,7 @@ func (r *Registry) listLabels(ctx context.Context, input json.RawMessage) (Resul
 	if !ok {
 		return res, nil
 	}
-	rng, res, ok := namesRange(in.From, in.To)
+	rng, res, ok := namesRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}
@@ -547,7 +557,7 @@ func (r *Registry) listLabelValues(ctx context.Context, input json.RawMessage) (
 	if !ok {
 		return res, nil
 	}
-	rng, res, ok := namesRange(in.From, in.To)
+	rng, res, ok := namesRange(ctx, in.From, in.To)
 	if !ok {
 		return res, nil
 	}

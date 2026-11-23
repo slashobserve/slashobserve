@@ -210,6 +210,7 @@ function finding(id: string, createdAt: string): Finding {
     evidence: [],
     from: at(0),
     to: at(10),
+    as_of: null,
     annotation_id: null,
     created_by: { kind: "user", id: "u1", name: "Ada" },
     actor: {

@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
@@ -84,6 +85,9 @@ const (
 	minAgentWorkers     = 1
 	maxAgentWorkers     = 64
 
+	minAgentInvestigationCalls = 6
+	maxAgentInvestigationCalls = 60
+
 	minSecretKeyBytes = 32
 )
 
@@ -143,10 +147,11 @@ const (
 	envLLMLogProviderErrors = "SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS"
 	envLLMPricesFile        = "SLASHOBSERVE_LLM_PRICES_FILE"
 
-	envAgentRunTimeout      = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
-	envAgentSessionRenewKiB = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
-	envAgentWorkers         = "SLASHOBSERVE_AGENT_WORKERS"
-	envAgentRunMaxCostUSD   = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
+	envAgentRunTimeout         = "SLASHOBSERVE_AGENT_RUN_TIMEOUT"
+	envAgentSessionRenewKiB    = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
+	envAgentWorkers            = "SLASHOBSERVE_AGENT_WORKERS"
+	envAgentInvestigationCalls = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS"
+	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
 	envMetrics      = "SLASHOBSERVE_METRICS"
@@ -160,7 +165,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -185,10 +190,11 @@ type LLM struct {
 }
 
 type Agent struct {
-	RunTimeout        time.Duration
-	SessionRenewBytes int
-	Workers           int
-	MaxRunCostUSD     float64
+	RunTimeout         time.Duration
+	SessionRenewBytes  int
+	Workers            int
+	InvestigationCalls int
+	MaxRunCostUSD      float64
 }
 
 type Config struct {
@@ -703,6 +709,15 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d to %d, got %q", envAgentWorkers, minAgentWorkers, maxAgentWorkers, v))
 		} else {
 			cfg.Agent.Workers = n
+		}
+	}
+	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
+	if v := get(lookup, envAgentInvestigationCalls); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < minAgentInvestigationCalls || n > maxAgentInvestigationCalls {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d to %d, got %q", envAgentInvestigationCalls, minAgentInvestigationCalls, maxAgentInvestigationCalls, v))
+		} else {
+			cfg.Agent.InvestigationCalls = n
 		}
 	}
 	if err := loadRunMaxCost(lookup, cfg); err != nil {

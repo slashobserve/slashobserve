@@ -29,6 +29,7 @@ function finding(): Finding {
     ] as unknown as Finding["evidence"],
     from: "2026-11-06T10:00:00Z",
     to: "2026-11-06T11:00:00Z",
+    as_of: null,
     annotation_id: null,
     created_by: { kind: "user", id: "u1", name: "Ada" },
     actor: {

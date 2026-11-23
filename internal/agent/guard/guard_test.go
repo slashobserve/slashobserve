@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,8 +26,8 @@ func readTurn(s *State, name, input string, isError bool) Admission {
 }
 
 func TestBudgetLimits(t *testing.T) {
-	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || maxCallsBeforeSave != 6 || maxCallsBeforeProposal != 12 || maxStalledTurns != 2 {
-		t.Fatalf("budgets = %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, maxCallsBeforeSave, maxCallsBeforeProposal, maxStalledTurns)
+	if MaxRejectionsInRow != 3 || maxIdenticalReads != 3 || maxCallsBeforeSave != 6 || maxCallsBeforeProposal != 12 || DefaultInvestigationCalls != 12 || maxStalledTurns != 2 {
+		t.Fatalf("budgets = %d %d %d %d %d %d", MaxRejectionsInRow, maxIdenticalReads, maxCallsBeforeSave, maxCallsBeforeProposal, DefaultInvestigationCalls, maxStalledTurns)
 	}
 }
 
@@ -112,10 +113,76 @@ func TestReadRefusal(t *testing.T) {
 		{"suggest lets a proposal beside reads run", tools.ModeSuggest, Window{Calls: 13}, true, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := readRefusal(c.mode, c.window, c.hasSave); got != c.want {
+			s := State{Mode: c.mode, Window: c.window}
+			if got := s.readRefusal(c.hasSave); got != c.want {
 				t.Fatalf("readRefusal(%v, %+v, %v) = %q, want %q", c.mode, c.window, c.hasSave, got, c.want)
 			}
 		})
+	}
+}
+
+func TestAnInvestigationReadsUpToItsConfiguredCalls(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		limit  int
+		window Window
+		want   string
+	}{
+		{"unset keeps twelve", 0, Window{Calls: 11}, ""},
+		{"unset refuses the twelfth", 0, Window{Calls: 12}, guardFindingNow},
+		{"raised runs the twelfth", 20, Window{Calls: 12}, ""},
+		{"raised runs the nineteenth", 20, Window{Calls: 19}, ""},
+		{"raised refuses the twentieth", 20, Window{Calls: 20}, guardFindingNow},
+		{"lowest refuses the sixth", 6, Window{Calls: 6}, guardFindingNow},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := State{Mode: tools.ModeInvestigate, Window: c.window, InvestigationCalls: c.limit}
+			if got := s.readRefusal(false); got != c.want {
+				t.Fatalf("readRefusal = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestASuggestRunKeepsTwelveCallsWhateverTheInvestigationSetting(t *testing.T) {
+	s := State{Mode: tools.ModeSuggest, Window: Window{Calls: 12}, InvestigationCalls: 40}
+	if got := s.readRefusal(false); got != guardProposeNow {
+		t.Fatalf("readRefusal = %q, want %q", got, guardProposeNow)
+	}
+	s.Mode, s.Window.Calls = tools.ModeCreate, 6
+	if got := s.readRefusal(false); got != guardSaveNow {
+		t.Fatalf("readRefusal = %q, want %q", got, guardSaveNow)
+	}
+}
+
+func TestAnInvestigationWithTwentyCallsIsLimitedAtTheTwentiethAndNotBefore(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.InvestigationCalls = 20
+	var refusedAt, nudgedAfter int
+	for turn := 1; turn <= 25 && refusedAt == 0; turn++ {
+		s.BeginTurn(false)
+		adm := s.Admit(0, jsonCall("query_range", `{"q": `+strconv.Itoa(turn)+`}`))
+		if adm.Verdict == Refuse {
+			refusedAt = turn
+			if !strings.HasPrefix(adm.Step, "Refused query_range: 20 model calls passed without a finding") || !strings.Contains(string(adm.Content), "20 model calls without a finding") {
+				t.Fatalf("refusal = %q %s", adm.Step, adm.Content)
+			}
+			break
+		}
+		if nudge, _ := s.EndTurn(); nudge == messageFindingNext {
+			nudgedAfter = turn
+		}
+	}
+	if refusedAt != 20 || nudgedAfter != 19 {
+		t.Fatalf("refused at call %d, nudged after call %d, want 20 and 19", refusedAt, nudgedAfter)
+	}
+}
+
+func TestTheStoppedReasonNamesTheConfiguredInvestigationCalls(t *testing.T) {
+	s := State{Mode: tools.ModeInvestigate, InvestigationCalls: 20, LastGuard: guardFindingNow}
+	want := "Stopped: the model kept reading after 20 calls without a finding"
+	if got := s.stalledReason(); got != want {
+		t.Fatalf("stalledReason = %q, want %q", got, want)
 	}
 }
 
@@ -133,10 +200,12 @@ func TestNudgeFor(t *testing.T) {
 		{"suggest fifth call", tools.ModeSuggest, Window{Calls: 5}, ""},
 		{"suggest eleventh call", tools.ModeSuggest, Window{Calls: 11}, messageProposeNext},
 		{"suggest twelfth call", tools.ModeSuggest, Window{Calls: 12}, ""},
+		{"investigation eleventh call", tools.ModeInvestigate, Window{Calls: 11}, messageFindingNext},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if got := nudgeFor(c.mode, c.window); got != c.want {
-				t.Fatalf("nudgeFor(%v, %+v) = %q, want %q", c.mode, c.window, got, c.want)
+			s := State{Mode: c.mode, Window: c.window}
+			if got := s.nudge(); got != c.want {
+				t.Fatalf("nudge(%v, %+v) = %q, want %q", c.mode, c.window, got, c.want)
 			}
 		})
 	}

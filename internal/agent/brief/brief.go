@@ -1,6 +1,7 @@
 package brief
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
@@ -25,6 +26,7 @@ type Task struct {
 	Continues     bool
 	Attempt       int
 	TimeZone      string
+	AsOf          *time.Time
 	Withheld      bool
 	Pointer       Pointer
 }
@@ -66,7 +68,10 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	if t.Withheld {
 		m.Context += "\n\n" + datasource.WithheldNote + " " + withheldAdvice
 	}
-	if note := zoneNote(t.TimeZone, time.Now()); note != "" && t.Mode != tools.ModeSuggest {
+	if t.AsOf != nil {
+		m.Context += "\n\n" + asOfNote(*t.AsOf)
+	}
+	if note := zoneNote(t.TimeZone, t.now()); note != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + note
 	}
 	if digest != "" && t.Mode != tools.ModeSuggest {
@@ -81,4 +86,15 @@ func userMessage(context, prompt string) string {
 		return prompt
 	}
 	return context + "\n\n<request>\n" + prompt + "\n</request>"
+}
+
+func (t Task) now() time.Time {
+	if t.AsOf != nil {
+		return *t.AsOf
+	}
+	return time.Now()
+}
+
+func asOfNote(at time.Time) string {
+	return fmt.Sprintf("Now is %s for this run: every relative time, such as now-1h, resolves to it, and the data may end there.", at.UTC().Format(time.RFC3339))
 }

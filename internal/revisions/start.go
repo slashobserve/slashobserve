@@ -32,6 +32,7 @@ type StartRequest struct {
 	Anchor        *anchor.Anchor `json:"anchor"`
 	BlockID       *string        `json:"block_id"`
 	TimeZone      *string        `json:"time_zone"`
+	AsOf          *string        `json:"as_of"`
 
 	AppliesFindingID *string `json:"applies_finding_id"`
 }
@@ -93,6 +94,16 @@ func (s *Service) turnOf(ctx context.Context, by auth.Principal, req StartReques
 	ctx, prompt, err := checkStartText(ctx, req)
 	if err != nil {
 		return ctx, "", turnInput{}, err
+	}
+	if req.AsOf != nil {
+		at, err := CheckAsOf(*req.AsOf, by, time.Now())
+		if errors.Is(err, ErrForbidden) {
+			return ctx, "", turnInput{}, err
+		}
+		if err != nil {
+			return ctx, "", turnInput{}, &StartError{Message: err.Error(), Cause: err}
+		}
+		ctx = WithAsOf(ctx, at)
 	}
 	var turn turnInput
 	if turn.clientID, err = uuidField("client_id", req.ClientID); err != nil {
@@ -231,6 +242,9 @@ func pointOf(req StartRequest) (Point, error) {
 }
 
 func (s *Service) startBuild(ctx context.Context, by auth.Principal, req StartRequest, prompt string, turn turnInput) (dbsqlc.AgentRequest, error) {
+	if req.AsOf != nil {
+		return dbsqlc.AgentRequest{}, refused("as_of needs an investigation or an ask about a dashboard or an observation, not a dashboard build or revision")
+	}
 	if message := buildShapeConflict(req); message != "" {
 		return dbsqlc.AgentRequest{}, refused("%s", message)
 	}
@@ -337,7 +351,8 @@ func (s *Service) startInvestigation(ctx context.Context, by auth.Principal, req
 	if params.ObservationID, err = uuidField("observation_id", req.ObservationID); err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
-	if params.From, params.To, err = investigateWindow(req.From, req.To, time.Now()); err != nil {
+	_, pinned := asOfOf(ctx)
+	if params.From, params.To, err = investigateWindow(req.From, req.To, clockOf(ctx), pinned); err != nil {
 		return dbsqlc.AgentRequest{}, refused("%s", err.Error())
 	}
 	if !s.Available() {

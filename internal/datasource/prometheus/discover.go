@@ -55,7 +55,7 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	}
 	ctx, cancel := bound(ctx, discoverTimeout)
 	defer cancel()
-	now := time.Now()
+	now := datasource.Now(ctx)
 	form := url.Values{
 		"start": {unixSeconds(now.Add(-lookback))},
 		"end":   {unixSeconds(now)},

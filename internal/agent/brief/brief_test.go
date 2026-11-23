@@ -3,6 +3,7 @@ package brief
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -124,6 +125,29 @@ func TestParseReasonKnowsEveryReasonAndNothingElse(t *testing.T) {
 	for _, s := range []string{"fresh", "Restart", "unknown", " "} {
 		if _, ok := ParseReason(s); ok {
 			t.Fatalf("ParseReason(%q) accepted", s)
+		}
+	}
+}
+
+func TestRenderTellsAnAsOfRunItsNow(t *testing.T) {
+	const note = "Now is 2026-11-20T10:30:00Z for this run: every relative time, such as now-1h, resolves to it, and the data may end there."
+	at := time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC)
+	for name, tc := range renderCases(t) {
+		task := tc.task
+		task.AsOf = &at
+		got, err := Render(statuses, task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got.Context, note) {
+			t.Fatalf("%s: no as_of note in\n%s", name, got.Context)
+		}
+		without, err := Render(statuses, tc.task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(without.Context, "for this run:") {
+			t.Fatalf("%s: a live run was given a now", name)
 		}
 	}
 }

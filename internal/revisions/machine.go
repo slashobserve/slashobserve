@@ -111,6 +111,7 @@ type runFacts struct {
 	requester   bool
 	mayStart    bool
 	mayEdit     bool
+	asOfBarred  bool
 	buildPanels int
 	buildSaved  bool
 	continued   bool
@@ -129,9 +130,9 @@ func (f runFacts) refuses(a Action) bool {
 	case ActionKeepBuild:
 		return !hasBuild || !f.mayEdit
 	case ActionContinue:
-		return f.source == SourceInvestigate || !hasBuild || f.continued || f.retried
+		return f.asOfBarred || f.source == SourceInvestigate || !hasBuild || f.continued || f.retried
 	case ActionRetry:
-		return !f.retryable()
+		return f.asOfBarred || !f.retryable()
 	}
 	return false
 }

@@ -86,6 +86,7 @@ func TestAllowedActions(t *testing.T) {
 		{"running suggest takes no cancel", base(func(f *runFacts) { f.state = StateRunning; f.source = SourceSuggest; f.buildPanels = 0 }), []Action{ActionPin, ActionArchive}},
 		{"failed prompt with an unsaved build", base(func(*runFacts) {}), []Action{ActionKeepBuild, ActionContinue, ActionRetry, ActionPin, ActionArchive}},
 		{"the same run for a non-requester who may start", base(func(f *runFacts) { f.requester = false }), []Action{ActionRetry}},
+		{"the same run barred by its as_of", base(func(f *runFacts) { f.asOfBarred = true }), []Action{ActionKeepBuild, ActionPin, ActionArchive}},
 		{"the same run for a non-requester who may not", base(func(f *runFacts) { f.requester = false; f.mayStart = false }), []Action{}},
 		{"the same run for the requester who may not start", base(func(f *runFacts) { f.mayStart = false }), []Action{ActionKeepBuild, ActionContinue, ActionPin, ActionArchive}},
 		{"canceled observe already continued", base(func(f *runFacts) {

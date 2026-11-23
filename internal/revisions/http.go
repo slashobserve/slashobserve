@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"slices"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -252,7 +251,7 @@ func (s *Service) revisionViews(ctx context.Context, dashboardID pgtype.UUID, re
 			return nil, fmt.Errorf("check who may keep a revision's build: %w", err)
 		}
 		view := s.viewFor(ctx, rev.audience, caller)
-		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit)
+		facts := newFacts(rev.State, rev.Source, dashboardID, rev.BuildSavedAt != nil, state, sameActor(rev.RequestedBy, caller), mayStart && view == viewFull, mayEdit, false)
 		views[i] = newRevisionJSON(rev, state, allowedActions(facts), caller)
 		if view != viewFull {
 			views[i].redact()
@@ -353,12 +352,12 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		Origin:         httpapi.OptionalString(r.Origin),
 		OriginClient:   httpapi.OptionalString(r.OriginClient),
 		CreatedAt:      httpapi.FormatTime(r.CreatedAt),
-		StartedAt:      formatOptionalTime(r.StartedAt),
-		FinishedAt:     formatOptionalTime(r.FinishedAt),
+		StartedAt:      httpapi.FormatOptionalTime(r.StartedAt),
+		FinishedAt:     httpapi.FormatOptionalTime(r.FinishedAt),
 
 		FailureCode:  httpapi.OptionalString(r.FailureCode),
 		Build:        state.progressFor(r.RequestedBy, caller),
-		BuildSavedAt: formatOptionalTime(r.BuildSavedAt),
+		BuildSavedAt: httpapi.FormatOptionalTime(r.BuildSavedAt),
 		ContinuesID:  httpapi.OptionalString(r.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,
@@ -370,12 +369,4 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 func (out *revisionJSON) redact() {
 	out.Redacted = true
 	out.Prompt, out.ContinueNote, out.Error = "", nil, nil
-}
-
-func formatOptionalTime(t *time.Time) *string {
-	if t == nil {
-		return nil
-	}
-	s := httpapi.FormatTime(*t)
-	return &s
 }

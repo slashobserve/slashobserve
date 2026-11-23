@@ -70,6 +70,7 @@ type SaveInput struct {
 	Title, Markdown string
 	Evidence        []spec.Panel
 	From, To        time.Time
+	AsOf            *time.Time
 	SuggestedChange string
 	ObserveWorthy   bool
 }
