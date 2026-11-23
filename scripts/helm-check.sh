@@ -131,6 +131,40 @@ run helm template t "$CHART" -f "$work/required.yaml" -f "$work/scaling.yaml" >"
 grep -q '^  replicas: 2$' "$work/scaling.out" || die "the scaling doc's values do not render replicas: 2"
 grep -q 'SLASHOBSERVE_DATABASE_DIRECT_URL' "$work/scaling.out" || die "the scaling doc's values do not set SLASHOBSERVE_DATABASE_DIRECT_URL"
 
+cat >"$work/sign-in-off.yaml" <<'EOF2'
+publicURL: https://slashobserve.example.com
+database:
+  existingSecret: slashobserve-database
+serviceAccounts:
+  existingSecret: slashobserve-service-accounts
+EOF2
+run helm lint --strict "$CHART" -f "$work/sign-in-off.yaml" >/dev/null
+run helm template t "$CHART" -f "$work/sign-in-off.yaml" >"$work/sign-in-off.out"
+! grep -q 'SLASHOBSERVE_OIDC_\|SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS' "$work/sign-in-off.out" || die "the sign-in off render sets an OIDC or sign-in variable"
+grep -q 'SLASHOBSERVE_SERVICE_ACCOUNTS_FILE' "$work/sign-in-off.out" || die "the sign-in off render does not set SLASHOBSERVE_SERVICE_ACCOUNTS_FILE"
+grep -q 'SLASHOBSERVE_OIDC_CLIENT_SECRET' "$work/required.out" || die "the required render does not set SLASHOBSERVE_OIDC_CLIENT_SECRET"
+
+refused() {
+  local name="$1" want="$2"
+  shift 2
+  local out
+  if out="$(helm template t "$CHART" -f "$work/required.yaml" "$@" 2>&1)"; then
+    die "the chart renders with $name"
+  fi
+  grep -q "$want" <<<"$out" || die "the render with $name does not say '$want'"
+}
+refused "only some OIDC settings" "missing oidc.clientID" --set oidc.clientID=
+refused "blank allowed email domains" "auth.allowedEmailDomains is required" --set-json 'auth.allowedEmailDomains=[" "]'
+refused "no allowed email domains" "auth.allowedEmailDomains is required" --set-json 'auth.allowedEmailDomains=[]'
+if out="$(helm template t "$CHART" -f "$work/sign-in-off.yaml" --set-json 'serviceAccounts.existingSecret=""' 2>&1)"; then
+  die "the chart renders with neither sign-in nor service-account keys"
+fi
+grep -q 'nobody could sign in' <<<"$out" || die "the render with neither sign-in nor service-account keys does not say nobody could sign in"
+if out="$(helm template t "$CHART" -f "$work/sign-in-off.yaml" --set 'auth.adminEmails={a@example.com}' 2>&1)"; then
+  die "the chart renders admin emails with sign-in off"
+fi
+grep -q 'only apply to browser sign-in' <<<"$out" || die "admin emails with sign-in off do not say they only apply to browser sign-in"
+
 if helm template t "$CHART" >/dev/null 2>&1; then
   die "the chart renders without its required values"
 fi

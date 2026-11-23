@@ -8,11 +8,11 @@ usage() {
 Usage: scripts/ci-changes.sh [all|audit-only|go-reads|draft]
 
 Reads changed file paths on stdin, one per line, and prints which CI job groups
-they need as name=true|false lines: go, web, build, stack, evals, image, audit.
+they need as name=true|false lines: go, web, build, stack, image, audit.
   all         print every group as true without reading stdin
   audit-only  print only audit as true without reading stdin
   go-reads    print the web and agent files that Go tests read
-  draft       read stdin as usual but leave stack and evals false, for a draft pull request
+  draft       read stdin as usual but leave stack false, for a draft pull request
 USAGE
   exit 2
 }
@@ -30,7 +30,7 @@ matches_any() {
 is_prose() {
   matches_any "$1" 'docs/*' && return 0
   [[ "$1" == *.md ]] || return 1
-  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'observe-agent/*' 'evals/*' 'e2e/*' 'spec/*' 'demo/*'
+  ! matches_any "$1" 'internal/*' 'pkg/*' 'web/*' 'observe-agent/*' 'e2e/*' 'spec/*' 'demo/*'
 }
 
 is_unit_test() {
@@ -39,7 +39,7 @@ is_unit_test() {
 
 emit() {
   local name
-  for name in go web build stack evals image audit; do
+  for name in go web build stack image audit; do
     printf '%s=%s\n' "$name" "${!name}"
   done
 }
@@ -50,12 +50,12 @@ case "${1:-}" in
   "") ;;
   draft) skip_compose_jobs=true ;;
   all)
-    go=true web=true build=true stack=true evals=true image=true audit=true
+    go=true web=true build=true stack=true image=true audit=true
     emit
     exit 0
     ;;
   audit-only)
-    go=false web=false build=false stack=false evals=false image=false audit=true
+    go=false web=false build=false stack=false image=false audit=true
     emit
     exit 0
     ;;
@@ -66,13 +66,13 @@ case "${1:-}" in
   *) usage ;;
 esac
 
-go=false web=false build=false stack=false evals=false image=false audit=false
+go=false web=false build=false stack=false image=false audit=false
 
 while IFS= read -r path; do
   [[ -n "$path" ]] || continue
 
   if matches_any "$path" '.github/*' Makefile scripts/ci-changes.sh scripts/go-test-shard.sh; then
-    go=true web=true build=true stack=true evals=true image=true audit=true
+    go=true web=true build=true stack=true image=true audit=true
     continue
   fi
 
@@ -89,13 +89,6 @@ while IFS= read -r path; do
     is_unit_test "$path" || stack=true
   fi
 
-  if ! is_unit_test "$path" && matches_any "$path" 'observe-agent/*' 'internal/agent/*' 'internal/observeagent/*' \
-    'internal/runsession/*' 'internal/llm/*' 'internal/prompts/*' 'internal/server/*' 'internal/queryproxy/*' \
-    'internal/datasource/*' 'pkg/spec/*' 'pkg/grafana/*' 'spec/*' \
-    'evals/*' 'e2e/fixtures/llm/*' 'deploy/compose/*' 'demo/*' scripts/evals-stack.sh Dockerfile go.mod go.sum; then
-    evals=true
-  fi
-
   if matches_any "$path" Dockerfile .dockerignore; then
     image=true
   fi
@@ -107,7 +100,7 @@ while IFS= read -r path; do
 done
 
 if [[ "$skip_compose_jobs" == true ]]; then
-  stack=false evals=false
+  stack=false
 fi
 
 emit

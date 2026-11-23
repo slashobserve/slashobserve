@@ -11,7 +11,6 @@ import (
 	"github.com/slashobserve/slashobserve/demo/internal/keygen"
 	"github.com/slashobserve/slashobserve/demo/internal/loadgen"
 	"github.com/slashobserve/slashobserve/demo/internal/shopapp"
-	"github.com/slashobserve/slashobserve/demo/internal/synth"
 )
 
 func main() {
@@ -33,8 +32,6 @@ func run(args []string) int {
 		err = shopapp.Serve(ctx, os.LookupEnv)
 	case "loadgen":
 		err = loadgen.Run(ctx, os.LookupEnv, slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-	case "synth":
-		err = synth.Run(ctx, os.LookupEnv)
 	case "healthcheck":
 		err = shopapp.Healthcheck(ctx, os.LookupEnv)
 	default:
@@ -58,6 +55,6 @@ func keygenAt(path string) int {
 }
 
 func usage() int {
-	fmt.Fprintln(os.Stderr, "usage: shop serve|loadgen|synth|healthcheck|keygen <path>")
+	fmt.Fprintln(os.Stderr, "usage: shop serve|loadgen|healthcheck|keygen <path>")
 	return 2
 }

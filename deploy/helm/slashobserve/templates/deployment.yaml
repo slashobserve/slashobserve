@@ -2,6 +2,7 @@
 {{- $datasources := include "slashobserve.datasourcesConfigMap" . -}}
 {{- $folders := include "slashobserve.provisionFolders" . | fromJsonArray -}}
 {{- $provisionDir := include "slashobserve.provisionDir" . -}}
+{{- $signIn := include "slashobserve.signInOn" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -65,6 +66,7 @@ spec:
             {{- end }}
             - name: SLASHOBSERVE_PUBLIC_URL
               value: {{ .Values.publicURL | quote }}
+            {{- if $signIn }}
             - name: SLASHOBSERVE_OIDC_ISSUER_URL
               value: {{ .Values.oidc.issuerURL | quote }}
             - name: SLASHOBSERVE_OIDC_CLIENT_ID
@@ -76,6 +78,7 @@ spec:
                   key: {{ .Values.oidc.clientSecretKey }}
             - name: SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS
               value: {{ join "," .Values.auth.allowedEmailDomains | quote }}
+            {{- end }}
             {{- with .Values.auth.adminEmails }}
             - name: SLASHOBSERVE_ADMIN_EMAILS
               value: {{ join "," . | quote }}

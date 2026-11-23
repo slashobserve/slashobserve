@@ -16,9 +16,6 @@ coverage.*
 .vscode/
 /dist/
 
-/evals/matrix.yaml
-/evals/reports/
-
 /plans/
 /.claude/
 /loadtest/reports/
