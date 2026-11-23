@@ -1,16 +1,14 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 )
 
-const demoPort = "8080"
-
-var errDemoTarget = errors.New("8080 is the demo stack; run make replicas-up and target http://localhost:48080")
+var demoPorts = []string{"58080", "8080"}
 
 func isLoopback(host string) bool {
 	if strings.EqualFold(host, "localhost") {
@@ -33,8 +31,8 @@ func checkTarget(target string, remote string) (*url.URL, error) {
 		return nil, fmt.Errorf("%q names no host", target)
 	}
 	if isLoopback(host) {
-		if u.Port() == demoPort {
-			return nil, errDemoTarget
+		if slices.Contains(demoPorts, u.Port()) {
+			return nil, fmt.Errorf("%s is the demo stack; run make replicas-up and target http://localhost:48080", u.Port())
 		}
 		return u, nil
 	}

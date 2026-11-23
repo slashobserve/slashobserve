@@ -28,6 +28,11 @@ The demo's Dex also has `editor@example.com`, `commenter@example.com` and `viewe
 A person appears on that page only after their first sign-in, so sign in once as each of them, then sign back in as the Admin to change their roles.
 To give a role before the first sign-in, [invite](../teams/people.md#invite-people) the email with that role.
 
+## Open the dashboard
+
+The shop's load generator sends traffic from the first minute, and a few minutes after the start the folder Demo holds **Astronomy Shop overview**: traffic, errors and latency by service, orders and payments, the shop's database, its logs and traces.
+Until it appears, the stores are still filling; [The demo](../operate/demo.md#the-dashboard) says why.
+
 ## Send a prompt
 
 Sign-in opens [Home](../use/home.md).

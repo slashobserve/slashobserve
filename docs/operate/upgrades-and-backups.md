@@ -20,10 +20,10 @@ pg_dump --format=custom --file slashobserve.dump --dbname "<the SLASHOBSERVE_DAT
 ```
 
 Restore into an empty database with `pg_restore --dbname "<database URL>" slashobserve.dump`.
-For the demo stack, which runs Postgres in Compose:
+For the [demo](demo.md), which runs Postgres in Compose:
 
 ```sh
-docker compose -f deploy/compose/compose.yaml exec -T postgres pg_dump -U slashobserve slashobserve > slashobserve.sql
+docker exec slashobserve-astronomy-postgres-1 pg_dump -U slashobserve slashobserve > slashobserve.sql
 ```
 
 If your connection string carries pgx-only parameters such as `pool_max_conns`, remove them first, because `pg_dump` does not understand them.

@@ -19,21 +19,18 @@ export SLASHOBSERVE_REPLICAS_ONE_PORT="$ONE_PORT"
 export SLASHOBSERVE_REPLICAS_TWO_PORT="$TWO_PORT"
 export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_REPLICAS_PROMETHEUS_PORT:-49090}"
-export SLASHOBSERVE_SHOP_HOST_PORT="${SLASHOBSERVE_REPLICAS_SHOP_PORT:-48090}"
 export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_REPLICAS_LOKI_PORT:-43100}"
 export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_REPLICAS_TEMPO_PORT:-43200}"
 export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.replicas.yaml
-export SLASHOBSERVE_LOADGEN_CURVE=flat
-export SLASHOBSERVE_DEMO_MARKERS_URL=
 export SLASHOBSERVE_IMAGE="slashobserve-replicas:local"
-export SLASHOBSERVE_SHOP_IMAGE="slashobserve-replicas-shop:local"
+export SLASHOBSERVE_REPLICAS_BOOT_DIR="$RUNTIME/boot"
 
 COMPOSE_CMD=(docker compose
   -f "$ROOT/deploy/compose/compose.yaml"
   -f "$ROOT/deploy/compose/compose.build.yaml"
   -f "$ROOT/deploy/compose/compose.replicas.yaml"
   -p "$PROJECT")
-SERVICES=(server haproxy pgbouncer frontend-0 checkout-0 checkout-1 payments-0 loadgen)
+SERVICES=(server haproxy pgbouncer prometheus)
 
 curl() { command curl --max-time 10 "$@"; }
 
@@ -85,11 +82,10 @@ Ports (all on 127.0.0.1, all overridable):
   SLASHOBSERVE_REPLICAS_TWO_PORT         server 2 only (default 48082)
   SLASHOBSERVE_REPLICAS_DEX_PORT         Dex (default 45556)
   SLASHOBSERVE_REPLICAS_PROMETHEUS_PORT  Prometheus (default 49090)
-  SLASHOBSERVE_REPLICAS_SHOP_PORT        shop fault API (default 48090)
   SLASHOBSERVE_REPLICAS_LOKI_PORT        reserved, Loki is not started (default 43100)
   SLASHOBSERVE_REPLICAS_TEMPO_PORT       reserved, Tempo is not started (default 43200)
 
-Requirements: docker with compose ${MIN_COMPOSE} or newer, curl, perl, python3.
+Requirements: docker with compose ${MIN_COMPOSE} or newer, curl, openssl, perl, python3.
 EOF
 }
 
@@ -226,8 +222,18 @@ keys() {
   say "created 100 viewer, 20 editor and 1 admin key in $RUNTIME"
 }
 
+boot_key() {
+  mkdir -p -m 700 "$RUNTIME"
+  mkdir -p -m 755 "$RUNTIME/boot"
+  if [[ ! -s "$RUNTIME/boot/boot.key" ]]; then
+    printf 'sok_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')" >"$RUNTIME/boot/boot.key"
+  fi
+  chmod 644 "$RUNTIME/boot/boot.key"
+}
+
 up() {
   require_compose
+  boot_key
   "${COMPOSE_CMD[@]}" up -d --build --wait --wait-timeout 600 --scale server=2 "${SERVICES[@]}" ||
     {
       logs 100
@@ -405,7 +411,7 @@ new_session() {
 }
 
 check_spec() {
-  printf '{"specVersion":"0","title":"%s","tags":["replicas-check"],"time":{"from":"now-15m","to":"now"},"panels":[{"id":"rps","type":"timeseries","title":"Requests per second","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"sum(rate(http_requests_total[$__rate_interval]))"}]}]}' "$1"
+  printf '{"specVersion":"0","title":"%s","tags":["replicas-check"],"time":{"from":"now-15m","to":"now"},"panels":[{"id":"rps","type":"timeseries","title":"Requests per second","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":"prom","queries":[{"query":"sum(rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))"}]}]}' "$1"
 }
 
 ensure_dashboard() {
@@ -593,9 +599,9 @@ check_c2() {
       fail "server $n logged service_accounts_failed"
     fi
   done
-  [[ "$(psql_app "SELECT count(*) FROM service_accounts WHERE name = 'demo-loadgen'")" == 1 ]] ||
-    fail "the demo-loadgen service account does not exist exactly once"
-  pass "$want provisioned dashboard and the demo service account exist once after a simultaneous boot"
+  [[ "$(psql_app "SELECT count(*) FROM service_accounts WHERE name = 'replicas-boot'")" == 1 ]] ||
+    fail "the replicas-boot service account does not exist exactly once"
+  pass "$want provisioned dashboard and the file-declared service account exist once after a simultaneous boot"
 }
 
 check_c3() {

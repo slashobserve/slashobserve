@@ -7,14 +7,14 @@
           "name": "list_metrics",
           "input": {
             "datasource": "prom",
-            "search": "http_"
+            "search": "slashobserve_http_"
           }
         },
         {
           "name": "list_labels",
           "input": {
             "datasource": "prom",
-            "metric": "http_requests_total"
+            "metric": "slashobserve_http_request_duration_seconds_count"
           }
         }
       ],
@@ -29,21 +29,21 @@
           "name": "lint_query",
           "input": {
             "datasource": "prom",
-            "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+            "query": "sum by (route) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))"
           }
         },
         {
           "name": "lint_query",
           "input": {
             "datasource": "prom",
-            "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+            "query": "sum by (status) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))"
           }
         },
         {
           "name": "lint_query",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+            "query": "histogram_quantile(0.99, sum by (le, route) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))"
           }
         }
       ],
@@ -83,7 +83,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval])"
+                      "query": "sum by (route) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval])"
                     }
                   ],
                   "unit": "reqps"
@@ -129,7 +129,7 @@
                   "datasource": "prom",
                   "queries": [
                     {
-                      "query": "sum by (route) (rate(http_requests_total[$__rate_interval]))"
+                      "query": "sum by (route) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))"
                     }
                   ],
                   "unit": "reqps"
@@ -170,7 +170,7 @@
                 "datasource": "prom",
                 "queries": [
                   {
-                    "query": "sum by (status) (rate(http_requests_total[$__rate_interval]))"
+                    "query": "sum by (status) (rate(slashobserve_http_request_duration_seconds_count[$__rate_interval]))"
                   }
                 ],
                 "unit": "reqps"
@@ -204,7 +204,7 @@
                 "datasource": "prom",
                 "queries": [
                   {
-                    "query": "histogram_quantile(0.99, sum by (le, route) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                    "query": "histogram_quantile(0.99, sum by (le, route) (rate(slashobserve_http_request_duration_seconds_bucket[$__rate_interval])))"
                   }
                 ],
                 "unit": "s"

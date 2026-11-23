@@ -54,6 +54,12 @@ The server reads `deploy/astronomy/datasources.yaml`: `prom`, `ch`, `loki`, `tem
 It also reads `deploy/astronomy/service-accounts.yaml`, which declares the `astronomy` service account.
 Its key is generated into `deploy/astronomy/.state/keys/astronomy.key` on the first start and never leaves your machine; `scripts/astronomy.sh key` prints the path.
 
+## The dashboard
+
+The server provisions one dashboard, **Astronomy Shop overview**, into the folder Demo, from `deploy/compose/dashboards/Demo/astronomy-overview.json`.
+It reads the shop's span metrics and the Postgres metrics from Prometheus, and its logs and traces from ClickHouse, and it holds one panel of every type SlashObserve draws.
+A provisioned file is saved only when every panel returns data, so the dashboard appears a few minutes after the start, once the shop has sent its first spans, and not before.
+
 ## Search stores
 
 `make demo-search` builds the server from your checkout, as `make demo-build` does, and adds Elasticsearch 8 on the `es` datasource and OpenSearch 2 on the `os` datasource, which the shop's collector feeds its logs.

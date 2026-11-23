@@ -17,9 +17,8 @@ import (
 var referenceDir = filepath.Join("..", "..", "deploy", "compose", "dashboards")
 
 var referenceFolders = map[string]string{
-	"Demo/shop-overview.json":     "Demo",
-	"Demo/node-health.json":       "Demo",
-	"SlashObserve/internals.json": "SlashObserve",
+	"Demo/astronomy-overview.json": "Demo",
+	"SlashObserve/internals.json":  "SlashObserve",
 }
 
 var referenceDatasources = []string{"prom", "ch"}
