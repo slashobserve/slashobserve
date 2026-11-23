@@ -10,7 +10,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `config`: the only reader of `SLASHOBSERVE_*` environment variables (`config.Load`).
 - `actor`: who made a write and how it is shown: `Actor` (principal kind, id, name, origin and client, and the agent request id), its column mapping, and `Label` and `ClientName`, the only place an actor or an MCP client name becomes display text for the web, the CLI and MCP.
 - `logattrs`: turns an error into log attributes that are safe to write.
-- `llm/pricing`: the one model price table (embedded `prices.yaml`, replaced whole by `SLASHOBSERVE_LLM_PRICES_FILE`), read by run costs, the run cost limit and the evals runner; a model without a complete price is never priced as zero.
+- `llm/pricing`: the one model price table (embedded `prices.yaml`, replaced whole by `SLASHOBSERVE_LLM_PRICES_FILE`), read by run costs and the run cost limit; a model without a complete price is never priced as zero.
 - `logvolume`: level words to kinds and the volume histogram the logs volume endpoint returns.
 - `logpatterns`: the pure token masking and line clustering the log patterns endpoint runs when a datasource has no pattern index.
 - `db`: pgx pool, goose `migrations/`, sqlc `queries/`, generated `dbsqlc/`.
@@ -81,7 +81,7 @@ This lists only the packages whose purpose the name does not make obvious.
 - `livetext`: the text a run is writing right now, shown while it runs: `Store.Append` sends a cleaned chunk on the Postgres channel `slashobserve_run_text` and every server's `Store.Run` listener keeps the newest 2000 runes per run (1024 runs, 10 minutes idle) in memory, so a reader on any replica sees it; nothing is stored in a table, a newer attempt replaces an older one, and `Text` answers only for the attempt it is asked about.
 - `observeagent`: the supervisor of the built-in agent's child process (`observe-agent`, from `observe-agent/`): `FindBinary` looks it up on `PATH`, `Supervisor.Run` starts it with a fresh `sob_` token in its environment (`OBSERVE_AGENT_*`, plus `PATH`, `HOME` and `TZ` only), restarts it with a backoff of 1 to 30 seconds, stops it with SIGTERM and a 10 second grace, and releases its running runs when it exits; `Authenticate` is the one check of that token, and `relay` turns the child's stdout and stderr into server log lines with `component=observe-agent`.
   The sidecar is the only runtime, so a server built from source needs `make agent` whenever a model provider is configured, because start-up fails when `FindBinary` finds no `observe-agent`.
-- `taste`: the layout and field rules shared by the reference dashboards' test and the evals quality score; scoring weights stay in `evals/runner`.
+- `taste`: the layout and field rules used by the reference dashboards' test.
 - `surface`: tests only; the `/observe` guide checks and the parity test that every API operation names its MCP tools and CLI commands or carries a reason.
 
 ## Secrets and configuration
@@ -247,7 +247,7 @@ This lists only the packages whose purpose the name does not make obvious.
   The continue sentence (`brief.Continue`) is used only on attempt 1 of a continuation, through `brief.ResumeReason`; a later attempt seeds as a restart.
 - `queue_position` is computed on read (1 plus the queued requests earlier in `(created_at, id)`, null unless queued), never stored.
 - `ListAgentRequestBuildState` is the only reader of build progress, `continued_by` and `retried_by` for responses, one batch per page; the revisions list and the request list carry them for every row, and `buildState.progressFor` is the one place that nulls the build `title` for anyone but the requester.
-- `SLASHOBSERVE_AGENT_RUN_TIMEOUT` defaults to no limit, and a set value is at least `1m`; the evals stack sets `120m` so its failures stay coded.
+- `SLASHOBSERVE_AGENT_RUN_TIMEOUT` defaults to no limit, and a set value is at least `1m`.
   `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` accepts `0` for no limit too, and the run limit is config's decision, so `claims` has no default of its own.
   A run has no model-call cap, and without a run limit it ends at a commit, a failure, shutdown or lease loss.
   `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` (default none) is a spend limit, not a call cap: `runsession.overCostLimit` is checked on each usage report, so the report that crossed it ends the attempt, which fails `budget_exhausted` with its build kept; the server refuses to start with a limit and an unpriced model.
