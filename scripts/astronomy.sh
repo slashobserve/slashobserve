@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ASTRONOMY_DIR="$ROOT/deploy/astronomy"
 UPSTREAM_DIR="$ASTRONOMY_DIR/.upstream"
 STATE_DIR="${ASTRONOMY_STATE_DIR:-$ASTRONOMY_DIR/.state}"
-PROJECT="slashobserve-astronomy"
+PROJECT="${ASTRONOMY_PROJECT:-slashobserve-astronomy}"
 MIN_COMPOSE="2.24.4"
 WAIT_TIMEOUT=900
 CHECK_WAIT="${ASTRONOMY_CHECK_WAIT:-180}"
@@ -47,6 +47,7 @@ Usage: scripts/astronomy.sh <command>
   key                 print the path of the file that holds the service-account key
 
 Environment:
+  ASTRONOMY_PROJECT           the Compose project name (default slashobserve-astronomy)
   SLASHOBSERVE_HOST_PORT      host port of the server (default 58080)
   SLASHOBSERVE_DEX_HOST_PORT  host port of Dex (default 55556)
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
