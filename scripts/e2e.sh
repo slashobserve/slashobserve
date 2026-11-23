@@ -221,10 +221,12 @@ capture_merged() {
 }
 
 above() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 > t + 0) }'; }
+at_least() { awk -v v="$1" -v t="$2" 'BEGIN { exit !(v + 0 >= t + 0) }'; }
 positive() { above "$1" 0; }
 prom_is() { capture LAST prom_scalar "$1" || true; [[ "$LAST" == "$2" ]]; }
 prom_positive() { prom_above "$1" 0; }
 prom_above() { capture LAST prom_scalar "$1" || true; above "$LAST" "$2"; }
+prom_at_least() { capture LAST prom_scalar "$1" || true; at_least "$LAST" "$2"; }
 ch_is() { capture LAST ch "$1" || true; [[ "$LAST" == "$2" ]]; }
 ch_positive() { capture LAST ch "$1" || true; positive "$LAST"; }
 
@@ -286,7 +288,7 @@ service_exported_thrice() {
 }
 
 shop_metrics_present() {
-  prom_above 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" \
+  prom_at_least 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" \
     && checkout_metrics_present \
     && service_exported_thrice frontend \
     && service_exported_thrice checkout \
@@ -3269,7 +3271,7 @@ payment_errors_in_metrics() {
 stack_suite() {
   local out ro_out
 
-  prom_above 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" || fail "span metrics should carry at least $SHOP_SERVICES_MIN services (got: $LAST)"
+  prom_at_least 'count(count by (service_name) (traces_span_metrics_calls_total))' "$SHOP_SERVICES_MIN" || fail "span metrics should carry at least $SHOP_SERVICES_MIN services (got: $LAST)"
   pass "span metrics vary by service"
   prom_above 'count(count by (span_name) (traces_span_metrics_calls_total{service_name="checkout"}))' 2 || fail "checkout span metrics should carry several span names (got: $LAST)"
   pass "span metrics vary by span name"
@@ -3388,7 +3390,11 @@ case "${1:-run}" in
   browser) browser ;;
   down)
     rm -f "$WARM_MARKER"
-    grouped "$ASTRONOMY" down --volumes
+    if [[ -d "$ROOT/deploy/astronomy/.upstream/.git" ]]; then
+      grouped "$ASTRONOMY" down --volumes
+    else
+      echo "Nothing to stop: the Astronomy Shop has not been fetched"
+    fi
     ;;
   logs) all_logs ;;
   -h | --help | help) usage ;;
