@@ -208,15 +208,16 @@ EOF
 cmd_down() {
   parse_options "$@"
   check_tools
-  [[ -d "$UPSTREAM_DIR/.git" ]] || die "nothing to stop: no upstream checkout"
-  SEARCH=1
-  prepare_state
-  if [[ "$VOLUMES" == 1 ]]; then
-    compose down --remove-orphans --volumes
-    rm -f "$FLAGS_FILE"
+  local args=(--remove-orphans)
+  if [[ "$VOLUMES" == 1 ]]; then args+=(--volumes); fi
+  if [[ -d "$UPSTREAM_DIR/.git" ]]; then
+    SEARCH=1
+    prepare_state
+    compose down "${args[@]}"
   else
-    compose down --remove-orphans
+    docker compose --project-name "$PROJECT" down "${args[@]}"
   fi
+  if [[ "$VOLUMES" == 1 ]]; then rm -f "$FLAGS_FILE"; fi
 }
 
 cmd_status() {

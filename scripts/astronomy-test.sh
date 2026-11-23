@@ -123,6 +123,22 @@ unset -f docker
 if message="$("$here/astronomy.sh" up --no-build 2>&1)"; then fail "up has no --no-build option"; fi
 [[ "$message" == *"unknown option --no-build"* ]] || fail "up refuses --no-build by name: $message"
 
+recorded="$tmp/docker.args"
+docker() {
+  if [[ "$1 $2" == "compose version" ]]; then echo 2.30.0; return; fi
+  printf '%s\n' "$*" >>"$recorded"
+}
+no_upstream="$tmp/no-upstream"
+mkdir -p "$no_upstream" "$tmp/down-state/flagd"
+echo '{}' >"$tmp/down-state/flagd/demo.flagd.json"
+(UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" FLAGS_FILE="$tmp/down-state/flagd/demo.flagd.json" PROJECT=leftover-project cmd_down --volumes) || fail "down succeeds with no upstream checkout"
+[[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans --volumes" ]] || fail "down with no upstream checkout removes the project by name: $(cat "$recorded")"
+[[ ! -e "$tmp/down-state/flagd/demo.flagd.json" ]] || fail "down --volumes removes the flag file even with no upstream checkout"
+: >"$recorded"
+(UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" PROJECT=leftover-project cmd_down)
+[[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans" ]] || fail "down without --volumes keeps the volumes: $(cat "$recorded")"
+unset -f docker
+
 if [[ "$failures" -gt 0 ]]; then
   exit 1
 fi
