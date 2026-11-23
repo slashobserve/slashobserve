@@ -8,7 +8,7 @@ SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can
 ## [0.1.5] - 2026-11-24
 
 This release adds features and one database migration despite its patch number.
-Migration 91 is the only new one, and no later migration exists.
+Migration 91 is the only new one.
 It adds a nullable `as_of` column to agent requests and findings, which is quick because it rewrites no rows.
 Back up Postgres before you upgrade.
 The server never runs a migration backwards, so going back to 0.1.4 means restoring the backup you took before upgrading, or running `goose down-to 90`, which drops the `as_of` of every run and finding.
