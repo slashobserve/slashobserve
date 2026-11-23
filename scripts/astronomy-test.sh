@@ -50,9 +50,14 @@ if message="$(flag nope 2>&1)"; then fail "an unknown flag is refused"; fi
 [[ "$message" == *"no flag named nope"* ]] || fail "the refusal names the flag: $message"
 [[ "$(cat "$tmp/flagd/demo.flagd.json")" == "$before" ]] || fail "a refused change leaves the file alone"
 
+chmod 640 "$tmp/flagd/demo.flagd.json"
 inode_before="$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)"
 flag adFailure on >/dev/null
-[[ "$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)" == "$inode_before" ]] || fail "the flag file is rewritten in place"
+[[ "$(ls -i "$tmp/flagd/demo.flagd.json" | cut -d' ' -f1)" != "$inode_before" ]] || fail "the flag file is replaced by a rename, not rewritten in place"
+[[ "$(variant_of adFailure)" == on ]] || fail "the replaced file has the new variant"
+[[ "$(ls -A "$tmp/flagd")" == demo.flagd.json ]] || fail "no temporary file is left in the flag directory: $(ls -A "$tmp/flagd")"
+mode="$(ls -l "$tmp/flagd/demo.flagd.json" | cut -c2-10)"
+[[ "$mode" == rw-rw-rw- ]] || fail "the replaced file is readable and writable by the services, got $mode"
 
 mkdir -p "$tmp/keys"
 echo sok_test >"$tmp/keys/astronomy.key"

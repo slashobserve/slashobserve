@@ -22,6 +22,7 @@ export COMPOSE_PROJECT_NAME="$PROJECT"
 SERVER="http://localhost:${SLASHOBSERVE_HOST_PORT}"
 KEY_FILE="$STATE_DIR/keys/astronomy.key"
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
+FLAGS_FILE_MODE=666
 
 usage() {
   cat <<EOF
@@ -101,7 +102,7 @@ prepare_state() {
   if [[ ! -f "$FLAGS_FILE" ]]; then
     cp "$UPSTREAM_DIR/src/flagd/demo.flagd.json" "$FLAGS_FILE"
   fi
-  chmod 666 "$FLAGS_FILE"
+  chmod "$FLAGS_FILE_MODE" "$FLAGS_FILE"
 }
 
 compose() {
@@ -248,8 +249,13 @@ cmd_flag() {
   jq -e --arg f "$name" '.flags | has($f)' "$FLAGS_FILE" >/dev/null || die "no flag named $name; run 'flag' to list them"
   jq -e --arg f "$name" --arg v "$variant" '.flags[$f].variants | has($v)' "$FLAGS_FILE" >/dev/null ||
     die "$name has no variant $variant; it has $(jq -r --arg f "$name" '.flags[$f].variants | keys | join(", ")' "$FLAGS_FILE")"
-  updated="$(jq --arg f "$name" --arg v "$variant" '.flags[$f].defaultVariant = $v' "$FLAGS_FILE")"
-  printf '%s\n' "$updated" >"$FLAGS_FILE"
+  updated="$(mktemp "$FLAGS_FILE.XXXXXX")"
+  if ! jq --arg f "$name" --arg v "$variant" '.flags[$f].defaultVariant = $v' "$FLAGS_FILE" >"$updated"; then
+    rm -f "$updated"
+    die "could not write the new flag file"
+  fi
+  chmod "$FLAGS_FILE_MODE" "$updated"
+  mv "$updated" "$FLAGS_FILE"
   printf '%s is now %s; flagd reloads the file within a few seconds\n' "$name" "$variant"
 }
 
