@@ -14,7 +14,7 @@ The same chat works from the CLI (`observe "<prompt>"`), over MCP (`start_run`) 
 ## Ask for a dashboard
 
 1. On Home, open **Ask Observe Agent**, or open `/ask`.
-2. Type into the box labelled "Message the agent" and press Enter.
+2. Click the box that reads "Ask a question or describe a dashboard, like: checkout health by pod, last 6h" and press Enter.
    For example: `checkout p99 latency, last 6h`.
    Shift+Enter adds a line.
 3. The chat opens at `/c/<request id>`.
@@ -34,7 +34,9 @@ The agent adds variables only when the request asks for a breakdown people will 
 It uses the time range you state ("last 6h" becomes `now-6h` to `now`), and otherwise the last hour.
 
 If the run stops early, the chat ends with "The dashboard could not be built" and a **Try again** button; [Read a turn](#read-a-turn) lists the causes.
-To ask for a dashboard without a model, use **Import from Grafana** next to the send button, which opens [Import Grafana dashboards](import-grafana.md).
+To bring a dashboard over without a model, use the **Import a dashboard** tab on Home, or the **Import from Grafana** link on the Ask page.
+Both open [Import Grafana dashboards](import-grafana.md).
+With no model connected, the link sits under the "No model is connected to this server." note, and Home's **Ask Observe Agent** tab does not show it.
 
 ## Ask a question about your data
 
@@ -50,13 +52,13 @@ These get an answer:
 A request the server cannot do, such as an alert, a notification or a schedule, gets an answer that says so and what to ask for instead.
 It builds nothing.
 
-An answer stays in the chat, and no observation is created, until you choose **Create observation** on it.
+An answer stays in the chat, and no [observation](observations.md) is created, until you choose **Create observation** on it.
 An `/investigate` request always opens an observation, and in a chat about an observation it writes into that observation.
 When there is none to write into, because no folder can take a new one or the one it names is full, the run's first step reads "No observation to write into; the answer stays on this run", and the answer stays in the chat like any other.
 
 An answer, the observation saved from it and a dashboard saved from it take a short title the agent writes, three to eight words.
 An answer without one is titled `Answer`, or `Finding` for an investigation, and never takes words from your message.
-A chat is titled the same way, from your message.
+A chat takes its title from the start of your message instead: its first line, cut at a word to 60 characters.
 
 For why a dashboard or a window looks wrong, use [Investigate](investigate.md).
 
@@ -66,7 +68,7 @@ An answer's actions sit in one row, each where it applies:
 
 - the evidence chip, which unfolds the panels behind the answer;
 - **Revise the dashboard**, on an answer about a dashboard;
-- **Create observation**, and once the answer is in an observation, **Pin to dashboard** and **Make a dashboard**;
+- **Create observation**, and once the answer is in an observation, **Pin to dashboard** and **Make a dashboard**, which shows only when the answer has evidence panels;
 - **Ask again**, and the **Answer actions** menu with **Copy answer**.
 
 **Copy answer** puts the answer's Markdown on the clipboard, and **Copy message** next to your own message copies the whole message, also when it is folded.
@@ -116,14 +118,15 @@ A request on Home builds a new dashboard and cannot change one that exists.
 When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on `<title>`** and **Open dashboard**.
 **Ask this on `<title>`** asks the same prompt about that dashboard and opens it as a new chat.
 The agent answers there without changing the dashboard, and the change is made only when you choose **Revise the dashboard**, which shows when you can comment on the dashboard.
-Without Edit on that dashboard you get only **Open dashboard**, with a line saying someone who can edit it can ask there.
+Without Comment on that dashboard you get only **Open dashboard**, with the line "This request is about the dashboard `<title>`, where you cannot ask the agent."
+With Comment the line reads "This request is about the dashboard `<title>`. Ask there and the agent answers about it; a change it suggests is made only when you choose Revise the dashboard."
 When the agent finds none or several, the answer lists the candidates, and you open the one you mean and ask in its activity pane.
 
 ## Share an answer
 
 The **Answer actions** menu of your own answer has these choices:
 
-- **Show to everyone** opens a thread on the dashboard with your question and the answer.
+- **Show to everyone**, when the menu offers it, opens a thread on the dashboard with your question and the answer.
 - **Share to thread** adds both to an open thread you pick.
 - **Copy answer** copies the answer as Markdown.
 
@@ -158,13 +161,13 @@ In a chat about an observation, a follow-up and **Ask again** ask about that obs
 
 Before that, when the agent answered a question instead of building, the box reads "Ask a follow-up, or describe a dashboard to build".
 The follow-up continues the same chat, below the earlier turns.
-In a chat with no dashboard, while the latest turn still runs, the box is disabled with "Wait for the answer, or cancel the run, then ask a follow-up."
+In a chat with no dashboard, while the latest turn still runs, the box is disabled and the note under it reads "Wait for the answer, or cancel the run, then ask a follow-up."
 An empty follow-up says "Describe the change you want first." on a dashboard and "Ask a question or describe a dashboard first." without one.
 What a follow-up is about comes from the chat, so while the chat cannot be read the page shows "Could not load this request" with **Retry** and no box.
 
 A follow-up starts a fresh run that sees the datasources, your new message and the earlier turns of the conversation as context.
 Say what you want in the message itself all the same, for example "only 5xx" or "and yesterday?".
-The context helps with "and the same for latency", but it does not replace the current Spec.
+The context helps with "and the same for latency", but it does not replace the dashboard definition.
 [Follow-ups](#follow-ups) has the exact context rules and the API fields.
 
 On a dashboard you can also ask from the side panel.
@@ -190,7 +193,7 @@ That text is live only: the server keeps the last 2,000 characters in memory whi
 Between two messages of the agent's live text there is a blank line.
 Outside the browser, `observe status` prints it as a `Live text` section and `get_run` over MCP returns it as `live_text`; see [CLI](cli.md#follow-ups-and-waiting) and [MCP](mcp.md).
 
-Only you can watch your build.
+Only you, and read only an Admin, can watch your build.
 Nothing appears in the dashboards list, a folder or the version history until the agent finishes.
 Anyone else, and anyone who can no longer view the dashboard you are revising, gets "Only the person who asked can watch this build."
 [Who reads a chat](#who-reads-a-chat) lists the other messages a reader can see in its place.
@@ -303,7 +306,7 @@ The run itself goes on server-side either way.
 A failed request shows "The dashboard could not be built" (or "The dashboard could not be updated" for a follow-up).
 Below it you see what the failure means, the reason the server stored, and what to do next.
 The advice to save or continue a build shows only while a build is left to save or continue.
-Otherwise the last column reads "Try again." or "Try again with a narrower prompt.".
+Otherwise the last column reads "Try again." or "Try again with a narrower prompt.", and for `budget_exhausted` "Ask an admin about the limit, or try again."
 A run you stopped shows "You stopped this run" instead.
 
 | Code | What it means | What to do |
@@ -338,7 +341,7 @@ The new run is yours, whoever started the one you retry.
 
 You can try your own failed or stopped run again once.
 The old turn then reads "Tried again in a new run" with a link to the new one, its `retried_by`.
-A second retry, or a **Continue** of the old build, is refused with 409 `invalid_transition` instead of starting a duplicate.
+A second retry is refused with 409 `invalid_transition`, and a **Continue** of the old build with 409 `not_continuable`, instead of starting a duplicate.
 Someone else who retries your run starts a request of their own, which leaves your turn and your retry as they were.
 When the person who asked retries, the new request stays in the same chat, so the chat lists keep one row for it.
 
@@ -379,9 +382,10 @@ It opens someone else's chat read only, with no composer and no actions, and its
 The actions apply to the whole chat:
 
 - **Rename** changes the chat's title.
-  In the History list it turns the row into a title box: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
+  It turns the row into a title box, on the Chats page and in the History list: Enter saves, Escape cancels, and an empty title goes back to the short title taken from the prompt.
+  A title is at most 120 characters.
 - **Pin** keeps the chat ahead of the rest, and **Unpin** puts it back.
-- **Delete** archives the chat with every turn in it.
+- **Delete** archives the chat with every turn in it, and keeps the rows, marked archived.
   The dialog asks "Delete this chat?" and says how many messages go.
   After **Delete chat**, the chat leaves your chat lists for good.
   The chat page still opens from its link.
@@ -414,10 +418,13 @@ The rest are grouped by the dashboard they are about, with "No dashboard" for ch
 History says for each chat its state (Running, Stopped or Done) and then what it left behind:
 
 - "Saved `<dashboard>`" or "Revised `<dashboard>`";
+- "Saved part of `<dashboard>`" for a build that stopped and was saved in part;
 - "Answered, no dashboard" when you asked for a dashboard and the agent only answered;
 - "Answered, dashboard unchanged" for a question about a dashboard;
 - "Suggested a panel" or "Opened a proposal" for a run that ended on a suggested panel or a proposal;
 - "Answered in `<title>`", with the observation it was saved to, for an investigation, as long as you can open that observation's folder;
+- "Saved an observation" for the same case when you cannot see its title;
+- "Answered, no observation" for an investigation whose answer stayed in the chat;
 - "Nothing saved".
 
 ## Use the chat from the CLI, MCP or HTTP
@@ -429,6 +436,8 @@ observe "checkout p99 latency, last 6h"
 ```
 
 It prints a line for each panel the build adds, as `Panel 3 of 8: Checkout p99 (timeseries)`, and ends with `Saved version 1  https://observe.example.com/d/<dashboard id>/<slug>`.
+When the output is not a terminal, `Saved version 1` goes to the error stream and only the address to the output.
+With `--quiet`, only the address is printed.
 [CLI](cli.md#send-a-prompt) has the flags, such as `--dashboard`, `--revise`, `--chat` and `--new-chat`.
 
 Over MCP, `start_run` asks the agent and returns the run at once, and `get_run` follows it.
@@ -454,13 +463,18 @@ The CLI and MCP also manage chats and requests:
 | Cancel | **Cancel run** | `observe cancel` | `cancel_run` |
 | Retry | **Try again** | `observe retry` | `retry_run` |
 
+The MCP tools and `observe requests rename` act on one request.
+Pass the id of the chat's first request to act on the whole chat.
+`observe chats pin`, `unpin` and `archive` take the chat id.
+To list single requests rather than chats, use `observe requests list` or the MCP tool `list_runs`.
 See [CLI](cli.md#your-requests) and [MCP](mcp.md).
 
 ## Reference
 
 ### Start a chat in detail
 
-Type into the box labelled "Message the agent" and press Enter.
+Type into the box and press Enter.
+Its visible hint is "Ask a question or describe a dashboard, like: checkout health by pod, last 6h", and its accessible name is "Message the agent".
 Shift+Enter adds a line, and on a touch device Enter adds a line and the arrow button sends.
 Inside the box a line says so ("Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."); on a touch device it is not shown.
 Pressing `/` outside a text field moves the cursor to the box.
@@ -480,7 +494,7 @@ An address of `/ask?prompt=<text>` opens the box with that text already in it, u
 `/?prompt=<text>` redirects there.
 Links inside the app that ask the agent about something use it.
 
-Adding `dashboard=<id>` puts that dashboard in the box as a chip, so the send asks about it.
+Adding `dashboard=<id>` (a dashboard id) to a link that has `prompt` puts that dashboard in the box as a chip, so the send asks about it.
 The agent answers without changing the dashboard, and when a change fits, the answer offers it with **Revise the dashboard**.
 The chip appears for a dashboard you can comment on, because asking about one needs Comment.
 The box stays closed for a moment while the dashboard is looked up, so a prompt is never sent before the chip is there.
@@ -511,8 +525,9 @@ Type the command and a space, and it turns into a chip above the box.
 - The chips under the box list the healthy datasources.
   The agent can only query datasources the server has configured; see [Prometheus](../connect/prometheus.md), [ClickHouse](../connect/clickhouse.md), [Loki](../connect/loki.md), [Tempo](../connect/tempo.md) and [Jaeger](../connect/jaeger.md).
 - Without a model the box is replaced by "No model is connected to this server."
+  On the Ask page the note holds the **Import from Grafana** link, and Home's **Ask Observe Agent** tab does not show it.
 - Under the example prompts, the Ask page at `/ask` lists your saved prompts and those shared with everyone.
-  Typing `/` as the whole first line of the box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
+  Typing `/` at the start of an otherwise one-line box opens a picker for them; see [Saved prompts](../teams/saved-prompts.md).
 
 The example prompts under the box are built from your datasources and dashboards, at most four of them.
 Editors and Admins are offered dashboard prompts, and everyone is offered up to two questions, such as "Which services had the most errors in the last hour?" or "Which routes are slowest right now?".
@@ -524,10 +539,13 @@ A dashboard you can only view is never offered.
 
 #### Limits on requests
 
-Each person may have 3 new-dashboard requests queued or running, and the instance 20.
-Past that the server answers `429` with `too_many_requests` or `agent_busy` ("The agent is busy with other requests; try again in a moment."); wait for a request to finish.
-Follow-ups do not count toward the 3.
-Requests for one dashboard run one at a time, in the order they were sent, and up to 5 can be queued or running.
+Each person may have 3 chat requests queued or running that are not about a dashboard or an observation, and the instance 20.
+These are a new dashboard, a question, and a follow-up in a chat with no dashboard.
+Revisions and questions about a dashboard do not count.
+Past that the server answers `429` with `too_many_requests` or `agent_busy`; wait for a request to finish.
+For `agent_busy` the box shows "The agent is busy with other requests; try again in a moment."
+An investigation has its own cap of 3 per person and 10 on the instance, with the same codes.
+Requests that change one dashboard run one at a time, and up to 5 can be queued or running.
 A sixth is refused with `429 too_many_revisions`.
 
 ### What the agent does
@@ -542,6 +560,7 @@ This works for a new dashboard only, and the JSON has to fit in the 4000 charact
 Its order of work is:
 
 1. Pick a datasource, then discover what exists: list datasources, metrics, labels and label values on Prometheus, and tables, schemas and sample rows on ClickHouse.
+   For Loki, Tempo, Jaeger, Elasticsearch and OpenSearch the discovery tools list label names and values, services and span names, tables and fields.
 2. Draft the dashboard as an ObserveSpec document.
 3. Lint every new or changed query against its datasource.
 4. Optionally run a query to see its data.
@@ -560,10 +579,10 @@ The conversation shows these as phases, each with a message from the server:
 #### Saves and repairs
 
 A save is the real check.
-A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed.
+A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed, unless it changes the time range, which runs every query.
 Either rejects a panel whose query is invalid or returns no data, except for alert list panels and panels over the built-in audit datasource, which can be quiet.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
-The instructions allow three repair attempts; if the agent still cannot save, the request fails.
+The agent may repair after a rejection, but the third rejected save in a row stops the run and the request fails.
 A save that finishes the dashboard ends the run.
 
 The server writes the version summary from the finished build, not from the agent's last save:
@@ -580,12 +599,13 @@ Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,
 
 A run has no cap on model calls and no time limit by default.
 It stops after three rejected saves in a row, when it stops making progress, or when the person who asked cancels it.
-Reading past six model calls without a save, or repeating a save, counts as no progress.
-An administrator can set a time limit.
+Reading past six model calls without a save, or repeating a save, are examples of no progress.
+An administrator can set a time limit and a cost limit (`SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`), and a run stops when it reaches either.
 When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it.
 
 When the agent answers a question after its reads were refused at its limit of model calls, the answer ends with a line saying reading stopped early and the counts may be partial.
-The limit is six calls in a chat, and twelve in an investigation unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets another number.
+The limit is six calls for a message in a chat with no dashboard or observation and for a revision.
+It is twelve for an investigation and for a question about a dashboard or an observation, unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (6 to 60) sets another number for those.
 
 When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why.
 A timeout is never read as no data.
@@ -598,8 +618,8 @@ Times in an answer are in your browser's time zone with its label, such as 19:52
 A follow-up is a continuation of the chat.
 The agent starts a fresh run that sees the datasources, your new message and, as context, the earlier turns of the conversation.
 Each earlier turn is the question with the answer it got, or "Saved version N of the dashboard: ..." for a turn that saved a version.
-The agent gets the last 6 turns, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
-For a chat about a dashboard these are the earlier requests you sent on that dashboard.
+The agent gets the last 6 earlier turns of the chat that succeeded, each prompt cut to 600 characters and each answer to 1200, and at most 8000 characters in all, dropping the oldest first.
+For a chat about a dashboard these are the earlier turns of that dashboard chat.
 For a chat with no dashboard they are the earlier turns of that chat.
 
 Turns of one chat run one at a time in the order they were sent.
@@ -624,7 +644,7 @@ The earlier turns are read when a turn starts running, so a follow-up sent while
 A dashboard's side panel has a **Chat** tab next to **Activity**, which shows your own chats about that dashboard.
 It opens your latest chat about the dashboard and names it in the address as `tab=chat&chat=<chat id>`, so the chat stays open when a turn in another chat makes that one the latest.
 
-- The select at its top lists your chats on this dashboard, newest first, each with the time of its last message and its number of turns.
+- The select at its top lists up to 50 of your chats on this dashboard, newest first, each with the time of its last message and its number of turns.
 - **All your chats** opens the Chats page filtered to this dashboard.
 - **New chat** clears the conversation and shows an empty box, with `chat=new` in the address, so the browser's Back returns to the chat you left.
   The chat your first message lands in then takes its place in the address.
@@ -658,11 +678,13 @@ The dashboard reloads the new version, and panels the version added fade in once
 
 ### Who reads a chat
 
-Every request you send is a turn of a chat that you and Admins can read, and nobody else sees the chat.
-These are private the same way, so only you and Admins read them, and for anyone else they do not exist:
+Most requests you send are turns of a chat that only you and Admins can read; the exceptions are the shared requests listed below.
+These are private, so only you and Admins read them, and for anyone else they do not exist:
 
 - a request with neither a dashboard nor an observation;
 - a question about a dashboard or an observation asked in a chat, in the dashboard's Chat tab or with [Ask mode](ask-and-comment.md#ask-mode).
+
+For a chat on a dashboard, you read the answer only while you can still open that dashboard.
 
 These are shared work that anyone who can see the dashboard reads:
 
@@ -676,7 +698,7 @@ Its `chat_id` is null for them, the first request of a chat shows them its own t
 That includes the earlier questions the agent was given.
 
 An Admin reads another person's chat read only.
-A chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
+For anyone who is not an Admin, a chat that does not exist, or that someone else asked, shows one message on `/c/<request id>` and on `/b/<request id>`: "You can't open this chat. It does not exist, or only the person who asked and workspace admins can open it."
 
 An Admin who opens someone else's chat whose answer sits in an observation in a folder the Admin cannot see, such as that person's My Dashboards, reads "The answer is saved in an observation in a folder you cannot see."
 An answer that was never saved as an observation is hidden the same way when the chat is about a dashboard you cannot open.
@@ -697,7 +719,7 @@ Its page is read only: it offers nothing to copy, retry or ask again, and has no
 
 Every read of a chat or a request, yours included, is recorded in the audit trail, in the web app, over MCP and with the CLI.
 It is recorded as `chat.view` or `run.view` with the owner's id as `owner_id`.
-A list of chats or requests is recorded as one `chat.list` or `run.list` with `scope` (`mine` or `all`) in its data, never one event per row.
+A list of chats or requests is recorded as one `chat.list` or `run.list` with `scope` (`mine` or `all`, and `dashboard` for the list of a dashboard's requests) in its data, never one event per row.
 Each is recorded once per reader and chat, request or list in 10 minutes, so a page that polls adds no events.
 A refused read is recorded every time.
 
@@ -717,11 +739,13 @@ Its panel data still counts when it comes from a datasource only Admins can quer
 The observation an ask's answer was saved into is not what that ask is about, so a later attempt of the ask that reads it there is counted.
 
 Lists of dashboards, folders and observations show titles only.
-In an Admin's run they leave out what is in folders only Admins can read, with these exceptions:
+In an Admin's run they leave out what is in folders only Admins can read, with this exception:
 
-- the built-in Audit folder and its starter dashboards, what the run is about, and what is in the folders it writes to;
-- the lists say how many they left out and mark nothing;
-- `include_restricted: true` lists those too and marks the answer.
+- the built-in Audit folder and its starter dashboards, what the run is about, and what is in the folders it writes to.
+
+The Audit exception applies to the dashboards and folders lists only, because the observations list has no built-in Audit exception.
+The lists say how many they left out and mark nothing.
+`include_restricted: true` lists those too and marks the answer.
 
 A run that writes where others read lists none of them and refuses `include_restricted`.
 
@@ -783,8 +807,8 @@ Saving a restricted answer as an observation files it in the first folder only A
 3. the folder of the observation it was asked about.
 
 Else it files in the built-in Audit folder (see [Audit folder](activity.md#audit-folder)).
-When none of these is Admins only, the save is refused.
-Withdrawing a share and the privacy of chats are unchanged.
+When the Audit folder is not Admins only either, the save is refused.
+Withdrawing a share works as for any other answer, and who can read a chat does not change.
 
 ### One title for a chat and its observation
 

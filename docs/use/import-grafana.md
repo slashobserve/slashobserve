@@ -13,11 +13,11 @@ To bring over every dashboard of a running Grafana in one run, with its folders,
 
 ## Import a dashboard in the web app
 
-You need permission to create dashboards in at least one folder.
-Everyone can create in their own My Dashboards, so an import always has a place to go.
+Every person can create in their own My Dashboards, so an import always has a place to go.
+A service-account key needs a folder grant that lets it create.
 
 1. On Home, open the **Import a dashboard** tab.
-   Paste the dashboard JSON into **Grafana dashboard**, or choose a file there.
+   Paste the dashboard JSON into **Grafana dashboard** and choose **Preview**, or choose or drop a file there.
    Home opens the **Import from Grafana** page at `/import` with your dashboard loaded; see [Home](home.md).
    On that page you can also drop a file, or paste JSON anywhere outside a text field.
 2. Under **Datasources**, match each Grafana datasource to one of yours.
@@ -26,7 +26,9 @@ Everyone can create in their own My Dashboards, so an import always has a place 
 3. Read the panel list.
    The filters **Needs a look**, **Partial**, **Placeholders** and **All panels** show which panels did not convert whole.
    Nothing runs against your datasources yet, so these counts cover only what the importer already knows.
-4. Under **Folder**, keep **Automatic** or pick a folder; [Choose the folder](#choose-the-folder) says where each choice goes.
+4. Under **Folder**, check where the dashboard goes.
+   The card starts on the folder you chose on Home, else the shared folder you imported into last, else **Automatic**.
+   [Choose the folder](#choose-the-folder) says where each choice goes.
 5. Choose **Import as new dashboard**.
    You see "Imported as `<title>`, version 1" and "In folder `<title>`", and **Open dashboard** takes you there.
 
@@ -43,7 +45,10 @@ observe import checkout.json --preview
 observe import checkout.json --map prometheus=prom --folder Platform
 ```
 
-`--preview` prints the title, format, counts, a datasource table (`GRAFANA`, `TYPE`, `PANELS`, `MATCH`, `BY`) and the panels that need a look, and saves nothing.
+`--preview` saves nothing.
+It prints the dashboard's title, format and sizes, and whether it is ready.
+It prints an `Already imported as` line when you imported the file before.
+Then it prints a datasource table (`GRAFANA`, `TYPE`, `PANELS`, `MATCH`, `BY`), the counts and the panels that need a look.
 The import prints the new dashboard's address on standard output.
 The counts line, the `Folder:` line, a folder note and the panels that need a look go to standard error:
 
@@ -53,7 +58,9 @@ Imported "Checkout": 12 panels, 10 imported, 1 partial, 1 placeholders, 0 unveri
 Folder: Platform
 ```
 
-`-` reads standard input, and a file can be up to 8 MiB.
+`-` reads standard input.
+A file can be up to 8 MiB, and the request the CLI builds from it, with the JSON written as an escaped string, must also fit in 8 MiB.
+A larger request answers `413 too_large`.
 If a datasource has no match, the command fails with `datasources_unresolved`, shows the table and tells you to pass `--map '<grafana>=<uid>'`, which you can repeat.
 `--update <dashboard id>` and `--as-new` are for a file you imported before; see [Update a dashboard you already imported](#update-a-dashboard-you-already-imported).
 [CLI](cli.md) lists the other flags.
@@ -70,10 +77,12 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/imports/preview" \
 `POST /api/v1/imports/preview` saves nothing, and `POST /api/v1/imports` saves the dashboard.
 The web page and `observe import` call these two routes.
 Both take `json`, `mapping` (Grafana datasource key to your datasource uid), `folder`, `update_dashboard` and `refuse_existing`.
-`mapping` can have at most 50 entries, with keys and values of 1 to 200 bytes; more answers `400 invalid_request`.
-Both need a role that can create dashboards, and a caller can run 1 import and 2 previews at a time, the instance 4 of each.
+A `mapping` with more than 50 entries, or a key or value that is not 1 to 200 bytes, answers `400 invalid_request`.
+Both answer `403 forbidden_role` when the caller cannot create dashboards in any folder.
+A caller can run 1 import and 2 previews at a time, and the instance 4 of each.
 
-The `import_grafana_dashboard` MCP tool runs the same import with `json`, `mapping`, `folder`, `update_dashboard` and `import_as_new`, which cannot be combined with `update_dashboard`.
+The `import_grafana_dashboard` MCP tool runs the same import with `json`, `mapping`, `folder`, `update_dashboard` and `import_as_new`.
+`import_as_new` cannot be combined with `update_dashboard`.
 Inside the built-in agent's runs the JSON has to be in the run's prompt, `update_dashboard` is refused, and `refuse_existing` is not set.
 The tool, and the built-in agent that uses it, refuse JSON that converts to an HTML text panel, a placeholder panel or a panel action.
 They fail with `import_content_not_allowed`, because the agent and MCP clients never write those.
@@ -81,8 +90,14 @@ The web page and `observe import` keep them.
 
 ## Match datasources
 
-Each datasource the dashboard uses is matched to one of yours, in the order described under `grafanaUids` in the [datasources file](../reference/datasources-file.md).
-An import cannot be saved while a datasource has no match.
+Each datasource the dashboard uses is matched to one of yours, in this order:
+
+1. the mapping you give;
+2. a Grafana uid equal to one of your datasource uids;
+3. `grafanaUids` in the [datasources file](../reference/datasources-file.md), shown as `alias` in the `BY` column;
+4. being the only datasource of its type.
+
+An import cannot be saved while a datasource of a supported, configured type has no match.
 SlashObserve never guesses between two datasources of the same type.
 Give the match with the mapping that comes with the request, or add the Grafana uid to `grafanaUids`.
 
@@ -90,6 +105,7 @@ SlashObserve imports Prometheus, ClickHouse, Loki, Tempo, Elasticsearch (the `el
 A Grafana datasource whose type has no configured datasource here does not block the import.
 Its panels import as placeholders that say so, such as "No Loki datasource is configured.".
 A datasource of another type, such as InfluxDB, imports its panels as placeholders that say "Influxdb is not supported yet.".
+Over MCP, and in the built-in agent, such a dashboard is refused with `import_content_not_allowed`, because placeholders are import-only.
 
 ## Import from a Grafana link
 
@@ -112,10 +128,12 @@ The fetch never adds the connection's domain to the [outbound allowlist](../oper
 
 | Answer | Meaning |
 | --- | --- |
-| `403 outbound_domain_not_allowed` | An Admin removed the domain from the allowlist; the link works again once it is allowed. |
+| `403 outbound_domain_not_allowed` | The connection's domain is not on the outbound allowlist, because an Admin removed it or `SLASHOBSERVE_OUTBOUND_DOMAINS` does not name it. The link works again once it is allowed. |
 | `404 no_connection` | No stored connection matches the link. |
-| `404 dashboard_not_found` | The token cannot read that dashboard. |
-| `422 not_a_dashboard_link` | The Grafana page is not a dashboard. |
+| `404 dashboard_not_found` | Grafana has no such dashboard, or the token cannot read it. |
+| `409 secret_key_missing` | `SLASHOBSERVE_SECRET_KEY` is not set, so the stored token cannot be used. |
+| `409 token_unreadable` | The server cannot read the stored token. |
+| `422 not_a_dashboard_link` | The text is not a web address, or the link is on a connection's address but is not a `/d/<uid>` or `/d-solo/<uid>` dashboard link. |
 | `502 grafana_unavailable` | Grafana failed or refused the token. |
 
 ## Import a Spec you exported
@@ -141,13 +159,13 @@ A title matches an existing folder without regard to case.
 A title of `General` or `My Dashboards` means your default folder, and so does an export title that is empty or not a valid folder title.
 An invalid `folder` in the request is refused with `400 invalid_request`.
 
-When no folder has the title, an Editor or Admin creates it.
-When a folder has the title but you cannot create dashboards in it, the dashboard goes to your default folder instead.
-The response then carries a `folder_note` saying so, and `observe import` prints it on standard error, even with `-q`.
+When no folder has the title, an Editor or Admin creates it, and a Viewer's dashboard goes to the default folder instead.
+When a folder has the title but you cannot create dashboards in it, the dashboard also goes to your default folder.
+Either way the response carries a `folder_note` saying so, and `observe import` prints it on standard error, even with `-q`.
 
 On the web page, the **Folder** card lists the folders where you may create dashboards, except General.
 General is left out because a title of `General` means your default folder, which **Automatic** already gives you.
-The page starts on the shared folder you last imported into in this browser, as long as you can still create in it.
+The page starts on the folder you chose on Home, else on the shared folder you last imported into in this browser, as long as you can still create in it.
 Creating a dashboard from a Spec also counts.
 General and My Dashboards are never remembered.
 Pick **Automatic** to use the export's folder or your My Dashboards instead.
@@ -175,15 +193,17 @@ Over MCP, pass `update_dashboard` or `import_as_new`.
 Over HTTP, `update_dashboard` on `POST /api/v1/imports` takes the dashboard id and answers 200 instead of 201, and `refuse_existing` asks for the 409.
 
 An update only takes the file the dashboard was imported from.
-A file with another Grafana uid answers `409 grafana_uid_mismatch`, names both uids and changes nothing.
+A file with another Grafana uid, or none, answers `409 grafana_uid_mismatch`, names the dashboard's uid and the file's, and changes nothing.
 Import it as a new dashboard instead.
 A dashboard imported from a file with no uid takes any file.
+An update keeps the dashboard in its folder and ignores `folder`.
 
 ## Panels marked unverified
 
 A first import is the one save that tolerates failing queries.
 It saves the dashboard as version 1, runs every query once, and records the panels and variables whose queries fail as unverified, in the import report instead of an error.
-The **Imported, not verified** problem filter on the [dashboards list](dashboard-health.md#in-the-dashboards-list) lists every dashboard that still has unverified panels or variables and sends them to the agent.
+For Editors and Admins, the **Imported, not verified** problem filter on the [dashboards list](dashboard-health.md#in-the-dashboards-list) lists every dashboard that still has unverified panels or variables or placeholder panels.
+**Repair** sends them to the agent; see [Repair](switch-from-grafana.md#repair).
 
 Later saves keep a failing panel or variable unverified for as long as these stay unchanged:
 
@@ -193,8 +213,8 @@ Later saves keep a failing panel or variable unverified for as long as these sta
 
 A new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 
-A save with `update_dashboard` runs every query.
-A save with `update_panels` runs only the queries it changed.
+A save with the `update_dashboard` tool runs every query.
+A save with the `update_panels` tool runs only the queries it changed.
 It runs every query when it changes the dashboard's default `time`, or its title while a query or variable uses the `__dashboard` macro.
 Either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 A panel or row that repeats on a variable is checked as one copy, with the first value the variable offers or the first value selected.
@@ -203,7 +223,7 @@ That is how the dashboard draws each copy, with a single value, so its query is 
 ## Read the import report
 
 The report sits below the panel list.
-**Show every option, block by block** opens it, grouped by block: the dashboard settings, each variable, and each panel with its queries, transformations, field config and overrides.
+**Show every option, block by block** opens it, grouped by block: the dashboard settings, each variable, each row, and each panel with its queries, transformations, field config and overrides.
 Each block is collapsed until you open it.
 It lists every Grafana option the block carried as one of:
 
@@ -224,7 +244,7 @@ That covers an alert list of Grafana-managed alerts and a legacy graph alert.
 The note says that alert rules, contact points and silences are not imported, so alerting stays on Prometheus rules and Alertmanager.
 
 The server stores the original JSON with the import, so a newer importer can convert it again.
-The API never returns it.
+The API never returns it, and the agent never sees it.
 
 ## Reference
 
@@ -235,13 +255,13 @@ The API never returns it.
 | Request body | 8 MiB, the JSON as a string plus the mapping; larger answers `413 too_large` |
 | JSON that does not parse | `422 invalid_json` with the line and column, or a note that the file ends early and may be cut off |
 | JSON that is not a dashboard, a format it does not know, or too many panels | `422 not_a_dashboard`, `422 unsupported_format` or `422 too_many_panels` |
-| A mapping with an unusable entry | `422 invalid_mapping` |
+| A mapping that names a datasource the dashboard does not use, one that is not supported, or one that is not a configured datasource of that type | `422 invalid_mapping` |
 | Too many imports or previews at once | `429 too_many_imports` |
 | An update target that is not an import | `404 not_imported` |
 | A datasource with no match | `422 datasources_unresolved`, listing each datasource with its candidates |
 | Already imported | `409 already_imported` with `existing` |
 | Update with another Grafana uid | `409 grafana_uid_mismatch` |
-| Invalid `folder` | `400 invalid_request` |
+| Invalid `folder`, a mapping with more than 50 entries, or a mapping key or value that is not 1 to 200 bytes | `400 invalid_request` |
 | HTML text, placeholder or panel action over MCP | `import_content_not_allowed` |
 | Options in the report | 200 per block, 10,000 in all |
 | Transformations | 20 per panel |
@@ -255,24 +275,29 @@ A dashboard's time settings, links and editability import as follows.
 | --- | --- | --- |
 | Time zone, week start and fiscal year start month | The [dashboard fields](../concepts/observespec.md#the-dashboard) `timezone`, `weekStart` and `fiscalYearStartMonth` | |
 | The time picker's now delay | The `nowDelay` dashboard field | |
-| Time range | The same range | It may use `now/fy` and `now/fQ`, and a range written in epoch milliseconds carries over. |
-| The time picker's hidden flag, refresh intervals, quick ranges, live now switch and refresh intervals in days | Carried over | A refresh interval of `500ms` is left out and reported. |
+| Time range | The same range | It may use `now/fy` and `now/fQ`. A range written in epoch milliseconds becomes the same moment as an absolute time. |
+| The time picker's hidden flag, refresh intervals (in seconds, minutes, hours or days) and quick ranges, and the dashboard's live now switch | Carried over | A refresh interval of `500ms` is left out and reported. |
 | Links to other dashboards by tag | Links that list the matching dashboards | |
 | Links to an address | Links that keep their keep-time and include-variables options | |
 | A link's tooltip | Imported as written | It is cut to 200 characters and reported when cut. |
-| Dashboard, panel and row titles | Trimmed, with control characters turned into a space and invisible format characters removed | Dashboard and row titles are also cut to 200 characters and reported when cut. |
+| Dashboard, panel and row titles | Trimmed, with control characters turned into a space and invisible format characters removed | Dashboard, panel and row titles are also cut to 200 characters and reported when cut. |
 | Link icons other than Grafana's default, and placement in the controls menu | Reported | |
 | A dashboard that is not editable in Grafana (`editable: false`) | Reported; read-only dashboards are not part of SlashObserve | |
 
 Details of titles:
 line breaks and other control characters turn into a space, and an empty result becomes `Imported dashboard`, `Row` or no panel title.
 Format characters are removed (such as zero-width and bidirectional override characters), except U+200C, U+200D, U+200E, U+200F and U+061C, which are kept.
+A few filler characters are removed too: U+034F, U+115F, U+1160, U+2800, U+3164 and U+FFA0.
 The [text rules](../reference/text-rules.md) then accept the title.
 
 Details of the other settings:
 
 - A dashboard keeps at most 20 links and 20 tags.
   A link by tag with an invalid tag, or with more than 20 tags, is dropped whole.
+- Tags are lowercased, other characters become `-`, and a tag is cut to 40 characters.
+  An empty or repeated tag, or one past the first 20, is dropped and reported.
+- A link of any type other than an address or a list of dashboards by tag is dropped and reported.
+  So is an address that is empty, over 2000 characters, or does not start with `http`, `https` or `mailto`.
 - At most 20 refresh intervals import, in whole seconds, minutes, hours or days.
 - At most 30 quick ranges import, with the name cut to 100 characters.
 - The dashboard's refresh, description, tags and shared tooltip setting (`graphTooltip`, as `cursorSync`) import too.
@@ -282,8 +307,13 @@ Details of the other settings:
 
 #### Custom, text box and interval variables
 
-A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}`, so the query uses the step selected in that variable.
-A `custom` variable of durations that is single-select, has no All and is used as a min step becomes an `interval` variable, and the report says so.
+A query's min step written as a variable (`$name`, `${name}` or `[[name]]`) imports as `${name}` when that variable imports as an `interval` variable, so the query uses the step selected in that variable.
+Otherwise the min step is not kept and the report says so.
+A `custom` variable becomes an `interval` variable, without a note, when all of these hold:
+
+- its options are all durations, and it has at most 50 of them;
+- it is single-select and has no All;
+- some query uses it as a min step.
 
 A `custom` variable's `text : value` pairs import as `{ text, value }` options, so the picker shows the text and the selection uses the value.
 A text box imports its saved value as its default, else its default text.
@@ -296,10 +326,10 @@ A text box imports its saved value as its default, else its default text.
 - A query variable that Grafana never refreshes imports as `refresh: "never"` with its saved options as the static options, so only those are offered.
   One that never refreshes and has no saved options keeps loading, and the report says so.
 - `regexApplyTo` imports without a note at its default `value`.
-  At `text` the regular expression is not applied, because options here carry a value only, and the report says so.
+  At `text` the regular expression is not applied, because options here carry a value only, and the report says so when the variable has a regular expression.
 
 A `query` variable whose query uses a variable the dashboard does not declare is dropped and reported, and the panels that use it become placeholders.
-The exception is a Prometheus query whose undeclared `$name`, `${name}` or `${name:format}` is the label that exactly one other `query` variable lists with `label_values(selector, name)`.
+The exception is a `query` variable (tested with Prometheus) whose undeclared `$name`, `${name}` or `${name:format}` is the label that exactly one other `query` variable lists with `label_values(selector, name)`.
 VictoriaMetrics' per-tenant dashboard has this after its rename of `accountID` to `account`.
 The reference imports as that variable, the report says so on the variable, and the panels that use it import whole.
 A variable that lists the label without a selector, a variable that depends on the one being repaired, or two variables that list the label keep the drop.
@@ -307,14 +337,15 @@ A variable that lists the label without a selector, a variable that depends on t
 #### URL sync, hidden variables and datasource variables
 
 A variable's `skipUrlSync` imports as written, so it stays out of the URL and starts from its default on every load.
-A variable that Grafana hides in the controls menu (`hide` 3) imports shown and is reported.
+A variable that Grafana hides in the controls menu (`hide` 3) imports shown and is reported, except a `constant` variable, which is not reported.
 So is a datasource variable's `multi`, `includeAll` or `allowCustomValue: false`, because a datasource variable selects one datasource from the ones it lists.
 
 #### Ad hoc variables
 
 - A saved ad hoc filter list imports as the variable's `default`, and its base filters as `baseFilters`.
   Each filter keeps its key label and first value label.
-  A list of values is the regular expression's alternatives joined with `|`.
+  A filter's `values` list is not stored.
+  It is accepted without a note when it is the regular expression's alternatives joined with `|`, and reported otherwise.
 - On ClickHouse the operators `<` and `>` and the condition OR import too.
   On Prometheus those three are reported, because label matchers can only be ANDed and have no comparison.
 - A filter with another operator, an invalid key or regular expression, or another condition is reported, in the base filters as in the saved ones.
@@ -358,7 +389,7 @@ A custom All value that matches an empty value, such as `.*`, is kept as written
   An `instant` copy without the min step or resolution factor takes the next free ref, which the report lists as `refId A (instant) -> B`.
   Both queries are hidden together, and a style override or a `filterByRefId` transformation that names the original ref covers the copy too.
 - A query with `instant` on and `range` unset or off stays one instant query.
-- A panel that already holds 26 queries keeps only the range query and reports the instant one.
+- When an instant copy would take the panel past 26 queries, only the range query is kept and the report lists the instant one.
 - A target's `exemplar` flag is kept on a time series and a heatmap.
   It is dropped without a note on an instant query and on every other panel type, which draw no exemplars.
 
@@ -414,23 +445,28 @@ Metrics import as follows.
 | Metric | Imports as |
 | --- | --- |
 | `avg`, `sum`, `min`, `max`, `cardinality`, `percentiles`, `extended_stats` and `rate` | The same metric, with its fields and settings |
-| `moving_avg` | A `moving_fn` with an unweighted average over its window |
-| `derivative`, `cumulative_sum`, `serial_diff` and `bucket_script` | The same metric, with its bucket paths and scripts |
-| A metric of a type SlashObserve does not know, and a bucket aggregation other than those listed above | Reported |
+| `moving_avg` | A `moving_fn` with an unweighted average over its window; the model is not kept and nothing is reported |
+| `moving_fn`, `derivative`, `cumulative_sum`, `serial_diff` and `bucket_script` | The same metric, with its window, bucket paths and scripts |
+| `count` | The implicit metric |
+| A hidden metric (`hide: true`) | Drawn anyway, and reported |
+| A metric of a type SlashObserve does not know | Reported and left out of the query; the query is dropped when no metric is left |
+| A bucket aggregation other than those listed above | The query is not imported and the report gives the reason |
 
 An empty Lucene query matches everything, as in Grafana.
 A query's `alias` imports as the legend, with `{{term <field>}}` rewritten to `{{<field>}}` and `{{field}}` written out as the metric's field name.
 A `timeField` on a query is editor state: Grafana copies the datasource's time field onto every query, and a date histogram without a field uses it.
 
 A query variable saved as `{"find": "terms", "field": <field>, "query": <lucene>}` becomes `label_values(lucene:<query>, <field>)`, or `label_values(<field>)` without a query, and its `size` is reported.
-A variable query in any other form keeps its saved values as a fixed list.
+A `{"find": "fields"}` variable is dropped and reported.
+A variable query in any other form keeps its saved values as a fixed list, and is dropped when it has none.
 An ad hoc variable on Elasticsearch or OpenSearch imports as on ClickHouse, with `applyToAll`, the operators `<` and `>`, the condition OR, and dotted field names as keys.
 
 #### ClickHouse queries from the Altinity plugin
 
 A query that starts with a whole-query macro is written out as plain ClickHouse SQL that uses SlashObserve's time macros, so the saved query no longer needs the Altinity macros.
-The whole-query macros are `$rate`, `$perSecond`, `$delta`, `$increase`, `$columns`, their `Columns`, `Ms` and `ColumnsAggregated` forms, and `$lttb` and `$lttbMs`.
-A macro that is not at the start of the query, or whose arguments cannot be read, is left out and listed in the report.
+The whole-query macros are `$rate`, `$perSecond`, `$delta` and `$increase` with their `Columns` and `ColumnsAggregated` forms, `$columns` and `$columnsMs`, and `$lttb` and `$lttbMs`.
+A whole-query macro that is not at the start of the query, or whose arguments cannot be read, means the query is not imported.
+The query is dropped and the report gives the reason.
 
 Inside a query, these macros import as follows.
 
@@ -438,7 +474,7 @@ Inside a query, these macros import as follows.
 | --- | --- | --- |
 | `$naturalTimeSeries` | Buckets by year, month, week or day for long ranges | |
 | `$timeFilter64ByColumn` | The millisecond time filter | |
-| `$timeFilterByColumn(column)` | `$__timeFilter(column)` | |
+| `$timeFilterByColumn(column)` | `$__timeFilter(column)` | Only for a plain `DATETIME` column without `round`. See the time column rules below. An unreadable call means the query is not imported. |
 | `$adhoc` | The dashboard's ad hoc variable, when exactly one ad hoc variable uses the query's datasource | See the details below. |
 | `$conditionalTest(condition, $variable)` and its three-argument form `$conditionalTest(condition, otherwise, $variable)` | `$__conditionalAll`, which writes the otherwise condition when the variable selects All, as the plugin does | See the keyword rule below. |
 
@@ -449,13 +485,19 @@ It becomes `1` with the note "Ad hoc filters inside this query are not applied."
 A condition that starts with `AND` or `OR` keeps that keyword outside the macro.
 For example `$conditionalTest(AND service IN ($service), $service)` becomes `AND $__conditionalAll(service IN ($service), $service)`, because the macro writes the condition inside parentheses.
 With an otherwise condition, both conditions must start with the same keyword.
-A call whose two conditions start with different keywords, or only one of them with a keyword, is left out and listed in the report.
+A call whose two conditions start with different keywords, or only one of them with a keyword, means the query is not imported, and the report gives the reason.
 
 #### Time columns and counter macros
 
 The query's time column type decides how the time macros read the column.
 `DATETIME64` keeps its sub-second precision.
-`TIMESTAMP`, `FLOAT` and `TIMESTAMP64_3`, `_6` and `_9` (seconds, milliseconds, microseconds and nanoseconds since the epoch) are compared as numbers and bucketed as times.
+`TIMESTAMP` and `FLOAT` hold seconds since the epoch.
+`TIMESTAMP64_3`, `_6` and `_9` hold milliseconds, microseconds and nanoseconds since the epoch.
+These numeric types are compared as numbers and bucketed as times.
+A type that is not in this list is read as `DATETIME`, and the report says so.
+
+`$timeFilterByColumn(column)` becomes `$__timeFilter(column)` only for a plain `DATETIME` column without `round`.
+A `DATETIME64` column gives `$__timeFilter_ms(column)`, a numeric time type gives explicit comparisons, and a `round` gives `toDateTime(...)` bounds.
 
 The `round` option rounds the start of the range down and the end up in the time filter, `$from` and `$to`.
 The first bucket of a counter macro has no value when `extrapolate` is off, because by default it is compared with a virtual earlier bucket.
@@ -470,8 +512,11 @@ The first point of a counter series has nothing to subtract from:
 
 #### Options the plugin carries
 
-The plugin's `extrapolate` option, which the plugin applies in the browser to the edges of a rate series, is reported on the rate family.
-`round` is dropped silently only when it is `$step`, `0s` or divides the query's explicit minimum step, and reported otherwise.
+The plugin's `extrapolate` option is converted, and the report does not mention it.
+When it is off, the first bucket of a counter macro is nan.
+The `round` option is applied when it is `$step` or a whole number of seconds from `1s` up.
+`0s` or an empty value means no rounding.
+Any other value is reported and the range is not rounded.
 A ClickHouse query that keeps its generated SQL drops the query builder's settings without a note.
 
 #### Server-side expressions
@@ -512,10 +557,12 @@ A field's color mode imports as one of these:
 - a palette by series name;
 - a fixed color;
 - shades;
-- a named color scheme.
+- a named color scheme;
+- `thresholds`, where the panel type draws it.
 
 A series-colored mode imports on time series and trend panels.
-A scheme also imports on stat, gauge, bar gauge, bar chart, XY chart, state timeline and status history.
+`thresholds` imports on time series and trend panels, and on the panel types that color by threshold anyway it imports without a note.
+A scheme also imports on stat, gauge, bar gauge, table (when its cells are colored), bar chart, XY chart, state timeline and status history.
 There, a state is colored by its place between the field's min and max, else the data's, and a value mapping color wins.
 
 A histogram colored by `thresholds` whose thresholds are only the base step imports as a fixed color, the base step's, because Grafana draws a histogram series in the color of the step its last value meets.
@@ -544,7 +591,8 @@ On time series and trend panels, and on the extra series of a candlestick, the s
 - stack group and fill below to.
 
 A legacy graph's series overrides import the same way.
-A stack group written as `false`, `true` or a number becomes that text, so its series stack together and apart from the default group `A`.
+In a series override's `custom.stacking.group`, a stack group written as `false`, `true` or a number becomes that text, so its series stack together and apart from the default group `A`.
+In a legacy graph override, `stack` is a boolean (stacking on or off) or a group name, and a number is reported.
 A group on a series whose stacking is `none` has no effect.
 
 #### Panel links and data links
@@ -557,7 +605,11 @@ Imported dashboards get new ids, so the title is looked up at click time.
 When several dashboards you can see share the title, or none does, the link opens the dashboards list filtered by the title instead.
 The link carries the time range when Grafana's keep-time option was on and the variable selections when include-variables was on.
 A panel link to an address keeps both options the same way, as the link tokens `${__url_time_range}` and `${__all_variables}`.
-A panel link to a dashboard without a title, with a title over 200 characters or of any other type is reported and not kept.
+A panel link is reported and not kept in these cases:
+
+- its type is neither an address nor a dashboard;
+- it has no address, or its address is over 2000 characters or does not start with `http`, `https` or `mailto`;
+- it is a dashboard link with no title, or with a title over 200 characters.
 
 #### Field actions
 
@@ -603,7 +655,7 @@ A reusing query that sits beside other queries is dropped and reported.
 
 A time series, trend, candlestick or legacy graph panel imports:
 
-- its legend: placement, list or table mode, values, sort, width, and hiding series that are all zero or empty;
+- its legend: placement, list or table mode, values, sort, width and, on a legacy graph, hiding series that are all zero or empty;
 - its tooltip: sort, hide zeros, maximum width and height, and a legacy graph's cumulative values;
 - the axis options;
 - the line style: interpolation, width, dots, dashes with a custom dash and gap length from 1 to 100 pixels, square dots, and points;
@@ -618,11 +670,12 @@ Any other CSS color name, such as `gray`, becomes its hex color.
 These are reported:
 
 - a point symbol other than a circle or square;
-- a dash pattern that is not one dash and one gap length;
+- a dash pattern that is not one dash length and one gap length, each a whole number from 1 to 100 pixels;
 - an axis placement of top or bottom.
 
 A point size on a time series with automatic points sizes the isolated points that automatic points draw.
-Grafana's own size 5 draws them at the usual size.
+Grafana's own size 5 is left out without a note, because it draws them at the usual size.
+This applies to automatic points only.
 A size of 4 is reported, because it cannot be told from no size.
 An axis color mode other than `series` is Grafana's default, `text`.
 
@@ -772,7 +825,7 @@ A table imports:
 - the first column of `sortBy` with its direction;
 - its footer: the reducers (a footer that is shown without a reducer sums), the columns it covers and the row count.
 
-A table panel's `showSearch` and `filterable` keys are not table options in Grafana, and they import without a note.
+A table panel's `options.showSearch` and `options.filterable` are not table options in Grafana (the column option is `custom.filterable`), and they import without a note.
 A second sort column, more than 10 frozen columns and the footer reducers of a single column's override are reported.
 
 The older table panel's saved sort is dropped silently when it is Grafana's own default (the first column, descending) and reported otherwise, because it names a column by position.
@@ -780,7 +833,7 @@ A table with `styles` and no `fieldConfig` is read as Grafana reads it, as the o
 Its styles import as column units, decimals, names, alignment, thresholds and hidden columns.
 A style's `dateFormat` on a column that is not a date and its link options when `link` is off are Grafana's own no-ops and import without a note.
 A table that already has a `fieldConfig` keeps the Angular keys it was saved with without a note, because Grafana never reads them again.
-Those keys are `styles`, `transform`, `columns`, `sort`, `showHeader`, `fontSize` and leftover graph options such as `yaxes`, `lines` and `legend`.
+Those keys are `styles`, `transform`, `columns`, `sort`, `showHeader`, `fontSize`, `pageSize` and leftover graph options such as `yaxes`, `lines` and `legend`.
 
 On a table, `custom.hidden` (written `true` or `"true"`) and `custom.hideFrom.viz` hide the column, in the panel's defaults or in an override.
 
@@ -827,7 +880,8 @@ The mouse wheel zoom is imported as on, because Grafana's default is on.
 The map draws tiles only when the server may fetch the basemap's host, so allow it under [Images and GeoJSON](../operate/outbound-access.md#images-and-geojson).
 Until then the map shows country outlines.
 
-A geomap imports every layer, each with its opacity, tooltip and the query that feeds it.
+A geomap imports its first 10 layers, each with its opacity, tooltip and the query that feeds it.
+Later layers are reported.
 
 | Layer | Imported options |
 | --- | --- |
@@ -836,8 +890,9 @@ A geomap imports every layer, each with its opacity, tooltip and the query that 
 | GeoJSON | The bundled country and state maps, an https address and its rules |
 | Day and night | The night color, the sun, and whether the night is drawn at the start or the end of the time range |
 | Photos | Border color and size, crop and shadow |
-| Network | Node color and edge color |
-| Route and tile | The options every layer has |
+| Route | Arrow, line width and line color |
+| Network | Node color, edge color, edge width and arrow |
+| Tile (CARTO, OpenStreetMap, Esri, `xyz`) | Theme, labels, Esri server, tile address and attribution |
 
 A markers layer without a fill opacity imports Grafana's own 0.4, so the markers are as light as they are in Grafana.
 A markers layer imports its legend, which Grafana shows unless it is turned off.
@@ -851,7 +906,7 @@ These are reported: an airport lookup, other gazetteers, other GeoJSON files, dy
 
 A canvas imports:
 
-- icons (a bundled icon, an https image or an image taken from a field), buttons, and server, triangle, cloud, parallelogram, wind turbine and drone elements;
+- text, metric value, rectangle, ellipse and icon elements (a bundled icon, an https image or an image taken from a field), buttons, and server, triangle, cloud, parallelogram, wind turbine and drone elements;
 - the constraint and pixel placement, rotation, vertical alignment, border width and radius, an icon's outline color and width, and template text;
 - background images, and the background, border, pan and zoom and tooltip of the canvas.
 
@@ -862,6 +917,8 @@ An outline width that is not a whole number from 0 to 20 is reported.
 Element links import with their open-in-new-tab setting, and an element's one-click link or action imports as its one-click behavior.
 A connection imports its path, line style, arrow, a width that follows a field with its range, and its bends (at most 20).
 Widths or directions that follow a rule are reported.
+A canvas keeps at most 50 elements and 100 connections, and an element keeps at most 10 links and 10 actions.
+The rest are reported.
 
 #### Canvas actions
 
@@ -907,8 +964,8 @@ These Grafana panel types import as follows.
 | `gettingstarted` | A text checklist that links these docs | |
 | `datagrid` | A table that shows the frame its `selectedSeries` names | It shows the first frame when `selectedSeries` is empty. |
 | `debug` | A table over its own targets, or a text panel without targets | The debug modes are not part of SlashObserve. |
-| Alert list | One Prometheus `ALERTS` query | A Grafana-managed or legacy alert list becomes a placeholder. |
-| Dashboard list | A static panel | It needs no datasource match. |
+| Alert list | One Prometheus `ALERTS` query | A Grafana-managed or legacy alert list, or one on a datasource that is not Prometheus, becomes a placeholder. |
+| Dashboard list | A static panel | It needs no datasource match. A starred list is reported and shows dashboards by last update. |
 | News | A news panel with the feed address, changed from http to https and reported | An empty address gets Grafana's blog feed. The feed's domain must be on the [outbound allowlist](../operate/outbound-access.md#news-feeds) before the panel shows items. |
 
 #### Legacy panel types
@@ -917,17 +974,19 @@ Grafana's renamed and retired panel types import as their modern type, such as `
 `grafana-worldmap-panel` imports as a geomap, with its circle sizes, thresholds and colors, view and wheel zoom.
 
 A world map whose `locationData` is `countries`, `countries_3letter` or `states` imports as a markers layer that looks places up by name in the countries or US states gazetteer.
-A `valueName` other than `current` becomes a `reduce` transform of the queries, which a table-format query makes unnecessary because its rows already hold one value each.
+The `valueName` becomes a `reduce` transform of the queries, and `current` reduces to the last value that is not null.
+A table-format query makes the transform unnecessary, because its rows already hold one value each.
 On a world map with table data the `valueName` has no effect, as in Grafana.
+On any other location, a `valueName` other than `current` is reported.
 The keys Grafana's own world map migration does not read import without a note: `esMetric`, `hideEmpty`, `hideZero`, `stickyLabels`, the legend, the unit words and the label field.
 
-Graph options that Grafana's own time series migration drops import without a note: `paceLength`, the tooltip's millisecond resolution, thresholds without a value, and `percentage` without stacking.
+Graph options that Grafana's own time series migration drops import without a note, such as `paceLength`, `hiddenSeries`, `renderer`, `options.alertThreshold`, `yaxis.align`, `yaxis.alignLevel`, the tooltip's millisecond resolution, thresholds without a value, and `percentage` without stacking.
 A legacy graph alert is excluded with alert rules.
 A legacy graph's threshold fill and line choose the threshold style the way Grafana's migration does (lines, areas, or both), and `dashLength` and `spaceLength` set the pattern of a dashed line.
 
-A legacy singlestat imports without a note for the keys Grafana's own singlestat-to-stat migration drops:
+A legacy singlestat imports without a note for the keys Grafana's own singlestat-to-stat migration drops, such as:
 
-- the prefix and postfix colors, the font sizes, the sparkline fill and full width, and the mapping editor choices;
+- `minSpan`, the prefix and postfix colors, the font sizes, the sparkline fill and full width, and the mapping editor choices;
 - a prefix or postfix beside a unit (the unit is kept, as in Grafana);
 - a null mode, except that a connected null mode turns the first value into the first value that is not null.
 
@@ -969,7 +1028,8 @@ A frame filter (`byFrameRefID`) imports the same way.
 A ref that did not import, a pattern that matches none and any other filter are reported at `filter`, and the transformation then applies to every query.
 
 `filterByRefId` imports `include` and `exclude`.
-`filterByValue` imports `between`, `substring` and, as a transformation's only filter, `notSubstring`.
+`filterByValue` imports every filter Grafana offers, including `between` and `substring`.
+`notSubstring` imports only as a transformation's only filter.
 `formatTime` imports the `utc` time zone, and any other time zone is reported.
 
 #### Heatmap, spatial and lookups
@@ -990,8 +1050,8 @@ Some Grafana options are reported and not imported by decision, because SlashObs
 
 - Grafana scopes on Prometheus queries, and images served by a Grafana server.
 - The Infinity datasource (canvas actions and field actions), Explore links, editing data from a panel, and CSS taken from a field.
-- Recently viewed dashboards and Grafana folder ids in dashboard lists.
-- Alert rules in alert lists: inactive alerts, instances, the normal state filter and alert grouping.
+- Recently viewed dashboards and Grafana folder filters (`folderUID` and `folderId`) in dashboard lists.
+- Alert rules in alert lists: inactive alerts, instances, the normal state filter, alert grouping, dashboard alerts and the alert folder.
 - The modes and counters of the debug panel.
 
 #### Altinity queries and ClickHouse
@@ -1020,7 +1080,11 @@ Some Grafana options are reported and not imported by decision, because SlashObs
 #### Canvas
 
 - Server element animation (blink rate and bulb color).
-- Data-driven canvas connections, canvas zoom to content, the one-click canvas tooltip and the canvas background image mapping mode.
+- Canvas connection widths that follow a rule and connection directions that follow a field, canvas zoom to content, the one-click canvas tooltip and the canvas background image mapping mode.
+
+#### Geomap
+
+- MapLibre basemaps, dynamic GeoJSON layers, the last-point tracker and photo frames.
 
 #### Loki
 
@@ -1041,7 +1105,8 @@ Some Grafana options are reported and not imported by decision, because SlashObs
 
 #### Transformation options
 
-- The annotation and time region frame conversions, and the exemplar frame conversion.
+- The `convertFrameType` conversions to annotations, time regions and exemplars.
+- Transformations of annotations (`topic: annotations`).
 - The percent unary operator and the max window reducer.
 - Enum and time zone conversions of field types.
 - Ordering by label or in descending name order, and by mode `auto`.
@@ -1056,7 +1121,7 @@ A panel whose only report lines are such decisions counts as imported, and its r
 These imports carry no report line:
 
 - Options that Grafana itself does not draw or read where they are written, such as the legend options of a stat panel, a log base on a query, the unit scale of a field, and a Prometheus exemplar flag on an instant query or on a panel that draws no exemplars.
-- Editor state, such as a query's help toggle or saved ad hoc filters.
+- Editor state, such as a query's help toggle or a query's own `adhocFilters` list.
 - Inputs Grafana rejects.
 
 A query with no text is dropped without a note, because Grafana sends no request for it and the panel shows the same data without it.
