@@ -5,7 +5,7 @@ description: The tool loop the built-in agent runs, what a save checks, whose pe
 
 The built-in agent turns a prompt into a saved dashboard version by calling tools against your datasources.
 It writes no dashboard text of its own.
-The only thing a run produces is a complete [ObserveSpec](observespec.md) document saved through a tool.
+The only dashboard a run produces is a complete [ObserveSpec](observespec.md) document saved through a tool, and a run that only answers a question ends in a saved finding.
 The agent is on only when an LLM provider is configured; see [LLM providers](../connect/llm-providers.md).
 
 For example, you type "show checkout error rate and p95 latency by route" in the chat home.
@@ -41,8 +41,10 @@ A canceled run keeps its build like any other stopped run, and a version saved b
 A stopped build is saved or continued, never both.
 A run the server restarts continues from its build.
 
-Each server runs `SLASHOBSERVE_AGENT_WORKERS` requests at once, 8 by default, and the rest wait in the queue in the order they were made.
-One request per dashboard runs at a time, so other revisions of a dashboard wait behind a run that does not end, and nobody else can cancel it.
+Each server runs `SLASHOBSERVE_AGENT_WORKERS` requests at once, 8 by default, and the rest wait in the queue.
+A free worker takes the waiting request whose requester has the fewest runs in progress, then the oldest.
+One request that applies a change to a dashboard runs at a time, so other revisions of that dashboard wait behind a run that does not end, and nobody else can cancel it.
+Investigations and questions do not wait on the dashboard.
 
 ## The tool loop
 
@@ -107,7 +109,7 @@ Details of the Elasticsearch and OpenSearch tools:
 
 These tools work across datasources:
 
-- `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six, or finds which datasources hold one, and names the field a query filters on.
+- `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
   `logs_for_trace` reads the lines that carry a trace id.
 - On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.
@@ -178,7 +180,7 @@ The agent builds every dashboard panel by panel.
 A new dashboard has no id until the build commits, so the model saves and reads its build without a `dashboard_id`.
 
 1. The first save is `create_dashboard` with the title, time range, variables and one panel.
-   `row` names the row the panel belongs to, and `planned_panels` is the number of panels the model expects the finished dashboard to have.
+   `row` names the row the panel belongs to, and `planned_panels` (1 to 200) is the number of panels the model expects the finished dashboard to have.
 2. Every other panel is its own `update_panels` call, with the panel alone in `upsert` and `row` naming its row.
    A new row is created with its first panel.
 3. A save that adds or changes more than one panel is rejected.
@@ -299,7 +301,7 @@ Details of what stops a run:
   It names the evidence panels that failed (`evidence-1` is the first panel sent) and the last issue codes.
   It adds that a datasource did not answer in time when every issue was a timeout, an unavailable datasource or a busy server.
 - A finding rejected for such evidence tells the model to send it again without those panels and to say that their data was not read.
-- A save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run with `no_progress`.
+- A save that changes no panel, changes a panel for the fifth time, or deletes a panel and adds another, gets a note, and the fourth such save in a row ends the run with `no_progress`.
 
 The server enforces these guards at its MCP tool boundary on every run session, so an agent you connect that takes runs meets the same guards; see [MCP](../use/mcp.md#the-run-session-enforces-the-guards).
 
@@ -328,8 +330,9 @@ See [Run cost](../connect/llm-providers.md#run-cost).
 
 More details of a run:
 
-- The first call of a new build runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`.
-- Later calls cap their output at half of `SLASHOBSERVE_LLM_MAX_TOKENS` (at least 8192), resending a cut call once at the full cap.
+- The first call of a session, before any save to the build, runs one reasoning step higher than `SLASHOBSERVE_LLM_EFFORT`: `low` becomes `medium`, `medium` becomes `high`, and any other value stays.
+- Every other call caps its output at half of `SLASHOBSERVE_LLM_MAX_TOKENS`, but at least 8192 and never above it.
+  A call cut off at that lower cap is sent once more at the full value.
 - While a run is in flight, the server renews its claim on the request every 5 seconds, so a long run is not picked up by a second worker.
 - A run that ends without an accepted save writes no version.
 - A run shows its most recent 1000 steps per attempt.
@@ -359,7 +362,7 @@ Which queries run depends on the tool:
 The save is rejected when:
 
 - a query fails, or a datasource uid is not configured.
-- none of the queries of a panel returns data, except on an `alertlist` panel, where no firing alerts is normal.
+- none of the queries of a panel returns data, except on an `alertlist` panel, where no firing alerts is normal, and on a panel that reads only the audit trail.
   A signed-in person can keep such a panel from the [panel editor](../use/edit-panel.md#save-as-a-new-version), marked "Unverified"; the agent, MCP clients and the CLI cannot.
 - the document breaks a rule of the format, such as overlapping panels or an undeclared variable.
 
@@ -467,7 +470,7 @@ Details of a shared answer:
 - Someone who can reply in the thread may apply the answer's suggested change there.
 - The run names that thread as `shared_thread_id`, which only you see.
 - A run is shared once, and sharing needs Comment there.
-- An answer whose evidence reads a datasource only Admins can query can only be shared on content in a folder only Admins can read.
+- An answer whose evidence reads a datasource only Admins can query, or whose run read one, can only be shared on content in a folder only Admins can read, and is otherwise refused with `restricted_answer`.
 
 #### Withdraw the answer
 
@@ -493,7 +496,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
 The built-in agent gets 30 in a new-dashboard or revision request and 29 in a suggestion, which leaves out `save_finding`.
-An investigation offers it only the read tools, `list_annotations` and `save_finding`.
+An investigation is offered only the read tools and `save_finding`.
 
 The other 80 tools are for MCP clients only, so the agent never writes or resolves a comment reply, never edits an observation's blocks, never merges a proposal and never claims a run.
 They are:
@@ -538,8 +541,9 @@ The server refuses that token on any request that carries a forwarding header (`
 A reverse proxy on the same host that adds none of them, such as nginx with a bare `proxy_pass`, still reaches the server from loopback.
 So configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 
-The server looks for `observe-agent` on `PATH`.
+When an LLM provider is configured, the server looks for `observe-agent` on `PATH`.
 It does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
+Without a provider it makes neither check.
 
 ## MCP clients use their own model
 
@@ -604,11 +608,11 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_WORKERS` | 8 | Requests one server runs at once. |
 | `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | none | Time limit of a run, at least `1m`. |
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | none | Cost limit of one attempt. |
-| `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened. |
+| `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |
-| `SLASHOBSERVE_LLM_EFFORT` | provider default | Reasoning effort. |
+| `SLASHOBSERVE_LLM_EFFORT` | `medium` on Anthropic, nothing sent on OpenAI | Reasoning effort. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | 16000 | Output limit of a model call. |
 
 [Configuration](../reference/configuration.md) describes every variable.

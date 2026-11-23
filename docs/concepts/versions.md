@@ -4,9 +4,10 @@ description: How every save becomes a version, how to see who made it and what c
 ---
 
 Every save of a dashboard is a new version, numbered from 1 in a single line.
+You look at versions to see who changed a dashboard and what changed, and to go back to an earlier state.
 A version holds the whole [ObserveSpec](observespec.md) document as it was saved, so no version depends on another, and nothing edits a version after it is written.
 
-For example, Sam renames a panel and saves, and the dashboard goes from version 4 to version 5 with the summary `Rename to "Checkout latency"`.
+For example, Sam renames the dashboard and saves, and it goes from version 4 to version 5 with the summary `Rename to "Checkout latency"`.
 Version 4 is still there.
 If the rename was a mistake, you restore version 4, and the dashboard becomes version 6 with the contents of version 4.
 
@@ -44,6 +45,7 @@ Restoring a known-good version therefore does not fail because a datasource is b
 The restored version keeps the list of panels and variables that were unverified when it was first saved.
 
 Restoring needs Edit on the dashboard's folder, so a Commenter or Viewer never sees a **Restore** button.
+A provisioned starter dashboard refuses a restore with `409` and the code `provisioned`, and a connection in propose mode gets `proposal_required` from `restore_dashboard_version`.
 See [Roles](../teams/roles.md) and [Folders and access](../teams/folders.md).
 Over the API it is `POST /api/v1/dashboards/{id}/versions/{version}/restore` with the `parent_version` it builds on, and it can answer `409` like any save.
 Over MCP it is `restore_dashboard_version`, and in the CLI `observe dashboards restore <dashboard-id> --version 4`.
@@ -65,9 +67,11 @@ Over MCP it is `duplicate_dashboard`, and in the CLI `observe dashboards duplica
 ## Save over a newer version
 
 A save names the version it builds on.
-If someone saved a newer version in the meantime, the save is refused with `409` and the code `version_conflict`, and the response gives `latest_version`.
+If someone saved a newer version in the meantime, `POST /api/v1/dashboards/{id}/versions` refuses the save with `409` and the code `version_conflict`, and the response gives `latest_version`.
 
-To merge instead, add `"merge": "auto"` to the request.
+To merge instead, add `"merge": "auto"` to that request.
+`POST /api/v1/dashboards/{id}/panels`, `observe dashboards panels`, `update_dashboard` and `update_panels` have no such option and always try the merge.
+
 The server merges a stale save when it changed different panels, variables or settings than the newer versions did.
 It saves the merged document on top of the latest version after its queries run.
 The response carries `merged_from` with the version the save was based on and the version it was merged onto.
@@ -105,7 +109,10 @@ MCP clients and the CLI can list, reply to and resolve comments; see [MCP](../us
 | **Edit Spec JSON** in the **More** menu | The note you give, or "Edit the dashboard JSON". |
 | **Add panel** in the **More** menu | `Add "<title>"` unless you add a note. |
 | The agent creating or revising a dashboard | Written by the server from what the build changed. |
-| `update_panels` or `update_dashboard` over MCP | The summary the client sent, or "Update dashboard". |
+| `update_dashboard` over MCP | The summary the client sent, or "Update dashboard". |
+| `update_panels` over MCP | The summary the client sent, which is required. |
+| `observe dashboards apply` | `Applied from <path>`. |
+| A file provisioned from disk | `Provisioned from <path>`. |
 | `POST /api/v1/dashboards/{id}/versions` | The `summary` in the request. |
 | `POST /api/v1/dashboards/{id}/panels` | The `summary` in the request. |
 | A restore of an older version | "Restore version N", or the summary given. |

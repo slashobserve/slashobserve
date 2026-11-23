@@ -11,7 +11,7 @@ If you run three servers against one Postgres, one of them runs it at 10:00, one
 You do not configure the schedule, and you do not start a second scheduler.
 
 You see jobs in two places.
-The `jobs` table of the database has one row per job, and [two metrics](#metrics) count runs.
+The `jobs` table of the database has one row per job, and [two metrics](#metrics) report runs.
 A failed run also leaves a `job.run` event in the audit trail.
 
 ## How a job runs
@@ -67,8 +67,9 @@ When the job already holds a lease, the request records a `job.run` event with t
 
 Details of `last_error`:
 
-- It holds the error type and safe attributes such as `panic_type`, never the error's own text.
-- A job that panics records `scheduled job panicked with a` and the Go type of the panic value.
+- It holds `key=value` pairs: `error_type`, and when they apply `sqlstate`, `errno` and `panic_type`.
+- It never holds the error's own text, which can echo queries or credentials.
+- A job that panics records `error_type=scheduler.panicError` and `panic_type=<Go type of the panic value>`.
 
 ### The audit event of a run
 
@@ -79,6 +80,7 @@ A scheduled run that succeeds records none, and neither does a job stopped by a 
 | Field | Value |
 | --- | --- |
 | Target | Kind `job`, with the job name as the id. |
+| Actor | The person who started a manual run, or the system for a scheduled failure. |
 | `trigger` | `schedule` or `manual`. |
 | `duration_ms` | How long the run took. |
 | Outcome | `success`, or `failed` with the reason `job_failed`, or `panic` when the job panicked. |

@@ -6,6 +6,7 @@ description: The JSON document SlashObserve stores for each dashboard version, a
 ObserveSpec is the JSON format of a SlashObserve dashboard.
 Every saved version of a dashboard is one ObserveSpec document, and the web app, the agent, MCP clients, the API and the Grafana importer all read and write the same one.
 The current format is version `0`, and each document says so in `specVersion`.
+You work with it when you export a dashboard as JSON to keep it in Git, edit it by hand, apply it from the CLI, or read and write it through the API and MCP.
 
 For example, this is a whole dashboard with one panel:
 
@@ -55,13 +56,18 @@ The importer converts it into this format and keeps a `placeholder` panel for ea
 
 Open the **More** menu of a dashboard.
 
-1. **Export spec JSON** downloads the document of the version you are viewing.
-   **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI; see [Dashboards as code](../use/dashboards-as-code.md).
-2. **Edit details** changes the title, description and tags and saves them as a new version.
-   It needs Edit on the dashboard and works on the latest version.
-3. **Edit Spec JSON** opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
+- **Export spec JSON** downloads the document of the version you are viewing.
+  **Dashboards as code** next to it opens the guide to keeping these files in Git and applying them from the CLI; see [Dashboards as code](../use/dashboards-as-code.md).
+- **Edit details** changes the title, description and tags and saves them as a new version.
+  It needs Edit on the dashboard and works on the latest version.
+- **Edit Spec JSON** opens "Dashboard JSON" beside the dashboard with the whole document of the latest version, so variables, dashboard links and time settings can be edited there.
+
+To edit the JSON:
+
+1. Choose **Edit Spec JSON** and change the document.
    It checks the document as you type and lists one line per problem, such as `/panels/0/type: "timeseriesx" is not a panel type.`
-4. **Save as version N** saves the edit with the note you give, or "Edit the dashboard JSON", and runs every panel query as any whole-document save does.
+2. Choose **Save as version N**.
+   It saves the edit with the note you give, or "Edit the dashboard JSON", and runs every panel query as any whole-document save does.
 
 A version saved by someone else meanwhile is merged when it changed other things.
 When it changed the same things, the pane lists them with **Reload version N**.
@@ -151,7 +157,7 @@ The rest is optional, and an absent field means its default.
 | `time`                 | The default range, `from` and `to`. A value is relative, such as `now-6h`, `now-1d/d` or `now/fy`, or an RFC 3339 time.                                                                                             |
 | `refresh`              | An auto-refresh interval such as `30s`, `1m`, `1h` or `1d`.                                                                                                                                                         |
 | `timePicker`           | What the time picker offers: `hidden` removes it, `refreshIntervals` (1 to 20) replaces the auto-refresh choices and `quickRanges` (1 to 30 of `display`, `from` and `to`) the preset ranges. A `refresh` that is not in `refreshIntervals` is still allowed, and the default choices are `5s`, `10s`, `30s`, `1m`, `5m`, `15m`, `30m`, `1h`, `2h` and `1d`.                       |
-| `liveNow`              | `true` refreshes the dashboard every 5 seconds until someone picks another interval.                                                                                                                                |
+| `liveNow`              | `true` refreshes the dashboard every 5 seconds until someone picks another interval, when `refresh` is absent; a `refresh` wins.                                                                                                                                |
 | `timezone`             | `browser`, `utc` or an IANA zone such as `Asia/Kolkata`. Relative times resolve in this zone, and every panel draws its times in it unless the panel sets its own `timezone`.                                        |
 | `weekStart`            | The first day of the week for `now/w`: `monday` (the default), `sunday` or `saturday`.                                                                                                                              |
 | `fiscalYearStartMonth` | The month the fiscal year starts in for `now/fy` and `now/fQ`, from 0 (January, the default) to 11 (December).                                                                                                      |
@@ -197,6 +203,7 @@ The panel menu's **Keep this size** sets it, and **Make responsive** removes it.
 A data panel also has a `title` (up to 200 characters), a `datasource` and `queries`.
 A `table`, `logs`, `nodeGraph`, `traces`, `flamegraph`, `geomap` or `alertlist` panel always runs its queries as instant queries, whatever `instant` says.
 Its `type` is one of `timeseries`, `stat`, `gauge`, `bargauge`, `table`, `piechart`, `heatmap`, `histogram`, `state-timeline`, `logs`, `barchart`, `status-history`, `trend`, `xychart`, `candlestick`, `nodeGraph`, `traces`, `flamegraph`, `geomap`, `canvas` or `alertlist`.
+The agent's prompt lists only the common options of each type, and a Spec may use any option the schema has.
 The other panel types are:
 
 - `text`, which holds up to 20,000 characters of Markdown in `content` (required), rendered sanitized.
@@ -345,7 +352,7 @@ A `stat` panel has more optional `display` keys.
 - `wideLayout: true` puts the name and the value on one row when a tile is at least 200px wide and twice as wide as it is tall; when it is absent or `false` the name sits above the value.
 - `percentSize` sets the font size of the percent change in pixels (1 to 200), and `graphStyle: line` draws the sparkline as a line without the area under it (`area` by default).
 - `graph` (on by default) draws that sparkline in each tile, and `graph: false` leaves it out.
-- `textMode` is `value`, `name`, `valueAndName` or `none`; `name` shows the name as the tile's text, and when it is absent the name appears beside the value only when the panel has several tiles.
+- `textMode` is `value`, `name`, `valueAndName` or `none`; `name` shows the name as the tile's text, and when it is absent the name appears with the value only when the panel has several tiles.
 - `orientation` lays the tiles out in one row (`horizontal`), one column (`vertical`) or to fit the panel (`auto`, the default).
 
 ### Pie chart display options
@@ -383,7 +390,8 @@ More `display` keys shape the bars and the labels:
 - `colorByField` names a number field whose thresholds and colors color each bar.
 - `xTickRotation` (-90 to 90 degrees, 0 by default), `xTickSpacing` (the least pixels between labels, 0 to 500, 0 for automatic) and `xTickMaxLength` (1 to 200 characters) shape the category labels.
 - `valueSize` (6 to 100 pixels, 12 by default) sizes the value text.
-- `legend`, `tooltip` and their options are the same as a time series, without the zero and empty legend options.
+- `legend`, `legendMode`, `legendValues` (up to 8 reducers), `legendSortBy`, `legendSortDesc`, `legendWidth` (40 to 2000), `tooltip`, `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight` work as on a time series, except that `tooltipSort` defaults to `none` and there are no `legendHideZero`, `legendHideEmpty` or `tooltipCumulative` options.
+- `showValues` (`auto` where the text fits, `always` or `never`; `auto` by default) writes each bar's value on it.
 
 ### Histogram display options
 
@@ -502,7 +510,8 @@ An element's `actions` are HTTP requests that a person triggers from the panel:
   "method": "POST",
   "url": "https://deploy.example.com/api/deploy",
   "body": "{\"env\": \"${env}\"}",
-  "confirm": "Deploy to ${env}?"
+  "confirm": "Deploy to ${env}?",
+  "variables": [{ "key": "env", "name": "Environment" }]
 }
 ```
 
@@ -713,7 +722,7 @@ Its `type` is:
 
 `valueMode` (`color`, `text`, the default, or `hidden`) sets how a gauge or sparkline cell shows its value, and `wrap` lets the cell's text wrap onto several lines.
 A column's field actions also show in the menu beside its cell's value, and a one-click action runs from the whole cell.
-Other panel types ignore `cell`.
+Other panel types ignore `cell`, and the agent's prompt does not list it.
 
 A `table` column also takes:
 
@@ -745,7 +754,7 @@ Time series and trend panels draw every `colorMode`, while stat, gauge, bar gaug
 
 ### Value mappings
 
-`mappings` change how a value is shown: a field has up to 50, each with a `text` of up to 200 characters, a `color`, or both.
+`mappings` change how a value is shown: a field has up to 50, each can set a `text` (up to 200 characters), a `color`, or both.
 Each mapping matches in one of four ways:
 
 - `value`, a text of 1 to 200 characters that equals the value, or the number it spells.
@@ -765,7 +774,7 @@ Beside a stat, gauge or bar gauge value, a step colored `ok`, `info`, `warning` 
 
 ### Units
 
-A unit is one of the Grafana unit ids the schema lists, such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom text: `suffix:` or `prefix:` with 1 to 20 characters after it, or `time:`, `si:`, `count:` or `currency:` with 1 to 40.
+A unit is one of the Grafana unit ids the schema lists (the agent's prompt lists only the common ids and `suffix:` and `prefix:`, but a Spec may use any of them), such as `reqps`, `s`, `bytes`, `percentunit` or `radbq`, or custom text: `suffix:` or `prefix:` with 1 to 20 characters after it, or `time:`, `si:`, `count:` or `currency:` with 1 to 40.
 The text after `time:` is a date format, `si:` a symbol that scales by 1000 with SI prefixes (`si:mF` starts at milli), `count:` text after a K, Mil or Bil scaled number, and `currency:` a symbol before a scaled number.
 
 ### Reducers
@@ -856,7 +865,7 @@ The first steps take more options:
 - `organize` adds `include` (keep only the listed fields, before `exclude`, `rename` and `order`).
 - `reduce` adds `includeTime` (reduce the time field too), `labelsToFields` (add each label as a column) and `fields` or `fieldsRegex` (reduce only those number fields).
 - `joinByField` adds the `mode` `outerTabular` (an outer join that keeps repeated keys as separate rows instead of pairing them).
-- `filterFieldsByName` adds `exclude`, `excludeRegex` and `variable` (keep the fields named by the variable's selection; an unset selection or All keeps every field).
+- `filterFieldsByName` adds `variable` (keep the fields named by the variable's selection; an unset selection or All keeps every field).
 - `sortBy` adds `then`, further `field` and `desc` keys that break ties.
 - `limit` takes `count` as `${name}` to read the row count from a variable (an unset selection or All keeps every row).
 - `calculateField` adds:
@@ -894,7 +903,7 @@ Further rules reject what a schema cannot express, such as duplicate panel ids o
 The server then checks that every datasource uid is configured and runs the queries (see [How the agent builds a dashboard](agent.md)).
 
 A document that fails a check is refused with `422` and the code `invalid_spec`.
-The body lists every problem in `issues`, each with a path into the document, a code and a message.
+The body lists the problems in `issues`, at most 50 (a last `too_many_issues` entry says how many were left out), each with a path into the document, a code and a message.
 
 ## Where the schema is
 

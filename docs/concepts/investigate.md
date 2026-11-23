@@ -74,9 +74,8 @@ The observation follows the access of the folder it is in, so someone who cannot
 These rules decide the folder:
 
 - An investigation about a dashboard files its observation in that dashboard's folder when you can edit it.
-- Otherwise it files it in your My Dashboards, or in General.
+- Otherwise it files it in your My Dashboards, or in General when you have none.
 - The observation stays where it was filed when the dashboard moves.
-- A finding saved over the API or MCP with no dashboard goes to General when the saver has no My Dashboards.
 
 [Observations](../use/observations.md#investigations-write-into-an-observation) describes the blocks and the rules in full.
 
@@ -89,7 +88,7 @@ Two deprecated routes act on a finding.
 Details of pinning:
 
 - The annotation sits at the end of the finding's window, tagged `finding`.
-- Its text is the finding's first line and its address.
+- Its text is the finding's first line and its `/findings/<id>` path.
 - Pinning needs Edit on the dashboard.
 - Pinning a finding twice returns the same annotation, with `200` the second time and `201` the first.
 
@@ -115,7 +114,7 @@ Retry it with `POST /api/v1/observe/{id}/retry` or `observe retry`.
 
 Details of `from` and `to`:
 
-- Each is a relative time such as `now-1h` or epoch milliseconds.
+- Each is a relative time such as `now-1h`, epoch milliseconds or an RFC 3339 time.
 - `from` must be before `to`, and the two may be at most 400 days apart.
 - Without them the agent looks at the last hour.
 - With `as_of`, `to` must not be later than `as_of`.
@@ -160,7 +159,7 @@ Details of the evidence:
 
 Details of the markdown:
 
-- The server appends a note when reads were refused after the run reached its limit of model calls, or when a datasource did not answer.
+- The server appends a note when reads were refused after the run reached its limit of model calls (12 by default, set by `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`), or when a datasource did not answer.
 - That note counts toward the 400 words and the 4,000 characters.
 
 A finding has the id of its observation when the save creates it, and its own id when the run already had an observation.

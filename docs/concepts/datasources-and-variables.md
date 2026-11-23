@@ -3,7 +3,9 @@ title: Datasources and variables
 description: How a dashboard names its datasources, the eight variable types, and how multi-value, All, datasource and ad hoc variables work, with the formats and limits.
 ---
 
-A dashboard names its datasources by `uid`, and it lets viewers change what its queries use through variables.
+A datasource is a configured connection to a backend such as Prometheus or Loki, and a dashboard names each one by `uid`.
+A variable lets a viewer change what a dashboard's queries use, so one dashboard serves many services or environments without anyone editing the document.
+Use a datasource uid in every panel, and add variables when viewers need to filter, switch service or switch environment.
 Both are fields of the [ObserveSpec](observespec.md) document.
 
 For example, a dashboard can offer a `job` dropdown, and the viewer's choice replaces `$job` in every query:
@@ -41,7 +43,7 @@ The entry's `type` decides the query language and which macros a query may use.
 It is `prometheus`, `clickhouse`, `loki`, `tempo`, `jaeger`, `elasticsearch` or `opensearch`.
 
 A data panel sets `datasource`, and any of its queries can set its own `datasource` to use a different one.
-A `query` variable and an `adhoc` variable set `datasource` too.
+A `query`, `adhoc` or `groupby` variable sets `datasource` too.
 A save is rejected with `unknown_datasource` when a uid names no configured datasource.
 So renaming or removing a uid breaks the next save of every dashboard that uses it.
 
@@ -54,8 +56,8 @@ So renaming or removing a uid breaks the next save of every dashboard that uses 
    An unhealthy one carries `message` and `detail`.
    `POST /api/v1/datasources/{uid}/recheck` runs a fresh check.
 
-`list_datasources` and `recheck_datasource` do the same over MCP, and `observe datasources recheck` from the CLI.
-The agent is told which datasources are healthy before it starts.
+`list_datasources` does the same over MCP and in the built-in agent, `recheck_datasource` over MCP, and `observe datasources recheck` from the CLI.
+The agent is also told which datasources are healthy before it starts.
 A recheck skips the 10 second cache of health results, and checks of one datasource are at least 2 seconds apart, so a retry loop cannot hammer it.
 
 ## Variables
@@ -121,9 +123,9 @@ A `query` variable accepts any value either way.
 
 A `datasource` variable lets a viewer switch a whole dashboard between datasources of one type, such as a production and a staging Prometheus.
 
-1. Declare the variable with `type: "datasource"` and a `datasourceType`.
+1. Declare the variable with `type: "datasource"` and a `datasourceType`: `prometheus`, `clickhouse`, `loki`, `tempo`, `elasticsearch` or `opensearch`.
    Add `regex` to keep only the uids it matches, and `default` with a uid, never a `${name}`.
-2. Write `${name}` as the `datasource` of a panel, of a query, of a `query` variable or of an `adhoc` variable.
+2. Write `${name}` as the `datasource` of a panel, of a query, of a `query` variable, of an `adhoc` variable or of a `groupby` variable.
 3. The query runs on the selected datasource, and its macros follow the variable's `datasourceType`.
 
 The form is exactly `${name}`, so `$name` and `${name:format}` are not datasource references.
@@ -168,7 +170,7 @@ This is `spec/examples/datasource-variable.json` without its title and time rang
 ]
 ```
 
-A `query` or `adhoc` variable can use `${name}` only when the `datasource` variable is declared before it.
+A `query`, `adhoc` or `groupby` variable can use `${name}` only when the `datasource` variable is declared before it.
 A panel or panel query can use any `datasource` variable.
 The save refuses a bad reference:
 
@@ -181,7 +183,7 @@ The save refuses a bad reference:
 The Datasources page and the datasource filter on the Dashboards page count a dashboard under a datasource variable's `default`.
 A datasource variable with no `default` adds nothing to those counts.
 
-`datasourceType` is not `jaeger`, because the ObserveSpec schema does not list Jaeger there yet.
+`datasourceType` has no `jaeger` value, because the ObserveSpec schema does not list Jaeger there yet.
 A panel names a [Jaeger](../connect/jaeger.md) datasource by its uid.
 
 ## Set a minimum step with an interval variable
@@ -209,25 +211,27 @@ An `adhoc` variable lets a viewer add key, operator and value filters to every q
 1. Declare the variable with `type: "adhoc"` and a `datasource`.
 2. The viewer adds filters in the control, such as `service = checkout`.
 3. The filters apply to queries on Prometheus, ClickHouse, Elasticsearch and OpenSearch datasources.
+   They filter Prometheus, Elasticsearch and OpenSearch queries automatically, and ClickHouse queries only through `$name` or with `applyToAll`.
    A Loki, Tempo or Jaeger query takes no ad hoc filters.
 
 The operators are `=`, `!=`, `=~` and `!~`, plus `<` and `>` on ClickHouse, Elasticsearch and OpenSearch.
-`<` and `>` compare as numbers when both sides are plain numbers and as text otherwise.
+The filter picker offers `<` and `>` on ClickHouse only, though a Spec may set them on the others.
 
 How the filters reach the query depends on the datasource:
 
 - On Prometheus the filters are added as label matchers to every selector in every query on that datasource, and a query cannot refer to the variable.
-  Prometheus can only AND label matchers, so a variable that uses `<`, `>` or `or` makes its queries fail with an error that names it.
+  Prometheus can only AND label matchers, so a variable that uses `<`, `>` or `or` makes its queries fail with an error that names the operator or condition.
 - On ClickHouse a query uses the variable explicitly, as `$name` in a `WHERE` clause such as `AND $name`.
   It becomes the filters joined by `AND`, or `1 = 1` when there are none.
   A filter that starts an `or` group opens a new group, so `a, b, or c` is `(a AND b) OR c`.
+  `<` and `>` compare as numbers when both sides are plain numbers and as text otherwise.
 - On Elasticsearch and OpenSearch every ad hoc variable filters every query on its datasource, and filters joined with `or` become a `should` group.
   The [Elasticsearch](../connect/elasticsearch.md#ad-hoc-filters) page describes the clauses.
 
 A ClickHouse variable with `applyToAll` also filters every query on its datasource that leaves out `$name`.
 It does this through `additional_table_filters` on the tables the query reads, and each table gets only the filters whose key is one of its columns.
 Without `applyToAll`, a query that leaves out `$name` ignores the filters.
-The Grafana importer sets `applyToAll` on every ClickHouse ad hoc variable.
+The Grafana importer sets `applyToAll` on every ClickHouse, Elasticsearch and OpenSearch ad hoc variable.
 
 ### Start with filters in place
 
@@ -248,7 +252,7 @@ They are one more group that the selected filters cannot loosen.
 `keys` (up to 100) are the keys the filter picker offers instead of asking the datasource.
 `listedValuesOnly: true` makes the picker accept a filter only when its key and value come from the lists it shows, and the value list comes from Prometheus label values.
 An operator outside the six is a schema error when the Spec is saved.
-A key that is not a label name (Prometheus) or a column name (ClickHouse) fails the save checks.
+A key that is not a label name (Prometheus, Elasticsearch and OpenSearch) or a column name (ClickHouse) fails the save checks.
 
 ### Let viewers group by labels
 
@@ -297,7 +301,7 @@ A `query` variable's `query` depends on the datasource:
 | Prometheus | `label_values(label)` or `label_values(selector, label)`. |
 | ClickHouse | One `SELECT`, whose first column gives the values. |
 | Loki | `label_values(label)` or `label_values({selector}, label)`. |
-| Elasticsearch, OpenSearch | `label_values(field)`. |
+| Elasticsearch, OpenSearch | `label_values(field)` or `label_values(query, field)`. |
 | Tempo, Jaeger | No query variables. |
 
 The [Loki](../connect/loki.md#variables-and-discovery) and [Elasticsearch](../connect/elasticsearch.md#variables-and-discovery) pages describe the Loki and search forms.
@@ -357,7 +361,7 @@ When a reference gives no format, the server picks one from where the variable s
 | ClickHouse | Inside a quoted string | `raw` |
 | ClickHouse | Outside quotes | `sqlstring` |
 | Elasticsearch, OpenSearch | Inside a quoted string | The one value, JSON-escaped; several values need a format such as `${var:pipe}` |
-| Elasticsearch, OpenSearch | Outside quotes | `"a"` for one value, `("a" or "b")` for several |
+| Elasticsearch, OpenSearch | Outside quotes | `"a"` for one value, `("a" OR "b")` for several |
 
 Details of All in the `regex` format:
 

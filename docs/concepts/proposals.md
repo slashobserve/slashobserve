@@ -27,7 +27,8 @@ An Editor opens it, reads the changes, and chooses **Merge**, which saves versio
 
 A link on the page opens the dashboard at the version the proposal builds on, or at the merged version once it is merged.
 The proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
-The count in the top row follows the dashboard's live events, so every open copy of the dashboard updates it without a reload.
+The count in the top row follows the `proposal.updated` event of the dashboard's event stream, sent when a proposal is opened, gets a revision, is merged or is discarded, so every open copy of the dashboard updates it without a reload.
+A discarded proposal's page shows its reason under the state line.
 
 You cannot merge when you lack Edit on the dashboard.
 In that case the page says "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
@@ -35,7 +36,7 @@ The author still sees **Discard**, with the note "You can discard this one becau
 
 ## Resolve a conflict
 
-A proposal can be behind: the dashboard has a newer version than the one the proposal builds on, and `latest_version` names it.
+A proposal can be behind: the dashboard has a newer version than the one the proposal builds on, the `behind` field is true, and `latest_version` names that version.
 Behind is no problem by itself, because a merge puts the proposal's changes on top of the latest version.
 
 A conflict exists when the proposal and a newer version changed the same panel, variable or setting.
@@ -53,7 +54,7 @@ Discard the proposal or ask its author to fix it.
 
 If the author added a revision while you were reading, the merge says "This proposal has a newer revision. Review it and merge again." and the page reloads the proposal.
 A merge that saved nothing reads "Merged without a new version".
-That happens when the result equals the latest version, for example when you resolve every conflict with the dashboard's side.
+That happens when the result equals the latest version, for example when the proposal changed only units the dashboard already changed and you keep the dashboard's side of each.
 
 ## Make a proposal
 
@@ -108,7 +109,7 @@ The proposal's `title` is the newest revision's summary, so the title and the su
      -d '{"revision": 2, "choices": [{"kind": "panel", "id": "p1", "take": "theirs"}]}'
    ```
 
-3. The answer is `200` with the proposal.
+3. The answer is `200` with the proposal's summary fields, without `spec`, `changes`, `diff` or `conflicts`.
    `merged_version` holds the new version, and the `Location` header points at it.
 
 The `take` of a choice is `ours` to keep the dashboard's newer version of the unit, or `theirs` to take the proposal's.
@@ -152,8 +153,10 @@ Details of a merge:
 - The body must name the `revision` the caller read, a positive 32-bit integer.
   `409` with the code `proposal_changed` and the newest `revision` says the author added a newer one.
 - `choices` takes at most 400 items, each with a `kind` of `panel`, `variable` or `setting`, the unit's `id` and a `take` of `ours` or `theirs`.
+- A merge that leaves a conflict without a choice answers `409` with the code `version_conflict` and the `conflicts` list; sending a choice for each succeeds.
 - It runs the same checks as any save, and the new version records the proposal it came from as `merged_proposal_id`.
 - When the result equals the latest version, nothing is saved, and the proposal closes as merged with no `merged_version`.
+- The agent's `merge_proposal` step reads "Merged proposal as version N", or "Merged proposal; it saved no new version because the dashboard already had everything kept", and adds which proposed changes were dropped because the dashboard's own was kept.
 
 ### Discard
 
@@ -167,7 +170,8 @@ Details of a merge:
 
 ### What a close tells people
 
-- When someone other than the author merges or discards a proposal, the author gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
+- When someone other than the author merges or discards a proposal, an author who is a person gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
+  A proposal opened with a service-account key notifies nobody.
 - Merging or discarding posts a comment in the proposal's discussion, written as the person or key that closed it.
   A merge posts "Merged as version N." or "Merged." when no version was saved.
   A discard posts "Discarded." and adds "Reason: ..." when there is one.
