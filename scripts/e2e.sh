@@ -1710,7 +1710,7 @@ revisions_suite() {
   fi
   out="$(api GET "/dashboards/$id/versions/2")"
   if [[ "$out" != 200 ]] || ! grep -qF '"summary":"Renamed \"Requests per second\" to \"Requests per second by route\"; changed \"Requests per second by route\"."' "$TMP/api.body" \
-    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (route)' "$TMP/api.body"; then
+    || ! grep -q '"author":{"kind":"service_account"' "$TMP/api.body" || ! grep -q 'sum by (span_name)' "$TMP/api.body"; then
     fail "the revised version 2 ($out: $(cat "$TMP/api.body"))"
   fi
   out="$(api GET "/dashboards/$id/comments")"
