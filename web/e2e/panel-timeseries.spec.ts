@@ -15,6 +15,12 @@ function legendOf(article: Locator) {
   return article.getByRole("group", { name: "Series" })
 }
 
+async function hoverLatestPoint(plot: Locator) {
+  const box = await plot.boundingBox()
+  if (!box) throw new Error("the chart has no plot area")
+  await plot.hover({ position: { x: box.width - 4, y: box.height / 2 } })
+}
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(colorScheme, () => {
     test.use({ colorScheme })
@@ -32,9 +38,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         legend.getByRole("button", { name: "total", exact: true })
       ).toBeVisible()
-      await expect(
-        legend.getByRole("button", { name: /checkout-1/ })
-      ).toHaveCount(0)
+      await expect(legend.getByRole("button", { name: /payment/ })).toHaveCount(
+        0
+      )
       await expect(
         legend.getByRole("columnheader", { name: "Mean" })
       ).toBeVisible()
@@ -100,14 +106,14 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expectPanelsReady(page)
 
       const article = panel(page, "Requests and errors")
-      await article.locator(".u-over").hover()
+      await hoverLatestPoint(article.locator(".u-over"))
       const tooltip = article.locator('[data-slot="chart-tooltip"]')
       await expect(tooltip).toBeVisible()
       expect(await tooltip.locator(".ts-tooltip-row").count()).toBeGreaterThan(
         1
       )
       await expect(
-        tooltip.locator(".ts-tooltip-row", { hasText: "checkout-1" })
+        tooltip.locator(".ts-tooltip-row", { hasText: "payment" })
       ).toHaveCount(0)
     })
   })

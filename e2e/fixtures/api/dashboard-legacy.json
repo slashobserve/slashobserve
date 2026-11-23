@@ -12,7 +12,7 @@
         "title": "Requests per second",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
         "datasource": { "type": "prometheus", "uid": "prom" },
-        "query": "sum(rate(http_requests_total[$__rate_interval]))"
+        "query": "sum(rate(traces_span_metrics_calls_total[$__rate_interval]))"
       },
       {
         "id": "log_services",

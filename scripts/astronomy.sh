@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ASTRONOMY_DIR="$ROOT/deploy/astronomy"
 UPSTREAM_DIR="$ASTRONOMY_DIR/.upstream"
 STATE_DIR="${ASTRONOMY_STATE_DIR:-$ASTRONOMY_DIR/.state}"
-PROJECT="slashobserve-astronomy"
+PROJECT="${ASTRONOMY_PROJECT:-slashobserve-astronomy}"
 MIN_COMPOSE="2.24.4"
 WAIT_TIMEOUT=900
 CHECK_WAIT="${ASTRONOMY_CHECK_WAIT:-180}"
@@ -43,8 +43,14 @@ Usage: scripts/astronomy.sh <command>
                       without a name, list the feature flags and their variants;
                       with one, set it to <variant> (default 'on'); 'off' switches it off
   key                 print the path of the file that holds the service-account key
+  prepare             fetch the pinned upstream release and create the state directory, which
+                      'compose' needs before its first call
+  compose <args>      run docker compose with this stack's files and project
 
 Environment:
+  ASTRONOMY_PROJECT           the compose project name (default slashobserve-astronomy)
+  ASTRONOMY_STATE_DIR         where the key and the flag file live (default deploy/astronomy/.state)
+  ASTRONOMY_COMPOSE_FILES     more compose files to layer on top, separated by colons
   SLASHOBSERVE_HOST_PORT      host port of the server (default 58080)
   SLASHOBSERVE_DEX_HOST_PORT  host port of Dex (default 55556)
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
@@ -115,11 +121,15 @@ prepare_state() {
 compose() {
   local files=(-f "$UPSTREAM_DIR/compose.yaml" -f "$UPSTREAM_DIR/compose.full.yaml" -f "$ASTRONOMY_DIR/compose.yaml" -f "$ASTRONOMY_DIR/compose.build.yaml")
   local envs=(--env-file "$UPSTREAM_DIR/.env" --env-file "$ASTRONOMY_DIR/astronomy.env")
-  local profiles=()
+  local profiles=() extra extras=()
   if [[ "$SEARCH" == 1 ]]; then
     files+=(-f "$ASTRONOMY_DIR/compose.search.yaml")
     profiles+=(--profile search)
   fi
+  IFS=: read -r -a extras <<<"${ASTRONOMY_COMPOSE_FILES:-}"
+  for extra in ${extras[@]+"${extras[@]}"}; do
+    files+=(-f "$extra")
+  done
   if [[ -f "$ASTRONOMY_DIR/.env" ]]; then envs+=(--env-file "$ASTRONOMY_DIR/.env"); fi
   docker compose --project-directory "$UPSTREAM_DIR" "${envs[@]}" "${files[@]}" ${profiles[@]+"${profiles[@]}"} "$@"
 }
@@ -290,6 +300,17 @@ cmd_flag() {
   printf '%s is now %s; flagd reloads the file within a few seconds\n' "$name" "$variant"
 }
 
+cmd_prepare() {
+  check_tools
+  fetch_upstream
+  prepare_state
+}
+
+cmd_compose() {
+  SEARCH=0
+  compose "$@"
+}
+
 cmd_key() {
   [[ -f "$KEY_FILE" ]] || die "no key yet; run 'up' first"
   printf '%s\n' "$KEY_FILE"
@@ -305,6 +326,8 @@ main() {
     check) cmd_check "$@" ;;
     flag) cmd_flag "$@" ;;
     key) cmd_key ;;
+    prepare) cmd_prepare ;;
+    compose) cmd_compose "$@" ;;
     -h | --help | help | "") usage ;;
     *)
       usage >&2

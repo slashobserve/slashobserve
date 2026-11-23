@@ -7,9 +7,9 @@ import {
 import { expectPanelsReady } from "./dashboards"
 import { expect, test, type Page } from "./fixtures"
 
-const redPrompt = "demo shop RED metrics by endpoint"
-const followUpQuestion = "can this show requests by pod?"
-const suggestedChange = "add a requests by pod panel"
+const redPrompt = "astronomy shop RED metrics by endpoint"
+const followUpQuestion = "can this show requests by service?"
+const suggestedChange = "add a requests by service panel"
 const draftPrompt = "an unsent draft"
 const neverSavesPrompt = "e2e: a slow run that never saves"
 const unanswerablePrompt = "e2e: a follow-up the replay provider cannot answer"
@@ -286,7 +286,7 @@ test("follows up in the same chat", async ({ page }) => {
   await expect(page).toHaveURL(conversationUrl)
   await expect(promptBar).toHaveAttribute(
     "placeholder",
-    "Ask about Demo shop RED metrics"
+    "Ask about Astronomy shop RED metrics"
   )
 })
 

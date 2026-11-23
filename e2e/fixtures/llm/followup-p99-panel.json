@@ -7,7 +7,7 @@
           "name": "lint_query",
           "input": {
             "datasource": "prom",
-            "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+            "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
           }
         }
       ]
@@ -27,7 +27,7 @@
                 "datasource": "prom",
                 "queries": [
                   {
-                    "query": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[$__rate_interval])))"
+                    "query": "histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
                   }
                 ]
               }

@@ -1,0 +1,8 @@
+services:
+  server:
+    volumes:
+      - ${SLASHOBSERVE_COMPOSE_DIR:?}/datasources.e2e.yaml:/etc/slashobserve/datasources.yaml:ro
+      - ${ASTRONOMY_DIR:?}/../../e2e/fixtures/llm:/etc/slashobserve/llm-fixtures:ro
+  prometheus:
+    ports:
+      - 127.0.0.1:${SLASHOBSERVE_PROMETHEUS_HOST_PORT:?}:9090

@@ -9,7 +9,7 @@
         "name": "job",
         "type": "query",
         "datasource": "prom",
-        "query": "label_values(up, job)",
+        "query": "label_values(traces_span_metrics_calls_total, job)",
         "multi": true,
         "includeAll": true
       },
@@ -30,7 +30,7 @@
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "sum by (job) (up{job=~\"$job\"})" }
+          { "query": "sum by (job) (traces_span_metrics_calls_total{job=~\"$job\"})" }
         ]
       },
       {
@@ -40,7 +40,7 @@
         "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
         "datasource": "prom",
         "queries": [
-          { "query": "count(up{job=~\"${job:pipe}\"})" }
+          { "query": "count(traces_span_metrics_calls_total{job=~\"${job:pipe}\"})" }
         ]
       },
       {

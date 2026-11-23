@@ -6,10 +6,11 @@ inputs:
     description: Tag of the server image.
     required: true
   shop-tag:
-    description: Tag of the demo shop image.
-    required: true
+    description: Tag of the demo shop image; leave it empty for a stack that needs no demo shop image.
+    required: false
+    default: ""
   warm:
-    description: Command that starts the services which need no server image; it runs in the background as soon as the shop image exists.
+    description: Command that starts the services which need no server image; it runs in the background as soon as the shop image, if any, exists.
     required: false
     default: ""
 
@@ -23,24 +24,26 @@ runs:
 
     - name: Restore the demo shop image
       id: shop
+      if: inputs.shop-tag != ''
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ runner.temp }}/shop-image.tar
         key: shop-image-${{ runner.os }}-${{ hashFiles('demo/**') }}
 
     - name: Load the demo shop image
-      if: steps.shop.outputs.cache-hit == 'true'
+      if: inputs.shop-tag != '' && steps.shop.outputs.cache-hit == 'true'
       shell: bash
       run: docker load -i "$RUNNER_TEMP/shop-image.tar"
 
     - name: Build the demo shop image
-      if: steps.shop.outputs.cache-hit != 'true'
+      if: inputs.shop-tag != '' && steps.shop.outputs.cache-hit != 'true'
       shell: bash
       run: |
         docker build -t slashobserve-demo-shop:cached demo
         docker save -o "$RUNNER_TEMP/shop-image.tar" slashobserve-demo-shop:cached
 
     - name: Tag the demo shop image
+      if: inputs.shop-tag != ''
       shell: bash
       env:
         SHOP_TAG: ${{ inputs.shop-tag }}

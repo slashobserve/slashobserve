@@ -11,7 +11,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (route) (rate(http_requests_total[5m]))",
+          "query": "sum by (span_name) (rate(traces_span_metrics_calls_total{service_name=\"frontend\",span_kind=\"SPAN_KIND_SERVER\"}[5m]))",
           "instant": true,
           "format": "table"
         }
@@ -77,7 +77,7 @@
       "datasource": "prom",
       "queries": [
         {
-          "query": "sum by (job) (up)",
+          "query": "sum by (job) (traces_span_metrics_calls_total)",
           "legend": "{{job}}"
         }
       ],
