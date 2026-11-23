@@ -13,7 +13,7 @@ auth-login:
           type: string
     responses:
       "302":
-        description: Redirect to the identity provider, or to `/login?error=<code>` when sign-in cannot start.
+        description: Redirect to the identity provider, or to `/login?error=<code>` when sign-in cannot start, with `unavailable` when discovery fails and `sign_in_off` when the server has no identity provider configured.
         headers:
           Location:
             required: true
@@ -48,7 +48,7 @@ auth-callback:
           type: string
     responses:
       "302":
-        description: Redirect to the return path with a session cookie, or to `/login?error=<code>` on refusal.
+        description: Redirect to the return path with a session cookie, or to `/login?error=<code>` on refusal, with `sign_in_off` when the server has no identity provider configured.
         headers:
           Location:
             required: true

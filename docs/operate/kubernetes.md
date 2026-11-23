@@ -71,6 +71,13 @@ helm install slashobserve deploy/helm/slashobserve --namespace slashobserve -f v
 The image defaults to `ghcr.io/slashobserve/slashobserve` at the chart's `appVersion`; set `image.tag`, and `image.digest` to pin the digest too.
 `values.schema.json` in the chart describes every value, and the install fails before it reaches the cluster when a required one is missing.
 The chart sets the environment variables of the [configuration reference](../reference/configuration.md) from the values; add any other `SLASHOBSERVE_*` setting under `env`, in Kubernetes `EnvVar` form.
+For example, `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` has no value of its own; set it under `env`, with the number quoted because `value` is a string:
+
+```yaml
+env:
+  - name: SLASHOBSERVE_AGENT_INVESTIGATION_CALLS
+    value: "24"
+```
 
 To enable the agent, set `llm.provider`, `llm.model` when the provider needs one, `llm.apiKey.existingSecret`, and `llm.effort` if you want a different effort level; see [LLM providers](../connect/llm-providers.md).
 The server starts `observe-agent` from the image whenever `llm.provider` is set, and that process makes the model calls from the pod, so the pod needs a network path to the provider.
