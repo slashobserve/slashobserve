@@ -3,98 +3,205 @@ title: Proposals
 description: How a change from someone who cannot edit, or from a connection in propose mode, waits as a proposal until a person who can edit merges or discards it.
 ---
 
-A proposal is a change to a dashboard that is saved for review and not into the dashboard.
+A proposal is a change to a dashboard that is saved for review instead of into the dashboard.
 It holds a whole [ObserveSpec](observespec.md) document and the version it builds on, and it changes nothing until a person who can edit merges it.
 Merging saves it as the next [version](versions.md) of the dashboard.
 
-## Who gets a proposal
+For example, Sam has Comment access to the Checkout dashboard but cannot edit it.
+Sam asks the built-in agent to add a latency panel.
+The dashboard stays as it is, and a proposal titled "Add p95 latency panel" appears in its top row as "1 proposal".
+An Editor opens it, reads the changes, and chooses **Merge**, which saves version 6 of the dashboard.
 
-A save becomes a proposal when the caller has Comment on the dashboard but not Edit, or when the caller's connection is in propose mode, and the request says `propose_if_needed: true`.
-The save is checked as any other save is, so a document that does not parse or whose queries fail is refused with `422` and opens no proposal.
-The answer is `202` with the `proposal_id`, the `revision` and whether the save `opened` the proposal.
+## Review a proposal
 
-Without `propose_if_needed`, the same save is refused with `403`.
-A Viewer can never propose.
-A connected agent in propose mode can never write a version directly, even when its person is an Editor.
-It also cannot remove panels or variables: such a save answers `proposal_required` and names them, and nothing is proposed, so the agent asks its person to remove them.
+1. Open the dashboard.
+   When it has open proposals, the top row shows "1 proposal" or "N proposals", with "N+" when more than one page of them is open.
+2. Choose that button, then choose a proposal.
+   The list shows each title, its author, when it was opened and "Behind" when the dashboard has moved on.
+   A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id>`.
+3. Read the page.
+   It shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, and the list of changes by panel, "Variable <name>" and "Dashboard settings".
+   Below that, a field-by-field difference from the version the proposal builds on shows each query or option before and after, as the [version history](versions.md) shows two versions.
+4. Choose **Merge**, or choose **Discard** and optionally give a **Reason (optional)**.
+   A toast reads "Merged as version N" with **Open dashboard**.
 
-## One open proposal for each author
+A link on the page opens the dashboard at the version the proposal builds on, or at the merged version once it is merged.
+The proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
+The count in the top row follows the dashboard's live events, so every open copy of the dashboard updates it without a reload.
 
+You cannot merge when you lack Edit on the dashboard.
+In that case the page says "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
+The author still sees **Discard**, with the note "You can discard this one because you opened it."
+
+## Resolve a conflict
+
+A proposal can be behind: the dashboard has a newer version than the one the proposal builds on, and `latest_version` names it.
+Behind is no problem by itself, because a merge puts the proposal's changes on top of the latest version.
+
+A conflict exists when the proposal and a newer version changed the same panel, variable or setting.
+The merge is refused until you choose a side for each conflict.
+
+1. Open the proposal.
+   Each conflicting row says in words which panel, variable or setting changed on both sides, and shows the panel's title on the dashboard and in the proposal.
+2. Choose "Keep the dashboard's" or "Take this proposal's" for every row.
+   **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
+3. Choose **Merge**.
+   When you kept the dashboard's side of a conflict, the toast adds which panels, variables or settings the proposed change was dropped for.
+
+A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice.
+Discard the proposal or ask its author to fix it.
+
+If the author added a revision while you were reading, the merge says "This proposal has a newer revision. Review it and merge again." and the page reloads the proposal.
+A merge that saved nothing reads "Merged without a new version".
+That happens when the result equals the latest version, for example when you resolve every conflict with the dashboard's side.
+
+## Make a proposal
+
+You do not create a proposal with its own route.
+You save, and the save becomes a proposal when you cannot save directly.
+
+1. Send the save with `propose_if_needed: true`:
+
+   ```sh
+   curl -fsS -X POST -H "Authorization: Bearer $OBSERVE_TOKEN" \
+     -H "Content-Type: application/json" \
+     "$OBSERVE_SERVER/api/v1/dashboards/$DASHBOARD_ID/versions" \
+     -d '{"parent_version": 5, "summary": "Add p95 latency panel", "propose_if_needed": true, "spec": {...}}'
+   ```
+
+2. When you have Comment but not Edit, or your connection is in propose mode, the answer is `202`.
+   The body has `proposal_id`, `revision` and `opened`, and the `Location` header names the proposal.
+3. Read the proposal with `GET /api/v1/proposals/{id}`.
+
+The save is checked as any other save is.
+A document that does not parse or whose queries fail is refused with `422` and opens no proposal.
+
+`POST /api/v1/dashboards/{id}/panels` takes `propose_if_needed` too.
+The MCP tools `update_dashboard` and `update_panels` always propose when they must, and answer `proposed` with the `proposal_id`.
+The built-in agent does the same.
+
+## Change a proposal you opened
+
+Save again.
 A person or key has at most one open proposal on a dashboard, and a run of the built-in agent has at most one as well.
-A later save by the same author does not open another proposal: it adds a revision to the open one.
-The new revision keeps what the earlier revisions changed when it can be combined with the new save, taking the new save where both changed the same panel, variable or setting.
+A later save by the same author adds a revision to the open proposal and does not open another.
+
+The new revision keeps what the earlier revisions changed when it can be combined with the new save.
+Where both changed the same panel, variable or setting, it takes the new save.
 When they cannot be combined, the new revision holds the new save alone.
 
 Each revision is kept with the version it builds on.
 `revision` on a proposal is the newest one, and a merge names the revision the caller read.
 The proposal's `title` is the newest revision's summary, so the title and the summary under it agree.
 
-## Behind and conflicts
-
-A proposal is `behind` when the dashboard has a newer version than the one the proposal builds on, and `latest_version` names it.
-Behind is no problem by itself: a merge puts the proposal's changes on top of the latest version.
-
-A merge is refused while the proposal and the newer versions changed the same panel, variable or setting.
-`GET /api/v1/proposals/{id}` lists these under `conflicts` while the proposal is open and behind, and `changes` lists what the proposal adds, changes, removes or moves compared with the version it builds on.
-`diff` lists the same comparison field by field, in the shape of `GET /api/v1/dashboards/{id}/diff`, with the old and new value of each field.
-
-## Merge
+## Merge or discard from the API, MCP and the CLI
 
 `POST /api/v1/proposals/{id}/merge` needs Edit on the dashboard and a connection that is not in propose mode.
-The body names the `revision` the caller read, and `409` with the code `proposal_changed` says the author added a newer one.
-For each conflict the body also carries a choice: `ours` keeps the dashboard's newer version of the unit and `theirs` takes the proposal's.
 
-The merge runs the same checks as any save, and the new version records the proposal it came from as `merged_proposal_id`.
-When the result equals the latest version, nothing is saved, and the proposal closes as merged with no `merged_version`; this happens, for example, when every conflict is resolved with `ours`, which drops the proposed unit.
+1. Read the proposal and note its `revision` and its `conflicts`.
+2. Merge, with one choice per conflict:
 
-## Discard
+   ```sh
+   curl -fsS -X POST -H "Authorization: Bearer $OBSERVE_TOKEN" \
+     -H "Content-Type: application/json" \
+     "$OBSERVE_SERVER/api/v1/proposals/$PROPOSAL_ID/merge" \
+     -d '{"revision": 2, "choices": [{"kind": "panel", "id": "p1", "take": "theirs"}]}'
+   ```
 
-`POST /api/v1/proposals/{id}/discard` closes the proposal without saving it.
-Its author, and anyone who may merge it, can discard it.
-The body may carry a `reason`, trimmed and at most 500 characters (`400` `invalid_request` beyond that); the proposal then shows it as `close_reason`.
-The reason is not copied into the activity log, which never carries free text: read it from the proposal.
-When someone other than its author merges or discards a proposal, the author gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
-Merging or discarding also posts a comment in the proposal's discussion, "Merged as version N." or "Discarded." with "Reason: ..." when there is one, written as the person or key that closed it; a failed post never undoes the close.
-A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
+3. The answer is `200` with the proposal.
+   `merged_version` holds the new version, and the `Location` header points at it.
 
-## States
+The `take` of a choice is `ours` to keep the dashboard's newer version of the unit, or `theirs` to take the proposal's.
+`POST /api/v1/proposals/{id}/discard` closes a proposal without saving it, with an optional body `{"reason": "..."}`.
+
+From the command line, `observe proposals list`, `show`, `merge` and `discard` do the same; see [the CLI](../use/cli.md#proposals).
+The MCP tools `list_proposals`, `get_proposal`, `merge_proposal` and `discard_proposal` are the routes above as tools; see [MCP](../use/mcp.md).
+
+## Reference
+
+### Who gets a proposal
+
+| Caller | Save with `propose_if_needed: true` | Save without it |
+| --- | --- | --- |
+| Editor, connection not in propose mode | A new version. | A new version. |
+| Commenter | A proposal, `202`. | `403`. |
+| Connection in propose mode | A proposal, `202`, even for an Editor. | `403`. |
+| Viewer | `403`. | `403`. |
+
+Details of a connection in propose mode:
+
+- It can never write a version directly, even when its person is an Editor.
+- It cannot merge a proposal, and answers `403` with the code `propose_mode`.
+- It cannot remove panels or variables.
+  Such a save answers `409` with the code `proposal_required` and a `removed` list that names them, and nothing is proposed.
+  The agent asks its person to remove them.
+
+### Merge and conflicts
+
+`GET /api/v1/proposals/{id}` returns the proposal with these extra fields.
+
+| Field | Holds |
+| --- | --- |
+| `spec` | The proposal's whole document. |
+| `changes` | What the proposal adds, changes, removes or moves compared with the version it builds on. |
+| `diff` | The same comparison field by field, in the shape of `GET /api/v1/dashboards/{id}/diff`, with the old and new value of each field. |
+| `conflicts` | The units that a merge cannot combine, listed while the proposal is open and behind. |
+
+Details of a merge:
+
+- The body must name the `revision` the caller read, a positive 32-bit integer.
+  `409` with the code `proposal_changed` and the newest `revision` says the author added a newer one.
+- `choices` takes at most 400 items, each with a `kind` of `panel`, `variable` or `setting`, the unit's `id` and a `take` of `ours` or `theirs`.
+- It runs the same checks as any save, and the new version records the proposal it came from as `merged_proposal_id`.
+- When the result equals the latest version, nothing is saved, and the proposal closes as merged with no `merged_version`.
+
+### Discard
+
+- The author and anyone who may merge can discard.
+- The `reason` is trimmed and at most 500 characters, and it must not contain the NUL character.
+  A longer reason answers `400` with the code `invalid_request`.
+- The proposal then shows the reason as `close_reason`.
+- The reason is not copied into the activity log, which never carries free text.
+  Read it from the proposal.
+- A proposal that is already merged or discarded answers `409` with the code `invalid_transition` and the actions that are allowed.
+
+### What a close tells people
+
+- When someone other than the author merges or discards a proposal, the author gets a `proposal_closed` item in the [Inbox](../use/inbox.md), with the reason as its excerpt for a discard.
+- Merging or discarding posts a comment in the proposal's discussion, written as the person or key that closed it.
+  A merge posts "Merged as version N." or "Merged." when no version was saved.
+  A discard posts "Discarded." and adds "Reason: ..." when there is one.
+- A failed post never undoes the close.
+
+### States
 
 A proposal is `open`, `merged` or `discarded`.
-Its `allowed_actions` list what the caller may do now; `update` is a new save by the author, which has no route of its own.
+Its `allowed_actions` list what the caller may do now.
+`update` is a new save by the author, which has no route of its own.
 [States](../reference/states.md) lists the moves and who may make them.
 
 Each step is an entry in [Activity](../use/activity.md): `proposal.opened`, `proposal.updated`, `proposal.merged` and `proposal.discarded`.
 Deleting the dashboard deletes its proposals.
 
-## Review one in the web app
+### Routes
 
-A dashboard with open proposals shows "1 proposal" or "N proposals" in its top row, and the button lists each with its title, its author, when it was opened and "Behind" when the dashboard has moved on.
-The count follows the dashboard's live events: when someone opens, updates, merges or discards a proposal, every open copy of the dashboard updates it without a reload (the `proposal.updated` event of the dashboard event stream).
-A proposal also opens from the [inbox](../use/inbox.md) and from `/proposals/<id>`.
-The page shows the title, who proposed it and when, a line such as "Open, based on version 3. The dashboard is now at version 5.", the summary, the list of changes by panel, "Variable <name>" and "Dashboard settings", and below it the field-by-field difference from the version the proposal builds on, with each query or option before and after, as the [version history](../concepts/versions.md) shows two versions.
-A link opens the dashboard at the version the proposal builds on, or at the merged version once it is merged, and the proposal's discussion, a comment thread on the proposal, sits beside the page on a wide window and below it on a narrow one.
+| Route | Does |
+| --- | --- |
+| `GET /api/v1/dashboards/{id}/proposals` | Lists the proposals of a dashboard. |
+| `GET /api/v1/proposals/{id}` | Returns one proposal with its document, changes and conflicts. |
+| `POST /api/v1/proposals/{id}/merge` | Merges it. |
+| `POST /api/v1/proposals/{id}/discard` | Discards it. |
 
-When a change conflicts, its row says in words which panel, variable or setting changed on both sides, shows the panel's title on the dashboard and in the proposal, and asks you to choose "Keep the dashboard's" or "Take this proposal's", and **Merge** stays disabled with "Choose a side for each conflict first" until you have chosen for every row.
-A change that fails the checks once merged onto the latest version says "This change cannot be merged as it is" and has no choice; discard the proposal or ask its author to fix it.
-Someone who cannot edit sees "Only someone who can edit this dashboard can merge a proposal." in place of **Merge**.
+Details of the list:
 
-**Merge** shows to a person who can edit, and the toast reads "Merged as version N" with **Open dashboard**.
-When you kept the dashboard's side of a conflict, the toast adds which panels, variables or settings the proposed change was dropped for, and a merge that saved nothing reads "Merged without a new version".
-The agent's merge tool says the same in its step.
-**Discard** asks "Discard this proposal?" with an optional **Reason (optional)** field, and shows to the author and to anyone who may merge.
-A discarded proposal's page shows the reason under its state line.
-If the author added a revision while you were reading, a merge says "This proposal has a newer revision. Review it and merge again.", and the page reloads the proposal.
+- It shows the open proposals unless `state` is `merged`, `discarded` or `all`.
+  Any other `state` answers `400`.
+- `run_id` narrows it to the proposal that one agent request opened, however many the dashboard has.
+  A run's status on the dashboard uses it, and shows plain "Proposal" until it knows the state.
+- `limit` is 1 to 100 and defaults to 50, and `cursor` continues from `next_cursor`.
 
-## Routes
+### MCP tools
 
-- `GET /api/v1/dashboards/{id}/proposals` lists the proposals of a dashboard, the open ones unless `state` is `merged`, `discarded` or `all`.
-  `run_id` narrows it to the proposal that one agent request opened, however many the dashboard has; a run's status on the dashboard uses it, and shows plain "Proposal" until it knows the state.
-- `GET /api/v1/proposals/{id}` returns one proposal with its document, changes and conflicts.
-- `POST /api/v1/proposals/{id}/merge` merges it.
-- `POST /api/v1/proposals/{id}/discard` discards it.
-
-## MCP and the CLI
-
-The MCP tools `update_dashboard` and `update_panels` save a proposal in the cases above and answer `proposed` with the `proposal_id`, and a save on an older version merges onto the latest one when it changed none of the panels, variables and settings that the newer versions changed.
-`list_proposals`, `get_proposal`, `merge_proposal` and `discard_proposal` are the routes above as tools; see [MCP](../use/mcp.md).
-`observe proposals list`, `show`, `merge` and `discard` do the same from the command line; see [the CLI](../use/cli.md#proposals).
+- `update_dashboard` and `update_panels` save a proposal in the cases above and answer `proposed` with the `proposal_id`.
+- A save on an older version merges onto the latest one when it changed none of the panels, variables and settings that the newer versions changed.
+- `list_proposals`, `get_proposal`, `merge_proposal` and `discard_proposal` are the routes above as tools.
