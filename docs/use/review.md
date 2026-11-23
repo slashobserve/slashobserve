@@ -360,7 +360,7 @@ It lists up to three names and a count for the rest, and is empty when nobody el
 Anyone who can view the dashboard sees the names, and a person counts for 45 seconds after their open page last reported in.
 
 Over the API, `GET /api/v1/dashboards/{id}/viewers` returns the list.
-`list_dashboard_viewers` returns it over MCP, and `bin/observe dashboards viewers <dashboard-id>` prints it.
+`list_dashboard_viewers` returns it over MCP, and `observe dashboards viewers <dashboard-id>` prints it.
 A service-account key never counts as a viewer.
 
 ## Resolve and reopen a thread

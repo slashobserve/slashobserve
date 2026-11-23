@@ -13,7 +13,8 @@ Every change is a recorded [activity](activity.md) event, so the log shows who w
 ## Work a question on a page
 
 1. Choose **Observations** in the sidebar, then **New observation**.
-2. Type a **Title** and pick a **Folder**, then choose **Create**.
+2. Type a **Title** and pick a shared **Folder** that you can edit, then choose **Create**.
+   An observation in My Dashboards cannot be published, so pick a shared folder if you want an RCA.
    The page opens at `/o/<id>`.
 3. Choose **Add a block**, then **Text**, write what you know in Markdown, and choose **Add**.
 4. Choose **Add a block**, then **Panel**, then **From a dashboard**, and pick a data panel.
@@ -32,6 +33,7 @@ observe o resolve <observation-id> --summary "A bad deploy; rolled back at 09:40
 observe o publish <observation-id>
 ```
 
+`observe o new` prints `Created <title> <url>`, and the `<observation-id>` in the next commands is the last segment of that address.
 `observe o publish` prints `Published revision 1 of <title>`.
 [MCP](mcp.md) tools and the HTTP API do the same; see [Work on one from MCP and the CLI](#work-on-one-from-mcp-and-the-cli).
 Who may do each step depends on the folder; see [Who can do what](#who-can-do-what).
@@ -80,7 +82,7 @@ An observation that an [investigation](investigate.md) opens is described under 
 ## Add blocks
 
 A person who can edit sees **Add a block**, and a person who can only comment sees **Suggest a block**.
-The row offers four ways:
+The row offers six ways:
 
 - **Text** opens a box for Markdown.
   **Add** or **Suggest** saves it, and `⌘Enter` or `Ctrl+Enter` does the same.
@@ -93,6 +95,8 @@ The row offers four ways:
   **New query** opens the panel editor on an empty panel with the first datasource, and is disabled when there is no datasource.
   **Add**, or **Suggest** for a commenter, saves it as a panel block that follows the page's range; see [Edit a panel block](#edit-a-panel-block).
 - **Logs** opens the logs page with this observation preselected, so you can add a search from there; see [Add to an observation from a panel or from Logs](#add-to-an-observation-from-a-panel-or-from-logs).
+- **Traces** opens the trace search with this observation preselected, so you can add a search from there; see [Other places that add](#other-places-that-add).
+- **Metrics** opens the metrics page with this observation preselected, so you can add a query from there; see [Other places that add](#other-places-that-add).
 - **Snapshot** lists the live panel blocks of the page and is disabled when there is none.
   Choosing one freezes that panel's data into a snapshot block placed right after it.
 
@@ -149,7 +153,8 @@ When someone deletes the block while your draft has changes, the editor says so 
 A snapshot and a published RCA revision are frozen, so neither offers the editor.
 
 Over [MCP](mcp.md), `update_block` changes a panel block's `body`.
-On the [CLI](cli.md#observations), `observe o edit-block <block-id> --panel-file <path>` does the same.
+On the [CLI](cli.md#observations), `observe o edit-block <block-id> --version <n> --panel-file <path>` does the same.
+The `--version` is required: it is the block's version from `observe o show`.
 
 ## Move, resize and delete blocks
 
@@ -216,7 +221,7 @@ A block added from a dashboard panel's menu arrives pinned to the window it was 
 One chosen with **Panel**, then **From a dashboard**, follows the page.
 
 Over MCP, `update_observation` sets the page's range, and `update_block` sets a block's own `from` and `to` or releases them with `follow_page: true`.
-On the CLI, `observe o edit --from <time> --to <time>` or `--clear-range` sets the page's range, and `observe o edit-block --follow-page` releases a block.
+On the CLI, `observe o edit --from <time> --to <time>` or `--clear-range` sets the page's range, and `observe o edit-block <block-id> --version <n> --follow-page` releases a block.
 
 ## Rename, resolve, reopen and move
 
@@ -528,15 +533,16 @@ The panel shows the server's reason when you lack it, when the observation is in
 A person with Manage on the folder creates a link with `POST /api/v1/observations/{id}/rcas/{revision}/public-links`, and revokes it with `DELETE /api/v1/observations/{id}/public-links/{link_id}`.
 The link's address is `<public url>/rca/<token>`, and the token is shown once, when the link is created.
 A link can expire at a time you choose, and it stops working then; revoking it stops it at once.
-An observation has at most 20 links across all its revisions.
+An observation has at most 20 links across all its revisions, and one more answers 409 `too_many_links`.
 
 A link serves the stored revision only, never the live observation, a live panel or a query.
 It shows who published it by name and by no id.
 
-An observation in My Dashboards cannot have a link.
+An observation in My Dashboards cannot have a link, and the request answers 403 `forbidden_role`.
 One in a folder only Admins can read is refused with `409 admins_only_folder`.
 That answer says to move it to a folder that is not Only Admins, or it names the Admins-only datasource the observation reads, also in a `datasource` field, when it cannot leave.
 A revision with a snapshot of data that depends on who is viewing, from `${__user.*}` in a query, cannot have a link, because nobody could read it on a public address.
+The request answers 422 `user_scoped`.
 
 ### The public page
 
@@ -571,7 +577,7 @@ An investigation that names an observation with 100 blocks already gets no run b
 
 Without `observation_id`, the server makes a new observation:
 
-- Its title is the first non-empty line of the prompt without `@observe`, cut at a word to about 60 characters with "...", or "Investigation" when no line is left.
+- Its title is the first non-empty line of the prompt without `@observe`, cut at a word to about 60 characters with "...", or "Investigation" when no line is left or the first line has fewer than 3 characters.
 - Its range is the window of the investigation, and it has none when the investigation was given no `from` and `to`.
 - It goes in the folder of the dashboard the investigation is about when you can edit that folder.
   Otherwise it goes in your My Dashboards when you may create there, and otherwise in General when you may create there.
@@ -694,7 +700,7 @@ A block added without one is `full`.
 | Frozen data | 2 MiB | `snapshot_too_large` |
 | Panel size | 63 KiB | `invalid_panel` |
 | RCA revisions | 50 | `rca_limit` |
-| RCA public links | 20 across all revisions | HTTP 409 |
+| RCA public links | 20 across all revisions | `too_many_links`, 409 |
 
 These codes also appear:
 

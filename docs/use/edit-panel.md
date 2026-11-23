@@ -58,7 +58,7 @@ Nothing is kept when you close the editor in any other way, and nothing reaches 
 
 1. On a dashboard, open **More** and choose **Add panel**.
    The editor opens headed "Add a panel" with the line "A new panel. Nothing changes until you save."
-   It holds a time series panel titled "New panel" below the last panel, using the datasource of the dashboard's first data panel.
+   It holds a time series panel titled "New panel" below the last panel, using the datasource of the dashboard's first data panel, or the first configured datasource when it has none.
 2. Pick the type, datasource and query as for any panel.
 3. Save.
    The summary is `Add "<title>"` unless you add a note.
@@ -306,31 +306,40 @@ The dashboard's top row shows "1 proposal" while one is open, listing each with 
 
 For Time series and Trend panels the legend options are:
 
-- **Legend**: bottom, right or hidden.
-- **Legend values**.
+- **Legend**: Bottom, Right or Hidden.
+- **Legend values**, up to 8 entries.
 - **Legend mode**: List or Table, "Table when values are shown" until you choose.
 - **Sort legend by**: Name or one of the legend values, "Series order" until you choose.
 - **Sort descending**.
-- **Legend width**, in pixels, for a legend on the right.
+- **Legend width**, in pixels, 40 to 2000, for a legend on the right.
 - **Hide series that are all zero** and **Hide series with no values**.
 
 A series hidden from the legend is still drawn.
 
-Time series, Trend and Candlestick panels also have these tooltip options:
+Time series, Trend and Candlestick panels also have these tooltip and axis options:
 
+- **Tooltip**: Single series, All series or Hidden.
 - **Tooltip sort**: Series order, Ascending or Descending, which is the default.
 - **Hide zero values in the tooltip**.
 - **Show stacked totals in the tooltip**.
 - **Tooltip max width** and **Tooltip max height**, in pixels, 100 to 2000.
+- **X axis**: Shown or Hidden.
 
 The sort, zero and total options apply to a tooltip that lists all series.
+Every legend and tooltip option below uses the same names and values unless the section says otherwise.
 
 #### Reducers in stat, gauge, bar gauge and pie chart panels
 
 For Stat, Gauge, Bar gauge and Pie chart panels, **Calculation** picks how each field is reduced to one value.
-**Calculation**, **Legend values**, **Sort legend by** and a table's **Footer** list the common reducers.
-A **More** search box below each one finds any other reducer by name or id.
-**Legend values** and **Footer** call the last non-empty value "Last (not null)" and the last value, empty or not, "Last".
+**Calculation** lists the common reducers, and a **More** search box below it finds any other reducer by name or id.
+**Legend values**, **Sort legend by** and a table's **Footer** list their own short set, with the same **More** search.
+
+The last value has two names, depending on the control:
+
+- In **Calculation**, "Last" is the last non-empty value and "Last, including empty" is the last value, empty or not.
+- In the short list of **Legend values** and **Footer**, the last non-empty value is "Last (not null)".
+
+Other options of these panels:
 
 - **Show every value** shows one value per row instead.
 - **Row limit** (1 to 5000) caps the rows shown per field.
@@ -340,6 +349,7 @@ A **More** search box below each one finds any other reducer by name or id.
 
 A Stat panel also has:
 
+- **Orientation**: Auto, Horizontal or Vertical.
 - **Color mode**: Value, Background or None.
 - **Show graph**, with **Graph style**: Area or Line.
 - **Text**: Auto, Value, Name, Value and name or None.
@@ -355,20 +365,20 @@ Tiles that would not fit the panel at full height are made shorter before the pa
 
 Pie chart panels add:
 
-- **Pie type**.
+- **Pie type**: Pie or Donut.
 - **Slice order**: Largest first, Smallest first or Data order.
 - **Slice labels**: Name, Value and Percent, written on the slices that are big enough.
 - **Label name size** and **Label value size**, in pixels, empty for 12.
 
 Their legend options are:
 
-- **Legend**: bottom, right or hidden.
+- **Legend**: Bottom, Right or Hidden.
 - **Legend values**: Value and Percent, both until you choose.
 - **Legend mode**: List or Table.
 - **Sort legend by**: Name or Value, "Series order" until you choose.
 - **Sort descending** and **Legend width**.
 
-A pie chart's tooltip has **Tooltip** (the hovered slice, all series or hidden), **Tooltip sort**, **Hide zero values in the tooltip**, **Tooltip max width** and **Tooltip max height**.
+A pie chart's tooltip has **Tooltip** (Single series, All series or Hidden), **Tooltip sort**, **Hide zero values in the tooltip**, **Tooltip max width** and **Tooltip max height**.
 The sort and zero options apply to a tooltip that lists all series.
 Clicking an entry in a pie chart's legend hides its slice, and the rest share the circle.
 
@@ -376,28 +386,44 @@ Clicking an entry in a pie chart's legend hides its slice, and the rest share th
 
 Bar chart panels add:
 
+- **Orientation**: Auto, Horizontal or Vertical.
+- **X field**, a field name; empty is the first text or time field.
 - **Color by field**, which colors each category by that number field's thresholds.
+- **Show values**: Auto, Always or Never.
 - **Value text size**, 6 to 100 pixels, empty for 12.
+- **Bar width** and **Group width**, a share above 0 and at most 1.
 - **Bar radius**, 0 to 0.5 of the bar width.
 - **Highlight the whole category**.
 - **X label rotation**, -90 to 90 degrees.
-- **X label spacing**, the minimum pixels between labels, 0 for automatic.
-- **X label max length**, the characters before an ellipsis.
+- **X label spacing**, the minimum pixels between labels, 0 to 500, 0 for automatic.
+- **X label max length**, 1 to 200 characters before an ellipsis.
 
 They sit next to the legend and tooltip options.
 
 #### Histogram
 
-Histogram panels add **Bucket offset**, **Stacking** (Stacked, Percent or Overlaid) and **Combine all series**.
-They sit next to the bucket size, bucket count, legend and tooltip options.
+Histogram panels add:
 
+- **Bucket size**, a number above 0, empty for automatic.
+- **Bucket count**, 1 to 1000, empty for automatic.
+- **Bucket offset**, which shifts the bucket edges.
+- **Stacking**: Stacked, Percent or Overlaid.
+- **Combine all series**.
+
+They sit next to the legend and tooltip options.
 A bar chart or histogram tooltip shows the hovered series or all series, in the order of **Tooltip sort**.
 **Hide zero values in the tooltip** is on by default for a histogram.
 Clicking an entry in a bar chart or histogram legend hides its series, and the rest are redrawn.
 
 #### XY chart
 
-XY chart panels add **Smallest point size** and **Largest point size**, which a series with a size field scales between.
+XY chart panels add:
+
+- **X field**, a field name; empty is the first number field.
+- **Show**: Points, Lines or Points and lines.
+- **Point size**, 1 to 40.
+- **Smallest point size** and **Largest point size**, 1 to 100, which a series with a size field scales between.
+
 They have the same legend and tooltip options as a histogram.
 The series mapping, meaning the x, y, size and color fields and the name of each series, is edited in the JSON view.
 
@@ -406,26 +432,30 @@ Clicking a legend entry hides the series, and the tooltip lists the size and col
 
 #### Gauge and bar gauge
 
-Gauge panels add **Show threshold labels**, **Minimum gauge width**, **Minimum gauge height**, **Title size** and **Value size**.
+Gauge panels add:
+
+- **Show threshold markers** and **Show threshold labels**.
+- **Minimum gauge width** and **Minimum gauge height**, 1 to 2000 pixels.
+- **Title size** and **Value size**, 1 to 200 pixels.
 
 Bar gauge panels add:
 
+- **Orientation**: Auto, Horizontal or Vertical.
 - **Bar style**: Basic or LCD.
 - **Value**: With threshold state, Plain text or Hidden.
-- **Name placement**.
+- **Name placement**: Auto, Top, Left or Hidden.
 - **Show unfilled area**.
-- **Minimum bar width**, **Minimum bar height** and **Maximum bar height**.
-- **Title size** and **Value size**.
-
-Sizes are in pixels.
+- **Minimum bar width**, **Minimum bar height** and **Maximum bar height**, 1 to 2000 pixels.
+- **Title size** and **Value size**, 1 to 200 pixels.
 
 #### Traces
 
 Traces panels add:
 
-- **Search**.
-- **Services** and **Operations**, as comma-separated names, each with an **Exclude** switch.
-- **Shortest span** and **Longest span**, in milliseconds.
+- **Search**, which matches a service, operation, id or attribute.
+- **Services**, comma-separated names, up to 50, with **Exclude these services**.
+- **Operations**, comma-separated names, up to 50, with **Exclude these operations**.
+- **Shortest span** and **Longest span**, in milliseconds, 0 to 86,400,000.
 - **Show matching spans only**.
 - **Show the critical path only**.
 
@@ -435,14 +465,17 @@ Without the matching switch, the spans that do not match are dimmed.
 
 Logs panels add:
 
+- **Wrap lines**.
+- **Show time**.
+- **Order**: Newest first or Oldest first.
 - **Show unique labels** and **Show common labels**.
+- **Show line attributes**, which hides the label chips on each line when it is off.
 - **Log details**, with **Details placement**: under the line or in a side panel.
 - **Prettify JSON messages**.
-- **Deduplication**.
+- **Deduplication**: None, Exact, Ignore numbers or Ignore letters and numbers.
 - **Controls bar**.
-- **Font size**.
+- **Font size**: Default or Small.
 - **Highlight key=value and levels**.
-- **Show line attributes**, which hides the label chips on each line when it is off.
 - **Line fields**, up to 20 field names that build the line instead of the message.
 - **Time precision**: Milliseconds or Nanoseconds.
 
@@ -465,20 +498,43 @@ The cell type is edited in the JSON view.
 
 #### Heatmap
 
-Heatmap panels have these groups of options:
+Heatmap panels have these groups of options.
 
-- **Calculate buckets**, with **Time buckets** and **Value buckets**, each with a scale and a log base.
-- **Pre-bucketed rows**, with a **Pre-bucketed value field**, for data that is already bucketed.
-- **Y scale**.
+Buckets:
+
+- **Calculate buckets**, which turns raw samples into cells.
+- **Time buckets** and **Value buckets**, each with a mode (Automatic, Size or Count) and a value.
+- **Time bucket scale** and **Value bucket scale**: Linear, Log or Symmetric log.
+  The value scale can also follow the Y scale.
+- **Time bucket log base** and **Log base** for the value buckets: 2 or 10, 2 by default.
+- **Y scale**: Linear or Log.
+- **Pre-bucketed rows**: Upper bounds when labeled le, Upper bounds, Lower bounds or One row per series.
+- **Pre-bucketed value field**, for data that is already bucketed.
+
+Color:
+
 - **Color mode**: Opacity or Scheme.
-  It comes with **Color scheme**, **Opacity color**, **Color steps**, **Opacity scale**, **Opacity exponent**, **Color range start**, **Color range end** and **Reverse colors**.
-- **Cell gap**, **Cell radius**, **Cell value unit** and **Cell value decimals**.
-- **Color legend**.
+- **Color scheme**, one of 17 ramps such as Blues, Viridis or Magma.
+- **Opacity color**: Green, Blue, Yellow, Red or Text, and the series color by default.
+- **Opacity scale**: Linear or Exponential, with **Opacity exponent** from 0.1 to 2.
+- **Color steps**, 2 to 128, empty for a continuous ramp.
+- **Color range start** and **Color range end**.
+- **Reverse colors**.
+- **Color legend**: Shown or Hidden.
+
+Cells:
+
+- **Cell gap**, 0 to 25 pixels, and **Cell radius**, 0 to 10 pixels.
+- **Show values**: Auto, Always or Never.
+- **Cell value unit** and **Cell value decimals**, 0 to 10.
 - **Hide cells at or below** and **Hide cells at or above**.
-- **Y axis**: Left, Right or Hidden, with its label, width, unit, decimals, minimum and maximum, and **Reverse Y axis**.
+
+Axis and tooltip:
+
+- **Y axis**: Left, Right or Hidden, with **Y axis label**, **Y axis width** (0 to 400), **Y axis unit**, **Y axis decimals**, **Y axis minimum**, **Y axis maximum** and **Reverse Y axis**.
 - **Tooltip**: Hovered cell, Every row of the column or Hidden.
   It comes with **Tooltip histogram**, **Tooltip color scale** and the max width and height.
-- **Show exemplars**, with **Exemplar color**.
+- **Show exemplars**, with **Exemplar color**: Green, Blue, Yellow, Red or Text, and the foreground color by default.
 
 #### State timeline and status history
 
@@ -497,9 +553,10 @@ A legend of State timeline and Status history panels lists the first 12 states a
 
 #### Trend
 
-A Trend panel needs a numeric x field and at least one more numeric field.
-Without one it shows the table with a note that says so.
-Its legend and tooltip options are the ones listed for time series.
+A Trend panel has an **X field**, a field name that is empty for the first number field.
+It needs a numeric x field and at least one more numeric field.
+Without them it shows the table with a note that says so.
+Its legend, tooltip and **X axis** options are the ones listed for time series.
 
 #### Candlestick
 
@@ -508,8 +565,9 @@ Candlestick panels have:
 - **Mode**: Candles and volume, Candles or Volume.
 - **Candle style**: Candles or OHLC bars.
 - **Color strategy**: Open to close or Close to close.
-- **Up color**, **Down color** and **Flat color**.
-- The **Open**, **High**, **Low**, **Close** and **Volume field** names.
+- **Up color**, **Down color** and **Flat color**: OK, Info, Warning, Critical or Text.
+  Flat color is the up color until you choose.
+- The **Open field**, **High field**, **Low field**, **Close field** and **Volume field** names.
 - **Draw other fields as lines**.
 - **X axis**.
 - The legend and tooltip options of a time series, except hiding all-zero and empty series.
@@ -524,13 +582,18 @@ Flame graph panels have no display options.
 Geomap panels have these options:
 
 - **View**: Fit to data, World, Coordinates or a region.
-  Coordinates adds **Latitude**, **Longitude** and **Zoom**.
-- **Location**: Auto, Coordinates or Geohash, with the latitude, longitude and geohash field names.
-- **Size field**, **Color field**, **Marker size** and **Largest marker size**.
+  The regions are North America, South America, Europe, Africa, West Asia, South Asia, South-East Asia, East Asia, Australia and Oceania.
+  Coordinates adds **Latitude** (-85 to 85), **Longitude** (-180 to 180) and **Zoom** (1 to 18).
+- **Location**: Auto, Coordinates or Geohash, with the **Latitude field**, **Longitude field** and **Geohash field** names.
+- **Size field**, **Color field**, **Marker size** and **Largest marker size**, 1 to 100.
 - **Basemap**: Outline, CARTO, Esri, OpenStreetMap, Custom XYZ or None.
-  It comes with the settings of the one you pick, such as **CARTO theme**, **Esri map**, **Custom XYZ URL**, **Basemap attribution**, **Basemap opacity**, **Lowest tile zoom** and **Highest tile zoom**.
+  It comes with the settings of the one you pick:
+  - **CARTO theme** (Match the app, Light or Dark) and **Show CARTO labels**.
+  - **Esri map** (World imagery, World physical, Topographic, USA topographic or Ocean).
+  - **Custom XYZ URL**, an https URL with `{z}`, `{x}` and `{y}`.
+  - **Basemap attribution**, **Basemap opacity** (0 to 1), **Lowest tile zoom** and **Highest tile zoom** (0 to 18).
 - **Draw the world once**.
-- **Lowest zoom**, **Highest zoom** and **Fit padding**.
+- **Lowest zoom** and **Highest zoom**, 0 to 18, and **Fit padding**, 0 to 50 percent of the smaller side.
 - The controls **Show zoom buttons**, **Zoom with the mouse wheel**, **Show attribution**, **Show scale bar**, **Show measure tool** and **Show zoom and center**.
 - **Tooltip**: Details or None.
 
@@ -539,6 +602,7 @@ The editor has no layer settings; edit `layers` in the JSON view.
 #### Canvas
 
 Canvas panels have **Calculation**, **Background color**, **Border color**, **Border width** (0 to 20 pixels), **Border radius** (0 to 100 pixels), **Pan and zoom**, **Pan beyond the canvas** and **Tooltip** (Details or None).
+The colors are OK, Info, Warning, Critical or Text.
 A Canvas panel with no element, connection or background image says it has no elements.
 
 #### Alert list
@@ -567,9 +631,13 @@ A number or text that the Spec would refuse is marked with what it accepts, such
   Time series also has **Color by value**.
 - **Axis.**
   Placement, label, soft min and max, scale, log base, linear threshold, centered zero, width, grid lines, border and color, for Time series, Trend, Candlestick, Bar chart, Histogram and XY chart panels.
-- **Bars, Cells, and Points and lines.**
-  **Bars** is for Bar chart and Histogram panels, **Cells** for State timeline and Status history panels, and **Points and lines** for XY chart panels.
-  They hold the fill, line width, stacking, point and hide options those types draw.
+- **Bars.**
+  For Bar chart panels: fill opacity, line width, stacking, **Show thresholds** and the three hide options.
+  For Histogram panels: fill opacity, line width, stacking, its group and the hide options.
+- **Cells.**
+  For State timeline and Status history panels: fill opacity, line width, **Hide in tooltip** and **Hide in chart**.
+- **Points and lines.**
+  For XY chart panels: line width, line style, point shape, point stroke width, fill opacity and the three hide options.
 - **Series visibility.**
   The hide options for pie charts, and **Hide in chart** for heatmaps, geomaps and canvases.
 - **Table columns.**
