@@ -70,9 +70,11 @@ curl -fsS -X POST "$OBSERVE_SERVER/api/v1/imports/preview" \
 `POST /api/v1/imports/preview` saves nothing, and `POST /api/v1/imports` saves the dashboard.
 The web page and `observe import` call these two routes.
 Both take `json`, `mapping` (Grafana datasource key to your datasource uid), `folder`, `update_dashboard` and `refuse_existing`.
-Both need a role that can create dashboards.
+`mapping` can have at most 50 entries, with keys and values of 1 to 200 bytes; more answers `400 invalid_request`.
+Both need a role that can create dashboards, and a caller can run 1 import and 2 previews at a time, the instance 4 of each.
 
-The `import_grafana_dashboard` MCP tool runs the same import with the same arguments, plus `import_as_new`.
+The `import_grafana_dashboard` MCP tool runs the same import with `json`, `mapping`, `folder`, `update_dashboard` and `import_as_new`, which cannot be combined with `update_dashboard`.
+Inside the built-in agent's runs the JSON has to be in the run's prompt, `update_dashboard` is refused, and `refuse_existing` is not set.
 The tool, and the built-in agent that uses it, refuse JSON that converts to an HTML text panel, a placeholder panel or a panel action.
 They fail with `import_content_not_allowed`, because the agent and MCP clients never write those.
 The web page and `observe import` keep them.
@@ -120,7 +122,7 @@ The fetch never adds the connection's domain to the [outbound allowlist](../oper
 
 A dashboard exported with **Export spec JSON** is an ObserveSpec, not a Grafana dashboard.
 Drop or paste it on the import page.
-The page recognises it by its `specVersion`, skips the Grafana conversion and the datasource matching, and shows **Create dashboard** instead of **Import as new dashboard**.
+The page recognises it when the text starts with `{` and has a string `specVersion` and a `panels` array, skips the Grafana conversion and the datasource matching, and shows **Create dashboard** instead of **Import as new dashboard**.
 It creates the dashboard from the Spec as it is, in the folder you pick, as version 1.
 
 The server validates the Spec and runs every query as it does for [`observe dashboards apply`](cli.md), and it reports a Spec it refuses with the first problem.
@@ -145,7 +147,9 @@ The response then carries a `folder_note` saying so, and `observe import` prints
 
 On the web page, the **Folder** card lists the folders where you may create dashboards, except General.
 General is left out because a title of `General` means your default folder, which **Automatic** already gives you.
-The page starts on the shared folder you last imported or created a dashboard into in this browser, as long as you can still create in it.
+The page starts on the shared folder you last imported into in this browser, as long as you can still create in it.
+Creating a dashboard from a Spec also counts.
+General and My Dashboards are never remembered.
 Pick **Automatic** to use the export's folder or your My Dashboards instead.
 After an import the page shows the `folder_note` when the dashboard did not go where the request or the export asked.
 
@@ -173,6 +177,7 @@ Over HTTP, `update_dashboard` on `POST /api/v1/imports` takes the dashboard id a
 An update only takes the file the dashboard was imported from.
 A file with another Grafana uid answers `409 grafana_uid_mismatch`, names both uids and changes nothing.
 Import it as a new dashboard instead.
+A dashboard imported from a file with no uid takes any file.
 
 ## Panels marked unverified
 
@@ -189,7 +194,8 @@ Later saves keep a failing panel or variable unverified for as long as these sta
 A new or changed query must return data, and a panel whose queries pass again is no longer unverified.
 
 A save with `update_dashboard` runs every query.
-A save with `update_panels` runs only the queries it changed, unless it changes the dashboard's default `time`, which runs every query.
+A save with `update_panels` runs only the queries it changed.
+It runs every query when it changes the dashboard's default `time`, or its title while a query or variable uses the `__dashboard` macro.
 Either way a panel the save did not change stays unverified while it still fails, and an unverified panel that now returns data leaves the list.
 A panel or row that repeats on a variable is checked as one copy, with the first value the variable offers or the first value selected.
 That is how the dashboard draws each copy, with a single value, so its query is not run with All and a healthy repeated panel is not marked unverified.
@@ -218,7 +224,7 @@ That covers an alert list of Grafana-managed alerts and a legacy graph alert.
 The note says that alert rules, contact points and silences are not imported, so alerting stays on Prometheus rules and Alertmanager.
 
 The server stores the original JSON with the import, so a newer importer can convert it again.
-It is never shown to the agent and never returned by the API.
+The API never returns it.
 
 ## Reference
 
@@ -226,8 +232,12 @@ It is never shown to the agent and never returned by the API.
 
 | Limit or error | Value |
 | --- | --- |
-| Request body | 8 MiB, the JSON as a string plus the mapping |
+| Request body | 8 MiB, the JSON as a string plus the mapping; larger answers `413 too_large` |
 | JSON that does not parse | `422 invalid_json` with the line and column, or a note that the file ends early and may be cut off |
+| JSON that is not a dashboard, a format it does not know, or too many panels | `422 not_a_dashboard`, `422 unsupported_format` or `422 too_many_panels` |
+| A mapping with an unusable entry | `422 invalid_mapping` |
+| Too many imports or previews at once | `429 too_many_imports` |
+| An update target that is not an import | `404 not_imported` |
 | A datasource with no match | `422 datasources_unresolved`, listing each datasource with its candidates |
 | Already imported | `409 already_imported` with `existing` |
 | Update with another Grafana uid | `409 grafana_uid_mismatch` |
@@ -250,13 +260,23 @@ A dashboard's time settings, links and editability import as follows.
 | Links to other dashboards by tag | Links that list the matching dashboards | |
 | Links to an address | Links that keep their keep-time and include-variables options | |
 | A link's tooltip | Imported as written | It is cut to 200 characters and reported when cut. |
-| Dashboard, panel and row titles | Trimmed, with control characters turned into a space and zero-width and bidirectional override characters removed | |
-| Link icons other than Grafana's default, and placement in the controls menu | Reported | The link is shown inline. |
-| A dashboard that is not editable in Grafana (`editable: false`) | Editable by anyone with Edit access to its folder | The report says so. |
+| Dashboard, panel and row titles | Trimmed, with control characters turned into a space and invisible format characters removed | Dashboard and row titles are also cut to 200 characters and reported when cut. |
+| Link icons other than Grafana's default, and placement in the controls menu | Reported | |
+| A dashboard that is not editable in Grafana (`editable: false`) | Reported; read-only dashboards are not part of SlashObserve | |
 
 Details of titles:
 line breaks and other control characters turn into a space, and an empty result becomes `Imported dashboard`, `Row` or no panel title.
-The [text rules](../reference/text-rules.md) then accept it.
+Format characters are removed (such as zero-width and bidirectional override characters), except U+200C, U+200D, U+200E, U+200F and U+061C, which are kept.
+The [text rules](../reference/text-rules.md) then accept the title.
+
+Details of the other settings:
+
+- A dashboard keeps at most 20 links and 20 tags.
+  A link by tag with an invalid tag, or with more than 20 tags, is dropped whole.
+- At most 20 refresh intervals import, in whole seconds, minutes, hours or days.
+- At most 30 quick ranges import, with the name cut to 100 characters.
+- The dashboard's refresh, description, tags and shared tooltip setting (`graphTooltip`, as `cursorSync`) import too.
+- A time range the Spec cannot hold falls back to the last 6 hours.
 
 ### Variables
 
