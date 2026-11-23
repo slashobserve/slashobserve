@@ -71,12 +71,6 @@ The agent lists the values of `service`, and of `operation` for one service when
 The services list reads Jaeger's list of services.
 The query editor's lint checks that each pair has a key and a value, that a duration parses and that no key repeats.
 
-## Service dependencies
-
-The datasource reads Jaeger's service dependency graph over a time range, as pairs of calling and called service with a call count.
-The graph comes from Jaeger's `/api/dependencies` endpoint, which the v3 API does not replace.
-No page shows it yet.
-
 ## Not covered
 
 TraceQL, span metrics and any write to Jaeger are not available on a Jaeger datasource.

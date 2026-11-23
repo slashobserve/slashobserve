@@ -238,14 +238,6 @@ func TestJaegerDiscovery(t *testing.T) {
 	}
 }
 
-func TestJaegerReadsDependencies(t *testing.T) {
-	ds := integrationDS(t)
-	eventually(t, ds, `service=checkout`)
-	if _, err := ds.Dependencies(context.Background(), aroundSend()); err != nil {
-		t.Fatalf("Dependencies: %v", err)
-	}
-}
-
 func TestJaegerRejectsBadQueries(t *testing.T) {
 	ds := integrationDS(t)
 	ctx := context.Background()

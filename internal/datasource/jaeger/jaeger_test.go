@@ -519,22 +519,6 @@ func fakeDepth(t *testing.T, fake *fakeJaeger) string {
 	return fake.last(t).params.Get("query.searchDepth")
 }
 
-func TestDependencies(t *testing.T) {
-	ds, fake := serve(t, map[string]reply{"/api/dependencies": {0, fixture(t, "dependencies.json")}})
-	deps, err := ds.Dependencies(context.Background(), lastHour)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []datasource.ServiceDependency{{Parent: "frontend", Child: "checkout", Calls: 12}, {Parent: "checkout", Child: "payments", Calls: 7}}
-	if !slices.Equal(deps, want) {
-		t.Fatalf("deps = %+v, want %+v", deps, want)
-	}
-	p := fake.last(t).params
-	if p.Get("endTs") != "1793966400500" || p.Get("lookback") != "3600000" {
-		t.Fatalf("params = %v", p)
-	}
-}
-
 func TestLint(t *testing.T) {
 	cases := []struct {
 		name       string

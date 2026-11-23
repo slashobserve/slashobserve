@@ -69,15 +69,6 @@ func ValidateTraceIDs(field string, ids []string, maxIDs int) ([]string, error) 
 	return out, nil
 }
 
-type ServiceDependency struct {
-	Parent, Child string
-	Calls         int64
-}
-
-type DependencySource interface {
-	Dependencies(ctx context.Context, r TimeRange) ([]ServiceDependency, error)
-}
-
 type TraceStatsRequest struct {
 	Query  string
 	Range  TimeRange
