@@ -116,3 +116,7 @@ def test_llm_env_file_is_private(tmp_path):
         assert path.read_text() == "SLASHOBSERVE_LLM_API_KEY=sk-test\n"
     finally:
         stack._workdir.cleanup()
+
+
+def test_fixtures_mount_outside_the_read_only_config_mount():
+    assert not server.FIXTURES_DIR.startswith(server.CONFIG_DIR + "/")

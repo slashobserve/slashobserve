@@ -17,7 +17,7 @@ POSTGRES_IMAGE = "postgres:18.6-alpine3.23@sha256:885cf05d376c7cf27afef02073e6bd
 SERVER_PORT = 8080
 SERVICE_ACCOUNT = "benchmark"
 CONFIG_DIR = "/etc/slashobserve"
-FIXTURES_DIR = f"{CONFIG_DIR}/llm-fixtures"
+FIXTURES_DIR = "/var/lib/slashobserve-bench/llm-fixtures"
 LABEL = "slashobserve-bench"
 
 
