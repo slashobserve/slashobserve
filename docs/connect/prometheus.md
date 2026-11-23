@@ -44,7 +44,8 @@ An Admin adds it to the datasources file, or in the app as [Add datasources in t
 ## Connect a Prometheus that needs a login
 
 Reference a secret by variable name or by file, never by value.
-The variable name must start with `SLASHOBSERVE_`, and it goes in the same env file as the server's other settings.
+The variable name must start with `SLASHOBSERVE_`, and it must not be one the server uses for its own configuration.
+It goes in the same env file as the server's other settings.
 
 ```yaml
 prometheus:

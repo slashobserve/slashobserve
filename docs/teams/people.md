@@ -156,7 +156,7 @@ The `observe` CLI and MCP have no command for them.
 | --- | --- |
 | 409 `not_deactivated` | Removing an active person. A deactivated person's `personal_items` gives the counts the removal deletes: `dashboards`, `observations` and `saved_searches`. |
 | 409 `cannot_deactivate_self` | Deactivating yourself. |
-| 409 `last_admin` | Deactivating the last active Admin. |
+| 409 `last_admin` | Deactivating the last active Admin, or lowering that Admin's role. |
 | 409 `already_member` | Inviting an email that has signed in. |
 | 422 `email_domain_not_allowed` | Inviting an email the sign-in rules refuse. |
 | 404 `not_found` | An unknown person or invite. |

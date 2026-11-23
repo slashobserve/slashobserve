@@ -53,7 +53,8 @@ An older Jaeger answers with a message that names the version needed.
 ## Connect a Jaeger behind a login
 
 Reference a secret by variable name or by file, never by value.
-The variable name must start with `SLASHOBSERVE_`, and it goes in the same env file as the server's other settings.
+The variable name must start with `SLASHOBSERVE_`, and it must not be one the server uses for its own configuration.
+It goes in the same env file as the server's other settings.
 
 ```yaml
 - uid: jaeger

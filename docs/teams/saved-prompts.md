@@ -19,7 +19,7 @@ You need the Editor or Admin role to save a prompt.
    On a device without hover the button is always visible.
 3. Check the name and the text, choose **Only me** or **Everyone on this server**, and choose **Save prompt**.
    The panel starts with the first three words of the prompt as the name and the whole prompt as the text.
-4. Open the chat page (**Ask** in the sidebar, `/ask`).
+4. Open the chat page: go to `/ask`, or open Home and choose **Ask Observe Agent**.
    Your prompt is listed under the example prompts.
 5. Choose **Run** on its row.
    The prompt is sent at once and the conversation opens.

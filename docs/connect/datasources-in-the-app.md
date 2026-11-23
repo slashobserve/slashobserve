@@ -271,6 +271,7 @@ They need an Admin key, except `recheck`, which needs a Viewer key.
 
 | Command | What it does |
 | --- | --- |
+| `list` | Lists every datasource with its health. |
 | `get <uid>` | Prints the saved definition. |
 | `add <uid> --type <type> --address <address>` | Adds a datasource. |
 | `edit <uid>` | Changes the settings you pass. |

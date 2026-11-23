@@ -43,7 +43,8 @@ Set `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` to one of two things.
   `*` cannot be combined with domains.
 
 A refused person returns to the sign-in page with "This account is not allowed to sign in."
-The log has `sign-in refused` with the `reason` and the email's domain, never the address.
+The log has `sign-in refused` with the `reason`, never the address.
+For `domain_not_allowed` and `email_unverified` it also logs the email's domain.
 The reasons are `domain_not_allowed`, `email_unverified`, `email_too_long` and `email_invalid`.
 A provider that sends no email address at all is refused whatever the setting.
 That case shows "Sign-in failed. Try again." and logs `sign-in failed` with `error_code` `email_missing`.

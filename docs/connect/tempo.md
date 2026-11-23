@@ -36,8 +36,9 @@ An Admin adds it to the datasources file, or in the app as [Add datasources in t
    observe traces --query '{ resource.service.name =~ ".+" }' --datasource tempo
    ```
 
-   You see a table of up to 100 traces, newest first, with each trace's start, service, span name and duration.
-5. Open one trace with an id from that table:
+   You see a table of up to 100 traces, newest first, with the columns STARTED, SERVICE, SPAN, DURATION, SPANS and ERRORS.
+5. The table has no id column.
+   Get a trace id from the `TraceId` field of the same search with `--json`, or from the Traces page, then open that trace:
 
    ```sh
    observe traces 4bf92f3577b34da6a3ce929d0e0e4736 --datasource tempo
@@ -49,7 +50,8 @@ An Admin adds it to the datasources file, or in the app as [Add datasources in t
 ## Connect a Tempo behind a login
 
 Reference a secret by variable name or by file, never by value.
-The variable name must start with `SLASHOBSERVE_`, and it goes in the same env file as the server's other settings.
+The variable name must start with `SLASHOBSERVE_`, and it must not be one the server uses for its own configuration.
+It goes in the same env file as the server's other settings.
 
 ```yaml
 - uid: tempo
