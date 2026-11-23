@@ -4,74 +4,85 @@ description: The keys that view, edit and inspect a panel, move the time range, 
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
-Press `?` on a dashboard to see them all in the app, or choose **Keyboard shortcuts** in the command palette on any page.
+Use them to open a panel, move the time range or refresh without reaching for the mouse.
 
-| Keys | What they do |
-| --- | --- |
-| `v` | View the panel at full size, or go back to the dashboard. |
-| `e` | Edit the panel, when you may edit the dashboard. |
-| `i` | Open Inspect for the panel, or close it. |
-| `a` | Ask the agent about the whole panel in a box on the panel, when it is a data panel, you may comment on the dashboard and a model is connected; in the full-size view, in TV mode and on a copy of a repeated panel it opens the Chat tab on that panel instead; with no panel it turns Ask mode on, and in Ask mode it turns it off; see [Ask and comment on a dashboard](ask-and-comment.md). |
-| `c` | Comment on the whole panel in a composer on the panel, when you may comment on the dashboard; with no panel it turns Comment mode on, and in Comment mode it turns it off. |
-| `Esc` | Close an open comment or ask box, which leaves the mode on, then Inspect, then the full-size view, then TV mode and full screen, then leave Comment or Ask mode for Select, then clear the selected panel. |
-| `t` then `z` | Zoom the time range out to twice its length. |
-| `t` then `←` | Move the time range back by half its length. |
-| `t` then `→` | Move the time range forward by half its length. |
-| `d` then `r` | Refresh every panel. |
-| `d` then `k` | Enter TV mode in full screen. |
-| `f` | Go full screen in TV mode opened from a link. |
-| `?` | Show the keyboard shortcuts. |
-| `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
-| `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
-| `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
+## See the shortcuts in the app
 
-Opening the Share, Activity, Chat or Dashboard JSON pane of a dashboard moves the focus to the pane's heading, on a phone as well, so a screen reader reads it and the keys work inside it.
-A pane that was already open when the page loaded does not take the focus.
-Escape closes the pane when the focus is inside it or on the button that opened it.
-The focus returns to the button that opened the pane, which on a phone is the Controls button, and so does the pane's Close button.
-A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
+1. Open a dashboard.
+2. Press `?`.
+   A dialog named **Keyboard shortcuts** lists the keys.
 
-## Moving around the app
+On any other page, open the command palette with `⌘K` or `Ctrl+K` and choose **Keyboard shortcuts**.
 
-The first Tab stop on every page after sign-in is **Skip to the page**, which appears at the top left; press Enter to move the focus to the page's heading and skip the sidebar.
-When a page opens because you pressed Enter or followed a link, and the focus was on something that went away with the old page, the focus moves to the new page's heading.
-Focus stays where it is when you open a page from the sidebar, and when the new page puts the focus in a field itself.
-
-## Which panel a key acts on
+## Act on a panel
 
 `v`, `e`, `i`, `a` and `c` act on the panel under the pointer.
 With no panel under the pointer, they act on the panel that holds the keyboard focus.
 
+1. Point at a panel.
+2. Press `v` to view it at full size.
+3. Press `v` again to go back to the dashboard.
+
 Hovering a panel also shows **Ask** and **Comment** buttons in its header, which do what `a` and `c` do.
-They fade in under a mouse or trackpad, and on a touch screen and while the keyboard focus is in the panel they are always shown.
-A panel narrower than 240 pixels leaves them and its datasource name out of the header so the title keeps the room; the keys and the panel menu still work there.
+They fade in under a mouse or trackpad.
+On a touch screen, and while the keyboard focus is in the panel, they are always shown.
+A panel narrower than 240 pixels leaves them and its datasource name out of the header so the title keeps the room.
+The keys and the panel menu still work there.
 **Ask** needs the same things as `a`, and the panel menu offers both with the same rule.
 
-## Observation page keys
+## Move the time range
 
-An observation page answers `c`, `a` and `Esc` for the canvas, as described in [Comment and ask on the blocks](observations.md#comment-and-ask-on-the-blocks).
-`c` and `a` open the composer or the ask box on the whole block under the pointer, or on the one that holds the keyboard focus; with no block there, they turn Comment or Ask mode on, and in that mode they turn it off.
-`a` skips a panel block whose panel shows no data.
-`Esc` hides the **Comment** and **Ask** buttons under selected text first, then closes an open composer or ask box, and then leaves Comment or Ask mode for Select; when you have typed, it asks "Discard your draft?" before your text goes.
-The keys do nothing while you move or resize blocks, while you type in a field, and for a person who cannot comment.
+Press the first key, then the second within one second.
+Any other key in between cancels the pair.
 
-## Two-key shortcuts
+| Keys | What they do |
+| --- | --- |
+| `t` then `z` | Zoom the time range out to twice its length. |
+| `t` then `←` | Move the time range back by half its length. |
+| `t` then `→` | Move the time range forward by half its length. |
 
-For a two-key shortcut, press the second key within one second of the first.
-Any other key in between cancels it.
-
-## Time range keys
-
-`t z`, `t ←` and `t →` turn the time range into fixed times, so the address of the page keeps the range you moved to.
+These keys turn the time range into fixed times, so the address of the page keeps the range you moved to.
 A range that would end in the future ends now instead and keeps its length.
 They do nothing on a dashboard that hides the time picker.
 
-## When keys are ignored
+## Know when keys are ignored
 
 The keys do nothing while you type in a field, while a menu or dialog is open, or while you hold `⌘`, `Ctrl` or `Alt`.
-`v`, `e`, `i`, `a` and `c` also act on no panel while you have unsaved layout changes; `c` then only opens the activity pane.
+`v`, `e`, `i`, `a` and `c` also act on no panel while you have unsaved layout changes.
+`c` then only opens the activity pane.
+
 In the full-size view and in TV mode, `c` comments on the panel in the activity pane instead, and with no panel it opens the activity pane.
 On a copy of a repeated panel, `c` also comments in the activity pane.
+
+## Move around the app
+
+The first Tab stop on every page after sign-in is **Skip to the page**, which appears at the top left.
+Press Enter on it to move the focus to the page's heading and skip the sidebar.
+
+When a page opens because you pressed Enter or followed a link, and the focus was on something that went away with the old page, the focus moves to the new page's heading.
+Focus stays where it is when you open a page from the sidebar, and when the new page puts the focus in a field itself.
+
+### Panes of a dashboard
+
+Opening the Share, Activity, Chat or Dashboard JSON pane moves the focus to the pane's heading, on a phone as well.
+A screen reader then reads the heading, and the keys work inside the pane.
+A pane that was already open when the page loaded does not take the focus.
+
+Escape closes the pane when the focus is inside it or on the button that opened it.
+The focus returns to the button that opened the pane, which on a phone is the Controls button, and so does the pane's Close button.
+A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
+
+## Observation page keys
+
+An observation page answers `c`, `a` and `Esc` for the canvas, as [Comment and ask on the blocks](observations.md#comment-and-ask-on-the-blocks) describes.
+
+- `c` and `a` open the composer or the ask box on the whole block under the pointer, or on the one that holds the keyboard focus.
+  With no block there, they turn Comment or Ask mode on, and in that mode they turn it off.
+- `a` skips a panel block whose panel shows no data.
+- `Esc` first hides the **Comment** and **Ask** buttons under selected text.
+  It then closes an open composer or ask box, and then leaves Comment or Ask mode for Select.
+  When you have typed, it asks "Discard your draft?" before your text goes.
+- The keys do nothing while you move or resize blocks, while you type in a field, and for a person who cannot comment.
 
 ## Logs page keys
 
@@ -125,3 +136,47 @@ The waterfall of a trace answers keys of its own while a span row has the focus,
 | `←` | Collapse the span's children. |
 | `→` | Expand the span's children. |
 | `/` | Jump to the **Find in trace** field. |
+
+## Reference
+
+### Dashboard keys
+
+| Keys | What they do |
+| --- | --- |
+| `v` | View the panel at full size, or go back to the dashboard. |
+| `e` | Edit the panel, when you may edit the dashboard. |
+| `i` | Open Inspect for the panel, or close it. |
+| `a` | Ask the agent about the whole panel. |
+| `c` | Comment on the whole panel. |
+| `Esc` | Close the topmost open thing, as listed below. |
+| `t` then `z` | Zoom the time range out to twice its length. |
+| `t` then `←` | Move the time range back by half its length. |
+| `t` then `→` | Move the time range forward by half its length. |
+| `d` then `r` | Refresh every panel. |
+| `d` then `k` | Enter TV mode in full screen. |
+| `f` | Go full screen in TV mode opened from a link. |
+| `?` | Show the keyboard shortcuts. |
+| `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
+| `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
+| `⌘\` or `Ctrl+\` | Collapse or expand the sidebar; under 1200 pixels wide it opens the full sidebar over the page. |
+
+Details of `a`:
+
+- It opens a box on the panel when the panel is a data panel, you may comment on the dashboard and a model is connected.
+- In the full-size view, in TV mode and on a copy of a repeated panel, it opens the Chat tab on that panel instead.
+- With no panel it turns Ask mode on, and in Ask mode it turns it off.
+- See [Ask and comment on a dashboard](ask-and-comment.md).
+
+Details of `c`:
+
+- It opens a composer on the panel when you may comment on the dashboard.
+- With no panel it turns Comment mode on, and in Comment mode it turns it off.
+
+Details of `Esc`, in the order it acts:
+
+1. It closes an open comment or ask box, which leaves the mode on.
+2. It closes Inspect.
+3. It closes the full-size view.
+4. It leaves TV mode and full screen.
+5. It leaves Comment or Ask mode for Select.
+6. It clears the selected panel.
