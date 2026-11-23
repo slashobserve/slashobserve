@@ -3,67 +3,127 @@ title: Inbox
 description: See what asks something of you, a proposal to merge, a block to keep, a mention, a reply, a failed run, a saved health repair or a request for comment access, with the reason it is there and an unread count that follows you across browsers.
 ---
 
-The inbox is the activity you can see, filtered to what asks something of you now.
-It is a read over the [activity log](activity.md), not a second store of events, so it cannot show something that did not happen.
-`GET /api/v1/inbox` lists it, newest first, `POST /api/v1/inbox/read` marks it read up to one item, and `PUT /api/v1/inbox/items/{seq}` marks one item read, unread or done.
-Both need the Viewer role or higher and a signed-in person: a service-account key gets 403 `user_session_required`.
-A connected agent signed in as a person reads the same list with the MCP tool `list_inbox`, which marks nothing read, and marks an item done with `set_inbox_item_done`.
-The `observe` command line signs in with a key, so it has no inbox commands.
+The inbox lists what asks something of you now: a proposal to merge, a block to keep, a mention, a reply, a failed run, a saved health repair or a request for comment access.
+Each item shows the reason it is there, and an unread count follows you from one browser to the next.
 
-## In the web app
+The inbox is a read over the [activity log](activity.md), not a second store of events, so it cannot show something that did not happen.
+It needs the Viewer role or higher and a signed-in person.
+A service-account key gets 403 `user_session_required`, and the `observe` command line signs in with a key, so it has no inbox commands.
 
-**Inbox** is in the sidebar under Home, at `/inbox`.
-A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
-The page lists the items in two groups, "Needs you" for the items with a reason, each marked with its reason as "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request", and "Workspace activity" for the rest, which only the Everything view shows.
-The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views) below, and **Load more** fetches the next page.
-Under the tabs, **Open**, **Unread** and **Done** choose which items the list shows, as the [filter](#done-and-the-unread-filter) below says, and **Group by dashboard or observation** puts the items about the same dashboard, observation or proposal together under its title, newest group first.
-The view, the filter, the grouping and the selected item are kept in the address.
+## Work through your inbox
+
+1. Choose **Inbox** in the sidebar, under Home, which opens `/inbox`.
+   A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
+2. Read the **Needs you** group.
+   Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
+3. Select an item to open it.
+   Opening it marks it read.
+4. Act on it: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
+5. Mark the item done, with **Mark done**.
+   A "Marked done" toast offers **Undo**.
+
+On a window 1100 pixels wide or more, a selected row opens in a pane beside the list.
+The address keeps the view and the item (`view` and `item`).
+On a narrower window the list stands alone, each row is a link, and following it marks the item read.
+
+Each row names who did what and the real title of the dashboard, observation or proposal.
+It shows the start of the comment for a mention or a reply, and has a dot while it is unread.
+A reply the agent wrote reads "Observe Agent answered" followed by the question it answered, in place of "replied on" and the title.
+A connected agent keeps its own name, such as "Ada (via Claude Code)".
+
 The list refreshes when new activity arrives.
+**Load more** fetches the next page, and arrow keys move through the rows.
 
-Each row names who did what and the real title of the dashboard, observation or proposal, shows the start of the comment for a mention or a reply, and has a dot while it is unread.
-A reply the agent wrote reads "Observe Agent answered" followed by the question it answered, in place of "replied on" and the title; a connected agent keeps its own name, such as "Ada (via Claude Code)".
-Two buttons at the right of the row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
-Marking an item done shows a "Marked done" toast with **Undo**.
+## Choose what the list shows
 
-**Mark all read** marks the newest item on the page and everything older as read, and shows only while something is unread.
-Arrow keys move through the rows.
-On a window 1100 pixels wide or more, a selected row opens in a pane beside the list, and the address keeps the view and the item (`view` and `item`).
-A proposal opens there with its changes, **Merge** and **Discard**, and **Open proposal** goes to its page.
-A mention or a reply opens there as the whole thread, with a **Reply** box that works as it does on the page: `@` asks an agent, and you can edit or delete your own comments.
-Any other item shows its text, and every item has an **Open** button, **Mark as read** or **Mark as unread**, and **Mark done** or, on the Done filter, **Move back to the inbox**.
-Opening an item marks it read, once: marking it unread again while it is open keeps it unread.
-On a narrower window the list stands alone and each row is a link, and following it marks the item read.
+The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views).
+**For you** is the default.
+**Everything** also lists "Workspace activity", the events that have no reason.
 
-## What asks something of you
+Under the tabs, **Open**, **Unread** and **Done** choose which items the list shows; see [Done and the unread filter](#done-and-the-unread-filter).
+**Group by dashboard or observation** puts the items about the same dashboard, observation or proposal together under its title, newest group first.
+The view, the filter, the grouping and the selected item are kept in the address.
 
-Each item has a `reason`, and an item that matches several rules has the first in this order.
+## Mark items read or done
+
+Two buttons at the right of a row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
+
+**Mark all read** marks the newest item on the page and everything older as read.
+It shows only while something is unread.
+
+Opening an item marks it read, once.
+Marking it unread again while it is open keeps it unread.
+
+The pane of an item has an **Open** button, **Mark as read** or **Mark as unread**, and **Mark done** or, on the Done filter, **Move back to the inbox**.
+
+## Reply or merge from the pane
+
+- A proposal opens with its changes, **Merge** and **Discard**.
+  **Open proposal** goes to its page.
+- A mention or a reply opens as the whole thread, with a **Reply** box that works as it does on the page.
+  `@` asks an agent, and you can edit or delete your own comments.
+- Any other item shows its text.
+
+## What opens when you open an item
+
+- A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
+- A mention or a reply opens the thread it is in.
+  On a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address).
+  On an observation it is the discussion, and on a proposal it is the proposal.
+- A closed proposal reads "merged your proposal" or "discarded your proposal" with its title, shows the reason given for a discard, and opens the proposal.
+  The same notice is posted as a comment in the proposal's discussion.
+- A failed run opens its chat.
+- A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
+  An item recorded before the title and panel count were stored reads "Your repair saved version N".
+- An access request reads "asked for comment access to" followed by the title, and shows the note.
+  It opens the dashboard's Share pane, or for an observation its folder's settings.
+  For something in General, which takes no folder entry, it says to raise the person's role or move the item to a folder first.
+  It then opens People, or API keys for a service account.
+  Marking it done declines it for every recipient.
+
+## Read the inbox from an agent or the API
+
+A connected agent signed in as a person reads the same list with the MCP tool `list_inbox`, which marks nothing read.
+It marks an item done with `set_inbox_item_done`, which takes a `seq` and `done`.
+
+Over HTTP:
+
+- `GET /api/v1/inbox` lists the items, newest first.
+- `POST /api/v1/inbox/read` marks the inbox read up to one item.
+- `PUT /api/v1/inbox/items/{seq}` marks one item read, unread or done.
+
+The HTTP routes answer only to a signed-in person's session, so a service-account key gets 403 `user_session_required`.
+
+## Reference
+
+### What asks something of you
+
+Each item has a `reason`.
+An item that matches several rules has the first in this order.
 Items are from the last 30 days, in folders you can see, and never your own action unless the rule says so.
 
 | Reason | The item is |
 | --- | --- |
-| `proposal` | A [proposal](../concepts/proposals.md) that someone else opened on a dashboard in a folder you can edit, and that is still open. |
-| `requested_block` | A block that someone requested on an observation you created and can still edit, and that is still waiting to be kept or discarded. |
+| `proposal` | A [proposal](../concepts/proposals.md) that someone else opened on a dashboard in a folder you can edit, still open. |
+| `requested_block` | A block someone requested on an observation you created and can edit, still waiting. |
 | `mention` | A comment by someone else that mentions you by name. |
-| `reply` | A reply by someone else in a thread you wrote in, or a reply that an agent run wrote for a run you requested. |
+| `reply` | A reply in a thread you wrote in, or a reply an agent run wrote for your run. |
 | `run_failed` | A run you requested that failed and that nobody has continued. |
-| `repaired` | A health repair you started from a dashboard or the dashboards list that saved a version. |
+| `repaired` | A health repair you started that saved a version. |
 | `proposal_closed` | A proposal you opened that someone else merged or discarded. |
-| `access_request` | A request for [comment access](../teams/folders.md#ask-for-comment-access) to a dashboard or observation in a folder you manage, or as an instance Admin when nobody manages it, that is still open. |
+| `access_request` | An open request for [comment access](../teams/folders.md#ask-for-comment-access). |
 
-An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
-A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
+Details of the rules:
 
-## Opening an item
+- A `proposal` item is one whose proposal is still open.
+- A `requested_block` item is one whose block is waiting to be kept or discarded.
+- A `reply` by someone else counts when you wrote earlier in the thread, or when an agent run wrote it for a run you requested.
+- A `repaired` item comes from a health repair you started from a dashboard or the dashboards list.
+- An `access_request` item is for a dashboard or observation in a folder you manage, or as an instance Admin when nobody manages it.
+- An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
+- A comment that mentions you and also replies in a thread you wrote in is one `mention` item, not two.
 
-A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
-A mention or a reply opens the thread it is in: on a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address), on an observation its discussion, and on a proposal the proposal.
-A closed proposal reads "merged your proposal" or "discarded your proposal" with its title, shows the reason given for a discard, and opens the proposal; the same notice is posted as a comment in the proposal's discussion.
-A failed run opens its chat.
-A repaired item reads "repaired", the number of panels and the dashboard's title, and opens the versions compare of the version the repair saved.
-An item recorded before the title and panel count were stored reads "Your repair saved version N".
-An access request reads "asked for comment access to" followed by the title, shows the note, and opens the dashboard's Share pane, or for an observation its folder's settings; for something in General, which takes no folder entry, it says to raise the person's role or move the item to a folder first and opens People (API keys for a service account); marking it done declines it for every recipient.
-
-## Views
+### Views
 
 `view` chooses what the list holds, and `for_you` is the default.
 
@@ -72,19 +132,47 @@ An access request reads "asked for comment access to" followed by the title, sho
 | `for_you` | Every item with a reason. |
 | `proposals` | The `proposal` and `proposal_closed` items. |
 | `mentions` | The `mention` and `reply` items. |
-| `everything` | Every visible event from others, and every item with a reason, with `reason` null on the events that have none. |
+| `everything` | Every visible event from others, and every item with a reason. |
 
-`limit` is 1 to 100 and defaults to 50, and `cursor` takes the `next_cursor` of the previous page.
-An item is the event as `GET /api/v1/activity` returns it, plus `reason`, `unread`, `target_title`, `excerpt` and `question`.
-`target_title` is the title of the dashboard, observation or proposal the item is about, and is null when it has none, has been deleted or is in a place you can no longer read.
-`excerpt` is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`, the error of a failed run, the reason a proposal was discarded, or the note of an access request, as plain text of at most 200 characters, and is null for other items and for a comment in a thread you can no longer read.
-`question` is the first line of the thread message that an agent run answered, cut to a title of at most 60 characters, on the `thread.replied` item that run wrote.
-It is null on every other item, once that message is deleted or withdrawn, and when you can no longer read the thread; it never comes from a chat prompt.
+In `everything`, `reason` is null on the events that have none.
+An invalid `view` answers 400 `invalid_view`.
+
+### Paging and the item shape
+
+`limit` is 1 to 100 and defaults to 50, and an invalid one answers 400 `invalid_limit`.
+`cursor` takes the `next_cursor` of the previous page, and an invalid one answers 400 `invalid_cursor`.
+
+An item is the event as `GET /api/v1/activity` returns it, plus these fields.
+
+| Field | Holds |
+| --- | --- |
+| `reason` | The reason, or null in the `everything` view for an event without one. |
+| `unread` | Whether the item is unread. |
+| `target_title` | The title of the dashboard, observation or proposal the item is about. |
+| `excerpt` | A short plain-text extract, as described below. |
+| `question` | The question an agent reply answered, as described below. |
+
+Details of `target_title`: it is null when the item has no target, the target was deleted, or it is in a place you can no longer read.
+
+Details of `excerpt`:
+
+- It is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`.
+- It is the error of a failed run, the reason a proposal was discarded, or the note of an access request.
+- It is plain text of at most 200 characters.
+- It is null for other items, and for a comment in a thread you can no longer read.
+
+Details of `question`:
+
+- It is the first line of the thread message that an agent run answered, cut to a title of at most 60 characters, on the `thread.replied` item that run wrote.
+- It is null on every other item, once that message is deleted or withdrawn, and when you can no longer read the thread.
+- It never comes from a chat prompt.
+
 The rest of an item carries no comment, message or finding text, as in the log.
 
-## Done and the unread filter
+### Done and the unread filter
 
 `filter` chooses which of the items of the view the list holds, and `open` is the default.
+An invalid one answers 400 `invalid_filter`.
 
 | Filter | Holds |
 | --- | --- |
@@ -92,19 +180,28 @@ The rest of an item carries no comment, message or finding text, as in the log.
 | `unread` | The open items that are unread. |
 | `done` | The items you marked done. |
 
-`PUT /api/v1/inbox/items/{seq}` takes `{"done": true}` to mark an item done: it leaves the `open` and `unread` lists, counts as read, never counts in `unread_count`, and stays done when you read the inbox.
-`{"done": false}` brings it back to the open list as read, and marking a done item unread brings it back as unread.
+`PUT /api/v1/inbox/items/{seq}` takes one of `{"done": true}`, `{"done": false}`, `{"unread": true}` and `{"unread": false}`, and answers 204.
 Send exactly one of `unread` and `done` in a body.
-The MCP tool `list_inbox` takes the same `filter`, and `set_inbox_item_done` takes a `seq` and `done`.
+
+- `{"done": true}` marks an item done.
+  It leaves the `open` and `unread` lists, counts as read, never counts in `unread_count`, and stays done when you read the inbox.
+- `{"done": false}` brings it back to the open list as read.
+- Marking a done item unread brings it back as unread.
+
+The MCP tool `list_inbox` takes the same `filter`.
 An item that is done stays done until it leaves the 30 days of the inbox.
 
-## What you have read
+### What you have read
 
 The server keeps one read position per person, so it follows you from one browser to the next.
-`POST /api/v1/inbox/read` takes `{"seq": N}`, the `seq` of the newest item you saw: that event and everything older is read.
-The position only moves forward, so marking an older `seq` changes nothing, and an unknown `seq` is refused with 422 `unknown_seq`.
-`PUT /api/v1/inbox/items/{seq}` takes `{"unread": true}` or `{"unread": false}` and marks that one item, whatever its place relative to the position.
-Marking a later `seq` read with `POST /api/v1/inbox/read` sets every item up to it to read again, including those you marked unread.
-Until you read once, every item in the last 30 days is unread.
 
-Every list answers `unread_count`, the number of unread `for_you` items whatever the view is, and 100 means 100 or more.
+- `POST /api/v1/inbox/read` takes `{"seq": N}`, the `seq` of the newest item you saw.
+  That event and everything older is read, and the answer is 204.
+- The position only moves forward, so marking an older `seq` changes nothing.
+  An unknown `seq` is refused with 422 `unknown_seq`.
+- `PUT /api/v1/inbox/items/{seq}` with `{"unread": true}` or `{"unread": false}` marks that one item, whatever its place relative to the position.
+- Marking a later `seq` read with `POST /api/v1/inbox/read` sets every item up to it to read again, including those you marked unread.
+- Until you read once, every item in the last 30 days is unread.
+
+Every list answers `unread_count`, the number of unread `for_you` items whatever the view is.
+The count stops at 100, so 100 means 100 or more.
