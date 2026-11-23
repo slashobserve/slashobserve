@@ -40,6 +40,7 @@ type Services struct {
 type servicesKey struct {
 	datasource, signal string
 	window             time.Duration
+	asOf               int64
 }
 
 type servicesCache struct {
@@ -81,7 +82,8 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 	if !ok {
 		return Services{}, invalidNamesf("services are read on Loki, Tempo, ClickHouse, Elasticsearch and OpenSearch datasources; %s is a %s datasource", inst.UID, inst.Datasource.Type())
 	}
-	key := servicesKey{datasource: inst.UID, signal: req.Signal, window: window}
+	now := datasource.Now(ctx)
+	key := servicesKey{datasource: inst.UID, signal: req.Signal, window: window, asOf: pinnedUnixNano(ctx)}
 	if cached, _, hit := r.services.entries.Get(key); hit {
 		return cached, nil
 	}
@@ -89,7 +91,7 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 		if cached, _, hit := r.services.entries.Get(key); hit {
 			return cached, nil
 		}
-		out, err := r.readServices(ctx, inst.UID, source, req.Signal, window)
+		out, err := r.readServices(ctx, inst.UID, source, req.Signal, window, now)
 		if err != nil {
 			return Services{}, err
 		}
@@ -98,13 +100,12 @@ func (r *Runner) Services(ctx context.Context, req ServicesRequest) (Services, e
 	})
 }
 
-func (r *Runner) readServices(ctx context.Context, uid string, source datasource.ServiceSource, signal string, window time.Duration) (Services, error) {
+func (r *Runner) readServices(ctx context.Context, uid string, source datasource.ServiceSource, signal string, window time.Duration, now time.Time) (Services, error) {
 	release, err := r.acquireUpstreamBounded(ctx, uid)
 	if err != nil {
 		return Services{}, err
 	}
 	defer release()
-	now := time.Now()
 	list, err := source.Services(ctx, datasource.ServiceRequest{
 		Signal: signal,
 		Range:  datasource.TimeRange{From: now.Add(-window), To: now},
@@ -115,4 +116,11 @@ func (r *Runner) readServices(ctx context.Context, uid string, source datasource
 	}
 	values, truncated := truncate(append([]string{}, list.Values...), MaxServices, false)
 	return Services{Datasource: uid, Signal: list.Signal, Field: list.Field, Window: window, Services: values, Truncated: truncated}, nil
+}
+
+func pinnedUnixNano(ctx context.Context) int64 {
+	if at, ok := datasource.PinnedNow(ctx); ok {
+		return at.UnixNano()
+	}
+	return 0
 }

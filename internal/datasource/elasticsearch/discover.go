@@ -70,7 +70,7 @@ func (d *Datasource) discoverLabelValues(ctx context.Context, req datasource.Dis
 	}
 	r := req.Range
 	if r.From.IsZero() {
-		r.To = time.Now()
+		r.To = datasource.Now(ctx)
 		r.From = r.To.Add(-discoverWindow)
 	}
 	limit := req.EffectiveLimit()
@@ -105,7 +105,7 @@ func (d *Datasource) discoverSample(ctx context.Context, req datasource.Discover
 	if err != nil {
 		return nil, err
 	}
-	end := time.Now()
+	end := datasource.Now(ctx)
 	raw, err := d.search(ctx, map[string]any{
 		"size":             n,
 		"track_total_hits": false,

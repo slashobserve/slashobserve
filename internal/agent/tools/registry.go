@@ -282,6 +282,9 @@ func (r *Registry) DatasourceTypes(ctx context.Context) []spec.DatasourceType {
 }
 
 func WithRun(ctx context.Context, run Run) context.Context {
+	if !run.AsOf.IsZero() {
+		ctx = datasource.WithNow(ctx, run.AsOf)
+	}
 	return context.WithValue(ctx, runKey{}, run)
 }
 

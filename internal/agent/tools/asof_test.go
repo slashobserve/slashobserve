@@ -40,3 +40,31 @@ func TestARunWithoutAsOfReadsTheLastHour(t *testing.T) {
 		t.Fatalf("now-1h to now asked for %s to %s, want the hour ending at the call", got.From, got.To)
 	}
 }
+
+func TestNamesWithoutARangeEndAtTheRunsAsOf(t *testing.T) {
+	at := time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		want datasource.TimeRange
+	}{
+		{"an as_of run", WithRun(context.Background(), Run{Mode: ModeInvestigate, AsOf: at}), datasource.TimeRange{From: at.Add(-defaultNamesWindow), To: at}},
+		{"a live run", WithRun(context.Background(), Run{Mode: ModeInvestigate}), datasource.TimeRange{}},
+		{"no run", context.Background(), datasource.TimeRange{}},
+	} {
+		got, res, ok := namesRange(tc.ctx, "", "")
+		if !ok || res.IsError || !got.From.Equal(tc.want.From) || !got.To.Equal(tc.want.To) {
+			t.Errorf("%s: namesRange = %v to %v, want %v to %v", tc.name, got.From, got.To, tc.want.From, tc.want.To)
+		}
+	}
+}
+
+func TestAnAsOfRunPinsTheDatasourceClock(t *testing.T) {
+	at := time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC)
+	if got, ok := datasource.PinnedNow(WithRun(context.Background(), Run{AsOf: at})); !ok || !got.Equal(at) {
+		t.Fatalf("PinnedNow = %s, %v, want %s", got, ok, at)
+	}
+	if _, ok := datasource.PinnedNow(WithRun(context.Background(), Run{})); ok {
+		t.Fatal("a live run pins the clock")
+	}
+}
