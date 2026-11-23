@@ -4,18 +4,56 @@ description: The internals dashboard that watches the server itself, what each r
 ---
 
 The internals dashboard shows the server's own [metrics](metrics.md): its API, the agent and the model provider, the query proxy, the database pool, the scheduler and the fleet.
+Use it to see whether the server is answering quickly, whether agent runs succeed, and whether several servers share the work.
 It is an ordinary provisioned dashboard titled SlashObserve internals, in the folder SlashObserve.
 
-## What it needs
+## Add the dashboard to your server
+
+1. Make sure a datasource with uid `prom` is a Prometheus that scrapes the server's `/metrics`.
+   [Scrape it](metrics.md#scrape-it) shows the scrape job.
+2. Put `internals.json` in a `SlashObserve` directory of the server's [provisioning directory](provisioning.md).
+   Copy it from `deploy/compose/dashboards/SlashObserve/internals.json`.
+   On Kubernetes, the Helm chart does this for you; see [Add it with the Helm chart](#add-it-with-the-helm-chart).
+3. Wait for the first scrapes.
+   The dashboard appears in the folder SlashObserve within a minute or two of the first scrape.
+
+Until Prometheus has scraped the server a few times, the panels return no data and the dashboard is not saved yet.
+The provisioner tries again every 30 seconds.
+Until then `GET /api/v1/provision` lists the file with its error.
+
+The dashboard is provisioned like any other file.
+An edit made in the app is replaced the next time the file changes, and stays in the version history.
+
+## Add it with the Helm chart
+
+The Helm chart carries its own copy of the file and mounts it as the folder `SlashObserve` while `provisioning.internals` is `true`, which is the default.
+See [Run on Kubernetes](kubernetes.md).
+Add a datasource with uid `prom` under `datasources` that points at a Prometheus scraping the pod.
+`make lint` fails when the chart's copy differs from the compose copy.
+
+## Look at the dashboard in the replicas stack
+
+The replicas stack of the repository's load test mounts `deploy/compose/dashboards/SlashObserve` as its provisioning directory.
+Its Prometheus scrapes both servers as the `slashobserve` job behind the `prom` datasource.
+The [demo](demo.md) does not provision the dashboard, because its Prometheus does not scrape the server.
+
+## Reference
+
+### What it needs
 
 Every panel queries the datasource with uid `prom`, so that datasource must be a Prometheus that scrapes the server's `/metrics`.
 The queries have no `job` selector, so a Prometheus that scrapes several SlashObserve servers shows their sum.
-Until Prometheus has scraped the server a few times, the panels return no data and the dashboard is not saved yet.
-The provisioner tries it again every 30 seconds, so it appears within a minute or two of the first scrape; until then `GET /api/v1/provision` lists the file with its error.
 
-## What each row answers
+### What each row answers
 
-The top line holds six stats: API requests per second, the share of API requests that failed with a server error, the 95th percentile request time, agent runs and model tokens in the dashboard's range, and the share of the database pool in use.
+The top line holds six stats:
+
+- API requests per second.
+- The share of API requests that failed with a server error.
+- The 95th percentile request time.
+- Agent runs in the dashboard's range.
+- Model tokens in the dashboard's range.
+- The share of the database pool in use.
 
 | Row | What it shows |
 | --- | --- |
@@ -27,14 +65,4 @@ The top line holds six stats: API requests per second, the share of API requests
 | Are the servers sharing the work? | The number of live servers, datasource slots in use against their limit by datasource, and the 95th percentile time agent requests wait for a worker. |
 
 A server with no model configured shows zero agent runs and model calls rather than empty panels.
-
-## How it is provisioned
-
-- **The replicas stack** of the repository's load test mounts `deploy/compose/dashboards/SlashObserve` as its [provisioning directory](provisioning.md), and its Prometheus scrapes both servers as the `slashobserve` job behind the `prom` datasource.
-  The [demo](demo.md) does not provision it, because its Prometheus does not scrape the server.
-- **The Helm chart** carries its own copy of the file and mounts it as the folder `SlashObserve` while `provisioning.internals` is `true`, the default; see [Run on Kubernetes](kubernetes.md).
-  Add a datasource with uid `prom` under `datasources` that points at a Prometheus scraping the pod.
-  `make lint` fails when the chart's copy differs from the compose copy.
-- **Any other install** can copy `deploy/compose/dashboards/SlashObserve/internals.json` into a `SlashObserve` directory of its provisioning directory.
-
-The dashboard is provisioned like any other file, so an edit made in the app is replaced the next time the file changes, and stays in the version history.
+The scheduler panels group by `exported_job`, because Prometheus renames the `job` label of the scheduler series when it clashes with the scrape job; see [Labels](metrics.md#labels).
