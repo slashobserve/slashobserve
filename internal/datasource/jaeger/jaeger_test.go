@@ -3,12 +3,14 @@ package jaeger_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -75,6 +77,14 @@ func serve(t *testing.T, replies map[string]reply, mutate ...func(*jaeger.Option
 	}
 	t.Cleanup(func() { _ = ds.Close() })
 	return ds, fake
+}
+
+func summaries(n int) string {
+	rows := make([]string, n)
+	for i := range rows {
+		rows[i] = fmt.Sprintf(`{"traceId":"%032x","rootServiceName":"checkout","rootOperationName":"GET /","minStartTimeUnixNano":"%d","maxEndTimeUnixNano":"%d","spanCount":1,"errorSpanCount":0}`, i+1, 1793966400000000000+i, 1793966400000000000+i)
+	}
+	return `{"summaries":[` + strings.Join(rows, ",") + `]}`
 }
 
 func fixture(t *testing.T, name string) string {
@@ -188,6 +198,18 @@ func TestSearchReportsTruncationAtTheRowLimit(t *testing.T) {
 	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Limits: datasource.Limits{MaxRows: 2}}, lastHour)
 	if err != nil || len(frames) != 1 || frames[0].Meta == nil || !frames[0].Meta.Truncated {
 		t.Fatalf("frames = %+v, %v; want a truncated frame", frames, err)
+	}
+}
+
+func TestSearchReportsTruncationAtTheSearchDepthCeiling(t *testing.T) {
+	const ceiling = 10000
+	ds, fake := serve(t, map[string]reply{searchURL: {0, summaries(ceiling)}})
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Limits: datasource.Limits{MaxRows: ceiling * 2}}, lastHour)
+	if err != nil || len(frames) != 1 || frames[0].Meta == nil || !frames[0].Meta.Truncated {
+		t.Fatalf("frames = %+v, %v; want a truncated frame", frames, err)
+	}
+	if got := fakeDepth(t, fake); got != strconv.Itoa(ceiling) {
+		t.Fatalf("searchDepth = %s, want the ceiling", got)
 	}
 }
 

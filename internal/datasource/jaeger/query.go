@@ -91,7 +91,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 		return []datasource.Frame{}, nil
 	}
 	f := traceFrame(rows)
-	if len(rows) == lim.MaxRows {
+	if len(rows) >= searchDepth(lim.MaxRows) {
 		f.Meta = &datasource.FrameMeta{Truncated: true}
 	}
 	return []datasource.Frame{f}, nil
@@ -141,7 +141,7 @@ func (d *Datasource) searchRows(ctx context.Context, s search, r datasource.Time
 	params := url.Values{
 		"query.startTimeMin": {r.From.UTC().Format(timeParamLayout)},
 		"query.startTimeMax": {r.To.UTC().Format(timeParamLayout)},
-		searchDepthParam:     {strconv.Itoa(min(limit, maxSearchDepth))},
+		searchDepthParam:     {strconv.Itoa(searchDepth(limit))},
 	}
 	setIf(params, "query.serviceName", s.service)
 	setIf(params, "query.operationName", s.operation)
@@ -175,6 +175,8 @@ func (d *Datasource) searchRows(ctx context.Context, s search, r datasource.Time
 	})
 	return rows, nil
 }
+
+func searchDepth(limit int) int { return min(limit, maxSearchDepth) }
 
 func setIf(params url.Values, key, value string) {
 	if value != "" {

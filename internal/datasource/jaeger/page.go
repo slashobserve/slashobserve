@@ -34,7 +34,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		return nil, datasource.PageInfo{}, err
 	}
 	page := max(req.Page, 1)
-	window := min(lim.MaxRows, maxSearchDepth)
+	window := searchDepth(lim.MaxRows)
 	if (page-1)*req.PageSize >= window {
 		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "pages past %d traces are not available; narrow the time range or the search", window)
 	}
