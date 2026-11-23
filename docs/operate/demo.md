@@ -28,8 +28,9 @@ You need Docker with Compose 2.24.4 or newer, `git`, `curl`, `jq` and `openssl`,
 
 The stores start empty, and the shop's load generator sends traffic all the time.
 Every chart has live data a minute or two after the start and gains history while the demo runs.
-Prometheus keeps 3 days and the other stores 72 hours.
-Stopping the demo keeps the data, and starting it again carries on from it.
+Prometheus keeps 3 days, and Loki, Tempo and ClickHouse keep 72 hours.
+Jaeger holds only the latest 25,000 traces, in memory.
+Stopping the demo keeps the data of every store except Jaeger, which starts empty, and starting the demo again carries on from it.
 
 | Address | What it is |
 | --- | --- |
