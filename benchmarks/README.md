@@ -88,7 +88,8 @@ To name every store task at once, print the flags:
 uv run --project benchmarks python -m slashobserve_bench.o11y include-flags --tasks /path/to/o11y-bench/tasks
 ```
 
-`include-flags --subset` prints the flags for the ten-task subset in `o11y.SUBSET`, which is empty until the subset is chosen.
+`include-flags --subset` prints the flags for the fixed ten-task subset in `o11y.SUBSET`: three Prometheus, two Loki, two Tempo and three investigation tasks.
+Every development run uses these ten, so results stay comparable; change the list only together with a new baseline.
 
 ### Options
 
