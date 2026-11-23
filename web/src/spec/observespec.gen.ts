@@ -1432,7 +1432,7 @@ export interface AdhocVariable {
   type: "adhoc";
   datasource: DatasourceRef;
   /**
-   * ClickHouse only: also filter every query on this datasource that does not use this variable, on each table the query reads.
+   * Only ClickHouse needs it: also filter every query on this datasource that does not use this variable, on each table the query reads. Prometheus, Elasticsearch and OpenSearch filter every query on the datasource whether or not it is set.
    */
   applyToAll?: true;
   /**
