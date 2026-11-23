@@ -20,7 +20,7 @@ const (
 	checkSkip = "skip"
 )
 
-var releasePattern = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
+var releasePattern = regexp.MustCompile(`^v?[0-9]+\.[0-9]+\.[0-9]+$`)
 
 type checkResult struct {
 	Check  string `json:"check"`
@@ -249,7 +249,7 @@ func (a *app) checkVersion(ctx context.Context, c *client) (string, string) {
 		return checkFail, err.Error()
 	}
 	server := cmpOrUnknown(info.Version)
-	if releasePattern.MatchString(a.version) && releasePattern.MatchString(info.Version) && a.version != info.Version {
+	if releasePattern.MatchString(a.version) && releasePattern.MatchString(info.Version) && strings.TrimPrefix(a.version, "v") != strings.TrimPrefix(info.Version, "v") {
 		return checkWarn, fmt.Sprintf("the CLI is %s and the server %s", a.version, server)
 	}
 	return checkOK, fmt.Sprintf("CLI %s, server %s", a.version, server)
