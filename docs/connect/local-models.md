@@ -98,8 +98,8 @@ To price a local model, see [Price a model that is not in the table](llm-provide
 | `SLASHOBSERVE_LLM_MODEL` | Required, because there is no safe default. |
 | `SLASHOBSERVE_LLM_API_KEY` | Unset for a server that needs no key. |
 | `SLASHOBSERVE_LLM_EFFORT` | Unset, unless the server accepts a reasoning effort. |
-| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` by default. |
-| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` by default. |
+| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` by default, `0` for none. |
+| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` by default, `0` for none. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | `16000` by default. |
 | `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS` | `false` by default. |
 
