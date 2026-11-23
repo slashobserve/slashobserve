@@ -16,6 +16,7 @@ The token is either a person's OAuth access token, which [Connect your own agent
 Add `<public url>/mcp` to an MCP client, approve it once in your browser, and the client acts as you.
 The steps below use Claude Code and a server at `https://observe.example.com`.
 For the demo stack, use `http://localhost:8080/mcp`.
+The **Connect an agent** button on the [Agents page](agents.md) shows the Claude Code command with your address filled in.
 
 1. Add the server to Claude Code:
 
@@ -23,15 +24,13 @@ For the demo stack, use `http://localhost:8080/mcp`.
    claude mcp add --transport http slashobserve https://observe.example.com/mcp
    ```
 
-2. Inside Claude Code, run `/mcp` and choose **Authenticate** for `slashobserve`.
+2. Inside Claude Code, run `/mcp` and choose **Authenticate** for `slashobserve`, or run `claude mcp login slashobserve` in your shell.
    Claude Code opens your browser.
 3. Sign in through your identity provider, as for the web app.
    The consent page names the client, shows your name, email and role, shows the host the browser returns to, and asks you to approve or deny.
+   When the client runs on your own computer, the page warns that any program on this computer can ask under any name, so approve only a connection you just started.
 4. Choose **Approve**.
    Claude Code now lists the server's tools.
-
-When the client runs on your own computer, the consent page warns that any program on this computer can ask under any name, so approve only a connection you just started.
-The **Connect an agent** button on the [Agents page](agents.md) shows the same Claude Code command.
 
 ### Connect VS Code
 
@@ -64,7 +63,7 @@ Add a `url`-only entry to `.cursor/mcp.json` and sign in when Cursor asks:
 
 ### Connect Claude Desktop or claude.ai
 
-Add the server from the connector settings.
+Add the server from the connector settings, entering `<public url>/mcp` as the remote MCP server URL.
 These clients reach the server from Anthropic's servers, so `SLASHOBSERVE_PUBLIC_URL` must be an `https` address that is reachable from the internet.
 A server on `localhost` cannot be added.
 
@@ -90,6 +89,7 @@ An Admin sees and disconnects everyone's connections in Settings, Agent access.
 The [Agents page](agents.md) lists the same connections with their mode and presence.
 
 Disconnecting a client also ends a run it already claimed: the run's token stops working at once, and the run ends when its lease lapses.
+In Claude Code, `claude mcp logout slashobserve` clears only the credentials Claude Code stored, so disconnect in Settings too.
 
 Over the HTTP API, any signed-in person lists and disconnects their own agents with `GET /api/v1/me/grants` and `DELETE /api/v1/me/grants/{id}`.
 An Admin lists and disconnects everyone's with `GET /api/v1/grants` and `DELETE /api/v1/grants/{id}`.
@@ -106,7 +106,7 @@ The client picks the tool and sends a `tools/call` request with the tool name an
 ```
 
 The result has one entry for each datasource, with its `uid`, `type`, `name` and `healthy` flag.
-On the demo stack it looks like this:
+On the demo stack the list starts like this:
 
 ```json
 {
@@ -210,14 +210,16 @@ If your Cursor version cannot expand variables there, put the key in the file on
 
 ## The /observe prompt
 
-The server offers one MCP prompt, `observe`, with an optional `ask`.
-It returns the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces, answer comments, keep observations, review proposals and take assigned runs.
-It appends the `ask` as its last section.
+The server offers one MCP prompt, `observe`, with two optional arguments, `ask` and `kind`.
 
-The prompt also takes an optional `kind`, `build` or `investigate`.
-With a `kind`, it returns the system text SlashObserve's own agent works from for that kind of run, which an agent that claims runs reads before it starts one.
-Without `kind` it returns the general guide, and any other `kind` is refused.
-Any key that can call `/mcp` can list and get the prompt, and the text holds nothing secret.
+- Without `kind`, it returns the guide that outside agents follow to build and change dashboards, investigate a question, search logs and traces, answer comments, keep observations, review proposals and take assigned runs.
+  It appends the `ask`, what you want, as the last section.
+- With `kind` set to `build` or `investigate`, it returns the system text SlashObserve's own agent works from for that kind of run.
+  An agent that claims runs reads it before it starts one.
+  The `ask` is not used.
+- Any other `kind` is refused.
+
+Any key or OAuth connection that can call `/mcp` can list and get the prompt, and the text holds nothing secret.
 
 How a client shows a prompt is up to the client; in Claude Code it appears as an `mcp__` command under the server's name.
 To get the same guide as `/observe` in Claude Code and other agents that read Agent Skills, run `observe skill install`; see [CLI](cli.md#agent-skill).
@@ -360,12 +362,16 @@ The loop of an agent that takes runs:
    Call it again.
    An agent may keep 2 waiting `claim_run` calls at a time.
    Past that, and when `wait_seconds` is 0, the answer is `run: null` with `retry_after_seconds` of 5, so wait that long before the next call.
-2. Read the claimed run.
-   It holds these fields:
+2. Read the claim answer.
+   Next to `run` it has these top-level fields:
+   - `lease_seconds` (60).
+   - `session`, with a `url`, a `token` (starting `sot_`) and `expires_at`.
+   - `system_prompt`, the prompt to read with the run's `kind`: its `name` (`observe`) and `arguments`.
+
+      The `run` holds these fields:
    - `id`, `attempt`, `kind` (`build` or `investigate`), `intent` (`ask`, `apply` or `suggest`) and `prompt`.
    - Its target: `dashboard_id`, `base_version`, `panel_id`, `from` and `to`, each null when the run has none.
-   - `continue_note`, and `requested_by`, the person it acts for.
-   - `lease_seconds` (60), a `session` with a `url`, a `token` (starting `sot_`) and `expires_at`, and `system_prompt`, the `observe` prompt to read with the run's `kind`.
+   - `continue_note`, and `requested_by`, the person it acts for, with their `kind`, `id` and `name`.
    - `thread_context`, the earlier messages of the thread oldest first, when a message in a comment thread started the run; read it before you answer.
      It is `null` for any other run.
    - `anchor` and `block_id`, when the question points at a spot on a panel or an observation block.
@@ -373,7 +379,8 @@ The loop of an agent that takes runs:
      `block_id` is the observation block the anchor sits on, or alone the whole block the question is about.
      Both are `null` for a run that points at nothing.
      `get_run_brief` names the same spot in one sentence.
-   - The server answers in the thread when the run ends, so do not reply there yourself.
+
+   The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
    `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
