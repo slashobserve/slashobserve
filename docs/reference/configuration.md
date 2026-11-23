@@ -255,8 +255,8 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_LLM_BASE_URL` | the provider's endpoint | Endpoint URL, with a path if needed. |
 | `SLASHOBSERVE_LLM_EFFORT` | unset | Reasoning effort, checked against the provider's list. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | `16000` | Output token cap of a model call, `1024` to `64000`. |
-| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` | Limit for one model call, `10s` to `60m`, or `0` for none. |
-| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` | Silence limit while a call streams, `10s` to `60m`, or `0` for none. |
+| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` | Limit for one model call, `10s` to `60m`. `0` is no limit for draft queries; the agent uses `10m`. |
+| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` | Silence limit while a call streams, `10s` to `60m`. `0` is no limit for draft queries; the agent uses `180s`. |
 | `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | `0` | Cap on one agent run. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | Cost cap of a run in US dollars. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_WORKERS` | `8` | Agent requests this server runs at once, `1` to `64`. |

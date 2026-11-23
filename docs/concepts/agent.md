@@ -319,7 +319,7 @@ A run has no time limit by default.
 `SLASHOBSERVE_AGENT_RUN_TIMEOUT` sets one of at least `1m`.
 
 Model calls stream.
-An attempt that receives nothing for `SLASHOBSERVE_LLM_IDLE_TIMEOUT` (180 s by default, `0` for none) is retried with backoff, like a rate limit or a server error, up to 4 attempts within `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`.
+An attempt that receives nothing for `SLASHOBSERVE_LLM_IDLE_TIMEOUT` (180 s by default, and `0` also means 180 s) is retried with backoff, like a rate limit or a server error, up to 4 attempts within `SLASHOBSERVE_LLM_REQUEST_TIMEOUT`.
 A single model call, retries included, is stopped after 10 minutes by default.
 `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` sets that limit and `0` removes it.
 
@@ -610,8 +610,8 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | none | Cost limit of one attempt. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
-| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
-| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |
+| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried; `0` means the default. |
+| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included; `0` means the default. |
 | `SLASHOBSERVE_LLM_EFFORT` | `medium` on Anthropic, nothing sent on OpenAI | Reasoning effort. |
 | `SLASHOBSERVE_LLM_MAX_TOKENS` | 16000 | Output limit of a model call. |
 
