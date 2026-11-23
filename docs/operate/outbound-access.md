@@ -20,7 +20,7 @@ A datasource an Admin adds in the app is held to the list in a narrower way, des
 1. Sign in to the web app as an Admin and open **Settings**, then **Outbound access**.
 2. In **Allowed domains**, type the domain and choose **Allow**.
    Use `example.com` for that host only, or `*.example.com` for its subdomains but not `example.com` itself.
-3. To take a domain away again, choose **Remove domain** on its entry and confirm.
+3. To take a domain away again, choose the remove button on its entry, then **Remove domain**.
    The confirmation names the webhooks, connections and datasources that use it.
 
 The web app calls `GET /api/v1/outbound-domains`, `POST /api/v1/outbound-domains` with the body `{"domain": "*.example.com"}`, and `DELETE /api/v1/outbound-domains/{domain}`.
