@@ -52,7 +52,8 @@ Environment:
   SLASHOBSERVE_DEX_HOST_PORT  host port of Dex (default 55556)
   ASTRONOMY_SHOP_HOST_PORT    host port of the shop, its Jaeger UI and its flag UI (default 58081)
   SLASHOBSERVE_IMAGE          the server image: the tag a build gets (default
-                              slashobserve-astronomy-server:local), or the image --published pulls
+                              slashobserve-astronomy-server:local), or the image --published runs,
+                              pulled unless it already exists locally
                               (default ghcr.io/slashobserve/slashobserve:latest)
 
 Model provider: put SLASHOBSERVE_LLM_PROVIDER, SLASHOBSERVE_LLM_MODEL and
@@ -174,7 +175,9 @@ cmd_up() {
   prepare_state
   if [[ "$SEARCH" == 1 ]]; then verify_search_command; fi
   if [[ "$PUBLISHED" == 1 ]]; then
-    compose pull server
+    if [[ -z "${SLASHOBSERVE_IMAGE:-}" ]] || ! docker image inspect "$SLASHOBSERVE_IMAGE" >/dev/null 2>&1; then
+      compose pull server
+    fi
   else
     export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
     compose build server

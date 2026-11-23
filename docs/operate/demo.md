@@ -17,6 +17,7 @@ make demo
 
 This pulls the published SlashObserve image and starts the stack as the Compose project `slashobserve-astronomy`.
 `make demo-build` builds the server from your checkout instead, which is for people changing the code.
+Set `SLASHOBSERVE_IMAGE` to run another server image with `make demo`, for example a local build: `make demo` pulls the image only when it is not on your machine yet.
 The first start fetches the pinned upstream release of the shop and pulls about 12 GB of images, and the stack is healthy about a minute after that.
 
 | Address | What it is |
