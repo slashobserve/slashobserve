@@ -1134,7 +1134,7 @@
             "<",
             ">"
           ],
-          "description": "< and > compare as numbers when both sides are numbers, else as text; ClickHouse only."
+          "description": "< and > compare as numbers when both sides are numbers, else as text, on ClickHouse; Elasticsearch and OpenSearch run them as range filters and Prometheus rejects them."
         },
         "value": {
           "type": "string",
@@ -1160,7 +1160,7 @@
             "and",
             "or"
           ],
-          "description": "How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. ClickHouse only."
+          "description": "How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. Prometheus rejects it."
         }
       },
       "required": [
