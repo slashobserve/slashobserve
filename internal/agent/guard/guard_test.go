@@ -363,6 +363,12 @@ func TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne(t *te
 			t.Fatal(err)
 		}
 	}
+	malformed := func(s *State) {
+		t.Helper()
+		if _, err := s.Settle(jsonCall("save_finding", `{}`), tools.Result{}, []byte(`{}`)); !errors.Is(err, ErrMalformed) {
+			t.Fatalf("err = %v, want ErrMalformed", err)
+		}
+	}
 	for _, c := range []struct {
 		name string
 		runs []func(*State)
@@ -373,6 +379,9 @@ func TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne(t *te
 		{"two rejected saves", []func(*State){rejected, rejected}, 0},
 		{"a rejected save then an accepted one", []func(*State){rejected, accepted}, 1},
 		{"two rejected saves then an accepted one", []func(*State){rejected, rejected, accepted}, 1},
+		{"a rejected save, an accepted one, then another accepted one", []func(*State){rejected, accepted, accepted}, 1},
+		{"a rejected save, an accepted one, a rejected one, an accepted one", []func(*State){rejected, accepted, rejected, accepted}, 2},
+		{"a rejected save then a malformed result", []func(*State){rejected, malformed}, 0},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := New(tools.ModeInvestigate)
@@ -381,6 +390,32 @@ func TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne(t *te
 			}
 			if s.Counts.Repairs != c.want {
 				t.Fatalf("repairs = %d, want %d", s.Counts.Repairs, c.want)
+			}
+		})
+	}
+}
+
+func TestSettleClearsRejectionsOnEveryAcceptedSave(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		mode tools.Mode
+		tool string
+		body string
+	}{
+		{"a finding", tools.ModeInvestigate, "save_finding", `{"finding_id":"f"}`},
+		{"a suggestion", tools.ModeSuggest, "create_dashboard", `{"suggested":true,"panel":{"id":"p"}}`},
+		{"a proposal", tools.ModeRevise, "update_panels", `{"code":"proposed","proposal_id":"p1"}`},
+		{"a saved version", tools.ModeRevise, "update_panels", `{"dashboard_id":"d","version":2}`},
+		{"a build save", tools.ModeCreate, "create_dashboard", `{"build":{},"version":0}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := New(c.mode)
+			s.Rejections, s.RestrictedRefusals = 2, 1
+			if _, err := s.Settle(jsonCall(c.tool, `{}`), tools.Result{}, []byte(c.body)); err != nil {
+				t.Fatal(err)
+			}
+			if s.Rejections != 0 || s.RestrictedRefusals != 0 || s.Counts.Repairs != 1 {
+				t.Fatalf("rejections %d, restricted refusals %d, repairs %d", s.Rejections, s.RestrictedRefusals, s.Counts.Repairs)
 			}
 		})
 	}
