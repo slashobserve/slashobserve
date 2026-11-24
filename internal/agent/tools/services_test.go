@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
@@ -196,5 +197,30 @@ func TestListServicesRejectsInvalidInput(t *testing.T) {
 	}
 	if got := loki.calls.Load(); got != 0 {
 		t.Fatalf("source asked %d times for refused input", got)
+	}
+}
+
+func TestListServicesSkipsAdminsOnlySourcesUntilOneIsNamed(t *testing.T) {
+	loki, tempo := twoSources()
+	r := newServicesRegistry(t,
+		datasource.Instance{UID: "loki", Datasource: loki},
+		datasource.Instance{UID: "tempo", Datasource: tempo, Audience: datasource.AudienceAdmins},
+	)
+	admin := auth.Principal{Role: auth.RoleAdmin}
+	noted, read := datasource.NotingRestrictedReads(datasource.WithAccess(auth.WithPrincipal(context.Background(), admin), datasource.Access{By: admin}))
+	res, err := r.Call(noted, nameListServices, []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := servicesOf(t, res)
+	if len(out.Sources) != 1 || out.Sources[0].Datasource != "loki" || tempo.calls.Load() != 0 || read() {
+		t.Fatalf("out = %+v, tempo calls = %d, read = %t; want only loki read and the run unmarked", out, tempo.calls.Load(), read())
+	}
+	res, err = r.Call(noted, nameListServices, []byte(`{"datasource":"tempo"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "tempo" || !read() {
+		t.Fatalf("out = %+v, read = %t; want the named Admins-only source read and the run marked", out, read())
 	}
 }

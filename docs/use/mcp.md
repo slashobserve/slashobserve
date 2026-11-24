@@ -1039,7 +1039,8 @@ It takes `datasource`, `table` and `limit`, 1 to 20 and 5 by default.
 Lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
 
 - With `datasource` it reads that one source.
-  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
+  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
+  A source only Admins can query is left out unless you name it with `datasource`, so a plain listing does not mark an Admin's run as one that read Admin-only data.
 - `signal` (`logs` or `traces`) picks one signal.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.
