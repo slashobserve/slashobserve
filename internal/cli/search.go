@@ -46,7 +46,7 @@ func (a *app) searchCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search <words...> [--kind <kind>]... [--limit 20]",
 		Short: "Search dashboards, observations, annotations, comments and saved searches",
-		Long:  "search finds what you can read in the workspace by words, ranked by relevance.\nEvery word must match; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix.\nPut words that start with - after --.\n--kind narrows it to dashboard, annotation, observation, comment or saved_search and may be repeated; finding is a deprecated alias of observation.",
+		Long:  "search finds what you can read in the workspace by words, ranked by relevance.\nEvery word must match; \"quoted words\" match as a phrase, or joins alternatives, -word excludes, and the last word also matches as a prefix.\nPut words that start with - after --.\n--kind narrows it to dashboard, annotation, observation, comment or saved_search and may be repeated.",
 		Example: "  observe search checkout latency\n" +
 			"  observe search \"connection reset\" --kind comment --kind observation -- -staging",
 		Args: minimumArgs(1, "at least one word to search for"),

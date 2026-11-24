@@ -91,7 +91,7 @@ func (a *app) foldersRenameCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rename <folder-id> <title...>",
 		Short: "Rename a folder",
-		Long:  "rename takes everything after the id as the new title, so flags such as --json or -q must come before the id.\nThe General folder cannot be renamed.",
+		Long:  "rename joins every word after the id into the new title; flags such as --json or -q may go anywhere, and a title word that starts with - must come after --.\nThe General folder cannot be renamed.",
 		Args:  minimumArgs(2, "a folder id and the new title"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := parseID(args[0])

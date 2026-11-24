@@ -59,8 +59,8 @@ saved-searches:
       Saves what the logs page, the trace view or the metrics page shows: the datasource, the query as it runs with its filter pills folded in, the visible columns of a logs search, the filters of a trace search or the mode of a metrics search, and the range as written.
       It is saved in `folder_id`, which needs Create there, else in the caller's My Dashboards, else in General.
       Everyone who can view that folder can read it.
-      The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo and ClickHouse, metrics take Prometheus.
-      A logs or metrics search needs a `query`; a traces search may have one, TraceQL on Tempo and SQL on ClickHouse.
+      The datasource must exist (422 `unknown_datasource`) and fit the kind (422 `unsupported_datasource`): logs take Loki, ClickHouse, Elasticsearch and OpenSearch, traces take Tempo, Jaeger and ClickHouse, metrics take Prometheus.
+      A logs or metrics search needs a `query`; a traces search may have one, TraceQL on Tempo, `key=value` pairs on Jaeger and SQL on ClickHouse.
       A body that breaks a rule of its fields answers 422 `invalid_saved_search` with the rule in `error`.
       A service-account key gets the checks of the `save_search` tool: a query with a lint error answers 422 `query_invalid` and nothing is saved, and a search the key already saved with the same title, datasource, query, filters, range and folder answers 200 with `replayed` true and that search, so a retry makes no second copy.
       The kind and the datasource never change afterwards: save a new search instead.

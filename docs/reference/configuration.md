@@ -1,110 +1,364 @@
 ---
 title: Configuration
-description: Every `SLASHOBSERVE_*` environment variable with its default and notes.
+description: Every `SLASHOBSERVE_*` environment variable with its default, range and effect, and the settings a server needs to start.
 ---
 
-Every setting is an environment variable named `SLASHOBSERVE_*`.
-The server reads them once at startup, so changing one means restarting the server.
-Values are trimmed of surrounding whitespace, and an empty value counts as unset.
+You configure the server with environment variables named `SLASHOBSERVE_*`.
+Two are required to start, and everything else has a default.
+
+The server reads the variables once at startup, so restart it after a change.
+It trims whitespace around each value, and an empty value counts as unset.
+A value that does not parse, or falls outside its range, stops the server at startup, and the error names the variable.
+
+## Start a server with the minimum
+
+1. Set the two required variables:
+
+   ```sh
+   export SLASHOBSERVE_DATABASE_URL='postgres://slashobserve:slashobserve@postgres:5432/slashobserve?sslmode=disable'
+   export SLASHOBSERVE_PUBLIC_URL='http://localhost:8080'
+   ```
+
+2. Decide how people sign in.
+   For browser sign-in, also set `SLASHOBSERVE_OIDC_ISSUER_URL`, `SLASHOBSERVE_OIDC_CLIENT_ID`, `SLASHOBSERVE_OIDC_CLIENT_SECRET` and `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`; see [Sign-in](#sign-in).
+   Without browser sign-in, only service-account keys authenticate; see [Run with no browser sign-in](../operate/service-account-keys.md#run-with-no-browser-sign-in).
+3. Optionally set an LLM provider so the built-in agent runs; see [LLM](#llm).
+
+The image sets `SLASHOBSERVE_HTTP_ADDR=:8080`.
+[Run your own deployment](../get-started/install.md) shows a full start.
 
 ## Server and logging
 
-| Variable                    | Default | Notes                                                                                                                              |
-| --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_HTTP_ADDR`    | `:8080` | Listen address as `host:port`; the port must be 1 to 65535. The image sets it to `:8080`. While a model provider is set, the host must be empty, an unspecified address such as `0.0.0.0`, `localhost` or a loopback address, because the built-in agent reaches the server on loopback. |
-| `SLASHOBSERVE_DATABASE_URL` | none    | Required. A Postgres connection string (a URL or key/value form, parsed by pgx). The pool opens up to the largest of 16, 8 plus 2 per agent worker, and the CPU count; add `pool_max_conns=N` to set it yourself. |
-| `SLASHOBSERVE_DATABASE_DIRECT_URL` | none | Optional. A connection string straight to Postgres, for when `SLASHOBSERVE_DATABASE_URL` goes through a transaction-mode pooler. Live updates (`LISTEN`) and migrations with their lock use it; everything else uses the pooled URL. It must reach the same database, or the server refuses to start. Unset, everything uses `SLASHOBSERVE_DATABASE_URL`. |
-| `SLASHOBSERVE_LOG_LEVEL`    | `info`  | `debug`, `info`, `warn` or `error`. `/healthz`, `/readyz` and `/metrics` requests are logged at `debug` only.                     |
-| `SLASHOBSERVE_LOG_FORMAT`   | `json`  | `json` or `text`. Logs go to standard error.                                                                                       |
-| `SLASHOBSERVE_TRUSTED_PROXIES` | unset | Optional comma-separated list of addresses and CIDR ranges, such as `10.0.0.0/8, 2001:db8::/32`, of the reverse proxies or load balancers in front of the server. Unset, the client address is the address the connection came from and forwarding headers are ignored. Set, `X-Forwarded-For` is read only when the connection comes from a listed address, and the client address is the rightmost address in it that is not itself listed. An entry that is not an address or a range, or a range with no network bits such as `0.0.0.0/0`, stops the server at startup, naming the entry. List the narrowest range of the proxy, because a client inside a listed range can set its own address, and a proxy that writes `ip:port` into `X-Forwarded-For` always records its own address. Recorded as `client_ip` on audit events; see [Put TLS in front](../operate/production.md#put-tls-in-front). |
-| `SLASHOBSERVE_METRICS`      | `true`  | `true` or `false`. `true` serves Prometheus metrics at `/metrics` without sign-in; `false` removes the route. See [Metrics](../operate/metrics.md). |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_HTTP_ADDR` | `:8080` | Listen address as `host:port`. |
+| `SLASHOBSERVE_DATABASE_URL` | none | Required. Postgres connection string. |
+| `SLASHOBSERVE_DATABASE_DIRECT_URL` | unset | Connection string straight to Postgres, for use behind a pooler. |
+| `SLASHOBSERVE_LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error`. |
+| `SLASHOBSERVE_LOG_FORMAT` | `json` | `json` or `text`. Logs go to standard error. |
+| `SLASHOBSERVE_TRUSTED_PROXIES` | unset | Addresses and ranges of the proxies in front of the server. |
+| `SLASHOBSERVE_METRICS` | `true` | `true` serves `/metrics` without sign-in; `false` removes the route. |
+
+`SLASHOBSERVE_LOG_LEVEL` and `SLASHOBSERVE_LOG_FORMAT` ignore case, but `SLASHOBSERVE_METRICS` and the other true-or-false settings accept only lowercase `true` or `false`.
+Requests to `/healthz`, `/readyz` and `/metrics` are logged at `debug` only.
+See [Metrics](../operate/metrics.md).
+
+### Details of `SLASHOBSERVE_HTTP_ADDR`
+
+The port must be 1 to 65535.
+While a model provider is set, the host must be empty, an unspecified address such as `0.0.0.0`, `localhost` or a loopback address.
+The built-in agent reaches the server on loopback, and the server refuses to start otherwise.
+
+### Details of `SLASHOBSERVE_DATABASE_URL`
+
+The value is a URL or key/value connection string that pgx parses.
+The pool opens up to the largest of three numbers: 16, 8 plus 2 per agent worker, and the CPU count.
+Add `pool_max_conns=N` to the string to set the size yourself.
+
+### Details of `SLASHOBSERVE_DATABASE_DIRECT_URL`
+
+Set it when `SLASHOBSERVE_DATABASE_URL` goes through a transaction-mode pooler.
+Live updates (`LISTEN`) and migrations with their lock use this URL, and everything else uses the pooled one.
+Both must reach the same database, or the server refuses to start.
+Unset, everything uses `SLASHOBSERVE_DATABASE_URL`.
+
+### Details of `SLASHOBSERVE_TRUSTED_PROXIES`
+
+The value is a comma-separated list of addresses and CIDR ranges, such as `10.0.0.0/8, 2001:db8::/32`.
+List the reverse proxies or load balancers in front of the server.
+The server records the client address as `client_ip` on audit events; see [Put TLS in front](../operate/production.md#put-tls-in-front).
+
+- Unset, the client address is the address the connection came from, and forwarding headers are ignored.
+- Set, the server reads `X-Forwarded-For` only when the connection comes from a listed address.
+  The client address is then the rightmost address in the header that is not itself listed.
+- An entry that is not an address or a range stops the server at startup, naming the entry.
+  So does a range with no network bits, such as `0.0.0.0/0`.
+- List the narrowest range of the proxy.
+  A client inside a listed range can set its own address.
+- A proxy that writes `ip:port` into `X-Forwarded-For` always records its own address.
 
 ## Sign-in
 
-| Variable                                  | Default | Notes                                                                                                                            |
-| ----------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_PUBLIC_URL`                 | none    | Required. An `http` or `https` origin with no path, query or user info. See [Put TLS in front](../operate/production.md#put-tls-in-front). It is also the OAuth issuer for MCP clients and the base of the MCP resource URL; changing it disconnects every connected agent, and clients outside this machine need it to be `https`. |
-| `SLASHOBSERVE_OIDC_ISSUER_URL`            | none    | Required for browser sign-in, with the client ID and secret: set all three or none. An absolute `http` or `https` URL, used exactly as written because the identity provider's issuer is compared exactly. With none of the three, browser sign-in is off and only service-account keys authenticate; see [Run with no browser sign-in](../operate/service-account-keys.md#run-with-no-browser-sign-in). |
-| `SLASHOBSERVE_OIDC_INTERNAL_URL`          | unset   | Optional origin (no path) that the server uses instead of the issuer's scheme and host when it calls the identity provider; needs the issuer. |
-| `SLASHOBSERVE_OIDC_CLIENT_ID`             | none    | Required for browser sign-in, with the issuer and the secret.                                                                   |
-| `SLASHOBSERVE_OIDC_CLIENT_SECRET`         | none    | Required for browser sign-in, with the issuer and the client ID. Never logged.                                                  |
-| `SLASHOBSERVE_SESSION_TTL`                | `168h`  | A Go duration from `5m` to `720h`. A session lasts this long from sign-in.                                                       |
-| `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none    | Required for browser sign-in. Comma-separated domains, or `*` for every account. See [Sign-in with OIDC](../connect/oidc.md).   |
-| `SLASHOBSERVE_AUTH_PROVIDER_NAME`         | unset   | Optional. The identity provider's display name, up to 64 characters, shown to signed-in clients next to the sign-in rules.       |
-| `SLASHOBSERVE_ADMIN_EMAILS`               | unset   | Optional. Comma-separated email addresses, compared without regard to case, that are Admins when the person signs in with an address the provider reports as verified, at most 100. Unset, the earliest person to sign in is the Admin. See [Roles](../teams/roles.md). |
-| `SLASHOBSERVE_OIDC_GROUP_ROLES`           | unset   | Optional. Comma-separated `group=role` entries that map identity-provider groups to roles, at most 100. See [Roles](../teams/roles.md).      |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_PUBLIC_URL` | none | Required. The `http` or `https` origin people use. |
+| `SLASHOBSERVE_OIDC_ISSUER_URL` | none | The identity provider's issuer URL. |
+| `SLASHOBSERVE_OIDC_CLIENT_ID` | none | The client ID registered with the provider. |
+| `SLASHOBSERVE_OIDC_CLIENT_SECRET` | none | The client secret. Never logged. |
+| `SLASHOBSERVE_OIDC_INTERNAL_URL` | unset | Origin the server calls instead of the issuer's host. |
+| `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` | none | Comma-separated domains, or `*` for every account. |
+| `SLASHOBSERVE_AUTH_PROVIDER_NAME` | unset | Provider display name, up to 64 characters. |
+| `SLASHOBSERVE_ADMIN_EMAILS` | unset | Comma-separated Admin email addresses, at most 100. |
+| `SLASHOBSERVE_OIDC_GROUP_ROLES` | unset | Comma-separated `group=role` entries, at most 100. |
+| `SLASHOBSERVE_SESSION_TTL` | `168h` | A session lasts this long from sign-in, a Go duration from `5m` to `720h`. |
+
+Browser sign-in is all or nothing.
+Set the issuer URL, client ID and client secret together, or set none of them.
+With none, only service-account keys authenticate, and setting any of `SLASHOBSERVE_OIDC_INTERNAL_URL`, `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`, `SLASHOBSERVE_ADMIN_EMAILS`, `SLASHOBSERVE_OIDC_GROUP_ROLES` or `SLASHOBSERVE_AUTH_PROVIDER_NAME` stops the server at startup, because only browser sign-in reads them.
+With all three, `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is also required.
+
+### Details of `SLASHOBSERVE_PUBLIC_URL`
+
+The value is an `http` or `https` origin with no path, query or user info.
+See [Put TLS in front](../operate/production.md#put-tls-in-front).
+It is also the OAuth issuer for MCP clients and the base of the MCP resource URL.
+Changing it disconnects every connected agent, and clients outside this machine need an `https` value.
+
+### Details of `SLASHOBSERVE_OIDC_ISSUER_URL`
+
+The value is an absolute `http` or `https` URL.
+The server uses it exactly as written, because it compares it exactly with the identity provider's issuer.
+
+### Details of `SLASHOBSERVE_OIDC_INTERNAL_URL`
+
+The value is an origin with no path.
+The server uses its scheme and host instead of the issuer's when it calls the identity provider, for example when the provider has a different name inside a container network.
+
+### Details of `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`
+
+The value is a list of valid domain names, or a single `*`, which cannot be combined with domains.
+Duplicates are ignored.
+See [Sign-in with OIDC](../connect/oidc.md).
+
+### Details of `SLASHOBSERVE_AUTH_PROVIDER_NAME`
+
+Signed-in clients show the name next to the sign-in rules.
+
+### Details of `SLASHOBSERVE_ADMIN_EMAILS`
+
+A person is an Admin when they sign in with a listed address that the provider reports as verified.
+The comparison ignores case, each entry must be an email address, and duplicates are ignored.
+Unset, the earliest person to sign in is the Admin.
+See [Roles](../teams/roles.md).
+
+### Details of `SLASHOBSERVE_OIDC_GROUP_ROLES`
+
+Each entry maps an identity-provider group to a role, as `group=role`.
+The role is `admin`, `editor`, `commenter` or `viewer`.
+The group name is 1 to 256 bytes without control characters, and the server splits the entry at its last `=`.
+See [Roles](../teams/roles.md).
 
 ## Datasources
 
-| Variable                        | Default | Notes                                                                          |
-| ------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `SLASHOBSERVE_DATASOURCES_FILE` | unset   | Path to the [datasources file](datasources-file.md). Unset means no datasources from a file; an Admin can still [add them in the app](../connect/datasources-in-the-app.md). |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_DATASOURCES_FILE` | unset | Path to the [datasources file](datasources-file.md). |
+
+Unset means no datasources from a file.
+An Admin can still [add them in the app](../connect/datasources-in-the-app.md).
 
 ## Service accounts
 
-| Variable | Default | Notes |
+| Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts that the server creates or updates at every start, each with the key read from its `keyFile`. Unset or empty means none. An account from the file answers 409 `provisioned` to role changes, key creation and key revocation in the web app and the API; rotate its key by writing a new one to the file and restarting. See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file). |
+| `SLASHOBSERVE_SERVICE_ACCOUNTS_FILE` | unset | Path to a YAML file of service accounts. |
+
+Unset or empty means no accounts from a file.
+The server creates or updates each account in the file at every start, with its key read from the account's `keyFile`.
+An account from the file answers 409 `provisioned` to role changes, key creation and key revocation in the web app and the API.
+To rotate its key, write a new one to the file and restart.
+See [Service-account keys](../operate/service-account-keys.md#declare-service-accounts-in-a-file).
 
 ## Activity
 
-| Variable | Default | Notes |
+| Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_ACTIVITY_RETENTION` | `4320h` | A Go duration from `24h` to `87600h`; `4320h` is 180 days. The hourly `activity_prune` job deletes [activity](../use/activity.md) events older than this. |
+| `SLASHOBSERVE_ACTIVITY_RETENTION` | `4320h` | How long to keep events, a Go duration from `24h` to `87600h`. |
+
+`4320h` is 180 days.
+The hourly `activity_prune` job deletes [activity](../use/activity.md) events older than this.
 
 ## Audit
 
-| Variable | Default | Notes |
+| Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | A Go duration from `24h` to `87600h`; `8760h` is one year. Audit events are stored in one Postgres partition per UTC day, and events copied from the activity log at upgrade in one per UTC month, or per UTC year when older than two years; the daily `audit_partitions` job drops each partition whose end is older than this, recording an `audit.prune` event. |
-| `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` | unset | An absolute `http` or `https` URL of an OTLP/HTTP receiver; unset turns the export off. The server posts every audit event as an OTLP log record to this URL followed by `/v1/logs`. See [Audit export](../operate/audit-export.md). |
-| `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE` | unset | A file of `Name: value` request headers, one per line, sent with every export request; it needs the endpoint. |
+| `SLASHOBSERVE_AUDIT_RETENTION` | `8760h` | How long to keep audit events, a Go duration from `24h` to `87600h`. |
+| `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT` | unset | OTLP/HTTP receiver that gets every audit event. Unset turns export off. |
+| `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE` | unset | File of request headers sent with every export. Needs the endpoint. |
+
+### Details of `SLASHOBSERVE_AUDIT_RETENTION`
+
+`8760h` is one year.
+The server stores audit events in one Postgres partition per UTC day.
+Events copied from the activity log at upgrade sit in one partition per UTC month, or per UTC year when older than two years.
+The daily `audit_partitions` job drops each partition whose end is older than the retention, and records an `audit.prune` event.
+
+### Details of `SLASHOBSERVE_AUDIT_OTLP_ENDPOINT`
+
+The value is an absolute `http` or `https` URL with no query, fragment or user info.
+The server posts every audit event as an OTLP log record to this URL followed by `/v1/logs`.
+See [Audit export](../operate/audit-export.md).
+
+### Details of `SLASHOBSERVE_AUDIT_OTLP_HEADERS_FILE`
+
+Each line is `Name: value`, and blank lines are skipped.
+A header name may appear once, a value must not be empty or hold a control character, and the file needs at least one header.
+Setting the file without the endpoint stops the server at startup.
 
 ## Dashboard provisioning
 
-| Variable | Default | Notes |
+| Variable | Default | What it does |
 | --- | --- | --- |
-| `SLASHOBSERVE_PROVISION_DIR` | unset | A directory of ObserveSpec JSON files that become dashboards at startup and whenever a file changes, checked every 30 seconds. Unset turns provisioning off. See [Provisioning](../operate/provisioning.md). |
+| `SLASHOBSERVE_PROVISION_DIR` | unset | Directory of ObserveSpec JSON files to load as dashboards. |
+
+The server loads the files at startup and again whenever one changes, checking every 30 seconds.
+Unset turns provisioning off.
+See [Provisioning](../operate/provisioning.md).
 
 ## Outbound access
 
-| Variable                        | Default | Notes                                                                                                                                                                    |
-| ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset   | Unset: Admins manage the allowed domains in Settings. `none`, or a comma-separated list of domains, locks the list. See [Outbound access](../operate/outbound-access.md). |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_OUTBOUND_DOMAINS` | unset | Locks the allowed domains: `none` or a comma-separated list. |
+
+Unset, Admins manage the allowed domains in Settings.
+`none` (any case) or a list locks the setting, and a list holds at most 100 domains, duplicates ignored.
+See [Outbound access](../operate/outbound-access.md).
 
 ## Stored secrets
 
-| Variable                  | Default | Notes                                                                                                                                                                                                                                                                       |
-| ------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_SECRET_KEY` | unset   | Optional. At least 32 random bytes written as hex or base64 (a value that is valid hex is read as hex), checked at startup and never logged. It encrypts the credentials of [datasources added in the app](../connect/datasources-in-the-app.md), the [Grafana connection](../use/switch-from-grafana.md) tokens and the signing secrets of [webhooks](../use/webhooks.md) that the server stores, so saving one of those needs it; without it the save answers `409 secret_key_missing`. Generate one with `openssl rand -hex 32`. Changing it makes stored credentials and tokens unreadable until each datasource, connection or webhook gets its secret again: a datasource shows as Unavailable, and every webhook is disabled with the reason `secret_unreadable` until its secret is rotated and it is enabled. |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_SECRET_KEY` | unset | Key that encrypts credentials the server stores. |
+
+Generate one with `openssl rand -hex 32`.
+The key is at least 32 random bytes written as hex or base64.
+A value that is valid hex is read as hex.
+The server checks it at startup and never logs it.
+
+### Details of `SLASHOBSERVE_SECRET_KEY`
+
+The key encrypts three kinds of stored secret:
+
+- the credentials of [datasources added in the app](../connect/datasources-in-the-app.md);
+- the tokens of the [Grafana connection](../use/switch-from-grafana.md);
+- the signing secrets of [webhooks](../use/webhooks.md).
+
+Saving one of these without the key answers `409 secret_key_missing`.
+
+Changing the key makes the stored secrets unreadable until each one is entered again.
+A datasource shows as Unavailable.
+Every webhook is disabled with the reason `secret_unreadable` until you rotate its secret and enable it.
 
 ## LLM
 
 All LLM settings are optional.
-See [LLM providers](../connect/llm-providers.md) for how they combine.
+Unset `SLASHOBSERVE_LLM_PROVIDER` turns the built-in agent off.
+See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 
-| Variable                           | Default                             | Notes                                                                                                                       |
-| ---------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `SLASHOBSERVE_LLM_PROVIDER`        | unset                               | `anthropic`, `openai` or `replay` (not case-sensitive). Unset turns the agent off.                                          |
-| `SLASHOBSERVE_LLM_MODEL`           | `claude-sonnet-5-5` for `anthropic` | Required for `openai`. Ignored by `replay`.                                                                                 |
-| `SLASHOBSERVE_LLM_API_KEY`         | unset                               | The provider credential. Required for `anthropic`, optional for `openai`. Never logged or echoed in an error.               |
-| `SLASHOBSERVE_LLM_API_KEY_FILE`    | unset                               | A file holding the credential, with surrounding whitespace trimmed. Set at most one of this and `SLASHOBSERVE_LLM_API_KEY`. |
-| `SLASHOBSERVE_LLM_BASE_URL`        | the provider's own endpoint         | An absolute `http` or `https` URL. A path is allowed; a query, fragment or user info is not. For `anthropic` give the root without `/v1`, which the agent adds; for `openai` the URL is used as written. |
-| `SLASHOBSERVE_LLM_EFFORT`          | unset                               | For `anthropic`: `low`, `medium`, `high`, `xhigh` or `max`; unset means `medium`. For `openai`: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`; unset sends nothing to the provider. The value is checked against the provider's list and ignored by `replay`. The first call of a new build runs one step higher (`low` becomes `medium`, `medium` becomes `high`, anything else stays); every later call runs at this value. |
-| `SLASHOBSERVE_LLM_MAX_TOKENS`      | `16000`                             | Output token cap for a model call, `1024` to `64000`. The first call of a new build uses it as is; later calls cap their output at half of it, but at least `8192` and never above it, and a call cut off at that lower cap is sent once more at this value. |
-| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m`                               | A Go duration from `10s` to `60m`, applied to each model call including its retries (up to 4 attempts with backoff). `0` sets no limit on a call; with this, the idle timeout and `SLASHOBSERVE_AGENT_RUN_TIMEOUT` all at `0`, a stalled call runs until the run is canceled. A call that hits the limit fails with `call_timeout`. |
-| `SLASHOBSERVE_LLM_IDLE_TIMEOUT`    | `180s`                              | A Go duration from `10s` to `60m`. Model calls stream, and an attempt that receives no bytes from the provider for this long, from its start or since the last byte, is retried with backoff within the request timeout. `0` turns the check off; see the request timeout for what happens with every bound at `0`. |
-| `SLASHOBSERVE_AGENT_RUN_TIMEOUT`   | `0`                                 | `0` is no limit: a run ends at the agent's own limits, a cancel or a shutdown. Set a Go duration of at least `1m` to cap each run of an agent request; a run that hits the cap fails with `run_timeout`. |
-| `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | `0` is no limit. A number of US dollars above 0, at most 10000. Once an attempt's estimated cost (see [Run cost](../connect/llm-providers.md#run-cost)) reaches it, the agent starts no further model call and the request fails with `budget_exhausted`, build kept. The call that crosses the limit still finishes, so a run can pass it by one call. The server does not start when this is set and the configured model has no price for every token class. |
-| `SLASHOBSERVE_AGENT_WORKERS` | `8` | A whole number from `1` to `64`: how many agent requests this server runs at once. Each server of a fleet runs its own workers, so the fleet runs replicas times this many. One request per dashboard still runs at a time, and the model provider's rate limits stay the real ceiling. `slashobserve_agent_queue_wait_seconds` shows whether more workers would help. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | A whole number from `6` to `60`: how many model calls an investigation makes before only `save_finding` can run. The call before the limit gets a note to save the finding next, and reads in the same call as the finding still run. It covers every agent that runs an investigation, the built-in one and connected ones. Suggest runs keep 12 and dashboard runs keep 6. Raise it for questions that need many reads; a longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is the cap on spend. |
-| `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | A whole number of KiB from `32` to `4096`. After a save to a build, the agent shortens its conversation to its last few turns, the build and the names it discovered once the session's tool calls, results and text pass this size, so a long build stays inside the model's context window. Lower it for a model with a small context window. |
-| `SLASHOBSERVE_LLM_PRICES_FILE`     | the built-in table                  | A YAML file of model prices in US dollars per million tokens that replaces the built-in table, so a request's estimated cost (`usage.cost_usd`) covers other models. See [Run cost](../connect/llm-providers.md#run-cost). The server refuses to start when the file is unreadable or invalid. |
-| `SLASHOBSERVE_LLM_REPLAY_DIR`      | unset                               | Required for `replay`: a folder of recorded model scripts. This provider exists for end-to-end tests, not for real use.     |
-| `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS` | `false` | `true` or `false`. `true` adds the provider's own error message to the `llm call finished` line of a failed call, as `provider_error_message`, with the API key removed, control characters replaced and at most 1024 bytes kept. A provider can echo parts of the prompt back in that message, so use it for debugging, not on a server whose logs are widely readable. See [Logging](../operate/logging.md). |
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_LLM_PROVIDER` | unset | `anthropic`, `openai` or `replay`, in any case. |
+| `SLASHOBSERVE_LLM_MODEL` | `claude-sonnet-5-5` for `anthropic` | Model name. Required for `openai`. |
+| `SLASHOBSERVE_LLM_API_KEY` | unset | Provider credential. |
+| `SLASHOBSERVE_LLM_API_KEY_FILE` | unset | File that holds the credential. |
+| `SLASHOBSERVE_LLM_BASE_URL` | the provider's endpoint | Endpoint URL, with a path if needed. |
+| `SLASHOBSERVE_LLM_EFFORT` | unset | Reasoning effort, checked against the provider's list. |
+| `SLASHOBSERVE_LLM_MAX_TOKENS` | `16000` | Output token cap of a model call, `1024` to `64000`. |
+| `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | `10m` | Limit for one model call, `10s` to `60m`, or `0` for none. |
+| `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | `180s` | Silence limit while a call streams, `10s` to `60m`, or `0` for none. |
+| `SLASHOBSERVE_AGENT_RUN_TIMEOUT` | `0` | Cap on one agent run. `0` is no limit. |
+| `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | Cost cap of a run in US dollars. `0` is no limit. |
+| `SLASHOBSERVE_AGENT_WORKERS` | `8` | Agent requests this server runs at once, `1` to `64`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
+| `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
+| `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
+| `SLASHOBSERVE_LLM_REPLAY_DIR` | unset | Folder of recorded model scripts. Required for `replay`. |
+| `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS` | `false` | `true` logs the provider's own error message. |
+
+### Details of the provider, model and credential
+
+- `anthropic` needs a credential in `SLASHOBSERVE_LLM_API_KEY` or `SLASHOBSERVE_LLM_API_KEY_FILE`.
+  Its model defaults to `claude-sonnet-5-5`.
+- `openai` needs `SLASHOBSERVE_LLM_MODEL`, and its credential is optional.
+- `replay` needs `SLASHOBSERVE_LLM_REPLAY_DIR` and ignores the model.
+  It exists for end-to-end tests, not for real use.
+- Set at most one of `SLASHOBSERVE_LLM_API_KEY` and `SLASHOBSERVE_LLM_API_KEY_FILE`.
+  The file's contents are trimmed of whitespace, and an empty or unreadable file stops the server at startup.
+- The server never logs the credential or echoes it in an error.
+
+### Details of `SLASHOBSERVE_LLM_BASE_URL`
+
+The value is an absolute `http` or `https` URL.
+It may have a path, but no query, fragment or user info.
+For `anthropic`, give the root without `/v1`, which the agent adds.
+For `openai`, the URL is used as written.
+
+### Details of `SLASHOBSERVE_LLM_EFFORT`
+
+- For `anthropic`: `low`, `medium`, `high`, `xhigh` or `max`.
+  Unset means `medium`.
+- For `openai`: `none`, `minimal`, `low`, `medium`, `high` or `xhigh`.
+  Unset sends nothing to the provider.
+- `replay` ignores the value.
+- The first call of a new build runs one step higher: `low` becomes `medium`, `medium` becomes `high`, and anything else stays.
+  Every later call runs at the value.
+
+### Details of `SLASHOBSERVE_LLM_MAX_TOKENS`
+
+The first call of a new build uses the value as it is.
+Later calls cap their output at half of it, but at least `8192` and never above it.
+A call cut off at that lower cap is sent once more at the full value.
+
+### Details of the timeouts
+
+- `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` applies to each model call, including its retries of up to 4 attempts with backoff.
+  A call that hits the limit fails with `call_timeout`.
+- `SLASHOBSERVE_LLM_IDLE_TIMEOUT` applies because model calls stream.
+  An attempt that receives no bytes from the provider for this long, from its start or since the last byte, is retried with backoff within the request timeout.
+- With both timeouts and `SLASHOBSERVE_AGENT_RUN_TIMEOUT` at `0`, a model call that stalls runs until someone cancels the run, so keep at least one bound.
+- `SLASHOBSERVE_AGENT_RUN_TIMEOUT` set to `0` means a run ends at the agent's own limits, a cancel or a shutdown.
+  Set a Go duration of at least `1m` to cap each run of an agent request.
+  A run that hits the cap fails with `run_timeout`.
+
+### Details of `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`
+
+The value is a number of US dollars above 0, at most 10000.
+Once an attempt's estimated cost reaches it, the agent starts no further model call, and the request fails with `budget_exhausted` with the build kept.
+See [Run cost](../connect/llm-providers.md#run-cost).
+The call that crosses the limit still finishes, so a run can pass the limit by one call.
+The server does not start when the value is set and the configured model has no price for every token class.
+
+### Details of `SLASHOBSERVE_AGENT_WORKERS`
+
+The value is how many agent requests this server runs at once.
+Each server of a fleet runs its own workers, so a fleet runs replicas times this many.
+One request per dashboard still runs at a time, and the model provider's rate limits stay the real ceiling.
+The metric `slashobserve_agent_queue_wait_seconds` shows whether more workers would help.
+
+### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`
+
+The value is how many model calls an investigation makes before only `save_finding` can run.
+The call before the limit gets a note to save the finding next, and reads in the same call as the finding still run.
+It covers every agent that runs an investigation, the built-in one and connected ones.
+Suggest runs keep 12 and dashboard runs keep 6.
+Raise it for questions that need many reads.
+A longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is the cap on spend.
+
+### Details of `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB`
+
+After a save to a build, the agent checks the size of its session's tool calls, results and text.
+Past this size it shortens its conversation to its last few turns, the build and the names it discovered, so a long build stays inside the model's context window.
+Lower the value for a model with a small context window.
+
+### Details of `SLASHOBSERVE_LLM_PRICES_FILE`
+
+The file holds model prices in US dollars per million tokens and replaces the built-in table.
+A request's estimated cost (`usage.cost_usd`) then covers other models.
+The server refuses to start when the file is unreadable or invalid.
+See [Run cost](../connect/llm-providers.md#run-cost).
+
+### Details of `SLASHOBSERVE_LLM_LOG_PROVIDER_ERRORS`
+
+The value is `true` or `false`.
+`true` adds the provider's error message to the `llm call finished` line of a failed call, as `provider_error_message`.
+The server removes the API key, replaces control characters and keeps at most 1024 bytes.
+A provider can echo parts of the prompt back in that message.
+Use it for debugging, and not on a server whose logs many people read.
+See [Logging](../operate/logging.md).
 
 ## Testing only
 
 `SLASHOBSERVE_API_CONTRACT_CHECK` (`true` or `false`, default `false`) makes the server validate every `/api/v1` request and response against the OpenAPI document.
-It is for the end-to-end test stack only; never set it in production.
+It is for the end-to-end test stack only, so never set it in production.
 It also turns a request with a query parameter the document does not list into a 500, as [API behavior](api-behavior.md#query-parameters) describes.

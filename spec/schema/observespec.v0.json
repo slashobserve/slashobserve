@@ -1134,7 +1134,7 @@
             "<",
             ">"
           ],
-          "description": "< and > compare as numbers when both sides are numbers, else as text; ClickHouse only."
+          "description": "< and > compare as numbers when both sides are numbers, else as text, on ClickHouse; Elasticsearch and OpenSearch run them as range filters and Prometheus rejects them."
         },
         "value": {
           "type": "string",
@@ -1160,7 +1160,7 @@
             "and",
             "or"
           ],
-          "description": "How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. ClickHouse only."
+          "description": "How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. Prometheus rejects it."
         }
       },
       "required": [
@@ -1206,7 +1206,7 @@
         "applyToAll": {
           "x-omitFromPrompt": true,
           "const": true,
-          "description": "ClickHouse only: also filter every query on this datasource that does not use this variable, on each table the query reads."
+          "description": "Only ClickHouse needs it: also filter every query on this datasource that does not use this variable, on each table the query reads. Prometheus, Elasticsearch and OpenSearch filter every query on the datasource whether or not it is set."
         },
         "default": {
           "x-omitFromPrompt": true,

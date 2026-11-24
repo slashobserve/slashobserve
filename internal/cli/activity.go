@@ -107,7 +107,7 @@ func (a *app) activityCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "activity",
 		Short: "List and follow what changed in the workspace",
-		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, people invites, deactivation and removal, keys, webhooks, connected agents, outbound domains, Grafana connections, datasources, public links and access requests.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
+		Long:  "activity prints the newest events of the activity log, oldest first, one line each: when, who and what.\nIt covers dashboard saves, moves and deletes, annotations, findings, public links, access requests, comment threads and agent runs in the folders the key can see, and for an Admin key the admin changes too: roles, people invites, deactivation and removal, keys, webhooks, connected agents, outbound domains, Grafana connections and datasources.\nWith --follow it then keeps printing new events until Ctrl-C, reconnecting from the last event it printed.",
 		Example: "  observe activity\n" +
 			"  observe activity --dashboard <id> --since 24h\n" +
 			"  observe activity --follow --type run.failed --type run.canceled",

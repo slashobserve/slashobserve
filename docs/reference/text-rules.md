@@ -1,35 +1,63 @@
 ---
 title: Text rules
-description: What the server accepts in a title, a name, a comment, a prompt or a note, how it trims them and counts their length, and the reason code it returns when text is refused.
+description: What the server accepts in a title, a name, a comment, a prompt or a note, how it trims text and counts its length, and the reason code it returns when text is refused.
 ---
 
-Every text a person or an agent types goes through one rule on the server, and the web app applies the same rule before it sends, so a form shows the problem as you type.
-The rule is the same on the web, over the API, through the CLI and over MCP.
+Titles, names, comments, prompts and notes follow one text rule.
+The server applies it on the web, over the API, through the CLI and over MCP, and the web app applies the same rule before it sends, so a form shows a problem as you type.
 
-## What is checked
+## Fix text the server refused
 
-Text is checked in this order, and the first failure is reported.
+A refused write answers with the endpoint's usual error code and, where the endpoint reports one, a `reason` from the [reason table](#reason-codes).
+A dashboard or panel title reports the reason as the `code` of its issue at `/title` or `/panels/{i}/title`.
 
-1. It must be valid UTF-8.
-2. Spaces and zero-width characters at its start and end are removed, so `  QA lead  ` is stored as `QA lead`.
-3. What is left must hold at least one visible character.
-4. It must not contain control characters.
-5. It must not contain bidirectional override or isolate characters (U+202A to U+202E and U+2066 to U+2069), which can make a name read as another name.
-6. A one-line field must not contain zero-width or hidden characters inside it, because two names that differ only by such a character would look identical.
-   Tag characters (see below) count as hidden in every field.
-7. Its length, counted in Unicode characters and not bytes, must be within the limit.
+1. Read the `error` message.
+   It names the field and says what to change, for example `title must be at most 200 characters; shorten it`.
+2. Find the `reason` in the [reason table](#reason-codes) to see what to remove or shorten.
+3. Send the text again.
 
-A title, name or note is one line: line breaks and tabs count as control characters.
-A comment, a prompt and an observation text block may hold line breaks and tabs.
-A zero-width joiner is allowed inside text because emoji sequences and some scripts need it, and a multi-line field allows other zero-width characters inside it.
-Tag characters (U+E0000 to U+E007F) are allowed only in the sequence that follows a black flag (U+1F3F4), which is how the England, Scotland and Wales flags are written, and are refused anywhere else with `text_invisible_characters`.
+## Know what the server trims
+
+The server removes spaces and zero-width characters at the start and end of a field, so `  QA lead  ` is stored as `QA lead`.
+Spaces and hidden characters inside the text stay, apart from the cases refused in [What is checked](#what-is-checked).
 An observation text block is checked as it is sent and is not trimmed.
 
-A dashboard or panel title that an earlier version already holds is kept as it is when you save, duplicate or build on that dashboard, even when it breaks the rules above, so an old dashboard never blocks a save over a title nobody touched.
-A title you type or change is checked in full.
-In the same way, an observation text block whose text is sent back unchanged is not checked again, so a block saved earlier with control characters can still be moved or resized.
+## Keep an old title that breaks the rules
 
-## Where it applies
+A dashboard or panel title that an earlier version already holds is kept as it is when you save, duplicate or build on that dashboard, even when it breaks the rules.
+An old dashboard never blocks a save over a title nobody touched.
+A title you type or change is checked in full.
+
+In the same way, an observation text block whose text is sent back unchanged is not checked again.
+A block saved earlier with control characters can still be moved or resized.
+
+## Reference
+
+### What is checked
+
+The server checks the characters of a field in this order and reports the first failure.
+
+1. It must be valid UTF-8.
+2. Spaces and zero-width characters at its start and end are removed.
+3. What is left must hold at least one visible character.
+4. Each character is checked in turn, and the first bad one decides the reason:
+   - a control character is refused, and a one-line field counts line breaks and tabs as control characters;
+   - a bidirectional override or isolate character (U+202A to U+202E and U+2066 to U+2069) is refused, because it can make a name read as another name;
+   - a tag character (U+E0000 to U+E007F) is refused unless it follows a black flag (U+1F3F4);
+   - in a one-line field, a zero-width or hidden character is refused, because two names that differ only by such a character would look identical.
+5. Its length, counted in Unicode characters and not bytes, must be within the limit.
+
+### Details of the characters
+
+- A comment, a prompt and an observation text block may hold line breaks and tabs.
+  A title, name or note is one line.
+- A zero-width joiner (U+200D) and a zero-width non-joiner (U+200C) are allowed inside text, because emoji sequences and some scripts need them.
+- A multi-line field allows other zero-width characters inside it.
+- A one-line field refuses these hidden characters inside it: U+200B, U+FEFF, U+00AD, U+180E, U+2060 to U+2064, U+206A to U+206F, and the fillers U+034F, U+115F, U+1160, U+2800, U+3164 and U+FFA0.
+- Tag characters are allowed only after a black flag, which is how the England, Scotland and Wales flags are written.
+  Anywhere else, in any field, they are refused with `text_invisible_characters`.
+
+### Where it applies
 
 | Text | Limit | One line |
 | --- | --- | --- |
@@ -44,12 +72,14 @@ In the same way, an observation text block whose text is sent back unchanged is 
 | Prompt, continue note, saved prompt body, comment and thread message | 4000 | no |
 | Annotation text | 2000 | no |
 
-A saved prompt's name, a comment access request's note, a service account's name and a team name follow their own rules, described with them: see [Saved prompts](../teams/saved-prompts.md), [Folders and access](../teams/folders.md#ask-for-comment-access), [People](../teams/people.md#teams) and [Service-account keys](../operate/service-account-keys.md).
+The limits count characters.
+A public link label may be empty, and the other fields need at least one visible character.
+A refused public link label answers `label must be at most 80 characters without control characters` and no `reason`.
 
-## Reason codes
+A saved prompt's name, a comment access request's note, a service account's name and a team name follow their own rules, described with them.
+See [Saved prompts](../teams/saved-prompts.md), [Folders and access](../teams/folders.md#ask-for-comment-access), [People](../teams/people.md#teams) and [Service-account keys](../operate/service-account-keys.md).
 
-A refused write answers with the endpoint's usual code and a `reason` from this table where the endpoint reports one; a dashboard or panel title reports the reason as the `code` of its issue at `/title` or `/panels/{i}/title`.
-The `error` message names the field and says what to change.
+### Reason codes
 
 | Reason | What to change |
 | --- | --- |

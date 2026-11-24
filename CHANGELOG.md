@@ -5,6 +5,91 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 SlashObserve is pre-1.0: the dashboard format, the HTTP API and the settings can change between minor releases.
 
+## [0.1.5] - 2026-11-24
+
+This release adds features and one database migration despite its patch number.
+Migration 91 is the only new one.
+It adds a nullable `as_of` column to agent requests and findings, which is quick because it rewrites no rows.
+Back up Postgres before you upgrade.
+The server never runs a migration backwards, so going back to 0.1.4 means restoring the backup you took before upgrading, or running `goose down-to 90`, which drops the `as_of` of every run and finding.
+The Breaking changes below affect the demo stack and the make targets around it, and the eval runner.
+
+### Breaking changes
+
+- `make demo` runs the OpenTelemetry Astronomy Shop instead of the SlashObserve demo shop (#263, #265).
+  The old demo shop, its Kubernetes demo and its fault API are gone, so `make demo-k8s`, `make demo-k8s-down` and `make demo-search-down` no longer exist.
+  The demo targets are `demo`, `demo-build`, `demo-search`, `demo-down`, `demo-reset`, `demo-check`, `demo-fault` and `demo-fault-reset`.
+  `make demo-fault` now sets a feature flag of the shop, as `make demo-fault FLAG=paymentFailure VARIANT=50%`, where it took `TYPE` and `PCT`, and `make demo-fault-reset` sets every flag back to the shop's default.
+  The server is on port 58080, Dex on 55556 and the shop on 58081, where they were on 8080, 5556 and 8081.
+  The Compose project is `slashobserve-astronomy`, where it was `slashobserve`, so the volumes of an old demo are not reused; run `make demo-reset` from a 0.1.4 checkout first to remove them.
+  The compose settings `SLASHOBSERVE_SHOP_IMAGE`, `SLASHOBSERVE_SHOP_HOST_PORT`, `SLASHOBSERVE_LOADGEN_CURVE`, `SLASHOBSERVE_DEMO_MARKERS_URL` and `SLASHOBSERVE_PROMETHEUS_BACKFILL` are gone, and so is the 26 hour Prometheus backfill, so the stores start empty and gain history while the demo runs.
+  One dashboard, Astronomy Shop overview, replaces the two dashboards of the Demo folder, and a Jaeger datasource, `jaeger`, joins the six datasources the demo had.
+  `make demo` pulls `ghcr.io/slashobserve/slashobserve:latest`, and the `jaeger` datasource needs the 0.1.5 image or newer, while `make demo-build` builds the server from the checkout.
+  The image `ghcr.io/slashobserve/demo-shop` is not published for 0.1.5, and the tags that exist stay.
+- The eval runner is removed (#264).
+  `make evals`, `make evals-stack-up`, `make evals-stack-down`, `make evals-replay`, `make evals-live`, `make evals-compare`, `go run ./evals/runner`, `scripts/evals-stack.sh` and the `evals-replay` CI job no longer exist.
+  The `replay` model provider stays, because the end-to-end suites, the replicas stack and the benchmark adapter use it.
+
+### Added
+
+- Run the server with no browser sign-in.
+  Leave all three of `SLASHOBSERVE_OIDC_ISSUER_URL`, `SLASHOBSERVE_OIDC_CLIENT_ID` and `SLASHOBSERVE_OIDC_CLIENT_SECRET` unset and the server starts without contacting an identity provider, logs that browser sign-in is off, and accepts only service-account keys.
+  Setting only some of the three stops the server at start and names the missing ones.
+  With none of them set, `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS` is not required, and the settings only sign-in reads are refused: `SLASHOBSERVE_OIDC_INTERNAL_URL`, `SLASHOBSERVE_AUTH_ALLOWED_EMAIL_DOMAINS`, `SLASHOBSERVE_ADMIN_EMAILS`, `SLASHOBSERVE_OIDC_GROUP_ROLES` and `SLASHOBSERVE_AUTH_PROVIDER_NAME`.
+  An install that sets all three behaves as before.
+- The Helm chart can render a server with no browser sign-in.
+  It renders the three OIDC variables only when `oidc.issuerURL`, `oidc.clientID` and `oidc.existingSecret` are all set, and the render fails and names the missing values when only some are set.
+  With none set it needs `serviceAccounts.existingSecret`, and `auth.allowedEmailDomains` and `auth.adminEmails` fail the render, as the server refuses them there.
+  `values.schema.json` no longer requires the OIDC and auth values.
+- Investigate a past incident.
+  An Admin passes `as_of`, an RFC 3339 time or epoch milliseconds, on `POST /api/v1/observe`, as `as_of` on the `start_run` MCP tool, or as `observe investigate --as-of`, and every relative time in the run, such as `now-1h`, resolves to it.
+  The agent is told that time, and the run and its finding carry it as `as_of`.
+  It is for investigations and for asks about a dashboard or an observation, and not for building or revising a dashboard.
+- `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets how many model calls an investigation makes before only `save_finding` runs.
+  The default is 12, as before, and a value from 6 to 60 is accepted.
+  It covers the built-in agent and connected MCP agents, and a run keeps the limit it started with.
+- A Jaeger datasource, read-only, for Jaeger 2.21 or later through its `/api/v3` query API.
+  It feeds traces panels, the Traces page, `observe traces`, the agent's trace tools and the health check, and reads the service dependency graph, which no page shows yet.
+  A Jaeger search is `key=value` pairs, such as `service=checkout minDuration=500ms error=true`, and Jaeger lists every service it retains whatever the window.
+  A datasource variable cannot offer Jaeger datasources yet, trace stats and trace comparison refuse Jaeger, and Grafana panels on a Jaeger datasource still import as placeholders.
+- `observe traces --query` runs a Jaeger search or a Tempo TraceQL search with no model call and prints the same table as `--ask`.
+- A Harbor agent in `benchmarks/` that runs the Observe Agent on o11y-bench tasks, with a fixed ten-task subset, a spend cap and `make test-benchmarks`.
+  The first baseline is a ten-task subset on Sonnet 5.5 with one attempt: 8 of 10 tasks passed and the mean reward was 0.89.
+  That is a development baseline, not a benchmark score.
+- The OpenTelemetry Astronomy Shop, pinned at upstream release 3.1.0, is the demo, with feature-flag faults that you switch on with `make demo-fault` and an optional Elasticsearch and OpenSearch layer from `make demo-search`.
+  `make demo-check` lists the datasources through the API, runs a fresh health check on each and reads one row of the shop's data from it.
+  [The demo](https://github.com/slashobserve/slashobserve/blob/main/docs/operate/demo.md) page describes it.
+
+### Changed
+
+- `GET /api/v1/instance` answers an empty `oidc_issuer_url` when browser sign-in is off, and `/api/v1/auth/login` and `/api/v1/auth/callback` redirect to `/login?error=sign_in_off`, which the login page explains.
+  With sign-in off, a session cookie from before no longer authenticates.
+- The investigate prompt no longer tells the model a number of calls, so a raised `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` does not contradict it.
+- The trace tree of `observe traces` prints the status message of each error span.
+- `list_services` and `observe datasources services` list a Jaeger datasource's every service, and `get_trace` and `observe traces <id>` read one trace from Jaeger.
+- Saved trace searches take Jaeger datasources.
+- The Install and Upgrades pages say that releases before 1.0 can include breaking changes.
+- Both end-to-end suites, `scripts/e2e.sh` and the Playwright suite in `web/e2e`, run on the Astronomy Shop (#267).
+  They read its span metrics and use its `paymentFailure` flag, and the checks that needed the 26 hour backfill, cAdvisor series or Prometheus scrape targets are gone.
+  The e2e CI jobs no longer build a demo shop image.
+- The replicas stack has no shop.
+  Its Prometheus scrapes the two servers, its load test dashboard reads `slashobserve_http_request_duration_seconds_*`, and the load test refuses port 58080 as well as 8080 as a target.
+- `make test-shop` and the demo module's CI lint and test steps are gone with the demo shop.
+- A zero `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` or `SLASHOBSERVE_LLM_IDLE_TIMEOUT` means no limit in the built-in agent too (#269).
+  Before, the agent turned a zero into 600 s and 180 s, though the setting is documented as no limit.
+  A server that sets either to 0 now lets a model call run without that limit.
+- The descriptions of the API, the CLI help and the agent tool text were corrected to match the code.
+  They now name public links and access requests as activity events, Jaeger as a datasource of trace searches, and which datasources accept the ad hoc operators `<`, `>` and `or`, and they say that `observe folders rename` takes its flags before or after the title.
+  The ObserveSpec schema descriptions say that only ClickHouse needs `applyToAll`.
+- The documentation under `docs/` is rewritten for readers, with no change in behavior.
+
+### Fixed
+
+- An ad hoc filter on an Elasticsearch or OpenSearch datasource variable is no longer dropped when a Grafana dashboard is imported (#270).
+  The import set `applyToAll` on it, which the spec accepts only on a ClickHouse datasource variable, so the filter was refused with "could not validate this variable".
+- `observe doctor` warns when the CLI and the server are different releases, also for release binaries, whose version has no leading `v`.
+  Before, the warning never fired for them.
+
 ## [0.1.4] - 2026-11-22
 
 This release adds features and database migrations despite its patch number.
@@ -540,6 +625,7 @@ First public release.
   `make demo` and `docker compose -f deploy/compose/compose.yaml up -d --wait` start a local demo stack with Dex, Prometheus, ClickHouse, a demo shop and sample history from the published images.
   The demo is for local use only, with fixed logins and published ports bound to 127.0.0.1.
 
+[0.1.5]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.5
 [0.1.4]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.4
 [0.1.3]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.3
 [0.1.2]: https://github.com/slashobserve/slashobserve/releases/tag/v0.1.2

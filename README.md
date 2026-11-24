@@ -1,6 +1,6 @@
 # SlashObserve
 
-SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Elasticsearch and OpenSearch.
+SlashObserve is an open-source observability workspace where a team and its agents work questions together and keep what they learn, on the stores they already run: Prometheus, ClickHouse, Loki, Tempo, Jaeger, Elasticsearch and OpenSearch.
 Type `/observe checkout health by pod, last 6h` and the built-in agent builds a verified dashboard that you refine in plain language.
 Outside agents such as Claude Code connect over MCP and act as the person who connected them.
 
@@ -17,7 +17,7 @@ You need Docker with Compose v2.24.4 or newer, `git`, `curl`, `jq` and `openssl`
 `make demo` pulls the published SlashObserve image and runs it beside the OpenTelemetry Astronomy Shop, so nothing compiles on your machine.
 The first run fetches the shop and pulls about 12 GB of images, and needs about 4 GiB of memory.
 
-Open http://localhost:58080, sign in as `admin@example.com` with the password `password`, and choose **New** > **Ask Observe Agent** to type a prompt such as `checkout health by service, last 6h`.
+Open http://localhost:58080, sign in as `admin@example.com` with the password `password`, and type a prompt such as `checkout health by service, last hour` on Home, in its **Ask Observe Agent** tab.
 The shop is at http://localhost:58081, and `make demo-fault FLAG=paymentFailure VARIANT=50%` switches on one of its faults for you to investigate; see [The demo](docs/operate/demo.md).
 Stop the stack with `make demo-down`, or drop its data as well with `make demo-reset`.
 Without an LLM provider the demo still starts, but prompts answer `503 agent_unavailable`.
@@ -62,7 +62,7 @@ The [known limitations](docs/get-started/known-limitations.md) list what is miss
 From Grafana.
 You describe a dashboard instead of assembling it panel by panel, and the result is one JSON document that the server validates against a schema before it saves it.
 SlashObserve is not a Grafana fork or plugin.
-It reads six datasource types and imports Grafana dashboards, from JSON or from a running Grafana.
+It reads seven datasource types and imports Grafana dashboards, from JSON or from a running Grafana.
 Grafana supports many more datasources and has alerting, which SlashObserve does not have yet.
 
 From chat-with-your-metrics tools.
@@ -93,7 +93,7 @@ Install it with the script below, download it from the [releases page](https://g
 
 An Admin creates a service-account key on the **API keys** page, which the Agents page links to; then:
 
-    observe login --server http://localhost:8080
+    observe login --server http://localhost:58080
     observe "checkout p99 latency, last 6h"
 
 To give your coding agents the `/observe` guide, run `observe skill install`.

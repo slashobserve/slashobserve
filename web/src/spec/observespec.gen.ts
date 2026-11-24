@@ -1432,7 +1432,7 @@ export interface AdhocVariable {
   type: "adhoc";
   datasource: DatasourceRef;
   /**
-   * ClickHouse only: also filter every query on this datasource that does not use this variable, on each table the query reads.
+   * Only ClickHouse needs it: also filter every query on this datasource that does not use this variable, on each table the query reads. Prometheus, Elasticsearch and OpenSearch filter every query on the datasource whether or not it is set.
    */
   applyToAll?: true;
   /**
@@ -1462,7 +1462,7 @@ export interface AdhocVariable {
 export interface AdhocFilter {
   key: string;
   /**
-   * < and > compare as numbers when both sides are numbers, else as text; ClickHouse only.
+   * < and > compare as numbers when both sides are numbers, else as text, on ClickHouse; Elasticsearch and OpenSearch run them as range filters and Prometheus rejects them.
    */
   operator: "=" | "!=" | "=~" | "!~" | "<" | ">";
   value: string;
@@ -1475,7 +1475,7 @@ export interface AdhocFilter {
    */
   valueLabel?: string;
   /**
-   * How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. ClickHouse only.
+   * How the filter joins the filters before it: and (default) extends the current group, or starts a new group, so a, b, or c means (a AND b) OR c. Prometheus rejects it.
    */
   condition?: "and" | "or";
 }
