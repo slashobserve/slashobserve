@@ -5445,7 +5445,7 @@ components:
           nullable: true
           minLength: 1
           maxLength: 500
-          description: One plain-text sentence describing a change to the dashboard that would help, which only an ask about a dashboard may carry; null when the agent suggested none. Nothing applies it until a person starts a revision with it.
+          description: One plain-text sentence describing the change the person asked for or the nearest safe one, which only an ask about a dashboard may carry; null when the agent suggested none. Nothing applies it until a person starts a revision with it.
         observe_worthy:
           type: boolean
           description: True when the agent judged the answer worth keeping as an observation, because it describes a jump, a drop or an error spike; it only promotes saving the answer and saves nothing.

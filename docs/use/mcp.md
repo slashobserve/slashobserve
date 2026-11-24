@@ -1313,7 +1313,7 @@ It takes a `target` and an optional `query`.
 #### `apply_suggested_change`
 
 Applies the change that an answer on a dashboard suggests.
-An answer may carry `suggested_change`, one sentence on a change that would help.
+An answer may carry `suggested_change`, one sentence on the change the person asked for or the nearest safe one.
 
 - It takes `comment_id` and the answer's `finding_id` from `get_run`.
 - It posts "Revise the dashboard: <suggested change>" in that thread as you, and starts a run that makes the change.

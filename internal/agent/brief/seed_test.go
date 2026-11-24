@@ -212,10 +212,13 @@ func TestANewDashboardBriefStatesWhatHomeCannotDo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"My Dashboards", "list_folders", "folder_id", "can_create true", "cannot create alerts", "changed from its own chat with Revise the dashboard", "list_dashboards", "exactly one", "ask_on_dashboard_id", "candidate titles"} {
+	for _, want := range []string{"My Dashboards", "list_folders", "folder_id", "can_create true", "cannot create alerts", "changed from its own chat", "asked for on that dashboard's own chat", "list_dashboards", "exactly one", "ask_on_dashboard_id", "candidate titles"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("brief lacks %q: %s", want, got)
 		}
+	}
+	if strings.Contains(got, "Revise the dashboard") {
+		t.Errorf("brief names a button the requester may not have: %s", got)
 	}
 	revise, err := buildContext(nil, tools.ModeRevise, revisions.SourcePrompt, "", "p", &Revision{DashboardID: "d", Number: 1, Spec: &spec.Dashboard{}}, seed{})
 	if err != nil {
