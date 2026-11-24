@@ -73,8 +73,11 @@ type FailedRequest = OriginFields &
     | "dashboard_id"
     | "error"
     | "failure_code"
+    | "continues_id"
     | "continued_by"
     | "retried_by"
+    | "build"
+    | "build_saved_at"
     | "allowed_actions"
   >
 
@@ -137,11 +140,21 @@ function NextRunNote({
   )
 }
 
-function failureHeading(request: FailedRequest, buildLeft: boolean): string {
+function builtNothing(request: FailedRequest): boolean {
+  return (
+    request.build === null &&
+    request.build_saved_at === null &&
+    request.dashboard_id === null &&
+    request.continues_id === null &&
+    request.continued_by === null
+  )
+}
+
+function failureHeading(request: FailedRequest): string {
   const origin = requestOrigin(request)
   switch (origin) {
     case "observe":
-      return request.intent === "ask" && !buildLeft
+      return request.intent === "ask" && builtNothing(request)
         ? "The question could not be answered"
         : "The dashboard could not be built"
     case "investigate":
@@ -203,9 +216,7 @@ export function TurnFailure({
             <p className="font-semibold">You stopped this run</p>
           ) : (
             <>
-              <p className="font-semibold">
-                {failureHeading(request, buildLeft)}
-              </p>
+              <p className="font-semibold">{failureHeading(request)}</p>
               <p className="wrap-anywhere text-muted-foreground">
                 {explained?.meaning ??
                   sentence(request.error ?? "The request failed")}

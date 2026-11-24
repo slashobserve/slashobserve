@@ -12,8 +12,11 @@ const base = {
   comment_id: null,
   dashboard_id: null,
   error: "the run was canceled",
+  continues_id: null,
   continued_by: null,
   retried_by: null,
+  build: null,
+  build_saved_at: null,
   allowed_actions: ["retry" as const],
 }
 
@@ -105,11 +108,41 @@ describe("TurnFailure", () => {
     ).toHaveLength(1)
   })
 
-  it("keeps the dashboard title for an ask that left a build behind", async () => {
+  it("titles a question the same for a viewer with no actions", async () => {
     renderFailure("no_progress", {
       intent: "ask",
       kind: "build",
-      allowed_actions: ["retry", "continue"],
+      allowed_actions: [],
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The question could not be answered"
+    )
+  })
+
+  it("keeps the dashboard title for an ask that built panels, whatever the viewer may do", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: [],
+      build: {
+        saves: 2,
+        panels: 2,
+        planned_panels: 4,
+        title: null,
+        updated_at: "2026-11-25T10:00:00Z",
+      },
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The dashboard could not be built"
+    )
+  })
+
+  it("keeps the dashboard title once the build moved to a continued run", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: [],
+      continued_by: "b11cc709-1b2c-4d3e-8f4a-5b6c7d8e9f02",
     })
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The dashboard could not be built"
