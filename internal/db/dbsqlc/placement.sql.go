@@ -603,26 +603,18 @@ func (q *Queries) ShareDatasourceUIDs(ctx context.Context, uids []string) error 
 }
 
 const shareFolderPlacement = `-- name: ShareFolderPlacement :one
-SELECT f.id, f.title, f.admins_only, (f.personal AND coalesce(u.role = 'admin', false))::boolean AS admin_personal
-FROM folders f LEFT JOIN users u ON u.id = f.owner_id
-WHERE f.id = $1 FOR SHARE OF f
+SELECT id, title, admins_only FROM folders WHERE id = $1 FOR SHARE
 `
 
 type ShareFolderPlacementRow struct {
-	ID            pgtype.UUID
-	Title         string
-	AdminsOnly    bool
-	AdminPersonal bool
+	ID         pgtype.UUID
+	Title      string
+	AdminsOnly bool
 }
 
 func (q *Queries) ShareFolderPlacement(ctx context.Context, id pgtype.UUID) (ShareFolderPlacementRow, error) {
 	row := q.db.QueryRow(ctx, shareFolderPlacement, id)
 	var i ShareFolderPlacementRow
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.AdminsOnly,
-		&i.AdminPersonal,
-	)
+	err := row.Scan(&i.ID, &i.Title, &i.AdminsOnly)
 	return i, err
 }

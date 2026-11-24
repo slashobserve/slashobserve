@@ -247,34 +247,3 @@ func TestARunInFlightKeepsWhatItIsAboutWhereOnlyAdminsReadUntilItEnds(t *testing
 		})
 	}
 }
-
-func TestAnAdminsOwnPersonalFolderHoldsARestrictedAnswerAndOtherPersonalFoldersDoNot(t *testing.T) {
-	r := newHoldersRig(t)
-	g := New(nil)
-	run := r.uuid(t, r.run(t, true))
-	adminFolder, editorFolder := r.personalFolderOf(t, "admin"), r.personalFolderOf(t, "editor")
-	general := r.uuid(t, r.scalar(t, `SELECT id::text FROM folders WHERE general`))
-
-	if err := Answer(t.Context(), r.d.Queries(), run, adminFolder); err != nil {
-		t.Fatalf("placing a restricted answer in an Admin's personal folder: %v", err)
-	}
-	for name, folder := range map[string]pgtype.UUID{"an Editor's personal folder": editorFolder, "General": general} {
-		if err := Answer(t.Context(), r.d.Queries(), run, folder); !errors.Is(err, folders.ErrRestrictedAnswer) {
-			t.Fatalf("placing it in %s: err = %v, want the restricted answer refusal", name, err)
-		}
-	}
-
-	holder := answerHolders["a dashboard made from a run's answer"]
-	id := r.uuid(t, holder.add(t, r, general, run.String()))
-	if err := holder.move(g, r, t, id, adminFolder); err != nil {
-		t.Fatalf("moving what holds it to an Admin's personal folder: %v", err)
-	}
-	if err := holder.move(g, r, t, id, editorFolder); !errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("moving what holds it to an Editor's personal folder: err = %v, want the restricted answer refusal", err)
-	}
-
-	r.d.Exec(t, `UPDATE users SET role = 'editor' WHERE id = (SELECT owner_id FROM folders WHERE id = $1)`, adminFolder)
-	if err := Answer(t.Context(), r.d.Queries(), run, adminFolder); !errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("placing it where the owner is no longer an Admin: err = %v, want the restricted answer refusal", err)
-	}
-}

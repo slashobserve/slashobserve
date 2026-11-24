@@ -11,9 +11,7 @@ SELECT uid, audience FROM datasources WHERE uid = ANY(@uids::text[]) ORDER BY ui
 SELECT uid FROM datasources WHERE audience = 'admins' ORDER BY uid;
 
 -- name: ShareFolderPlacement :one
-SELECT f.id, f.title, f.admins_only, (f.personal AND coalesce(u.role = 'admin', false))::boolean AS admin_personal
-FROM folders f LEFT JOIN users u ON u.id = f.owner_id
-WHERE f.id = @id FOR SHARE OF f;
+SELECT id, title, admins_only FROM folders WHERE id = @id FOR SHARE;
 
 -- name: RunAnswerKeptWithAdmins :one
 SELECT run_answer_kept_with_admins(r.id, '{}')::boolean FROM agent_requests r WHERE r.id = @id;

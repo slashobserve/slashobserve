@@ -767,7 +767,7 @@ So is a run that starts from one, because it carries that answer as context:
 #### Where a restricted answer can go
 
 A restricted answer stays where only Admins read it.
-These are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, or is an Admin's own My Dashboards, which only that Admin sees, and the message says why:
+These are each refused with `409 restricted_answer` unless the place is in a folder only Admins can read, and the message says why:
 
 - sharing it in a thread or onto a page;
 - saving it as an observation;
