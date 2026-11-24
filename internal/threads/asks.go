@@ -330,7 +330,7 @@ func capRefusal(err error) *RunRefusal {
 }
 
 func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent revisions.Assignee) (dbsqlc.AgentRequest, error) {
-	asked, err := askedIn(r.ctx, q, thread, message)
+	asked, err := r.asks.service.askedIn(r.ctx, q, r.by, thread, message)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
@@ -367,7 +367,7 @@ type askContext struct {
 	point           revisions.Point
 }
 
-func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Message) (askContext, error) {
+func (s *Service) askedIn(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, thread Thread, message Message) (askContext, error) {
 	threadID, err := db.ParseUUID(thread.ID)
 	if err != nil {
 		return askContext{}, fmt.Errorf("thread id: %w", err)
@@ -380,11 +380,15 @@ func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Mess
 	if err != nil {
 		return askContext{}, fmt.Errorf("read the thread transcript: %w", err)
 	}
+	answers, err := s.answersOf(ctx, q, by, earlier)
+	if err != nil {
+		return askContext{}, fmt.Errorf("read the answers of the thread transcript: %w", err)
+	}
 	point, err := pointOfThread(thread)
 	if err != nil {
 		return askContext{}, err
 	}
-	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier), point: point}, nil
+	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier, answers), point: point}, nil
 }
 
 func pointOfThread(thread Thread) (revisions.Point, error) {
@@ -406,18 +410,25 @@ func pointOfThread(thread Thread) (revisions.Point, error) {
 	return point, nil
 }
 
-func transcriptOf(newestFirst []dbsqlc.ThreadMessage) string {
+func transcriptOf(newestFirst []dbsqlc.ThreadMessage, answers map[pgtype.UUID]Answer) string {
 	if len(newestFirst) == 0 {
 		return ""
 	}
 	lines := make([]string, 0, len(newestFirst))
 	for _, row := range slices.Backward(newestFirst) {
 		message := messageOf(row, nil, auth.Principal{}, false)
-		lines = append(lines, message.Author.Label()+": "+message.Body)
+		lines = append(lines, message.Author.Label()+": "+transcriptBody(message.Body, answerOf(answers, row)))
 	}
 	text := strings.Join(lines, "\n\n")
 	if n := utf8.RuneCountInString(text); n > transcriptRunes {
 		text = strings.TrimSpace(string([]rune(text)[n-transcriptRunes:]))
 	}
 	return text
+}
+
+func transcriptBody(body string, answer *Answer) string {
+	if answer == nil {
+		return body
+	}
+	return strings.TrimSpace(answer.Title + "\n\n" + answer.Markdown)
 }

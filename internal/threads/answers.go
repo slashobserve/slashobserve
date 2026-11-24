@@ -40,11 +40,11 @@ func (s *Service) ReadAnswersWith(runs RunGate, answers AnswerReader) {
 	s.answers = &answerReads{runs: runs, answers: answers}
 }
 
-func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]Answer, error) {
+func (s *Service) answersOf(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, messages []dbsqlc.ThreadMessage) (map[pgtype.UUID]Answer, error) {
 	if s.answers == nil {
 		return nil, nil
 	}
-	runs, err := s.answeredRuns(ctx, rows)
+	runs, err := answeredRuns(ctx, q, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,11 @@ func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsql
 	return out, nil
 }
 
-func (s *Service) answeredRuns(ctx context.Context, rows []dbsqlc.ListThreadMessagesRow) ([]pgtype.UUID, error) {
+func answeredRuns(ctx context.Context, q *dbsqlc.Queries, messages []dbsqlc.ThreadMessage) ([]pgtype.UUID, error) {
 	var replied []pgtype.UUID
 	seen := map[pgtype.UUID]bool{}
-	for _, r := range rows {
-		if run := r.ThreadMessage.RunID; run.Valid && !seen[run] {
+	for _, m := range messages {
+		if run := m.RunID; run.Valid && !seen[run] {
 			seen[run] = true
 			replied = append(replied, run)
 		}
@@ -73,7 +73,7 @@ func (s *Service) answeredRuns(ctx context.Context, rows []dbsqlc.ListThreadMess
 	if len(replied) == 0 {
 		return nil, nil
 	}
-	answered, err := s.db.Queries().ListAnsweredRuns(ctx, replied)
+	answered, err := q.ListAnsweredRuns(ctx, replied)
 	if err != nil {
 		return nil, fmt.Errorf("list the page's runs that saved an answer: %w", err)
 	}
@@ -96,4 +96,12 @@ func answerOf(answers map[pgtype.UUID]Answer, row dbsqlc.ThreadMessage) *Answer 
 		return &a
 	}
 	return nil
+}
+
+func messagesOf(rows []dbsqlc.ListThreadMessagesRow) []dbsqlc.ThreadMessage {
+	out := make([]dbsqlc.ThreadMessage, len(rows))
+	for i, r := range rows {
+		out[i] = r.ThreadMessage
+	}
+	return out
 }

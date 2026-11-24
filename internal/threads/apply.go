@@ -109,7 +109,7 @@ func (a *Asks) suggestionIn(ctx context.Context, thread dbsqlc.Thread, findingID
 }
 
 func (ap *applying) hook(q *dbsqlc.Queries, thread Thread, message Message) error {
-	asked, err := askedIn(ap.ctx, q, thread, message)
+	asked, err := ap.asks.service.askedIn(ap.ctx, q, ap.by, thread, message)
 	if err != nil {
 		return err
 	}

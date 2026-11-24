@@ -1322,6 +1322,7 @@ Then the web app's plain replies stop asking it until someone mentions an agent 
 
 The agent's token is removed from the text to make the run's prompt.
 The earlier messages of the thread, the last 20 and at most 8000 characters, go with it as context.
+An earlier answer of the agent appears as its finding, its title and text.
 What the run may do depends on the thread:
 
 - A dashboard thread starts a read-only ask, which a Commenter may start and which answers in the thread without changing the dashboard.

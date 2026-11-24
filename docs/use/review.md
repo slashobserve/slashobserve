@@ -260,6 +260,7 @@ The comment is attached to the latest version and the panel you chose.
    The box stays in the thread, so the next message goes there too until you remove the "Replying in" chip.
 
 The agent gets the earlier messages of the thread as context, the last 20 and at most 8000 characters.
+An earlier answer of the agent appears as its finding, its title and text, not as the short reply that announced it.
 The agent you asked becomes the thread's agent, so a later reply in the thread asks it again without a mention.
 A reply that mentions a person goes to the team and starts nothing, and the thread keeps its agent for the next reply.
 A message someone sent to everyone, by turning the "To:" chip or through the API, MCP or the CLI, turns the thread's agent off until a message asks an agent again.
