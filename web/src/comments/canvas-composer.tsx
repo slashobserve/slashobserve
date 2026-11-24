@@ -69,12 +69,15 @@ export function useCanvasGate(
   )
 }
 
-function spotAnchor(surface: HTMLElement | null, at: Point | null) {
+export function spotAnchor(
+  surfaceRef: RefObject<HTMLElement | null>,
+  at: Point | null
+) {
   const offset = at ?? { x: keyDraftInset, y: keyDraftInset }
   return {
-    contextElement: surface ?? undefined,
+    contextElement: surfaceRef.current ?? undefined,
     getBoundingClientRect: () => {
-      const box = surface?.getBoundingClientRect()
+      const box = surfaceRef.current?.getBoundingClientRect()
       return DOMRect.fromRect({
         x: (box?.left ?? 0) + offset.x,
         y: (box?.top ?? 0) + offset.y,
@@ -127,10 +130,7 @@ export function CanvasPopover({
   className,
   children,
 }: PopoverProps) {
-  const anchor = useCallback(
-    () => spotAnchor(surfaceRef.current, at),
-    [surfaceRef, at]
-  )
+  const anchor = useCallback(() => spotAnchor(surfaceRef, at), [surfaceRef, at])
   const clicked = at !== null
   const [boundary, setBoundary] = useState<Element | "clipping-ancestors">(
     "clipping-ancestors"
@@ -194,12 +194,10 @@ export function CanvasPopover({
   )
 }
 
-export function panelTitleOf(surface: HTMLElement | null): HTMLElement | null {
-  return (
-    surface
-      ?.closest("article")
-      ?.querySelector<HTMLElement>("[data-panel-title]") ?? null
-  )
+export function panelTitleOf(element: HTMLElement | null): HTMLElement | null {
+  const panel =
+    element?.closest("article") ?? element?.querySelector("article") ?? null
+  return panel?.querySelector<HTMLElement>("[data-panel-title]") ?? null
 }
 
 const commentLabel = "Comment on the canvas"

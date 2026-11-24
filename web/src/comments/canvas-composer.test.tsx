@@ -14,7 +14,12 @@ import {
   boxSizeKey,
   parseStoredBoxSizes,
 } from "./canvas-box-size"
-import { CanvasComposer, useCanvasGate } from "./canvas-composer"
+import {
+  CanvasComposer,
+  panelTitleOf,
+  spotAnchor,
+  useCanvasGate,
+} from "./canvas-composer"
 import type { CanvasSubject } from "./canvas-host"
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -303,5 +308,44 @@ describe("CanvasComposer", () => {
     expect(
       await screen.findByRole("textbox", { name: "Write a comment" })
     ).toHaveValue("half a thought")
+  })
+})
+
+function elementAt(left: number, top: number): HTMLElement {
+  const element = document.createElement("div")
+  element.getBoundingClientRect = () => DOMRect.fromRect({ x: left, y: top })
+  return element
+}
+
+describe("spotAnchor", () => {
+  it("measures the element the ref holds when the box is placed", () => {
+    const spot = { current: elementAt(300, 140) as HTMLElement | null }
+    const anchor = spotAnchor(spot, null)
+    expect(anchor.getBoundingClientRect()).toMatchObject({ x: 312, y: 152 })
+    spot.current = elementAt(310, 180)
+    expect(anchor.getBoundingClientRect()).toMatchObject({ x: 322, y: 192 })
+  })
+
+  it("offsets a clicked point from the element", () => {
+    const anchor = spotAnchor(
+      { current: elementAt(300, 140) },
+      { x: 20, y: 30 }
+    )
+    expect(anchor.getBoundingClientRect()).toMatchObject({ x: 320, y: 170 })
+  })
+})
+
+describe("panelTitleOf", () => {
+  it("finds the title from the surface and from the wrapper around the panel", () => {
+    const wrapper = document.createElement("div")
+    const article = document.createElement("article")
+    const title = document.createElement("button")
+    title.setAttribute("data-panel-title", "")
+    const surface = document.createElement("div")
+    article.append(title, surface)
+    wrapper.append(article)
+    expect(panelTitleOf(wrapper)).toBe(title)
+    expect(panelTitleOf(surface)).toBe(title)
+    expect(panelTitleOf(null)).toBeNull()
   })
 })

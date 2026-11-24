@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -220,6 +221,10 @@ export const PanelContainer = memo(function PanelContainer({
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
+  const spotRef = useRef<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    spotRef.current = surfaceRef.current ?? ref.current
+  })
   const mountId = useId()
   const surfaceId =
     source.kind === "block" ? blockSurfaceId(source.blockId) : mountId
@@ -634,7 +639,7 @@ export const PanelContainer = memo(function PanelContainer({
         <CanvasSpots
           owner={{ ownerId, surfaceId, copy: repeatOf !== undefined }}
           panelTitle={panelName}
-          surfaceRef={surfaceRef}
+          surfaceRef={spotRef}
         />
       ) : null}
       {selected && !viewing ? (
