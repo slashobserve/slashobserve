@@ -551,7 +551,7 @@ func TestRestrictedAnswerRefusalsAreNotValidationRejections(t *testing.T) {
 	s := New(tools.ModeCreate)
 	refuse := func(i int, content string) *Stop {
 		s.BeginTurn(true)
-		c := jsonCall("create_dashboard", `{"n":`+string(rune('1'+i))+`}`)
+		c := jsonCall("create_dashboard", `{"n":`+strconv.Itoa(i+1)+`}`)
 		s.Admit(0, c)
 		if _, err := s.Settle(c, tools.Result{IsError: true}, []byte(content)); err != nil {
 			t.Fatal(err)
