@@ -35,6 +35,7 @@ export function MessageText({
   queryKey,
   root = false,
   folded = false,
+  bodyHidden = false,
 }: {
   message: {
     id: string
@@ -49,6 +50,7 @@ export function MessageText({
   queryKey: QueryKey
   root?: boolean
   folded?: boolean
+  bodyHidden?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -81,31 +83,36 @@ export function MessageText({
     ? null
     : chatAnswerLink(message.body, message.actor.run_id)
   const menu = (message.can_edit || message.can_delete) && !folded
+  if (bodyHidden && !menu) return null
   return (
     <div className="flex items-start gap-1">
-      <EntryBody
-        className={cn(
-          "min-w-0 flex-1",
-          markdown && "whitespace-normal",
-          folded && "line-clamp-1 text-muted-foreground"
-        )}
-      >
-        <MessageBody
-          body={chat === null ? message.body : chat.before}
-          mentions={message.mentions}
-          markdown={markdown}
-          codeSpans={codeSpans}
-        />
-        {chat === null ? null : (
-          <Link
-            to="/c/$requestId"
-            params={{ requestId: chat.runId }}
-            className="underline underline-offset-2"
-          >
-            {chat.label}
-          </Link>
-        )}
-      </EntryBody>
+      {bodyHidden ? (
+        <span className="flex-1" />
+      ) : (
+        <EntryBody
+          className={cn(
+            "min-w-0 flex-1",
+            markdown && "whitespace-normal",
+            folded && "line-clamp-1 text-muted-foreground"
+          )}
+        >
+          <MessageBody
+            body={chat === null ? message.body : chat.before}
+            mentions={message.mentions}
+            markdown={markdown}
+            codeSpans={codeSpans}
+          />
+          {chat === null ? null : (
+            <Link
+              to="/c/$requestId"
+              params={{ requestId: chat.runId }}
+              className="underline underline-offset-2"
+            >
+              {chat.label}
+            </Link>
+          )}
+        </EntryBody>
+      )}
       {menu ? (
         <>
           <DropdownMenu>

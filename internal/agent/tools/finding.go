@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -32,7 +33,9 @@ const (
 
 	defaultWindow = time.Hour
 
-	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link. A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
+	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link."
+	descFindingAskOn    = " A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
+	descSaveFinding     = descFindingBase + descFindingAskOn
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
@@ -46,12 +49,23 @@ const (
 
 	maxSuggestedChangeRunes = 500
 
-	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `,` + propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
+	schemaFindingHead = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
+	schemaFindingTail = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
+
+	schemaSaveFinding        = schemaFindingHead + propFindingAskOn + `,` + schemaFindingTail
+	schemaSaveFindingNoAskOn = schemaFindingHead + schemaFindingTail
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
 
 func init() { registerEntries((*Registry).findingEntries) }
+
+func findingForRun(t Tool, mode Mode) Tool {
+	if mode != ModeCreate {
+		t.Description, t.InputSchema = descFindingBase, json.RawMessage(schemaSaveFindingNoAskOn)
+	}
+	return t
+}
 
 func (r *Registry) findingEntries() []entry {
 	return []entry{
@@ -109,6 +123,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
+	in.Markdown = markdownWithoutSuggestedChange(in.Markdown, suggested)
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Investigation))
 	if err != nil || !ok {
 		return res, err
@@ -166,6 +181,48 @@ func suggestedChange(raw string, run Run) (string, Result, bool) {
 		return "", invalid("suggested_change is one plain sentence with no line breaks"), false
 	}
 	return text, Result{}, true
+}
+
+var (
+	suggestedChangeLabel = regexp.MustCompile(`(?i)^ {0,3}[*_]{0,3}(?:suggested changes?|suggested_change)[*_]{0,3}\s*:`)
+	codeFence            = regexp.MustCompile("^ {0,3}(```+|~~~+)")
+)
+
+func markdownWithoutSuggestedChange(markdown, suggested string) string {
+	if suggested == "" {
+		return markdown
+	}
+	return withoutSuggestedChange(markdown)
+}
+
+func withoutSuggestedChange(markdown string) string {
+	lines := strings.Split(markdown, "\n")
+	cut, fence := -1, ""
+	for i, line := range lines {
+		if m := codeFence.FindStringSubmatch(line); m != nil {
+			switch {
+			case fence == "":
+				fence = m[1][:1]
+			case strings.HasPrefix(m[1], fence):
+				fence = ""
+			}
+			continue
+		}
+		if fence == "" && suggestedChangeLabel.MatchString(line) {
+			cut = i
+		}
+	}
+	if cut < 0 {
+		return markdown
+	}
+	kept := lines[:cut]
+	for len(kept) > 0 && strings.TrimSpace(kept[len(kept)-1]) == "" {
+		kept = kept[:len(kept)-1]
+	}
+	if len(kept) == 0 {
+		return markdown
+	}
+	return strings.Join(kept, "\n")
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {

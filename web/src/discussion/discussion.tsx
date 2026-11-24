@@ -26,7 +26,12 @@ import { MessageText } from "@/comments/message-text"
 import { useThreads, type Message } from "@/comments/thread-queries"
 import { Composer } from "@/conversation/composer"
 import { threadPlace, ungated } from "@/conversation/delivery"
-import { RunAnswer, RunLine } from "@/conversation/run-answer"
+import {
+  answerCoversBody,
+  RunAnswer,
+  RunLine,
+  shownAnswer,
+} from "@/conversation/run-answer"
 import { subjectOf } from "@/conversation/send-plan"
 import { unansweredRun } from "@/conversation/thread-state"
 import { useComposer } from "@/conversation/use-composer"
@@ -290,10 +295,10 @@ export function DiscussionFeed({
                   ? () => setReplyingTo(message)
                   : null,
             })
-            const answer = message.answer ?? null
             const answerThread = threads.find(
               (item) => item.thread.id === message.thread_id
             )?.thread
+            const answer = shownAnswer(message, answerThread)
             const waitingOn = unansweredRun(message, messages)
             const block =
               message.block_id === null
@@ -319,6 +324,7 @@ export function DiscussionFeed({
                   target={target}
                   queryKey={threadKeys.list(target)}
                   root={message.id === message.thread_id}
+                  bodyHidden={answerCoversBody(message, answer)}
                 />
                 {answer === null || answerThread === undefined ? null : (
                   <RunAnswer

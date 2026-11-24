@@ -76,7 +76,8 @@ An answer's actions sit in one row, each where it applies:
 It is off while a run goes on.
 While a run works you see its live text, but the answer is written in one piece when the agent saves it, so there is nothing to copy until then.
 
-**Create observation** files the answer in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation.
+**Create observation** is on every answer you may save, whether or not the agent judged it worth keeping.
+It files the answer in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation.
 Saving twice files it once.
 The answer keeps its card afterwards: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
@@ -289,7 +290,7 @@ Saving always lists its messages, because they name the panels, such as "Saved p
 A phase that needed a fix is marked with a warning icon.
 Under the timeline, "Running for 1m 12s" counts the time since the run started.
 
-When the run ends, the timeline collapses into a line such as "Ran 14 steps in 1m 12s for about $0.12, repaired 1 query".
+When the run ends, the timeline collapses into a line such as "Ran 14 steps in 1m 12s for about $0.12, retried 1 time".
 Open it to see every step again.
 The cost is the server's estimate from its price table, and it shows only when the model is priced.
 Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.

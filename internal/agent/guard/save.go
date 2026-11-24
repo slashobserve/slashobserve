@@ -111,12 +111,16 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{}, ErrMalformed
 	}
 	if !res.IsError {
-		if body.Code == codeProposed && body.ProposalID != "" && s.Mode == tools.ModeRevise {
-			s.Counts.BuildSaves++
-			s.Window = Window{}
-			return Settled{Outcome: Outcome{Proposal: body.ProposalID}}, nil
+		repairing := s.Rejections > 0
+		settled, err := s.classifyOK(c, res, body)
+		if err != nil {
+			return Settled{}, err
 		}
-		return s.classifyAccepted(c, res, body)
+		if repairing {
+			s.Counts.Repairs++
+		}
+		s.Rejections, s.RestrictedRefusals = 0, 0
+		return settled, nil
 	}
 	switch {
 	case body.Code == "":
@@ -142,6 +146,15 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		RejectedFinding: s.Mode == tools.ModeInvestigate || c.label() == toolSaveFinding,
 		Transient:       body.onlyUnreachable(),
 	}}, nil
+}
+
+func (s *State) classifyOK(c Call, res tools.Result, body saveBody) (Settled, error) {
+	if body.Code == codeProposed && body.ProposalID != "" && s.Mode == tools.ModeRevise {
+		s.Counts.BuildSaves++
+		s.Window = Window{}
+		return Settled{Outcome: Outcome{Proposal: body.ProposalID}}, nil
+	}
+	return s.classifyAccepted(c, res, body)
 }
 
 func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settled, error) {
@@ -176,7 +189,6 @@ func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settl
 
 func (s *State) classifyBuildSave(res tools.Result) Settled {
 	s.Building = true
-	s.Rejections, s.RestrictedRefusals = 0, 0
 	s.Window = Window{}
 	s.Counts.BuildSaves++
 	s.Reads = nil

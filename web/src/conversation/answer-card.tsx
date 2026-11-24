@@ -393,8 +393,7 @@ export function AnswerCard({
       .join(" ") || undefined
   const change = finding.suggested_change
   const observationId = finding.observation_id
-  const promoted =
-    finding.observe_worthy && canSave && observationId === null && !unfolded
+  const createInRow = canSave && observationId === null && !unfolded
   return (
     <div className="flex flex-col gap-2.5 rounded-card border px-3.5 py-3">
       <div className="text-sm leading-normal">
@@ -444,7 +443,7 @@ export function AnswerCard({
             {revisionAsked ? "Revision asked for" : "Revise the dashboard"}
           </Button>
         )}
-        {promoted ? (
+        {createInRow ? (
           <CreateObservation requestId={requestId} variant="outline" />
         ) : null}
         {observationId === null ? null : (

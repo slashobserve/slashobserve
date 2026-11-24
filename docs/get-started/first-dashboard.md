@@ -57,7 +57,7 @@ A save is refused when a panel's query is invalid or returns no data.
 The agent then repairs the draft and saves again, for a few repair rounds.
 If it still cannot save, the conversation ends with "The dashboard could not be built" and a **Try again** button.
 
-When the dashboard is saved, the progress list collapses into one line, such as "Ran 14 steps in 1m 12s for about $0.12, repaired 1 query".
+When the dashboard is saved, the progress list collapses into one line, such as "Ran 14 steps in 1m 12s for about $0.12, retried 1 time".
 Open the line to see every step.
 The cost shows only when the model is priced.
 Below the line, a result card shows the dashboard title, how many panels it has and which datasources they use.

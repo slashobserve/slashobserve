@@ -375,15 +375,36 @@ describe("Discussion with a run", () => {
     }
   }
 
-  it("shows the answer under the agent's status line", async () => {
+  it("shows the answer card without the stub reply body", async () => {
     mockServer({ threads: [thread], messages: () => [asked, answered()] })
     renderDiscussion()
     const list = await screen.findByRole("list", { name: "Discussion" })
-    expect(within(list).getByText("Answered.")).toBeInTheDocument()
     expect(await within(list).findByText("doubled")).toBeInTheDocument()
+    expect(within(list).queryByText("Answered.")).not.toBeInTheDocument()
     expect(
       within(list).getByRole("button", { name: "1 evidence panel" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps a reply body that is not the stub text beside the answer card", async () => {
+    const restricted: Message = {
+      ...answered(),
+      body: "The answer is kept where only Admins read it.",
+    }
+    mockServer({ threads: [thread], messages: () => [asked, restricted] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(await within(list).findByText(restricted.body)).toBeInTheDocument()
+    expect(await within(list).findByText("doubled")).toBeInTheDocument()
+  })
+
+  it("keeps the stub reply body when the reader cannot see the answer", async () => {
+    const hidden: Message = { ...answered(), answer: null }
+    mockServer({ threads: [thread], messages: () => [asked, hidden] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(await within(list).findByText("Answered.")).toBeInTheDocument()
+    expect(within(list).queryByText("doubled")).not.toBeInTheDocument()
   })
 
   function saveableAnswers(): Message[] {
@@ -510,7 +531,7 @@ describe("Discussion with a run", () => {
     mockServer({ threads: [thread], messages: () => [asked, answered()] })
     renderDiscussion({ route: { path: "/", url: "/" } })
     const list = await screen.findByRole("list", { name: "Discussion" })
-    expect(within(list).getByText("Answered.")).toBeInTheDocument()
+    expect(await within(list).findByText("doubled")).toBeInTheDocument()
     expect(within(list).queryByText(/is working on it/)).not.toBeInTheDocument()
   })
 })

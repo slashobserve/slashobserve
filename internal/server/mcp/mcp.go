@@ -133,7 +133,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 			mcpserver.WithRecovery())
 		for _, t := range reg.List() {
 			if t.OfferedIn(mode) {
-				run.AddTool(toolFor(t.ForAgent()), h.callRunTool(t.Name))
+				run.AddTool(toolFor(t.ForRun(mode)), h.callRunTool(t.Name))
 			}
 		}
 		h.runTransports[mode] = h.newTransport(run)

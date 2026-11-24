@@ -781,3 +781,46 @@ func TestAFindingOfAnAsOfRunSaysItsNowAndEndsItsDefaultWindowThere(t *testing.T)
 		}
 	}
 }
+
+func TestWithoutSuggestedChange(t *testing.T) {
+	fenced := "Errors doubled.\n\n```promql\n# suggested_change: none\nsum(rate(errors[5m]))\n```\n\nSee the panel."
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"no label", "Errors doubled.\n\nSee the panel.", "Errors doubled.\n\nSee the panel."},
+		{"trailing label line", "Errors doubled.\n\nSuggested change: Add a p99 panel.", "Errors doubled."},
+		{"bold label then text on the next lines", "Errors doubled.\n\n**Suggested change:**\n\nAdd a p99 panel.", "Errors doubled."},
+		{"italic label", "Errors doubled.\n\n_Suggested change:_ Add a p99 panel.", "Errors doubled."},
+		{"plural label", "Errors doubled.\n\nSuggested changes:\n- Add a p99 panel.\n- Split by pod.", "Errors doubled."},
+		{"lower case label", "Errors doubled.\nsuggested change: Add a p99 panel.", "Errors doubled."},
+		{"field name as the label", "Errors doubled.\nsuggested_change: Add a p99 panel.", "Errors doubled."},
+		{"trailing blank lines after the label", "Errors doubled.\nSuggested change: Add a p99 panel.\n\n\n", "Errors doubled."},
+		{"leading indentation kept", "  Errors doubled.\n\n    indented line\n\nSuggested change: Add a p99 panel.", "  Errors doubled.\n\n    indented line"},
+		{"a fenced block naming the field survives", fenced, fenced},
+		{"a label after a fenced block is removed", fenced + "\n\nSuggested change: Add a p99 panel.", fenced},
+		{"a tilde fence is skipped too", "Errors doubled.\n~~~\nSuggested change: x\n~~~", "Errors doubled.\n~~~\nSuggested change: x\n~~~"},
+		{"the field name inside a sentence stays", "The change is in suggested_change.\nSee the panel.", "The change is in suggested_change.\nSee the panel."},
+		{"the phrase inside a sentence stays", "Errors doubled. A suggested change: none was needed.\nSee the panel.", "Errors doubled. A suggested change: none was needed.\nSee the panel."},
+		{"a label that is all there is keeps the original", "Suggested change: Add a p99 panel.", "Suggested change: Add a p99 panel."},
+		{"nothing dropped keeps trailing blank lines", "Errors doubled.\n\n", "Errors doubled.\n\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := withoutSuggestedChange(c.in); got != c.want {
+				t.Errorf("withoutSuggestedChange(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+func TestMarkdownWithoutSuggestedChangeOnlyWhenTheFieldIsSet(t *testing.T) {
+	in := "Errors doubled.\n\nSuggested change: Add a p99 panel."
+	if got := markdownWithoutSuggestedChange(in, ""); got != in {
+		t.Errorf("field unset: got %q, want the original", got)
+	}
+	if got := markdownWithoutSuggestedChange(in, "Add a p99 panel."); got != "Errors doubled." {
+		t.Errorf("field set: got %q", got)
+	}
+}

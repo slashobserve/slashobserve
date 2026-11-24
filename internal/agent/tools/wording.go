@@ -127,6 +127,14 @@ func (t Tool) ForAgent() Tool {
 	return t
 }
 
+func (t Tool) ForRun(mode Mode) Tool {
+	t = t.ForAgent()
+	if t.Name == nameSaveFinding {
+		return findingForRun(t, mode)
+	}
+	return t
+}
+
 func (w wording) render(t Tool) (description string, schema json.RawMessage) {
 	return w.replacer.Replace(t.Description), json.RawMessage(w.replacer.Replace(string(t.InputSchema)))
 }

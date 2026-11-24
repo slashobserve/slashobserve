@@ -71,7 +71,9 @@ type Server = {
   items?: InboxItem[]
   unread?: number
   forbidden?: boolean
-  thread?: { messages: { id: string; body: string; who: string }[] }
+  thread?: {
+    messages: { id: string; body: string; who: string; answer?: unknown }[]
+  }
 }
 
 function mockServer({
@@ -115,6 +117,7 @@ function mockServer({
             can_delete: false,
             block_id: null,
             reply_to: null,
+            ...(entry.answer === undefined ? {} : { answer: entry.answer }),
           })),
           next_cursor: null,
           can_comment: true,
@@ -518,5 +521,68 @@ describe("InboxPage", () => {
     expect(within(pane).getByText("It was the deploy.")).toBeTruthy()
     expect(within(pane).getByRole("textbox", { name: "Reply" })).toBeTruthy()
     expect(within(pane).getByRole("link", { name: "Open" })).toBeTruthy()
+  })
+
+  it("shows an agent answer as its card without the stub reply text", async () => {
+    stubWide(true)
+    const runId = "7c1d2e3f-0b5a-4c7d-9e11-2a6b8c4d5e99"
+    mockServer({
+      thread: {
+        messages: [
+          { id: "m1", body: "Why did p99 double?", who: "Grace" },
+          {
+            id: "m2",
+            body: "Answered.",
+            who: "Observe Agent",
+            answer: {
+              can_save: false,
+              finding: {
+                id: "f1",
+                observation_id: null,
+                agent_request_id: runId,
+                dashboard_id: dashboardId,
+                folder_id: null,
+                ask_on: null,
+                restricted: false,
+                title: "p99 doubled",
+                markdown: "The deploy **doubled** p99.",
+                evidence: [],
+                from: "2020-11-10T08:00:00Z",
+                to: "2020-11-10T09:00:00Z",
+                as_of: null,
+                annotation_id: null,
+                created_by: ada,
+                actor: ada,
+                created_at: "2020-11-10T09:01:00Z",
+                url: null,
+                suggested_change: null,
+                observe_worthy: false,
+              },
+            },
+          },
+        ],
+      },
+    })
+    renderPage({ selected: "12" })
+
+    const pane = await screen.findByRole("region", { name: "Selected item" })
+    expect(await within(pane).findByText("doubled")).toBeTruthy()
+    expect(within(pane).queryByText("Answered.")).toBeNull()
+  })
+
+  it("keeps the reply text when the answer is not visible to the reader", async () => {
+    stubWide(true)
+    mockServer({
+      thread: {
+        messages: [
+          { id: "m1", body: "Why did p99 double?", who: "Grace" },
+          { id: "m2", body: "Answered.", who: "Observe Agent" },
+        ],
+      },
+    })
+    renderPage({ selected: "12" })
+
+    const pane = await screen.findByRole("region", { name: "Selected item" })
+    expect(await within(pane).findByText("Answered.")).toBeTruthy()
   })
 })

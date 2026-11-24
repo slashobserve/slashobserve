@@ -63,13 +63,13 @@ describe("stepSummary", () => {
     )
   })
 
-  it("adds repaired queries", () => {
+  it("adds how many times a save was retried", () => {
     expect(stepSummary([{ phase: "query" }, { phase: "repair" }])).toBe(
-      "Ran 2 steps, repaired 1 query"
+      "Ran 2 steps, retried 1 time"
     )
     expect(
       stepSummary([{ phase: "repair" }, { phase: "repair" }, { phase: "save" }])
-    ).toBe("Ran 3 steps, repaired 2 queries")
+    ).toBe("Ran 3 steps, retried 2 times")
   })
 
   it("adds how long the run took after the count", () => {
@@ -77,7 +77,7 @@ describe("stepSummary", () => {
       "Ran 2 steps in 1m 12s"
     )
     expect(stepSummary([{ phase: "repair" }], "8s")).toBe(
-      "Ran 1 step in 8s, repaired 1 query"
+      "Ran 1 step in 8s, retried 1 time"
     )
   })
 })
@@ -122,7 +122,7 @@ describe("stepSummary with a cost", () => {
   it("keeps the repairs last", () => {
     expect(
       stepSummary([{ phase: "repair" }, { phase: "save" }], "8s", "$0.00")
-    ).toBe("Ran 2 steps in 8s for $0.00, repaired 1 query")
+    ).toBe("Ran 2 steps in 8s for $0.00, retried 1 time")
   })
 
   it("is unchanged without a cost", () => {

@@ -295,7 +295,7 @@ An external agent can pick the comment up over [MCP](mcp.md).
 ### Read and use the answer
 
 When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
-The reply itself reads "Answered.", and the answer shows under it in the thread, so everyone who can read the thread reads what was found without opening the run.
+The reply's own text is "Answered.", which the thread shows only when you cannot see the answer; otherwise the answer card stands in its place, so everyone who can read the thread reads what was found without opening the run.
 
 When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`".
 Someone who may reply in the thread also gets **Revise the dashboard**.
@@ -320,9 +320,9 @@ A revision the server still refuses as `provisioned` shows "This starter dashboa
 ### Keep the answer as an observation
 
 The person who asked gets **Create observation**, which saves the answer as an observation and opens it.
-In the web app it sits beside the chip when the agent marked the answer worth keeping and it is not yet in an observation.
-Otherwise it sits under the evidence once you unfold it.
-`observe save-answer` and `save_run_answer` save it whichever way the web app shows it.
+In the web app it sits in the action row of every answer you may save that is not yet in an observation, whether or not the agent marked it worth keeping.
+Once you unfold the evidence, it moves under the evidence instead of staying in the row.
+`observe save-answer` and `save_run_answer` save it the same way.
 
 A question asked in an observation's discussion writes nothing on that observation's page, so its **Create observation** files a new observation, and the reply in the discussion stays.
 An answer already in an observation links to it with **Open the observation**.

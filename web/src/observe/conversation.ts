@@ -49,13 +49,13 @@ export function stepSummary(
   cost?: string
 ): string {
   if (steps.length === 0) return "No steps recorded"
-  const repairs = steps.filter((step) => step.phase === "repair").length
+  const retries = steps.filter((step) => step.phase === "repair").length
   const counted = `Ran ${steps.length} ${steps.length === 1 ? "step" : "steps"}`
   const timed = took === undefined ? counted : `${counted} in ${took}`
   const ran = cost === undefined ? timed : `${timed} for ${cost}`
-  return repairs === 0
+  return retries === 0
     ? ran
-    : `${ran}, repaired ${repairs} ${repairs === 1 ? "query" : "queries"}`
+    : `${ran}, retried ${retries} ${retries === 1 ? "time" : "times"}`
 }
 
 export function shortRequestId(id: string): string {

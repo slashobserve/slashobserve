@@ -404,7 +404,7 @@ describe("AnswerCard", () => {
     ).toBeNull()
   })
 
-  it("promotes Create observation for a worthy answer its asker may save", async () => {
+  it("shows Create observation in the action row for an answer its asker may save, worthy or not", async () => {
     const fetch = stubFetch(
       { observation_id: "o5", url: "/o/o5", replayed: false },
       201
@@ -420,16 +420,43 @@ describe("AnswerCard", () => {
     expect((await sent(fetch)).line).toBe("POST /api/v1/observe/r1/observation")
   })
 
-  it("keeps Create observation under the evidence for an answer that is not worthy", async () => {
+  it("shows Create observation in the action row of an answer the model did not flag", async () => {
+    renderCard({
+      finding: finding({ observe_worthy: false }),
+      canSave: true,
+    })
+    await screen.findByText("doubled")
+    expect(
+      screen.getByRole("button", { name: "Create observation" })
+    ).toBeVisible()
+  })
+
+  it("shows Create observation once, moving it under the evidence while that is open", async () => {
     const { user } = renderCard({ canSave: true })
+    await screen.findByText("doubled")
+    expect(
+      screen.getAllByRole("button", { name: "Create observation" })
+    ).toHaveLength(1)
+    await user.click(screen.getByRole("button", { name: "2 evidence panels" }))
+    expect(
+      screen.getAllByRole("button", { name: "Create observation" })
+    ).toHaveLength(1)
+  })
+
+  it("shows Create observation on an answer with no evidence panels", async () => {
+    renderCard({ finding: finding({ evidence: [] }), canSave: true })
+    await screen.findByText("doubled")
+    expect(
+      screen.getByRole("button", { name: "Create observation" })
+    ).toBeVisible()
+  })
+
+  it("offers no Create observation to a reader who may not save the answer", async () => {
+    renderCard({ finding: finding({ observe_worthy: true }), canSave: false })
     await screen.findByText("doubled")
     expect(
       screen.queryByRole("button", { name: "Create observation" })
     ).toBeNull()
-    await user.click(screen.getByRole("button", { name: "2 evidence panels" }))
-    expect(
-      screen.getByRole("button", { name: "Create observation" })
-    ).toBeVisible()
   })
 
   it("links to the observation an answer was already saved in", async () => {
