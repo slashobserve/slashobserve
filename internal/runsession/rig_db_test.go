@@ -245,15 +245,20 @@ func withInvestigationCalls(n int) rigOption {
 func newRig(t *testing.T, options ...rigOption) *rig {
 	t.Helper()
 	d := dbtest.New(t)
+	return newRigOn(t, d, d.DB, options...)
+}
+
+func newRigOn(t *testing.T, d *dbtest.Database, handle *db.DB, options ...rigOption) *rig {
+	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
-	runs := revisions.NewService(d.DB, logger, revisions.WithBuiltInAgent(),
-		revisions.WithPrincipals(people{}), revisions.WithPanels(panels{}), revisions.WithAccess(folders.NewAccess(d.DB)), revisions.WithThreads(threads.NewRuns(d.DB)))
-	claimsService := claims.New(claims.Config{DB: d.DB, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
+	runs := revisions.NewService(handle, logger, revisions.WithBuiltInAgent(),
+		revisions.WithPrincipals(people{}), revisions.WithPanels(panels{}), revisions.WithAccess(folders.NewAccess(handle)), revisions.WithThreads(threads.NewRuns(handle)))
+	claimsService := claims.New(claims.Config{DB: handle, Runs: runs, Listen: d.Listen, PublicURL: &url.URL{Scheme: "https", Host: "so.example.com"}, RunTimeout: time.Hour, Logger: logger})
 	r := &rig{t: t, d: d, runs: runs, claims: claimsService, steps: &stepLog{}}
 	r.dash = seedDashboard(t, d)
 	r.store = &store{t: t, d: d, dash: r.dash, latest: 1, proposalID: proposalID}
 	cfg := Config{
-		DB: d.DB, Runs: runs, Claims: claimsService, Builds: r.store, Dashboards: r.store, Imports: noImports{},
+		DB: handle, Runs: runs, Claims: claimsService, Builds: r.store, Dashboards: r.store, Imports: noImports{},
 		Statuses: healthy{}, Steps: r.steps, Logger: logger,
 	}
 	for _, option := range options {

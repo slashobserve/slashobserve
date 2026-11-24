@@ -89,6 +89,7 @@ type Service struct {
 	investigationCalls int
 	logger             *slog.Logger
 	inFlight           slots
+	runLocks           runLocks
 }
 
 func New(c Config) *Service {
@@ -126,6 +127,11 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
 	}
+	unlock, err := s.runLocks.acquire(ctx, runKey{id: req.ID, attempt: req.Attempt})
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	release, err := s.inFlight.acquire(ctx)
 	if err != nil {
 		return err
