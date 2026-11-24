@@ -35,4 +35,5 @@ const (
 	FailureBudgetExhausted     FailureCode = "budget_exhausted"
 	FailureAgentUnavailable    FailureCode = "agent_unavailable"
 	FailureAgentFailed         FailureCode = "agent_failed"
+	FailureRestrictedAnswer    FailureCode = "restricted_answer"
 )

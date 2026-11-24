@@ -18,6 +18,7 @@ func TestFailureMessageReadsPerCodeAndSource(t *testing.T) {
 		{FailureNotFound, SourceObserve, "the dashboard no longer exists"},
 		{FailureNoProgress, SourceObserve, "the agent stopped making progress"},
 		{FailureBudgetExhausted, SourceObserve, "the run reached the server's cost limit"},
+		{FailureRestrictedAnswer, SourceObserve, "the run read data only Admins can read, so what it saved cannot go where people who are not Admins read"},
 		{FailureNoToolCall, SourceObserve, "the model finished without saving a dashboard"},
 		{FailureNoToolCall, SourceSuggest, "the model finished without proposing a panel"},
 		{FailureNoToolCall, SourceInvestigate, "the model finished without saving a finding"},

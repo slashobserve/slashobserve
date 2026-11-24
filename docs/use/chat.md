@@ -318,6 +318,7 @@ A run you stopped shows "You stopped this run" instead.
 | `output_limit` | The model's answer was cut off at its output limit. | Try again and ask for fewer panels. |
 | `no_tool_call`, `no_progress` | The agent stopped making progress. | Try again and name the metric, service or table you want. |
 | `validation_exhausted`, `check_failed` | The agent could not get its queries past the checks. | Try again and name the metric, service or table you want, or ask for those panels one at a time. |
+| `restricted_answer` | The run read data only Admins can read, so what it built cannot be saved where people who are not Admins read. | Ask again without the audit trail or an Admins-only datasource, or save it in a folder only Admins can read. |
 | `refused` | The model declined the request. | Rephrase the prompt. |
 | `conflict` | Someone saved a newer version while the agent worked. | Open the dashboard and ask again. |
 | `canceled` | The run was canceled. | Save what was built, continue it, or try again. |

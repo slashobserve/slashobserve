@@ -410,6 +410,7 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - One save per turn: a second save in one turn is refused.
 - Repeated saves: a save identical to an earlier one is refused.
 - Rejected saves in a row: the third ends the run as `validation_exhausted`.
+- Saves refused with `restricted_answer` in a row: the third ends the run as `restricted_answer`, and they do not count as rejected saves.
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
