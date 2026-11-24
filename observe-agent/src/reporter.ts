@@ -6,6 +6,7 @@ import {
   type Usage,
   ToolError,
 } from "./protocol"
+import { type RetryPolicy, retryWithin } from "./retry"
 
 export const heartbeatMs = 5_000
 export const textFlushMs = 1_000
@@ -185,53 +186,23 @@ export class Reporter {
     }
   }
 
-  private async attempt(body: {
+  private attempt(body: {
     text?: string
     usage?: Usage
   }): Promise<ReportAnswer> {
     const input = { ...this.run, ...body }
-    const bounded = body.usage !== undefined
-    const waits = bounded ? (this.options.usageRetryMs ?? usageRetryMs) : [0]
-    const deadline =
-      Date.now() +
-      (bounded ? (this.options.usageBudgetMs ?? usageReportBudgetMs) : Infinity)
-    for (let tries = 0; ; tries += 1) {
-      const signal = bounded
-        ? AbortSignal.any([
-            this.signal,
-            AbortSignal.timeout(Math.max(1, deadline - Date.now())),
-          ])
-        : this.signal
-      try {
-        return await this.api.reportRun(input, signal)
-      } catch (error) {
-        const wait = waits[tries]
-        if (
-          error instanceof ToolError ||
-          this.signal.aborted ||
-          wait === undefined ||
-          Date.now() + wait >= deadline
-        ) {
-          throw error
-        }
-        await this.pause(wait)
-      }
-    }
-  }
-
-  private pause(ms: number): Promise<void> {
-    if (ms <= 0 || this.signal.aborted) {
-      return Promise.resolve()
-    }
-    return new Promise((resolve) => {
-      const done = () => {
-        clearTimeout(timer)
-        this.signal.removeEventListener("abort", done)
-        resolve()
-      }
-      const timer = setTimeout(done, ms)
-      this.signal.addEventListener("abort", done, { once: true })
-    })
+    const policy: RetryPolicy =
+      body.usage === undefined
+        ? { waitsMs: [0], budgetMs: Infinity }
+        : {
+            waitsMs: this.options.usageRetryMs ?? usageRetryMs,
+            budgetMs: this.options.usageBudgetMs ?? usageReportBudgetMs,
+          }
+    return retryWithin(
+      (signal) => this.api.reportRun(input, signal),
+      this.signal,
+      policy
+    )
   }
 
   private end(ended: RunEnded): void {

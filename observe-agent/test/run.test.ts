@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
 import { configureLog } from "../src/log"
+import { ToolError } from "../src/protocol"
 import { runLoop } from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
 import { CallError, type SessionFactory } from "../src/session/types"
@@ -667,5 +669,56 @@ describe("lease and live text", () => {
     await drive(claim, claimed("slow model"), idle, controller.signal)
     expect(claim.finishes).toHaveLength(0)
     expect(claim.tools.closed).toBe(true)
+  })
+})
+
+describe("opening a run through a database stall", () => {
+  const quick = { ...idle, startRetry: { waitsMs: [1, 1], budgetMs: 5_000 } }
+  const timeout = () => new McpError(ErrorCode.RequestTimeout, "timed out")
+
+  test("a timed out session open is retried and the run goes on", async () => {
+    const claim = new FakeClaim()
+    claim.tools.listFailures = [timeout(), timeout()]
+    claim.tools.handler = savedWith()
+    await drive(claim, claimed("create happy path"), quick)
+    expect(claim.tools.listCalls).toBe(3)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
+  })
+
+  test("a session open that keeps timing out fails the run internal", async () => {
+    const claim = new FakeClaim()
+    claim.tools.listFailures = [timeout(), timeout(), timeout(), timeout()]
+    await drive(claim, claimed("create happy path"), quick)
+    expect(claim.tools.listCalls).toBe(3)
+    expect(claim.finishes[0]).toMatchObject({
+      outcome: "failed",
+      failure_code: "internal",
+    })
+  })
+
+  test("a timed out first brief is retried", async () => {
+    const claim = new FakeClaim()
+    const getRunBrief = claim.getRunBrief.bind(claim)
+    let calls = 0
+    claim.getRunBrief = async (input) => {
+      calls += 1
+      if (calls < 3) throw timeout()
+      return getRunBrief(input)
+    }
+    claim.tools.handler = savedWith()
+    await drive(claim, claimed("create happy path"), quick)
+    expect(calls).toBe(3)
+    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
+  })
+
+  test("a refused brief is not retried", async () => {
+    const claim = new FakeClaim()
+    let calls = 0
+    claim.getRunBrief = async () => {
+      calls += 1
+      throw new ToolError("run_ended", "the run ended")
+    }
+    await drive(claim, claimed("create happy path"), quick)
+    expect(calls).toBe(1)
   })
 })

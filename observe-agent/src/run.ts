@@ -21,6 +21,7 @@ import {
   heartbeatMs,
   textFlushMs,
 } from "./reporter"
+import { type RetryPolicy, retryWithin, startRetry } from "./retry"
 import {
   CallError,
   NoFixtureError,
@@ -47,7 +48,9 @@ export type ClaimedRun = {
   model: ModelSettings
 }
 
-export type RunOptions = Partial<ReporterOptions>
+export type RunOptions = Partial<ReporterOptions> & {
+  startRetry?: RetryPolicy
+}
 
 type FinishBody =
   | { outcome: "succeeded"; commit?: boolean }
@@ -163,6 +166,7 @@ class RunLoop {
   private readonly factory: SessionFactory
   private readonly outer: AbortSignal
   private readonly options: ReporterOptions
+  private readonly startRetry: RetryPolicy
   private readonly tools: RunTools
   private readonly cancel = new AbortController()
   private readonly reporter: Reporter
@@ -195,13 +199,15 @@ class RunLoop {
     claimed: ClaimedRun,
     factory: SessionFactory,
     outer: AbortSignal,
-    options: ReporterOptions
+    options: ReporterOptions,
+    startRetry: RetryPolicy
   ) {
     this.claim = claim
     this.claimed = claimed
     this.factory = factory
     this.outer = outer
     this.options = options
+    this.startRetry = startRetry
     this.mode = modeOf(claimed.run)
     this.runRef = { run_id: claimed.run.id, attempt: claimed.run.attempt }
     this.renewBytes =
@@ -300,7 +306,11 @@ class RunLoop {
   }
 
   private async main(): Promise<void> {
-    this.specs = await this.tools.listTools(listToolsTimeoutMs, this.outer)
+    this.specs = await retryWithin(
+      (signal) => this.tools.listTools(listToolsTimeoutMs, signal),
+      this.cancel.signal,
+      this.startRetry
+    )
     let reason: BriefReason | undefined
     let carry: { results: ToolResult[] | undefined } | undefined
     for (;;) {
@@ -327,9 +337,14 @@ class RunLoop {
     reason: BriefReason | undefined,
     carry: { results: ToolResult[] | undefined } | undefined
   ): Promise<SessionEnd> {
-    const brief = await this.claim.getRunBrief(
-      { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
-      this.cancel.signal
+    const brief = await retryWithin(
+      (signal) =>
+        this.claim.getRunBrief(
+          { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
+          signal
+        ),
+      this.cancel.signal,
+      this.startRetry
     )
     this.build = brief.build ?? null
     this.buildSaves = brief.build?.saves ?? 0
@@ -594,8 +609,15 @@ export async function runLoop(
   signal: AbortSignal,
   options: RunOptions = {}
 ): Promise<void> {
-  await new RunLoop(claim, claimed, factory, signal, {
-    heartbeatMs: options.heartbeatMs ?? heartbeatMs,
-    textFlushMs: options.textFlushMs ?? textFlushMs,
-  }).run()
+  await new RunLoop(
+    claim,
+    claimed,
+    factory,
+    signal,
+    {
+      heartbeatMs: options.heartbeatMs ?? heartbeatMs,
+      textFlushMs: options.textFlushMs ?? textFlushMs,
+    },
+    options.startRetry ?? startRetry
+  ).run()
 }
