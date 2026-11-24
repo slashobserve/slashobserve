@@ -11,7 +11,9 @@ type State struct {
 	Rejections         int             `json:"rejections"`
 	RestrictedRefusals int             `json:"restricted_refusals,omitempty"`
 	Window             Window          `json:"window"`
+	Saved              bool            `json:"saved,omitempty"`
 	LastGuard          string          `json:"last_guard,omitempty"`
+	LastLimit          int             `json:"last_limit,omitempty"`
 	Churn              map[string]int  `json:"churn,omitempty"`
 	ChurnedInRow       int             `json:"churned_in_row,omitempty"`
 	Reads              map[string]Read `json:"reads,omitempty"`

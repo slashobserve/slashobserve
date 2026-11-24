@@ -12,15 +12,18 @@ const base = {
   comment_id: null,
   dashboard_id: null,
   error: "the run was canceled",
+  continues_id: null,
   continued_by: null,
   retried_by: null,
+  build: null,
+  build_saved_at: null,
   allowed_actions: ["retry" as const],
 }
 
-function renderFailure(failureCode: string) {
+function renderFailure(failureCode: string, extra: object = {}) {
   return renderWithProviders(
     <TurnFailure
-      request={{ ...base, failure_code: failureCode }}
+      request={{ ...base, failure_code: failureCode, ...extra }}
       onRetried={vi.fn()}
     />,
     { route: { path: "/", url: "/" } }
@@ -88,5 +91,72 @@ describe("TurnFailure", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The dashboard could not be built"
     )
+  })
+
+  it("titles a failed question as a question and prints the reason once", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      error: "the agent stopped making progress",
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The question could not be answered"
+    )
+    expect(screen.queryByText(/could not be built/i)).toBeNull()
+    expect(
+      screen.getAllByText("The agent stopped making progress.")
+    ).toHaveLength(1)
+  })
+
+  it("titles a question the same for a viewer with no actions", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: [],
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The question could not be answered"
+    )
+  })
+
+  it("keeps the dashboard title for an ask that built panels, whatever the viewer may do", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: [],
+      build: {
+        saves: 2,
+        panels: 2,
+        planned_panels: 4,
+        title: null,
+        updated_at: "2026-11-25T10:00:00Z",
+      },
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The dashboard could not be built"
+    )
+  })
+
+  it("keeps the dashboard title once the build moved to a continued run", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: [],
+      continued_by: "b11cc709-1b2c-4d3e-8f4a-5b6c7d8e9f02",
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The dashboard could not be built"
+    )
+  })
+
+  it("keeps a reason that adds to the explanation", async () => {
+    renderFailure("no_progress", {
+      error: "Stopped: the model kept reading after 12 calls without a save",
+    })
+    expect(
+      await screen.findByText(
+        "Stopped: the model kept reading after 12 calls without a save."
+      )
+    ).toBeInTheDocument()
   })
 })

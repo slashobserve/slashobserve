@@ -67,7 +67,7 @@ func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
 func TestBuildStatesTheRulesTheLoopEnforces(t *testing.T) {
 	system := Build(demoTypes)
 	for _, want := range []string{
-		"from the sixth model call without an accepted save only a save runs, and reads in the same call as a save still run",
+		"from the sixth model call (the twelfth for a new chat message before its first panel) without an accepted save only a save runs, and reads in the same call as a save still run",
 		"the next call may run reads, such as `query_range` on a failing query, to see why",
 		"Every rejection of a save lists the panels in `failing_panels`",
 		"call `get_spec_guide` for the JSON Schema",

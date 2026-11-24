@@ -103,10 +103,11 @@ func TestReadRefusal(t *testing.T) {
 		want    string
 	}{
 		{"first call", tools.ModeCreate, Window{Calls: 1}, false, ""},
-		{"fifth call without a save", tools.ModeCreate, Window{Calls: 5}, false, ""},
-		{"sixth call without a save", tools.ModeCreate, Window{Calls: 6}, false, guardSaveNow},
+		{"a question reads past the sixth call", tools.ModeCreate, Window{Calls: 11}, false, ""},
+		{"a question is refused from the twelfth call", tools.ModeCreate, Window{Calls: 12}, false, guardSaveNow},
 		{"sixth call of a revision", tools.ModeRevise, Window{Calls: 6}, false, guardSaveNow},
-		{"a save beside the reads lets them run", tools.ModeCreate, Window{Calls: 9}, true, ""},
+		{"fifth call of a revision", tools.ModeRevise, Window{Calls: 5}, false, ""},
+		{"a save beside the reads lets them run", tools.ModeCreate, Window{Calls: 13}, true, ""},
 		{"the diagnose turn lets reads run", tools.ModeRevise, Window{Calls: 7, Diagnose: true}, false, ""},
 		{"suggest runs reads up to the twelfth call", tools.ModeSuggest, Window{Calls: 11}, false, ""},
 		{"suggest refuses from the twelfth call", tools.ModeSuggest, Window{Calls: 12}, false, guardProposeNow},
@@ -149,9 +150,50 @@ func TestASuggestRunKeepsTwelveCallsWhateverTheInvestigationSetting(t *testing.T
 	if got := s.readRefusal(false); got != guardProposeNow {
 		t.Fatalf("readRefusal = %q, want %q", got, guardProposeNow)
 	}
-	s.Mode, s.Window.Calls = tools.ModeCreate, 6
+	s.Mode, s.Window.Calls = tools.ModeRevise, 6
 	if got := s.readRefusal(false); got != guardSaveNow {
 		t.Fatalf("readRefusal = %q, want %q", got, guardSaveNow)
+	}
+}
+
+func TestAQuestionRunReadsUpToTheConfiguredCallsAndABuildingRunUpToSix(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		limit    int
+		building bool
+		calls    int
+		want     string
+	}{
+		{"unset question run runs the eleventh", 0, false, 11, ""},
+		{"unset question run refuses the twelfth", 0, false, 12, guardSaveNow},
+		{"raised question run runs the nineteenth", 20, false, 19, ""},
+		{"raised question run refuses the twentieth", 20, false, 20, guardSaveNow},
+		{"a run that started building refuses the sixth", 20, true, 6, guardSaveNow},
+		{"a run that started building runs the fifth", 20, true, 5, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := State{Mode: tools.ModeCreate, Building: c.building, Window: Window{Calls: c.calls}, InvestigationCalls: c.limit}
+			if got := s.readRefusal(false); got != c.want {
+				t.Fatalf("readRefusal = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestAQuestionRunBudgetBecomesSixOnceItSavesAPanel(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Window.Calls = 8
+	if got := s.windowLimit(); got != DefaultInvestigationCalls {
+		t.Fatalf("limit before a build = %d", got)
+	}
+	save := jsonCall("update_panels", `{"n": 1}`)
+	s.BeginTurn(true)
+	s.Admit(0, save)
+	if _, err := s.Settle(save, tools.Result{Edits: tools.Edits{Panels: []string{"a"}}}, []byte(`{"build":{},"version":0}`)); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.windowLimit(); got != maxCallsBeforeSave || !s.Building {
+		t.Fatalf("limit after a build save = %d, building %v", got, s.Building)
 	}
 }
 
@@ -193,10 +235,11 @@ func TestNudgeFor(t *testing.T) {
 		window Window
 		want   string
 	}{
-		{"fourth call", tools.ModeCreate, Window{Calls: 4}, ""},
-		{"fifth call", tools.ModeCreate, Window{Calls: 5}, messageSaveNext},
+		{"fourth call", tools.ModeRevise, Window{Calls: 4}, ""},
+		{"fifth call of a question", tools.ModeCreate, Window{Calls: 5}, ""},
+		{"eleventh call of a question", tools.ModeCreate, Window{Calls: 11}, messageAnswerNext},
 		{"fifth call of a revision", tools.ModeRevise, Window{Calls: 5}, messageSaveNext},
-		{"sixth call", tools.ModeCreate, Window{Calls: 6}, ""},
+		{"sixth call", tools.ModeRevise, Window{Calls: 6}, ""},
 		{"suggest fifth call", tools.ModeSuggest, Window{Calls: 5}, ""},
 		{"suggest eleventh call", tools.ModeSuggest, Window{Calls: 11}, messageProposeNext},
 		{"suggest twelfth call", tools.ModeSuggest, Window{Calls: 12}, ""},
@@ -211,9 +254,15 @@ func TestNudgeFor(t *testing.T) {
 	}
 }
 
-func TestTheSaveNowMessageNamesTheSixthCall(t *testing.T) {
+func TestTheSaveNowMessageNamesTheCallBudgetAndLeadsWithThePanelForAQuestionRun(t *testing.T) {
+	revision := State{Mode: tools.ModeRevise}
 	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."
-	if got := rules[guardSaveNow].message; got != want {
+	if got := revision.rule(guardSaveNow).message; got != want {
+		t.Fatalf("message = %q", got)
+	}
+	question := State{Mode: tools.ModeCreate, InvestigationCalls: 20}
+	want = "20 model calls without a save; only a save can run now. Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found, and say in it what you did not read; reads in the same call as a save still run."
+	if got := question.rule(guardSaveNow).message; got != want {
 		t.Fatalf("message = %q", got)
 	}
 }
@@ -302,7 +351,7 @@ func TestAdmitRefusesARepeatedSaveAndCountsARepairPhase(t *testing.T) {
 }
 
 func TestAdmitCountsReadsRefusedByTheWindow(t *testing.T) {
-	s := New(tools.ModeCreate)
+	s := New(tools.ModeRevise)
 	s.Window.Calls = maxCallsBeforeSave - 1
 	s.BeginTurn(false)
 	adm := s.Admit(0, jsonCall("get_panels", `{}`))
@@ -316,7 +365,7 @@ func TestAdmitCountsReadsRefusedByTheWindow(t *testing.T) {
 
 func TestAFindingSavedAfterRefusedReadsCarriesTheirCount(t *testing.T) {
 	s := New(tools.ModeCreate)
-	s.Window.Calls = maxCallsBeforeSave - 1
+	s.Window.Calls = DefaultInvestigationCalls - 1
 	s.BeginTurn(false)
 	s.Admit(0, jsonCall("query_range", `{"q": 1}`))
 	s.Admit(1, jsonCall("log_patterns", `{"q": 2}`))
@@ -509,7 +558,7 @@ func TestSettleStopsAfterTheFourthSaveThatChangedNothingNew(t *testing.T) {
 }
 
 func TestEndTurnStopsAfterTwoTurnsInARowWithEveryCallRefused(t *testing.T) {
-	s := New(tools.ModeCreate)
+	s := New(tools.ModeRevise)
 	s.Window.Calls = maxCallsBeforeSave - 1
 	turn := func() (string, *Stop) {
 		s.BeginTurn(false)
@@ -593,7 +642,7 @@ func TestRestrictedAnswerRefusalsBreakTheRunOfValidationRejections(t *testing.T)
 }
 
 func TestEndTurnNudgesOneCallBeforeTheWindowClosesAndCountsIt(t *testing.T) {
-	s := New(tools.ModeCreate)
+	s := New(tools.ModeRevise)
 	s.Window.Calls = maxCallsBeforeSave - 2
 	s.BeginTurn(false)
 	s.Admit(0, jsonCall("get_panels", `{}`))
@@ -890,5 +939,50 @@ func TestARejectedFindingNamesItsEvidenceAndWhetherADatasourceWasUnreachable(t *
 		if !out.Rejected || out.RejectedFinding != tc.finding || out.Transient != tc.transient || !slices.Equal(out.FailingPanels, tc.failing) {
 			t.Errorf("%s: outcome = %+v", tc.name, out)
 		}
+	}
+}
+
+func TestAnImportedDashboardEndsTheQuestionBudget(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Window.Calls = 8
+	imp := jsonCall("import_grafana_dashboard", `{"json": "{}"}`)
+	s.BeginTurn(true)
+	s.Admit(0, imp)
+	if _, err := s.Settle(imp, tools.Result{}, []byte(`{"dashboard_id":"d1","version":1}`)); err != nil {
+		t.Fatal(err)
+	}
+	if s.answering() || s.Building || s.windowLimit() != maxCallsBeforeSave {
+		t.Fatalf("answering %v, building %v, limit %d", s.answering(), s.Building, s.windowLimit())
+	}
+	s.Window.Calls = 5
+	if got := s.nudge(); got != messageSaveNext {
+		t.Fatalf("nudge = %q", got)
+	}
+	s.Window.Calls = maxCallsBeforeSave
+	if got := s.readRefusal(false); got != guardSaveNow {
+		t.Fatalf("readRefusal = %q", got)
+	}
+	if got := s.rule(guardSaveNow).message; !strings.Contains(got, "Save the panel you have checked") || !strings.HasPrefix(got, "6 model calls") {
+		t.Fatalf("message = %q", got)
+	}
+}
+
+func TestTheStoppedReasonNamesTheLimitThatWasHit(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.InvestigationCalls = 20
+	s.Window.Calls = 19
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("get_panels", `{}`))
+	if adm.Verdict != Refuse || s.LastLimit != 20 {
+		t.Fatalf("admission = %+v, last limit %d", adm, s.LastLimit)
+	}
+	s.EndTurn()
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("get_panels", `{"a":1}`))
+	s.Saved = true
+	_, stop := s.EndTurn()
+	want := "Stopped: the model kept reading after 20 calls without a save"
+	if stop == nil || stop.Step != want {
+		t.Fatalf("stop = %+v, want %q", stop, want)
 	}
 }

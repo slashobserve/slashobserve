@@ -224,8 +224,12 @@ It also names the free end of that row's last line and its height, so the model 
 
 The first save must come early.
 From the sixth model call since the session started, its history was shortened, or the last accepted save, reads are refused and only a save can run.
+This limit of six is for a revision and for a chat message that has started building a dashboard.
 The call before gets a note to save next.
 
+- A new message in a chat with no dashboard or observation, which may be a question, gets the investigation limit instead of 6 until its first panel is saved (12 calls by default, with the note one call before).
+  Its note and its refusal name the first panel for a dashboard request and `save_finding` otherwise.
+  After its first accepted save, including an import, six calls apply to each panel.
 - A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.
 - An investigation, which saves a finding, gets 12 calls by default, with the note one call before.
   `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` sets it from 6 to 60 for investigations that need longer, on the server and for connected agents alike.

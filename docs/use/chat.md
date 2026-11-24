@@ -600,13 +600,13 @@ Queries the agent runs while drafting are capped at 15 seconds, 200 series, 100,
 
 A run has no cap on model calls and no time limit by default.
 It stops after three rejected saves in a row, when it stops making progress, or when the person who asked cancels it.
-Reading past six model calls without a save, or repeating a save, are examples of no progress.
+Reading past the limit of model calls without a save, or repeating a save, are examples of no progress.
 An administrator can set a time limit and a cost limit (`SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`), and a run stops when it reaches either.
-When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button; when it kept a build, you can also continue it.
+When a run stops early, the conversation ends with "The dashboard could not be built" and a **Try again** button, or with "The question could not be answered" when you asked a question in a chat and no dashboard was started; when it kept a build, you can also continue it.
 
 When the agent answers a question after its reads were refused at its limit of model calls, the answer ends with a line saying reading stopped early and the counts may be partial.
-The limit is six calls for a message in a chat with no dashboard or observation and for a revision.
-It is twelve for an investigation and for a question about a dashboard or an observation, unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (6 to 60) sets another number for those.
+The limit is twelve calls for a message in a chat with no dashboard or observation until it saves its first panel, for an investigation and for a question about a dashboard or an observation, unless `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` (6 to 60) sets another number for those.
+It is six calls for a revision and for each panel once a chat message has started building a dashboard.
 
 When a read timed out, its datasource did not answer or the server was too busy to ask it, and no later read of the same kind on that datasource succeeded, the answer ends with a line naming each datasource it could not check and why.
 A timeout is never read as no data.
