@@ -76,7 +76,8 @@ An answer's actions sit in one row, each where it applies:
 It is off while a run goes on.
 While a run works you see its live text, but the answer is written in one piece when the agent saves it, so there is nothing to copy until then.
 
-**Create observation** files the answer in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation.
+**Create observation** is on every answer you may save, whether or not the agent judged it worth keeping.
+It files the answer in the folder of the dashboard the chat was about, or in your My Dashboards, and the chat then links to the observation.
 Saving twice files it once.
 The answer keeps its card afterwards: the chip still unfolds the evidence, and the link under it reads **Open the observation**, or sits in the row when there is no evidence.
 An investigation's answer shows as the observation's finding instead, with its evidence open.
