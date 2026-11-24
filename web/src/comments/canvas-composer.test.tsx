@@ -60,7 +60,7 @@ function stubServer() {
           201
         )
       }
-      return json({ service_accounts: [], connected: [] })
+      return json({ service_accounts: [], connected: [], available: true })
     })
   )
   return posts
@@ -201,6 +201,56 @@ describe("CanvasComposer", () => {
         postedThreadId: "t9",
       })
     )
+  })
+
+  it("asks the agent when the comment mentions it, and the chip follows", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const popup = await screen.findByRole("dialog", {
+      name: "Comment on the canvas",
+    })
+    const field = within(popup).getByRole("textbox", {
+      name: "Write a comment",
+    })
+    expect(within(popup).getByText("To: everyone here")).toBeInTheDocument()
+    await user.type(field, "@observe make this a bar chart")
+    expect(within(popup).getByText("To: Observe Agent")).toBeInTheDocument()
+    await user.keyboard("{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toMatchObject({
+      body: "@observe make this a bar chart",
+      to: "agent",
+    })
+  })
+
+  it("sends a comment without a mention to everyone", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "Why the spike?{Enter}")
+    await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0].body).toMatchObject({ to: "everyone" })
+  })
+
+  it("does not send a lone @ when Enter is pressed with the mention list open", async () => {
+    const posts = stubServer()
+    const user = userEvent.setup()
+    renderDraft(clicked)
+    const field = await screen.findByRole("textbox", {
+      name: "Write a comment",
+    })
+    await user.type(field, "@")
+    await screen.findAllByRole("option")
+    await user.keyboard("{Enter}")
+    expect(field).toHaveValue("@")
+    expect(posts).toHaveLength(0)
+    await user.keyboard("{ArrowDown}{Enter}")
+    await waitFor(() => expect(field).toHaveValue("@observe "))
+    expect(posts).toHaveLength(0)
   })
 
   it("posts a thread on an observation block with the selected text", async () => {

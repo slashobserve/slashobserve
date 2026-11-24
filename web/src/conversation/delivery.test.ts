@@ -71,10 +71,19 @@ describe("defaultDelivery outside a thread", () => {
     })
   })
 
-  it("comments to everyone on the canvas comment tool", () => {
+  it("comments to everyone on the canvas comment tool without an agent mention", () => {
+    expect(
+      defaultDelivery({ kind: "canvas", tool: "comment" }, "looks odd")
+    ).toEqual({ to: "everyone", visibleTo: "everyone" })
+    expect(
+      defaultDelivery({ kind: "canvas", tool: "comment" }, "@Ada looks odd")
+    ).toEqual({ to: "everyone", visibleTo: "everyone" })
+  })
+
+  it("asks the agent in view of everyone when a canvas comment mentions it", () => {
     expect(
       defaultDelivery({ kind: "canvas", tool: "comment" }, "@observe hi")
-    ).toEqual({ to: "everyone", visibleTo: "everyone" })
+    ).toEqual({ to: "agent", visibleTo: "everyone" })
   })
 
   it("asks the agent privately on the canvas ask tool", () => {

@@ -59,7 +59,10 @@ export function defaultDelivery(place: Place, body: string): Delivery {
     case "canvas":
       return place.tool === "ask"
         ? { to: "agent", visibleTo: "me" }
-        : { to: "everyone", visibleTo: "everyone" }
+        : {
+            to: agentMentionsIn(body) > 0 ? "agent" : "everyone",
+            visibleTo: "everyone",
+          }
   }
 }
 
