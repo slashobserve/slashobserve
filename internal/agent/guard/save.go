@@ -128,6 +128,7 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 	}
 	if body.Code == folders.CodeRestrictedAnswer {
 		s.RestrictedRefusals++
+		s.Rejections = 0
 		return Settled{Outcome: Outcome{Rejected: true}}, nil
 	}
 	s.Rejections++

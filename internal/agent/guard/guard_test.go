@@ -573,9 +573,9 @@ func TestRestrictedAnswerRefusalsAreNotValidationRejections(t *testing.T) {
 	}
 }
 
-func TestRestrictedAnswerRefusalsDoNotAddToTheValidationLimit(t *testing.T) {
+func TestRestrictedAnswerRefusalsBreakTheRunOfValidationRejections(t *testing.T) {
 	s := New(tools.ModeCreate)
-	codes := []string{"restricted_answer", "invalid_spec", "restricted_answer", "invalid_spec"}
+	codes := []string{"invalid_spec", "invalid_spec", "restricted_answer", "invalid_spec", "invalid_spec"}
 	for i, code := range codes {
 		s.BeginTurn(true)
 		c := jsonCall("create_dashboard", `{"n":`+string(rune('1'+i))+`}`)

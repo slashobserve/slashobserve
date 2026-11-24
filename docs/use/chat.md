@@ -734,7 +734,7 @@ The same holds for what is stored in a folder only Admins can read.
 A run that writes where others read sees no such folder, so its dashboards, panels, annotations and observations answer `not_found`, and they are left out of its lists.
 A run that may read them is marked when a tool returns one: reading a dashboard, its panels or its annotations, or reading an observation.
 
-A listing that asks every source, such as `list_services` with no `datasource`, leaves out the datasources only Admins can query, so it marks nothing.
+`list_services` with no `datasource` leaves out the datasources only Admins can query, so it marks nothing.
 Naming one of them reads it and marks the run.
 
 Reading the dashboard or observation the run is about is not counted, for an ask and an investigation as for a revision or a suggestion.
