@@ -56,7 +56,7 @@ func TestBuildCarriesOnlyTheSectionsOfItsTypes(t *testing.T) {
 }
 
 func TestBothSystemTextsCarryTheScopeOnceBeforeTheGuide(t *testing.T) {
-	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding; only a short definition of an observability term comes from general knowledge.\n\n# Authoring guide\n"
+	scope := "\n\n# Scope\n\nEvery answer uses only the datasources in the context, the dashboards and observations on this server, and names you discovered in this run.\nWhen the data does not cover the question, say so in the finding; only a short definition of an observability term comes from general knowledge.\nFor help, say you answer questions and build new dashboards, and that an existing dashboard is changed from its own chat.\n\n# Authoring guide\n"
 	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
 		if strings.Count(system, scope) != 1 || strings.Count(system, "Every answer uses only") != 1 {
 			t.Errorf("%s system text does not carry the scope once before the guide", name)
@@ -181,6 +181,36 @@ func TestInvestigateAsksForNoSuggestedChangeWhenNoneIsNeededAndNoRestatement(t *
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("investigate system text lacks %q", want)
+		}
+	}
+}
+
+func TestAskRunTextNeverRefusesAChangeAndNeverNamesAButton(t *testing.T) {
+	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
+		if strings.Contains(system, "cannot change") || strings.Contains(system, "never change") {
+			t.Errorf("%s system text reads as a refusal to change a dashboard", name)
+		}
+		if strings.Contains(system, "Revise the dashboard") {
+			t.Errorf("%s system text names a button the requester may not have", name)
+		}
+	}
+	investigate := Investigate()
+	for _, want := range []string{
+		"set `suggested_change` to the change the person asked for, in their terms",
+		"\"remove the empty panels\" gives a change that removes them",
+		"Never answer that you cannot make a change; for an unsafe or impossible one, say why in one sentence and set `suggested_change` to the nearest safe change, or leave it out when none exists",
+	} {
+		if !strings.Contains(investigate, want) {
+			t.Errorf("investigate text lacks %q", want)
+		}
+	}
+}
+
+func TestHelpSaysAnExistingDashboardIsChangedFromItsOwnChat(t *testing.T) {
+	want := "For help, say you answer questions and build new dashboards, and that an existing dashboard is changed from its own chat."
+	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
+		if strings.Count(system, want) != 1 {
+			t.Errorf("%s system text lacks the help sentence", name)
 		}
 	}
 }

@@ -114,7 +114,7 @@ If someone saves a version while it works, it restarts once from the newest one.
 
 ### Change an existing dashboard from Home
 
-A request on Home builds a new dashboard and cannot change one that exists.
+A request on Home builds a new dashboard; an existing dashboard is changed from its own chat.
 When the agent finds exactly one dashboard you meant, its answer is followed by **Ask this on `<title>`** and **Open dashboard**.
 **Ask this on `<title>`** asks the same prompt about that dashboard and opens it as a new chat.
 The agent answers there without changing the dashboard, and the change is made only when you choose **Revise the dashboard**, which shows when you can comment on the dashboard.

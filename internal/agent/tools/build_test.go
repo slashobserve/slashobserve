@@ -1480,10 +1480,38 @@ func TestAProposeModeFinishThatRemovedAPanelAnswersProposalRequiredAndKeepsTheBu
 }
 
 func TestTheNoBuildMessageSaysHowToChangeAnExistingDashboard(t *testing.T) {
-	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "ask_on_dashboard_id", "exactly one"} {
+	for _, want := range []string{"call create_dashboard first", "changed from its own chat", "end with save_finding", "ask_on_dashboard_id", "exactly one"} {
 		if !strings.Contains(noBuildYet, want) {
 			t.Errorf("message lacks %q: %s", want, noBuildYet)
 		}
+	}
+}
+
+func TestAskRunToolTextNeverRefusesAChangeAndNamesTheButtonOnlyInSuggestedChange(t *testing.T) {
+	byName := toolsByName(t)
+	finding := byName[nameSaveFinding]
+	for name, text := range map[string]string{
+		"save_finding description": finding.Description,
+		"save_finding schema":      string(finding.InputSchema),
+		"no build message":         noBuildYet,
+		"agent save_finding text":  finding.ForAgent().Description + string(finding.ForAgent().InputSchema),
+	} {
+		if strings.Contains(strings.ToLower(text), "cannot change") || strings.Contains(strings.ToLower(text), "never change") {
+			t.Errorf("%s reads as a refusal: %s", name, text)
+		}
+	}
+	for _, want := range []string{"in their terms, or the nearest safe one", "a person with Comment applies it with Revise the dashboard, an agent over MCP", "no query jargon", "not the question", "gridPos and ids are set for you"} {
+		if !strings.Contains(finding.Description+string(finding.InputSchema), want) {
+			t.Errorf("save_finding text lacks %q", want)
+		}
+	}
+	for name, text := range map[string]string{"description": finding.Description, "no build message": noBuildYet} {
+		if strings.Contains(text, "Revise the dashboard") {
+			t.Errorf("%s names a button the requester may not have: %s", name, text)
+		}
+	}
+	if !strings.Contains(finding.Description, "from its own chat") {
+		t.Errorf("save_finding description does not send a Home change to the dashboard's own chat: %s", finding.Description)
 	}
 }
 

@@ -210,8 +210,8 @@ An API caller can name one with `time_zone`.
 
 ### Suggested change and observe-worthy
 
-An answer about a dashboard may also carry `suggested_change`, one plain sentence describing a change to the dashboard that would help.
-The agent never makes the change itself.
+An answer about a dashboard may also carry `suggested_change`, one plain sentence describing the change the person asked for, or the nearest safe one when that change is unsafe or impossible.
+The agent does not make the change itself.
 Nothing applies it until someone starts a revision with it.
 For an answer given in a dashboard thread, someone can apply it from that thread with `POST /threads/{id}/apply`, `apply_suggested_change` or `observe comments apply`.
 That posts "Revise the dashboard: <suggested change>" there and starts the revision as them.

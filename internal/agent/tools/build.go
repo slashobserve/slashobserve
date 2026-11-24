@@ -31,7 +31,7 @@ const (
 	maxLayoutPanels = 24
 	maxLayoutGaps   = 8
 
-	noBuildYet            = "this run builds a new dashboard and has no build yet: call create_dashboard first with the title, time, variables and the first panel; it cannot change an existing dashboard, so if the request asks for that, end with save_finding saying the change is asked for on that dashboard, and pass its id as ask_on_dashboard_id when exactly one dashboard is meant"
+	noBuildYet            = "this run builds a new dashboard and has no build yet: call create_dashboard first with the title, time, variables and the first panel; an existing dashboard is changed from its own chat, so if the request asks for that, end with save_finding saying the change is asked for on that dashboard's own chat, and pass its id as ask_on_dashboard_id when exactly one dashboard is meant"
 	agentOnlyBuildFields  = "finish, planned_panels and row apply only to the built-in agent's builds"
 	importInBuildRun      = "this run is building a dashboard; continue with update_panels"
 	hasBuildAlready       = "this run already has a build; add panels with update_panels"

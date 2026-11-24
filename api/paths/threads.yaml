@@ -441,7 +441,7 @@ threads-threadid-apply:
       cli: [observe comments apply]
     summary: Ask the agent to make the change an answer in this thread suggests.
     description: >-
-      An answer to a question about a dashboard may carry `suggested_change`, one sentence on a change that would help; the question's run never changes the dashboard itself.
+      An answer to a question about a dashboard may carry `suggested_change`, one sentence on the change the person asked for or the nearest safe one; the question's run never changes the dashboard itself.
       This posts the message "Revise the dashboard: <suggested change>" in the thread as the caller and starts a run that revises the dashboard, with the suggested change as its prompt and the thread's earlier messages as context, so the thread shows who asked for the change.
       The run is the caller's and goes to the agent that wrote the answer; it saves a new version when the caller can edit the dashboard, and opens a proposal for someone who can edit to merge when the caller can only comment.
       `finding_id` must be the answer of a run asked in this thread, on a dashboard; any other id answers 404, and an answer with no suggested change answers 422 `no_suggested_change`.
