@@ -45,7 +45,7 @@ import {
 import {
   discussionEntries,
   discussionModel,
-  postingThread,
+  threadAllowsReply,
   quotedText,
   type DiscussionChange,
 } from "./discussion-model"
@@ -170,11 +170,20 @@ export function DiscussionFeed({
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const filter = view?.filter ?? noFilter
   const today = useToday()
-  const { messages, canWrite } = useMemo(
-    () => discussionModel(threads, canComment),
-    [threads, canComment]
+  const replying =
+    replyingTo !== null && threadAllowsReply(threads, replyingTo.thread_id)
+      ? replyingTo
+      : null
+  if (replyingTo !== null && replying === null && !isPending) {
+    setReplyingTo(null)
+  }
+  const {
+    messages,
+    posting: { thread: posting, canWrite },
+  } = useMemo(
+    () => discussionModel(threads, canComment, replying),
+    [threads, canComment, replying]
   )
-  const posting = postingThread(threads, replyingTo)
   const people = useMemo(
     () => threadParticipants(messages.map((message) => message.actor)),
     [messages]
@@ -220,7 +229,7 @@ export function DiscussionFeed({
     target: anchor === null ? undefined : { blockId: anchor },
     gate: { ...ungated, canComment: canWrite },
     people,
-    replyToId: replyingTo?.id,
+    replyToId: replying?.id,
     onSent: () => setReplyingTo(null),
   })
 
@@ -275,7 +284,11 @@ export function DiscussionFeed({
             const { message } = entry
             const actions = messageActions?.(message, {
               reply:
-                disabledReason === null ? () => setReplyingTo(message) : null,
+                !isPending &&
+                !isError &&
+                threadAllowsReply(threads, message.thread_id)
+                  ? () => setReplyingTo(message)
+                  : null,
             })
             const answer = message.answer ?? null
             const answerThread = threads.find(
@@ -378,10 +391,10 @@ export function DiscussionFeed({
         readOnlyAction === undefined ? null : (
           <div className="flex flex-col pb-2">{readOnlyAction}</div>
         )}
-        {replyingTo === null ? null : (
+        {replying === null ? null : (
           <div className="flex items-center gap-1 pb-2 text-xs text-muted-foreground">
             <span className="min-w-0 truncate">
-              Replying to {replyingTo.actor.label}
+              Replying to {replying.actor.label}
             </span>
             <Button
               type="button"

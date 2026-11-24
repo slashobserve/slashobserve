@@ -11,7 +11,7 @@ import {
   discussionModel,
   messageCount,
   messageVerb,
-  postingThread,
+  threadAllowsReply,
   quotedText,
   type DiscussionChange,
 } from "./discussion-model"
@@ -81,9 +81,9 @@ describe("discussionModel", () => {
   ])(
     "with no thread, writing is allowed only when the caller may comment ($canComment)",
     ({ canComment, canWrite }) => {
-      expect(discussionModel([], canComment)).toEqual({
+      expect(discussionModel([], canComment, null)).toEqual({
         messages: [],
-        canWrite,
+        posting: { thread: null, canWrite },
       })
     }
   )
@@ -105,29 +105,14 @@ describe("discussionModel", () => {
         message("m2", "t2", "2026-11-10T09:10:00Z"),
       ]
     )
-    const model = discussionModel([first, second], true)
+    const model = discussionModel([first, second], true, null)
     expect(model.messages.map((m) => m.id)).toEqual(["m1", "m2", "m3", "m4"])
-  })
-
-  it("allows writing when any thread allows a reply", () => {
-    const closed = entry(
-      "t2",
-      ["reopen"],
-      [message("m2", "t2", "2026-11-10T10:00:00Z")]
-    )
-    const open = entry(
-      "t1",
-      ["reply"],
-      [message("m1", "t1", "2026-11-10T09:00:00Z")]
-    )
-    expect(discussionModel([open, closed], false).canWrite).toBe(true)
-    expect(discussionModel([closed], true).canWrite).toBe(false)
   })
 })
 
 const timeAnchor = { kind: "title" as const, pos: { x: 0.1, y: 0.2 } }
 
-describe("postingThread", () => {
+describe("discussionModel posting", () => {
   const page = entry(
     "page",
     ["reply"],
@@ -139,31 +124,82 @@ describe("postingThread", () => {
     [message("m2", "block", "2026-11-10T10:00:00Z")],
     { anchor: timeAnchor, block_id: "b1" }
   )
+  const resolvedPage = entry(
+    "page",
+    ["reopen"],
+    [message("m1", "page", "2026-11-10T09:00:00Z")]
+  )
+  const resolvedBlock = entry(
+    "block",
+    ["reopen"],
+    [message("m2", "block", "2026-11-10T10:00:00Z")],
+    { anchor: timeAnchor, block_id: "b1" }
+  )
+  const postingOf = (
+    threads: ThreadWithMessages[],
+    canComment: boolean,
+    replyingTo: Pick<Message, "thread_id"> | null = null
+  ) => {
+    const { posting } = discussionModel(threads, canComment, replyingTo)
+    return { id: posting.thread?.thread.id ?? null, canWrite: posting.canWrite }
+  }
 
   it("posts a whole-page message to the page thread, not the newest thread", () => {
-    expect(postingThread([page, block], null)?.thread.id).toBe("page")
-    expect(postingThread([block, page], null)?.thread.id).toBe("page")
+    expect(postingOf([page, block], false)).toEqual({
+      id: "page",
+      canWrite: true,
+    })
+    expect(postingOf([block, page], false)).toEqual({
+      id: "page",
+      canWrite: true,
+    })
   })
 
-  it("opens a page thread when only block threads exist", () => {
-    expect(postingThread([block], null)).toBeNull()
-    expect(postingThread([], null)).toBeNull()
+  it("opens a page thread when only block threads exist, if the caller may comment", () => {
+    expect(postingOf([block], true)).toEqual({ id: null, canWrite: true })
+    expect(postingOf([block], false)).toEqual({ id: null, canWrite: false })
   })
 
-  it("never posts to a page thread that does not allow a reply", () => {
-    const closed = entry(
-      "closed",
-      ["reopen"],
-      [message("m3", "closed", "2026-11-10T09:00:00Z")]
-    )
-    expect(postingThread([closed, block], null)).toBeNull()
+  it("opens a fresh page thread when every thread is resolved but the caller may comment", () => {
+    expect(postingOf([resolvedBlock], true)).toEqual({
+      id: null,
+      canWrite: true,
+    })
+  })
+
+  it("cannot write whole-page when the page thread exists and is resolved", () => {
+    expect(postingOf([resolvedPage, block], true)).toEqual({
+      id: null,
+      canWrite: false,
+    })
   })
 
   it("replies in the thread of the message that was pressed, even an older one", () => {
-    const quoted = message("m1", "page", "2026-11-10T09:00:00Z")
-    expect(postingThread([page, block], quoted)?.thread.id).toBe("page")
-    const inBlock = message("m2", "block", "2026-11-10T10:00:00Z")
-    expect(postingThread([page, block], inBlock)?.thread.id).toBe("block")
+    expect(postingOf([page, block], false, { thread_id: "page" }).id).toBe(
+      "page"
+    )
+    expect(postingOf([page, block], false, { thread_id: "block" })).toEqual({
+      id: "block",
+      canWrite: true,
+    })
+  })
+
+  it("ignores a reply target whose thread does not allow a reply", () => {
+    expect(
+      postingOf([page, resolvedBlock], true, { thread_id: "block" })
+    ).toEqual({ id: "page", canWrite: true })
+    expect(postingOf([page], true, { thread_id: "gone" }).id).toBe("page")
+  })
+})
+
+describe("threadAllowsReply", () => {
+  const open = entry("t1", ["reply"], [])
+  const closed = entry("t2", ["reopen"], [])
+
+  it("is true only for a loaded thread that allows a reply", () => {
+    expect(threadAllowsReply([open, closed], "t1")).toBe(true)
+    expect(threadAllowsReply([open, closed], "t2")).toBe(false)
+    expect(threadAllowsReply([open, closed], "gone")).toBe(false)
   })
 })
 

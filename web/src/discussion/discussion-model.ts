@@ -19,11 +19,6 @@ export type DiscussionEntry =
   | { kind: "message"; key: string; at: string; message: Message; verb: string }
   | { kind: "change"; key: string; at: string; change: DiscussionChange }
 
-export type DiscussionModel = {
-  messages: Message[]
-  canWrite: boolean
-}
-
 function byCreation(
   a: { created_at: string; id: string },
   b: { created_at: string; id: string }
@@ -32,40 +27,53 @@ function byCreation(
   return gap !== 0 ? gap : a.id.localeCompare(b.id)
 }
 
-function pageThreadOf(
-  threads: readonly ThreadWithMessages[]
-): ThreadWithMessages | null {
-  return (
-    threads.find(
-      ({ thread }) =>
-        thread.anchor === null &&
-        thread.block_id === null &&
-        thread.allowed_actions.includes("reply")
-    ) ?? null
+export type Posting = { thread: ThreadWithMessages | null; canWrite: boolean }
+
+export type DiscussionModel = {
+  messages: Message[]
+  posting: Posting
+}
+
+export function threadAllowsReply(
+  threads: readonly ThreadWithMessages[],
+  threadId: string
+): boolean {
+  return threads.some(
+    ({ thread }) =>
+      thread.id === threadId && thread.allowed_actions.includes("reply")
   )
 }
 
-export function postingThread(
+function postingOf(
   threads: readonly ThreadWithMessages[],
+  canComment: boolean,
   replyingTo: Pick<Message, "thread_id"> | null
-): ThreadWithMessages | null {
-  if (replyingTo === null) return pageThreadOf(threads)
-  return (
-    threads.find(({ thread }) => thread.id === replyingTo.thread_id) ?? null
+): Posting {
+  if (replyingTo !== null) {
+    const quoted = threads.find(
+      ({ thread }) =>
+        thread.id === replyingTo.thread_id &&
+        thread.allowed_actions.includes("reply")
+    )
+    if (quoted !== undefined) return { thread: quoted, canWrite: true }
+  }
+  const page = threads.find(
+    ({ thread }) => thread.anchor === null && thread.block_id === null
   )
+  if (page === undefined) return { thread: null, canWrite: canComment }
+  return page.thread.allowed_actions.includes("reply")
+    ? { thread: page, canWrite: true }
+    : { thread: null, canWrite: false }
 }
 
 export function discussionModel(
   threads: readonly ThreadWithMessages[],
-  canComment: boolean
+  canComment: boolean,
+  replyingTo: Pick<Message, "thread_id"> | null
 ): DiscussionModel {
-  const messages = threads.flatMap((entry) => entry.messages).sort(byCreation)
-  const replyable = threads.some(({ thread }) =>
-    thread.allowed_actions.includes("reply")
-  )
   return {
-    messages,
-    canWrite: threads.length === 0 ? canComment : replyable,
+    messages: threads.flatMap((entry) => entry.messages).sort(byCreation),
+    posting: postingOf(threads, canComment, replyingTo),
   }
 }
 
