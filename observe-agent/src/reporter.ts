@@ -10,6 +10,7 @@ import {
 export const heartbeatMs = 5_000
 export const textFlushMs = 1_000
 export const maxTextCodePoints = 4_000
+export const usageRetryMs: readonly number[] = [250, 1_000]
 
 export class RunEnded extends Error {
   readonly state: string
@@ -21,7 +22,11 @@ export class RunEnded extends Error {
   }
 }
 
-export type ReporterOptions = { heartbeatMs: number; textFlushMs: number }
+export type ReporterOptions = {
+  heartbeatMs: number
+  textFlushMs: number
+  usageRetryMs?: readonly number[]
+}
 
 export type ReporterHooks = {
   onBuild: (build: BuildProgress) => void
@@ -183,14 +188,36 @@ export class Reporter {
     usage?: Usage
   }): Promise<ReportAnswer> {
     const input = { ...this.run, ...body }
-    try {
-      return await this.api.reportRun(input, this.signal)
-    } catch (error) {
-      if (error instanceof ToolError || this.signal.aborted) {
-        throw error
+    const retries =
+      body.usage === undefined
+        ? [0]
+        : (this.options.usageRetryMs ?? usageRetryMs)
+    for (const delayMs of retries) {
+      try {
+        return await this.api.reportRun(input, this.signal)
+      } catch (error) {
+        if (error instanceof ToolError || this.signal.aborted) {
+          throw error
+        }
+        await this.pause(delayMs)
       }
-      return this.api.reportRun(input, this.signal)
     }
+    return this.api.reportRun(input, this.signal)
+  }
+
+  private pause(ms: number): Promise<void> {
+    if (ms <= 0 || this.signal.aborted) {
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer)
+        this.signal.removeEventListener("abort", done)
+        resolve()
+      }
+      const timer = setTimeout(done, ms)
+      this.signal.addEventListener("abort", done, { once: true })
+    })
   }
 
   private end(ended: RunEnded): void {
