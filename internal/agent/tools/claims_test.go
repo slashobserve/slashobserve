@@ -58,15 +58,17 @@ func (f *fakeClaims) Report(_ context.Context, _ claims.Claimer, in claims.Repor
 }
 
 type fakeRunSessions struct {
-	brief        BriefAnswer
-	briefErr     error
-	briefReasons []string
-	stop         bool
-	noted        []revisions.Usage
-	finishErr    error
-	finished     []RunFinish
-	finishedAs   RunFinished
-	progress     *BuildProgress
+	brief          BriefAnswer
+	briefErr       error
+	briefReasons   []string
+	stop           bool
+	noteErr        error
+	blockNoteUsage bool
+	noted          []revisions.Usage
+	finishErr      error
+	finished       []RunFinish
+	finishedAs     RunFinished
+	progress       *BuildProgress
 }
 
 func (f *fakeRunSessions) Brief(_ context.Context, _ revisions.Request, reason string) (BriefAnswer, error) {
@@ -74,9 +76,13 @@ func (f *fakeRunSessions) Brief(_ context.Context, _ revisions.Request, reason s
 	return f.brief, f.briefErr
 }
 
-func (f *fakeRunSessions) NoteUsage(_ context.Context, _ revisions.Request, u revisions.Usage) (bool, error) {
+func (f *fakeRunSessions) NoteUsage(ctx context.Context, _ revisions.Request, u revisions.Usage) (bool, error) {
 	f.noted = append(f.noted, u)
-	return f.stop, nil
+	if f.blockNoteUsage {
+		<-ctx.Done()
+		return false, ctx.Err()
+	}
+	return f.stop, f.noteErr
 }
 
 func (f *fakeRunSessions) Finish(_ context.Context, _ revisions.Request, in RunFinish) (RunFinished, error) {
@@ -346,6 +352,41 @@ func TestReportRunStopsBeforeUsageAndTextWhenTheRunHasEnded(t *testing.T) {
 	}
 	if len(rs.noted) != 0 || len(live.texts) != 0 {
 		t.Fatalf("usage %v and text %v were sent for an ended run", rs.noted, live.texts)
+	}
+}
+
+func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
+	previous := usageNoteTimeout
+	usageNoteTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { usageNoteTimeout = previous })
+	until := "2026-01-01T00:00:00Z"
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running", LeaseUntil: &until}}}
+	rs := &fakeRunSessions{blockNoteUsage: true, progress: &BuildProgress{Saves: 1, Panels: 2, PlannedPanels: 5}}
+	live := &fakeLiveText{}
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs, LiveText: live}, outsideClaimer, nameReportRun,
+		`{"run_id":"`+runID+`","attempt":2,"text":"x","usage":{"model":"m"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out := jsonOf(t, res)
+	if out["state"] != "running" || out["stop"] != false || out["lease_until"] != until || out["build"] == nil {
+		t.Fatalf("answer = %v", out)
+	}
+	if len(fc.reports) != 1 || len(live.texts) != 1 {
+		t.Fatalf("lease reports = %d, live texts = %v", len(fc.reports), live.texts)
+	}
+}
+
+func TestReportRunFailsOnAnotherNoteUsageError(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{noteErr: errors.New("boom")}
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun,
+		`{"run_id":"`+runID+`","attempt":2,"usage":{"model":"m"}}`)
+	if err == nil && !res.IsError {
+		t.Fatalf("a usage failure that is not a timeout was swallowed: %#v", res)
 	}
 }
 

@@ -10,6 +10,8 @@ import {
 export const heartbeatMs = 5_000
 export const textFlushMs = 1_000
 export const maxTextCodePoints = 4_000
+export const usageRetryMs: readonly number[] = [250, 1_000]
+export const usageReportBudgetMs = 20_000
 
 export class RunEnded extends Error {
   readonly state: string
@@ -21,7 +23,12 @@ export class RunEnded extends Error {
   }
 }
 
-export type ReporterOptions = { heartbeatMs: number; textFlushMs: number }
+export type ReporterOptions = {
+  heartbeatMs: number
+  textFlushMs: number
+  usageRetryMs?: readonly number[]
+  usageBudgetMs?: number
+}
 
 export type ReporterHooks = {
   onBuild: (build: BuildProgress) => void
@@ -183,14 +190,48 @@ export class Reporter {
     usage?: Usage
   }): Promise<ReportAnswer> {
     const input = { ...this.run, ...body }
-    try {
-      return await this.api.reportRun(input, this.signal)
-    } catch (error) {
-      if (error instanceof ToolError || this.signal.aborted) {
-        throw error
+    const bounded = body.usage !== undefined
+    const waits = bounded ? (this.options.usageRetryMs ?? usageRetryMs) : [0]
+    const deadline =
+      Date.now() +
+      (bounded ? (this.options.usageBudgetMs ?? usageReportBudgetMs) : Infinity)
+    for (let tries = 0; ; tries += 1) {
+      const signal = bounded
+        ? AbortSignal.any([
+            this.signal,
+            AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+          ])
+        : this.signal
+      try {
+        return await this.api.reportRun(input, signal)
+      } catch (error) {
+        const wait = waits[tries]
+        if (
+          error instanceof ToolError ||
+          this.signal.aborted ||
+          wait === undefined ||
+          Date.now() + wait >= deadline
+        ) {
+          throw error
+        }
+        await this.pause(wait)
       }
-      return this.api.reportRun(input, this.signal)
     }
+  }
+
+  private pause(ms: number): Promise<void> {
+    if (ms <= 0 || this.signal.aborted) {
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(timer)
+        this.signal.removeEventListener("abort", done)
+        resolve()
+      }
+      const timer = setTimeout(done, ms)
+      this.signal.addEventListener("abort", done, { once: true })
+    })
   }
 
   private end(ended: RunEnded): void {

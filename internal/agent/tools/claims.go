@@ -16,6 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
+var usageNoteTimeout = 4 * time.Second
+
 const (
 	nameClaimRun    = "claim_run"
 	nameReportRun   = "report_run"
@@ -28,6 +30,7 @@ const (
 	maxLiveTextRunes = 4000
 
 	failureLiveTextAppend = "live_text_append_failed"
+	failureUsageNotNoted  = "usage_not_noted"
 
 	codeNotAWorker = "not_a_worker"
 	codeNotYourRun = "not_your_run"
@@ -237,7 +240,7 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 		return reportRunOut{ReportAnswer: answer}, err
 	}
 	if usage := in.Usage.reported(); usage != nil {
-		stop, err := r.deps.RunSessions.NoteUsage(ctx, req, *usage)
+		stop, err := r.noteUsage(ctx, req, *usage)
 		if err != nil {
 			return reportRunOut{}, err
 		}
@@ -250,6 +253,17 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 	r.appendLiveText(ctx, req, in.Text)
 	build, err := r.deps.RunSessions.Progress(ctx, req)
 	return reportRunOut{ReportAnswer: answer, Build: build}, err
+}
+
+func (r *Registry) noteUsage(ctx context.Context, req revisions.Request, usage revisions.Usage) (bool, error) {
+	noteCtx, cancel := context.WithTimeout(ctx, usageNoteTimeout)
+	defer cancel()
+	stop, err := r.deps.RunSessions.NoteUsage(noteCtx, req, usage)
+	if err != nil && noteCtx.Err() != nil && ctx.Err() == nil {
+		r.deps.Logger.WarnContext(ctx, "usage not noted, the lease was renewed", logattrs.Failure(failureUsageNotNoted, err, slog.String("agent_request_id", req.ID))...)
+		return false, nil
+	}
+	return stop, err
 }
 
 func (r *Registry) appendLiveText(ctx context.Context, req revisions.Request, text string) {
