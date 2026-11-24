@@ -442,10 +442,13 @@ describe("inlineKeyStep", () => {
     })
   })
 
-  it("lets Enter through when nothing is highlighted or nothing is offered", () => {
+  it("holds Enter while matches are offered and none is highlighted", () => {
     expect(inlineKeyStep({ key: "Enter", active: -1, count: 3 })).toEqual({
-      kind: "pass",
+      kind: "hold",
     })
+  })
+
+  it("lets Enter through when nothing is offered", () => {
     expect(inlineKeyStep({ key: "Enter", active: 0, count: 0 })).toEqual({
       kind: "pass",
     })

@@ -88,6 +88,7 @@ A comment that mentions an agent hands it work.
    The picker lists the Observe Agent first, then your connected agents and the service accounts that take runs, then people.
 2. Keep typing to filter the list.
    The list closes at the first space or when nobody matches, so `@observe add a stat panel` typed straight through is a comment that asks the Observe Agent.
+Enter picks the highlighted match, and with the list open and no match highlighted it sends nothing.
 3. Send the comment from a composer that asks the agent.
    [Ask the agent from a comment](review.md#ask-the-agent-from-a-comment) describes the composer.
 

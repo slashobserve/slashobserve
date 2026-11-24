@@ -158,6 +158,7 @@ export function MentionButton({
       if (result.kind === "pass") return
       event.preventDefault()
       event.stopPropagation()
+      if (result.kind === "hold") return
       if (result.kind === "close") now.close()
       else if (result.kind === "move")
         setMoved({ query: now.typed, index: result.index })

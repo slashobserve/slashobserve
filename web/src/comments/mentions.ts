@@ -193,6 +193,7 @@ export function inlineMentionStep(input: {
 export type InlineKeyStep =
   | { kind: "pass" }
   | { kind: "close" }
+  | { kind: "hold" }
   | { kind: "move"; index: number }
   | { kind: "pick"; index: number }
 
@@ -208,8 +209,10 @@ export function inlineKeyStep(input: {
   if (key === "ArrowUp") {
     return { kind: "move", index: active <= 0 ? count - 1 : active - 1 }
   }
-  if (key === "Enter" && active >= 0 && active < count) {
-    return { kind: "pick", index: active }
+  if (key === "Enter") {
+    return active >= 0 && active < count
+      ? { kind: "pick", index: active }
+      : { kind: "hold" }
   }
   return { kind: "pass" }
 }
