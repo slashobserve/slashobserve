@@ -1315,7 +1315,8 @@ const threadTranscript = `-- name: ThreadTranscript :many
 SELECT m.id, m.thread_id, m.body, m.author_kind, m.author_id, m.author_name, m.author_email, m.origin, m.origin_client, m.created_at, m.updated_at, m.edited_at, m.run_id, m.run_assigned_kind, m.reply_to_id, m.observation_block_id, m.client_id
 FROM thread_messages m
 WHERE m.thread_id = $1
-  AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = $2)
+  AND ($2::uuid IS NULL
+    OR (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = $2::uuid))
 ORDER BY m.created_at DESC, m.id DESC
 LIMIT $3
 `

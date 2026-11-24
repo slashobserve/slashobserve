@@ -40,11 +40,11 @@ func (s *Service) ReadAnswersWith(runs RunGate, answers AnswerReader) {
 	s.answers = &answerReads{runs: runs, answers: answers}
 }
 
-func (s *Service) answersOf(ctx context.Context, q *dbsqlc.Queries, by auth.Principal, messages []dbsqlc.ThreadMessage) (map[pgtype.UUID]Answer, error) {
+func (s *Service) answersOf(ctx context.Context, by auth.Principal, messages []dbsqlc.ThreadMessage) (map[pgtype.UUID]Answer, error) {
 	if s.answers == nil {
 		return nil, nil
 	}
-	runs, err := answeredRuns(ctx, q, messages)
+	runs, err := s.answeredRuns(ctx, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (s *Service) answersOf(ctx context.Context, q *dbsqlc.Queries, by auth.Prin
 	return out, nil
 }
 
-func answeredRuns(ctx context.Context, q *dbsqlc.Queries, messages []dbsqlc.ThreadMessage) ([]pgtype.UUID, error) {
+func (s *Service) answeredRuns(ctx context.Context, messages []dbsqlc.ThreadMessage) ([]pgtype.UUID, error) {
 	var replied []pgtype.UUID
 	seen := map[pgtype.UUID]bool{}
 	for _, m := range messages {
@@ -73,7 +73,7 @@ func answeredRuns(ctx context.Context, q *dbsqlc.Queries, messages []dbsqlc.Thre
 	if len(replied) == 0 {
 		return nil, nil
 	}
-	answered, err := q.ListAnsweredRuns(ctx, replied)
+	answered, err := s.db.Queries().ListAnsweredRuns(ctx, replied)
 	if err != nil {
 		return nil, fmt.Errorf("list the page's runs that saved an answer: %w", err)
 	}
@@ -104,4 +104,16 @@ func messagesOf(rows []dbsqlc.ListThreadMessagesRow) []dbsqlc.ThreadMessage {
 		out[i] = r.ThreadMessage
 	}
 	return out
+}
+
+func (s *Service) answersBefore(ctx context.Context, by auth.Principal, thread pgtype.UUID) map[pgtype.UUID]Answer {
+	recent, err := s.db.Queries().ThreadTranscript(ctx, dbsqlc.ThreadTranscriptParams{ThreadID: thread, RowLimit: transcriptMessages})
+	if err != nil {
+		return nil
+	}
+	answers, err := s.answersOf(ctx, by, recent)
+	if err != nil {
+		return nil
+	}
+	return answers
 }

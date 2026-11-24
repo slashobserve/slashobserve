@@ -604,7 +604,7 @@ func (s *Service) List(ctx context.Context, by auth.Principal, in ListQuery) (Pa
 		return Page{}, err
 	}
 	if in.WithAnswers {
-		if pd.answers, err = s.answersOf(ctx, s.db.Queries(), by, messagesOf(rows)); err != nil {
+		if pd.answers, err = s.answersOf(ctx, by, messagesOf(rows)); err != nil {
 			return Page{}, fmt.Errorf("read the answers of the page's runs: %w", err)
 		}
 	}

@@ -41,6 +41,8 @@ type applying struct {
 	by   auth.Principal
 	sg   suggestion
 	run  *StartedRun
+
+	answers map[pgtype.UUID]Answer
 }
 
 func (a *Asks) Apply(ctx context.Context, by auth.Principal, threadID, findingID pgtype.UUID) (Sent, error) {
@@ -64,7 +66,7 @@ func (a *Asks) Apply(ctx context.Context, by auth.Principal, threadID, findingID
 	if err := a.queue.CheckRun(ctx, revisions.RunTarget{Intent: revisions.IntentApply, DashboardID: sc.target.ID}, by); err != nil {
 		return Sent{}, err
 	}
-	ap := &applying{asks: a, ctx: ctx, by: by, sg: sg}
+	ap := &applying{asks: a, ctx: ctx, by: by, sg: sg, answers: a.service.answersBefore(ctx, by, row.ID)}
 	w, err := a.service.reply(ctx, by, row, sc, ReplyInput{Body: ApplyLead + sg.change}, writeOptions{hook: ap.hook})
 	if errors.Is(err, revisions.ErrFindingApplied) {
 		earlier, found, readErr := a.queue.RunApplying(ctx, findingID)
@@ -109,7 +111,7 @@ func (a *Asks) suggestionIn(ctx context.Context, thread dbsqlc.Thread, findingID
 }
 
 func (ap *applying) hook(q *dbsqlc.Queries, thread Thread, message Message) error {
-	asked, err := ap.asks.service.askedIn(ap.ctx, q, ap.by, thread, message)
+	asked, err := askedIn(ap.ctx, q, ap.answers, thread, message)
 	if err != nil {
 		return err
 	}

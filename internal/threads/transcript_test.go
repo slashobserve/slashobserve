@@ -49,3 +49,32 @@ func TestTheTranscriptKeepsTheBodyOfAReplyWithoutAnAnswer(t *testing.T) {
 		t.Fatalf("transcript = %q", got)
 	}
 }
+
+func TestTheTranscriptCutsALongAnswerSoTheQuestionStaysInIt(t *testing.T) {
+	newestFirst := []dbsqlc.ThreadMessage{
+		transcriptMessage(3, 0, "Ada", "which of those had errors?"),
+		transcriptMessage(2, 9, "Ada", replyAnswered),
+	}
+	answers := map[pgtype.UUID]Answer{
+		newestFirst[1].RunID: {Title: "Checkout is slow", Markdown: strings.Repeat("é", 6000)},
+	}
+
+	got := transcriptOf(newestFirst, answers)
+
+	lines := strings.Split(got, "\n\n")
+	_, answer, _ := strings.Cut(strings.Join(lines[:len(lines)-1], "\n\n"), ": ")
+	if n := len([]rune(answer)); n != answerRunes || !strings.HasSuffix(answer, "...") {
+		t.Fatalf("the answer is %d runes, want %d ending in an ellipsis", n, answerRunes)
+	}
+	if !strings.HasSuffix(got, ": which of those had errors?") {
+		t.Fatalf("the question is missing: %.40q", got[len(got)-40:])
+	}
+}
+
+func TestTheTranscriptKeepsAShortAnswerWhole(t *testing.T) {
+	answer := &Answer{Title: "Checkout is slow", Markdown: "The 5xx rate rose."}
+
+	if got := transcriptBody(replyAnswered, answer); got != "Checkout is slow\n\nThe 5xx rate rose." {
+		t.Fatalf("body = %q", got)
+	}
+}
