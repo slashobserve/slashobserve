@@ -318,6 +318,7 @@ A run you stopped shows "You stopped this run" instead.
 | `output_limit` | The model's answer was cut off at its output limit. | Try again and ask for fewer panels. |
 | `no_tool_call`, `no_progress` | The agent stopped making progress. | Try again and name the metric, service or table you want. |
 | `validation_exhausted`, `check_failed` | The agent could not get its queries past the checks. | Try again and name the metric, service or table you want, or ask for those panels one at a time. |
+| `restricted_answer` | The run read data only Admins can read, so what it built cannot be saved where people who are not Admins read. | Ask again without the audit trail or an Admins-only datasource, or save it in a folder only Admins can read. |
 | `refused` | The model declined the request. | Rephrase the prompt. |
 | `conflict` | Someone saved a newer version while the agent worked. | Open the dashboard and ask again. |
 | `canceled` | The run was canceled. | Save what was built, continue it, or try again. |
@@ -732,6 +733,9 @@ Any other run, an Admin's included, is not offered those datasources, and a quer
 The same holds for what is stored in a folder only Admins can read.
 A run that writes where others read sees no such folder, so its dashboards, panels, annotations and observations answer `not_found`, and they are left out of its lists.
 A run that may read them is marked when a tool returns one: reading a dashboard, its panels or its annotations, or reading an observation.
+
+`list_services` with no `datasource` leaves out the datasources only Admins can query, so it marks nothing.
+Naming one of them reads it and marks the run.
 
 Reading the dashboard or observation the run is about is not counted, for an ask and an investigation as for a revision or a suggestion.
 What the run learns there goes wherever that dashboard or observation goes.

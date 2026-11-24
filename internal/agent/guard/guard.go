@@ -327,6 +327,12 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 			s.Counts.Nudges++
 		}
 	}
+	if s.Turn.Rejected && s.RestrictedRefusals >= MaxRejectionsInRow {
+		return nudge, &Stop{
+			Failure: revisions.FailureRestrictedAnswer,
+			Step:    fmt.Sprintf("Stopped: %d %s in a row were refused because the run read data only Admins can read", MaxRejectionsInRow, rejectedThing(s.Mode)),
+		}
+	}
 	if s.Turn.Rejected && s.Rejections >= MaxRejectionsInRow {
 		return nudge, &Stop{
 			Failure: revisions.FailureValidationExhausted,

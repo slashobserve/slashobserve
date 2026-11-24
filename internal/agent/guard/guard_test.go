@@ -596,6 +596,51 @@ func TestEndTurnStopsAfterRejectedSavesInARow(t *testing.T) {
 	}
 }
 
+func TestRestrictedAnswerRefusalsAreNotValidationRejections(t *testing.T) {
+	s := New(tools.ModeCreate)
+	refuse := func(i int, content string) *Stop {
+		s.BeginTurn(true)
+		c := jsonCall("create_dashboard", `{"n":`+strconv.Itoa(i+1)+`}`)
+		s.Admit(0, c)
+		if _, err := s.Settle(c, tools.Result{IsError: true}, []byte(content)); err != nil {
+			t.Fatal(err)
+		}
+		_, stop := s.EndTurn()
+		return stop
+	}
+	for i := range MaxRejectionsInRow {
+		stop := refuse(i, `{"code":"restricted_answer","message":"m"}`)
+		if s.Rejections != 0 {
+			t.Fatalf("rejections = %d after %d restricted refusals", s.Rejections, i+1)
+		}
+		if i < MaxRejectionsInRow-1 && stop != nil {
+			t.Fatalf("stopped after %d restricted refusals: %+v", i+1, stop)
+		}
+		if i == MaxRejectionsInRow-1 && (stop == nil || stop.Failure != revisions.FailureRestrictedAnswer || stop.Step != "Stopped: 3 saves in a row were refused because the run read data only Admins can read") {
+			t.Fatalf("stop = %+v", stop)
+		}
+	}
+}
+
+func TestRestrictedAnswerRefusalsBreakTheRunOfValidationRejections(t *testing.T) {
+	s := New(tools.ModeCreate)
+	codes := []string{"invalid_spec", "invalid_spec", "restricted_answer", "invalid_spec", "invalid_spec"}
+	for i, code := range codes {
+		s.BeginTurn(true)
+		c := jsonCall("create_dashboard", `{"n":`+string(rune('1'+i))+`}`)
+		s.Admit(0, c)
+		if _, err := s.Settle(c, tools.Result{IsError: true}, []byte(`{"code":"`+code+`"}`)); err != nil {
+			t.Fatal(err)
+		}
+		if _, stop := s.EndTurn(); stop != nil {
+			t.Fatalf("stopped after %v: %+v", codes[:i+1], stop)
+		}
+	}
+	if s.Rejections != 2 || s.RestrictedRefusals != 0 {
+		t.Fatalf("rejections = %d, restricted refusals = %d", s.Rejections, s.RestrictedRefusals)
+	}
+}
+
 func TestEndTurnNudgesOneCallBeforeTheWindowClosesAndCountsIt(t *testing.T) {
 	s := New(tools.ModeRevise)
 	s.Window.Calls = maxCallsBeforeSave - 2

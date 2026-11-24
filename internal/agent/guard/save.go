@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -125,7 +126,13 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 	case body.Code == codeNotFound && s.Mode == tools.ModeRevise:
 		return Settled{Outcome: Outcome{NotFound: true}}, nil
 	}
+	if body.Code == folders.CodeRestrictedAnswer {
+		s.RestrictedRefusals++
+		s.Rejections = 0
+		return Settled{Outcome: Outcome{Rejected: true}}, nil
+	}
 	s.Rejections++
+	s.RestrictedRefusals = 0
 	failing, other := body.failingPanels()
 	return Settled{Outcome: Outcome{
 		Rejected:        true,
@@ -169,7 +176,7 @@ func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settl
 
 func (s *State) classifyBuildSave(res tools.Result) Settled {
 	s.Building = true
-	s.Rejections = 0
+	s.Rejections, s.RestrictedRefusals = 0, 0
 	s.Window = Window{}
 	s.Counts.BuildSaves++
 	s.Reads = nil
