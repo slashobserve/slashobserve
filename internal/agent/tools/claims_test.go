@@ -62,6 +62,7 @@ type fakeRunSessions struct {
 	briefErr     error
 	briefReasons []string
 	stop         bool
+	noteErr      error
 	noted        []revisions.Usage
 	finishErr    error
 	finished     []RunFinish
@@ -76,7 +77,7 @@ func (f *fakeRunSessions) Brief(_ context.Context, _ revisions.Request, reason s
 
 func (f *fakeRunSessions) NoteUsage(_ context.Context, _ revisions.Request, u revisions.Usage) (bool, error) {
 	f.noted = append(f.noted, u)
-	return f.stop, nil
+	return f.stop, f.noteErr
 }
 
 func (f *fakeRunSessions) Finish(_ context.Context, _ revisions.Request, in RunFinish) (RunFinished, error) {
@@ -346,6 +347,40 @@ func TestReportRunStopsBeforeUsageAndTextWhenTheRunHasEnded(t *testing.T) {
 	}
 	if len(rs.noted) != 0 || len(live.texts) != 0 {
 		t.Fatalf("usage %v and text %v were sent for an ended run", rs.noted, live.texts)
+	}
+}
+
+func TestReportRunKeepsTheRenewedLeaseWhenNoteUsageTimesOut(t *testing.T) {
+	for name, noteErr := range map[string]error{"deadline": context.DeadlineExceeded, "canceled": context.Canceled} {
+		t.Run(name, func(t *testing.T) {
+			fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+			rs := &fakeRunSessions{noteErr: noteErr}
+			live := &fakeLiveText{}
+
+			res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs, LiveText: live}, outsideClaimer, nameReportRun,
+				`{"run_id":"`+runID+`","attempt":2,"text":"x","usage":{"model":"m"}}`)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if out := jsonOf(t, res); out["state"] != "running" || out["stop"] != false {
+				t.Fatalf("answer = %v", out)
+			}
+			if len(fc.reports) != 1 {
+				t.Fatalf("lease reports = %d, want the one that renewed it", len(fc.reports))
+			}
+		})
+	}
+}
+
+func TestReportRunFailsOnAnotherNoteUsageError(t *testing.T) {
+	fc := &fakeClaims{req: claimedRequest(), answers: []claims.ReportAnswer{{State: "running"}}}
+	rs := &fakeRunSessions{noteErr: errors.New("boom")}
+
+	res, err := callClaimToolWith(t, Deps{Claims: fc, RunSessions: rs}, outsideClaimer, nameReportRun,
+		`{"run_id":"`+runID+`","attempt":2,"usage":{"model":"m"}}`)
+	if err == nil && !res.IsError {
+		t.Fatalf("a usage failure that is not a timeout was swallowed: %#v", res)
 	}
 }
 

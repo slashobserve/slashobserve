@@ -28,6 +28,7 @@ const (
 	maxLiveTextRunes = 4000
 
 	failureLiveTextAppend = "live_text_append_failed"
+	failureUsageNotNoted  = "usage_not_noted"
 
 	codeNotAWorker = "not_a_worker"
 	codeNotYourRun = "not_your_run"
@@ -238,6 +239,10 @@ func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revis
 	}
 	if usage := in.Usage.reported(); usage != nil {
 		stop, err := r.deps.RunSessions.NoteUsage(ctx, req, *usage)
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			r.deps.Logger.WarnContext(ctx, "usage not noted, the lease was renewed", logattrs.Failure(failureUsageNotNoted, err, slog.String("agent_request_id", req.ID))...)
+			stop, err = false, nil
+		}
 		if err != nil {
 			return reportRunOut{}, err
 		}
