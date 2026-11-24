@@ -1,29 +1,13 @@
-import { StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import { ToolError } from "./protocol"
+import { isRetryable } from "./mcp"
 
 export type RetryPolicy = {
   waitsMs: readonly number[]
   budgetMs: number
 }
 
-const retryableClientStatuses = new Set([408, 429])
-
 export const startRetry: RetryPolicy = {
   waitsMs: [250, 1_000, 2_000, 4_000],
   budgetMs: 30_000,
-}
-
-function isRefusal(error: unknown): boolean {
-  if (error instanceof ToolError) {
-    return true
-  }
-  return (
-    error instanceof StreamableHTTPError &&
-    error.code !== undefined &&
-    error.code >= 400 &&
-    error.code < 500 &&
-    !retryableClientStatuses.has(error.code)
-  )
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {
@@ -60,7 +44,7 @@ export async function retryWithin<T>(
     } catch (error) {
       const wait = policy.waitsMs[tries]
       if (
-        isRefusal(error) ||
+        !isRetryable(error) ||
         signal.aborted ||
         wait === undefined ||
         Date.now() + wait >= deadline

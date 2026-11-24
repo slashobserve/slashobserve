@@ -337,14 +337,9 @@ class RunLoop {
     reason: BriefReason | undefined,
     carry: { results: ToolResult[] | undefined } | undefined
   ): Promise<SessionEnd> {
-    const brief = await retryWithin(
-      (signal) =>
-        this.claim.getRunBrief(
-          { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
-          signal
-        ),
-      this.cancel.signal,
-      this.startRetry
+    const brief = await this.claim.getRunBrief(
+      { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
+      this.cancel.signal
     )
     this.build = brief.build ?? null
     this.buildSaves = brief.build?.saves ?? 0

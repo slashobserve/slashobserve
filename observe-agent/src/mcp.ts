@@ -1,7 +1,10 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError,
+} from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
-import type { z } from "zod"
+import { type z, ZodError } from "zod"
 import {
   type BriefAnswer,
   type BriefInput,
@@ -22,6 +25,7 @@ import {
   noRunMeta,
   parseToolError,
   reportAnswer,
+  ToolError,
   reportInput,
   runMeta,
   runMetaKey,
@@ -88,6 +92,26 @@ function isTransportFailure(error: unknown, signal?: AbortSignal): boolean {
     )
   }
   return true
+}
+
+export function isRetryable(error: unknown): boolean {
+  if (
+    error instanceof ToolError ||
+    error instanceof ProtocolError ||
+    error instanceof ZodError
+  ) {
+    return false
+  }
+  if (error instanceof StreamableHTTPError) {
+    const status = error.code
+    return (
+      status === 404 ||
+      status === 408 ||
+      status === 429 ||
+      (status !== undefined && status >= 500)
+    )
+  }
+  return isTransportFailure(error)
 }
 
 export class McpClient implements RunTools {

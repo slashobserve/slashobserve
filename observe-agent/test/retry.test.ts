@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
+import { z } from "zod"
+import { ProtocolError, isRetryable } from "../src/mcp"
 import { ToolError } from "../src/protocol"
 import { retryWithin } from "../src/retry"
 
@@ -72,6 +74,36 @@ describe("retryWithin", () => {
     expect(calls).toBe(1)
   })
 
+  test("a stale session id is retried", async () => {
+    let calls = 0
+    const answer = await retryWithin(
+      async () => {
+        calls += 1
+        if (calls === 1) throw new StreamableHTTPError(404, "no session")
+        return "ok"
+      },
+      new AbortController().signal,
+      policy
+    )
+    expect(answer).toBe("ok")
+    expect(calls).toBe(2)
+  })
+
+  test("a protocol error is not retried", async () => {
+    let calls = 0
+    await expect(
+      retryWithin(
+        async () => {
+          calls += 1
+          throw new ProtocolError("unreadable")
+        },
+        new AbortController().signal,
+        policy
+      )
+    ).rejects.toBeInstanceOf(ProtocolError)
+    expect(calls).toBe(1)
+  })
+
   test("a client error status is not retried but a 500 is", async () => {
     let conflicts = 0
     await expect(
@@ -134,4 +166,35 @@ describe("retryWithin", () => {
     expect(Date.now() - started).toBeLessThan(1_000)
     expect(calls).toBe(2)
   })
+})
+
+describe("isRetryable", () => {
+  const retryable = [
+    new McpError(ErrorCode.RequestTimeout, "timed out"),
+    new McpError(ErrorCode.ConnectionClosed, "closed"),
+    new TypeError("fetch failed"),
+    new StreamableHTTPError(404, "stale session"),
+    new StreamableHTTPError(408, "timeout"),
+    new StreamableHTTPError(429, "slow down"),
+    new StreamableHTTPError(500, "internal"),
+    new StreamableHTTPError(503, "unavailable"),
+  ]
+  const final = [
+    new ToolError("not_your_run", "no"),
+    new ProtocolError("unreadable"),
+    new McpError(ErrorCode.InvalidParams, "bad"),
+    new StreamableHTTPError(401, "unauthorized"),
+    new StreamableHTTPError(409, "run_ended"),
+    z.string().safeParse(1).error,
+  ]
+  for (const error of retryable) {
+    test(`${error.name} ${error.message} is retried`, () => {
+      expect(isRetryable(error)).toBe(true)
+    })
+  }
+  for (const error of final) {
+    test(`${error?.name} ${error?.message.slice(0, 20)} is final`, () => {
+      expect(isRetryable(error)).toBe(false)
+    })
+  }
 })

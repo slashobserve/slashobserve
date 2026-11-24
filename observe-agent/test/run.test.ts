@@ -696,27 +696,25 @@ describe("opening a run through a database stall", () => {
     })
   })
 
-  test("a timed out first brief is retried", async () => {
+  test("a refused session open is not retried and fails the run", async () => {
     const claim = new FakeClaim()
-    const getRunBrief = claim.getRunBrief.bind(claim)
-    let calls = 0
-    claim.getRunBrief = async (input) => {
-      calls += 1
-      if (calls < 3) throw timeout()
-      return getRunBrief(input)
-    }
-    claim.tools.handler = savedWith()
+    claim.tools.listFailures = [new ToolError("run_ended", "the run ended")]
     await drive(claim, claimed("create happy path"), quick)
-    expect(calls).toBe(3)
-    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
+    expect(claim.tools.listCalls).toBe(1)
+    expect(claim.briefs).toHaveLength(0)
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]).toMatchObject({
+      outcome: "failed",
+      failure_code: "internal",
+    })
   })
 
-  test("a refused brief is not retried", async () => {
+  test("a timed out brief is not retried", async () => {
     const claim = new FakeClaim()
     let calls = 0
     claim.getRunBrief = async () => {
       calls += 1
-      throw new ToolError("run_ended", "the run ended")
+      throw timeout()
     }
     await drive(claim, claimed("create happy path"), quick)
     expect(calls).toBe(1)
