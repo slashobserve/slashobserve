@@ -40,7 +40,7 @@ const (
 	messageReplayed    = "This is the result of the same earlier call. A third identical call is refused."
 
 	messageSaveNext    = "Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save."
-	messageAnswerNext  = "Call save_finding with what you found in your next call, or save the first panel if the request asks for a dashboard. From then on, reads run only in the same call as a save."
+	messageAnswerNext  = "Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found, in your next call. From then on, reads run only in the same call as a save."
 	messageProposeNext = "Propose the panel in your next call. From then on, reads run only in the same call as a proposal."
 	messageFindingNext = "One more read at most, then call save_finding."
 )
@@ -72,7 +72,7 @@ var rules = map[string]rule{
 func saveRule(calls int, answering bool) rule {
 	choice := "Save the panel you have checked, or call save_finding if the request only asks a question"
 	if answering {
-		choice = "Call save_finding with what you found, or save the first panel if the request asks for a dashboard"
+		choice = "Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found"
 	}
 	return rule{
 		message: fmt.Sprintf("%d model calls without a save; only a save can run now. %s, and say in it what you did not read; reads in the same call as a save still run.", calls, choice),
@@ -90,17 +90,24 @@ func findingRule(calls int) rule {
 }
 
 func (s *State) rule(name string) rule {
+	return s.ruleAt(name, s.windowLimit())
+}
+
+func (s *State) ruleAt(name string, calls int) rule {
+	if calls == 0 {
+		calls = s.windowLimit()
+	}
 	switch name {
 	case guardFindingNow:
-		return findingRule(s.investigationCalls())
+		return findingRule(calls)
 	case guardSaveNow:
-		return saveRule(s.windowLimit(), s.answering())
+		return saveRule(calls, s.answering())
 	}
 	return rules[name]
 }
 
 func (s *State) answering() bool {
-	return s.Mode == tools.ModeCreate && !s.Building
+	return s.Mode == tools.ModeCreate && !s.Building && !s.Saved
 }
 
 func (s *State) investigationCalls() int {
@@ -299,7 +306,7 @@ func (s *State) reject(c Call, adm Admission, reason string) Admission {
 }
 
 func (s *State) refuse(c Call, adm Admission, name string) Admission {
-	s.LastGuard = name
+	s.LastGuard, s.LastLimit = name, s.windowLimit()
 	adm = s.reject(c, adm, s.rule(name).message)
 	adm.Step = "Refused " + c.label() + ": " + s.rule(name).refused
 	return adm
@@ -330,7 +337,7 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 }
 
 func (s *State) stalledReason() string {
-	if reason := s.rule(s.LastGuard).stopped; reason != "" {
+	if reason := s.ruleAt(s.LastGuard, s.LastLimit).stopped; reason != "" {
 		return reason
 	}
 	return fmt.Sprintf("Stopped: %d turns in a row had every call refused", maxStalledTurns)

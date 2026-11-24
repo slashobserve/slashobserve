@@ -10,7 +10,9 @@ type State struct {
 	Building      bool            `json:"building"`
 	Rejections    int             `json:"rejections"`
 	Window        Window          `json:"window"`
+	Saved         bool            `json:"saved,omitempty"`
 	LastGuard     string          `json:"last_guard,omitempty"`
+	LastLimit     int             `json:"last_limit,omitempty"`
 	Churn         map[string]int  `json:"churn,omitempty"`
 	ChurnedInRow  int             `json:"churned_in_row,omitempty"`
 	Reads         map[string]Read `json:"reads,omitempty"`

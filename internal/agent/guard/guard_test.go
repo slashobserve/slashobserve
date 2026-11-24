@@ -254,14 +254,14 @@ func TestNudgeFor(t *testing.T) {
 	}
 }
 
-func TestTheSaveNowMessageNamesTheCallBudgetAndLeadsWithTheFindingForAQuestion(t *testing.T) {
+func TestTheSaveNowMessageNamesTheCallBudgetAndLeadsWithThePanelForAQuestionRun(t *testing.T) {
 	revision := State{Mode: tools.ModeRevise}
 	want := "6 model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run."
 	if got := revision.rule(guardSaveNow).message; got != want {
 		t.Fatalf("message = %q", got)
 	}
 	question := State{Mode: tools.ModeCreate, InvestigationCalls: 20}
-	want = "20 model calls without a save; only a save can run now. Call save_finding with what you found, or save the first panel if the request asks for a dashboard, and say in it what you did not read; reads in the same call as a save still run."
+	want = "20 model calls without a save; only a save can run now. Save the first panel if the request asks for a dashboard, otherwise call save_finding with what you found, and say in it what you did not read; reads in the same call as a save still run."
 	if got := question.rule(guardSaveNow).message; got != want {
 		t.Fatalf("message = %q", got)
 	}
@@ -894,5 +894,50 @@ func TestARejectedFindingNamesItsEvidenceAndWhetherADatasourceWasUnreachable(t *
 		if !out.Rejected || out.RejectedFinding != tc.finding || out.Transient != tc.transient || !slices.Equal(out.FailingPanels, tc.failing) {
 			t.Errorf("%s: outcome = %+v", tc.name, out)
 		}
+	}
+}
+
+func TestAnImportedDashboardEndsTheQuestionBudget(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.Window.Calls = 8
+	imp := jsonCall("import_grafana_dashboard", `{"json": "{}"}`)
+	s.BeginTurn(true)
+	s.Admit(0, imp)
+	if _, err := s.Settle(imp, tools.Result{}, []byte(`{"dashboard_id":"d1","version":1}`)); err != nil {
+		t.Fatal(err)
+	}
+	if s.answering() || s.Building || s.windowLimit() != maxCallsBeforeSave {
+		t.Fatalf("answering %v, building %v, limit %d", s.answering(), s.Building, s.windowLimit())
+	}
+	s.Window.Calls = 5
+	if got := s.nudge(); got != messageSaveNext {
+		t.Fatalf("nudge = %q", got)
+	}
+	s.Window.Calls = maxCallsBeforeSave
+	if got := s.readRefusal(false); got != guardSaveNow {
+		t.Fatalf("readRefusal = %q", got)
+	}
+	if got := s.rule(guardSaveNow).message; !strings.Contains(got, "Save the panel you have checked") || !strings.HasPrefix(got, "6 model calls") {
+		t.Fatalf("message = %q", got)
+	}
+}
+
+func TestTheStoppedReasonNamesTheLimitThatWasHit(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.InvestigationCalls = 20
+	s.Window.Calls = 19
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("get_panels", `{}`))
+	if adm.Verdict != Refuse || s.LastLimit != 20 {
+		t.Fatalf("admission = %+v, last limit %d", adm, s.LastLimit)
+	}
+	s.EndTurn()
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("get_panels", `{"a":1}`))
+	s.Saved = true
+	_, stop := s.EndTurn()
+	want := "Stopped: the model kept reading after 20 calls without a save"
+	if stop == nil || stop.Step != want {
+		t.Fatalf("stop = %+v, want %q", stop, want)
 	}
 }

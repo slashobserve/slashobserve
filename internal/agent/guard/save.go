@@ -158,6 +158,7 @@ func (s *State) classifyAccepted(c Call, res tools.Result, body saveBody) (Settl
 	if c.label() != toolImportGrafana {
 		s.Counts.BuildSaves++
 	}
+	s.Saved = true
 	s.Window = Window{}
 	return Settled{Outcome: Outcome{Saved: &Saved{
 		DashboardID: body.DashboardID,
