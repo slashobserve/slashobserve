@@ -220,6 +220,20 @@ export const PanelContainer = memo(function PanelContainer({
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
+  const [panelElement, setPanelElement] = useState<HTMLElement | null>(null)
+  const [surfaceElement, setSurfaceElement] = useState<HTMLElement | null>(null)
+  const attachPanel = useCallback((element: HTMLDivElement | null) => {
+    ref.current = element
+    setPanelElement(element)
+  }, [])
+  const attachSurface = useCallback((element: HTMLDivElement | null) => {
+    surfaceRef.current = element
+    setSurfaceElement(element)
+  }, [])
+  const spot = useMemo(
+    () => ({ current: surfaceElement ?? panelElement }),
+    [surfaceElement, panelElement]
+  )
   const mountId = useId()
   const surfaceId =
     source.kind === "block" ? blockSurfaceId(source.blockId) : mountId
@@ -502,7 +516,7 @@ export const PanelContainer = memo(function PanelContainer({
 
   return (
     <div
-      ref={ref}
+      ref={attachPanel}
       className={cn(
         "relative size-full",
         pointing === "comment" &&
@@ -558,7 +572,7 @@ export const PanelContainer = memo(function PanelContainer({
       >
         <AnchorLayoutProvider value={layoutStore}>
           <div
-            ref={surfaceRef}
+            ref={attachSurface}
             data-canvas-surface=""
             className="relative size-full"
           >
@@ -620,7 +634,7 @@ export const PanelContainer = memo(function PanelContainer({
       {pointing !== "select" ? (
         <CanvasLayer
           containerRef={ref}
-          surfaceRef={surfaceRef}
+          surfaceRef={spot}
           store={layoutStore}
           surfaceId={surfaceId}
           ownerId={ownerId}
@@ -634,7 +648,7 @@ export const PanelContainer = memo(function PanelContainer({
         <CanvasSpots
           owner={{ ownerId, surfaceId, copy: repeatOf !== undefined }}
           panelTitle={panelName}
-          surfaceRef={surfaceRef}
+          surfaceRef={spot}
         />
       ) : null}
       {selected && !viewing ? (
