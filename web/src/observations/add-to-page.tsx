@@ -1,3 +1,4 @@
+import { useRef } from "react"
 import { toast } from "sonner"
 
 import { EntryAction } from "@/activity/entry-frame"
@@ -22,6 +23,15 @@ export function blocksOfMessage(message: Message): AddBlockInput[] | null {
   ]
 }
 
+function partialFailureText(
+  added: number,
+  total: number,
+  error: unknown
+): string {
+  const reason = addProblemText(error)
+  return added === 0 ? reason : `Added ${added} of ${total} blocks: ${reason}`
+}
+
 export function AddToPage({
   observationId,
   message,
@@ -34,19 +44,25 @@ export function AddToPage({
   onAdded: (blockId: string) => void
 }) {
   const addBlock = useAddBlock(observationId)
+  const running = useRef(false)
   const blocks = blocksOfMessage(message)
   if (blocks === null) return null
 
   async function add(inputs: AddBlockInput[]) {
-    if (addBlock.isPending) return
+    if (running.current) return
+    running.current = true
+    const added: string[] = []
     try {
-      const [first, ...rest] = inputs
-      const { block } = await addBlock.mutateAsync(first)
+      for (const input of inputs) {
+        const { block } = await addBlock.mutateAsync(input)
+        added.push(block.id)
+      }
       toast.success(canEdit ? "Added to the page" : "Suggested for the page")
-      onAdded(block.id)
-      for (const input of rest) await addBlock.mutateAsync(input)
     } catch (error) {
-      toast.error(addProblemText(error))
+      toast.error(partialFailureText(added.length, inputs.length, error))
+    } finally {
+      running.current = false
+      if (added.length > 0) onAdded(added[0])
     }
   }
 

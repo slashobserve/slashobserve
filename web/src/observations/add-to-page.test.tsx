@@ -7,6 +7,9 @@ import { renderWithProviders } from "@/test/render"
 import { AddToPage, blocksOfMessage } from "./add-to-page"
 
 const mutateAsync = vi.fn()
+const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+
+vi.mock("sonner", () => ({ toast: toasts }))
 
 vi.mock("./queries", () => ({
   useAddBlock: () => ({ isPending: false, mutateAsync }),
@@ -62,6 +65,8 @@ function answered(): Message {
 beforeEach(() => {
   mutateAsync.mockReset()
   mutateAsync.mockResolvedValue({ block: { id: "b1" } })
+  toasts.success.mockReset()
+  toasts.error.mockReset()
 })
 
 describe("blocksOfMessage", () => {
@@ -99,11 +104,63 @@ describe("AddToPage", () => {
       />
     )
     await user.click(screen.getByText("Add to page"))
-    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(3))
+    await waitFor(() => expect(onAdded).toHaveBeenCalledWith("b1"))
+    expect(mutateAsync).toHaveBeenCalledTimes(3)
+    expect(toasts.success).toHaveBeenCalledWith("Added to the page")
     expect(mutateAsync.mock.calls[0][0]).toEqual({
       kind: "text",
       body: { markdown: "## Checkout is slow\n\nThe 5xx rate rose." },
     })
+    expect(onAdded).toHaveBeenCalledWith("b1")
+  })
+
+  it("adds the blocks once when the action is clicked twice", async () => {
+    let release: () => void = () => {}
+    mutateAsync.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ block: { id: "b1" } })
+        })
+    )
+    const onAdded = vi.fn()
+    const { user } = renderWithProviders(
+      <AddToPage
+        observationId="o1"
+        message={answered()}
+        canEdit
+        onAdded={onAdded}
+      />
+    )
+    await user.click(screen.getByText("Add to page"))
+    await user.click(screen.getByText("Add to page"))
+    expect(mutateAsync).toHaveBeenCalledTimes(1)
+    release()
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(2))
+    release()
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(3))
+    release()
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1))
+    expect(toasts.success).toHaveBeenCalledTimes(1)
+  })
+
+  it("says how many blocks were added when one fails and still reports the first", async () => {
+    mutateAsync
+      .mockResolvedValueOnce({ block: { id: "b1" } })
+      .mockResolvedValueOnce({ block: { id: "b2" } })
+      .mockRejectedValueOnce(new Error("boom"))
+    const onAdded = vi.fn()
+    const { user } = renderWithProviders(
+      <AddToPage
+        observationId="o1"
+        message={answered()}
+        canEdit
+        onAdded={onAdded}
+      />
+    )
+    await user.click(screen.getByText("Add to page"))
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledTimes(1))
+    expect(toasts.error.mock.calls[0][0]).toMatch(/^Added 2 of 3 blocks: /)
+    expect(toasts.success).not.toHaveBeenCalled()
     expect(onAdded).toHaveBeenCalledWith("b1")
   })
 
