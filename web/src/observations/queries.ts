@@ -429,7 +429,7 @@ function useBlockMutation<Input, Result>(
   })
 }
 
-type AddBlockInput = {
+export type AddBlockInput = {
   kind: "text" | "panel" | "snapshot"
   body?: BlockBody
   width?: BlockWidth
