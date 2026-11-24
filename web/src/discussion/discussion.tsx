@@ -45,6 +45,7 @@ import {
 import {
   discussionEntries,
   discussionModel,
+  postingThread,
   quotedText,
   type DiscussionChange,
 } from "./discussion-model"
@@ -169,10 +170,11 @@ export function DiscussionFeed({
   const [replyingTo, setReplyingTo] = useState<Message | null>(null)
   const filter = view?.filter ?? noFilter
   const today = useToday()
-  const { messages, replyThreadId, canWrite } = useMemo(
+  const { messages, canWrite } = useMemo(
     () => discussionModel(threads, canComment),
     [threads, canComment]
   )
+  const posting = postingThread(threads, replyingTo)
   const people = useMemo(
     () => threadParticipants(messages.map((message) => message.actor)),
     [messages]
@@ -214,10 +216,7 @@ export function DiscussionFeed({
 
   const model = useComposer({
     subject: subjectOf(target),
-    place: threadPlace(
-      replyThreadId,
-      threads.find((entry) => entry.thread.id === replyThreadId)?.thread
-    ),
+    place: threadPlace(posting?.thread.id ?? null, posting?.thread),
     target: anchor === null ? undefined : { blockId: anchor },
     gate: { ...ungated, canComment: canWrite },
     people,

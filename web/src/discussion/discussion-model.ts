@@ -21,7 +21,6 @@ export type DiscussionEntry =
 
 export type DiscussionModel = {
   messages: Message[]
-  replyThreadId: string | null
   canWrite: boolean
 }
 
@@ -33,19 +32,27 @@ function byCreation(
   return gap !== 0 ? gap : a.id.localeCompare(b.id)
 }
 
-function replyTarget(threads: readonly ThreadWithMessages[]): string | null {
-  let newest: { created_at: string; id: string } | null = null
-  let threadId: string | null = null
-  for (const { thread, messages } of threads) {
-    if (!thread.allowed_actions.includes("reply")) continue
-    for (const message of messages) {
-      if (newest === null || byCreation(message, newest) > 0) {
-        newest = message
-        threadId = thread.id
-      }
-    }
-  }
-  return threadId
+function pageThreadOf(
+  threads: readonly ThreadWithMessages[]
+): ThreadWithMessages | null {
+  return (
+    threads.find(
+      ({ thread }) =>
+        thread.anchor === null &&
+        thread.block_id === null &&
+        thread.allowed_actions.includes("reply")
+    ) ?? null
+  )
+}
+
+export function postingThread(
+  threads: readonly ThreadWithMessages[],
+  replyingTo: Pick<Message, "thread_id"> | null
+): ThreadWithMessages | null {
+  if (replyingTo === null) return pageThreadOf(threads)
+  return (
+    threads.find(({ thread }) => thread.id === replyingTo.thread_id) ?? null
+  )
 }
 
 export function discussionModel(
@@ -53,11 +60,12 @@ export function discussionModel(
   canComment: boolean
 ): DiscussionModel {
   const messages = threads.flatMap((entry) => entry.messages).sort(byCreation)
-  const replyThreadId = replyTarget(threads)
+  const replyable = threads.some(({ thread }) =>
+    thread.allowed_actions.includes("reply")
+  )
   return {
     messages,
-    replyThreadId,
-    canWrite: threads.length === 0 ? canComment : replyThreadId !== null,
+    canWrite: threads.length === 0 ? canComment : replyable,
   }
 }
 
