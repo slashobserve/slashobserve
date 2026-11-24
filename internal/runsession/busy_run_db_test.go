@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"log/slog"
 	"net/url"
@@ -43,6 +44,8 @@ func smallPool(t *testing.T, d *dbtest.Database, conns int) *db.DB {
 	return pool
 }
 
+var busyTokenHash = sha256.Sum256([]byte("busy-run-token"))
+
 func TestABusyRunDoesNotStarveOtherRunsOrItsOwnLeaseReport(t *testing.T) {
 	d := dbtest.New(t)
 	r := newRigOn(t, d, smallPool(t, d, busyPoolConns))
@@ -52,7 +55,7 @@ func TestABusyRunDoesNotStarveOtherRunsOrItsOwnLeaseReport(t *testing.T) {
 	r.read(other, 0)
 	busyID := mustUUID(t, busy.ID)
 	err := d.Queries().InsertRunToken(context.Background(), dbsqlc.InsertRunTokenParams{
-		TokenHash: []byte("busy-run-token"), AgentRequestID: busyID, Attempt: httpapi.Int32(busy.Attempt),
+		TokenHash: busyTokenHash[:], AgentRequestID: busyID, Attempt: httpapi.Int32(busy.Attempt),
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
 	})
 	if err != nil {
