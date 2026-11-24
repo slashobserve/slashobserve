@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -109,6 +110,9 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
+	if suggested != "" {
+		in.Markdown = withoutSuggestedChange(in.Markdown)
+	}
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Investigation))
 	if err != nil || !ok {
 		return res, err
@@ -166,6 +170,32 @@ func suggestedChange(raw string, run Run) (string, Result, bool) {
 		return "", invalid("suggested_change is one plain sentence with no line breaks"), false
 	}
 	return text, Result{}, true
+}
+
+var suggestedChangeLine = regexp.MustCompile(`(?i)^[\s>*_#-]*suggested change[*_]*\s*:`)
+
+func withoutSuggestedChange(markdown string) string {
+	lines := strings.Split(markdown, "\n")
+	kept := lines[:0:0]
+	for _, line := range lines {
+		if !strings.Contains(line, "suggested_change") {
+			kept = append(kept, line)
+		}
+	}
+	for last := len(kept) - 1; last >= 0; last-- {
+		if strings.TrimSpace(kept[last]) == "" {
+			continue
+		}
+		if suggestedChangeLine.MatchString(kept[last]) {
+			kept = kept[:last]
+		}
+		break
+	}
+	trimmed := strings.TrimSpace(strings.Join(kept, "\n"))
+	if trimmed == "" {
+		return markdown
+	}
+	return trimmed
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {

@@ -781,3 +781,30 @@ func TestAFindingOfAnAsOfRunSaysItsNowAndEndsItsDefaultWindowThere(t *testing.T)
 		}
 	}
 }
+
+func TestWithoutSuggestedChange(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"no field", "Errors doubled.\n\nSee the panel.", "Errors doubled.\n\nSee the panel."},
+		{"trailing line", "Errors doubled.\n\nSuggested change: Add a p99 panel.", "Errors doubled."},
+		{"trailing line with blank lines after", "Errors doubled.\nSuggested change: Add a p99 panel.\n\n", "Errors doubled."},
+		{"bold label", "Errors doubled.\n\n**Suggested change:** Add a p99 panel.", "Errors doubled."},
+		{"lowercase and bullet", "Errors doubled.\n- suggested change: Add a p99 panel.", "Errors doubled."},
+		{"raw field name line", "Errors doubled.\nThe change is in suggested_change.\nSee the panel.", "Errors doubled.\nSee the panel."},
+		{"raw field name with colon", "Errors doubled.\nsuggested_change: Add a p99 panel.", "Errors doubled."},
+		{"both", "Errors doubled.\nsuggested_change is set.\n\nSuggested change: Add a p99 panel.", "Errors doubled."},
+		{"phrase mid text stays", "Errors doubled. A suggested change: none was needed.\nSee the panel.", "Errors doubled. A suggested change: none was needed.\nSee the panel."},
+		{"phrase earlier than the last line stays", "Suggested change: none.\nErrors doubled.", "Suggested change: none.\nErrors doubled."},
+		{"only the line keeps the original", "Suggested change: Add a p99 panel.", "Suggested change: Add a p99 panel."},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := withoutSuggestedChange(c.in); got != c.want {
+				t.Errorf("withoutSuggestedChange(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
