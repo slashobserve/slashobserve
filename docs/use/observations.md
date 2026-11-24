@@ -300,6 +300,7 @@ A message written on a block that has since been deleted shows nothing extra.
 The reply then shows the quoted message above its text and reads "replied to" and the quoted author.
 
 Each message also has **Add to page** for an editor, or **Suggest for page** for a commenter, which puts the message's text on the page as a text block.
+On the built-in agent's answer it puts the finding there, its title and text as a text block followed by its evidence panels, and a reply of the built-in agent that carries no answer has no such action.
 The message stays in the discussion as well.
 
 Typing `@` opens the picker of people and agents, as in [Edit a comment and mention people](review.md#edit-a-comment-and-mention-people).

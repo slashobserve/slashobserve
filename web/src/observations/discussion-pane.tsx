@@ -1,7 +1,6 @@
 import { useContext, useId, useMemo, useState, type RefObject } from "react"
 import { createPortal } from "react-dom"
 import { useQueries, useQuery } from "@tanstack/react-query"
-import { toast } from "sonner"
 
 import { RequestCommentAccess } from "@/access/request-comment-access"
 import { useActivityLayout, useActivityStore } from "@/activity/activity-store"
@@ -10,7 +9,6 @@ import { ShowFilter } from "@/activity/show-filter"
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { observationKeys } from "@/api/keys"
-import type { Message } from "@/comments/thread-queries"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useDatasources } from "@/datasources/queries"
@@ -20,13 +18,13 @@ import type { DiscussionShow } from "@/discussion/discussion-model"
 import { PanelHostContext } from "@/shell/side-panel"
 
 import { snapshotIdOf, snapshotQuery } from "./blocks/block-data"
-import { addProblemText } from "./block-rows"
 import {
   blockSubject,
   changeEventTypes,
   observationChanges,
 } from "./discussion-changes"
-import { useAddBlock, type Block, type Observation } from "./queries"
+import { AddToPage } from "./add-to-page"
+import type { Block, Observation } from "./queries"
 
 const showOptions: { value: DiscussionShow; label: string }[] = [
   { value: "everything", label: "Everything" },
@@ -47,47 +45,6 @@ type Props = {
   onClose: () => void
   onShowBlock: (blockId: string) => void
   onAdded: (blockId: string) => void
-}
-
-function AddToPage({
-  observationId,
-  message,
-  canEdit,
-  onAdded,
-}: {
-  observationId: string
-  message: Message
-  canEdit: boolean
-  onAdded: (blockId: string) => void
-}) {
-  const addBlock = useAddBlock(observationId)
-
-  function add() {
-    if (addBlock.isPending) return
-    addBlock.mutate(
-      { kind: "text", body: { markdown: message.body } },
-      {
-        onSuccess: ({ block }) => {
-          toast.success(
-            canEdit ? "Added to the page" : "Suggested for the page"
-          )
-          onAdded(block.id)
-        },
-        onError: (error) => toast.error(addProblemText(error)),
-      }
-    )
-  }
-
-  return (
-    <EntryAction
-      icon={null}
-      aria-disabled={addBlock.isPending || undefined}
-      aria-busy={addBlock.isPending || undefined}
-      onClick={add}
-    >
-      {canEdit ? "Add to page" : "Suggest for page"}
-    </EntryAction>
-  )
 }
 
 type FrozenPanel = { id: string; panel: { [key: string]: unknown } }

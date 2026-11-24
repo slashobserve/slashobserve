@@ -197,7 +197,8 @@ SELECT name FROM service_accounts WHERE id = @id AND takes_runs;
 SELECT m.*
 FROM thread_messages m
 WHERE m.thread_id = @thread_id
-  AND (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = @before_id)
+  AND (sqlc.narg('before_id')::uuid IS NULL
+    OR (m.created_at, m.id) < (SELECT b.created_at, b.id FROM thread_messages b WHERE b.id = sqlc.narg('before_id')::uuid))
 ORDER BY m.created_at DESC, m.id DESC
 LIMIT @row_limit;
 

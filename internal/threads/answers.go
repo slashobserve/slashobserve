@@ -40,11 +40,11 @@ func (s *Service) ReadAnswersWith(runs RunGate, answers AnswerReader) {
 	s.answers = &answerReads{runs: runs, answers: answers}
 }
 
-func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsqlc.ListThreadMessagesRow) (map[pgtype.UUID]Answer, error) {
+func (s *Service) answersOf(ctx context.Context, by auth.Principal, messages []dbsqlc.ThreadMessage) (map[pgtype.UUID]Answer, error) {
 	if s.answers == nil {
 		return nil, nil
 	}
-	runs, err := s.answeredRuns(ctx, rows)
+	runs, err := s.answeredRuns(ctx, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,11 @@ func (s *Service) answersOf(ctx context.Context, by auth.Principal, rows []dbsql
 	return out, nil
 }
 
-func (s *Service) answeredRuns(ctx context.Context, rows []dbsqlc.ListThreadMessagesRow) ([]pgtype.UUID, error) {
+func (s *Service) answeredRuns(ctx context.Context, messages []dbsqlc.ThreadMessage) ([]pgtype.UUID, error) {
 	var replied []pgtype.UUID
 	seen := map[pgtype.UUID]bool{}
-	for _, r := range rows {
-		if run := r.ThreadMessage.RunID; run.Valid && !seen[run] {
+	for _, m := range messages {
+		if run := m.RunID; run.Valid && !seen[run] {
 			seen[run] = true
 			replied = append(replied, run)
 		}
@@ -96,4 +96,24 @@ func answerOf(answers map[pgtype.UUID]Answer, row dbsqlc.ThreadMessage) *Answer 
 		return &a
 	}
 	return nil
+}
+
+func messagesOf(rows []dbsqlc.ListThreadMessagesRow) []dbsqlc.ThreadMessage {
+	out := make([]dbsqlc.ThreadMessage, len(rows))
+	for i, r := range rows {
+		out[i] = r.ThreadMessage
+	}
+	return out
+}
+
+func (s *Service) answersBefore(ctx context.Context, by auth.Principal, thread pgtype.UUID) map[pgtype.UUID]Answer {
+	recent, err := s.db.Queries().ThreadTranscript(ctx, dbsqlc.ThreadTranscriptParams{ThreadID: thread, RowLimit: transcriptMessages})
+	if err != nil {
+		return nil
+	}
+	answers, err := s.answersOf(ctx, by, recent)
+	if err != nil {
+		return nil
+	}
+	return answers
 }

@@ -31,6 +31,7 @@ const (
 
 	transcriptMessages = 20
 	transcriptRunes    = 8000
+	answerRunes        = 1500
 	triggerMention     = "mention"
 
 	actionThreadAgentSet audit.Action = "thread.agent_set"
@@ -103,6 +104,9 @@ func (a *Asks) Reply(ctx context.Context, by auth.Principal, threadID pgtype.UUI
 	if err := req.precheck(threadOf(row, nil, rights{}).recipientState(), in.Body); err != nil {
 		return Sent{}, err
 	}
+	if req.checked {
+		req.answers = a.service.answersBefore(ctx, by, row.ID)
+	}
 	w, err := a.service.reply(ctx, by, row, sc, in, req.options())
 	if err != nil {
 		return Sent{}, err
@@ -122,6 +126,7 @@ type ask struct {
 	refusal   *RunRefusal
 	queuedRun *StartedRun
 	asked     bool
+	answers   map[pgtype.UUID]Answer
 }
 
 func (a *Asks) newAsk(ctx context.Context, by auth.Principal, sc scope, to To) *ask {
@@ -330,7 +335,7 @@ func capRefusal(err error) *RunRefusal {
 }
 
 func (r *ask) enqueue(q *dbsqlc.Queries, thread Thread, message Message, agent revisions.Assignee) (dbsqlc.AgentRequest, error) {
-	asked, err := askedIn(r.ctx, q, thread, message)
+	asked, err := askedIn(r.ctx, q, r.answers, thread, message)
 	if err != nil {
 		return dbsqlc.AgentRequest{}, err
 	}
@@ -367,7 +372,7 @@ type askContext struct {
 	point           revisions.Point
 }
 
-func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Message) (askContext, error) {
+func askedIn(ctx context.Context, q *dbsqlc.Queries, answers map[pgtype.UUID]Answer, thread Thread, message Message) (askContext, error) {
 	threadID, err := db.ParseUUID(thread.ID)
 	if err != nil {
 		return askContext{}, fmt.Errorf("thread id: %w", err)
@@ -384,7 +389,7 @@ func askedIn(ctx context.Context, q *dbsqlc.Queries, thread Thread, message Mess
 	if err != nil {
 		return askContext{}, err
 	}
-	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier), point: point}, nil
+	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier, answers), point: point}, nil
 }
 
 func pointOfThread(thread Thread) (revisions.Point, error) {
@@ -406,18 +411,29 @@ func pointOfThread(thread Thread) (revisions.Point, error) {
 	return point, nil
 }
 
-func transcriptOf(newestFirst []dbsqlc.ThreadMessage) string {
+func transcriptOf(newestFirst []dbsqlc.ThreadMessage, answers map[pgtype.UUID]Answer) string {
 	if len(newestFirst) == 0 {
 		return ""
 	}
 	lines := make([]string, 0, len(newestFirst))
 	for _, row := range slices.Backward(newestFirst) {
 		message := messageOf(row, nil, auth.Principal{}, false)
-		lines = append(lines, message.Author.Label()+": "+message.Body)
+		lines = append(lines, message.Author.Label()+": "+transcriptBody(message.Body, answerOf(answers, row)))
 	}
 	text := strings.Join(lines, "\n\n")
 	if n := utf8.RuneCountInString(text); n > transcriptRunes {
 		text = strings.TrimSpace(string([]rune(text)[n-transcriptRunes:]))
+	}
+	return text
+}
+
+func transcriptBody(body string, answer *Answer) string {
+	if answer == nil {
+		return body
+	}
+	text := strings.TrimSpace(answer.Title + "\n\n" + answer.Markdown)
+	if runes := []rune(text); len(runes) > answerRunes {
+		return strings.TrimSpace(string(runes[:answerRunes-len("...")])) + "..."
 	}
 	return text
 }
