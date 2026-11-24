@@ -224,6 +224,7 @@ It also names the free end of that row's last line and its height, so the model 
 
 The first save must come early.
 From the sixth model call since the session started, its history was shortened, or the last accepted save, reads are refused and only a save can run.
+A message in a chat with no dashboard or observation, which may turn out to be a question, gets the investigation limit below until its first panel is saved.
 The call before gets a note to save next.
 
 - A suggest run, which proposes one panel for the panel editor, gets 12 calls instead of 6, with the note at the 11th.

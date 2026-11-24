@@ -40,6 +40,7 @@ const (
 	messageReplayed    = "This is the result of the same earlier call. A third identical call is refused."
 
 	messageSaveNext    = "Save the next panel, or call save_finding if the request only asks a question, in your next call. From then on, reads run only in the same call as a save."
+	messageAnswerNext  = "Call save_finding with what you found in your next call, or save the first panel if the request asks for a dashboard. From then on, reads run only in the same call as a save."
 	messageProposeNext = "Propose the panel in your next call. From then on, reads run only in the same call as a proposal."
 	messageFindingNext = "One more read at most, then call save_finding."
 )
@@ -51,11 +52,6 @@ type rule struct {
 }
 
 var rules = map[string]rule{
-	guardSaveNow: {
-		message: fmt.Sprintf("%d model calls without a save; only a save can run now. Save the panel you have checked, or call save_finding if the request only asks a question, and say in it what you did not read; reads in the same call as a save still run.", maxCallsBeforeSave),
-		refused: fmt.Sprintf("%d model calls passed without a save", maxCallsBeforeSave),
-		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", maxCallsBeforeSave),
-	},
 	guardProposeNow: {
 		message: fmt.Sprintf("%d model calls without a proposal; only a proposal can run now. Propose the panel you have checked.", maxCallsBeforeProposal),
 		refused: fmt.Sprintf("%d model calls passed without a proposal", maxCallsBeforeProposal),
@@ -73,6 +69,18 @@ var rules = map[string]rule{
 	},
 }
 
+func saveRule(calls int, answering bool) rule {
+	choice := "Save the panel you have checked, or call save_finding if the request only asks a question"
+	if answering {
+		choice = "Call save_finding with what you found, or save the first panel if the request asks for a dashboard"
+	}
+	return rule{
+		message: fmt.Sprintf("%d model calls without a save; only a save can run now. %s, and say in it what you did not read; reads in the same call as a save still run.", calls, choice),
+		refused: fmt.Sprintf("%d model calls passed without a save", calls),
+		stopped: fmt.Sprintf("Stopped: the model kept reading after %d calls without a save", calls),
+	}
+}
+
 func findingRule(calls int) rule {
 	return rule{
 		message: fmt.Sprintf("%d model calls without a finding; only save_finding can run now. Save what you found and the evidence you checked, and say in it what you did not read.", calls),
@@ -82,10 +90,17 @@ func findingRule(calls int) rule {
 }
 
 func (s *State) rule(name string) rule {
-	if name == guardFindingNow {
+	switch name {
+	case guardFindingNow:
 		return findingRule(s.investigationCalls())
+	case guardSaveNow:
+		return saveRule(s.windowLimit(), s.answering())
 	}
 	return rules[name]
+}
+
+func (s *State) answering() bool {
+	return s.Mode == tools.ModeCreate && !s.Building
 }
 
 func (s *State) investigationCalls() int {
@@ -157,6 +172,9 @@ func (s *State) windowLimit() int {
 	case tools.ModeInvestigate:
 		return s.investigationCalls()
 	}
+	if s.answering() {
+		return s.investigationCalls()
+	}
 	return maxCallsBeforeSave
 }
 
@@ -182,6 +200,9 @@ func (s *State) nudge() string {
 		return messageProposeNext
 	case tools.ModeInvestigate:
 		return messageFindingNext
+	}
+	if s.answering() {
+		return messageAnswerNext
 	}
 	return messageSaveNext
 }
