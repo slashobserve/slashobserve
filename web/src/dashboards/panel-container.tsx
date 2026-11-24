@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -221,10 +220,20 @@ export const PanelContainer = memo(function PanelContainer({
   const ref = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
-  const spotRef = useRef<HTMLElement | null>(null)
-  useLayoutEffect(() => {
-    spotRef.current = surfaceRef.current ?? ref.current
-  })
+  const [panelElement, setPanelElement] = useState<HTMLElement | null>(null)
+  const [surfaceElement, setSurfaceElement] = useState<HTMLElement | null>(null)
+  const attachPanel = useCallback((element: HTMLDivElement | null) => {
+    ref.current = element
+    setPanelElement(element)
+  }, [])
+  const attachSurface = useCallback((element: HTMLDivElement | null) => {
+    surfaceRef.current = element
+    setSurfaceElement(element)
+  }, [])
+  const spot = useMemo(
+    () => ({ current: surfaceElement ?? panelElement }),
+    [surfaceElement, panelElement]
+  )
   const mountId = useId()
   const surfaceId =
     source.kind === "block" ? blockSurfaceId(source.blockId) : mountId
@@ -507,7 +516,7 @@ export const PanelContainer = memo(function PanelContainer({
 
   return (
     <div
-      ref={ref}
+      ref={attachPanel}
       className={cn(
         "relative size-full",
         pointing === "comment" &&
@@ -563,7 +572,7 @@ export const PanelContainer = memo(function PanelContainer({
       >
         <AnchorLayoutProvider value={layoutStore}>
           <div
-            ref={surfaceRef}
+            ref={attachSurface}
             data-canvas-surface=""
             className="relative size-full"
           >
@@ -625,7 +634,7 @@ export const PanelContainer = memo(function PanelContainer({
       {pointing !== "select" ? (
         <CanvasLayer
           containerRef={ref}
-          surfaceRef={surfaceRef}
+          surfaceRef={spot}
           store={layoutStore}
           surfaceId={surfaceId}
           ownerId={ownerId}
@@ -639,7 +648,7 @@ export const PanelContainer = memo(function PanelContainer({
         <CanvasSpots
           owner={{ ownerId, surfaceId, copy: repeatOf !== undefined }}
           panelTitle={panelName}
-          surfaceRef={spotRef}
+          surfaceRef={spot}
         />
       ) : null}
       {selected && !viewing ? (
