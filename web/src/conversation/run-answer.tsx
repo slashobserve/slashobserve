@@ -53,6 +53,15 @@ export function RunLine({ message, run }: { message: Message; run: Run }) {
 
 type MessageAnswer = NonNullable<Message["answer"]>
 
+export function shownAnswer(
+  message: Message,
+  thread: Thread | undefined
+): MessageAnswer | null {
+  const answer = message.answer ?? null
+  if (answer === null || thread === undefined) return null
+  return answer.finding.agent_request_id === null ? null : answer
+}
+
 export function RunAnswer({
   answer,
   target,

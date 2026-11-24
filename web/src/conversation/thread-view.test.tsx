@@ -269,6 +269,7 @@ describe("ThreadView", () => {
     })
     expect(await screen.findByText("Observe Agent")).toBeVisible()
     expect(screen.queryByText(/is working on it/)).toBeNull()
+    expect(screen.queryByText("Answered.")).toBeNull()
     expect(screen.getByRole("link", { name: "View the run" })).toBeVisible()
     const chip = await screen.findByRole("button", {
       name: "1 evidence panel",
@@ -276,6 +277,16 @@ describe("ThreadView", () => {
     expect(screen.queryByRole("article", { name: "Error rate" })).toBeNull()
     await user.click(chip)
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
+  })
+
+  it("keeps the stub reply body when the reader cannot see the answer", async () => {
+    stubFetch({})
+    show({
+      thread: thread(),
+      messages: [question, { ...answered(), answer: null }],
+    })
+    expect(await screen.findByText("Answered.")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /evidence panel/ })).toBeNull()
   })
 
   it("links a built-in reply with no answer to its run without fetching the run", async () => {

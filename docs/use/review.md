@@ -295,7 +295,7 @@ An external agent can pick the comment up over [MCP](mcp.md).
 ### Read and use the answer
 
 When the run left an answer, the reply shows it as an answer card: the answer, and a chip such as "2 evidence panels" that unfolds the evidence panels in place and folds them again.
-The reply itself reads "Answered.", and the answer shows under it in the thread, so everyone who can read the thread reads what was found without opening the run.
+The reply's own text is "Answered.", which the thread shows only when you cannot see the answer; otherwise the answer card stands in its place, so everyone who can read the thread reads what was found without opening the run.
 
 When the answer suggests a change to the dashboard, every reader sees "Suggested change: `<change>`".
 Someone who may reply in the thread also gets **Revise the dashboard**.

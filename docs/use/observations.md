@@ -314,9 +314,9 @@ The agent can be `@observe`, one of your connected agents or a service account t
 The message needs Comment on the observation.
 
 The run writes nothing on the page, for an Editor as for a Commenter.
-When it ends, the server posts one status line in the discussion, such as "Answered." with the answer under it.
-Everyone who can read the observation reads that answer in the discussion.
-The line is not the model's text, and it never resolves the discussion.
+When it ends, the server posts one status reply in the discussion, whose text is "Answered." when the run saved an answer.
+The web page shows the answer card in its place, and everyone who can read the observation reads that answer in the discussion.
+The reply is not the model's text, and it never resolves the discussion.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Messages over the API

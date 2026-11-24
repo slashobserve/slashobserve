@@ -27,7 +27,7 @@ import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 
 import type { AgentGate } from "./delivery"
-import { RunAnswer, RunLine, RunLink } from "./run-answer"
+import { RunAnswer, RunLine, RunLink, shownAnswer } from "./run-answer"
 import {
   panelText,
   replyCountText,
@@ -55,7 +55,7 @@ function MessageRow({
   arriving: boolean
   gate: AgentGate
 }) {
-  const answer = message.answer ?? null
+  const answer = shownAnswer(message, entry.thread)
   const builtinRunId = message.actor.run_id ?? null
   const pending = unansweredRun(message, entry.messages)
   return (
@@ -72,6 +72,7 @@ function MessageRow({
         people={people}
         target={target}
         queryKey={threadKeys.list(target)}
+        bodyHidden={answer !== null}
       />
       {builtinRunId === null ? null : (
         <p className="text-xs text-muted-foreground">
