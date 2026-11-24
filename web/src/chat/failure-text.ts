@@ -40,6 +40,11 @@ const texts: Record<string, FailureText> = {
     meaning: "The agent could not get its queries past the checks.",
     next: retryWithNames,
   },
+  restricted_answer: {
+    meaning:
+      "The run read data only Admins can read, so what it built cannot be saved where people who are not Admins read.",
+    next: "Ask again without the audit trail or an Admins-only datasource, or save it in a folder only Admins can read.",
+  },
   check_failed: {
     meaning: "The agent could not get its queries past the checks.",
     next: retryWithNames,

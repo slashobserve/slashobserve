@@ -40,6 +40,12 @@ describe("failureText", () => {
     )
   })
 
+  it("explains a run that read data only Admins can read", () => {
+    const text = failureText("restricted_answer")
+    expect(text?.meaning).toContain("read data only Admins can read")
+    expect(text?.next).not.toContain("name the metric")
+  })
+
   it("explains a run no outside agent took", () => {
     expect(failureText("agent_unavailable")).toEqual({
       meaning: "No outside agent took this run within 10 minutes.",

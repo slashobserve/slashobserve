@@ -410,6 +410,7 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - One save per turn: a second save in one turn is refused.
 - Repeated saves: a save identical to an earlier one is refused.
 - Rejected saves in a row: the third ends the run as `validation_exhausted`.
+- Saves refused with `restricted_answer` in a row: the third ends the run as `restricted_answer`, and they do not count as rejected saves.
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
@@ -1039,7 +1040,8 @@ It takes `datasource`, `table` and `limit`, 1 to 20 and 5 by default.
 Lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
 
 - With `datasource` it reads that one source.
-  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source, and ClickHouse answers once for its logs table and once for its traces table.
+  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
+  A source only Admins can query is left out unless you name it with `datasource`, so a plain listing does not mark an Admin's run as one that read Admin-only data.
 - `signal` (`logs` or `traces`) picks one signal.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.

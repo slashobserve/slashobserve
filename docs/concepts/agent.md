@@ -571,6 +571,7 @@ Every request records `trigger`, what started it: `person` when the requester as
 | `no_tool_call` | The model finished without saving. |
 | `refused` | The model refused. |
 | `validation_exhausted` | Three rejected saves in a row. |
+| `restricted_answer` | Three saves in a row were refused because the run read data only Admins can read. They do not count toward `validation_exhausted`. |
 | `no_progress` | The run stopped making progress. |
 | `budget_exhausted` | The run reached the server's cost limit. |
 | `conflict` | The dashboard changed twice while the agent was revising it. |

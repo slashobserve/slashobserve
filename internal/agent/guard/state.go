@@ -5,20 +5,21 @@ import (
 )
 
 type State struct {
-	Mode          tools.Mode      `json:"mode"`
-	ParentVersion int             `json:"parent_version"`
-	Building      bool            `json:"building"`
-	Rejections    int             `json:"rejections"`
-	Window        Window          `json:"window"`
-	LastGuard     string          `json:"last_guard,omitempty"`
-	Churn         map[string]int  `json:"churn,omitempty"`
-	ChurnedInRow  int             `json:"churned_in_row,omitempty"`
-	Reads         map[string]Read `json:"reads,omitempty"`
-	Saves         map[string]bool `json:"saves,omitempty"`
-	Unchecked     []Unchecked     `json:"unchecked,omitempty"`
-	Absence       Absence         `json:"absence,omitzero"`
-	Turn          Turn            `json:"turn"`
-	Counts        Counts          `json:"counts"`
+	Mode               tools.Mode      `json:"mode"`
+	ParentVersion      int             `json:"parent_version"`
+	Building           bool            `json:"building"`
+	Rejections         int             `json:"rejections"`
+	RestrictedRefusals int             `json:"restricted_refusals,omitempty"`
+	Window             Window          `json:"window"`
+	LastGuard          string          `json:"last_guard,omitempty"`
+	Churn              map[string]int  `json:"churn,omitempty"`
+	ChurnedInRow       int             `json:"churned_in_row,omitempty"`
+	Reads              map[string]Read `json:"reads,omitempty"`
+	Saves              map[string]bool `json:"saves,omitempty"`
+	Unchecked          []Unchecked     `json:"unchecked,omitempty"`
+	Absence            Absence         `json:"absence,omitzero"`
+	Turn               Turn            `json:"turn"`
+	Counts             Counts          `json:"counts"`
 
 	InvestigationCalls int `json:"investigation_calls,omitempty"`
 }
@@ -77,7 +78,7 @@ func (s *State) BeginSession(building bool, parentVersion int) {
 }
 
 func (s *State) Restart() {
-	s.Rejections = 0
+	s.Rejections, s.RestrictedRefusals = 0, 0
 	s.Window = Window{}
 	s.Churn, s.ChurnedInRow = nil, 0
 	s.Reads, s.Saves = nil, nil

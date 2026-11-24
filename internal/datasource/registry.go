@@ -269,6 +269,10 @@ func (r *Registry) Visible(ctx context.Context) []Instance {
 	return slices.DeleteFunc(r.all(), func(in Instance) bool { return !access.Reads(in.Audience) })
 }
 
+func (r *Registry) VisibleToEveryone(ctx context.Context) []Instance {
+	return slices.DeleteFunc(r.Visible(ctx), func(in Instance) bool { return in.Audience == AudienceAdmins })
+}
+
 func (r *Registry) AdminsOnly(uid string) bool {
 	r.instancesMu.RLock()
 	defer r.instancesMu.RUnlock()
