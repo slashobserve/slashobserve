@@ -169,7 +169,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKind(t *testing.T) {
 			want := map[string]tools.Tool{}
 			for _, tool := range f.reg.List() {
 				if tool.OfferedIn(mode) {
-					want[tool.Name] = tool.ForAgent()
+					want[tool.Name] = tool.ForRun(mode)
 				}
 			}
 			if len(listed) != len(want) {
