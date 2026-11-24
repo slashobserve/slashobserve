@@ -434,3 +434,29 @@ func TestServerInstructionsNameOnlyRealToolsAndFields(t *testing.T) {
 		t.Errorf("get_spec_guide is at %d and create_dashboard at %d; the guide must come first", guide, create)
 	}
 }
+
+func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
+	tool := toolsByName(t)[nameSaveFinding]
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
+		offered := tool.ForRun(mode)
+		var schema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if err := json.Unmarshal(offered.InputSchema, &schema); err != nil {
+			t.Fatalf("%s schema: %v", mode, err)
+		}
+		_, hasAskOn := schema.Properties["ask_on_dashboard_id"]
+		mentions := strings.Contains(offered.Description, "ask_on_dashboard_id") || strings.Contains(offered.Description, "on Home")
+		if want := mode == ModeCreate; hasAskOn != want || mentions != want {
+			t.Errorf("%s run: ask_on_dashboard_id in schema = %t, text mentions it = %t, want %t", mode, hasAskOn, mentions, want)
+		}
+		for _, name := range []string{"markdown", "title", "evidence", "from", "to", "suggested_change", "observe_worthy"} {
+			if _, ok := schema.Properties[name]; !ok {
+				t.Errorf("%s run: schema lacks %s", mode, name)
+			}
+		}
+	}
+	if got, want := tool.ForRun(ModeCreate).Description, tool.ForAgent().Description; got != want {
+		t.Errorf("a Home run's description differs from the agent's: %s", got)
+	}
+}

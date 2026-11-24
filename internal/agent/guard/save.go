@@ -111,6 +111,9 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		return Settled{}, ErrMalformed
 	}
 	if !res.IsError {
+		if s.Rejections > 0 {
+			s.Counts.Repairs++
+		}
 		if body.Code == codeProposed && body.ProposalID != "" && s.Mode == tools.ModeRevise {
 			s.Counts.BuildSaves++
 			s.Window = Window{}

@@ -33,7 +33,9 @@ const (
 
 	defaultWindow = time.Hour
 
-	descSaveFinding     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link. A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
+	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link."
+	descFindingAskOn    = " A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
+	descSaveFinding     = descFindingBase + descFindingAskOn
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
@@ -47,12 +49,23 @@ const (
 
 	maxSuggestedChangeRunes = 500
 
-	schemaSaveFinding = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,` + propFindingAskOn + `,` + propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
+	schemaFindingHead = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
+	schemaFindingTail = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
+
+	schemaSaveFinding        = schemaFindingHead + propFindingAskOn + `,` + schemaFindingTail
+	schemaSaveFindingNoAskOn = schemaFindingHead + schemaFindingTail
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
 
 func init() { registerEntries((*Registry).findingEntries) }
+
+func findingForRun(t Tool, mode Mode) Tool {
+	if mode != ModeCreate {
+		t.Description, t.InputSchema = descFindingBase, json.RawMessage(schemaSaveFindingNoAskOn)
+	}
+	return t
+}
 
 func (r *Registry) findingEntries() []entry {
 	return []entry{

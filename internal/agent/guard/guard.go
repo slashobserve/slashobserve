@@ -277,9 +277,6 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 		return s.refuse(c, adm, guardRepeatedSave)
 	}
 	s.Turn.Answered++
-	if s.Rejections > 0 {
-		s.Counts.Repairs++
-	}
 	if c.Name == toolSaveFinding {
 		adm.ReadsRefused = s.Window.Refused
 		adm.Unchecked = s.uncheckedReads()

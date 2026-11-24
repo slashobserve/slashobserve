@@ -289,7 +289,7 @@ Saving always lists its messages, because they name the panels, such as "Saved p
 A phase that needed a fix is marked with a warning icon.
 Under the timeline, "Running for 1m 12s" counts the time since the run started.
 
-When the run ends, the timeline collapses into a line such as "Ran 14 steps in 1m 12s for about $0.12, repaired 1 query".
+When the run ends, the timeline collapses into a line such as "Ran 14 steps in 1m 12s for about $0.12, retried 1 time".
 Open it to see every step again.
 The cost is the server's estimate from its price table, and it shows only when the model is priced.
 Only the server's step messages and errors are shown, and the answer the agent saved, which an investigation also writes into its observation.

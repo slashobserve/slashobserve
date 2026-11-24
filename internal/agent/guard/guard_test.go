@@ -335,18 +335,54 @@ func TestAdmitRefusesSaveFindingOnceBuilding(t *testing.T) {
 	}
 }
 
-func TestAdmitRefusesARepeatedSaveAndCountsARepairPhase(t *testing.T) {
+func TestAdmitRefusesARepeatedSaveAndMarksARepairPhase(t *testing.T) {
 	s := New(tools.ModeRevise)
 	s.Rejections = 1
 	s.BeginTurn(true)
 	first := s.Admit(0, jsonCall("update_panels", `{"n":1}`))
-	if first.Verdict != Dispatch || first.Phase != PhaseRepair || s.Counts.Repairs != 1 {
+	if first.Verdict != Dispatch || first.Phase != PhaseRepair || s.Counts.Repairs != 0 {
 		t.Fatalf("first save = %+v, repairs %d", first, s.Counts.Repairs)
 	}
 	s.BeginTurn(true)
 	again := s.Admit(0, jsonCall("update_panels", `{"n": 1}`))
-	if again.Verdict != Refuse || again.Step != "Refused update_panels: the same save was sent again" || s.Counts.Repairs != 1 {
+	if again.Verdict != Refuse || again.Step != "Refused update_panels: the same save was sent again" || s.Counts.Repairs != 0 {
 		t.Fatalf("repeated save = %+v, repairs %d", again, s.Counts.Repairs)
+	}
+}
+
+func TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne(t *testing.T) {
+	rejected := func(s *State) {
+		t.Helper()
+		if _, err := s.Settle(jsonCall("save_finding", `{}`), tools.Result{IsError: true}, []byte(`{"code":"invalid_request"}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	accepted := func(s *State) {
+		t.Helper()
+		if _, err := s.Settle(jsonCall("save_finding", `{}`), tools.Result{}, []byte(`{"finding_id":"f"}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []struct {
+		name string
+		runs []func(*State)
+		want int
+	}{
+		{"an accepted save alone", []func(*State){accepted}, 0},
+		{"a rejected save alone", []func(*State){rejected}, 0},
+		{"two rejected saves", []func(*State){rejected, rejected}, 0},
+		{"a rejected save then an accepted one", []func(*State){rejected, accepted}, 1},
+		{"two rejected saves then an accepted one", []func(*State){rejected, rejected, accepted}, 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := New(tools.ModeInvestigate)
+			for _, step := range c.runs {
+				step(&s)
+			}
+			if s.Counts.Repairs != c.want {
+				t.Fatalf("repairs = %d, want %d", s.Counts.Repairs, c.want)
+			}
+		})
 	}
 }
 

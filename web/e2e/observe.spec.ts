@@ -98,7 +98,7 @@ test("records the repair step and reopens finished requests", async ({
   await expect(page).toHaveURL(new RegExp(`/c/${request.id}$`))
   const summary = page
     .locator("summary")
-    .filter({ hasText: /repaired 1 query/ })
+    .filter({ hasText: /retried 1 time/ })
   await expect(summary).toBeVisible()
   await summary.click()
   await expect(
