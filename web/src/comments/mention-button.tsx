@@ -137,9 +137,9 @@ export function MentionButton({
   }
 
   const stale = step !== null && !step.open
-  const keys = useRef({ options, active, insert, close, typed })
+  const keys = useRef({ options, active, insert, close, typed, searching })
   useEffect(() => {
-    keys.current = { options, active, insert, close, typed }
+    keys.current = { options, active, insert, close, typed, searching }
   })
   useEffect(() => {
     if (stale) keys.current.close()
@@ -154,6 +154,9 @@ export function MentionButton({
         key: event.key,
         active: now.active,
         count: now.options.length,
+        modified:
+          event.shiftKey || event.metaKey || event.ctrlKey || event.altKey,
+        searching: now.searching,
       })
       if (result.kind === "pass") return
       event.preventDefault()

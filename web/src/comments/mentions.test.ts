@@ -448,6 +448,18 @@ describe("inlineKeyStep", () => {
     })
   })
 
+  it("lets Shift, Cmd and Ctrl with Enter through for a new line or a send", () => {
+    expect(
+      inlineKeyStep({ key: "Enter", active: -1, count: 3, modified: true })
+    ).toEqual({ kind: "pass" })
+  })
+
+  it("holds Enter while people are still being searched", () => {
+    expect(
+      inlineKeyStep({ key: "Enter", active: -1, count: 0, searching: true })
+    ).toEqual({ kind: "hold" })
+  })
+
   it("lets Enter through when nothing is offered", () => {
     expect(inlineKeyStep({ key: "Enter", active: 0, count: 0 })).toEqual({
       kind: "pass",
