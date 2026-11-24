@@ -137,10 +137,13 @@ function NextRunNote({
   )
 }
 
-function failureHeading(origin: RequestOrigin): string {
+function failureHeading(request: FailedRequest, buildLeft: boolean): string {
+  const origin = requestOrigin(request)
   switch (origin) {
     case "observe":
-      return "The dashboard could not be built"
+      return request.intent === "ask" && !buildLeft
+        ? "The question could not be answered"
+        : "The dashboard could not be built"
     case "investigate":
       return "The question could not be answered"
     default:
@@ -163,6 +166,10 @@ export function TurnFailure({
     request.allowed_actions.includes("continue") ||
     request.allowed_actions.includes("keep_build")
   const explained = failureText(request.failure_code, buildLeft)
+  const detail = request.error === null ? null : sentence(request.error)
+  const detailRepeatsMeaning =
+    explained !== null &&
+    detail?.toLowerCase() === explained.meaning.toLowerCase()
   const [retrying, setRetrying] = useState(false)
   const canRetry = request.allowed_actions.includes("retry")
   const followedUp =
@@ -197,16 +204,16 @@ export function TurnFailure({
           ) : (
             <>
               <p className="font-semibold">
-                {failureHeading(requestOrigin(request))}
+                {failureHeading(request, buildLeft)}
               </p>
               <p className="wrap-anywhere text-muted-foreground">
                 {explained?.meaning ??
                   sentence(request.error ?? "The request failed")}
               </p>
-              {explained !== null && request.error !== null ? (
-                <p className="wrap-anywhere text-muted-foreground">
-                  {sentence(request.error)}
-                </p>
+              {explained !== null &&
+              detail !== null &&
+              !detailRepeatsMeaning ? (
+                <p className="wrap-anywhere text-muted-foreground">{detail}</p>
               ) : null}
             </>
           )}

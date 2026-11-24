@@ -17,10 +17,10 @@ const base = {
   allowed_actions: ["retry" as const],
 }
 
-function renderFailure(failureCode: string) {
+function renderFailure(failureCode: string, extra: object = {}) {
   return renderWithProviders(
     <TurnFailure
-      request={{ ...base, failure_code: failureCode }}
+      request={{ ...base, failure_code: failureCode, ...extra }}
       onRetried={vi.fn()}
     />,
     { route: { path: "/", url: "/" } }
@@ -88,5 +88,42 @@ describe("TurnFailure", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The dashboard could not be built"
     )
+  })
+
+  it("titles a failed question as a question and prints the reason once", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      error: "the agent stopped making progress",
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The question could not be answered"
+    )
+    expect(screen.queryByText(/could not be built/i)).toBeNull()
+    expect(
+      screen.getAllByText("The agent stopped making progress.")
+    ).toHaveLength(1)
+  })
+
+  it("keeps the dashboard title for an ask that left a build behind", async () => {
+    renderFailure("no_progress", {
+      intent: "ask",
+      kind: "build",
+      allowed_actions: ["retry", "continue"],
+    })
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The dashboard could not be built"
+    )
+  })
+
+  it("keeps a reason that adds to the explanation", async () => {
+    renderFailure("no_progress", {
+      error: "Stopped: the model kept reading after 12 calls without a save",
+    })
+    expect(
+      await screen.findByText(
+        "Stopped: the model kept reading after 12 calls without a save."
+      )
+    ).toBeInTheDocument()
   })
 })
