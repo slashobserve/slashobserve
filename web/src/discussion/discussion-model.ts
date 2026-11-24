@@ -27,7 +27,7 @@ function byCreation(
   return gap !== 0 ? gap : a.id.localeCompare(b.id)
 }
 
-export type Posting = { thread: ThreadWithMessages | null; canWrite: boolean }
+type Posting = { thread: ThreadWithMessages | null; canWrite: boolean }
 
 export type DiscussionModel = {
   messages: Message[]
