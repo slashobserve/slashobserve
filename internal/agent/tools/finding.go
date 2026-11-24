@@ -123,9 +123,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
-	if suggested != "" {
-		in.Markdown = withoutSuggestedChange(in.Markdown)
-	}
+	in.Markdown = markdownWithoutSuggestedChange(in.Markdown, suggested)
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Investigation))
 	if err != nil || !ok {
 		return res, err
@@ -185,30 +183,46 @@ func suggestedChange(raw string, run Run) (string, Result, bool) {
 	return text, Result{}, true
 }
 
-var suggestedChangeLine = regexp.MustCompile(`(?i)^[\s>*_#-]*suggested change[*_]*\s*:`)
+var (
+	suggestedChangeLabel = regexp.MustCompile(`(?i)^ {0,3}[*_]{0,3}(?:suggested changes?|suggested_change)[*_]{0,3}\s*:`)
+	codeFence            = regexp.MustCompile("^ {0,3}(```+|~~~+)")
+)
+
+func markdownWithoutSuggestedChange(markdown, suggested string) string {
+	if suggested == "" {
+		return markdown
+	}
+	return withoutSuggestedChange(markdown)
+}
 
 func withoutSuggestedChange(markdown string) string {
 	lines := strings.Split(markdown, "\n")
-	kept := lines[:0:0]
-	for _, line := range lines {
-		if !strings.Contains(line, "suggested_change") {
-			kept = append(kept, line)
-		}
-	}
-	for last := len(kept) - 1; last >= 0; last-- {
-		if strings.TrimSpace(kept[last]) == "" {
+	cut, fence := -1, ""
+	for i, line := range lines {
+		if m := codeFence.FindStringSubmatch(line); m != nil {
+			switch {
+			case fence == "":
+				fence = m[1][:1]
+			case strings.HasPrefix(m[1], fence):
+				fence = ""
+			}
 			continue
 		}
-		if suggestedChangeLine.MatchString(kept[last]) {
-			kept = kept[:last]
+		if fence == "" && suggestedChangeLabel.MatchString(line) {
+			cut = i
 		}
-		break
 	}
-	trimmed := strings.TrimSpace(strings.Join(kept, "\n"))
-	if trimmed == "" {
+	if cut < 0 {
 		return markdown
 	}
-	return trimmed
+	kept := lines[:cut]
+	for len(kept) > 0 && strings.TrimSpace(kept[len(kept)-1]) == "" {
+		kept = kept[:len(kept)-1]
+	}
+	if len(kept) == 0 {
+		return markdown
+	}
+	return strings.Join(kept, "\n")
 }
 
 func (r *Registry) checkFinding(ctx context.Context, principal auth.Principal, in findingInput, defaultFrom, defaultTo time.Time, title string) (findings.SaveInput, Result, bool, error) {
