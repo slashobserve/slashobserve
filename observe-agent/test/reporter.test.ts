@@ -92,13 +92,19 @@ describe("Reporter usage reports", () => {
   }
 
   function reporterOver(
-    reportRun: (input: unknown) => Promise<unknown>,
-    ended: RunEnded[] = []
+    reportRun: (input: unknown, signal?: AbortSignal) => Promise<unknown>,
+    ended: RunEnded[] = [],
+    usageBudgetMs?: number
   ): Reporter {
     return new Reporter(
       { reportRun } as unknown as ClaimApi,
       { run_id: "r", attempt: 1 },
-      { heartbeatMs: 1_000_000, textFlushMs: 1_000_000, usageRetryMs: [1, 1] },
+      {
+        heartbeatMs: 1_000_000,
+        textFlushMs: 1_000_000,
+        usageRetryMs: [1, 1],
+        ...(usageBudgetMs === undefined ? {} : { usageBudgetMs }),
+      },
       { onBuild: () => {}, onEnd: (e) => ended.push(e) },
       new AbortController().signal
     )
@@ -126,6 +132,24 @@ describe("Reporter usage reports", () => {
     })
     await expect(reporter.report(usage)).rejects.toBeInstanceOf(McpError)
     expect(calls).toBe(3)
+  })
+
+  test("a usage report never blocks longer than its budget", async () => {
+    let calls = 0
+    const reporter = reporterOver(
+      (_input, signal) => {
+        calls += 1
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(timeout()))
+        })
+      },
+      [],
+      50
+    )
+    const started = Date.now()
+    await expect(reporter.report(usage)).rejects.toBeInstanceOf(McpError)
+    expect(Date.now() - started).toBeLessThan(1_000)
+    expect(calls).toBe(1)
   })
 
   test("a text only report keeps its single retry", async () => {

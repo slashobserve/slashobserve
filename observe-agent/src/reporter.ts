@@ -11,6 +11,7 @@ export const heartbeatMs = 5_000
 export const textFlushMs = 1_000
 export const maxTextCodePoints = 4_000
 export const usageRetryMs: readonly number[] = [250, 1_000]
+export const usageReportBudgetMs = 20_000
 
 export class RunEnded extends Error {
   readonly state: string
@@ -26,6 +27,7 @@ export type ReporterOptions = {
   heartbeatMs: number
   textFlushMs: number
   usageRetryMs?: readonly number[]
+  usageBudgetMs?: number
 }
 
 export type ReporterHooks = {
@@ -188,21 +190,33 @@ export class Reporter {
     usage?: Usage
   }): Promise<ReportAnswer> {
     const input = { ...this.run, ...body }
-    const retries =
-      body.usage === undefined
-        ? [0]
-        : (this.options.usageRetryMs ?? usageRetryMs)
-    for (const delayMs of retries) {
+    const bounded = body.usage !== undefined
+    const waits = bounded ? (this.options.usageRetryMs ?? usageRetryMs) : [0]
+    const deadline =
+      Date.now() +
+      (bounded ? (this.options.usageBudgetMs ?? usageReportBudgetMs) : Infinity)
+    for (let tries = 0; ; tries += 1) {
+      const signal = bounded
+        ? AbortSignal.any([
+            this.signal,
+            AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+          ])
+        : this.signal
       try {
-        return await this.api.reportRun(input, this.signal)
+        return await this.api.reportRun(input, signal)
       } catch (error) {
-        if (error instanceof ToolError || this.signal.aborted) {
+        const wait = waits[tries]
+        if (
+          error instanceof ToolError ||
+          this.signal.aborted ||
+          wait === undefined ||
+          Date.now() + wait >= deadline
+        ) {
           throw error
         }
-        await this.pause(delayMs)
+        await this.pause(wait)
       }
     }
-    return this.api.reportRun(input, this.signal)
   }
 
   private pause(ms: number): Promise<void> {
