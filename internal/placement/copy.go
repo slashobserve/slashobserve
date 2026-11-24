@@ -28,7 +28,7 @@ func Copy(ctx context.Context, q *dbsqlc.Queries, from Copied, folderID pgtype.U
 		return false, folders.RestrictedAnswerCopy(from.Kind)
 	case err != nil:
 		return false, fmt.Errorf("lock folder: %w", err)
-	case !folder.AdminsOnly:
+	case !readOnlyByAdmins(folder):
 		return false, folders.RestrictedAnswerCopy(from.Kind)
 	}
 	return true, nil

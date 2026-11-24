@@ -24,7 +24,11 @@ func Answer(ctx context.Context, q *dbsqlc.Queries, runID, folderID pgtype.UUID)
 	if err != nil {
 		return fmt.Errorf("lock folder: %w", err)
 	}
-	return folders.ShowAnswer(restricted, folder.AdminsOnly)
+	return folders.ShowAnswer(restricted, readOnlyByAdmins(folder))
+}
+
+func readOnlyByAdmins(folder dbsqlc.ShareFolderPlacementRow) bool {
+	return folder.AdminsOnly || folder.AdminPersonal
 }
 
 func AnswerOnDashboard(ctx context.Context, q *dbsqlc.Queries, runID, dashboardID pgtype.UUID) error {
@@ -71,7 +75,7 @@ type keptWithAdmins struct{ Restricted, InFlight bool }
 
 func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error)) error {
 	folder, err := q.ShareFolderPlacement(ctx, to)
-	if err == nil && folder.AdminsOnly {
+	if err == nil && readOnlyByAdmins(folder) {
 		return nil
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
