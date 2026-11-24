@@ -21,7 +21,7 @@ Register `<public url>/api/v1/auth/callback` as the client's redirect URI; [Sign
 2. Pull the image:
 
    ```sh
-   docker pull ghcr.io/slashobserve/slashobserve:0.1.4
+   docker pull ghcr.io/slashobserve/slashobserve:0.1.5
    ```
 
 3. Write the settings to an env file such as `slashobserve.env`.
@@ -53,7 +53,7 @@ Register `<public url>/api/v1/auth/callback` as the client's redirect URI; [Sign
      -p 127.0.0.1:8080:8080 \
      --env-file slashobserve.env \
      -v "$PWD/datasources.yaml:/etc/slashobserve/datasources.yaml:ro" \
-     ghcr.io/slashobserve/slashobserve:0.1.4
+     ghcr.io/slashobserve/slashobserve:0.1.5
    ```
 
 5. Check that the server is ready:
@@ -70,7 +70,7 @@ Register `<public url>/api/v1/auth/callback` as the client's redirect URI; [Sign
 
 ## Choose an image tag
 
-Each release gets three tags: its full version such as `0.1.4`, its minor version such as `0.1`, and `latest`.
+Each release gets three tags: its full version such as `0.1.5`, its minor version such as `0.1`, and `latest`.
 A prerelease gets only its full version.
 Pin the full version.
 A new server applies database migrations when it starts, so the version you run should change only when you decide to upgrade.
