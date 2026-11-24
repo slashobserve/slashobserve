@@ -53,6 +53,15 @@ export function RunLine({ message, run }: { message: Message; run: Run }) {
 
 type MessageAnswer = NonNullable<Message["answer"]>
 
+const answeredReply = "Answered."
+
+export function answerCoversBody(
+  message: Message,
+  answer: MessageAnswer | null
+): boolean {
+  return answer !== null && message.body === answeredReply
+}
+
 export function shownAnswer(
   message: Message,
   thread: Thread | undefined

@@ -27,7 +27,13 @@ import { markOf } from "@/lib/author"
 import { cn } from "@/lib/utils"
 
 import type { AgentGate } from "./delivery"
-import { RunAnswer, RunLine, RunLink, shownAnswer } from "./run-answer"
+import {
+  answerCoversBody,
+  RunAnswer,
+  RunLine,
+  RunLink,
+  shownAnswer,
+} from "./run-answer"
 import {
   panelText,
   replyCountText,
@@ -72,7 +78,7 @@ function MessageRow({
         people={people}
         target={target}
         queryKey={threadKeys.list(target)}
-        bodyHidden={answer !== null}
+        bodyHidden={answerCoversBody(message, answer)}
       />
       {builtinRunId === null ? null : (
         <p className="text-xs text-muted-foreground">

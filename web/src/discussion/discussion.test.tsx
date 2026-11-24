@@ -386,6 +386,18 @@ describe("Discussion with a run", () => {
     ).toBeInTheDocument()
   })
 
+  it("keeps a reply body that is not the stub text beside the answer card", async () => {
+    const restricted: Message = {
+      ...answered(),
+      body: "The answer is kept where only Admins read it.",
+    }
+    mockServer({ threads: [thread], messages: () => [asked, restricted] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(await within(list).findByText(restricted.body)).toBeInTheDocument()
+    expect(await within(list).findByText("doubled")).toBeInTheDocument()
+  })
+
   it("keeps the stub reply body when the reader cannot see the answer", async () => {
     const hidden: Message = { ...answered(), answer: null }
     mockServer({ threads: [thread], messages: () => [asked, hidden] })

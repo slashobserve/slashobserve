@@ -9,6 +9,11 @@ import { MessageText } from "@/comments/message-text"
 import { useThreads, type ThreadWithMessages } from "@/comments/thread-queries"
 import { Composer } from "@/conversation/composer"
 import { threadPlace, ungated } from "@/conversation/delivery"
+import {
+  answerCoversBody,
+  RunAnswer,
+  shownAnswer,
+} from "@/conversation/run-answer"
 import { subjectOf } from "@/conversation/send-plan"
 import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
@@ -65,25 +70,37 @@ export function ThreadDetail({
   return (
     <div className="flex flex-col gap-3">
       <ol aria-label="Thread" className="flex flex-col">
-        {messages.map((message) => (
-          <EntryFrame
-            key={message.id}
-            nested
-            avatar={markOf(message.actor)}
-            who={message.actor.label}
-            verb={message.id === threadId ? "wrote" : "replied"}
-            at={message.created_at}
-            edited={message.edited_at !== null}
-          >
-            <MessageText
-              message={message}
-              people={people}
-              target={target}
-              queryKey={threadKeys.list(target)}
-              root={message.id === threadId}
-            />
-          </EntryFrame>
-        ))}
+        {messages.map((message) => {
+          const answer = shownAnswer(message, thread.thread)
+          return (
+            <EntryFrame
+              key={message.id}
+              nested
+              avatar={markOf(message.actor)}
+              who={message.actor.label}
+              verb={message.id === threadId ? "wrote" : "replied"}
+              at={message.created_at}
+              edited={message.edited_at !== null}
+            >
+              <MessageText
+                message={message}
+                people={people}
+                target={target}
+                queryKey={threadKeys.list(target)}
+                root={message.id === threadId}
+                bodyHidden={answerCoversBody(message, answer)}
+              />
+              {answer === null ? null : (
+                <RunAnswer
+                  answer={answer}
+                  target={target}
+                  thread={thread.thread}
+                  gate={{ kind: "allowed" }}
+                />
+              )}
+            </EntryFrame>
+          )
+        })}
       </ol>
       {canComment ? (
         <ThreadReply target={target} thread={thread} people={people} />

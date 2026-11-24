@@ -279,6 +279,23 @@ describe("ThreadView", () => {
     expect(screen.getByRole("article", { name: "Error rate" })).toBeVisible()
   })
 
+  it("keeps a reply body that is not the stub text beside the answer card", async () => {
+    stubFetch({})
+    show({
+      thread: thread(),
+      messages: [
+        question,
+        { ...answered(), body: "The run failed: it did not finish." },
+      ],
+    })
+    expect(
+      await screen.findByText("The run failed: it did not finish.")
+    ).toBeVisible()
+    expect(
+      await screen.findByRole("button", { name: "1 evidence panel" })
+    ).toBeVisible()
+  })
+
   it("keeps the stub reply body when the reader cannot see the answer", async () => {
     stubFetch({})
     show({
