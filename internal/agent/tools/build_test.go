@@ -1480,10 +1480,33 @@ func TestAProposeModeFinishThatRemovedAPanelAnswersProposalRequiredAndKeepsTheBu
 }
 
 func TestTheNoBuildMessageSaysHowToChangeAnExistingDashboard(t *testing.T) {
-	for _, want := range []string{"call create_dashboard first", "cannot change an existing dashboard", "end with save_finding", "ask_on_dashboard_id", "exactly one"} {
+	for _, want := range []string{"call create_dashboard first", "changed from its own chat", "end with save_finding", "ask_on_dashboard_id", "exactly one"} {
 		if !strings.Contains(noBuildYet, want) {
 			t.Errorf("message lacks %q: %s", want, noBuildYet)
 		}
+	}
+}
+
+func TestAskRunToolTextNeverRefusesAChangeAndNamesRevise(t *testing.T) {
+	byName := toolsByName(t)
+	finding := byName[nameSaveFinding]
+	for name, text := range map[string]string{
+		"save_finding description": finding.Description,
+		"save_finding schema":      string(finding.InputSchema),
+		"no build message":         noBuildYet,
+		"agent save_finding text":  finding.ForAgent().Description + string(finding.ForAgent().InputSchema),
+	} {
+		if strings.Contains(strings.ToLower(text), "cannot change") || strings.Contains(strings.ToLower(text), "never change") {
+			t.Errorf("%s reads as a refusal: %s", name, text)
+		}
+	}
+	for _, want := range []string{"Revise the dashboard", "in their terms, unless unsafe or impossible"} {
+		if !strings.Contains(string(finding.InputSchema), want) {
+			t.Errorf("suggested_change lacks %q", want)
+		}
+	}
+	if !strings.Contains(finding.Description, "from its own chat") {
+		t.Errorf("save_finding description does not send a Home change to the dashboard's own chat: %s", finding.Description)
 	}
 }
 
