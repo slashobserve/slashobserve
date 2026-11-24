@@ -6,7 +6,7 @@ import (
 )
 
 type runKey struct {
-	id      string
+	id      [16]byte
 	attempt int
 }
 
@@ -35,10 +35,10 @@ func (l *runLocks) acquire(ctx context.Context, key runKey) (release func(), err
 
 	select {
 	case entry.held <- struct{}{}:
-		return func() {
+		return sync.OnceFunc(func() {
 			<-entry.held
 			l.leave(key, entry)
-		}, nil
+		}), nil
 	case <-ctx.Done():
 		l.leave(key, entry)
 		return nil, ctx.Err()
@@ -52,6 +52,15 @@ func (l *runLocks) leave(key runKey, entry *runLock) {
 	if entry.waiting == 0 {
 		delete(l.entries, key)
 	}
+}
+
+func (l *runLocks) waiters(key runKey) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if entry := l.entries[key]; entry != nil {
+		return entry.waiting
+	}
+	return 0
 }
 
 func (l *runLocks) size() int {

@@ -68,7 +68,14 @@ func TestABusyRunDoesNotStarveOtherRunsOrItsOwnLeaseReport(t *testing.T) {
 			}
 		})
 	}
-	time.Sleep(300 * time.Millisecond)
+	busyKey := runKey{id: mustUUID(t, busy.ID).Bytes, attempt: busy.Attempt}
+	queued := time.Now().Add(otherCallLimit)
+	for r.svc.runLocks.waiters(busyKey) < busyRunCalls && time.Now().Before(queued) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if got := r.svc.runLocks.waiters(busyKey); got < busyRunCalls {
+		t.Fatalf("%d of %d calls of the busy run are queued", got, busyRunCalls)
+	}
 
 	otherCtx, otherCancel := context.WithTimeout(context.Background(), otherCallLimit)
 	defer otherCancel()

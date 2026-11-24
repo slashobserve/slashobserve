@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -38,7 +39,7 @@ type slots chan struct{}
 func (l slots) acquire(ctx context.Context) (release func(), err error) {
 	select {
 	case l <- struct{}{}:
-		return func() { <-l }, nil
+		return sync.OnceFunc(func() { <-l }), nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
@@ -127,16 +128,16 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	if err != nil {
 		return fmt.Errorf("run session: run id: %w", err)
 	}
-	unlock, err := s.runLocks.acquire(ctx, runKey{id: req.ID, attempt: req.Attempt})
+	unlock, err := s.runLocks.acquire(ctx, runKey{id: id.Bytes, attempt: req.Attempt})
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	release, err := s.inFlight.acquire(ctx)
+	releaseSlot, err := s.inFlight.acquire(ctx)
 	if err != nil {
 		return err
 	}
-	defer release()
+	defer releaseSlot()
 	ctx = origin.With(auth.WithPrincipal(ctx, req.RequestedBy), req.WriteOrigin(origin.From(ctx)))
 	writes, err := s.runWrites(ctx, req)
 	if err != nil {
@@ -160,6 +161,8 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 	if err != nil {
 		return err
 	}
+	releaseSlot()
+	unlock()
 	for _, step := range steps {
 		s.steps.RecordStep(context.WithoutCancel(ctx), req, step)
 	}

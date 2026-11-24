@@ -11,7 +11,7 @@ import (
 
 func TestRunLockAdmitsOneHolderPerKey(t *testing.T) {
 	var locks runLocks
-	key := runKey{id: "run", attempt: 1}
+	key := runKey{id: [16]byte{1}, attempt: 1}
 	var inside, overlaps atomic.Int32
 	var wg sync.WaitGroup
 	for range 50 {
@@ -40,16 +40,42 @@ func TestRunLockAdmitsOneHolderPerKey(t *testing.T) {
 	}
 }
 
+func TestRunLockCountsHolderAndWaiters(t *testing.T) {
+	var locks runLocks
+	key := runKey{id: [16]byte{1}, attempt: 1}
+	holder, err := locks.acquire(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	var waiter sync.WaitGroup
+	waiter.Go(func() { _, _ = locks.acquire(ctx, key) })
+	deadline := time.Now().Add(time.Second)
+	for locks.waiters(key) != 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := locks.waiters(key); got != 2 {
+		t.Fatalf("waiters = %d, want the holder and one waiter", got)
+	}
+	cancel()
+	waiter.Wait()
+	holder()
+	holder()
+	if locks.size() != 0 {
+		t.Fatalf("%d entries left", locks.size())
+	}
+}
+
 func TestRunLockKeysDoNotBlockEachOther(t *testing.T) {
 	var locks runLocks
-	first, err := locks.acquire(context.Background(), runKey{id: "run", attempt: 1})
+	first, err := locks.acquire(context.Background(), runKey{id: [16]byte{1}, attempt: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer first()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	for _, key := range []runKey{{id: "run", attempt: 2}, {id: "other", attempt: 1}} {
+	for _, key := range []runKey{{id: [16]byte{1}, attempt: 2}, {id: [16]byte{2}, attempt: 1}} {
 		release, err := locks.acquire(ctx, key)
 		if err != nil {
 			t.Fatalf("key %+v waited behind another key: %v", key, err)
@@ -60,7 +86,7 @@ func TestRunLockKeysDoNotBlockEachOther(t *testing.T) {
 
 func TestRunLockWaiterThatGivesUpLeavesNoEntryAndKeepsTheHolder(t *testing.T) {
 	var locks runLocks
-	key := runKey{id: "run", attempt: 1}
+	key := runKey{id: [16]byte{1}, attempt: 1}
 	holder, err := locks.acquire(context.Background(), key)
 	if err != nil {
 		t.Fatal(err)
@@ -81,7 +107,7 @@ func TestRunLockWaiterThatGivesUpLeavesNoEntryAndKeepsTheHolder(t *testing.T) {
 
 func TestRunLockAcquireWithACanceledContextLeavesNoEntry(t *testing.T) {
 	var locks runLocks
-	key := runKey{id: "run", attempt: 1}
+	key := runKey{id: [16]byte{1}, attempt: 1}
 	holder, err := locks.acquire(context.Background(), key)
 	if err != nil {
 		t.Fatal(err)
