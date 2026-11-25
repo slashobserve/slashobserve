@@ -53,8 +53,13 @@ func TestBuildAnswersHomeQuestionsInTheLengthTheRequestNames(t *testing.T) {
 func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
-		"Give one value per quantity, at the precision you measured",
-		"lead with the verdict and the one number that decides it",
+		"Give one value per quantity, copied at the precision the tool returned and never rounded or truncated",
+		"never a total or a neighbouring quantity in its place",
+		"make one more read that settles it and state only that figure",
+		"never report both candidates or which one you trust",
+		"Answer at the grain the question names, its window, its aggregation and whether it is per request or a total",
+		"a short spike or peak inside the window comes later as a separate observation, never as the headline",
+		"the first sentence is a plain verdict from that comparison with the one number that decides it",
 		"That window is a default, not a limit of the question",
 		"take the next read yourself instead of suggesting it",
 		"the deepest erroring span is the origin",
@@ -63,6 +68,11 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
+		}
+	}
+	for _, gone := range []string{"say which one you trust in one clause", "lead with the verdict and the one number that decides it"} {
+		if strings.Contains(system, gone) {
+			t.Errorf("system text still has %q", gone)
 		}
 	}
 }

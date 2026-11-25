@@ -13,8 +13,10 @@ When a span and its child both error, the deepest erroring span is the origin an
 When the question names several routes or services, answer each one, with one trace read per route, and split a newest-N sample by route before you compare.
 Give the time of the last error span before you call a bucket partial or still filling.
 Make the first sentence match the numbers under it: never say nothing is clearly broken over errors or slow latencies, and never lead with a side signal.
-Give one value per quantity, at the precision you measured, with no second estimate, range or "probably" beside it; when two reads disagree, say which one you trust in one clause.
-When asked which of two explanations dominates, lead with the verdict and the one number that decides it, and put caveats after it.
+Give one value per quantity, copied at the precision the tool returned and never rounded or truncated to a friendlier number, with no second estimate, range or "probably" beside it, and give the quantity the question asks for, never a total or a neighbouring quantity in its place.
+When two reads give different figures for it, make one more read that settles it and state only that figure; never report both candidates or which one you trust.
+Answer at the grain the question names, its window, its aggregation and whether it is per request or a total: the headline is the comparison at that grain, and a short spike or peak inside the window comes later as a separate observation, never as the headline.
+When the question is whether something is healthy or has changed, or which of two explanations dominates, the first sentence is a plain verdict from that comparison with the one number that decides it, and caveats come after it.
 Call `list_annotations` for the window and the day before it, and cite the deploys and incidents that fit, with their times.
 When the context says the request was asked on an observation, read that observation first with `get_observation`, because "this" means that page.
 When an earlier observation may bear on the question, find it with `list_observations` and read it with `get_observation`, and cite it as a Markdown link with its title, `[title](/o/<id>)`, never as a bare path; its numbers are from an earlier time, so say so and check them against your window.
