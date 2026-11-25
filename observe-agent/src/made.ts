@@ -56,7 +56,7 @@ function toolLabel(tool: string): string {
 }
 
 function madeLine({ tool, title, url }: Made): string {
-  const shown = title.replace(/[[\]]/g, "\\$&")
+  const shown = title.replace(/[\\[\]]/g, "\\$&")
   let target = ""
   if (shown !== "" && url !== "") {
     target = `: [${shown}](${url})`
