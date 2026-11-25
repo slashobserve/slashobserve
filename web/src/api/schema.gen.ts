@@ -6511,7 +6511,7 @@ export interface components {
             nudges: number;
             /** @description Read calls refused because the run reached its limit of model calls without a save, which is 6 in a revision and once a build has saved a panel, the investigation limit (12 by default) in a chat question before its first save, and 12 without a proposal in a suggest run. */
             save_now_refusals: number;
-            /** @description Turns in which the agent answered no call because every call was refused. */
+            /** @description Turns in which the agent answered no call because every call was refused, or made only hypothesis ledger calls. */
             stalled_turns: number;
             /** @description Saves refused for adding or changing more than one panel. */
             one_panel_refusals: number;
