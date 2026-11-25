@@ -236,13 +236,6 @@ func (r *Registry) panelOfDashboard(ctx context.Context, dashboardID string, d *
 		return shownPanel{}, invalid("panel %s is a %s panel, which the chart view does not draw; open %s", listed.Panel.ID, listed.Panel.Type, link), false, nil
 	}
 	displayed := *entry.Panel
-	address := url.Values{"viewPanel": {displayed.ID}}
-	for name, value := range map[string]string{"from": in.From, "to": in.To} {
-		if value != "" {
-			address.Set(name, value)
-		}
-	}
-	openURL := link + "?" + address.Encode()
 	source := entry
 	if reused, reuses := d.SourceOf(displayed.ID); reuses {
 		if displayed.Queries[0].Hide {
@@ -284,8 +277,18 @@ func (r *Registry) panelOfDashboard(ctx context.Context, dashboardID string, d *
 		points:      window.MaxDataPoints,
 		datasources: resolvedDatasources(d, selections, slices.Concat(panelDatasources(*source.Panel), panelDatasources(displayed))),
 		timezone:    timezone,
-		openURL:     openURL,
+		openURL:     savedPanelURL(link, displayed.ID, in.From, in.To),
 	}, Result{}, true, nil
+}
+
+func savedPanelURL(dashboardLink, panelID, from, to string) string {
+	address := url.Values{"viewPanel": {panelID}}
+	for name, value := range map[string]string{"from": from, "to": to} {
+		if value != "" {
+			address.Set(name, value)
+		}
+	}
+	return dashboardLink + "?" + address.Encode()
 }
 
 func resolvedDatasources(d *spec.Dashboard, selections map[string]queryproxy.Selection, refs []string) []string {

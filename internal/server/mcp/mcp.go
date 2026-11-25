@@ -301,17 +301,20 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 		if answer.IsError {
 			answer.Content = uniformRefusal(answer.Content)
 		}
-		structured := json.RawMessage(answer.Content)
-		if name == tools.NameShowPanel && len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
-			structured = answer.App
-		}
-		out := mcplib.NewToolResultStructured(structured, answer.Text())
+		out := mcplib.NewToolResultStructured(structuredFor(ctx, name, answer), answer.Text())
 		out.IsError = answer.IsError
 		if inRun {
 			out.Meta = mcplib.NewMetaFromMap(map[string]any{runMetaKey: answer.Meta})
 		}
 		return out, nil
 	}
+}
+
+func structuredFor(ctx context.Context, name string, answer runsession.Answer) json.RawMessage {
+	if name == tools.NameShowPanel && len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
+		return answer.App
+	}
+	return json.RawMessage(answer.Content)
 }
 
 func clientOrigin(ctx context.Context, req mcplib.CallToolRequest) origin.Origin {
