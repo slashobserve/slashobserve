@@ -209,6 +209,21 @@ func align(rng datasource.TimeRange, kind queryproxy.Kind, maxDataPoints int) al
 	return alignment{rng: datasource.TimeRange{From: from, To: to}, step: step, maxDataPoints: points}
 }
 
+func (p params) panelWindow(d *spec.Dashboard, panel *spec.Panel, now time.Time) (alignment, error) {
+	rng, opts, err := p.timeRange(d, now)
+	if err == nil {
+		rng, err = panelTimeRange(panel, rng, now, opts)
+	}
+	if err != nil {
+		return alignment{}, err
+	}
+	maxDataPoints := p.maxDataPoints
+	if panel.MaxDataPoints > 0 {
+		maxDataPoints = min(maxDataPoints, panel.MaxDataPoints)
+	}
+	return align(rng, queryproxy.PanelKind(panel), maxDataPoints), nil
+}
+
 func panelTimeRange(panel *spec.Panel, rng datasource.TimeRange, now time.Time, opts spec.TimeOptions) (datasource.TimeRange, error) {
 	rng = queryproxy.PanelRange(panel, rng, now, opts)
 	if rng.To.Sub(rng.From) > queryproxy.MaxRange {

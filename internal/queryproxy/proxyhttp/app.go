@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
 const MaxAppDataBytes = 2 << 20
@@ -38,4 +40,17 @@ func PanelData(ctx context.Context, runner *queryproxy.Runner, logger *slog.Logg
 		return PanelResult{}, fmt.Errorf("%w: the panel data is %d KiB, over the %d KiB a chart can be sent in; ask for a shorter range or fewer series", datasource.ErrLimitExceeded, len(body)>>10, MaxAppDataBytes>>10)
 	}
 	return PanelResult{Body: body, Result: res}, nil
+}
+
+type PanelWindow struct {
+	Range         datasource.TimeRange
+	MaxDataPoints int
+}
+
+func ResolvePanelWindow(d *spec.Dashboard, panel *spec.Panel, from, to string, maxDataPoints int, now time.Time) (PanelWindow, error) {
+	al, err := params{from: from, to: to, maxDataPoints: maxDataPoints}.panelWindow(d, panel, now)
+	if err != nil {
+		return PanelWindow{}, err
+	}
+	return PanelWindow{Range: al.rng, MaxDataPoints: al.maxDataPoints}, nil
 }

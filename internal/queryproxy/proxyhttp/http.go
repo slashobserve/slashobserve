@@ -318,20 +318,12 @@ func (h *Handler) serveData(c *gin.Context, p params, v loadedVersion, panelID s
 		writeData(c, e, cached, executedAt, sourcePanel)
 	}
 	now := time.Now()
-	rng, opts, err := p.timeRange(d, now)
-	if err == nil {
-		rng, err = panelTimeRange(found.Panel, rng, now, opts)
-	}
+	al, err := p.panelWindow(d, found.Panel, now)
 	if err != nil {
 		h.fail(c, err)
 		return
 	}
-	maxDataPoints := p.maxDataPoints
-	if found.Panel.MaxDataPoints > 0 {
-		maxDataPoints = min(maxDataPoints, found.Panel.MaxDataPoints)
-	}
 	kind := queryproxy.PanelKind(found.Panel)
-	al := align(rng, kind, maxDataPoints)
 	user, scope := cacheScope(ctx, v)
 	selections, err := h.runner.Defaults(ctx, d, al.rng, p.selections, user)
 	if err != nil {
