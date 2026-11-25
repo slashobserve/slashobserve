@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { LoadProblem } from "@/components/load-problem"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { SettingsProblem } from "@/settings/settings-card"
 
 import {
   contextProblemText,
@@ -112,7 +112,7 @@ export function ToolsList({ uid }: { uid: string }) {
 
   if (query.isError && query.data === undefined) {
     return (
-      <SettingsProblem
+      <LoadProblem
         title="Could not load the tools"
         detail={contextProblemText(query.error)}
         retrying={query.isFetching}
