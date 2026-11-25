@@ -64,6 +64,9 @@ func (r *Registry) listRCAs(ctx context.Context, input json.RawMessage) (Result,
 	}
 	principal, _ := auth.FromContext(ctx)
 	list, err := r.deps.Observations.ListRCAs(ctx, principal, id)
+	if err == nil {
+		err = r.readObservationContent(ctx, principal, id)
+	}
 	if err != nil {
 		return r.rcaReadFailure(ctx, "Listed RCAs", err)
 	}
@@ -95,6 +98,9 @@ func (r *Registry) getRCA(ctx context.Context, input json.RawMessage) (Result, e
 	}
 	principal, _ := auth.FromContext(ctx)
 	rca, err := r.deps.Observations.GetRCA(ctx, principal, id, *in.Revision)
+	if err == nil {
+		err = r.readObservationContent(ctx, principal, id)
+	}
 	if err != nil {
 		return r.rcaReadFailure(ctx, "Read an RCA", err)
 	}

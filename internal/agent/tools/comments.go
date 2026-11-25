@@ -361,6 +361,9 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	if !ok {
 		return res, nil
 	}
+	if err := r.readCommentTarget(ctx, principal, q.target); err != nil {
+		return commentFailure(err)
+	}
 	for {
 		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor, WithAnswers: true})
 		if err != nil {

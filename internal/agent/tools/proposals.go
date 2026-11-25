@@ -113,6 +113,9 @@ func (r *Registry) listProposals(ctx context.Context, input json.RawMessage) (Re
 		return Result{}, errProposalsNotConfigured
 	}
 	principal, _ := auth.FromContext(ctx)
+	if err := r.readDashboardContent(ctx, principal, id); err != nil {
+		return r.proposalFailure(ctx, err)
+	}
 	limit := defaultListProposals
 	for {
 		page, err := r.deps.Proposals.List(ctx, principal, proposals.ListQuery{DashboardID: id, State: in.State, Limit: limit, Cursor: in.Cursor})
@@ -154,6 +157,11 @@ func (r *Registry) getProposal(ctx context.Context, input json.RawMessage) (Resu
 	proposal, err := r.deps.Proposals.Get(ctx, principal, id)
 	if err != nil {
 		return r.proposalFailure(ctx, err)
+	}
+	if dashboardID, err := db.ParseUUID(proposal.DashboardID); err == nil {
+		if err := r.readDashboardContent(ctx, principal, dashboardID); err != nil {
+			return r.proposalFailure(ctx, err)
+		}
 	}
 	out := proposals.NewProposalJSON(proposal)
 	step := "Read proposal revision " + strconv.Itoa(out.Revision)

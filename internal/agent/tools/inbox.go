@@ -96,6 +96,9 @@ func (r *Registry) listInbox(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
 		return res, nil
 	}
+	if res, refused := guardPrivateRead(ctx, ""); refused {
+		return res, nil
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		page, err := r.deps.Activity.Inbox(ctx, principal, view, triage, in.Cursor, limit)

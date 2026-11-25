@@ -110,6 +110,7 @@ type savedSearchItemOut struct {
 type savedSearchListOut struct {
 	SavedSearches []savedSearchItemOut `json:"saved_searches"`
 	NextCursor    *string              `json:"next_cursor"`
+	leftOutOut
 }
 
 func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -306,13 +307,18 @@ func (r *Registry) listSavedSearches(ctx context.Context, input json.RawMessage)
 	if !ok {
 		return res, nil
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		list, next, err := r.deps.SavedSearches.List(ctx, principal, filter, limit, in.Cursor)
 		if err != nil {
 			return savedSearchFailure(ctx, err)
 		}
-		out := savedSearchListOut{SavedSearches: make([]savedSearchItemOut, len(list))}
+		list = keepReadable(titles, list, func(s savedsearches.SavedSearch) (string, string) { return s.Folder.ID.String(), s.ID })
+		out := savedSearchListOut{SavedSearches: make([]savedSearchItemOut, len(list)), leftOutOut: titles.report("saved search", "saved searches")}
 		for i, s := range list {
 			out.SavedSearches[i] = savedSearchItem(s)
 		}
@@ -321,6 +327,7 @@ func (r *Registry) listSavedSearches(ctx context.Context, input json.RawMessage)
 		}
 		kept, cut := fit(out.SavedSearches, listBudget-jsonSize(savedSearchListOut{SavedSearches: []savedSearchItemOut{}, NextCursor: out.NextCursor}))
 		if !cut || len(list) == 1 {
+			titles.done(ctx)
 			return success("Listed "+plural(len(list), "saved search", "saved searches"), out), nil
 		}
 		limit = max(len(kept), 1)

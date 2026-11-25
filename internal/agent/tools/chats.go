@@ -106,6 +106,9 @@ func (r *Registry) listChats(ctx context.Context, input json.RawMessage) (Result
 	if !ok {
 		return res, nil
 	}
+	if res, refused := guardPrivateRead(ctx, ""); refused {
+		return res, nil
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		raw, err := r.deps.Runs.Chats(ctx, principal, filter, limit, in.Cursor)
@@ -159,6 +162,9 @@ func (r *Registry) getChat(ctx context.Context, input json.RawMessage) (Result, 
 			return invalid("offset must be 0 or more"), nil
 		}
 		offset = *in.Offset
+	}
+	if res, refused := guardPrivateRead(ctx, ""); refused {
+		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Chat(ctx, principal, id)
