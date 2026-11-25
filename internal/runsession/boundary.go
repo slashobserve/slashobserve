@@ -10,12 +10,15 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const (
 	codeRunEnded    = "run_ended"
 	messageRunEnded = "this run has ended"
+
+	stepLedgerUnchanged = "Hypotheses unchanged"
 )
 
 type Call struct {
@@ -45,10 +48,11 @@ func (a Answer) Text() string {
 }
 
 type admitted struct {
-	adm    guard.Admission
-	seq    int
-	notes  []string
-	answer *Answer
+	adm        guard.Admission
+	seq        int
+	notes      []string
+	answer     *Answer
+	unverified []findings.Unverified
 }
 
 type dispatched struct {
@@ -57,6 +61,7 @@ type dispatched struct {
 	err     error
 	start   time.Time
 	took    time.Duration
+	ranges  []datasource.TimeRange
 }
 
 func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, dispatch func(context.Context) (tools.Result, error)) (Answer, error) {
@@ -91,8 +96,11 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	}
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
+	noted, ranges := tools.NotingRanges(noted)
+	noted = tools.WithUnverified(noted, first.unverified)
 	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), scope))
 	done.took = time.Since(done.start)
+	done.ranges = ranges()
 	if readRestricted() {
 		if err := s.markReadRestricted(ctx, req); err != nil {
 			return Answer{}, err
@@ -134,13 +142,11 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 		sess.state.noteModel(*turn.Usage)
 	}
 	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
-		nudge, err := sess.closeTurn(ctx)
+		notes, err := sess.closeTurn(ctx)
 		if err != nil {
 			return out, err
 		}
-		if nudge != "" {
-			out.notes = append(out.notes, nudge)
-		}
+		out.notes = append(out.notes, notes...)
 		if sess.ended {
 			answer := sess.endedAnswer(out.notes)
 			out.answer = &answer
@@ -154,6 +160,7 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	position := open.Admitted
 	open.Admitted++
 	out.seq = open.Seq
+	out.unverified = sess.state.checkGrounding(&c)
 	out.adm = sess.state.Guard.Admit(position, c)
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil
@@ -188,17 +195,11 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
+	state.noteGrounding(c, d)
 	if d.res.IsError {
 		step.Status = "error"
 	}
-	switch {
-	case a.adm.Verdict != guard.Dispatch:
-		step.Message = a.adm.Step
-	case d.res.Step != "":
-		step.Message = d.res.Step
-	default:
-		step.Message = c.Name
-	}
+	step.Message = state.stepMessage(c, a, d)
 	sess.record(step)
 	answer := Answer{Content: d.content, IsError: d.res.IsError, Notes: slices.Clone(a.notes)}
 	if a.adm.Note != "" {
@@ -226,6 +227,18 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (s *State) stepMessage(c guard.Call, a admitted, d dispatched) string {
+	switch {
+	case a.adm.Verdict != guard.Dispatch:
+		return a.adm.Step
+	case d.res.Ledger != nil && !d.res.IsError && !s.noteLedger(d.res.Ledger):
+		return stepLedgerUnchanged
+	case d.res.Step != "":
+		return d.res.Step
+	}
+	return c.Name
 }
 
 func (sess *session) endRead(c guard.Call, a admitted) {

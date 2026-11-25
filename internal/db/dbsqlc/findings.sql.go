@@ -12,7 +12,7 @@ import (
 )
 
 const getFinding = `-- name: GetFinding :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, o.folder_id AS observation_folder_id, r.context_to AS request_to,
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified, o.folder_id AS observation_folder_id, r.context_to AS request_to,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
   r.thread_message_id AS request_thread_message_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
@@ -58,6 +58,16 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 		&i.Finding.SuggestedChange,
 		&i.Finding.ObserveWorthy,
 		&i.Finding.AsOf,
+		&i.Finding.RootCauseComponent,
+		&i.Finding.RootCauseKind,
+		&i.Finding.RootCauseSummary,
+		&i.Finding.Onset,
+		&i.Finding.Impact,
+		&i.Finding.Confidence,
+		&i.Finding.RuledOut,
+		&i.Finding.NextSteps,
+		&i.Finding.NoIncident,
+		&i.Finding.Unverified,
 		&i.ObservationFolderID,
 		&i.RequestTo,
 		&i.RequestedByKind,
@@ -70,7 +80,7 @@ func (q *Queries) GetFinding(ctx context.Context, id pgtype.UUID) (GetFindingRow
 }
 
 const getFindingByAgentRequest = `-- name: GetFindingByAgentRequest :one
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, o.folder_id AS observation_folder_id,
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified, o.folder_id AS observation_folder_id,
   r.requested_by_kind AS requested_by_kind, r.requested_by_id AS requested_by_id, ask.title AS ask_dashboard_title,
   r.thread_message_id AS request_thread_message_id, run_answer_kept_with_admins(r.id, '{}')::boolean AS kept_with_admins
 FROM findings f
@@ -115,6 +125,16 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 		&i.Finding.SuggestedChange,
 		&i.Finding.ObserveWorthy,
 		&i.Finding.AsOf,
+		&i.Finding.RootCauseComponent,
+		&i.Finding.RootCauseKind,
+		&i.Finding.RootCauseSummary,
+		&i.Finding.Onset,
+		&i.Finding.Impact,
+		&i.Finding.Confidence,
+		&i.Finding.RuledOut,
+		&i.Finding.NextSteps,
+		&i.Finding.NoIncident,
+		&i.Finding.Unverified,
 		&i.ObservationFolderID,
 		&i.RequestedByKind,
 		&i.RequestedByID,
@@ -127,33 +147,46 @@ func (q *Queries) GetFindingByAgentRequest(ctx context.Context, agentRequestID p
 
 const insertFinding = `-- name: InsertFinding :one
 INSERT INTO findings (id, agent_request_id, dashboard_id, ask_dashboard_id, observation_id, title, markdown, evidence, time_from, time_to,
-  created_by_kind, created_by_id, created_by_name, origin, origin_client, suggested_change, observe_worthy, as_of)
+  created_by_kind, created_by_id, created_by_name, origin, origin_client, suggested_change, observe_worthy, as_of,
+  root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified)
 VALUES (coalesce($1::uuid, gen_random_uuid()), $2::uuid, $3::uuid, $4::uuid, $5,
   $6, $7, $8::jsonb, $9, $10, $11, $12, $13,
-  $14::text, $15::text, $16::text, $17, $18::timestamptz)
+  $14::text, $15::text, $16::text, $17, $18::timestamptz,
+  $19::text, $20::text, $21::text, $22::timestamptz,
+  $23::text, $24::text, $25::text[], $26::text[], $27::boolean, $28::jsonb)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
-RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id, observation_id, ask_dashboard_id, suggested_change, observe_worthy, as_of
+RETURNING id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id, observation_id, ask_dashboard_id, suggested_change, observe_worthy, as_of, root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified
 `
 
 type InsertFindingParams struct {
-	ID              pgtype.UUID
-	AgentRequestID  pgtype.UUID
-	DashboardID     pgtype.UUID
-	AskDashboardID  pgtype.UUID
-	ObservationID   pgtype.UUID
-	Title           string
-	Markdown        string
-	Evidence        []byte
-	TimeFrom        pgtype.Timestamptz
-	TimeTo          pgtype.Timestamptz
-	CreatedByKind   string
-	CreatedByID     pgtype.UUID
-	CreatedByName   string
-	Origin          pgtype.Text
-	OriginClient    pgtype.Text
-	SuggestedChange pgtype.Text
-	ObserveWorthy   bool
-	AsOf            pgtype.Timestamptz
+	ID                 pgtype.UUID
+	AgentRequestID     pgtype.UUID
+	DashboardID        pgtype.UUID
+	AskDashboardID     pgtype.UUID
+	ObservationID      pgtype.UUID
+	Title              string
+	Markdown           string
+	Evidence           []byte
+	TimeFrom           pgtype.Timestamptz
+	TimeTo             pgtype.Timestamptz
+	CreatedByKind      string
+	CreatedByID        pgtype.UUID
+	CreatedByName      string
+	Origin             pgtype.Text
+	OriginClient       pgtype.Text
+	SuggestedChange    pgtype.Text
+	ObserveWorthy      bool
+	AsOf               pgtype.Timestamptz
+	RootCauseComponent pgtype.Text
+	RootCauseKind      pgtype.Text
+	RootCauseSummary   pgtype.Text
+	Onset              pgtype.Timestamptz
+	Impact             pgtype.Text
+	Confidence         pgtype.Text
+	RuledOut           []string
+	NextSteps          []string
+	NoIncident         pgtype.Bool
+	Unverified         []byte
 }
 
 func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (Finding, error) {
@@ -176,6 +209,16 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		arg.SuggestedChange,
 		arg.ObserveWorthy,
 		arg.AsOf,
+		arg.RootCauseComponent,
+		arg.RootCauseKind,
+		arg.RootCauseSummary,
+		arg.Onset,
+		arg.Impact,
+		arg.Confidence,
+		arg.RuledOut,
+		arg.NextSteps,
+		arg.NoIncident,
+		arg.Unverified,
 	)
 	var i Finding
 	err := row.Scan(
@@ -200,12 +243,22 @@ func (q *Queries) InsertFinding(ctx context.Context, arg InsertFindingParams) (F
 		&i.SuggestedChange,
 		&i.ObserveWorthy,
 		&i.AsOf,
+		&i.RootCauseComponent,
+		&i.RootCauseKind,
+		&i.RootCauseSummary,
+		&i.Onset,
+		&i.Impact,
+		&i.Confidence,
+		&i.RuledOut,
+		&i.NextSteps,
+		&i.NoIncident,
+		&i.Unverified,
 	)
 	return i, err
 }
 
 const listFindingsBy = `-- name: ListFindingsBy :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -270,6 +323,16 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.Finding.AsOf,
+			&i.Finding.RootCauseComponent,
+			&i.Finding.RootCauseKind,
+			&i.Finding.RootCauseSummary,
+			&i.Finding.Onset,
+			&i.Finding.Impact,
+			&i.Finding.Confidence,
+			&i.Finding.RuledOut,
+			&i.Finding.NextSteps,
+			&i.Finding.NoIncident,
+			&i.Finding.Unverified,
 			&i.ObservationFolderID,
 			&i.KeptWithAdmins,
 		); err != nil {
@@ -284,7 +347,7 @@ func (q *Queries) ListFindingsBy(ctx context.Context, arg ListFindingsByParams) 
 }
 
 const listFindingsByDashboard = `-- name: ListFindingsByDashboard :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -347,6 +410,16 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.Finding.AsOf,
+			&i.Finding.RootCauseComponent,
+			&i.Finding.RootCauseKind,
+			&i.Finding.RootCauseSummary,
+			&i.Finding.Onset,
+			&i.Finding.Impact,
+			&i.Finding.Confidence,
+			&i.Finding.RuledOut,
+			&i.Finding.NextSteps,
+			&i.Finding.NoIncident,
+			&i.Finding.Unverified,
 			&i.ObservationFolderID,
 			&i.KeptWithAdmins,
 		); err != nil {
@@ -361,7 +434,7 @@ func (q *Queries) ListFindingsByDashboard(ctx context.Context, arg ListFindingsB
 }
 
 const listFindingsInFolder = `-- name: ListFindingsInFolder :many
-SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified, o.folder_id AS observation_folder_id, COALESCE(run_answer_kept_with_admins(r.id, '{}'), false)::boolean AS kept_with_admins
 FROM findings f
 JOIN observations o ON o.id = f.observation_id
 LEFT JOIN agent_requests r ON r.id = f.agent_request_id
@@ -424,8 +497,83 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 			&i.Finding.SuggestedChange,
 			&i.Finding.ObserveWorthy,
 			&i.Finding.AsOf,
+			&i.Finding.RootCauseComponent,
+			&i.Finding.RootCauseKind,
+			&i.Finding.RootCauseSummary,
+			&i.Finding.Onset,
+			&i.Finding.Impact,
+			&i.Finding.Confidence,
+			&i.Finding.RuledOut,
+			&i.Finding.NextSteps,
+			&i.Finding.NoIncident,
+			&i.Finding.Unverified,
 			&i.ObservationFolderID,
 			&i.KeptWithAdmins,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listObservationFindingFields = `-- name: ListObservationFindingFields :many
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident, f.unverified FROM findings f
+WHERE f.observation_id = $1
+  AND f.agent_request_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM observation_blocks b
+    WHERE b.observation_id = f.observation_id AND b.run_id = f.agent_request_id AND b.kind = 'text'
+  )
+  AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
+    OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL OR unverified IS NOT NULL)
+ORDER BY f.created_at, f.id
+`
+
+func (q *Queries) ListObservationFindingFields(ctx context.Context, observationID pgtype.UUID) ([]Finding, error) {
+	rows, err := q.db.Query(ctx, listObservationFindingFields, observationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Finding
+	for rows.Next() {
+		var i Finding
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentRequestID,
+			&i.DashboardID,
+			&i.Title,
+			&i.Markdown,
+			&i.Evidence,
+			&i.TimeFrom,
+			&i.TimeTo,
+			&i.CreatedByKind,
+			&i.CreatedByID,
+			&i.CreatedByName,
+			&i.AnnotationID,
+			&i.CreatedAt,
+			&i.Origin,
+			&i.OriginClient,
+			&i.FolderID,
+			&i.ObservationID,
+			&i.AskDashboardID,
+			&i.SuggestedChange,
+			&i.ObserveWorthy,
+			&i.AsOf,
+			&i.RootCauseComponent,
+			&i.RootCauseKind,
+			&i.RootCauseSummary,
+			&i.Onset,
+			&i.Impact,
+			&i.Confidence,
+			&i.RuledOut,
+			&i.NextSteps,
+			&i.NoIncident,
+			&i.Unverified,
 		); err != nil {
 			return nil, err
 		}

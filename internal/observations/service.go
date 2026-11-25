@@ -236,6 +236,11 @@ func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (O
 		}
 	}
 	o.Blocks = shownBlocks(blocks, abilities, viewer)
+	fields, err := s.store.findingFields(ctx, id)
+	if err != nil {
+		return Observation{}, err
+	}
+	o.Findings = fieldsOfShownAnswers(fields, o.Blocks, viewer)
 	return o, nil
 }
 

@@ -99,7 +99,7 @@ Its `snippet` is plain text, and it may return fewer results than `limit` when t
 | --- | --- | --- | --- |
 | `dashboard` | Title and tags. | Description, and the titles and descriptions of panels, rows included. | The query of every panel, rows included. |
 | `annotation` | The first line of its text, and its tags. | The text. | None. |
-| `observation` | Title. | The summary, and the Markdown of its live text blocks, which hold an investigation's answer. | None. |
+| `observation` | Title, and the root cause component of an investigation's answer. | The summary, and the Markdown of its live text blocks, which hold an investigation's answer. | None. |
 | `comment` | None. | One message, with each mention read as `@Name`. | None. |
 | `saved_search` | Title. | The service and span filters of a trace search. | The query of a logs, trace or metrics search. |
 

@@ -18,6 +18,7 @@ func TestPhaseOfEachTool(t *testing.T) {
 		"pin_dashboard":            PhaseWrite,
 		"claim_run":                PhaseWrite,
 		"list_runs":                PhaseDiscover,
+		"note_hypotheses":          PhaseLedger,
 		"no_such_tool":             PhaseDiscover,
 		"":                         PhaseDiscover,
 	} {

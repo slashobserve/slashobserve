@@ -39,6 +39,37 @@ type FindingAskOnJSON struct {
 	Title       string `json:"title"`
 }
 
+type RootCauseJSON struct {
+	Component string `json:"component"`
+	Kind      string `json:"kind"`
+	Summary   string `json:"summary"`
+}
+
+type StructuredJSON struct {
+	RootCause  *RootCauseJSON `json:"root_cause"`
+	Onset      *string        `json:"onset"`
+	Impact     *string        `json:"impact"`
+	Confidence *string        `json:"confidence"`
+	RuledOut   []string       `json:"ruled_out"`
+	NextSteps  []string       `json:"next_steps"`
+	NoIncident bool           `json:"no_incident"`
+}
+
+func StructuredJSONOf(s Structured) StructuredJSON {
+	out := StructuredJSON{
+		Onset:      httpapi.FormatOptionalTime(s.Onset),
+		Impact:     httpapi.OptionalString(s.Impact),
+		Confidence: httpapi.OptionalString(s.Confidence),
+		RuledOut:   append([]string{}, s.RuledOut...),
+		NextSteps:  append([]string{}, s.NextSteps...),
+		NoIncident: s.NoIncident,
+	}
+	if s.RootCause != nil {
+		out.RootCause = &RootCauseJSON{Component: s.RootCause.Component, Kind: s.RootCause.Kind, Summary: s.RootCause.Summary}
+	}
+	return out
+}
+
 type FindingJSON struct {
 	ID             string            `json:"id"`
 	ObservationID  *string           `json:"observation_id"`
@@ -53,6 +84,9 @@ type FindingJSON struct {
 	SuggestedChange *string `json:"suggested_change"`
 	ObserveWorthy   bool    `json:"observe_worthy"`
 	Restricted      bool    `json:"restricted"`
+
+	StructuredJSON
+	Unverified []Unverified `json:"unverified"`
 
 	From         string            `json:"from"`
 	To           string            `json:"to"`
@@ -113,6 +147,8 @@ func JSONOf(f Finding, url string) FindingJSON {
 		SuggestedChange: httpapi.OptionalString(f.SuggestedChange),
 		ObserveWorthy:   f.ObserveWorthy,
 		Restricted:      f.Restricted,
+		StructuredJSON:  StructuredJSONOf(f.Structured),
+		Unverified:      append([]Unverified{}, f.Unverified...),
 		From:            httpapi.FormatTime(f.From),
 		To:              httpapi.FormatTime(f.To),
 		AsOf:            httpapi.FormatOptionalTime(f.AsOf),

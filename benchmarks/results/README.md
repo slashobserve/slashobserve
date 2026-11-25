@@ -14,3 +14,4 @@ The table below is rewritten by the command and checked by `make test-benchmarks
 | Run | Date | Server | Model | Tasks | Attempts | Mean reward | Trials passed | Pass^n | Skipped | Cost (USD) | Failures |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [o11y-bench-subset-0.1.4-6-gc75cceda2-2026-11-23.json](o11y-bench-subset-0.1.4-6-gc75cceda2-2026-11-23.json) | 2026-11-23 | 0.1.4-6-gc75cceda2 | anthropic/claude-sonnet-5-5 | 10 | 1 | 0.889 | 8/10 | 8/10 | 0 | 0.687 | 2 agent mistake |
+| [o11y-bench-full-dev-f8c7753c0-2026-11-25.json](o11y-bench-full-dev-f8c7753c0-2026-11-25.json) | 2026-11-25 | dev | anthropic/claude-sonnet-5-5 | 51 | 3 | 0.914 | 125/153 | 35/51 | 0 | 13.836 | 3 missing capability, 25 agent mistake |

@@ -1,11 +1,11 @@
 ---
 title: Running benchmarks
-description: How contributors run the Observe Agent on o11y-bench tasks through the Harbor adapter, with the replay model or a real one.
+description: How contributors run the Observe Agent on o11y-bench and ORCA-bench tasks through the Harbor adapter, with the replay model or a real one.
 ---
 
 The `benchmarks/` folder lets you measure the Observe Agent against an external benchmark.
 It holds a Harbor agent that runs the Observe Agent on the benchmark's tasks.
-The first benchmark is o11y-bench.
+The first benchmark is o11y-bench, and ORCA-bench, which asks for a root cause report on recorded telemetry, has its own module and environment.
 Use it to check that the adapter still works end to end, or to compare agent changes on the same tasks.
 
 For each task the adapter starts a throwaway server and Postgres and points the server at the task's stores.
@@ -37,6 +37,13 @@ Set `SLASHOBSERVE_SERVER_IMAGE` to use another image than `slashobserve-server:l
 
 A real run spends tokens, so start with one task and a cost cap.
 For a real model, a subset of tasks, the options, the spend cap and the tasks that are skipped, read [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md) in the repository.
+
+## Run ORCA-bench tasks
+
+ORCA-bench runs on Harbor 0.20.0 and a snapshot image of about 50 GB, so it has its own environment in `benchmarks/orca/`, and `make test-benchmarks` tests both.
+The adapter runs the Observe Agent beside the task's main container, writes `/app/report.md` from the run's finding, and runs a fixed subset of ten tasks.
+Scores from it use a different judge than the leaderboard, so they are not comparable with published ones.
+The steps, the disk the snapshot needs and how to point the judge at a Claude model are in the ORCA-bench section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
 ## Reference
 
