@@ -1,13 +1,14 @@
 import { isPanelQuery, queryRef, type DataPanel } from "@/spec"
 
-import { uniqueKey } from "../frames"
+import { qualifyCollidingLabels, uniqueKey } from "../frames"
 import {
+  carriedProps,
   copyFrame,
   rowCount,
   type PreparedField,
   type PreparedFrame,
 } from "./names"
-import { prometheusLabels, renderLegend } from "./series-names"
+import { legendSeriesName, type DatasourceTypeOf } from "./series-names"
 
 const nameKey = "__name__"
 
@@ -52,9 +53,11 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
     return named
   })
   const types = new Map<string, PreparedField["type"]>()
+  const sources = new Map<string, PreparedField[]>()
   for (const named of byName) {
     for (const [name, field] of named) {
       if (!types.has(name)) types.set(name, field.type)
+      sources.set(name, [...(sources.get(name) ?? []), field])
     }
   }
   const columnNames = new Map(
@@ -69,7 +72,12 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
         values.push(source ? (source.values[row] ?? null) : null)
       }
     })
-    valueFields.push({ name: columnNames.get(name) ?? name, type, values })
+    valueFields.push({
+      name: columnNames.get(name) ?? name,
+      type,
+      values,
+      ...carriedProps(sources.get(name) ?? []),
+    })
   }
 
   const keys = new Set(
@@ -94,21 +102,24 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
 }
 
 function legendName(
+  panel: DataPanel,
   frames: PreparedFrame[],
-  legend: string | undefined
+  datasourceTypeOf: DatasourceTypeOf | undefined
 ): string | undefined {
-  if (!legend || legend === "__auto") return undefined
   const names = new Set(
-    frames.map((frame) => renderLegend(legend, prometheusLabels(frame)))
+    frames.map((frame) => {
+      const field = frame.fields.find((candidate) => candidate.name === "Value")
+      return field && legendSeriesName(panel, frame, field, datasourceTypeOf)
+    })
   )
   const [only] = names
-  return names.size === 1 && only !== "" ? only : undefined
+  return names.size === 1 ? only : undefined
 }
 
-function renameValues(
+function nameValues(
   frame: PreparedFrame,
-  ref: string,
-  legend: string | undefined
+  name: string,
+  seriesName: string | undefined
 ): PreparedFrame {
   return {
     ...frame,
@@ -116,8 +127,8 @@ function renameValues(
       field.name === "Value"
         ? {
             ...field,
-            name: `Value #${ref}`,
-            ...(legend === undefined ? {} : { seriesName: legend }),
+            name,
+            ...(seriesName === undefined ? {} : { seriesName }),
           }
         : field
     ),
@@ -126,16 +137,16 @@ function renameValues(
 
 export function applyQueryFormats(
   panel: DataPanel,
-  frames: PreparedFrame[]
+  frames: PreparedFrame[],
+  datasourceTypeOf?: DatasourceTypeOf
 ): PreparedFrame[] {
-  const legends = new Map(
+  const tableRefs = new Set(
     panel.queries.flatMap((query, index) =>
       isPanelQuery(query) && query.format === "table"
-        ? [[queryRef(query, index), query.legend] as const]
+        ? [queryRef(query, index)]
         : []
     )
   )
-  const tableRefs = new Set(legends.keys())
   if (tableRefs.size === 0) return frames.map(copyFrame)
 
   const groups = new Map<string, PreparedFrame[]>()
@@ -147,6 +158,14 @@ export function applyQueryFormats(
   }
   const several = groups.size > 1
 
+  const legends = qualifyCollidingLabels(
+    [...groups].flatMap(([ref, group]) => {
+      const label = legendName(panel, group, datasourceTypeOf)
+      return label === undefined ? [] : [{ ref, label }]
+    })
+  )
+  const legendOf = new Map(legends.map(({ ref, label }) => [ref, label]))
+
   const emitted = new Set<string>()
   const out: PreparedFrame[] = []
   for (const frame of frames) {
@@ -157,12 +176,9 @@ export function applyQueryFormats(
     }
     if (emitted.has(ref)) continue
     emitted.add(ref)
-    const group = groups.get(ref) ?? []
-    const table = flattenFrames(group)
+    const table = flattenFrames(groups.get(ref) ?? [])
     out.push(
-      several
-        ? renameValues(table, ref, legendName(group, legends.get(ref)))
-        : table
+      nameValues(table, several ? `Value #${ref}` : "Value", legendOf.get(ref))
     )
   }
   return out

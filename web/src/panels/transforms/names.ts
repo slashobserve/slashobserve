@@ -34,6 +34,18 @@ export function matchesName(
   return field.name === name || seriesName(frame, field) === name
 }
 
+export function carriedProps(
+  sources: readonly PreparedField[]
+): Pick<PreparedField, "seriesName" | "config"> {
+  const names = new Set(sources.map((source) => source.seriesName))
+  const [seriesName] = names
+  const config = sources.find((source) => source.config !== undefined)?.config
+  return {
+    ...(names.size === 1 && seriesName !== undefined ? { seriesName } : {}),
+    ...(config === undefined ? {} : { config }),
+  }
+}
+
 export function rowCount(frame: PreparedFrame): number {
   let count = 0
   for (const field of frame.fields) {
