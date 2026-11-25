@@ -191,12 +191,12 @@ describe("ChatsPage rows", () => {
       name: "Why did checkout errors rise",
     })
     expect(link).toHaveAttribute("href", "/c/c1")
-    const row = link.closest("tr") as HTMLElement
+    const row = link.closest('[role="row"]') as HTMLElement
     expect(await within(row).findByText("Checkout health")).toBeInTheDocument()
     expect(within(row).getByText("3")).toBeInTheDocument()
     const other = screen
       .getByRole("link", { name: "Card declines by issuer" })
-      .closest("tr") as HTMLElement
+      .closest('[role="row"]') as HTMLElement
     expect(within(other).getByText("No dashboard")).toBeInTheDocument()
     expect(screen.getByText("2 chats.")).toBeInTheDocument()
   })
@@ -215,7 +215,9 @@ describe("ChatsPage rows", () => {
     ])
     render()
     const row = (title: string) =>
-      screen.getByRole("link", { name: title }).closest("tr") as HTMLElement
+      screen
+        .getByRole("link", { name: title })
+        .closest('[role="row"]') as HTMLElement
     await screen.findByRole("link", { name: "Beyond the first page" })
     expect(
       within(row("Beyond the first page")).getByText("Refund volume")
@@ -237,7 +239,12 @@ describe("ChatsPage rows", () => {
     await screen.findByRole("link", { name: /Pinned older chat/ })
     const titles = screen
       .getAllByRole("row")
-      .slice(1)
+      .filter((row) => row.hasAttribute("row-index"))
+      .sort(
+        (a, b) =>
+          Number(a.getAttribute("row-index")) -
+          Number(b.getAttribute("row-index"))
+      )
       .map((row) => within(row).getAllByRole("link")[0].textContent)
     expect(titles).toEqual([
       "Pinned older chat",
