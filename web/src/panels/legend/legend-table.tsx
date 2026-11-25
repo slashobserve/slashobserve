@@ -83,15 +83,21 @@ export function LegendTable({
   const sorted = sortDesc ? "descending" : "ascending"
   const bottom = placement === "bottom"
   const rem = rootFontSize()
+  const total = items.length + more
   const fit = legendTableFit(available, rem, items.length + (more > 0 ? 1 : 0))
-  const overflows = bottom && fit.overflows
+  const scrolls = bottom && fit.scrolls
+  const footer = bottom && fit.footer
   const names = legendHeaders(reducers, headers)
   return (
     <div
       ref={ref}
       role="group"
       aria-label="Series"
-      className={cn("shrink-0 overflow-auto px-1", !overflows && "pb-1.5")}
+      className={cn(
+        "shrink-0 px-1",
+        bottom ? "overflow-x-hidden overflow-y-auto" : "overflow-auto",
+        !scrolls && "pb-1.5"
+      )}
       style={bottom ? { maxHeight: fit.maxHeight } : { width }}
     >
       <table className="w-full border-separate border-spacing-0 text-xs">
@@ -167,12 +173,14 @@ export function LegendTable({
           ) : null}
         </tbody>
       </table>
-      {overflows ? (
+      {footer ? (
         <p
           className="sticky bottom-0 bg-background px-1.5 pt-0.5 text-xs text-muted-foreground"
           style={{ height: `${rowRem + padRem}rem` }}
         >
-          {items.length} series, scroll for all
+          {more > 0
+            ? `${total} series, ${more} not listed`
+            : `${total} series, scroll for all`}
         </p>
       ) : null}
     </div>
