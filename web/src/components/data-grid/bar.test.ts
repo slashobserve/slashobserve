@@ -7,6 +7,10 @@ describe("textWidthCh", () => {
     expect(textWidthCh(["12 ms", "3,020,004.4 ms", "-"])).toBe(14)
   })
 
+  it("caps the width so one huge value cannot push the other columns out", () => {
+    expect(textWidthCh(["1,234,567,890,123.4 ms"])).toBe(16)
+  })
+
   it("keeps one character for no texts", () => {
     expect(textWidthCh([])).toBe(1)
   })

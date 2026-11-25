@@ -55,7 +55,7 @@ type Column = {
   hideable: boolean
 }
 
-const columns: Column[] = [
+export const traceColumns: Column[] = [
   { key: "service", label: "Root service", align: "left", hideable: false },
   { key: "span", label: "Root span", align: "left", hideable: true },
   { key: "duration", label: "Duration", align: "left", hideable: false },
@@ -91,7 +91,7 @@ function StartedLink({
       {...traceLink(row.traceId, datasourceUid, range, undefined, observation)}
       aria-label={openTraceLabel(row)}
       title={row.start === null ? undefined : new Date(row.start).toISOString()}
-      className="font-medium whitespace-nowrap tabular-nums underline-offset-3 hover:underline"
+      className="truncate font-medium tabular-nums underline-offset-3 hover:underline"
     >
       {row.start === null ? (
         <span className="font-mono">{row.traceId.slice(0, 8)}</span>
@@ -111,7 +111,7 @@ type TraceColumnContext = {
   range: TraceRange
 }
 
-function traceGridColumn(
+export function traceGridColumn(
   column: Column,
   context: TraceColumnContext
 ): DataGridColumn<TraceRow> {
@@ -125,7 +125,7 @@ function traceGridColumn(
     case "service":
       return {
         ...base,
-        minWidth: 140,
+        minWidth: 110,
         cell: (row) => (
           <span className="inline-flex min-w-0 items-center gap-1.5">
             <span
@@ -144,15 +144,15 @@ function traceGridColumn(
     case "span":
       return {
         ...base,
-        minWidth: 160,
-        flex: 1.5,
+        minWidth: 110,
+        flex: 1.2,
         cell: (row) => <span className="truncate">{row.span || "-"}</span>,
       }
     case "duration":
       return {
         ...base,
         minWidth: barColumnMinWidth(context.durationWidthCh),
-        flex: 2,
+        flex: 1.6,
         cell: (row) => (
           <BarCell
             text={durationText(row.durationMs)}
@@ -170,7 +170,8 @@ function traceGridColumn(
     case "spans":
       return {
         ...base,
-        width: 110,
+        minWidth: 80,
+        flex: 0.5,
         autoHeight: true,
         cell: (row) => (
           <span className="py-1 text-right leading-normal tabular-nums">
@@ -186,14 +187,16 @@ function traceGridColumn(
     case "errors":
       return {
         ...base,
-        width: 170,
+        minWidth: 130,
+        flex: 1,
         cell: (row) =>
           row.errors === null ? "-" : <TraceStatus errors={row.errors} />,
       }
     case "start":
       return {
         ...base,
-        width: 200,
+        minWidth: 130,
+        flex: 1.4,
         cell: (row) => (
           <StartedLink
             row={row}
@@ -245,7 +248,7 @@ function ColumnsMenu({
         <ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {columns
+        {traceColumns
           .filter((column) => column.hideable)
           .map((column) => (
             <DropdownMenuCheckboxItem
@@ -335,7 +338,7 @@ function SortedTraceTable({
   const status = hasErrorCounts(rows)
   const shownColumns = useMemo(
     () =>
-      columns.filter(
+      traceColumns.filter(
         (column) =>
           !hidden.has(column.key) &&
           (column.key !== "spans" || spans) &&

@@ -19,7 +19,7 @@ export function BarCell({
       className="flex h-full w-full min-w-0 items-center gap-2.5"
     >
       <span
-        className="shrink-0 overflow-hidden text-right whitespace-nowrap tabular-nums"
+        className="shrink-0 overflow-hidden text-right text-ellipsis whitespace-nowrap tabular-nums"
         style={{ width: `${widthCh}ch` }}
       >
         {text}

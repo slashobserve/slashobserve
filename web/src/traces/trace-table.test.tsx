@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { useNarrow } from "@/components/data-grid/use-narrow"
 import { renderWithProviders } from "@/test/render"
 
-import { TraceTable } from "./trace-table"
+import { textWidthCh } from "@/components/data-grid/bar"
+
+import { TraceTable, traceColumns, traceGridColumn } from "./trace-table"
 import type { TraceRow } from "./trace-rows"
 
 vi.mock("@/components/data-grid/use-narrow", () => ({
@@ -60,6 +62,24 @@ function serviceOrder() {
 }
 
 describe("TraceTable", () => {
+  it("keeps the columns within 770 px at their narrowest, so a laptop with the sidebar open does not scroll sideways", () => {
+    const context = {
+      slots: new Map<string, number>(),
+      slowest: 0,
+      p95: null,
+      durationWidthCh: textWidthCh(["1,234,567,890,123.4 ms"]),
+      datasourceUid: "tempo",
+      range: { from: "now-1h", to: "now" },
+    }
+    const minimums = traceColumns.map(
+      (column) => traceGridColumn(column, context).minWidth ?? 0
+    )
+    expect(minimums.every((width) => width > 0)).toBe(true)
+    expect(minimums.reduce((sum, width) => sum + width, 0)).toBeLessThanOrEqual(
+      770
+    )
+  })
+
   it("gives every duration the width of the longest, so the text never runs under its bar", async () => {
     const { container } = renderTable()
     await waitFor(() =>

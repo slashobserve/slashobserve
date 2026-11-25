@@ -1,9 +1,13 @@
 const barMinWidthPx = 40
 const barGapPx = 10
 const cellPaddingPx = 28
+const longestTextCh = 16
 
 export function textWidthCh(texts: readonly string[]): number {
-  return Math.max(1, ...texts.map((text) => text.length))
+  return Math.min(
+    longestTextCh,
+    Math.max(1, ...texts.map((text) => text.length))
+  )
 }
 
 export function barShare(value: number | null, max: number): number {
