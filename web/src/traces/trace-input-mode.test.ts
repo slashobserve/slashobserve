@@ -30,7 +30,7 @@ describe("useTraceInputMode", () => {
     expect(result.current.modes).toEqual(["ask", "builder", "code"])
     expect(
       result.current.modes.map((mode) => result.current.labels[mode])
-    ).toEqual(["Ask", "Search", "SQL"])
+    ).toEqual(["Write a query", "Search", "SQL"])
     expect(result.current.shown).toBe("builder")
     expect(result.current.formMode).toBe("builder")
   })

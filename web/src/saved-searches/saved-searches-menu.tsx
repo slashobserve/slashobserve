@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 
 import {
   Combobox,
@@ -12,11 +11,11 @@ import {
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { folderLabel } from "./folder-label"
-import { savedSearchLocation } from "./links"
 import { savedSearchesQuery, type SavedSearch } from "./queries"
+import { useOpenSavedSearch } from "./saved-open"
 
 export function SavedSearchesMenu({ kind }: { kind: SavedSearch["kind"] }) {
-  const navigate = useNavigate()
+  const open = useOpenSavedSearch()
   const query = useQuery(savedSearchesQuery({ kind }))
   const items = query.data?.saved_searches ?? []
 
@@ -37,7 +36,7 @@ export function SavedSearchesMenu({ kind }: { kind: SavedSearch["kind"] }) {
           .includes(text.trim().toLowerCase())
       }
       onValueChange={(saved) => {
-        if (saved !== null) void navigate(savedSearchLocation(saved))
+        if (saved !== null) open(saved)
       }}
     >
       <ComboboxInput

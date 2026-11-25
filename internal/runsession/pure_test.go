@@ -230,3 +230,14 @@ func TestBriefTaskPointsAtTheAnchorOfTheRequest(t *testing.T) {
 		t.Fatalf("pointer = %+v", none.Pointer)
 	}
 }
+
+func TestBriefTaskMarksOnlyAThreadAskAsAskedOnItsObservation(t *testing.T) {
+	chat := revisions.Request{SubjectObservationID: "o1"}
+	if got := briefTask(chat, tools.ModeInvestigate).Pointer; got.ThreadAsk || got.ObservationID != "o1" {
+		t.Fatalf("chat turn pointer = %+v", got)
+	}
+	thread := revisions.Request{SubjectObservationID: "o1", ThreadAsk: true}
+	if got := briefTask(thread, tools.ModeInvestigate).Pointer; !got.ThreadAsk || got.ObservationID != "o1" {
+		t.Fatalf("thread ask pointer = %+v", got)
+	}
+}

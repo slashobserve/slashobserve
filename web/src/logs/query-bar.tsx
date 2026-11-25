@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
 import { AskField } from "@/ask/ask-field"
-import { nextMode, type InputMode } from "@/ask/input-mode"
+import { askModeLabel, nextMode, type InputMode } from "@/ask/input-mode"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
 import { AgentMark } from "@/components/agent-mark"
@@ -137,7 +137,7 @@ function ModeSwitch() {
   const words: Record<InputMode, string> = {
     builder: "Builder",
     code: queryModeLabel(type),
-    ask: "Ask",
+    ask: askModeLabel,
   }
 
   function choose(next: InputMode, from: "click" | "key") {
@@ -709,7 +709,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                   className="narrow:h-11"
                   onClick={askAgain}
                 >
-                  Ask again
+                  Write again
                 </Button>
               </>
             ) : null}

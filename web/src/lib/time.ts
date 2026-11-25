@@ -298,6 +298,10 @@ export function agentZone(timezone: string | undefined): string {
     : (knownZone(timezone) ?? browserZone())
 }
 
+export function askZone(timezone: string | undefined): string | undefined {
+  return knownZone(agentZone(timezone))
+}
+
 export function requestZone(timezone: string | undefined): string | undefined {
   return timezone === "browser" ? browserZone() : undefined
 }

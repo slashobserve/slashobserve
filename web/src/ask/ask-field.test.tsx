@@ -52,6 +52,11 @@ describe("AskField", () => {
     expect(field).toHaveValue("errors\nslow")
   })
 
+  it("names the action for what it does", () => {
+    render(<Field initial="errors" />)
+    expect(screen.getByRole("button", { name: "Write query" })).toBeTruthy()
+  })
+
   it("says Writing query while pending", () => {
     render(<Field pending initial="errors" />)
     expect(screen.getByRole("button", { name: "Writing query" })).toBeTruthy()

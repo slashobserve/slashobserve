@@ -471,6 +471,37 @@ describe("DetailDrawer", () => {
     }
   })
 
+  it("opens the trace on the line's span", async () => {
+    await open({
+      ds: datasource("loki", "loki-1"),
+      others: [datasource("tempo", "tempo-1")],
+      selection: selection(
+        [...lokiDetails, { name: "span_id", text: "00f067aa0ba902b7" }],
+        { service_name: "checkout" }
+      ),
+    })
+    const link = await screen.findByRole("link", { name: /Open trace/ })
+    expect(
+      new URL(link.getAttribute("href") ?? "", "http://x").searchParams.get(
+        "span"
+      )
+    ).toBe("00f067aa0ba902b7")
+  })
+
+  it("opens the trace without a span when the line has none", async () => {
+    await open({
+      ds: datasource("loki", "loki-1"),
+      others: [datasource("tempo", "tempo-1")],
+      selection: selection(lokiDetails, { service_name: "checkout" }),
+    })
+    const link = await screen.findByRole("link", { name: /Open trace/ })
+    expect(
+      new URL(link.getAttribute("href") ?? "", "http://x").searchParams.has(
+        "span"
+      )
+    ).toBe(false)
+  })
+
   it("groups a search document into core and other fields with counts", async () => {
     await open({
       ds: datasource("elasticsearch", "es-1", { index: "logs-*" }),

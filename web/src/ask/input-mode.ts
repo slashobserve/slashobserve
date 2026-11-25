@@ -2,6 +2,9 @@ import { useState } from "react"
 
 export type InputMode = "ask" | "builder" | "code"
 
+export const askModeLabel = "Write a query"
+export const askActionLabel = "Write query"
+
 const inputModeKey = "slashobserve-input-mode"
 const cycle: readonly InputMode[] = ["builder", "code", "ask"]
 
