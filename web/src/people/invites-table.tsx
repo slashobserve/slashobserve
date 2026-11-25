@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels, type Role } from "@/lib/roles"
@@ -20,6 +20,10 @@ import {
   type Invite,
 } from "./invites"
 import { RoleSelect } from "./role-select"
+
+function inviteId(invite: Invite): string {
+  return invite.id
+}
 
 function InviteRole({ invite }: { invite: Invite }) {
   const save = useSaveInvite()
@@ -77,6 +81,65 @@ function WithdrawButton({ invite }: { invite: Invite }) {
   )
 }
 
+const inviteColumns: DataGridColumn<Invite>[] = [
+  {
+    id: "email",
+    header: "Email",
+    minWidth: 200,
+    autoHeight: true,
+    cell: (invite) => (
+      <span className="py-2 font-medium wrap-anywhere">{invite.email}</span>
+    ),
+  },
+  {
+    id: "role",
+    header: "Role",
+    width: 160,
+    cell: (invite) => <InviteRole invite={invite} />,
+  },
+  {
+    id: "invitedBy",
+    header: "Invited by",
+    minWidth: 120,
+    cell: (invite) => (
+      <span className="truncate text-muted-foreground">
+        {invite.invited_by}
+      </span>
+    ),
+  },
+  {
+    id: "invited",
+    header: "Invited",
+    width: 120,
+    cell: (invite) => (
+      <span className="text-muted-foreground">
+        <RelativeTime iso={invite.created_at} />
+      </span>
+    ),
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    action: true,
+    align: "right",
+    width: 280,
+    cell: (invite) => (
+      <span className="inline-flex items-center justify-end gap-2">
+        <CopyButton
+          text={invite.sign_in_url}
+          label={`Copy the sign-in link for ${invite.email}`}
+          variant="outline"
+          size="sm"
+          className="narrow:h-11"
+        >
+          Copy sign-in link
+        </CopyButton>
+        <WithdrawButton invite={invite} />
+      </span>
+    ),
+  },
+]
+
 export function InvitesTable() {
   const headingId = useId()
   const query = useQuery(invitesQuery())
@@ -105,49 +168,13 @@ export function InvitesTable() {
       <h2 id={headingId} className="text-sm font-semibold">
         Pending invites
       </h2>
-      <TableCard labelledBy={headingId} minWidth={760} stackOnNarrow>
-        <thead>
-          <tr>
-            <HeaderCell>Email</HeaderCell>
-            <HeaderCell>Role</HeaderCell>
-            <HeaderCell>Invited by</HeaderCell>
-            <HeaderCell>Invited</HeaderCell>
-            <HeaderCell>
-              <span className="sr-only">Actions</span>
-            </HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {query.data.map((invite) => (
-            <tr key={invite.id} data-invite-id={invite.id}>
-              <Cell className="font-medium wrap-anywhere">{invite.email}</Cell>
-              <Cell>
-                <InviteRole invite={invite} />
-              </Cell>
-              <Cell data-label="Invited by" className="text-muted-foreground">
-                {invite.invited_by}
-              </Cell>
-              <Cell data-label="Invited" className="text-muted-foreground">
-                <RelativeTime iso={invite.created_at} />
-              </Cell>
-              <Cell data-cell="action" className="text-right">
-                <span className="inline-flex items-center justify-end gap-2">
-                  <CopyButton
-                    text={invite.sign_in_url}
-                    label={`Copy the sign-in link for ${invite.email}`}
-                    variant="outline"
-                    size="sm"
-                    className="narrow:h-11"
-                  >
-                    Copy sign-in link
-                  </CopyButton>
-                  <WithdrawButton invite={invite} />
-                </span>
-              </Cell>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <DataGrid
+        label="Pending invites"
+        rows={query.data}
+        columns={inviteColumns}
+        rowId={inviteId}
+        rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
+      />
     </section>
   )
 }

@@ -14,6 +14,7 @@ import {
   type ICellRendererParams,
   type IsFullWidthRowParams,
   type IHeaderParams,
+  type ProcessRowParams,
   type RowClassRules,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
@@ -84,7 +85,8 @@ function GridCell<T>({ data, column }: CellParams<T>) {
   return (
     <div
       className={cn(
-        "flex h-full min-w-0 items-center leading-normal",
+        "flex min-w-0 items-center leading-normal",
+        column.autoHeight === true ? "whitespace-normal" : "h-full",
         column.align === "right" && "justify-end text-right"
       )}
     >
@@ -97,6 +99,7 @@ type HeaderParams = IHeaderParams & {
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
+  hidden: boolean
 }
 
 function SortHeader({
@@ -105,6 +108,7 @@ function SortHeader({
   align,
   direction,
   onSort,
+  hidden,
 }: HeaderParams) {
   const sortRef = useRef(onSort)
   useLayoutEffect(() => {
@@ -127,7 +131,11 @@ function SortHeader({
   if (onSort === undefined) {
     return (
       <span
-        className={cn("w-full truncate", align === "right" && "text-right")}
+        className={cn(
+          "w-full truncate",
+          align === "right" && "text-right",
+          hidden && "sr-only"
+        )}
       >
         {displayName}
       </span>
@@ -192,6 +200,8 @@ export function DataGrid<T>({
   keepScrollOnPrepend = false,
   detail,
   compact = false,
+  rowAttributes,
+  bare = false,
   empty,
   className,
 }: {
@@ -207,6 +217,8 @@ export function DataGrid<T>({
   keepScrollOnPrepend?: boolean
   detail?: DataGridDetail<T>
   compact?: boolean
+  rowAttributes?: (row: T) => Readonly<Record<string, string>>
+  bare?: boolean
   empty?: ReactNode
   className?: string
 }) {
@@ -214,11 +226,13 @@ export function DataGrid<T>({
   const containerRef = useRef<HTMLDivElement>(null)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
+  const rowAttributesRef = useRef(rowAttributes)
   const labelRef = useRef(label)
   useLayoutEffect(() => {
     labelRef.current = label
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
+    rowAttributesRef.current = rowAttributes
   })
   const sorts = onSort !== undefined
   const sortKey = sort?.key ?? null
@@ -235,6 +249,18 @@ export function DataGrid<T>({
         highlightedRowId !== null && node.id === highlightedRowId,
     }),
     [highlightedRowId]
+  )
+  const processRowPostCreate = useCallback(
+    ({ eRow, node }: ProcessRowParams<GridLine<T>>) => {
+      const attributes =
+        node.data === undefined || node.data.detail
+          ? undefined
+          : rowAttributesRef.current?.(node.data.row)
+      for (const [name, value] of Object.entries(attributes ?? {})) {
+        eRow.setAttribute(name, value)
+      }
+    },
+    []
   )
   const highlight = useCallback(
     (id: string | null) => highlightRef.current?.(id),
@@ -269,6 +295,7 @@ export function DataGrid<T>({
         headerComponent: SortHeader,
         headerComponentParams: {
           align: column.align ?? "left",
+          hidden: column.action === true,
           direction: sortKey === column.id ? sortDirection : null,
           onSort:
             column.sortable && sorts
@@ -372,7 +399,12 @@ export function DataGrid<T>({
       ref={containerRef}
       data-layout={narrow ? "narrow" : "wide"}
       data-dom-layout={layout}
-      className={cn("w-full text-[13px]", className)}
+      className={cn(
+        "w-full text-[13px]",
+        bare &&
+          "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
+        className
+      )}
       style={layout === "normal" ? { height } : undefined}
       onPointerOver={(event) => {
         if (
@@ -411,6 +443,7 @@ export function DataGrid<T>({
               narrow ? narrowHeight : hasDetail ? detailHeight : undefined
             }
             rowClassRules={rowClassRules}
+            processRowPostCreate={processRowPostCreate}
             onCellMouseOver={onCellMouseOver}
             onGridReady={onGridReady}
             onFirstDataRendered={reveal}

@@ -5,11 +5,13 @@ import { expect, failedResourceLogged, test, type Page } from "./fixtures"
 const isList = (url: URL) => url.pathname === "/api/v1/datasources"
 
 function datasourceRow(page: Page, uid: string) {
-  return page.locator(`tr[data-uid="${uid}"]`)
+  return page.locator(`[data-uid="${uid}"]`)
 }
 
 function card(page: Page) {
-  return page.getByRole("region", { name: "Datasources" })
+  return page
+    .locator(".ag-root-wrapper")
+    .filter({ has: page.getByRole("grid", { name: "Datasources" }) })
 }
 
 async function openDatasources(page: Page) {
@@ -33,10 +35,10 @@ test("lists the configured datasources", async ({ page }) => {
   const prom = datasourceRow(page, "prom")
   await expect(prom).toContainText("Prometheus")
   await expect(prom.locator('[data-status="ok"]')).toHaveText("Healthy")
-  await expect(prom.locator("td").nth(3)).toHaveText(
+  await expect(prom.getByRole("gridcell").nth(3)).toHaveText(
     /^(No dashboards|1 dashboard|\d+ dashboards)$/
   )
-  await expect(prom.locator("td").nth(4).locator("time")).toBeVisible()
+  await expect(prom.getByRole("gridcell").nth(4).locator("time")).toBeVisible()
 
   await expect(datasourceRow(page, "ch")).toContainText("ClickHouse, read only")
 })
@@ -193,7 +195,7 @@ test("draws both themes", async ({ page }) => {
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
   await expect(datasourceRow(page, "prom")).toBeVisible()
-  await expect(card(page)).toHaveCSS("background-color", "rgb(19, 20, 23)")
+  await expect(card(page)).toHaveCSS("background-color", "rgb(26, 27, 31)")
   await expect(card(page)).toHaveCSS("border-top-color", "rgb(46, 48, 54)")
 })
 
