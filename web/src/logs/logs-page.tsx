@@ -40,6 +40,7 @@ import { applyPills, decodePills } from "./pills"
 import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
+import { modeOnSavedSearch } from "./saved-mode"
 import { logsTimeRange, runPatch, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
@@ -224,6 +225,12 @@ function LogsWorkspaceView({
     hasQuery: q !== undefined,
     hasAsk: search.ask !== undefined,
   })
+  const [seenSaved, setSeenSaved] = useState(search.saved)
+  if (seenSaved !== search.saved) {
+    setSeenSaved(search.saved)
+    const next = modeOnSavedSearch(mode, seenSaved, search.saved)
+    if (next !== mode) setMode(next, false)
+  }
 
   const { results, paging } = useLogsResults({
     datasource,
