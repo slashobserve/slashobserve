@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -828,5 +829,59 @@ func TestSummarizeReportsTheExpandedQueryText(t *testing.T) {
 	}})
 	if len(got.Executed) != 1 || got.Executed[0].Ref != "A" || got.Executed[0].Text != `rate(up{job="api"}[5m])` {
 		t.Fatalf("executed = %+v", got.Executed)
+	}
+}
+
+func lokiStreamFrame(labels map[string]string, base time.Time, offsets ...int) datasource.Frame {
+	times := make([]any, len(offsets))
+	bodies := make([]any, len(offsets))
+	for i, off := range offsets {
+		times[i] = base.Add(-time.Duration(off) * time.Second)
+		bodies[i] = fmt.Sprintf("error %s %d", labels["pod"], off)
+	}
+	return datasource.Frame{Labels: labels, Fields: []datasource.Field{
+		{Name: "Time", Type: datasource.FieldTime, Values: times},
+		{Name: "Body", Type: datasource.FieldString, Values: bodies},
+		datasource.TimeNsField(times),
+	}}
+}
+
+func TestSummarizeMergesLogStreamsIntoOneNewestFirstTable(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	frames := []datasource.Frame{
+		lokiStreamFrame(map[string]string{"pod": "a"}, base, 9),
+		lokiStreamFrame(map[string]string{"pod": "b"}, base, 1, 4, 7),
+		lokiStreamFrame(map[string]string{"pod": "c"}, base, 2, 3, 5, 6, 8),
+	}
+	summary := summarize(queryproxy.Result{Kind: queryproxy.KindInstant, Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}})
+	if summary.Table == nil || summary.Table.TotalRows != 9 || len(summary.Table.Rows) != maxTableRows-1 {
+		t.Fatalf("table = %+v, want 9 rows from 3 streams", summary.Table)
+	}
+	names := make([]string, len(summary.Table.Columns))
+	for i, c := range summary.Table.Columns {
+		names[i] = c.Name
+	}
+	if want := []string{"Time", "Body", "TimeNs", "labels"}; !slices.Equal(names, want) {
+		t.Fatalf("columns = %v, want %v", names, want)
+	}
+	for i, row := range summary.Table.Rows {
+		wantPod := map[int]string{1: "b", 2: "c", 3: "c", 4: "b", 5: "c", 6: "c", 7: "b", 8: "c", 9: "a"}[i+1]
+		if row[3] != "pod="+wantPod || row[1] != fmt.Sprintf("error %s %d", wantPod, i+1) {
+			t.Fatalf("row %d = %v, want newest first from pod %s", i, row, wantPod)
+		}
+	}
+}
+
+func TestSummarizeFitsTenLongLogLines(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	long := strings.Repeat("x", 300)
+	f := lokiStreamFrame(map[string]string{"namespace": "kafka-system", "pod": "kafka-broker-0", "container": "kafka", "service_name": "kafka"}, base, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+	for i := range f.Fields[1].Values {
+		f.Fields[1].Values[i] = long
+	}
+	other := lokiStreamFrame(map[string]string{"pod": "z"}, base, 13)
+	summary := summarize(queryproxy.Result{Kind: queryproxy.KindInstant, Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{other, f}}}})
+	if summary.Table == nil || len(summary.Table.Rows) != maxTableRows {
+		t.Fatalf("rows = %d, want %d", len(summary.Table.Rows), maxTableRows)
 	}
 }

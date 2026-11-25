@@ -1067,6 +1067,8 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
 - It takes `variables`, an object of variable name to a list of values for each `$variable` the query uses, and `dashboard_title` for `$__dashboard`.
 - It returns `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource.
   That shows what a `$job` or a `$__rate_interval` became.
+- A Loki log query comes back as one table of lines, newest first across every stream, with a `labels` column naming each line's stream.
+  The summary shows the first ten lines; pass `page_size` to `query_instant` to read them in pages.
 - On any ClickHouse table, `query_range` refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`.
   A macro inside a comment does not count.
 

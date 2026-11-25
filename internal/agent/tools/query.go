@@ -35,14 +35,15 @@ const (
 	maxSummaryCell     = 200
 	seriesBudget       = 7 << 10
 	tableColumnsBudget = 3 << 10
-	tableRowsBudget    = 4 << 10
+	tableRowsBudget    = 6 << 10
+	logLabelsColumn    = "labels"
 	adhocPanelID       = "adhoc"
 	defaultDashTitle   = "Untitled dashboard"
 	maxDashTitleChars  = 200
 )
 
 const (
-	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows."}`
+	propPageSize = `"page_size":{"type":"integer","minimum":50,"maximum":500,"description":"Rows per page, 50 to 500; turns paging on. Prefer it to from and to windows. Use 50 for log lines."}`
 	propPage     = `"page":{"type":"integer","minimum":1,"description":"Page to read, from 1; on Loki and Tempo pass cursor instead of a page above 1."}`
 	propCursor   = `"cursor":{"type":"string","maxLength":2048,"description":"The next value of an earlier page."}`
 	propSort     = `"sort":{"type":"string","maxLength":65,"description":"ClickHouse: order all rows by this result column, - for descending, e.g. -Duration; resend it with each cursor."}`
@@ -523,14 +524,19 @@ func summarize(res queryproxy.Result) querySummary {
 		return s
 	}
 	var series []seriesOut
+	var streams []datasource.Frame
 	for _, f := range frames {
-		if isSeriesFrame(f) {
+		switch {
+		case isSeriesFrame(f):
 			series = append(series, frameSeries(f)...)
-			continue
-		}
-		if s.Table == nil {
+		case isLogStream(f):
+			streams = append(streams, f)
+		case s.Table == nil:
 			s.Table = frameTable(f, &s.Truncated)
 		}
+	}
+	if s.Table == nil && len(streams) > 0 {
+		s.Table = frameTable(mergeLogStreams(streams), &s.Truncated)
 	}
 	if len(series) > maxSeriesOut {
 		series, s.Truncated = series[:maxSeriesOut], true
@@ -540,6 +546,68 @@ func summarize(res queryproxy.Result) querySummary {
 		s.Truncated = true
 	}
 	return s
+}
+
+func isLogStream(f datasource.Frame) bool {
+	return slices.ContainsFunc(f.Fields, func(field datasource.Field) bool { return field.Name == datasource.TimeNsFieldName })
+}
+
+func mergeLogStreams(streams []datasource.Frame) datasource.Frame {
+	if len(streams) == 1 {
+		return streams[0]
+	}
+	type line struct {
+		ns     int64
+		frame  int
+		row    int
+		labels string
+	}
+	var names []string
+	types := map[string]datasource.FieldType{}
+	var lines []line
+	withLabels := false
+	for i, f := range streams {
+		for _, field := range f.Fields {
+			if _, seen := types[field.Name]; !seen {
+				names = append(names, field.Name)
+				types[field.Name] = field.Type
+			}
+		}
+		labels := labelsText(f.Labels)
+		withLabels = withLabels || labels != ""
+		for row := range f.Rows() {
+			ns, _ := datasource.TimeNsOf(f, row)
+			lines = append(lines, line{ns: ns, frame: i, row: row, labels: labels})
+		}
+	}
+	slices.SortStableFunc(lines, func(a, b line) int { return cmp.Compare(b.ns, a.ns) })
+	merged := make([]datasource.Field, len(names), len(names)+1)
+	for i, name := range names {
+		merged[i] = datasource.Field{Name: name, Type: types[name], Values: make([]any, len(lines))}
+	}
+	labelValues := make([]any, len(lines))
+	for i, l := range lines {
+		for j, name := range names {
+			for _, field := range streams[l.frame].Fields {
+				if field.Name == name && l.row < len(field.Values) {
+					merged[j].Values[i] = field.Values[l.row]
+				}
+			}
+		}
+		labelValues[i] = l.labels
+	}
+	if withLabels {
+		merged = append(merged, datasource.Field{Name: logLabelsColumn, Type: datasource.FieldString, Values: labelValues})
+	}
+	return datasource.Frame{Fields: merged}
+}
+
+func labelsText(labels map[string]string) string {
+	parts := make([]string, 0, len(labels))
+	for _, k := range slices.Sorted(maps.Keys(labels)) {
+		parts = append(parts, k+"="+labels[k])
+	}
+	return strings.Join(parts, ",")
 }
 
 func framesEmpty(frames []datasource.Frame) bool {
