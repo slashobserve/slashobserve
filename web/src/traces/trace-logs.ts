@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query"
 import { api } from "@/api/client"
 import { ApiError, isRetryable, unwrap } from "@/api/errors"
 import { exploreKeys, type TraceLogsParams } from "@/api/keys"
+import { auditDatasourceUid } from "@/audit/audit-source"
 import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -95,7 +96,10 @@ export function traceLogsQuery(uid: string, params: TraceLogsParams) {
 export function logsDatasourceCandidates(
   all: readonly DatasourceStatus[]
 ): DatasourceStatus[] {
-  return all.filter((datasource) => logsTypes.has(datasource.type))
+  return all.filter(
+    (datasource) =>
+      logsTypes.has(datasource.type) && datasource.uid !== auditDatasourceUid
+  )
 }
 
 function storedLogsDatasource(): string | null {

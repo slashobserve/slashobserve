@@ -714,6 +714,7 @@ A datasource that has not answered after 15 seconds ends in an error with **Retr
 
 A ClickHouse trace reads its logs from a ClickHouse datasource, and a Tempo trace from Loki.
 With more than one logs datasource, a select in the section picks one, and the browser remembers the choice.
+The built-in audit datasource is never one of them, so a server with no other logs datasource shows the prompt to connect one.
 
 ### Time range and large traces
 
