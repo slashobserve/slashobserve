@@ -18,9 +18,24 @@ describe("cellKeyAction", () => {
     })
   })
 
-  it("leaves Enter to the grid on a cell with no control or several", () => {
+  it("leaves Enter to the grid on a cell with no control", () => {
     expect(cellKeyAction("Enter", false, 0, 0)).toBeNull()
-    expect(cellKeyAction("Enter", false, 0, 3)).toBeNull()
+  })
+
+  it("enters a cell that holds several controls on Enter, at the first", () => {
+    expect(cellKeyAction("Enter", false, 0, 3)).toEqual({
+      kind: "focus",
+      stop: 1,
+    })
+  })
+
+  it("returns from a control to its cell on Escape, and ignores Escape on the cell", () => {
+    expect(cellKeyAction("Escape", false, 2, 3)).toEqual({
+      kind: "focus",
+      stop: 0,
+    })
+    expect(cellKeyAction("Escape", false, 0, 3)).toBeNull()
+    expect(cellKeyAction("Escape", false, -1, 3)).toBeNull()
   })
 
   it("presses the focused control on Enter", () => {
@@ -30,29 +45,23 @@ describe("cellKeyAction", () => {
     })
   })
 
-  it("tabs through the controls of a cell that holds several, and stops acting after the last", () => {
-    expect(cellKeyAction("Tab", false, 0, 2)).toEqual({
-      kind: "focus",
-      stop: 1,
-    })
+  it("leaves the grid on Tab from the cell itself, however many controls it holds", () => {
+    for (const count of [0, 1, 2, 5]) {
+      expect(cellKeyAction("Tab", false, 0, count)).toEqual({ kind: "leave" })
+      expect(cellKeyAction("Tab", true, 0, count)).toEqual({ kind: "leave" })
+    }
+    expect(cellKeyAction("Tab", false, -1, 2)).toEqual({ kind: "leave" })
+  })
+
+  it("tabs between the controls once one has focus, and leaves after the last or before the first", () => {
     expect(cellKeyAction("Tab", false, 1, 2)).toEqual({
       kind: "focus",
       stop: 2,
     })
     expect(cellKeyAction("Tab", false, 2, 2)).toEqual({ kind: "leave" })
-  })
-
-  it("tabs back through the controls to the cell, and leaves the grid from there", () => {
     expect(cellKeyAction("Tab", true, 2, 2)).toEqual({ kind: "focus", stop: 1 })
-    expect(cellKeyAction("Tab", true, 1, 2)).toEqual({ kind: "focus", stop: 0 })
-    expect(cellKeyAction("Tab", true, 0, 2)).toEqual({ kind: "leave" })
-  })
-
-  it("leaves the grid on Tab from a cell with no control or one", () => {
-    expect(cellKeyAction("Tab", false, 0, 0)).toEqual({ kind: "leave" })
-    expect(cellKeyAction("Tab", false, 0, 1)).toEqual({ kind: "leave" })
-    expect(cellKeyAction("Tab", true, 1, 1)).toEqual({ kind: "leave" })
-    expect(cellKeyAction("Tab", false, -1, 2)).toEqual({ kind: "leave" })
+    expect(cellKeyAction("Tab", true, 1, 2)).toEqual({ kind: "leave" })
+    expect(cellKeyAction("Tab", false, 1, 1)).toEqual({ kind: "leave" })
   })
 
   it("ignores other keys and targets outside the cell's stops", () => {
@@ -217,6 +226,37 @@ describe("leaving the grid on Tab", () => {
   it("leaves from a header cell too", () => {
     const { after, grid, header } = page()
     expect(tab(header, grid).defaultPrevented).toBe(true)
+    expect(after).toHaveFocus()
+  })
+
+  it("leaves from a cell holding a checkbox and a link on one Tab, either way", () => {
+    const { after, before, grid, rows } = page()
+    const cell = rows[0]!.cell
+    const checkbox = document.createElement("input")
+    checkbox.type = "checkbox"
+    cell.prepend(checkbox)
+    expect(tab(cell, grid).defaultPrevented).toBe(true)
+    expect(after).toHaveFocus()
+    expect(tab(cell, grid, true).defaultPrevented).toBe(true)
+    expect(before).toHaveFocus()
+  })
+
+  it("enters such a cell on Enter and steps between its controls", () => {
+    const { after, grid, rows } = page()
+    const cell = rows[0]!.cell
+    const checkbox = document.createElement("input")
+    checkbox.type = "checkbox"
+    cell.prepend(checkbox)
+    const enter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+    })
+    Object.defineProperty(enter, "target", { value: cell })
+    handleCellKey(enter, grid)
+    expect(checkbox).toHaveFocus()
+    expect(tab(checkbox, grid).defaultPrevented).toBe(true)
+    expect(rows[0]!.link).toHaveFocus()
+    expect(tab(rows[0]!.link, grid).defaultPrevented).toBe(true)
     expect(after).toHaveFocus()
   })
 

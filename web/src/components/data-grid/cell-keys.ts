@@ -48,13 +48,18 @@ export function cellKeyAction(
 ): CellKeyAction {
   if (key === "Tab") {
     const next = stop + (shift ? -1 : 1)
-    return stop >= 0 && controlCount >= 2 && next >= 0 && next <= controlCount
+    return stop > 0 && next >= 1 && next <= controlCount
       ? { kind: "focus", stop: next }
       : { kind: "leave" }
   }
-  if (stop < 0 || key !== "Enter") return null
+  if (stop < 0) return null
+  if (key === "Escape") return stop > 0 ? { kind: "focus", stop: 0 } : null
+  if (key !== "Enter") return null
   if (stop > 0) return { kind: "click", stop }
-  return controlCount === 1 ? { kind: "click", stop: 1 } : null
+  if (controlCount === 0) return null
+  return controlCount === 1
+    ? { kind: "click", stop: 1 }
+    : { kind: "focus", stop: 1 }
 }
 
 export function leaveGridOnTab(): boolean {

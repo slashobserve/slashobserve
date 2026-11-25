@@ -135,7 +135,7 @@ describe("PatternsView", () => {
     await waitFor(() => expect(screen.queryByText("paid order 7")).toBeNull())
   })
 
-  it("reaches Filter, Filter out and Samples from the Actions cell by Tab", async () => {
+  it("reaches Filter, Filter out and Samples from the Actions cell by Enter then Tab", async () => {
     setup(
       [
         pattern({
@@ -159,7 +159,9 @@ describe("PatternsView", () => {
         name: "Show a sample line of this pattern",
       }),
     ]
-    for (const stop of stops) {
+    fireEvent.keyDown(cell as HTMLElement, { key: "Enter" })
+    expect(document.activeElement).toBe(stops[0])
+    for (const stop of stops.slice(1)) {
       fireEvent.keyDown(document.activeElement as Element, { key: "Tab" })
       expect(document.activeElement).toBe(stop)
     }

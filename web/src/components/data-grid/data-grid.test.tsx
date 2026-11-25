@@ -229,7 +229,7 @@ describe("DataGrid", () => {
     expect(clicked).toHaveBeenCalledTimes(1)
   })
 
-  it("tabs between the controls of a cell that holds several, keeps arrows on the focused one, and Enter presses it", async () => {
+  it("enters a cell that holds several controls on Enter, tabs between them, leaves on Tab from the cell, keeps arrows on the focused one, and Enter presses it", async () => {
     const pressed = vi.fn()
     const withActions: DataGridColumn<Row>[] = [
       columns[0] as DataGridColumn<Row>,
@@ -271,7 +271,6 @@ describe("DataGrid", () => {
     cell.focus()
     fireEvent.keyDown(cell, { key: "Enter" })
     expect(pressed).not.toHaveBeenCalled()
-    fireEvent.keyDown(cell, { key: "Tab" })
     expect(edit).toHaveFocus()
     fireEvent.keyDown(edit, { key: "Tab" })
     expect(copy).toHaveFocus()
@@ -284,14 +283,15 @@ describe("DataGrid", () => {
     expect(pressed).toHaveBeenCalledTimes(1)
     fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
     expect(copy).toHaveFocus()
-    fireEvent.keyDown(copy, { key: "Tab" })
-    fireEvent.keyDown(remove, { key: "Tab" })
+    fireEvent.keyDown(copy, { key: "Escape" })
+    expect(cell).toHaveFocus()
+    fireEvent.keyDown(cell, { key: "Tab" })
     expect(screen.getByRole("button", { name: "After" })).toHaveFocus()
-    remove.focus()
-    fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
-    fireEvent.keyDown(copy, { key: "Tab", shiftKey: true })
-    fireEvent.keyDown(edit, { key: "Tab", shiftKey: true })
+    cell.focus()
     fireEvent.keyDown(cell, { key: "Tab", shiftKey: true })
+    expect(screen.getByRole("button", { name: "Before" })).toHaveFocus()
+    edit.focus()
+    fireEvent.keyDown(edit, { key: "Tab", shiftKey: true })
     expect(screen.getByRole("button", { name: "Before" })).toHaveFocus()
     cell.focus()
     fireEvent.keyDown(cell, { key: "ArrowDown" })

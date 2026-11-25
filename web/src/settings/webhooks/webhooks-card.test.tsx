@@ -205,7 +205,7 @@ describe("WebhooksCard", () => {
     )
   })
 
-  it("tabs through Test, Attempts and More in the actions cell", async () => {
+  it("enters the actions cell on Enter and tabs through Test, Attempts and More in the actions cell", async () => {
     renderCard(stuck)
     const test = await screen.findByRole("button", {
       name: "Test Dashboard changes",
@@ -219,7 +219,7 @@ describe("WebhooksCard", () => {
     const cell = test.closest<HTMLElement>("[role=gridcell]") as HTMLElement
     cell.focus()
 
-    fireEvent.keyDown(cell, { key: "Tab" })
+    fireEvent.keyDown(cell, { key: "Enter" })
     expect(test).toHaveFocus()
     fireEvent.keyDown(test, { key: "Tab" })
     expect(attempts).toHaveFocus()
