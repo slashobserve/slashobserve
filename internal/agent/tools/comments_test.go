@@ -94,6 +94,28 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 	}
 }
 
+func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
+	var got []string
+	registered := map[string]bool{}
+	for _, tool := range New(Deps{}).List() {
+		registered[tool.Name] = true
+		if tool.InvestigateOnly {
+			got = append(got, tool.Name)
+		}
+		if tool.InvestigateOnly != (investigateOnly[tool.Name] != "") {
+			t.Errorf("%s: InvestigateOnly %v, reason %q", tool.Name, tool.InvestigateOnly, investigateOnly[tool.Name])
+		}
+	}
+	if strings.Join(got, ",") != "call_context_tool,list_context_sources" {
+		t.Fatalf("tools offered in investigations only = %v", got)
+	}
+	for name := range investigateOnly {
+		if !registered[name] {
+			t.Errorf("investigateOnly names %s, which is not a registered tool", name)
+		}
+	}
+}
+
 func TestRunsOfferEveryToolNotLeftOut(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
 		if tool.AgentOnly || tool.MCPOnly || tool.InvestigateOnly {

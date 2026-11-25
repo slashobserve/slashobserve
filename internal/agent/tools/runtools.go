@@ -27,6 +27,7 @@ const (
 	reasonApply     = "it posts in a thread and starts a run"
 	reasonProposals = "merging writes a dashboard version outside the build"
 	reasonRunAnswer = "a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer"
+	reasonContext   = "what a context source returns is outside text a build must not act on, so only a run that investigates or answers reads it"
 	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
 )
 
@@ -52,6 +53,11 @@ var leftOutOfRuns = map[string]string{
 	nameDuplicateDashboard:      reasonVersions,
 	nameSaveRunAnswer:           reasonRunAnswer,
 	nameRunDashboardHealth:      reasonHealth,
+}
+
+var investigateOnly = map[string]string{
+	nameListContextSources: reasonContext,
+	nameCallContextTool:    reasonContext,
 }
 
 var creatingWrites = map[string]bool{

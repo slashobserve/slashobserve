@@ -90,18 +90,23 @@ func (s *Service) Offers(ctx context.Context) ([]tools.ContextOffer, error) {
 	if err != nil {
 		return nil, err
 	}
+	return offered(ctx, access, sources, func(uid string) ([]Tool, error) { return s.Tools(ctx, uid) })
+}
+
+func offered(ctx context.Context, access datasource.Access, sources []Source, toolsOf func(uid string) ([]Tool, error)) ([]tools.ContextOffer, error) {
 	var out []tools.ContextOffer
 	for _, source := range sources {
 		if source.Tools.Approved == 0 || !access.Reads(source.Audience) {
 			continue
 		}
-		stored, err := s.Tools(ctx, source.UID)
+		stored, err := toolsOf(source.UID)
 		if errors.Is(err, ErrNotFound) {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
+		datasource.NoteRead(ctx, source.Audience)
 		out = append(out, offerOf(source, stored))
 	}
 	return out, nil
@@ -216,7 +221,6 @@ func (s *Service) dispatch(ctx context.Context, access datasource.Access, attemp
 	if err := readable(access, audience, attempt.uid); err != nil {
 		return tools.ContextResult{}, err
 	}
-	datasource.NoteRead(ctx, audience)
 	pinned, err := approvedTool(row.Uid, stored, attempt.tool)
 	if err != nil {
 		return tools.ContextResult{}, err
@@ -244,6 +248,7 @@ func (s *Service) dispatch(ctx context.Context, access datasource.Access, attemp
 	if err != nil {
 		return tools.ContextResult{}, down(row.Uid, failureCode(err), s.limits.Timeout)
 	}
+	datasource.NoteRead(ctx, audience)
 	text, cut := cutText(called.Text, s.limits.ResultBytes)
 	attempt.result = tools.ContextResult{Text: text, Bytes: len(called.Text), Cut: cut, IsError: called.IsError}
 	return attempt.result, nil
@@ -343,14 +348,24 @@ func down(uid, reason string, timeout time.Duration) error {
 }
 
 func cutText(text string, limit int) (string, bool) {
-	if len(text) <= limit {
-		return text, false
+	escaped := 0
+	for at := 0; at < len(text); {
+		_, width := utf8.DecodeRuneInString(text[at:])
+		escaped += escapedSize(text[at : at+width])
+		if escaped > limit {
+			return text[:at], true
+		}
+		at += width
 	}
-	cut := limit
-	for cut > 0 && !utf8.RuneStart(text[cut]) {
-		cut--
+	return text, false
+}
+
+func escapedSize(piece string) int {
+	encoded, err := json.Marshal(piece)
+	if err != nil {
+		return len(piece) * 6
 	}
-	return text[:cut], true
+	return len(encoded) - 2
 }
 
 func (s *Service) recordCall(ctx context.Context, attempt callAttempt, err error, took time.Duration) {

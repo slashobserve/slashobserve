@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -157,7 +156,7 @@ func (c MCPConnector) connect(ctx context.Context, target Target) (*client.Clien
 	mc, err := client.NewStreamableHttpClient(target.URL,
 		transport.WithHTTPBasicClient(httpClient),
 		transport.WithHTTPHeaders(headers),
-		transport.WithHTTPLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
+		transport.WithHTTPLogger(slog.New(slog.DiscardHandler)),
 		transport.WithHTTPMaxMessageBytes(maxMessageBytes),
 	)
 	if err != nil {

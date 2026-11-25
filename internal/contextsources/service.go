@@ -467,44 +467,59 @@ type revision struct {
 	credentials bool
 }
 
-func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
+func assign[T any](dst *T, src *T) {
+	if src != nil {
+		*dst = *src
+	}
+}
+
+func (p Patch) applied(row dbsqlc.ContextSource) Input {
 	in := Input{UID: row.Uid, Name: row.Name, Description: row.Description.String, URL: row.Url, Audience: datasource.Audience(row.Audience), SecretHeader: row.SecretHeader.String}
-	if p.Name != nil {
-		in.Name = *p.Name
-	}
-	if p.Description != nil {
-		in.Description = *p.Description
-	}
-	if p.URL != nil {
-		in.URL = *p.URL
-	}
-	if p.Audience != nil {
-		in.Audience = *p.Audience
-	}
-	if p.SecretHeader != nil {
-		in.SecretHeader = *p.SecretHeader
-	}
-	if p.Secret != nil {
-		in.Secret = *p.Secret
-	}
-	in = in.normalized()
+	assign(&in.Name, p.Name)
+	assign(&in.Description, p.Description)
+	assign(&in.URL, p.URL)
+	assign(&in.Audience, p.Audience)
+	assign(&in.SecretHeader, p.SecretHeader)
+	assign(&in.Secret, p.Secret)
+	return in
+}
+
+func (p Patch) checkSecretChange() error {
 	if p.ClearSecret && p.Secret != nil {
-		return revision{}, invalid("secret", "cannot be set and cleared in one change")
+		return invalid("secret", "cannot be set and cleared in one change")
 	}
 	if p.Secret != nil && *p.Secret == "" {
-		return revision{}, invalid("secret", "cannot be empty; clear the secret to remove it")
+		return invalid("secret", "cannot be empty; clear the secret to remove it")
+	}
+	return nil
+}
+
+func (p Patch) checkStoredSecret(row dbsqlc.ContextSource, in Input, host string) error {
+	if len(row.Secret) == 0 || p.ClearSecret {
+		return nil
+	}
+	if in.SecretHeader == "" {
+		return invalid("secret_header", "cannot be empty while a secret is stored; clear the secret to remove both")
+	}
+	if hostOfURL(row.Url) != host && p.Secret == nil {
+		return invalid("secret", "a new host needs the secret again; send it, or clear it")
+	}
+	return nil
+}
+
+func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
+	in := p.applied(row).normalized()
+	if err := p.checkSecretChange(); err != nil {
+		return revision{}, err
 	}
 	host, err := in.check()
 	if err != nil {
 		return revision{}, err
 	}
+	if err := p.checkStoredSecret(row, in, host); err != nil {
+		return revision{}, err
+	}
 	stored := len(row.Secret) > 0
-	if stored && !p.ClearSecret && in.SecretHeader == "" {
-		return revision{}, invalid("secret_header", "cannot be empty while a secret is stored; clear the secret to remove both")
-	}
-	if hostOfURL(row.Url) != host && stored && p.Secret == nil && !p.ClearSecret {
-		return revision{}, invalid("secret", "a new host needs the secret again; send it, or clear it")
-	}
 	out := revision{host: host, params: dbsqlc.UpdateContextSourceParams{
 		Uid: row.Uid, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret,
 	}}

@@ -85,6 +85,12 @@ func destructiveTool(name string) mcp.Tool {
 	return mcp.NewTool(name, mcp.WithDescription("Wipe it"), mcp.WithReadOnlyHintAnnotation(false), mcp.WithDestructiveHintAnnotation(true))
 }
 
+func unmarkedTool(name string) mcp.Tool {
+	tool := mcp.NewTool(name, mcp.WithDescription("No hints"))
+	tool.Annotations = mcp.ToolAnnotation{}
+	return tool
+}
+
 func (r *rig) assertNoSecret(t *testing.T, secrets ...string) {
 	t.Helper()
 	r.flush()
@@ -107,7 +113,7 @@ func (r *rig) assertNoSecret(t *testing.T, secrets ...string) {
 }
 
 func TestAnAdminRegistersDiscoversAndApprovesTools(t *testing.T) {
-	r := newRig(t, readOnlyTool("search", "Search"), readOnlyTool("list", "List"), destructiveTool("wipe"), mcp.NewTool("plain", mcp.WithDescription("No hints")))
+	r := newRig(t, readOnlyTool("search", "Search"), readOnlyTool("list", "List"), destructiveTool("wipe"), unmarkedTool("plain"))
 
 	created := r.call(t, http.MethodPost, base, registration("docs", "s3cret-value"))
 	source := decodeJSON[sourceView](t, created, http.StatusCreated)
@@ -362,7 +368,7 @@ func TestAFailedDiscoveryIsAuditedAsFailed(t *testing.T) {
 
 func TestProvisionedSourcesAreManagedByTheFile(t *testing.T) {
 	r := newRig(t, readOnlyTool("search", "Search"))
-	entry := config.ContextSource{UID: "filed", Name: "Filed", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceAdmins, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value")}
+	entry := config.ContextSource{UID: "filed", Name: "Filed", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceAdmins, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value")} //nolint:gosec // a test value
 	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
 		t.Fatal(err)
 	}
