@@ -66,6 +66,7 @@ function show(blocks: Block[], allowed: string[]) {
       reveal={null}
       onRevealed={() => {}}
       onAdded={() => {}}
+      footerSlot={null}
     />,
     { route: { path: "/", url: "/" } }
   )

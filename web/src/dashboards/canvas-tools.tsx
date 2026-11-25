@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   AtSignIcon,
   MessageSquarePlusIcon,
@@ -22,6 +22,7 @@ import {
 } from "@/shortcuts/chords"
 
 import { HeldDraft } from "./held-draft"
+import { useSlotBox } from "./use-slot-box"
 
 import type { DashboardPermissions } from "./permissions"
 
@@ -216,7 +217,7 @@ type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
   modeTexts?: ModeTexts
-  reserve?: boolean
+  pageFooter?: boolean
 }
 
 const toolClass =
@@ -271,7 +272,7 @@ export function CanvasTools({
   permissions,
   idle,
   modeTexts = dashboardModeTexts,
-  reserve = false,
+  pageFooter = false,
 }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
@@ -295,7 +296,7 @@ export function CanvasTools({
           idle={idle}
           mayAsk={mayAsk}
           modeTexts={modeTexts}
-          reserve={reserve}
+          pageFooter={pageFooter}
           leave={leave}
         />
       ) : null}
@@ -308,14 +309,14 @@ function ToolBar({
   idle,
   mayAsk,
   modeTexts,
-  reserve,
+  pageFooter,
   leave,
 }: {
   active: CanvasTool
   idle: boolean
   mayAsk: boolean
   modeTexts: ModeTexts
-  reserve: boolean
+  pageFooter: boolean
   leave: (to: Leaving) => void
 }) {
   const bar = (
@@ -350,13 +351,25 @@ function ToolBar({
     </div>
   )
   const docked = active !== "select"
+  const hint = docked ? (
+    <p role="status" className="text-center text-xs text-muted-foreground">
+      {modeTexts[active]}
+    </p>
+  ) : null
+  if (pageFooter) {
+    return (
+      <PageFooter docked={docked} bar={bar}>
+        {hint}
+      </PageFooter>
+    )
+  }
   return (
     <div
       className={cn(
         "sticky bottom-0 z-30 narrow:hidden",
         docked
           ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
-          : cn("pointer-events-none", reserve ? "h-18" : "h-0")
+          : "pointer-events-none h-0"
       )}
     >
       <div
@@ -366,11 +379,36 @@ function ToolBar({
       >
         {bar}
       </div>
-      {docked ? (
-        <p role="status" className="text-center text-xs text-muted-foreground">
-          {modeTexts[active]}
-        </p>
-      ) : null}
+      {hint}
+    </div>
+  )
+}
+
+function PageFooter({
+  docked,
+  bar,
+  children,
+}: {
+  docked: boolean
+  bar: ReactNode
+  children: ReactNode
+}) {
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
+  const box = useSlotBox(slot)
+  return (
+    <div ref={setSlot} data-page-footer="" className="-mt-8 h-24 narrow:hidden">
+      <div
+        style={box}
+        className={cn(
+          "fixed z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1",
+          docked
+            ? "bottom-0 border-t bg-background px-4 py-2"
+            : "pointer-events-none bottom-4"
+        )}
+      >
+        {bar}
+        {children}
+      </div>
     </div>
   )
 }

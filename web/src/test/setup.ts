@@ -10,5 +10,13 @@ if (typeof document !== "undefined" && !("fonts" in document)) {
   })
 }
 
+if (typeof ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 afterEach(cleanup)
 afterEach(() => useRevisionsAsked.setState(useRevisionsAsked.getInitialState()))

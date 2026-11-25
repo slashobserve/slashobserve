@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -67,6 +68,7 @@ type Props = {
   reveal: Reveal | null
   onRevealed: () => void
   onAdded: (blockId: string) => void
+  footerSlot: HTMLElement | null
 }
 
 const blocksListId = "observation-blocks"
@@ -336,6 +338,7 @@ export function BlockList({
   reveal,
   onRevealed,
   onAdded,
+  footerSlot,
 }: Props) {
   const listRef = useRef<HTMLOListElement>(null)
   const arranging = useArrange({
@@ -378,7 +381,7 @@ export function BlockList({
 
   return (
     <CanvasHostProvider value={canvasHost}>
-      <div>
+      <>
         <ol
           id={blocksListId}
           ref={listRef}
@@ -406,13 +409,18 @@ export function BlockList({
           ))}
         </ol>
         {arrange === null ? null : <ArrangeAnnouncer arrange={arrange} />}
-        <CanvasTools
-          permissions={{ comment: canComment, edit: false }}
-          idle={!arranging.arranging}
-          modeTexts={observationModeTexts}
-          reserve
-        />
-      </div>
+        {footerSlot === null
+          ? null
+          : createPortal(
+              <CanvasTools
+                permissions={{ comment: canComment, edit: false }}
+                idle={!arranging.arranging}
+                modeTexts={observationModeTexts}
+                pageFooter
+              />,
+              footerSlot
+            )}
+      </>
     </CanvasHostProvider>
   )
 }

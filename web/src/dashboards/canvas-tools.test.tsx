@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { observeKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -187,7 +187,7 @@ async function renderTools(
   permissions: { comment: boolean; edit: boolean },
   agentAvailable: boolean,
   idle = true,
-  reserve = false
+  pageFooter = false
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -199,7 +199,11 @@ async function renderTools(
   renderWithProviders(
     <>
       <p>page</p>
-      <CanvasTools permissions={permissions} idle={idle} reserve={reserve} />
+      <CanvasTools
+        permissions={permissions}
+        idle={idle}
+        pageFooter={pageFooter}
+      />
     </>,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -342,24 +346,49 @@ describe("CanvasTools", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 
-  it("reserves room in the page flow for the floating toolbar only when asked", async () => {
+  it("reserves room in the page flow and fixes the toolbar to the viewport bottom only when asked", async () => {
     await renderTools({ comment: true, edit: false }, false, true, true)
-    const box = screen.getByRole("toolbar").parentElement?.parentElement
-    expect(box).toHaveClass("sticky", "h-18")
-    expect(box).not.toHaveClass("h-0")
+    const bar = screen.getByRole("toolbar")
+    const slot = bar.parentElement?.parentElement
+    expect(slot).toHaveAttribute("data-page-footer")
+    expect(slot).toHaveClass("h-24", "-mt-8")
+    expect(bar.parentElement).toHaveClass("fixed", "bottom-4")
+    expect(bar.parentElement).not.toHaveClass("sticky")
   })
 
-  it("keeps a zero-height box by default so a scrolling sibling owns the room", async () => {
+  it("keeps a sticky zero-height box by default so a scrolling sibling owns the room", async () => {
     await renderTools({ comment: true, edit: false }, false)
     const box = screen.getByRole("toolbar").parentElement?.parentElement
     expect(box).toHaveClass("sticky", "h-0")
-    expect(box).not.toHaveClass("h-18")
+    expect(box).not.toHaveAttribute("data-page-footer")
+    expect(box).not.toHaveClass("h-24")
+    expect(box).not.toHaveClass("-mt-8")
+    expect(box).not.toHaveClass("fixed")
+  })
+
+  it("docks the hint as a strip fixed to the viewport bottom in a page footer", async () => {
+    const user = userEvent.setup()
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    await user.click(screen.getByRole("button", { name: "Comment" }))
+    const strip = screen.getByRole("status").parentElement
+    expect(strip).toHaveClass("fixed", "bottom-0", "border-t")
+    expect(strip).toContainElement(screen.getByRole("toolbar"))
+  })
+
+  it("lays the page footer over the box its slot takes in the column", async () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({ left: 240, width: 612 } as DOMRect)
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    const fixed = screen.getByRole("toolbar").parentElement
+    expect(fixed).toHaveStyle({ left: "240px", width: "612px" })
+    rect.mockRestore()
   })
 
   it("lets clicks through the floating strip and keeps the toolbar clickable", async () => {
     await renderTools({ comment: true, edit: false }, false, true, true)
     const bar = screen.getByRole("toolbar")
-    expect(bar.parentElement?.parentElement).toHaveClass("pointer-events-none")
+    expect(bar.parentElement).toHaveClass("pointer-events-none")
     expect(bar).toHaveClass("pointer-events-auto")
   })
 
