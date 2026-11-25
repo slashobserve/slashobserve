@@ -30,6 +30,7 @@ export const gridTheme = themeQuartz.withParams({
   cellHorizontalPadding: 14,
   iconColor: "var(--muted-foreground)",
   scrollbarThumbColor: "var(--border)",
+  autoHeightMinBodyHeight: 0,
 })
 
 export const panelTableTheme = gridTheme.withParams({

@@ -100,10 +100,11 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
     {
       id: "name",
       header: "Name",
-      minWidth: 170,
+      minWidth: 200,
+      flex: 2,
       autoHeight: true,
       cell: (datasource) => (
-        <div className="py-2">
+        <div className="min-w-0 py-2">
           <DatasourceName datasource={datasource} />
         </div>
       ),
@@ -214,8 +215,8 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
 function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
   if (datasource.name === datasource.uid) {
     return (
-      <div className="flex items-center gap-2">
-        <span className="font-mono text-xs font-medium whitespace-nowrap">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-mono text-xs font-medium wrap-anywhere">
           {datasource.uid}
         </span>
         <AudienceBadge datasource={datasource} />
@@ -223,12 +224,14 @@ function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
     )
   }
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{datasource.name}</span>
+    <div className="flex min-w-0 flex-col">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="min-w-0 font-medium wrap-break-word">
+          {datasource.name}
+        </span>
         <AudienceBadge datasource={datasource} />
       </div>
-      <span className="font-mono text-xs font-normal whitespace-nowrap text-muted-foreground">
+      <span className="font-mono text-xs font-normal wrap-anywhere text-muted-foreground">
         {datasource.uid}
       </span>
     </div>
