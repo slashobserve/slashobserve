@@ -2,12 +2,22 @@ import { describe, expect, test } from "bun:test"
 import { StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
 import { z } from "zod"
-import { ProtocolError, isRetryable } from "../src/mcp"
+import { ProtocolError, isRetryable, startReadTimeoutMs } from "../src/mcp"
 import { ToolError } from "../src/protocol"
-import { retryWithin } from "../src/retry"
+import { retryWithin, startRetry } from "../src/retry"
 
 const policy = { waitsMs: [1, 1, 1], budgetMs: 5_000 }
 const timeout = () => new McpError(ErrorCode.RequestTimeout, "timed out")
+
+describe("startRetry", () => {
+  test("allows one retry after a try that used its whole wait", () => {
+    const [wait, ...more] = startRetry.waitsMs
+    expect(more).toHaveLength(0)
+    expect(startRetry.budgetMs).toBeGreaterThanOrEqual(
+      2 * startReadTimeoutMs + (wait ?? 0)
+    )
+  })
+})
 
 describe("retryWithin", () => {
   test("retries a timeout and returns the first success", async () => {

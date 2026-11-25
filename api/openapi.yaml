@@ -460,10 +460,10 @@ components:
             A link address with a scheme other than http, https or mailto is `unsafe_link` (path `/links/{i}/url` or the `url` of the panel, override or canvas element link).
             A dashboard or panel title that fails the text rule (`docs/reference/text-rules.md`) is reported at `/title` or `/panels/{i}/title` with the code `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`; a title is trimmed before it is stored.
             Saving a dashboard also runs every panel and variable query and adds `unknown_datasource`, `time_range_invalid` (path `/time`),
-            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child),
+            `variable_failed`, `variable_empty` and `variable_unresolved` (paths `/variables/{i}` or `/panels/{i}/queries/{j}/query`, with `/panels/{i}/panels/{j}` for a row child; a variable whose query times out is reported as `query_timeout` at `/variables/{i}`),
             and `query_invalid`, `query_forbidden`, `limit_exceeded`, `query_timeout`, `datasource_unavailable`, `not_found`, `query_empty`, `expression_error` and `internal`
             (paths `/panels/{i}/queries/{j}/query`, `/panels/{i}/queries/{j}/expression` for an expression query, `/panels/{i}/datasource` and `/panels/{i}/queries/{j}/datasource`; `query_empty` is reported once for the panel at `/panels/{i}/queries`, and never for an `alertlist` panel, whose empty result is valid).
-            A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save; see `POST /dashboards/{id}/versions`.
+            A query issue on a panel or variable the parent version lists in `unverified` may be kept instead of failing the save, and a `query_timeout` on a panel or variable whose own queries the save did not change is saved as unverified; see `POST /dashboards/{id}/versions`.
         message:
           type: string
     ValidationError:

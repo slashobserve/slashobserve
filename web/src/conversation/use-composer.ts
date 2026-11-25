@@ -1,4 +1,5 @@
-import { useRef, useState, type RefObject } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
+import { onlineManager, useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -42,6 +43,7 @@ import { roleAtLeast } from "@/lib/roles"
 import { askZone } from "@/lib/time"
 import { cleanText } from "@/lib/user-text"
 import {
+  agentInfoQuery,
   describeSubmitError,
   sentence,
   useCreateObserveRequest,
@@ -50,10 +52,12 @@ import {
 import { maxPromptLength } from "@/prompts/rules"
 
 import {
+  agentLoadOf,
   defaultDelivery,
   deliveryGate,
   flips,
   type AgentGate,
+  type AgentLoad,
   type Delivery,
   type GateInput,
   type Place,
@@ -112,6 +116,8 @@ export type ComposerModel = {
   started: { sent: SentMessage; agentName: string } | null
   announcement: { text: string; count: number }
   pending: boolean
+  holding: boolean
+  cancelHold: () => void
   sendBlock: string | null
   runningRequestId: string | undefined
   field: RefObject<HTMLTextAreaElement | null>
@@ -122,6 +128,10 @@ export type ComposerModel = {
 
 export const everyoneHere = "everyone here"
 export const oneAgentText = "Mention one agent per message"
+export const agentWaitMs = 15_000
+export const agentFailedText =
+  "Could not reach the agent, so nothing was sent. Your text is still here. Send again to retry."
+export const nothingSentText = "Nothing was sent."
 const openFailedText = "Sent, but it could not be opened."
 
 function newClientId(): string {
@@ -318,6 +328,63 @@ export function useComposer(input: ComposerInput): ComposerModel {
   const gate = deliveryGate(input.gate, delivery)
   const sendBlock = sendBlockOf(wire, delivery, gate)
   const pending = sending || delivering.pending
+  const queryClient = useQueryClient()
+  const holdsForAgent =
+    place.kind === "chat" || (place.kind === "canvas" && place.tool === "ask")
+  const [holding, setHolding] = useState(false)
+  const held = useRef<number | null>(null)
+  const holds = useRef(0)
+  const submitNow = useRef<() => Promise<void>>(async () => undefined)
+  useEffect(() => {
+    const active = held
+    return () => {
+      active.current = null
+    }
+  }, [])
+
+  function cancelHold() {
+    held.current = null
+    setHolding(false)
+  }
+
+  function liveAgent(): { load: AgentLoad; available: boolean | undefined } {
+    const state = queryClient.getQueryState<{ available: boolean }>(
+      agentInfoQuery().queryKey
+    )
+    if (state === undefined) return { load: "loading", available: undefined }
+    return { load: agentLoadOf(state), available: state.data?.available }
+  }
+
+  function holdForAgent() {
+    if (!onlineManager.isOnline()) {
+      fail({ text: agentFailedText, invalid: false })
+      return
+    }
+    const mine = ++holds.current
+    held.current = mine
+    setHolding(true)
+    setFailure(null)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("agent wait")), agentWaitMs)
+    })
+    void Promise.race([queryClient.ensureQueryData(agentInfoQuery()), timedOut])
+      .then(
+        () => {
+          if (held.current !== mine) return
+          held.current = null
+          setHolding(false)
+          void submitNow.current()
+        },
+        () => {
+          if (held.current !== mine) return
+          held.current = null
+          setHolding(false)
+          fail({ text: agentFailedText, invalid: false })
+        }
+      )
+      .finally(() => clearTimeout(timer))
+  }
 
   function announce(next: string) {
     setAnnouncement((current) => ({ text: next, count: current.count + 1 }))
@@ -333,12 +400,14 @@ export function useComposer(input: ComposerInput): ComposerModel {
       if (caret !== undefined) mention.typed(text, value, caret)
       writeText(value)
     }
+    if (cleanText(value) === "") cancelHold()
     setCursor(freshCursor)
     setFailure(null)
   }
 
   function replaceText(value: string) {
     writeText(value)
+    if (cleanText(value) === "") cancelHold()
     setFailure(null)
   }
 
@@ -429,8 +498,28 @@ export function useComposer(input: ComposerInput): ComposerModel {
       })
       return
     }
-    if (sendBlock !== null) {
-      fail({ text: sendBlock, invalid: false })
+    const agentNow = holdsForAgent ? liveAgent() : null
+    const liveGate = deliveryGate(
+      agentNow === null
+        ? input.gate
+        : {
+            ...input.gate,
+            agentAvailable: input.gate.agentAvailable ?? agentNow.available,
+            agentLoad: agentNow.load,
+          },
+      delivery
+    )
+    if (liveGate.kind === "hold" || liveGate.kind === "unreachable") {
+      if (held.current === null) holdForAgent()
+      return
+    }
+    if (liveGate.kind === "no-model" && agentNow !== null) {
+      fail({ text: nothingSentText, invalid: false })
+      return
+    }
+    const liveBlock = sendBlockOf(wire, delivery, liveGate)
+    if (liveBlock !== null) {
+      fail({ text: liveBlock, invalid: false })
       return
     }
     const plan = planSend(place, subject, delivery, {
@@ -483,6 +572,10 @@ export function useComposer(input: ComposerInput): ComposerModel {
     }
   }
 
+  useEffect(() => {
+    submitNow.current = submit
+  })
+
   return {
     text,
     wire,
@@ -509,6 +602,8 @@ export function useComposer(input: ComposerInput): ComposerModel {
     started,
     announcement,
     pending,
+    holding,
+    cancelHold,
     sendBlock,
     runningRequestId: input.runningRequestId,
     field,

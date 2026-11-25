@@ -1,7 +1,6 @@
 import { useEffect, useId, type KeyboardEvent, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { agentLabel } from "@/chat/agent-label"
 import { ContextChips, type ContextChip } from "@/chat/context-chips"
@@ -74,6 +73,8 @@ type ComposerProps = {
 const keyboardHint =
   "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
 
+export const holdingText = "Sending when the agent is ready"
+
 const chipClass =
   "inline-flex h-6 max-w-full items-center rounded-chip border px-2 text-xs text-muted-foreground"
 
@@ -135,6 +136,16 @@ function sendLabel(model: ComposerModel): string {
   return model.delivery.to === "agent"
     ? `Send and ask ${model.recipient}`
     : "Send"
+}
+
+function cancelsHold(
+  model: ComposerModel,
+  event: KeyboardEvent<HTMLTextAreaElement>
+): boolean {
+  if (event.key !== "Escape" || !model.holding) return false
+  event.preventDefault()
+  model.cancelHold()
+  return true
 }
 
 function useKeyDown(
@@ -199,6 +210,11 @@ function Feedback({
   const startedShown = startedRun !== null && runShown?.(startedRun.id) === true
   return (
     <>
+      {model.holding ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {holdingText}
+        </p>
+      ) : null}
       {model.sendBlock !== null ? (
         <p className="text-xs text-muted-foreground">{model.sendBlock}</p>
       ) : null}
@@ -269,7 +285,11 @@ function DockedComposer({
   const errorId = useId()
   const agent = useAgentInfo()
   const modelName = agentLabel(agent.data)
-  const onKeyDown = useKeyDown(model, () => void model.submit())
+  const onKeyDown = useKeyDown(
+    model,
+    () => void model.submit(),
+    (event) => cancelsHold(model, event)
+  )
   const unavailable = typeof disabledReason === "string"
   const counter = promptCounter(model.wire)
   return (
@@ -419,15 +439,13 @@ function PageComposer({
     },
   })
   function send() {
-    if (agent.isPending && !model.pending) {
-      toast.message("Still connecting to the agent. Send again in a moment.")
-      return
-    }
     if (disabled) return
     void model.submit()
   }
-  const onKeyDown = useKeyDown(model, send, (event) =>
-    picker.handleKeyDown(event)
+  const onKeyDown = useKeyDown(
+    model,
+    send,
+    (event) => cancelsHold(model, event) || picker.handleKeyDown(event)
   )
   const agentOff = agent.data?.available === false
   const modelName = agentLabel(agent.data)
@@ -465,7 +483,18 @@ function PageComposer({
     return () => window.removeEventListener("keydown", focusOnSlash)
   }, [field])
 
-  if (agentOff) return <NoAgentNote />
+  if (agentOff) {
+    return (
+      <div className="flex w-full flex-col gap-1.5">
+        {model.failure === null ? null : (
+          <p role="alert" className="text-xs text-status-critical">
+            {model.failure.text}
+          </p>
+        )}
+        <NoAgentNote />
+      </div>
+    )
+  }
 
   const allChips: ContextChip[] = [
     ...(model.command === null
@@ -491,7 +520,7 @@ function PageComposer({
     ]
       .filter((id) => id !== null)
       .join(" ") || undefined
-  const busy = model.pending || agent.isPending
+  const busy = model.pending || model.holding
 
   return (
     <div className="w-full">

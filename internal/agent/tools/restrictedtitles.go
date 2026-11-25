@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db"
 )
 
 type titleRule int
@@ -87,6 +88,26 @@ func (t *restrictedTitles) keep(folder pgtype.UUID, id string) bool {
 	return true
 }
 
+func (t *restrictedTitles) keepIn(folderID, id string) bool {
+	folder, _ := db.ParseUUID(folderID)
+	return t.keep(folder, id)
+}
+
+func (t *restrictedTitles) keepAdminsOnly() bool {
+	if t.rule != leaveOutRestrictedTitles {
+		return true
+	}
+	t.leftOut++
+	return false
+}
+
+func (t *restrictedTitles) holds(ctx context.Context, folderID string) {
+	folder, _ := db.ParseUUID(folderID)
+	if t.adminsOnly[folder] {
+		datasource.NoteRead(ctx, datasource.AudienceAdmins)
+	}
+}
+
 func (t *restrictedTitles) restart() {
 	t.leftOut, t.listed = 0, false
 }
@@ -102,4 +123,24 @@ func (t *restrictedTitles) note(one, many string) string {
 		return ""
 	}
 	return "Left out " + plural(t.leftOut, one, many) + " in folders only Admins can read; call again with include_restricted: true to list them, and your answer then stays where only Admins read it."
+}
+
+type leftOutOut struct {
+	LeftOut    int    `json:"left_out,omitempty"`
+	LeftOutWhy string `json:"left_out_note,omitempty"`
+}
+
+func (t *restrictedTitles) report(one, many string) leftOutOut {
+	if t.leftOut == 0 {
+		return leftOutOut{}
+	}
+	return leftOutOut{LeftOut: t.leftOut, LeftOutWhy: "Left out " + plural(t.leftOut, one, many) + " in folders only Admins can read; a private chat lists them."}
+}
+
+func keepReadable[T any](t *restrictedTitles, items []T, at func(T) (folderID, id string)) []T {
+	t.restart()
+	return slices.DeleteFunc(items, func(item T) bool {
+		folderID, id := at(item)
+		return !t.keepIn(folderID, id)
+	})
 }

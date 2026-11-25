@@ -82,6 +82,9 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in validated, folder
 	}
 	var row dbsqlc.SavedSearch
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := placement.RunWrite(ctx, q, by, folderID); err != nil {
+			return err
+		}
 		if err := s.guard.Save(ctx, q, folders.ContentSavedSearch, folderID, []string{in.DatasourceUID}); err != nil {
 			return err
 		}
@@ -133,6 +136,13 @@ type change struct {
 	content *contentChange
 }
 
+func (c change) target(before dbsqlc.SavedSearch) pgtype.UUID {
+	if c.moveTo.Valid {
+		return c.moveTo
+	}
+	return before.FolderID
+}
+
 func (c change) fields() []string {
 	var fields []string
 	if c.title != nil {
@@ -153,6 +163,9 @@ func (s *store) update(ctx context.Context, by actor.Actor, id, checkedFolder pg
 		}
 		if before.FolderID != checkedFolder {
 			return errFolderMoved
+		}
+		if err := placement.RunWrite(ctx, q, by, c.target(before)); err != nil {
+			return err
 		}
 		if row, err = applyChange(ctx, q, by, before, c); err != nil {
 			return err
