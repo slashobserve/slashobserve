@@ -287,7 +287,7 @@ describe("FolderPage", () => {
       name: "Slow checkout after the deploy",
     })
     expect(observation).toHaveAttribute("href", `/o/${slowCheckout.id}`)
-    const observations = screen.getByRole("region", { name: "Observations" })
+    const observations = screen.getByRole("grid", { name: "Observations" })
     expect(within(observations).getByText("Open")).toBeInTheDocument()
 
     const search = await screen.findByRole("link", { name: "Checkout errors" })
@@ -295,7 +295,7 @@ describe("FolderPage", () => {
       "href",
       expect.stringMatching(/^\/logs\/es\?.*q=level%3Aerror/)
     )
-    const searches = screen.getByRole("region", { name: "Saved searches" })
+    const searches = screen.getByRole("grid", { name: "Saved searches" })
     expect(within(searches).getByText("Logs")).toBeInTheDocument()
     expect(within(searches).getByText("es")).toBeInTheDocument()
     expect(
@@ -330,8 +330,8 @@ describe("FolderPage", () => {
     expect(
       await screen.findByText("No observations in this folder")
     ).toBeInTheDocument()
-    expect(screen.queryByRole("region", { name: "Observations" })).toBeNull()
-    expect(screen.queryByRole("region", { name: "Saved searches" })).toBeNull()
+    expect(screen.queryByRole("grid", { name: "Observations" })).toBeNull()
+    expect(screen.queryByRole("grid", { name: "Saved searches" })).toBeNull()
   })
 
   it("gives a reader no menu on a saved search", async () => {

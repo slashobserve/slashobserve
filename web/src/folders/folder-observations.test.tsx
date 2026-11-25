@@ -55,7 +55,7 @@ describe("FolderObservations", () => {
     ])
     renderSection()
 
-    const region = await screen.findByRole("region", { name: "Observations" })
+    const region = await screen.findByRole("grid", { name: "Observations" })
     expect(
       within(region).getByRole("link", { name: "Checkout latency" })
     ).toHaveAttribute("href", "/o/o1")

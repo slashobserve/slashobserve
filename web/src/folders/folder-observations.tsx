@@ -2,15 +2,59 @@ import { useId } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import { observationLink } from "@/lib/links"
-import { observationsInfiniteQuery } from "@/observations/queries"
+import {
+  observationsInfiniteQuery,
+  type Observation,
+} from "@/observations/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 import { plainTitle } from "@/comments/plain-title"
+
+const columns: DataGridColumn<Observation>[] = [
+  {
+    id: "title",
+    header: "Title",
+    minWidth: 240,
+    flex: 2,
+    autoHeight: true,
+    cell: (observation) => (
+      <Link
+        {...observationLink(observation.id)}
+        className="rounded-sm font-medium wrap-anywhere underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {plainTitle(observation.title)}
+      </Link>
+    ),
+  },
+  {
+    id: "state",
+    header: "State",
+    width: 110,
+    cell: (observation) =>
+      observation.state === "open" ? (
+        <StatusLabel tone="ok">Open</StatusLabel>
+      ) : (
+        <StatusLabel tone="none">Resolved</StatusLabel>
+      ),
+  },
+  {
+    id: "updated",
+    header: "Updated",
+    width: 130,
+    cell: (observation) => (
+      <span className="text-muted-foreground">
+        <RelativeTime iso={observation.updated_at} />
+      </span>
+    ),
+  },
+]
+
+const observationId = (observation: Observation) => observation.id
 
 export function FolderObservations({
   folderId,
@@ -48,39 +92,12 @@ export function FolderObservations({
           No observations in this folder
         </p>
       ) : (
-        <TableCard labelledBy={headingId} minWidth={560} stackOnNarrow>
-          <thead>
-            <tr>
-              <HeaderCell>Title</HeaderCell>
-              <HeaderCell>State</HeaderCell>
-              <HeaderCell>Updated</HeaderCell>
-            </tr>
-          </thead>
-          <tbody>
-            {observations.map((observation) => (
-              <tr key={observation.id}>
-                <Cell className="wrap-anywhere">
-                  <Link
-                    {...observationLink(observation.id)}
-                    className="rounded-sm font-medium underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {plainTitle(observation.title)}
-                  </Link>
-                </Cell>
-                <Cell>
-                  {observation.state === "open" ? (
-                    <StatusLabel tone="ok">Open</StatusLabel>
-                  ) : (
-                    <StatusLabel tone="none">Resolved</StatusLabel>
-                  )}
-                </Cell>
-                <Cell className="text-muted-foreground">
-                  <RelativeTime iso={observation.updated_at} />
-                </Cell>
-              </tr>
-            ))}
-          </tbody>
-        </TableCard>
+        <DataGrid
+          labelledBy={headingId}
+          rows={observations}
+          columns={columns}
+          rowId={observationId}
+        />
       )}
       {list.hasNextPage ? (
         <div className="mt-3 flex justify-center">
