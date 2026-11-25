@@ -23,10 +23,10 @@ function status(overrides: Partial<DatasourceStatus>): DatasourceStatus {
 function renderTable(datasources: DatasourceStatus[]) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(datasourceKeys.list(), { datasources })
-  return renderWithProviders(
-    <DatasourceTable onAdd={() => undefined} onEdit={() => undefined} />,
-    { queryClient, route: { path: "/", url: "/" } }
-  )
+  return renderWithProviders(<DatasourceTable onEdit={() => undefined} />, {
+    queryClient,
+    route: { path: "/", url: "/" },
+  })
 }
 
 describe("DatasourceTable audience", () => {
@@ -72,10 +72,10 @@ describe("DatasourceTable rows", () => {
     queryClient.setQueryData(datasourceKeys.list(), {
       datasources: [status({ uid: "metrics" })],
     })
-    const { user } = renderWithProviders(
-      <DatasourceTable onAdd={() => undefined} onEdit={onEdit} />,
-      { queryClient, route: { path: "/", url: "/" } }
-    )
+    const { user } = renderWithProviders(<DatasourceTable onEdit={onEdit} />, {
+      queryClient,
+      route: { path: "/", url: "/" },
+    })
     await user.click(
       await screen.findByRole("button", { name: "Edit metrics" })
     )

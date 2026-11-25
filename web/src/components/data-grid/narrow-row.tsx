@@ -64,7 +64,7 @@ export function NarrowRow<T>({
           key={column.id}
           data-cell={column.id}
           data-label={column.header}
-          className='flex min-w-0 items-center gap-1 text-xs wrap-anywhere text-muted-foreground before:content-[attr(data-label)_":"] empty:hidden'
+          className='flex min-w-0 items-center gap-1 text-xs wrap-anywhere text-muted-foreground before:shrink-0 before:wrap-normal before:content-[attr(data-label)_":"] empty:hidden'
         >
           {column.cell(data.row)}
         </div>

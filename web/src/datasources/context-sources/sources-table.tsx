@@ -41,7 +41,6 @@ type Props = {
   headingRef?: Ref<HTMLHeadingElement>
   adding: boolean
   addTrigger: RefObject<HTMLElement | null>
-  onAddMcp: (from: HTMLElement) => void
   onAddClose: () => void
   onPickNative: (type: DatasourceType) => void
 }
@@ -50,7 +49,6 @@ export function McpSourcesSection({
   headingRef,
   adding,
   addTrigger,
-  onAddMcp,
   onAddClose,
   onPickNative,
 }: Props) {
@@ -211,7 +209,7 @@ export function McpSourcesSection({
           id="mcp-sources-heading"
           ref={headingRef}
           tabIndex={-1}
-          className="text-base font-semibold outline-none"
+          className="scroll-mt-4 text-base font-semibold outline-none"
         >
           MCP sources
         </h2>
@@ -234,15 +232,10 @@ export function McpSourcesSection({
         <div className="rounded-card border px-4 py-10 text-center">
           <h3 className="text-sm font-semibold">No MCP sources yet</h3>
           <p className="text-[13px] text-muted-foreground">
-            Register an MCP server, discover its tools and approve the ones the
-            agent may call.
+            Choose Add source at the top of the page and pick MCP server as the
+            type. Then discover its tools and approve the ones the agent may
+            call.
           </p>
-          <Button
-            className="mt-3"
-            onClick={(event) => onAddMcp(event.currentTarget)}
-          >
-            Add an MCP server
-          </Button>
         </div>
       ) : (
         <DataGrid
