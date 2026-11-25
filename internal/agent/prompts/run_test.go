@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 25303
-	fullSystemTextBudget = 30025
+	systemTextBudget     = 25486
+	fullSystemTextBudget = 30208
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -350,6 +350,11 @@ func TestRunTextsSayWritesWaitForTheAskAndNameTheWebActionForWhatIsLeftOut(t *te
 		}
 		if strings.Contains(system, "cannot change observations") || strings.Contains(system, "read-only") {
 			t.Errorf("%s text still says the run cannot write", name)
+		}
+	}
+	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
+		if !strings.Contains(system, "never stop after the write") {
+			t.Errorf("%s text lacks the rule to end with a finding after a write", name)
 		}
 	}
 	if !strings.Contains(Build(demoTypes), "a question never creates an observation nobody asked for") {
