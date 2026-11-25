@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"context"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
@@ -49,13 +50,22 @@ func (sess *session) beginTurn(c guard.Call, turn *Turn) {
 	sess.state.Turn = next
 }
 
-func (sess *session) closeTurn(ctx context.Context) (nudge string, err error) {
+func (sess *session) closeTurn(ctx context.Context) (notes []string, err error) {
 	nudge, stop := sess.state.Guard.EndTurn()
 	sess.state.Turn.Open = false
-	if stop != nil {
-		return nudge, sess.end(ctx, endSpec{failure: stop.Failure, step: stop.Step})
+	if nudge != "" {
+		notes = append(notes, nudge)
 	}
-	return nudge, nil
+	if stop != nil {
+		return notes, sess.end(ctx, endSpec{failure: stop.Failure, step: stop.Step})
+	}
+	if line := sess.state.Guard.StageLine(); line != "" {
+		notes = append(notes, line)
+		if stage, changed := sess.state.Guard.StageChange(); changed {
+			sess.record(revisions.Step{At: time.Now(), Phase: guard.PhaseStage, Tool: stopTool, Status: "ok", Message: "Stage: " + stage})
+		}
+	}
+	return notes, nil
 }
 
 func (sess *session) complete(ctx context.Context, seq int) (notes []string, err error) {
@@ -66,9 +76,5 @@ func (sess *session) complete(ctx context.Context, seq int) (notes []string, err
 	if turn.Settled++; turn.Settled < turn.Calls {
 		return nil, nil
 	}
-	nudge, err := sess.closeTurn(ctx)
-	if nudge != "" {
-		notes = append(notes, nudge)
-	}
-	return notes, err
+	return sess.closeTurn(ctx)
 }

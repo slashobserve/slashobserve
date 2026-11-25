@@ -99,11 +99,12 @@ func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
 	registered := map[string]bool{}
 	for _, tool := range New(Deps{}).List() {
 		registered[tool.Name] = true
-		if tool.InvestigateOnly {
+		pinned := tool.OnlyIn == ModeInvestigate && !tool.AgentOnly
+		if pinned {
 			got = append(got, tool.Name)
 		}
-		if tool.InvestigateOnly != (investigateOnly[tool.Name] != "") {
-			t.Errorf("%s: InvestigateOnly %v, reason %q", tool.Name, tool.InvestigateOnly, investigateOnly[tool.Name])
+		if pinned != (investigateOnly[tool.Name] != "") {
+			t.Errorf("%s: offered in investigations only %v, reason %q", tool.Name, pinned, investigateOnly[tool.Name])
 		}
 	}
 	if strings.Join(got, ",") != "call_context_tool,list_context_sources" {
@@ -118,7 +119,7 @@ func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
 
 func TestRunsOfferEveryToolNotLeftOut(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if tool.AgentOnly || tool.MCPOnly || tool.InvestigateOnly {
+		if tool.AgentOnly || tool.MCPOnly || tool.OnlyIn != "" {
 			continue
 		}
 		if !tool.OfferedIn(ModeCreate) {

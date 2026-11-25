@@ -6787,7 +6787,7 @@ export interface components {
             /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
-            phase: "discover" | "lint" | "query" | "save" | "write" | "repair";
+            phase: "discover" | "lint" | "query" | "save" | "write" | "repair" | "ledger" | "stage";
             tool: string;
             /** @enum {string} */
             status: "ok" | "error";
@@ -6826,7 +6826,7 @@ export interface components {
             nudges: number;
             /** @description Read calls refused because the run reached its limit of model calls without a save, which is 6 in a revision and once a build has saved a panel, the investigation limit (12 by default) in a chat question before its first save, and 12 without a proposal in a suggest run. */
             save_now_refusals: number;
-            /** @description Turns in which the agent answered no call because every call was refused. */
+            /** @description Turns in which the agent answered no call because every call was refused, or made only hypothesis ledger calls. */
             stalled_turns: number;
             /** @description Saves refused for adding or changing more than one panel. */
             one_panel_refusals: number;
@@ -6835,6 +6835,26 @@ export interface components {
              * @description Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
              */
             cost_usd: number | null;
+            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`) and only for the requester and Admins, because it quotes data the run read. */
+            hypotheses?: components["schemas"]["AgentHypothesis"][];
+            /** @description The investigation's model-call limit when it ended, after any growth, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`. */
+            call_limit?: number;
+            /**
+             * @description The stage the investigation was in when it saved its finding, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` and a saved finding.
+             * @enum {string}
+             */
+            stage_at_save?: "orient" | "hypothesize" | "test" | "conclude";
+        };
+        AgentHypothesis: {
+            id: string;
+            /** @description One sentence saying what may have failed. */
+            text: string;
+            /** @enum {string} */
+            status: "open" | "supported" | "ruled_out";
+            /** @description What the agent read and what it showed. */
+            evidence?: string[];
+            /** @description For an open hypothesis, the read that would settle it. */
+            next?: string;
         };
         /** @description How far a request's build has come, without its Spec; the build title is for the requester only. */
         AgentBuildProgress: {
@@ -7288,6 +7308,42 @@ export interface components {
             id: string;
             name: string;
         };
+        FindingRootCause: {
+            /** @description A service, datastore, host or flag name as it appears in the telemetry. */
+            component: string;
+            /** @enum {string} */
+            kind: "deploy" | "config_or_flag" | "dependency" | "resource" | "data" | "traffic" | "infrastructure" | "unknown";
+            /** @description One sentence on what failed. */
+            summary: string;
+        };
+        /** @description The structured fields of the finding one run wrote into the observation. */
+        ObservationRunFinding: {
+            /**
+             * Format: uuid
+             * @description The run whose conclusion block this describes; it is the `created_by.run_id` of that block.
+             */
+            run_id: string;
+            /** @description What failed, when the agent named it; null otherwise. */
+            root_cause: components["schemas"]["FindingRootCause"] | null;
+            /**
+             * Format: date-time
+             * @description When the failure started, as the agent judged it; null when it gave none.
+             */
+            onset: string | null;
+            /** @description Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none. */
+            impact: string | null;
+            /**
+             * @description How sure the agent is of the root cause; null when it gave none.
+             * @enum {string|null}
+             */
+            confidence: "high" | "medium" | "low" | null;
+            /** @description Up to 5 things the agent checked and excluded, one line each; empty when it listed none. */
+            ruled_out: string[];
+            /** @description Up to 3 suggested actions, one line each; empty when it listed none. */
+            next_steps: string[];
+            /** @description True when the investigation found nothing wrong. */
+            no_incident: boolean;
+        };
         FindingAskOn: {
             /** Format: uuid */
             dashboard_id: string;
@@ -7330,6 +7386,26 @@ export interface components {
             observe_worthy: boolean;
             /** @description True when the run that wrote the answer read a datasource only Admins can query, such as the audit trail, which only an Admin's private chat or a run whose every reader is an Admin can do, or when the dashboard or observation the answer is about sits in a folder only Admins can read. Such an answer is shared, saved, pinned, applied or made a dashboard only in a folder only Admins can read; anywhere else the server answers 409 `restricted_answer`. */
             restricted: boolean;
+            /** @description What failed, when the agent named it; null otherwise. */
+            root_cause?: components["schemas"]["FindingRootCause"] | null;
+            /**
+             * Format: date-time
+             * @description When the failure started, as the agent judged it; null when it gave none.
+             */
+            onset?: string | null;
+            /** @description Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none. */
+            impact?: string | null;
+            /**
+             * @description How sure the agent is of the root cause; null when it gave none.
+             * @enum {string|null}
+             */
+            confidence?: "high" | "medium" | "low" | null;
+            /** @description Up to 5 things the agent checked and excluded, one line each; empty when it listed none. */
+            ruled_out?: string[];
+            /** @description Up to 3 suggested actions, one line each; empty when it listed none. */
+            next_steps?: string[];
+            /** @description True when the investigation found nothing wrong. */
+            no_incident?: boolean;
             /**
              * Format: date-time
              * @description The start of the window the evidence shows.
@@ -8332,6 +8408,8 @@ export interface components {
             allowed_actions: components["schemas"]["ObservationAction"][];
             /** @description The blocks in page order; present when one observation is read, absent from lists. */
             blocks?: components["schemas"]["ObservationBlock"][];
+            /** @description The structured fields of each finding a run wrote into the observation, oldest first; present only when one observation is read and a finding set at least one field. */
+            findings?: components["schemas"]["ObservationRunFinding"][];
             /**
              * @description Present only in the answer to a title change of the one observation made from a chat with no dashboard. `renamed` when the chat now has the observation's title, `kept` when the caller did not start that chat and its title was left as it is.
              * @enum {string}

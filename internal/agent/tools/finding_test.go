@@ -297,6 +297,39 @@ func TestSaveFindingNamesAnUntitledAnswerWithoutThePrompt(t *testing.T) {
 	}
 }
 
+func TestSaveFindingDropsTheStructuredFieldsOutsideAnInvestigation(t *testing.T) {
+	r := newFindingRig(t)
+	body := `{"markdown":"checkout-0 throws 5xx","impact":"checkout fails for 12 percent of orders","confidence":"high","next_steps":["roll back the deploy"]}`
+	for name, c := range map[string]struct {
+		investigation bool
+		kept          bool
+	}{
+		"an ask":           {false, false},
+		"an investigation": {true, true},
+	} {
+		run := Run{Mode: ModeCreate, Prompt: "why are server errors elevated", Investigation: c.investigation}
+		res := r.callIn(t, &run, editorCaller, nameSaveFinding, body)
+		saved, ok := res.Content.(findingSavedOut)
+		if res.IsError || !ok {
+			t.Fatalf("%s: save: %#v", name, res.Content)
+		}
+		if got := saved.Note != ""; got != !c.kept {
+			t.Errorf("%s: note = %q, want a note = %t", name, saved.Note, !c.kept)
+		}
+		id, err := db.ParseUUID(saved.FindingID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f, err := r.findings.Get(reading(t.Context()), editorCaller, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := f.Structured.Impact != "" && f.Structured.Confidence == "high" && len(f.Structured.NextSteps) == 1; got != c.kept {
+			t.Errorf("%s: structured fields kept = %t, want %t", name, got, c.kept)
+		}
+	}
+}
+
 func TestAnUntitledPrivateAnswerSavedAsAnObservationShowsNoWordOfItsQuestion(t *testing.T) {
 	const secret = "quasarbudget"
 	r := newFindingRig(t)

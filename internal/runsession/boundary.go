@@ -16,6 +16,8 @@ import (
 const (
 	codeRunEnded    = "run_ended"
 	messageRunEnded = "this run has ended"
+
+	stepLedgerUnchanged = "Hypotheses unchanged"
 )
 
 type Call struct {
@@ -134,13 +136,11 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 		sess.state.noteModel(*turn.Usage)
 	}
 	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
-		nudge, err := sess.closeTurn(ctx)
+		notes, err := sess.closeTurn(ctx)
 		if err != nil {
 			return out, err
 		}
-		if nudge != "" {
-			out.notes = append(out.notes, nudge)
-		}
+		out.notes = append(out.notes, notes...)
 		if sess.ended {
 			answer := sess.endedAnswer(out.notes)
 			out.answer = &answer
@@ -191,14 +191,7 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	if d.res.IsError {
 		step.Status = "error"
 	}
-	switch {
-	case a.adm.Verdict != guard.Dispatch:
-		step.Message = a.adm.Step
-	case d.res.Step != "":
-		step.Message = d.res.Step
-	default:
-		step.Message = c.Name
-	}
+	step.Message = state.stepMessage(c, a, d)
 	sess.record(step)
 	answer := Answer{Content: d.content, IsError: d.res.IsError, Notes: slices.Clone(a.notes)}
 	if a.adm.Note != "" {
@@ -226,6 +219,18 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (s *State) stepMessage(c guard.Call, a admitted, d dispatched) string {
+	switch {
+	case a.adm.Verdict != guard.Dispatch:
+		return a.adm.Step
+	case d.res.Ledger != nil && !d.res.IsError && !s.noteLedger(d.res.Ledger):
+		return stepLedgerUnchanged
+	case d.res.Step != "":
+		return d.res.Step
+	}
+	return c.Name
 }
 
 func (sess *session) endRead(c guard.Call, a admitted) {

@@ -68,6 +68,7 @@ test-scripts:
 
 test-benchmarks:
 	uv run --locked --project benchmarks pytest benchmarks/tests
+	uv run --locked --project benchmarks/orca pytest benchmarks/orca/tests
 
 lint: lint-go lint-web lint-agent lint-deploy
 
