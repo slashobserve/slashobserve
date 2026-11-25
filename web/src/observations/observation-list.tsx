@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { EllipsisIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
@@ -167,8 +167,10 @@ export function ObservationList({ view, creating, onChange }: Props) {
     ids: ReadonlySet<string>
   }>({ key: viewKey, ids: new Set() })
   const selected = selection.key === viewKey ? selection.ids : noneSelected
-  const setSelected = (next: ReadonlySet<string>) =>
-    setSelection({ key: viewKey, ids: next })
+  const setSelected = useCallback(
+    (next: ReadonlySet<string>) => setSelection({ key: viewKey, ids: next }),
+    [viewKey]
+  )
   const [deleting, setDeleting] = useState<readonly Observation[] | null>(null)
   const [resolving, setResolving] = useState<readonly Observation[] | null>(
     null
@@ -193,12 +195,15 @@ export function ObservationList({ view, creating, onChange }: Props) {
     onChange({ ...view, page: 1, ...next }, creating)
   }
 
-  function toggle(id: string, on: boolean) {
-    const next = new Set(selected)
-    if (on) next.add(id)
-    else next.delete(id)
-    setSelected(next)
-  }
+  const toggle = useCallback(
+    (id: string, on: boolean) => {
+      const next = new Set(selected)
+      if (on) next.add(id)
+      else next.delete(id)
+      setSelected(next)
+    },
+    [selected, setSelected]
+  )
 
   function forget(ids: readonly string[]) {
     const next = new Set(selected)
@@ -206,33 +211,63 @@ export function ObservationList({ view, creating, onChange }: Props) {
     setSelected(next)
   }
 
-  function reopenRow(observation: Observation) {
-    reopen.mutate(observation.id, {
-      onError: (error) =>
-        toast.error(
-          error instanceof Error && error.message !== ""
-            ? error.message
-            : "It could not be reopened. Try again."
-        ),
-    })
-  }
+  const { mutate: reopenMutate } = reopen
+  const reopenRow = useCallback(
+    (observation: Observation) => {
+      reopenMutate(observation.id, {
+        onError: (error) =>
+          toast.error(
+            error instanceof Error && error.message !== ""
+              ? error.message
+              : "It could not be reopened. Try again."
+          ),
+      })
+    },
+    [reopenMutate]
+  )
+  const selectPage = useCallback(
+    (on: boolean) => setSelected(on ? new Set(shown) : new Set()),
+    [setSelected, shown]
+  )
+  const resolveRow = useCallback(
+    (observation: Observation) => setResolving([observation]),
+    []
+  )
+  const deleteRow = useCallback(
+    (observation: Observation) => setDeleting([observation]),
+    []
+  )
 
   const allShown = items.length > 0 && items.every((o) => selected.has(o.id))
   const someShown = items.some((o) => selected.has(o.id))
   const resolvable = chosen.filter((o) => mayDo(o, "resolve"))
   const deletable = chosen.filter((o) => mayDo(o, "delete"))
 
-  const columns = observationColumns({
-    folderOf,
-    selected,
-    allShown,
-    someShown,
-    onSelectPage: (on) => setSelected(on ? new Set(shown) : new Set()),
-    onSelect: toggle,
-    onResolve: (observation) => setResolving([observation]),
-    onReopen: reopenRow,
-    onDelete: (observation) => setDeleting([observation]),
-  })
+  const columns = useMemo(
+    () =>
+      observationColumns({
+        folderOf,
+        selected,
+        allShown,
+        someShown,
+        onSelectPage: selectPage,
+        onSelect: toggle,
+        onResolve: resolveRow,
+        onReopen: reopenRow,
+        onDelete: deleteRow,
+      }),
+    [
+      folderOf,
+      selected,
+      allShown,
+      someShown,
+      selectPage,
+      toggle,
+      resolveRow,
+      reopenRow,
+      deleteRow,
+    ]
+  )
 
   const newObservation = (
     <Button ref={newButton} onClick={() => onChange(view, true)}>
