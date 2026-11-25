@@ -17,6 +17,7 @@ import (
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/grantmode"
@@ -539,6 +540,29 @@ func TestIsClaimPoll(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if got := isClaimPoll([]byte(tc.body)); got != tc.want {
 				t.Fatalf("isClaimPoll = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestOnlyABuiltInRunWritesAsTheObserveAgent(t *testing.T) {
+	person := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-1111-1111-111111111111", Name: "Ada"}
+	tests := []struct {
+		name     string
+		assignee revisions.AssigneeKind
+		want     string
+	}{
+		{"built-in agent", revisions.AssignBuiltin, "Observe Agent for Ada"},
+		{"connected agent", revisions.AssignGrant, "Ada (via Claude Code)"},
+		{"service account", revisions.AssignServiceAccount, "Ada (via Claude Code)"},
+		{"unassigned", "", "Ada (via Claude Code)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := origin.With(context.Background(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+			ctx = actor.WithRun(withRunRequest(ctx, revisions.Request{Assignee: tt.assignee}), runRequestID)
+			if got := actor.In(ctx, person, "").Label(); got != tt.want {
+				t.Fatalf("label = %q, want %q", got, tt.want)
 			}
 		})
 	}

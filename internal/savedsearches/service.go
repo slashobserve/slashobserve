@@ -17,7 +17,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -53,7 +52,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err != nil {
 		return SavedSearch{}, err
 	}
-	row, err := s.store.insert(ctx, actor.Of(by, origin.From(ctx), ""), checked, folder.ID)
+	row, err := s.store.insert(ctx, actor.In(ctx, by, ""), checked, folder.ID)
 	if err != nil {
 		return SavedSearch{}, err
 	}
@@ -157,7 +156,7 @@ func (s *Service) updateOnce(ctx context.Context, by auth.Principal, id pgtype.U
 	}
 	row := current
 	if changed.title != nil || changed.moveTo.Valid || changed.content != nil {
-		if row, err = s.store.update(ctx, actor.Of(by, origin.From(ctx), ""), id, current.FolderID, changed); err != nil {
+		if row, err = s.store.update(ctx, actor.In(ctx, by, ""), id, current.FolderID, changed); err != nil {
 			return SavedSearch{}, err
 		}
 		s.logger.InfoContext(ctx, "saved search updated",
@@ -168,7 +167,7 @@ func (s *Service) updateOnce(ctx context.Context, by auth.Principal, id pgtype.U
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
 	var folder pgtype.UUID
-	err := s.store.delete(ctx, actor.Of(by, origin.From(ctx), ""), id, func(folderID pgtype.UUID) error {
+	err := s.store.delete(ctx, actor.In(ctx, by, ""), id, func(folderID pgtype.UUID) error {
 		folder = folderID
 		return s.mayEdit(ctx, by, folderID)
 	})
