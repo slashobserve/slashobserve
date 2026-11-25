@@ -219,7 +219,7 @@ type Props = {
   pageFooter?: boolean
 }
 
-export const pageFooterClass = "order-last mt-auto -mx-6 -mb-7"
+const pageFooterClass = "order-last mt-auto -mx-6 -mb-7"
 
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
