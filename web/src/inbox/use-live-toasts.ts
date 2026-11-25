@@ -44,7 +44,7 @@ function toastDescription(item: InboxItem): string | undefined {
 export function useLiveInboxToasts(): void {
   const navigate = useNavigate()
   const { mutate: markRead } = useSetInboxItemUnread()
-  const data = useInboxForYou().data
+  const { data, dataUpdatedAt } = useInboxForYou()
   const visible = useDocumentVisible()
   const principal =
     useMatch({
@@ -103,5 +103,5 @@ export function useLiveInboxToasts(): void {
         },
       })
     }
-  }, [data, principal, navigate, markRead])
+  }, [data, dataUpdatedAt, principal, navigate, markRead])
 }

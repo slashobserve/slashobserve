@@ -53,7 +53,7 @@ function mention(seq: number): InboxItem {
       label: "Ada",
     },
     data: withData({ object: { kind: "dashboard", id: dashboardId } }),
-    created_at: new Date().toISOString(),
+    created_at: "2026-11-25T08:00:00Z",
     reason: "mention",
     unread: true,
     target_title: "Checkout",
@@ -210,6 +210,18 @@ describe("useLiveInboxToasts", () => {
     const { queryClient } = mountWith([])
     await settle()
     await setItems(queryClient, [mention(1)])
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+  })
+
+  it("toasts the next item after a return whose refetch changed nothing", async () => {
+    const { queryClient } = mountWith([mention(5)])
+    await settle()
+    setHidden(true)
+    setHidden(false)
+    await setItems(queryClient, [mention(5)])
+    expect(toastMock).not.toHaveBeenCalled()
+
+    await setItems(queryClient, [mention(6), mention(5)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
   })
 })
