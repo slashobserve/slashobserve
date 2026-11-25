@@ -19,6 +19,7 @@ import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
 import { useVariables } from "@/dashboards/use-variables"
 import { useDocumentTitle } from "@/lib/document-title"
 import { createSharedCursor } from "@/panels/shared-cursor"
+import { InboxPanel } from "@/inbox/inbox-panel"
 import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
@@ -281,6 +282,7 @@ export function BuildPage({ requestId }: { requestId: string }) {
             {body}
           </div>
           <ChatPane requestId={requestId} />
+          <InboxPanel />
         </div>
       </div>
     </div>

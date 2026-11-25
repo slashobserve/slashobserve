@@ -1200,12 +1200,9 @@ function DashboardView({
                     onClose={closeInspect}
                   />
                 ) : null}
-                <div
-                  ref={setPanelHost}
-                  data-panel-host=""
-                  className="contents"
-                />
-                {kiosk ? null : <InboxPanel />}
+                <div ref={setPanelHost} data-panel-host="" className="contents">
+                  {kiosk ? null : <InboxPanel />}
+                </div>
                 {specOpen ? (
                   <SpecJsonPane
                     dashboardId={dashboardId}

@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useContext,
   useEffect,
   useId,
   useRef,
@@ -8,7 +7,6 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react"
-import { createPortal } from "react-dom"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
@@ -30,7 +28,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
-import { PanelHostContext } from "@/shell/side-panel"
 
 import { groupItems, type InboxItem } from "./inbox-item"
 import { focusInboxBell, useInboxPanelStore } from "./inbox-panel-store"
@@ -75,9 +72,7 @@ function ListSkeleton() {
 
 export function InboxPanel() {
   const open = useInboxPanelStore((state) => state.open)
-  const host = useContext(PanelHostContext)
-  if (!open || !host) return null
-  return createPortal(<InboxCard />, host)
+  return open ? <InboxCard /> : null
 }
 
 function useLoadMoreOnScroll(
