@@ -15,9 +15,9 @@ import {
 } from "./live-toasts"
 import { useInboxForYou, useSetInboxItemUnread } from "./queries"
 
-type Cursor = { principal: string | null; seen: number | null; resync: boolean }
+type Cursor = { principal: string | null; seen: number | null }
 
-const freshCursor: Cursor = { principal: null, seen: null, resync: false }
+const freshCursor: Cursor = { principal: null, seen: null }
 
 let cursor: Cursor = freshCursor
 
@@ -44,7 +44,7 @@ function toastDescription(item: InboxItem): string | undefined {
 export function useLiveInboxToasts(): void {
   const navigate = useNavigate()
   const { mutate: markRead } = useSetInboxItemUnread()
-  const { data, dataUpdatedAt } = useInboxForYou()
+  const { data } = useInboxForYou()
   const visible = useDocumentVisible()
   const principal =
     useMatch({
@@ -54,20 +54,14 @@ export function useLiveInboxToasts(): void {
     }) ?? null
 
   useEffect(() => {
-    if (!visible) cursorFor(principal).resync = true
-  }, [visible, principal])
-
-  useEffect(() => {
     if (data === undefined) return
     const items = data.pages.flatMap((page) => page.items)
     const newest = items.reduce((top, item) => Math.max(top, item.seq), 0)
     const current = cursorFor(principal)
-    const hidden = document.hidden
     const gate = gateLiveToasts(newest, current.seen, {
       panelOpen: useInboxPanelStore.getState().open,
-      resync: current.resync || hidden,
+      hidden: !visible,
     })
-    current.resync = hidden
     current.seen = gate.seen
     if (!gate.fresh) return
     const plan = planLiveToasts(items, gate.seen)
@@ -103,5 +97,5 @@ export function useLiveInboxToasts(): void {
         },
       })
     }
-  }, [data, dataUpdatedAt, principal, navigate, markRead])
+  }, [data, visible, principal, navigate, markRead])
 }

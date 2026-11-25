@@ -148,26 +148,41 @@ describe("useLiveInboxToasts", () => {
     expect(useInboxPanelStore.getState().open).toBe(true)
   })
 
-  it("does not toast items that arrived while the tab was hidden", async () => {
+  it("toasts items that arrived while the tab was hidden once it returns", async () => {
     const { queryClient } = mountWith([mention(5)])
     await settle()
     setHidden(true)
-    setHidden(false)
     await setItems(queryClient, [mention(6), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
 
-    await setItems(queryClient, [mention(7), mention(6), mention(5)])
+    setHidden(false)
+    await settle()
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+    expect(toastMock.mock.calls[0][0]).toBe("Ada mentioned you on Checkout")
   })
 
-  it("does not toast items fetched while the tab is hidden", async () => {
+  it("sums items missed while hidden into one summary on return", async () => {
+    const { queryClient } = mountWith([mention(1)])
+    await settle()
+    setHidden(true)
+    const burst = [2, 3, 4, 5].map(mention).reverse()
+    await setItems(queryClient, [...burst, mention(1)])
+    setHidden(false)
+    await settle()
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+    expect(toastMock.mock.calls[0][0]).toBe("4 new in Inbox")
+  })
+
+  it("toasts nothing on return when nothing arrived while hidden", async () => {
     const { queryClient } = mountWith([mention(5)])
     await settle()
     setHidden(true)
-    await setItems(queryClient, [mention(6), mention(5)])
     setHidden(false)
-    await setItems(queryClient, [mention(7), mention(6), mention(5)])
+    await setItems(queryClient, [mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
+
+    await setItems(queryClient, [mention(6), mention(5)])
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
   })
 
   it("starts from a first load after a reset", async () => {
@@ -210,18 +225,6 @@ describe("useLiveInboxToasts", () => {
     const { queryClient } = mountWith([])
     await settle()
     await setItems(queryClient, [mention(1)])
-    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
-  })
-
-  it("toasts the next item after a return whose refetch changed nothing", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
-    setHidden(true)
-    setHidden(false)
-    await setItems(queryClient, [mention(5)])
-    expect(toastMock).not.toHaveBeenCalled()
-
-    await setItems(queryClient, [mention(6), mention(5)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
   })
 })

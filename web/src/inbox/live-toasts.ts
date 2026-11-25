@@ -4,7 +4,7 @@ const maxLiveToasts = 3
 export const liveToasterId = "inbox-live"
 export const liveToastDuration = 8000
 
-type Context = { panelOpen: boolean; resync: boolean }
+type Context = { panelOpen: boolean; hidden: boolean }
 
 export type LiveToastGate = { seen: number; fresh: boolean }
 
@@ -17,11 +17,11 @@ export type LiveToastPlan = {
 export function gateLiveToasts(
   newest: number,
   seen: number | null,
-  { panelOpen, resync }: Context
+  { panelOpen, hidden }: Context
 ): LiveToastGate {
   if (seen === null) return { seen: newest, fresh: false }
-  if (panelOpen || resync) return { seen: Math.max(seen, newest), fresh: false }
-  return { seen, fresh: newest > seen }
+  if (panelOpen) return { seen: Math.max(seen, newest), fresh: false }
+  return { seen, fresh: !hidden && newest > seen }
 }
 
 export function planLiveToasts(
