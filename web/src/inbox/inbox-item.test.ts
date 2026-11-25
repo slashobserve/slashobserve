@@ -4,7 +4,6 @@ import {
   itemExcerpt,
   itemHint,
   threadTarget,
-  groupByTarget,
   groupItems,
   itemLink,
   itemText,
@@ -714,54 +713,6 @@ describe("groupItems", () => {
       "Workspace activity",
     ])
     expect(groupItems([])).toEqual([])
-  })
-})
-
-describe("groupByTarget", () => {
-  test("puts the items about one dashboard or observation together under its title, newest group first", () => {
-    const threadOn = (kind: "dashboard" | "observation", ref: string) =>
-      ({
-        type: "thread.mentioned",
-        target: { kind: "thread", id: other },
-        data: withData({ object: { kind, id: ref } }),
-      }) satisfies Partial<InboxItem>
-    const groups = groupByTarget([
-      item({ seq: 6, ...threadOn("dashboard", id), target_title: "Checkout" }),
-      item({
-        seq: 5,
-        ...threadOn("observation", other),
-        target_title: "Slow search",
-      }),
-      item({ seq: 4, ...threadOn("dashboard", id), target_title: "Checkout" }),
-      item({
-        seq: 3,
-        type: "proposal.opened",
-        target: { kind: "proposal", id: other },
-        target_title: "Raise the alert",
-      }),
-    ])
-    expect(
-      groups.map((group) => [group.label, group.items.map((i) => i.seq)])
-    ).toEqual([
-      ["Checkout", [6, 4]],
-      ["Slow search", [5]],
-      ["Raise the alert", [3]],
-    ])
-  })
-
-  test("names a group with no title by what it is about and shows a mention as plain text", () => {
-    const groups = groupByTarget([
-      item({ seq: 2, target: { kind: "observation", id } }),
-      item({
-        seq: 1,
-        target: { kind: "proposal", id: other },
-        target_title: `Ask @[Ada](user:${id})`,
-      }),
-    ])
-    expect(groups.map((group) => group.label)).toEqual([
-      "an observation",
-      "Ask @Ada",
-    ])
   })
 })
 
