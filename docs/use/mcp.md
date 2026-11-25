@@ -1769,7 +1769,8 @@ Lists the context sources the caller may use, each with the approved tools it ma
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
   Each tool shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
-- Only an approved tool of a source that is up appears.
+- A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
+- Only an approved tool appears.
   A tool that is waiting for approval, changed since it was approved, gone or refused never does.
 - The list carries a notice that the descriptions come from a server outside SlashObserve.
 
@@ -1784,8 +1785,8 @@ Calls one approved tool of a context source and returns its text.
   A cut result says `truncated: true` with a `cut_note`.
 - A call that cannot run answers with a tool error that says why:
   - `tool_not_approved` for a tool that is not approved, changed since, gone, refused or unknown.
-  - `source_not_found` for an unknown source.
-  - `admins_only_datasource` for a source set to Admins only that the caller may not use.
+  - `source_not_found` for an unknown source, and for a source set to Admins only when the caller is not an Admin, so such a source never shows it exists.
+  - `admins_only_datasource` for a source set to Admins only when an Admin is in a run whose answer everyone reads.
   - `invalid_arguments` when the arguments do not match the schema.
   - `schema_unusable` when the approved schema cannot be used to check the arguments.
   - `source_busy` when the source already has 4 calls in flight.

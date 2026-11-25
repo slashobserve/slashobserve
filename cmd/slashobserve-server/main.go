@@ -280,7 +280,7 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
-func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
 	if err := authService.ReconcileRoles(ctx); err != nil {
 		return withheld("role_reconcile_failed", err)
 	}
@@ -288,6 +288,20 @@ func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Ser
 		return authService.EnsureProvisioned(ctx, fileAccounts(cfg.ServiceAccounts))
 	}); err != nil {
 		return serviceAccountsExit(err)
+	}
+	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+		return contextsources.New(contextsources.Deps{DB: database, Key: sealed.Key(cfg.SecretKey.Reveal())}).Provision(ctx, cfg.ContextSources)
+	}); err != nil {
+		return contextSourcesExit(err)
+	}
+	return nil
+}
+
+func approveListedTools(ctx context.Context, database *db.DB, service *contextsources.Service, cfg config.Config) error {
+	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+		return service.ApproveListed(ctx, cfg.ContextSources)
+	}); err != nil {
+		return contextSourcesExit(err)
 	}
 	return nil
 }
@@ -414,7 +428,7 @@ func run() error {
 	folderAccess := folders.NewAccess(database)
 	accessRequests := accessrequests.New(database, folderAccess)
 	authService.RecordChanges(database, accessrequests.ChangeLog{ChangeLog: activity.AuthChanges{}, Requests: accessRequests})
-	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+	if err := reconcileStartup(ctx, database, authService, cfg); err != nil {
 		return err
 	}
 
@@ -601,10 +615,8 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
-	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
-		return contextSourcesService.ProvisionFile(ctx, cfg.ContextSources)
-	}); err != nil {
-		return contextSourcesExit(err)
+	if err := approveListedTools(ctx, database, contextSourcesService, cfg); err != nil {
+		return err
 	}
 
 	webhooksService := webhooks.NewService(webhooks.Deps{

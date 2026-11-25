@@ -12,6 +12,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 )
 
@@ -74,9 +75,9 @@ func issuesOf(violation *jsonschema.ValidationError) string {
 		if where == "" {
 			where = "/"
 		}
-		issue := fmt.Sprintf("%s: %s", where, unit.Error.String())
+		issue := queryproxy.ClipBytes(fmt.Sprintf("%s: %s", where, unit.Error.String()), maxIssueBytes)
 		if !slices.Contains(issues, issue) {
-			issues = append(issues, queryproxy.ClipBytes(issue, maxIssueBytes))
+			issues = append(issues, issue)
 		}
 		if len(issues) == maxArgumentIssues {
 			break
@@ -117,7 +118,7 @@ func loggedArguments(schema json.RawMessage, arguments json.RawMessage) map[stri
 		if len(out) == maxLoggedArguments {
 			break
 		}
-		out[name] = loggedValue(values[name], secret[name])
+		out[name] = loggedValue(values[name], secret[name] || audit.SecretName(name))
 	}
 	return out
 }
@@ -132,7 +133,7 @@ func loggedValue(raw json.RawMessage, secret bool) any {
 	}
 	switch v := value.(type) {
 	case string:
-		return queryproxy.ClipBytes(v, maxLoggedValueBytes)
+		return queryproxy.ClipBytes(audit.RecordedQuery(v), maxLoggedValueBytes)
 	case bool, float64, nil:
 		return v
 	case []any:

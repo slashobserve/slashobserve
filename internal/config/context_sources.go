@@ -84,6 +84,20 @@ func loadContextSources(path string, lookup func(string) (string, bool)) ([]Cont
 	return out, nil
 }
 
+func loadContextSourcesSetting(lookup func(string) (string, bool), cfg *Config) []error {
+	path := get(lookup, envContextSourcesFile)
+	if path == "" {
+		return nil
+	}
+	cfg.ContextSourcesFile = path
+	sources, err := loadContextSources(path, lookup)
+	cfg.ContextSources = sources
+	if err != nil {
+		return []error{fmt.Errorf("%s: %w", envContextSourcesFile, err)}
+	}
+	return nil
+}
+
 const (
 	maxContextSourceNameRunes        = 100
 	maxContextSourceDescriptionRunes = 300

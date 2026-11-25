@@ -40,8 +40,11 @@ func TestListedApprovalsPicksOnlyOfferedToolsAndSaysWhyItSkippedTheRest(t *testi
 func TestTheFileApprovesTheToolsItListsAndRefusesTheRest(t *testing.T) {
 	r := newRig(t, readOnlyTool("search", "Search"), readOnlyTool("list", "List"), destructiveTool("wipe"))
 	entries := filedCode("search", "wipe", "ghost")
+	if err := r.service.Provision(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
 	r.allow(t, fakeHost)
-	if err := r.service.ProvisionFile(t.Context(), entries); err != nil {
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
 	tools := r.tools(t, "code")
@@ -63,7 +66,7 @@ func TestTheFileApprovesTheToolsItListsAndRefusesTheRest(t *testing.T) {
 		t.Fatalf("events = %+v", events)
 	}
 
-	if err := r.service.approveListed(t.Context(), entries); err != nil {
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
 	r.flush()
@@ -79,11 +82,11 @@ func TestTheFileNeverApprovesAChangedDefinition(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.allow(t, fakeHost)
-	if err := r.service.approveListed(t.Context(), entries); err != nil {
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
 	r.fake.setTools(readOnlyTool("search", "Search, and now it does something else"))
-	if err := r.service.approveListed(t.Context(), entries); err != nil {
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.tools(t, "code")["search"].State; got != "changed" {
@@ -107,7 +110,7 @@ func TestASourceThatDoesNotAnswerDoesNotStopTheStart(t *testing.T) {
 	if err := r.service.Provision(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.service.approveListed(t.Context(), entries); err != nil {
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.tools(t, "code"); len(got) != 0 {

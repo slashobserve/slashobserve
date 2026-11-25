@@ -5201,8 +5201,6 @@ export interface components {
             type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "jaeger" | "elasticsearch" | "opensearch";
             /** @description The display name; the uid when empty. */
             name?: string;
-            /** @description What the source is for, on one line without control or format characters; none when empty. */
-            description?: string;
             /**
              * @description Who can query the datasource, `everyone` by default. With `admins`, every other role, key and public link gets the same answer for it as for a datasource that does not exist.
              * @enum {string}
@@ -5330,6 +5328,8 @@ export interface components {
             uid: string;
             /** @description The display name; the uid when empty. */
             name?: string;
+            /** @description What the source is for, on one line without control or format characters; none when empty. */
+            description?: string;
             /** @description An https URL with a domain name and no login, query or fragment. */
             url: string;
             /** @enum {string} */

@@ -1754,10 +1754,6 @@ components:
           type: string
           maxLength: 100
           description: The display name; the uid when empty.
-        description:
-          type: string
-          maxLength: 300
-          description: What the source is for, on one line without control or format characters; none when empty.
         audience:
           type: string
           enum: [everyone, admins]
@@ -1985,6 +1981,10 @@ components:
           type: string
           maxLength: 100
           description: The display name; the uid when empty.
+        description:
+          type: string
+          maxLength: 300
+          description: What the source is for, on one line without control or format characters; none when empty.
         url:
           type: string
           minLength: 1

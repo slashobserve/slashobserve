@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"strings"
 	"sync"
@@ -66,7 +65,7 @@ type callRig struct {
 func newCallRig(t *testing.T, limits Limits) *callRig {
 	t.Helper()
 	connector := &scriptedConnector{}
-	service := New(Deps{Key: testKey, Connector: connector, Limits: limits, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	service := New(Deps{Key: testKey, Connector: connector, Limits: limits, Logger: slog.New(slog.DiscardHandler)})
 	row := dbsqlc.ContextSource{ID: newID(), Uid: "code", Name: "Code", Url: "https://" + fakeHost + "/mcp", Audience: string(datasource.AudienceEveryone)}
 	return &callRig{service: service, connector: connector, row: row, attempt: &callAttempt{uid: row.Uid, tool: "search", row: row, known: true}}
 }
@@ -408,7 +407,9 @@ func TestLongNestedAndPasswordArgumentsAreSummarisedOrMasked(t *testing.T) {
 
 func TestACallEventCarriesSourceToolAndDurationAndNoResult(t *testing.T) {
 	r := newCallRig(t, Limits{})
-	r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"checkout","token":"abc-123"}`, approvedSearch(t, ToolApproved))
+	if _, err := r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"checkout","token":"abc-123"}`, approvedSearch(t, ToolApproved)); err != nil {
+		t.Fatal(err)
+	}
 	event := callEvent(*r.attempt, nil, 42*time.Millisecond)
 	raw, _ := json.Marshal(event.Data)
 	if event.Action != actionCall || event.Outcome != audit.OutcomeSuccess || event.Duration != 42*time.Millisecond || event.Target.ID != "code" || event.Target.Name != "Code" {
@@ -471,5 +472,95 @@ func TestACallerWithoutDatasourceAccessIsRefused(t *testing.T) {
 	}
 	if _, err := r.service.Offers(t.Context()); !errors.Is(err, datasource.ErrNoAccess) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestArgumentsWithASecretNameOrASecretInTheirTextAreMaskedInTheRecord(t *testing.T) {
+	got := loggedArguments(json.RawMessage(searchSchema), json.RawMessage(`{"api_key":"sk-live-abc","query":"password=hunter2","note":"fine"}`))
+	raw, _ := json.Marshal(got)
+	for _, leaked := range []string{"sk-live-abc", "hunter2"} {
+		if strings.Contains(string(raw), leaked) {
+			t.Errorf("%s is in %s", leaked, raw)
+		}
+	}
+	if got["api_key"] != maskedValue || got["note"] != "fine" {
+		t.Fatalf("logged = %v", got)
+	}
+}
+
+func TestAResultIsCutByItsEscapedSize(t *testing.T) {
+	r := newCallRig(t, Limits{ResultBytes: 100})
+	quotes := strings.Repeat(`"`, 200)
+	r.connector.answer = func(context.Context, Target, string, map[string]any) (Called, error) {
+		return Called{Text: quotes}, nil
+	}
+	got, err := r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"x"}`, approvedSearch(t, ToolApproved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(got.Text)
+	if !got.Cut || len(encoded)-2 > 100 || len(got.Text) != 50 {
+		t.Fatalf("cut = %v text = %d bytes, escaped = %d", got.Cut, len(got.Text), len(encoded)-2)
+	}
+}
+
+func TestARefusedOrFailedCallDoesNotMarkTheRunRestricted(t *testing.T) {
+	cases := map[string]struct {
+		arguments string
+		stored    Tool
+		answer    func(context.Context, Target, string, map[string]any) (Called, error)
+	}{
+		"unapproved":        {`{"query":"x"}`, approvedSearch(t, ToolOffered), nil},
+		"invalid arguments": {`{"query":3}`, approvedSearch(t, ToolApproved), nil},
+		"down source": {`{"query":"x"}`, approvedSearch(t, ToolApproved), func(context.Context, Target, string, map[string]any) (Called, error) {
+			return Called{}, errors.New("refused")
+		}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := newCallRig(t, Limits{})
+			r.row.Audience = string(datasource.AudienceAdmins)
+			r.attempt.row = r.row
+			r.connector.answer = c.answer
+			private := datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}}
+			ctx, restricted := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), private))
+			if _, err := r.dispatch(ctx, private, c.arguments, c.stored); err == nil {
+				t.Fatal("the call succeeded")
+			}
+			if restricted() {
+				t.Error("the run was marked restricted although nothing was read")
+			}
+		})
+	}
+}
+
+func TestListingAnAdminsOnlySourceMarksTheRunRestricted(t *testing.T) {
+	sources := []Source{
+		{UID: "open", Name: "Open", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, Tools: ToolCounts{Approved: 1}},
+		{UID: "private", Name: "Private", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceAdmins, Tools: ToolCounts{Approved: 1}},
+	}
+	toolsOf := func(string) ([]Tool, error) { return []Tool{approvedSearch(t, ToolApproved)}, nil }
+	admin := datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}}
+	cases := map[string]struct {
+		access     datasource.Access
+		sources    []Source
+		restricted bool
+		listed     int
+	}{
+		"an Admin listing both":            {admin, sources, true, 2},
+		"an Admin listing only the open":   {admin, sources[:1], false, 1},
+		"a viewer, who never sees private": {personAccess(auth.RoleViewer), sources, false, 1},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx, restricted := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), c.access))
+			offers, err := offered(ctx, c.access, c.sources, toolsOf)
+			if err != nil || len(offers) != c.listed {
+				t.Fatalf("offers = %d err = %v", len(offers), err)
+			}
+			if restricted() != c.restricted {
+				t.Errorf("restricted = %v, want %v", restricted(), c.restricted)
+			}
+		})
 	}
 }

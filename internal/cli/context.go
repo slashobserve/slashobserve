@@ -444,25 +444,10 @@ func (a *app) runContextApprove(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ctx := cmd.Context()
 	if all {
-		data, err := c.post(ctx, contextPath(args[0], "tools", "approve-read-only"), struct{}{})
-		if err != nil {
-			return err
-		}
-		if a.json {
-			a.output().body(data)
-			return nil
-		}
-		done, err := decode[struct {
-			Approved []contextTool `json:"approved"`
-		}](data)
-		if err != nil {
-			return err
-		}
-		a.output().confirm("Approved %d %s", len(done.Approved), plural(len(done.Approved), "tool", "tools"))
-		return nil
+		return a.approveAllReadOnly(cmd, c, args[0])
 	}
+	ctx := cmd.Context()
 	_, tools, err := a.fetchContextTools(cmd, c, args[0])
 	if err != nil {
 		return err
@@ -485,6 +470,25 @@ func (a *app) runContextApprove(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 	a.output().confirm("Approved %s", text(args[1]))
+	return nil
+}
+
+func (a *app) approveAllReadOnly(cmd *cobra.Command, c *client, uid string) error {
+	data, err := c.post(cmd.Context(), contextPath(uid, "tools", "approve-read-only"), struct{}{})
+	if err != nil {
+		return err
+	}
+	if a.json {
+		a.output().body(data)
+		return nil
+	}
+	done, err := decode[struct {
+		Approved []contextTool `json:"approved"`
+	}](data)
+	if err != nil {
+		return err
+	}
+	a.output().confirm("Approved %d %s", len(done.Approved), plural(len(done.Approved), "tool", "tools"))
 	return nil
 }
 

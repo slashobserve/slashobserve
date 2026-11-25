@@ -175,7 +175,8 @@ Approving a refused tool answers `409 tool_refused` with the `refusal`.
 An approved tool of a source can be used by the agent in an investigation or a question, and by an outside agent over MCP, through two tools: `list_context_sources` and `call_context_tool`.
 They are not offered when a dashboard is built or revised.
 
-- Only a tool that is approved, on a source that is up, can be called.
+- Only an approved tool can be called.
+  A source whose last discovery failed is still listed to the agent with a status that says so, and a call to it is still tried.
   A tool that changed since you approved it stays unusable until you approve it again.
 - A source set to **Admins only** is used only on behalf of an Admin.
 - The agent's arguments must match the schema the tool had when you approved it.

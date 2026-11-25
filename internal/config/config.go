@@ -305,14 +305,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.ServiceAccounts = accounts
 	}
 
-	if path := get(lookup, envContextSourcesFile); path != "" {
-		cfg.ContextSourcesFile = path
-		sources, err := loadContextSources(path, lookup)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", envContextSourcesFile, err))
-		}
-		cfg.ContextSources = sources
-	}
+	errs = append(errs, loadContextSourcesSetting(lookup, &cfg)...)
 
 	cfg.APIContractCheck, err = loadBool(lookup, envAPIContractCheck, false)
 	if err != nil {

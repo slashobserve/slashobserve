@@ -51,14 +51,7 @@ func listedApprovals(stored []Tool, names []string) ([]Tool, []skippedTool) {
 	return approve, skipped
 }
 
-func (s *Service) ProvisionFile(ctx context.Context, entries []config.ContextSource) error {
-	if err := s.Provision(ctx, entries); err != nil {
-		return err
-	}
-	return s.approveListed(ctx, entries)
-}
-
-func (s *Service) approveListed(ctx context.Context, entries []config.ContextSource) error {
+func (s *Service) ApproveListed(ctx context.Context, entries []config.ContextSource) error {
 	for _, e := range entries {
 		if len(e.Approve) == 0 {
 			continue

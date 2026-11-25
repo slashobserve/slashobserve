@@ -266,12 +266,45 @@ func (h *Handler) revoke(c *gin.Context) {
 	c.JSON(http.StatusOK, newToolJSON(tool))
 }
 
+type answer struct {
+	err     error
+	status  int
+	code    string
+	message string
+}
+
+var answers = []answer{
+	{ErrUIDTaken, http.StatusConflict, "uid_taken", ""},
+	{ErrProvisioned, http.StatusConflict, "provisioned", ""},
+	{ErrNoSecretKey, http.StatusConflict, "secret_key_missing", ""},
+	{ErrSourceChanged, http.StatusConflict, "source_changed", ""},
+	{ErrToolChanged, http.StatusConflict, "tool_changed", ""},
+	{ErrTooMany, http.StatusUnprocessableEntity, "too_many_context_sources", "at most 50 context sources can be added"},
+	{ErrAllowlistFull, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed"},
+}
+
+func answerFor(err error) (answer, bool) {
+	for _, a := range answers {
+		if errors.Is(err, a.err) {
+			if a.message == "" {
+				a.message = err.Error()
+			}
+			return a, true
+		}
+	}
+	return answer{}, false
+}
+
 func (h *Handler) fail(c *gin.Context, action string, err error) {
 	var invalidErr *InvalidError
 	var refused *RefusedError
 	var refusal *lifecycle.Refusal
 	var hostErr *egress.HostError
 	if clientgone.Handle(c, h.logger, action, err) {
+		return
+	}
+	if a, ok := answerFor(err); ok {
+		httpapi.AbortError(c, a.status, a.code, a.message)
 		return
 	}
 	switch {
@@ -287,20 +320,6 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": refused.Error(), "code": "tool_refused", "refusal": refused.Reason})
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrToolNotFound):
 		httpapi.AbortError(c, http.StatusNotFound, "not_found", err.Error())
-	case errors.Is(err, ErrUIDTaken):
-		httpapi.AbortError(c, http.StatusConflict, "uid_taken", err.Error())
-	case errors.Is(err, ErrProvisioned):
-		httpapi.AbortError(c, http.StatusConflict, "provisioned", err.Error())
-	case errors.Is(err, ErrNoSecretKey):
-		httpapi.AbortError(c, http.StatusConflict, "secret_key_missing", err.Error())
-	case errors.Is(err, ErrSourceChanged):
-		httpapi.AbortError(c, http.StatusConflict, "source_changed", err.Error())
-	case errors.Is(err, ErrToolChanged):
-		httpapi.AbortError(c, http.StatusConflict, "tool_changed", err.Error())
-	case errors.Is(err, ErrTooMany):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_context_sources", "at most 50 context sources can be added")
-	case errors.Is(err, ErrAllowlistFull):
-		httpapi.AbortError(c, http.StatusUnprocessableEntity, "too_many_domains", "at most 100 outbound domains can be allowed")
 	case errors.Is(err, egress.ErrNotAllowed):
 		message := "the address is not on the outbound allowlist"
 		if errors.As(err, &hostErr) {

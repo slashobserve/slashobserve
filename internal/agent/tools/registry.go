@@ -372,6 +372,7 @@ func New(d Deps) *Registry {
 		}
 		e.tool.Destructive = destructiveTools[e.tool.Name]
 		e.tool.MCPOnly = leftOutOfRuns[e.tool.Name] != ""
+		e.tool.InvestigateOnly = investigateOnly[e.tool.Name] != ""
 		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
