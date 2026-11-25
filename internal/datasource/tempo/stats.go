@@ -20,6 +20,7 @@ import (
 
 const (
 	metricsPath           = "/api/metrics/query_range"
+	instantPath           = "/api/metrics/query"
 	groupByNeedsAttribute = `group_by must be one TraceQL attribute such as resource.service.name, span.http.route or .http.method, or one of name, status, kind and statusMessage`
 	statsNeedsFilter      = `trace stats need a TraceQL spanset filter such as { resource.service.name = "checkout" }`
 	quantileLabel         = "p"
@@ -61,15 +62,37 @@ func (n *unixMillis) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+type instantResponse struct {
+	Series  []instantSeries `json:"series"`
+	Metrics searchMetrics   `json:"metrics"`
+}
+
+type instantSeries struct {
+	Labels  []metricsLabel  `json:"labels"`
+	Value   json.RawMessage `json:"value"`
+	Samples []metricsSample `json:"samples"`
+}
+
+func (s instantSeries) value() float64 {
+	if len(s.Value) > 0 {
+		return sampleValue(s.Value)
+	}
+	if n := len(s.Samples); n > 0 {
+		return sampleValue(s.Samples[n-1].Value)
+	}
+	return math.NaN()
+}
+
 type statsResponses struct {
-	spans, errors, quantiles, histogram, window metricsResponse
-	groupSpans, groupErrors, groupQuantiles     metricsResponse
+	spans, errors, quantiles, histogram          metricsResponse
+	window, groupSpans, groupErrors, groupQuants instantResponse
 }
 
 type statsJob struct {
-	query string
-	step  time.Duration
-	into  *metricsResponse
+	query   string
+	step    time.Duration
+	into    *metricsResponse
+	instant *instantResponse
 }
 
 func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRequest) (datasource.TraceStats, error) {
@@ -81,24 +104,26 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if groupBy != "" && !validGroupBy(groupBy) {
 		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", groupByNeedsAttribute)
 	}
+	if err := rangeStartsInFuture(req.Range); err != nil {
+		return datasource.TraceStats{}, err
+	}
 	lim := d.opts.Limits.Tighten(req.Limits)
 	ctx, cancel := bound(ctx, lim.Timeout)
 	defer cancel()
-	whole := req.Range.To.Sub(req.Range.From)
 	var r statsResponses
 	jobs := []statsJob{
-		{q + " | count_over_time()", req.Step, &r.spans},
-		{errorsQuery(q) + " | count_over_time()", req.Step, &r.errors},
-		{q + " | " + quantileQuery, req.Step, &r.quantiles},
-		{q + " | histogram_over_time(duration)", req.Step, &r.histogram},
-		{q + " | " + quantileQuery, whole, &r.window},
+		{query: q + " | count_over_time()", step: req.Step, into: &r.spans},
+		{query: errorsQuery(q) + " | count_over_time()", step: req.Step, into: &r.errors},
+		{query: q + " | " + quantileQuery, step: req.Step, into: &r.quantiles},
+		{query: q + " | histogram_over_time(duration)", step: req.Step, into: &r.histogram},
+		{query: q + " | " + quantileQuery, instant: &r.window},
 	}
 	if groupBy != "" {
 		by := " by (" + groupBy + ")"
 		jobs = append(jobs,
-			statsJob{q + " | count_over_time()" + by, whole, &r.groupSpans},
-			statsJob{errorsQuery(q) + " | count_over_time()" + by, whole, &r.groupErrors},
-			statsJob{q + " | " + quantileQuery + by, whole, &r.groupQuantiles},
+			statsJob{query: q + " | count_over_time()" + by, instant: &r.groupSpans},
+			statsJob{query: errorsQuery(q) + " | count_over_time()" + by, instant: &r.groupErrors},
+			statsJob{query: q + " | " + quantileQuery + by, instant: &r.groupQuants},
 		)
 	}
 	group, groupCtx := errgroup.WithContext(ctx)
@@ -108,9 +133,12 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 				"q":     {job.query},
 				"start": {strconv.FormatInt(req.Range.From.UnixNano(), 10)},
 				"end":   {strconv.FormatInt(req.Range.To.UnixNano(), 10)},
-				"step":  {stepParam(job.step)},
 			}
-			return d.getJSON(groupCtx, metricsPath, params, job.into)
+			if job.instant != nil {
+				return traceQLProblem(d.getJSON(groupCtx, instantPath, params, job.instant), job.query, job.query)
+			}
+			params.Set("step", stepParam(job.step))
+			return traceQLProblem(d.getJSON(groupCtx, metricsPath, params, job.into), job.query, job.query)
 		})
 	}
 	if err := group.Wait(); err != nil {
@@ -216,23 +244,23 @@ func foldStats(r datasource.TimeRange, step time.Duration, groupBy string, resp 
 	}
 	for _, s := range resp.window.Series {
 		if p, ok := labelFloat(s.Labels, quantileLabel); ok {
-			assignQuantile(stats.Window, p, lastFinite(s.Samples))
+			assignQuantile(stats.Window, p, finiteMillis(s.value()))
 		}
 	}
 	if groupBy != "" {
 		stats.GroupBy = groupBy
-		stats.Groups, stats.GroupsTruncated = foldGroups(resp.groupSpans, resp.groupErrors, resp.groupQuantiles)
+		stats.Groups, stats.GroupsTruncated = foldGroups(resp.groupSpans, resp.groupErrors, resp.groupQuants)
 	}
-	for _, m := range []metricsResponse{resp.spans, resp.errors, resp.quantiles, resp.histogram, resp.window, resp.groupSpans, resp.groupErrors, resp.groupQuantiles} {
-		stats.Partial = stats.Partial || m.Metrics.partial()
+	for _, m := range []searchMetrics{resp.spans.Metrics, resp.errors.Metrics, resp.quantiles.Metrics, resp.histogram.Metrics, resp.window.Metrics, resp.groupSpans.Metrics, resp.groupErrors.Metrics, resp.groupQuants.Metrics} {
+		stats.Partial = stats.Partial || m.partial()
 	}
 	return stats
 }
 
-func foldGroups(spans, errors, quantiles metricsResponse) ([]datasource.TraceGroup, bool) {
+func foldGroups(spans, errors, quantiles instantResponse) ([]datasource.TraceGroup, bool) {
 	byValue := map[string]*datasource.TraceGroup{}
-	at := func(s metricsSeries) *datasource.TraceGroup {
-		value, ok := groupValue(s.Labels)
+	at := func(labels []metricsLabel) *datasource.TraceGroup {
+		value, ok := groupValue(labels)
 		if !ok {
 			return nil
 		}
@@ -242,19 +270,19 @@ func foldGroups(spans, errors, quantiles metricsResponse) ([]datasource.TraceGro
 		return byValue[value]
 	}
 	for _, s := range spans.Series {
-		if g := at(s); g != nil {
-			g.Spans += sumCounts(s.Samples)
+		if g := at(s.Labels); g != nil {
+			g.Spans += count(s.value())
 		}
 	}
 	for _, s := range errors.Series {
-		if g := at(s); g != nil {
-			g.Errors += sumCounts(s.Samples)
+		if g := at(s.Labels); g != nil {
+			g.Errors += count(s.value())
 		}
 	}
 	for _, s := range quantiles.Series {
 		if p, ok := labelFloat(s.Labels, quantileLabel); ok {
-			if g := at(s); g != nil {
-				assignQuantile(&g.TraceQuantiles, p, lastFinite(s.Samples))
+			if g := at(s.Labels); g != nil {
+				assignQuantile(&g.TraceQuantiles, p, finiteMillis(s.value()))
 			}
 		}
 	}
@@ -288,24 +316,19 @@ func groupValue(labels []metricsLabel) (string, bool) {
 	return "", false
 }
 
-func sumCounts(samples []metricsSample) int64 {
-	var total int64
-	for _, s := range samples {
-		if v := sampleValue(s.Value); v >= 0 && v < maxCount {
-			total += int64(math.Round(v))
-		}
+func count(v float64) int64 {
+	if v >= 0 && v < maxCount {
+		return int64(math.Round(v))
 	}
-	return total
+	return 0
 }
 
-func lastFinite(samples []metricsSample) *float64 {
-	for i := len(samples) - 1; i >= 0; i-- {
-		if v := sampleValue(samples[i].Value); !math.IsNaN(v) && !math.IsInf(v, 0) {
-			ms := millis(v)
-			return &ms
-		}
+func finiteMillis(v float64) *float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return nil
 	}
-	return nil
+	ms := millis(v)
+	return &ms
 }
 
 func assignQuantile(q *datasource.TraceQuantiles, p float64, value *float64) {
