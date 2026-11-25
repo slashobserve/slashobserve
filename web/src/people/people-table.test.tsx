@@ -73,6 +73,15 @@ describe("PeopleTable", () => {
     ).toBeInTheDocument()
   })
 
+  it("keeps each email on one line and shows it whole on hover", async () => {
+    renderTable([active])
+    const cell = await screen.findByRole("gridcell", {
+      name: "ada@example.com",
+    })
+
+    expect(within(cell).getByTitle("ada@example.com")).toHaveClass("truncate")
+  })
+
   it("shows who deactivated a person and offers no sign-out for them", async () => {
     const { container } = renderTable([active, deactivated])
     await screen.findByRole("gridcell", { name: "grace@example.com" })

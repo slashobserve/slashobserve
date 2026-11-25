@@ -19,6 +19,8 @@ function personId(user: User): string {
   return user.id
 }
 
+const actionsWidth = 240
+
 function peopleColumns(now: number): DataGridColumn<User>[] {
   return [
     {
@@ -41,10 +43,13 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
     {
       id: "email",
       header: "Email",
-      minWidth: 180,
-      autoHeight: true,
+      minWidth: 220,
+      flex: 2,
       cell: (user) => (
-        <span className="min-w-0 py-2 wrap-anywhere text-muted-foreground">
+        <span
+          className="block min-w-0 truncate text-muted-foreground"
+          title={user.email}
+        >
           {user.email}
         </span>
       ),
@@ -96,7 +101,7 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
       header: "Actions",
       action: true,
       align: "right",
-      minWidth: 180,
+      width: actionsWidth,
       cell: (user) => (
         <span className="inline-flex items-center justify-end gap-2">
           {isDeactivated(user) ? null : <SignOutEverywhereButton user={user} />}
