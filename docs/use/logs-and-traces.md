@@ -649,6 +649,7 @@ The summary ends with the short trace id, and **Copy trace id** beside it copies
 The value must be a trace id of 16 or 32 hexadecimal characters that is not all zeros.
 A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, or in the first Jaeger datasource when there is no Tempo, so the trace has to be in that datasource too.
 A ClickHouse line opens in the same ClickHouse datasource.
+When the line also carries a `SpanId`, `spanID`, `span_id` or `spanId` field, the trace opens with that span selected.
 An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
@@ -985,6 +986,7 @@ A range written like that stays relative, so the search opens on the latest hour
    To open it again, choose **Saved searches** next to it, or open it from the Logs, Traces or Metrics list or from a folder.
 
 A search opened that way shows its title and folder above the query, and the address carries its id as `saved`.
+On the logs page, opening a saved search while the query bar is on **Ask** switches it to the query, so the saved query shows.
 **Close the saved search** removes it.
 The title shows only for a search among the 100 most recently changed that the list holds.
 
