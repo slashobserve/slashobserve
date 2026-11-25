@@ -27,14 +27,14 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
       minWidth: 160,
       autoHeight: true,
       cell: (user) => (
-        <span className="flex items-center gap-2.5 py-2">
+        <span className="flex min-w-0 items-center gap-2.5 py-2">
           <span
             aria-hidden="true"
             className="grid size-[26px] flex-none place-items-center rounded-full border text-[11px] font-semibold"
           >
             {initials(user.name, user.email).slice(0, 1)}
           </span>
-          <span className="font-medium wrap-break-word">{user.name}</span>
+          <span className="min-w-0 font-medium wrap-anywhere">{user.name}</span>
         </span>
       ),
     },
@@ -44,7 +44,7 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
       minWidth: 180,
       autoHeight: true,
       cell: (user) => (
-        <span className="py-2 wrap-anywhere text-muted-foreground">
+        <span className="min-w-0 py-2 wrap-anywhere text-muted-foreground">
           {user.email}
         </span>
       ),
@@ -52,8 +52,14 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
     {
       id: "role",
       header: "Role",
-      minWidth: 140,
-      cell: (user) => <PersonRole person={user} />,
+      minWidth: 220,
+      flex: 1.5,
+      autoHeight: true,
+      cell: (user) => (
+        <div className="min-w-0 py-2">
+          <PersonRole person={user} />
+        </div>
+      ),
     },
     {
       id: "dashboards",
