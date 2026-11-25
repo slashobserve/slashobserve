@@ -1,6 +1,6 @@
 import { PuzzleIcon } from "lucide-react"
 
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import {
   Select,
   SelectContent,
@@ -20,8 +20,6 @@ type Props = {
   disabled: boolean
   busy: boolean
 }
-
-const headingId = "import-datasources"
 
 function Choice({
   datasource,
@@ -86,55 +84,61 @@ export function DatasourcesCard({
   disabled,
   busy,
 }: Props) {
+  const columns: DataGridColumn<ImportSourceDatasource>[] = [
+    {
+      id: "grafana",
+      header: "In Grafana",
+      minWidth: 180,
+      autoHeight: true,
+      cell: (datasource) => (
+        <div className="py-2">
+          <span className="font-mono text-xs break-all">{datasource.key}</span>
+          <div className="text-xs text-muted-foreground">
+            {datasource.name ?? datasource.type}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "panels",
+      header: "Panels",
+      width: 100,
+      cell: (datasource) => datasource.panels,
+    },
+    {
+      id: "use",
+      header: "Use in SlashObserve",
+      minWidth: 240,
+      flex: 2,
+      cell: (datasource) => (
+        <Choice
+          datasource={datasource}
+          value={mapping[datasource.key] ?? datasource.match}
+          onPick={onPick}
+          disabled={disabled}
+        />
+      ),
+    },
+  ]
+
   return (
     <div
       aria-busy={busy || undefined}
       className="overflow-hidden rounded-card border bg-background"
     >
       <div className="border-b px-3.5 py-3">
-        <h2 id={headingId} className="text-sm font-semibold">
-          Datasources
-        </h2>
+        <h2 className="text-sm font-semibold">Datasources</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Match each Grafana datasource to one of yours.
         </p>
       </div>
-      <TableCard
-        labelledBy={headingId}
-        minWidth={520}
-        className="rounded-none border-0 focus-visible:ring-inset"
-      >
-        <thead>
-          <tr>
-            <HeaderCell>In Grafana</HeaderCell>
-            <HeaderCell>Panels</HeaderCell>
-            <HeaderCell>Use in SlashObserve</HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {visibleDatasources(datasources).map((datasource) => (
-            <tr key={datasource.key}>
-              <Cell>
-                <span className="font-mono text-xs break-all">
-                  {datasource.key}
-                </span>
-                <div className="text-xs text-muted-foreground">
-                  {datasource.name ?? datasource.type}
-                </div>
-              </Cell>
-              <Cell>{datasource.panels}</Cell>
-              <Cell>
-                <Choice
-                  datasource={datasource}
-                  value={mapping[datasource.key] ?? datasource.match}
-                  onPick={onPick}
-                  disabled={disabled}
-                />
-              </Cell>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <DataGrid
+        label="Datasources"
+        rows={visibleDatasources(datasources)}
+        columns={columns}
+        rowId={(datasource) => datasource.key}
+        bare
+      />
     </div>
   )
 }
