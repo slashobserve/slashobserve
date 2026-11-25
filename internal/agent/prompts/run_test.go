@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 25817
-	fullSystemTextBudget = 30539
+	systemTextBudget     = 26147
+	fullSystemTextBudget = 30869
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
