@@ -69,6 +69,24 @@ describe("DataGrid", () => {
     ).toBeInTheDocument()
   })
 
+  it("keeps the name of an action column for a screen reader only", async () => {
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+      />
+    )
+    const open = await screen.findByRole("columnheader", { name: "Open" })
+    expect(within(open).getByText("Open")).toHaveClass("sr-only")
+    expect(
+      within(screen.getByRole("columnheader", { name: "Note" })).getByText(
+        "Note"
+      )
+    ).not.toHaveClass("sr-only")
+  })
+
   it("marks the sorted column and asks for the next sort on a header click", async () => {
     const onSort = vi.fn()
     render(

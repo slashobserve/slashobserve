@@ -81,6 +81,7 @@ type HeaderParams = IHeaderParams & {
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
+  hidden: boolean
 }
 
 function SortHeader({
@@ -89,6 +90,7 @@ function SortHeader({
   align,
   direction,
   onSort,
+  hidden,
 }: HeaderParams) {
   const sortRef = useRef(onSort)
   useLayoutEffect(() => {
@@ -111,7 +113,11 @@ function SortHeader({
   if (onSort === undefined) {
     return (
       <span
-        className={cn("w-full truncate", align === "right" && "text-right")}
+        className={cn(
+          "w-full truncate",
+          align === "right" && "text-right",
+          hidden && "sr-only"
+        )}
       >
         {displayName}
       </span>
@@ -246,6 +252,7 @@ export function DataGrid<T>({
         headerComponent: SortHeader,
         headerComponentParams: {
           align: column.align ?? "left",
+          hidden: column.action === true,
           direction: sortKey === column.id ? sortDirection : null,
           onSort:
             column.sortable && sorts
