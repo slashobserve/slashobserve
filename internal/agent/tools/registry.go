@@ -279,6 +279,41 @@ func UncheckedReads(ctx context.Context) []Unchecked {
 	return unchecked
 }
 
+type unverifiedKey struct{}
+
+func WithUnverified(ctx context.Context, items []findings.Unverified) context.Context {
+	return context.WithValue(ctx, unverifiedKey{}, items)
+}
+
+func unverifiedOf(ctx context.Context) []findings.Unverified {
+	items, _ := ctx.Value(unverifiedKey{}).([]findings.Unverified)
+	return items
+}
+
+type rangeNotes struct {
+	mu     sync.Mutex
+	ranges []datasource.TimeRange
+}
+
+type rangeNotesKey struct{}
+
+func NotingRanges(ctx context.Context) (context.Context, func() []datasource.TimeRange) {
+	notes := &rangeNotes{}
+	return context.WithValue(ctx, rangeNotesKey{}, notes), func() []datasource.TimeRange {
+		notes.mu.Lock()
+		defer notes.mu.Unlock()
+		return slices.Clone(notes.ranges)
+	}
+}
+
+func noteRange(ctx context.Context, rng datasource.TimeRange) {
+	if notes, ok := ctx.Value(rangeNotesKey{}).(*rangeNotes); ok {
+		notes.mu.Lock()
+		notes.ranges = append(notes.ranges, rng)
+		notes.mu.Unlock()
+	}
+}
+
 func callAccess(ctx context.Context, principal auth.Principal, run Run, inRun bool) context.Context {
 	if inRun {
 		return datasource.WithAccess(ctx, run.Access)

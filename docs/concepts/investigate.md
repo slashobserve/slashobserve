@@ -111,6 +111,28 @@ Details of the stages:
 - The finished run's `usage.call_limit` is the limit when it ended and `usage.stage_at_save` is the stage when it saved its finding.
 - Without the setting, none of this exists and the limit is the fixed one.
 
+### The grounding check
+
+With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
+It looks at the figures in the Markdown and the impact, the root cause component and the onset.
+
+- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
+- A figure also passes when it is the difference, sum, ratio or percentage change of two numbers from the same read, such as `+82%` from 287 ms to 523 ms; a percentage is compared as a fraction, so `82%` is never the plain difference of 300 and 382.
+- Times in a result are not numbers for this check.
+- `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
+- Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
+- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
+- The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
+
+With `report`, the items that did not pass are stored with the finding and nothing else changes.
+With `enforce`, the first save with such items is sent back once with a line per item that says "read it, correct it, or remove it".
+The agent may read past its call limit to do that, and the send-back is not counted as a rejected save.
+The second save is accepted, and the items that still did not pass are stored with it.
+The check never fails a run, and with `off`, the default, nothing is recorded.
+
+The stored items are returned as `unverified` on the finding and on each entry of the observation's `findings`, and the observation shows one line under its header, such as `2 figures were not found in what the agent read: 9.3 s, 2,950`.
+`observe investigate` prints the same items with the summary lines before the answer.
+
 ## Where the answer goes
 
 The answer lives in an observation: a text block that starts with `## <title>`, and one panel block for each evidence panel.

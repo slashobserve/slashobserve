@@ -9,6 +9,7 @@ import {
   hasFindingHeader,
   headerBlocks,
   type RunFinding,
+  unverifiedLine,
 } from "./finding-header"
 import type { Block, Observation } from "./queries"
 
@@ -32,6 +33,7 @@ function finding(overrides: Partial<RunFinding> = {}): RunFinding {
     ruled_out: [],
     next_steps: [],
     no_incident: false,
+    unverified: [],
     ...overrides,
   }
 }
@@ -94,6 +96,49 @@ describe("the finding header", () => {
   })
 })
 
+describe("the line for items the agent did not read", () => {
+  it("counts figures", () => {
+    expect(
+      unverifiedLine(
+        finding({
+          unverified: [
+            { kind: "figure", text: "523 ms" },
+            { kind: "figure", text: "41%" },
+          ],
+        })
+      )
+    ).toBe("2 figures were not found in what the agent read: 523 ms, 41%")
+  })
+
+  it("names one figure, the component and the onset", () => {
+    expect(
+      unverifiedLine(
+        finding({ unverified: [{ kind: "figure", text: "3.2K" }] })
+      )
+    ).toBe("1 figure was not found in what the agent read: 3.2K")
+    expect(
+      unverifiedLine(
+        finding({
+          unverified: [
+            { kind: "figure", text: "12%" },
+            { kind: "component", text: "cartservice" },
+            { kind: "onset", text: "2026-11-20T10:05:00Z" },
+          ],
+        })
+      )
+    ).toBe(
+      "1 figure, the root cause component and the onset time were not found in what the agent read: 12%, cartservice, 2026-11-20T10:05:00Z"
+    )
+    expect(
+      unverifiedLine(
+        finding({ unverified: [{ kind: "component", text: "cartservice" }] })
+      )
+    ).toBe(
+      "The root cause component was not found in what the agent read: cartservice"
+    )
+  })
+})
+
 describe("which block carries a header", () => {
   it("picks the first text block of the run and skips a finding with no field", () => {
     const blocks = [
@@ -150,6 +195,27 @@ describe("the observation's blocks", () => {
     expect(
       header.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
+  })
+
+  it("shows the unverified line under the header", async () => {
+    show([{ ...full, unverified: [{ kind: "figure", text: "523 ms" }] }])
+    const line = await screen.findByText(
+      "1 figure was not found in what the agent read: 523 ms"
+    )
+    const header = screen.getByLabelText("Finding summary")
+    expect(
+      header.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it("shows the unverified line alone when no field is set", async () => {
+    show([finding({ unverified: [{ kind: "figure", text: "523 ms" }] })])
+    expect(
+      await screen.findByText(
+        "1 figure was not found in what the agent read: 523 ms"
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText("Finding summary")).toBeNull()
   })
 
   it("shows nothing extra when no field is set", async () => {
