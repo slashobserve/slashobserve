@@ -117,6 +117,28 @@ A trial that starts when the total has reached the cap fails in `setup` with a s
 Trials already running are not interrupted, so a job can pass the cap by up to `--n-concurrent` runs; `run_max_cost_usd` bounds each of them.
 A run whose cost the server could not price counts as $0.00 in the ledger.
 
+## Keep a run's results
+
+Every measured run is kept as one file under `benchmarks/results/`, written from the run's Harbor job folder or folders (a run split over several jobs takes each as `--job`):
+
+```sh
+uv run --project benchmarks python -m slashobserve_bench.results write \
+  --job benchmarks/jobs/<job> [--job benchmarks/jobs/<other job>] \
+  --benchmark o11y-bench [--benchmark-version <o11y-bench commit>] \
+  --classifications <file> [--note "..."] \
+  --out benchmarks/results/<benchmark>-<scope>-<server version>-<date>.json
+```
+
+The file holds the benchmark and its version, the server build, model, judge and settings, and per task and attempt the reward, pass or fail, tokens, cost and time.
+A pass is reward 1.0, and the summary adds the leaderboard's Pass^n: the share of tasks whose every attempt passed, for any number of attempts per task.
+Every task must have the same number of attempts.
+
+Each failed trial needs a cause and one sentence, which the command cannot judge: read the trial's `agent/trajectory.json` and `verifier/grading_details.json`, then pass `--classifications` a JSON file of `{"<trial name>": {"cause": "<cause>", "summary": "<one sentence>"}}`.
+The cause is `adapter_fault`, `missing_capability` or `agent_mistake`.
+The command refuses to write while a failure has none, and keeps the classifications of an existing output file when it is run again with more jobs.
+Copy no task statement and no benchmark text into the sentence.
+It also rewrites the table in `benchmarks/results/README.md`, and `make test-benchmarks` fails when the table or a file is out of date.
+
 ## Skipped tasks
 
 The 7 `dashboarding` and 6 `grafana_api` tasks are graded on Grafana's own state, which this agent neither writes nor reads, so they do not apply.
