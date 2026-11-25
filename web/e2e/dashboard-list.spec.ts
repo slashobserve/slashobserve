@@ -102,9 +102,7 @@ function dashboardsCard(page: Page) {
 }
 
 function dashboardsSurface(page: Page) {
-  return dashboardsCard(page).locator(
-    "xpath=ancestor::div[contains(@class, 'ag-root-wrapper')]"
-  )
+  return page.locator(".ag-root-wrapper").filter({ has: dashboardsCard(page) })
 }
 
 function filterBox(page: Page) {

@@ -276,7 +276,12 @@ async function openFromGridCell(page: Page, trigger: Locator) {
     await page.keyboard.press(key)
   }
   await page.keyboard.press("Enter")
-  if (await trigger.evaluate((el) => el === document.activeElement)) {
+  const onControl = await page.evaluate(
+    () =>
+      document.activeElement instanceof HTMLButtonElement &&
+      document.activeElement.closest("[role=gridcell]") !== null
+  )
+  if (onControl) {
     await page.keyboard.press("Enter")
   }
 }
