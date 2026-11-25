@@ -320,6 +320,21 @@ describe("DataGrid", () => {
     ).toBeInTheDocument()
   })
 
+  it("follows a new rowId on the same rows", async () => {
+    const props = { label: "Services", rows, columns }
+    const { container, rerender } = render(
+      <DataGrid {...props} rowId={(row) => row.id} />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    const ids = () =>
+      [...container.querySelectorAll("[role=row][row-id]")].map((row) =>
+        row.getAttribute("row-id")
+      )
+    expect(ids()).toEqual(["a", "b"])
+    rerender(<DataGrid {...props} rowId={(row) => `service-${row.id}`} />)
+    await waitFor(() => expect(ids()).toEqual(["service-a", "service-b"]))
+  })
+
   it("reports the hovered row and paints the highlighted one", async () => {
     const onHighlightRow = vi.fn()
     const { rerender, container } = render(
@@ -515,6 +530,29 @@ describe("DataGrid", () => {
       expect(
         container.querySelector('[row-id="b#detail"]')
       ).not.toHaveAttribute("data-row-key")
+    })
+
+    it("keeps the row highlighted over its detail row and clears it over the header", async () => {
+      const onHighlightRow = vi.fn()
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          detail={detail(["b"])}
+          onHighlightRow={onHighlightRow}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      fireEvent.pointerEnter(
+        container.querySelector(
+          '[row-id="b#detail"] [data-detail-row]'
+        ) as Element
+      )
+      expect(onHighlightRow).toHaveBeenLastCalledWith("b")
+      fireEvent.pointerOver(screen.getByRole("columnheader", { name: "Owner" }))
+      expect(onHighlightRow).toHaveBeenLastCalledWith(null)
     })
 
     it("keeps the cards of the other rows when narrow", async () => {

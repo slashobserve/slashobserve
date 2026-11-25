@@ -213,14 +213,12 @@ export function DataGrid<T>({
 }) {
   const narrow = useNarrow()
   const containerRef = useRef<HTMLDivElement>(null)
-  const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
   const rowAttributesRef = useRef(rowAttributes)
   const labelRef = useRef(label)
   useLayoutEffect(() => {
     labelRef.current = label
-    rowIdRef.current = rowId
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
     rowAttributesRef.current = rowAttributes
@@ -229,9 +227,7 @@ export function DataGrid<T>({
   const sortKey = sort?.key ?? null
   const sortDirection = sort?.direction ?? null
   const open = detail?.open
-  const idOf = useCallback((row: T) => rowIdRef.current(row), [])
-  // eslint-disable-next-line react-hooks/refs -- rowId is read through a ref so an inline rowId does not rebuild every line on each render
-  const lines = useMemo(() => gridLines(rows, idOf, open), [rows, idOf, open])
+  const lines = useMemo(() => gridLines(rows, rowId, open), [rows, rowId, open])
   const getRowId = useCallback(
     ({ data }: GetRowIdParams<GridLine<T>>) => data.id,
     []
@@ -328,6 +324,13 @@ export function DataGrid<T>({
         className
       )}
       style={layout === "normal" ? { height } : undefined}
+      onPointerOver={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest(".ag-header") !== null
+        )
+          highlight(null)
+      }}
       onPointerLeave={() => onHighlightRow?.(null)}
       onKeyDownCapture={(event) =>
         handleCellKey(event.nativeEvent, event.currentTarget)

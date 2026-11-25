@@ -105,8 +105,6 @@ const waitingForDataGrid = [
   "src/history/version-list.tsx",
   "src/import/repair/repair-page.tsx",
   "src/inspect/data-tab.tsx",
-  "src/logs/patterns-view.tsx",
-  "src/logs/plain-table.tsx",
   "src/observations/observation-list.tsx",
   "src/panels/legend/legend-table.tsx",
   "src/panels/table/table-panel.tsx",

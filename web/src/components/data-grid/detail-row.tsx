@@ -1,6 +1,7 @@
 import type { ICellRendererParams } from "ag-grid-community"
 import { createContext, useContext, useRef, type ReactNode } from "react"
 
+import { NarrowRowsContext } from "./narrow-row"
 import type { GridLine } from "./lines"
 import { useFitRowHeight } from "./use-fit-row-height"
 
@@ -16,6 +17,7 @@ export function DetailRow<T>({
   api,
 }: ICellRendererParams<GridLine<T>>) {
   const render = useContext(DetailRenderContext)
+  const { onHighlight } = useContext(NarrowRowsContext)
   const ref = useRef<HTMLDivElement>(null)
   useFitRowHeight(ref, node, api)
   if (data === undefined || render === undefined) return null
@@ -23,6 +25,7 @@ export function DetailRow<T>({
     <div
       ref={ref}
       data-detail-row=""
+      onPointerEnter={() => data && onHighlight(data.rowId)}
       className="px-3.5 py-2.5 text-[13px] leading-normal"
     >
       {render(data.row)}
