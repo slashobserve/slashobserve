@@ -91,14 +91,6 @@ const notTables = [
   "src/panels/text/html.test.ts",
 ]
 
-const waitingForDataGrid = [
-  "src/components/table-card.test.tsx",
-  "src/components/table-card.tsx",
-  "src/components/ui/table.tsx",
-]
-
-const tableExempt = [...notTables, ...waitingForDataGrid]
-
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -154,7 +146,7 @@ export default defineConfig([
     },
   },
   {
-    files: tableExempt,
+    files: notTables,
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -169,7 +161,7 @@ export default defineConfig([
     },
   },
   {
-    files: tableExempt.filter(
+    files: notTables.filter(
       (file) => file.startsWith("src/panels/") && !/\.test\.tsx?$/.test(file)
     ),
     rules: {
