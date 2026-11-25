@@ -10,6 +10,9 @@ SELECT * FROM context_sources WHERE uid = @uid FOR UPDATE;
 -- name: LockContextSourceUID :exec
 SELECT pg_advisory_xact_lock(hashtextextended('context_source:' || @uid::text, 0));
 
+-- name: LockContextSourceCount :exec
+SELECT pg_advisory_xact_lock(hashtextextended('context_sources:count', 0));
+
 -- name: GetContextSourceTool :one
 SELECT * FROM context_source_tools WHERE source_id = @source_id AND name = @name FOR UPDATE;
 

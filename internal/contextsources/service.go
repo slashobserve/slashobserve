@@ -385,13 +385,6 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 	if err != nil {
 		return Source{}, err
 	}
-	count, err := s.db.Queries().CountContextSources(ctx)
-	if err != nil {
-		return Source{}, err
-	}
-	if count >= MaxSources {
-		return Source{}, ErrTooMany
-	}
 	id := newID()
 	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: provisioned}
 	if in.Secret != "" {
@@ -404,10 +397,19 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 	}
 	var row dbsqlc.ContextSource
 	err = s.saveOnAllowedHost(ctx, by, host, func(q *dbsqlc.Queries) error {
+		if err := q.LockContextSourceCount(ctx); err != nil {
+			return err
+		}
+		count, err := q.CountContextSources(ctx)
+		if err != nil {
+			return err
+		}
+		if count >= MaxSources {
+			return ErrTooMany
+		}
 		if err := q.LockContextSourceUID(ctx, in.UID); err != nil {
 			return err
 		}
-		var err error
 		if row, err = q.InsertContextSource(ctx, params); err != nil {
 			return err
 		}

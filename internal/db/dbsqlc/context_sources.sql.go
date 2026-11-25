@@ -292,6 +292,15 @@ func (q *Queries) LockContextSource(ctx context.Context, uid string) (ContextSou
 	return i, err
 }
 
+const lockContextSourceCount = `-- name: LockContextSourceCount :exec
+SELECT pg_advisory_xact_lock(hashtextextended('context_sources:count', 0))
+`
+
+func (q *Queries) LockContextSourceCount(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockContextSourceCount)
+	return err
+}
+
 const lockContextSourceUID = `-- name: LockContextSourceUID :exec
 SELECT pg_advisory_xact_lock(hashtextextended('context_source:' || $1::text, 0))
 `

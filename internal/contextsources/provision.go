@@ -10,6 +10,9 @@ import (
 
 func (s *Service) Provision(ctx context.Context, entries []config.ContextSource) error {
 	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockContextSourceCount(ctx); err != nil {
+			return err
+		}
 		rows, err := q.ListContextSources(ctx)
 		if err != nil {
 			return err

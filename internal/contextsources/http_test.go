@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -425,5 +426,41 @@ func TestProvisioningCountsRowsItDeletesAndRowsItAdds(t *testing.T) {
 	listed, err := r.service.List(t.Context())
 	if err != nil || len(listed) != MaxSources {
 		t.Fatalf("a refused file must change nothing, got %d sources, err %v", len(listed), err)
+	}
+}
+
+func TestConcurrentCreatesCannotPassTheCap(t *testing.T) {
+	r := newRig(t)
+	r.allow(t, fakeHost)
+	if err := r.service.Provision(t.Context(), filedSources("filed", MaxSources-1)); err != nil {
+		t.Fatal(err)
+	}
+	const attempts = 6
+	errs := make([]error, attempts)
+	var wg sync.WaitGroup
+	for i := range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = r.service.Create(t.Context(), r.admin, Input{UID: fmt.Sprintf("race%d", i), URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone})
+		}()
+	}
+	wg.Wait()
+	created, refused := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			created++
+		case errors.Is(err, ErrTooMany):
+			refused++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if created != 1 || refused != attempts-1 {
+		t.Fatalf("created %d, refused %d; want 1 and %d", created, refused, attempts-1)
+	}
+	if listed, err := r.service.List(t.Context()); err != nil || len(listed) != MaxSources {
+		t.Fatalf("sources = %d, err %v; want %d", len(listed), err, MaxSources)
 	}
 }
