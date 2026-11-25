@@ -1,15 +1,15 @@
+import type { QueryClient } from "@tanstack/react-query"
 import { act, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { inboxKeys } from "@/api/keys"
 import { InboxBell } from "@/shell/inbox-bell"
 import { PanelHostContext, SidePanel } from "@/shell/side-panel"
-import { renderWithProviders } from "@/test/render"
+import { inboxKeys } from "@/api/keys"
+import { renderWithProviders, testQueryClient } from "@/test/render"
 
 import type { InboxItem } from "./inbox-item"
 import { InboxPanel } from "./inbox-panel"
 import { useInboxPanelStore } from "./inbox-panel-store"
-import { InboxStreamContext } from "./queries"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -124,15 +124,9 @@ function mockServer({
   return { reads, states, views, filters, cursors }
 }
 
-function Harness({
-  pagePanel = false,
-  streamed = false,
-}: {
-  pagePanel?: boolean
-  streamed?: boolean
-}) {
+function Harness({ pagePanel = false }: { pagePanel?: boolean }) {
   return (
-    <InboxStreamContext value={streamed}>
+    <>
       <button
         type="button"
         onClick={() => useInboxPanelStore.getState().show()}
@@ -148,18 +142,18 @@ function Harness({
         ) : null}
         <InboxPanel />
       </PanelHostContext.Provider>
-    </InboxStreamContext>
+    </>
   )
 }
 
-function renderPanel(pagePanel = false, streamed = false) {
+function renderPanel(pagePanel = false, queryClient?: QueryClient) {
   const host = document.createElement("div")
   host.id = "host"
   document.body.append(host)
-  return renderWithProviders(
-    <Harness pagePanel={pagePanel} streamed={streamed} />,
-    { route: { path: "/", url: "/" } }
-  )
+  return renderWithProviders(<Harness pagePanel={pagePanel} />, {
+    route: { path: "/", url: "/" },
+    queryClient,
+  })
 }
 
 function findRow(seq: number): Promise<HTMLElement> {
@@ -253,7 +247,9 @@ describe("InboxPanel", () => {
     ])
     await user.click(screen.getByRole("option", { name: "Mentions" }))
 
-    await waitFor(() => expect(server.views).toEqual(["for_you", "mentions"]))
+    await waitFor(() =>
+      expect(server.views).toEqual(["for_you", "for_you", "mentions"])
+    )
     expect(useInboxPanelStore.getState().view).toBe("mentions")
   })
 
@@ -452,24 +448,6 @@ describe("InboxPanel", () => {
     ).toBeTruthy()
   })
 
-  it.each([
-    { streamed: false, interval: 15_000 },
-    { streamed: true, interval: false },
-  ])(
-    "polls its own list only outside the shell (streamed $streamed)",
-    async ({ streamed, interval }) => {
-      mockServer()
-      const { queryClient } = renderPanel(false, streamed)
-      act(() => useInboxPanelStore.getState().show({ view: "mentions" }))
-      await screen.findByRole("heading", { name: "Needs you" })
-
-      const observer = queryClient
-        .getQueryCache()
-        .find({ queryKey: inboxKeys.list("mentions", "open") })?.observers[0]
-      expect(observer?.options.refetchInterval).toBe(interval)
-    }
-  )
-
   it("returns focus on close to what opened it, or to the bell when that is gone", async () => {
     mockServer()
     const { user } = renderPanel()
@@ -489,5 +467,26 @@ describe("InboxPanel", () => {
     expect(
       screen.getByRole("button", { name: "Inbox, 1 unread" })
     ).toHaveFocus()
+  })
+
+  it("opens on the first page only, however far the list was scrolled before", async () => {
+    const server = mockServer({
+      items: [mention],
+      nextPage: () => json({ items: [], next_cursor: null, unread_count: 1 }),
+    })
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(inboxKeys.list("for_you", "open"), {
+      pages: [
+        { items: [mention], next_cursor: "page-2", unread_count: 1 },
+        { items: [activity], next_cursor: null, unread_count: 1 },
+      ],
+      pageParams: [undefined, "page-2"],
+    })
+    renderPanel(false, queryClient)
+    openPanel()
+
+    await screen.findByRole("heading", { name: "Needs you" })
+    expect(screen.queryByText("Ada version created")).toBeNull()
+    expect(server.cursors).toEqual([])
   })
 })
