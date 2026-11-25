@@ -606,7 +606,6 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
-
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
