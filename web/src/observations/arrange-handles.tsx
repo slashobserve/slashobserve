@@ -27,7 +27,7 @@ export function ArrangeHandle({
         size="icon-sm"
         aria-label={`Move or resize ${blockTitle(block)}`}
         aria-describedby={hintId}
-        className={`absolute -top-6 left-0 z-10 cursor-grab touch-none bg-background active:cursor-grabbing ${revealOnHover}`}
+        className={`pointer-events-none absolute -top-6 left-0 z-10 cursor-grab touch-none bg-background group-focus-within/block:pointer-events-auto group-hover/block:pointer-events-auto focus-visible:pointer-events-auto active:cursor-grabbing ${revealOnHover}`}
         onPointerDown={arrange.startDrag(block)}
         onPointerMove={arrange.moveDrag}
         onPointerUp={arrange.endDrag}
