@@ -44,7 +44,8 @@ func (s *State) noteQueried(c Call, res tools.Result) {
 	}
 }
 
-func (s *State) unbackedFinding(input json.RawMessage) string {
+func (s *State) unbackedFinding(c Call) string {
+	input := c.Input
 	var reasons []string
 	if reason := s.unbackedAbsence(input); reason != "" {
 		s.Absence.Asked = true
@@ -54,6 +55,9 @@ func (s *State) unbackedFinding(input json.RawMessage) string {
 		reasons = append(reasons, reason)
 	}
 	if reason := s.ledgerBehind(input); reason != "" {
+		reasons = append(reasons, reason)
+	}
+	if reason := s.groundingBehind(c); reason != "" {
 		reasons = append(reasons, reason)
 	}
 	return strings.Join(reasons, "; and ")
