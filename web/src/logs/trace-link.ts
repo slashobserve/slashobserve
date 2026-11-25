@@ -20,6 +20,15 @@ export function traceIdOf(entry: LogEntry): string | null {
   return null
 }
 
+export function spanIdOf(entry: LogEntry): string | null {
+  for (const detail of entry.details) {
+    if (detail.name.toLowerCase().replaceAll("_", "") !== "spanid") continue
+    const text = detailValue(detail).trim()
+    if (text !== "" && !allZeros.test(text)) return text
+  }
+  return null
+}
+
 export function traceDatasourceFor(
   logs: DatasourceStatus,
   all: readonly DatasourceStatus[]
