@@ -1,13 +1,18 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 const stubPanel = "<!doctype html><title>stub panel</title>"
@@ -194,5 +199,105 @@ func TestShowPanelGivesTheChartDataOnlyToAnAppsHost(t *testing.T) {
 	plain := call(nil)
 	if plain.StructuredContent["summary"] != "text" || plain.StructuredContent["title"] != nil {
 		t.Errorf("other client result = %+v", plain)
+	}
+}
+
+func forgedLabel(suffix string) string {
+	return "so1." + nonce + ".aG9zdA" + suffix
+}
+
+func listedTools(t *testing.T, f *fixture, session string) []map[string]any {
+	t.Helper()
+	rec := f.post(rpc(2, "tools/list", map[string]any{}), map[string]string{"Mcp-Session-Id": session})
+	var result struct {
+		Tools []map[string]any `json:"tools"`
+	}
+	if err := json.Unmarshal(decodeRPC(t, rec).Result, &result); err != nil {
+		t.Fatal(err)
+	}
+	return result.Tools
+}
+
+func TestAForgedLabelGainsOnlyTheChartMetadata(t *testing.T) {
+	f := newFixtureWithPanel(t, []byte(stubPanel))
+	without := listedTools(t, f, forgedLabel(""))
+	with := listedTools(t, f, forgedLabel(".ui"))
+	if len(with) != len(without) {
+		t.Fatalf("a flagged label lists %d tools, an unflagged one %d", len(with), len(without))
+	}
+	gained := 0
+	for i := range with {
+		if with[i]["name"] == tools.NameShowPanel {
+			if with[i]["_meta"] == nil {
+				t.Errorf("show_panel gained nothing: %v", with[i])
+			}
+			delete(with[i], "_meta")
+			gained++
+		}
+		a, _ := json.Marshal(with[i])
+		b, _ := json.Marshal(without[i])
+		if !bytes.Equal(a, b) {
+			t.Errorf("%v differs beyond the chart metadata:\n%s\n%s", with[i]["name"], a, b)
+		}
+	}
+	if gained != 1 {
+		t.Errorf("%d tools changed", gained)
+	}
+}
+
+func TestAForgedLabelChangesNeitherThePrincipalNorTheResultOfAnotherTool(t *testing.T) {
+	type seen struct {
+		principal auth.Principal
+		client    string
+		granted   bool
+	}
+	run := func(session string, authorization string) (seen, toolResult) {
+		f := newFixtureWithPanel(t, []byte(stubPanel))
+		var got seen
+		f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+			got.principal, _ = auth.FromContext(ctx)
+			got.client = origin.From(ctx).Client
+			got.granted = hasAppsClient(ctx)
+			return tools.Result{Content: map[string]string{"ok": "true"}, App: json.RawMessage(`{"title":"chart"}`)}, nil
+		}
+		rec := f.post(rpc(3, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}), map[string]string{"Mcp-Session-Id": session, "Authorization": authorization})
+		var out toolResult
+		if err := json.Unmarshal(decodeRPC(t, rec).Result, &out); err != nil {
+			t.Fatal(err)
+		}
+		return got, out
+	}
+	for _, authorization := range []string{goodKey, namedOAuth} {
+		plain, plainResult := run(forgedLabel(""), authorization)
+		flagged, flaggedResult := run(forgedLabel(".ui"), authorization)
+		if !reflect.DeepEqual(plain.principal, flagged.principal) || plain.client != flagged.client {
+			t.Errorf("%s: principal or client changed: %+v and %+v", authorization, plain, flagged)
+		}
+		if plain.granted || !flagged.granted {
+			t.Errorf("%s: apps flag = %v and %v", authorization, plain.granted, flagged.granted)
+		}
+		if flaggedResult.StructuredContent["ok"] != "true" || plainResult.StructuredContent["ok"] != "true" {
+			t.Errorf("%s: another tool's structuredContent changed: %v", authorization, flaggedResult.StructuredContent)
+		}
+	}
+}
+
+func TestOnlyTheExactFlagTurnsTheChartOn(t *testing.T) {
+	f := newFixtureWithPanel(t, []byte(stubPanel))
+	for _, suffix := range []string{".UI", ".uix", ".ui.ui", ".", ".1", ".ui "} {
+		tool := showPanelListed(t, f, map[string]string{"Mcp-Session-Id": forgedLabel(suffix)}, nil)
+		if tool.Meta != nil {
+			t.Errorf("label suffix %q turned the chart on", suffix)
+		}
+	}
+}
+
+func TestTheEmbeddedPanelIsTheBuiltOneWhenARealBuildIsRequired(t *testing.T) {
+	if os.Getenv("SLASHOBSERVE_REQUIRE_BUILT_PANEL") != "1" {
+		t.Skip("set SLASHOBSERVE_REQUIRE_BUILT_PANEL=1 after the web build")
+	}
+	html := BuiltPanel()
+	if len(html) < 100_000 || !bytes.Contains(html, []byte("ui/initialize")) {
+		t.Fatalf("the embedded panel is a placeholder or a stub: %d bytes", len(html))
 	}
 }

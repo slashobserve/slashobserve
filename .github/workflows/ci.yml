@@ -216,6 +216,9 @@ jobs:
       - name: Build
         run: make build
 
+      - name: The server embeds the built MCP panel
+        run: SLASHOBSERVE_REQUIRE_BUILT_PANEL=1 go test -short -count=1 -run TestTheEmbeddedPanelIsTheBuiltOne ./internal/server/mcp
+
       - name: Generated files are up to date
         run: |
           make generate

@@ -302,7 +302,7 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 			answer.Content = uniformRefusal(answer.Content)
 		}
 		structured := json.RawMessage(answer.Content)
-		if len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
+		if name == tools.NameShowPanel && len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
 			structured = answer.App
 		}
 		out := mcplib.NewToolResultStructured(structured, answer.Text())
