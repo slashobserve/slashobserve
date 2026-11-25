@@ -244,6 +244,10 @@ The call before gets a note to save next.
   Its next answer without a tool call saves what is built.
 - If the model answers without a tool call in a new-dashboard or revision request that has saved nothing, it is told once that its text is not kept and to call `save_finding`, which keeps its answer in the chat, or save a panel.
   Its next answer without a tool call ends the run with `no_tool_call`.
+- A run that made something, such as an observation, a block or a folder, and then answers without a tool call is told the same, and that its answer names and links what it made.
+  This holds in investigations too, and in a new-dashboard request that made something but saved no panel.
+  If its next answer has no tool call either, the built-in agent saves the answer itself: one line per change, linking each one it can, so the run succeeds instead of failing.
+  A run that made a change and still ends without an answer says so in its failure message, never that it saved no dashboard.
 
 ### Cut-offs and shortened conversations
 

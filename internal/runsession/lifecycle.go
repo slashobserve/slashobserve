@@ -452,7 +452,7 @@ func (sess *session) finishRun(ctx context.Context, failure revisions.FailureCod
 }
 
 func (sess *session) endingOf(failure revisions.FailureCode, in tools.RunFinish) revisions.Ending {
-	ending := revisions.Ending{Usage: sess.state.storedUsage(sess.s.prices)}
+	ending := revisions.Ending{Usage: sess.state.storedUsage(sess.s.prices), Wrote: sess.state.Wrote}
 	switch {
 	case in.Outcome == outcomeFailed && failure != "":
 		ending.Failure, ending.Message = failure, revisions.FailureMessage(failure, sess.req.Source)

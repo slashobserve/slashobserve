@@ -1,0 +1,16 @@
+{
+  "prompt": "start an observation out of scope",
+  "turns": [
+    {
+      "text": "making it",
+      "tool_calls": [
+        {
+          "name": "create_observation",
+          "input": { "title": "Checkout latency" }
+        }
+      ]
+    },
+    { "text": "done", "expect": [{ "is_error": true }] },
+    { "text": "still done" }
+  ]
+}
