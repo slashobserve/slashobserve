@@ -297,11 +297,8 @@ func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Se
 	return nil
 }
 
-func approveListedTools(ctx context.Context, database *db.DB, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
-	err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
-		return service.ApproveListed(ctx, cfg.ContextSources)
-	})
-	if err != nil && ctx.Err() == nil {
+func approveListedTools(ctx context.Context, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
+	if err := service.ApproveListed(ctx, cfg.ContextSources); err != nil && ctx.Err() == nil {
 		logger.ErrorContext(ctx, "context source approvals from the provisioning file failed", slog.String("failure", err.Error()))
 	}
 }
@@ -616,7 +613,7 @@ func run() error {
 	defer stopGrafana()
 
 	stopApprovals := startBackground(ctx, "context source approvals", func(ctx context.Context) {
-		approveListedTools(ctx, database, contextSourcesService, cfg, logger)
+		approveListedTools(ctx, contextSourcesService, cfg, logger)
 	}, logger)
 	defer stopApprovals()
 

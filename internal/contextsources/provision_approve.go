@@ -17,6 +17,7 @@ import (
 const (
 	skipNotOffered = "the server does not offer it"
 	skipChanged    = "its definition changed since it was approved, so an Admin has to review it"
+	skipKnown      = "the server already knew it and it is not approved, so only an Admin approves it"
 )
 
 var provisioningFile = auth.Principal{Name: "provisioning file"}
@@ -26,7 +27,7 @@ type skippedTool struct {
 	Reason string
 }
 
-func listedApprovals(stored []Tool, names []string) ([]Tool, []skippedTool) {
+func listedApprovals(stored []Tool, names []string, known map[string]bool) ([]Tool, []skippedTool) {
 	byName := make(map[string]Tool, len(stored))
 	for _, t := range stored {
 		byName[t.Name] = t
@@ -38,6 +39,8 @@ func listedApprovals(stored []Tool, names []string) ([]Tool, []skippedTool) {
 		switch {
 		case !ok:
 			skipped = append(skipped, skippedTool{Name: name, Reason: skipNotOffered})
+		case t.State == ToolOffered && known[name]:
+			skipped = append(skipped, skippedTool{Name: name, Reason: skipKnown})
 		case t.State == ToolOffered:
 			approve = append(approve, t)
 		case t.State == ToolRefused:
@@ -52,18 +55,31 @@ func listedApprovals(stored []Tool, names []string) ([]Tool, []skippedTool) {
 }
 
 func (s *Service) ApproveListed(ctx context.Context, entries []config.ContextSource) error {
+	var errs []error
 	for _, e := range entries {
 		if len(e.Approve) == 0 {
 			continue
 		}
 		if err := s.approveListedOf(ctx, e); err != nil {
-			return fmt.Errorf("context source %q: %w", e.UID, err)
+			errs = append(errs, fmt.Errorf("context source %q: %w", e.UID, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
+}
+
+func names(tools []Tool) map[string]bool {
+	out := make(map[string]bool, len(tools))
+	for _, t := range tools {
+		out[t.Name] = true
+	}
+	return out
 }
 
 func (s *Service) approveListedOf(ctx context.Context, e config.ContextSource) error {
+	before, err := s.Tools(ctx, e.UID)
+	if err != nil {
+		return err
+	}
 	found, err := s.Discover(ctx, provisioningFile, e.UID)
 	if err != nil {
 		return err
@@ -91,7 +107,7 @@ func (s *Service) approveListedOf(ctx context.Context, e config.ContextSource) e
 			stored[i] = toolOf(r)
 		}
 		var toApprove []Tool
-		toApprove, skipped = listedApprovals(stored, e.Approve)
+		toApprove, skipped = listedApprovals(stored, e.Approve, names(before))
 		now := time.Now()
 		approvedNames = nil
 		for _, t := range toApprove {

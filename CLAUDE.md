@@ -111,7 +111,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   `web/bunfig.toml` and `observe-agent/bunfig.toml` enforce both for npm packages; Go dependencies are exact in `go.mod`.
 - `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
 - Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
-- `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it as a server; `internal/contextsources` is the one place that imports it as a client; `tools/codeserver` (the demo's code server, its own binary) imports it as a server too.
+- `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it as a server; `internal/contextsources` is the one place that imports it as a client outside tests, and the tests of `tools/codeserver` import its client to call the server they start; `tools/codeserver` (the demo's code server, its own binary) imports it as a server too.
 - The model clients are `anthropic-sdk-go` and `openai-go/v3` for draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
   Adapters stream, retry in one place (`llm.Retry`, the SDKs' retries off) and keep provider history append-only except `Session.Compact`; request-side pruning changes only what is sent.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).

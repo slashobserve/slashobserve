@@ -129,14 +129,15 @@ contextSources:
   The API, the CLI and the web app never accept it, and an `http` address without it is refused with `422 invalid_context_source`.
   A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
   Removing the line makes the source public again, resets its check and refuses an `http` address.
-- `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`, which the server approves at every start.
-  After it makes the entries match, it runs a discovery for each source with a list in the background and approves each listed tool that is `offered`, so the tools can be a few seconds behind the start.
+- `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`.
+  At every start, after it makes the entries match, the server runs a discovery for each source with a list, in the background, so the tools can be a few seconds behind the start.
+  It approves a listed tool the first time the server sees it, when the tool is `offered` and was not known before that discovery.
+  That is the only definition the file ever pins: a tool an Admin revoked, a tool an Admin or an earlier discovery already knew and left unapproved, and a tool that is `changed` stay as they are until an Admin approves them, so a revoke sticks across restarts and the file never approves a definition nobody read.
   A tool the server marks destructive, or does not mark read-only, stays `refused`, as it does for an Admin.
-  A listed name the server does not offer, a tool that is `refused` and a tool that is `changed` are not approved, and the server logs a warning that names the tool and the reason.
-  A tool that is `changed` needs an Admin, as it always does, so the file never approves a definition nobody read: the list approves the tools the server offers on first sight, and that is the only definition it pins.
+  A listed name the server does not offer, and any tool left as it is, is logged as a warning that names the tool and the reason.
   Removing a name from the list does not revoke the tool; use **Revoke**.
   The approval is recorded as `context_source.approve` by the system, with `provisioned: true` in its data.
-  A source that does not answer the discovery does not stop the server from starting: its tools wait for the next start or for an Admin.
+  A source that does not answer the discovery does not stop the server from starting, and one failing source does not stop the others: its tools wait for the next start or for an Admin.
 - A secret is never written in the file.
   Name an environment variable with `secretEnv`, whose name starts with `SLASHOBSERVE_`, or a file with `secretFile`.
   `secretHeader` is required with a secret.

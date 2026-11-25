@@ -17,16 +17,17 @@ func filedCode(approve ...string) []config.ContextSource {
 func TestListedApprovalsPicksOnlyOfferedToolsAndSaysWhyItSkippedTheRest(t *testing.T) {
 	stored := []Tool{
 		{Name: "offered", State: ToolOffered},
+		{Name: "seen", State: ToolOffered},
 		{Name: "approved", State: ToolApproved},
 		{Name: "changed", State: ToolChanged},
 		{Name: "gone", State: ToolGone},
 		{Name: "wipe", State: ToolRefused, Refusal: refusalDestructive},
 	}
-	approve, skipped := listedApprovals(stored, []string{"offered", "approved", "changed", "gone", "wipe", "ghost"})
+	approve, skipped := listedApprovals(stored, []string{"offered", "seen", "approved", "changed", "gone", "wipe", "ghost"}, map[string]bool{"seen": true, "approved": true})
 	if len(approve) != 1 || approve[0].Name != "offered" {
 		t.Fatalf("approve = %+v", approve)
 	}
-	want := map[string]string{"changed": skipChanged, "gone": skipNotOffered, "wipe": refusalDestructive, "ghost": skipNotOffered}
+	want := map[string]string{"seen": skipKnown, "changed": skipChanged, "gone": skipNotOffered, "wipe": refusalDestructive, "ghost": skipNotOffered}
 	if len(skipped) != len(want) {
 		t.Fatalf("skipped = %+v", skipped)
 	}
@@ -118,5 +119,46 @@ func TestASourceThatDoesNotAnswerDoesNotStopTheStart(t *testing.T) {
 	}
 	if !strings.Contains(r.logs.String(), "discovery failed") {
 		t.Errorf("the log does not say discovery failed: %s", r.logs.String())
+	}
+}
+
+func TestARevokedToolIsNotApprovedAgainAtTheNextStart(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search"), readOnlyTool("list", "List"))
+	entries := filedCode("search", "list")
+	if err := r.service.Provision(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	r.allow(t, fakeHost)
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	if got := decodeJSON[toolView](t, r.call(t, http.MethodPost, base+"/code/tools/search/revoke", ""), http.StatusOK); got.State != "offered" {
+		t.Fatalf("revoke left %+v", got)
+	}
+	if err := r.service.ApproveListed(t.Context(), entries); err != nil {
+		t.Fatal(err)
+	}
+	tools := r.tools(t, "code")
+	if tools["search"].State != "offered" || tools["list"].State != "approved" {
+		t.Fatalf("after a second start search is %q and list is %q, want offered and approved", tools["search"].State, tools["list"].State)
+	}
+	if !strings.Contains(r.logs.String(), skipKnown) {
+		t.Errorf("the log does not say why search was left: %s", r.logs.String())
+	}
+}
+
+func TestOneFailingSourceDoesNotStopTheOthers(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search"))
+	entries := append(filedCode("search"), config.ContextSource{UID: "gone", Name: "Gone", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, Approve: []string{"search"}})
+	if err := r.service.Provision(t.Context(), entries[:1]); err != nil {
+		t.Fatal(err)
+	}
+	r.allow(t, fakeHost)
+	err := r.service.ApproveListed(t.Context(), entries)
+	if err == nil || !strings.Contains(err.Error(), `"gone"`) {
+		t.Fatalf("err = %v, want it to name the source that is not registered", err)
+	}
+	if got := r.tools(t, "code")["search"].State; got != "approved" {
+		t.Errorf("search is %q, want approved although another source failed", got)
 	}
 }
