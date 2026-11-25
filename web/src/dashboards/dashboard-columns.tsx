@@ -33,7 +33,43 @@ export type DashboardRow =
   | { kind: "empty"; id: string }
   | SkeletonRow
 
-const hideBelowWidth = 1000
+const widths = {
+  title: 220,
+  health: 160,
+  madeBy: 240,
+  datasources: 144,
+  openComments: 128,
+  version: 80,
+  views: 80,
+  updated: 112,
+  folder: 160,
+  actions: 56,
+}
+
+const widthSlack = 8
+const dropOrder = [
+  "health",
+  "madeBy",
+  "version",
+  "views",
+  "datasources",
+  "openComments",
+] as const
+
+type Droppable = (typeof dropOrder)[number]
+
+const alwaysShown = widths.title + widths.updated + widths.actions
+
+function fitsFrom(id: Droppable): number {
+  const kept = dropOrder.slice(0, dropOrder.indexOf(id) + 1)
+  return (
+    alwaysShown +
+    kept.reduce((total, key) => total + widths[key], 0) +
+    widthSlack
+  )
+}
+
+export const folderColumnWidth = widths.folder
 
 const cell = (
   skeletonClassName: string,
@@ -55,7 +91,7 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
     id: "title",
     header: "Title",
     headerCell: () => <TitleHeader />,
-    minWidth: 220,
+    minWidth: widths.title,
     flex: 1,
     autoHeight: true,
     cell: cell("h-5 w-48 max-w-full", (dashboard) => (
@@ -96,7 +132,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "health",
     header: "Health",
-    width: 160,
+    width: widths.health,
+    hideBelow: fitsFrom("health"),
     autoHeight: true,
     cell: cell("h-5 w-20", (dashboard) => (
       <HealthCell dashboardId={dashboard.id} title={dashboard.title} />
@@ -105,7 +142,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "madeBy",
     header: "Made by",
-    width: 240,
+    width: widths.madeBy,
+    hideBelow: fitsFrom("madeBy"),
     cell: cell("h-5 w-28", (dashboard) => {
       const { creator } = dashboard
       const channel = madeByChannel(creator)
@@ -130,8 +168,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "datasources",
     header: "Datasources",
-    width: 144,
-    hideBelow: hideBelowWidth,
+    width: widths.datasources,
+    hideBelow: fitsFrom("datasources"),
     cell: cell("h-5 w-16", (dashboard) =>
       dashboard.datasource_uids.length > 0 ? (
         <span className="truncate font-mono text-xs">
@@ -143,8 +181,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "openComments",
     header: "Open comments",
-    width: 128,
-    hideBelow: hideBelowWidth,
+    width: widths.openComments,
+    hideBelow: fitsFrom("openComments"),
     cell: cell("h-5 w-10", (dashboard) =>
       dashboard.open_comment_count > 0 ? (
         <span className="tabular-nums">{dashboard.open_comment_count}</span>
@@ -154,7 +192,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "version",
     header: "Version",
-    width: 80,
+    width: widths.version,
+    hideBelow: fitsFrom("version"),
     cell: cell("h-5 w-8", (dashboard) => (
       <span className="tabular-nums">{`v${dashboard.latest_version}`}</span>
     )),
@@ -162,7 +201,8 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "views",
     header: "Views",
-    width: 80,
+    width: widths.views,
+    hideBelow: fitsFrom("views"),
     cell: cell("h-5 w-8", (dashboard) => (
       <span
         title="People who opened it, counted once for each day, over the last 30 days"
@@ -175,7 +215,7 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
   {
     id: "updated",
     header: "Updated",
-    width: 112,
+    width: widths.updated,
     align: "right",
     cell: cell("ml-auto h-5 w-16", (dashboard) => (
       <span className="whitespace-nowrap text-muted-foreground">
@@ -188,7 +228,7 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
 export const folderColumn: DataGridColumn<DashboardRow> = {
   id: "folder",
   header: "Folder",
-  width: 160,
+  width: widths.folder,
   autoHeight: true,
   cell: cell("h-5 w-24", (dashboard) => (
     <span className="wrap-anywhere">{dashboard.folder.title}</span>
@@ -199,7 +239,7 @@ export const actionsColumn: DataGridColumn<DashboardRow> = {
   id: "actions",
   header: "Actions",
   headerCell: () => <span className="sr-only">Actions</span>,
-  width: 56,
+  width: widths.actions,
   action: true,
   cell: cell("ml-auto h-5 w-6", (dashboard) => (
     <DashboardRowMenu dashboard={dashboard} />

@@ -28,6 +28,7 @@ import {
   actionsColumn,
   dashboardColumns,
   folderColumn,
+  folderColumnWidth,
   type DashboardRow,
   type DashboardSummary,
 } from "./dashboard-columns"
@@ -76,7 +77,13 @@ const groupedColumns = [...dashboardColumns, actionsColumn]
 const flatColumns = [
   dashboardColumns[0],
   folderColumn,
-  ...dashboardColumns.slice(1),
+  ...dashboardColumns
+    .slice(1)
+    .map((column) =>
+      column.hideBelow === undefined
+        ? column
+        : { ...column, hideBelow: column.hideBelow + folderColumnWidth }
+    ),
   actionsColumn,
 ]
 const dashboardRowId = (row: DashboardRow) => row.id

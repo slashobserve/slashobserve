@@ -151,6 +151,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
     ).toBeVisible()
   }
   await expect(dashboardsCard(page)).toBeVisible()
+  await page.setViewportSize({ width: 1600, height: 900 })
   await expect(page.getByRole("columnheader")).toHaveText([
     "Title",
     "Health",
