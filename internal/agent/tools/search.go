@@ -133,10 +133,14 @@ func (r *Registry) searchWorkspace(ctx context.Context, input json.RawMessage) (
 }
 
 func resultFolder(r search.Result) (string, string) {
-	if r.Folder == nil {
-		return "", r.ID
+	subject := r.ID
+	if r.Target != nil {
+		subject = r.Target.ID
 	}
-	return r.Folder.ID, r.ID
+	if r.Folder == nil {
+		return "", subject
+	}
+	return r.Folder.ID, subject
 }
 
 func searchResultOf(r search.Result) searchResultOut {

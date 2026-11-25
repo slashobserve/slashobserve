@@ -100,7 +100,7 @@ func (r *Registry) getHomeDashboard(ctx context.Context, input json.RawMessage) 
 		return Result{}, err
 	}
 	if home.Status == homedash.StatusOK {
-		titles.holds(ctx, home.FolderID, home.DashboardID)
+		titles.holds(ctx, home.FolderID)
 	}
 	return success(homeSummary(home), homeOut(home)), nil
 }

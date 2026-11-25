@@ -101,8 +101,9 @@ func (t *restrictedTitles) keepAdminsOnly() bool {
 	return false
 }
 
-func (t *restrictedTitles) holds(ctx context.Context, folderID, id string) {
-	if !t.keepIn(folderID, id) {
+func (t *restrictedTitles) holds(ctx context.Context, folderID string) {
+	folder, _ := db.ParseUUID(folderID)
+	if t.adminsOnly[folder] {
 		datasource.NoteRead(ctx, datasource.AudienceAdmins)
 	}
 }

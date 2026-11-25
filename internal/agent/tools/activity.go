@@ -136,8 +136,15 @@ func keepActivity(titles *restrictedTitles, events []activity.EventJSON) []activ
 		if e.FolderID != nil {
 			folderID = *e.FolderID
 		}
-		return !titles.keepIn(folderID, e.Target.ID)
+		return !titles.keepIn(folderID, activitySubject(e))
 	})
+}
+
+func activitySubject(e activity.EventJSON) string {
+	if e.DashboardID != nil {
+		return *e.DashboardID
+	}
+	return e.Target.ID
 }
 
 func activityValues(in listActivityInput) url.Values {

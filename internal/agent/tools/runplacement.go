@@ -7,7 +7,6 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
-	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
@@ -93,6 +92,9 @@ func (r *Registry) readDashboardContent(ctx context.Context, principal auth.Prin
 	if _, inRun := RunFrom(ctx); !inRun {
 		return nil
 	}
+	if r.deps.Folders == nil {
+		return errFoldersNotConfigured
+	}
 	access, err := r.deps.Folders.Dashboard(ctx, principal, id)
 	if err != nil {
 		return err
@@ -102,6 +104,9 @@ func (r *Registry) readDashboardContent(ctx context.Context, principal auth.Prin
 }
 
 func (r *Registry) readCommentTarget(ctx context.Context, principal auth.Principal, target threads.Target) error {
+	if _, inRun := RunFrom(ctx); !inRun {
+		return nil
+	}
 	switch target.Kind {
 	case threads.KindObservation:
 		return r.readObservationContent(ctx, principal, target.ID)
@@ -114,11 +119,7 @@ func (r *Registry) readCommentTarget(ctx context.Context, principal auth.Princip
 		}
 		return r.readDashboardContent(ctx, principal, dashboardID)
 	case threads.KindProposal:
-		proposal, err := r.deps.Proposals.Get(ctx, principal, target.ID)
-		if err != nil {
-			return err
-		}
-		dashboardID, err := db.ParseUUID(proposal.DashboardID)
+		dashboardID, _, err := r.deps.Proposals.Access(ctx, principal, target.ID)
 		if err != nil {
 			return err
 		}

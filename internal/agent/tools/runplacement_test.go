@@ -13,6 +13,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/search"
+	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
 const (
@@ -188,13 +190,27 @@ func TestRestrictedTitlesHoldingASingleObjectMarksTheRunInsteadOfHidingIt(t *tes
 	run := Run{Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
 	titles := &restrictedTitles{rule: titleRuleFor(run, true, false), run: run, adminsOnly: map[pgtype.UUID]bool{hidden: true}}
 	ctx, read := readsIn(t, adminCaller, datasource.AudienceCaller)
-	titles.holds(ctx, mustUUID(t, "11111111-1111-4111-8111-111111111111").String(), "x")
+	titles.holds(ctx, mustUUID(t, "11111111-1111-4111-8111-111111111111").String())
 	if read() {
 		t.Fatal("a dashboard in a folder everyone reads marked the run")
 	}
-	titles.holds(ctx, hidden.String(), "x")
+	titles.holds(ctx, hidden.String())
 	if !read() {
 		t.Fatal("a dashboard in a folder only Admins read did not mark the run")
+	}
+	if titles.leftOut != 0 {
+		t.Fatalf("holding one object counted %d as left out", titles.leftOut)
+	}
+}
+
+func TestRestrictedTitlesHoldingTheRunsOwnSubjectInAnAdminsOnlyFolderStillMarksTheRun(t *testing.T) {
+	hidden := mustUUID(t, "22222222-2222-4222-8222-222222222222")
+	run := Run{DashboardID: "x", Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
+	titles := &restrictedTitles{rule: titleRuleFor(run, true, false), run: run, adminsOnly: map[pgtype.UUID]bool{hidden: true}}
+	ctx, read := readsIn(t, adminCaller, datasource.AudienceCaller)
+	titles.holds(ctx, hidden.String())
+	if !read() {
+		t.Fatal("the run's own subject in an Admins-only folder did not mark the run")
 	}
 }
 
@@ -205,6 +221,53 @@ func TestRestrictedTitlesKeepActivityOfAdminChangesOutOfAnAdminsPrivateRun(t *te
 	events := []activity.EventJSON{{Type: adminType}, {Type: "dashboard.saved", Target: activity.TargetJSON{ID: "d"}}}
 	kept := keepActivity(titles, events)
 	if len(kept) != 1 || kept[0].Type != "dashboard.saved" || titles.leftOut != 1 {
+		t.Fatalf("kept %+v, left out %d", kept, titles.leftOut)
+	}
+}
+
+func TestCommentTargetsAreReadFreelyOutsideARunWithoutTouchingAnyService(t *testing.T) {
+	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
+	for _, kind := range []threads.Kind{threads.KindObservation, threads.KindDashboard, threads.KindAnnotation, threads.KindProposal} {
+		err := registry.readCommentTarget(t.Context(), adminCaller, threads.Target{Kind: kind, ID: mustUUID(t, "11111111-1111-4111-8111-111111111111")})
+		if err != nil {
+			t.Errorf("%v outside a run: %v", kind, err)
+		}
+	}
+}
+
+func TestReadingADashboardInARunNeedsFoldersConfigured(t *testing.T) {
+	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
+	ctx, _ := readsIn(t, adminCaller, datasource.AudienceCaller)
+	err := registry.readDashboardContent(ctx, adminCaller, mustUUID(t, "11111111-1111-4111-8111-111111111111"))
+	if !errors.Is(err, errFoldersNotConfigured) {
+		t.Fatalf("err = %v, want errFoldersNotConfigured", err)
+	}
+}
+
+func TestACommentFoundBySearchIsJudgedByTheThingItIsOn(t *testing.T) {
+	hidden := mustUUID(t, "22222222-2222-4222-8222-222222222222")
+	run := Run{DashboardID: "dash", Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
+	titles := &restrictedTitles{rule: titleRuleFor(run, true, false), run: run, adminsOnly: map[pgtype.UUID]bool{hidden: true}}
+	folder := &search.ResultFolder{ID: hidden.String()}
+	own := search.Result{ID: "comment-1", Folder: folder, Target: &search.Target{ID: "dash"}}
+	other := search.Result{ID: "comment-2", Folder: folder, Target: &search.Target{ID: "elsewhere"}}
+	kept := keepReadable(titles, []search.Result{own, other}, resultFolder)
+	if len(kept) != 1 || kept[0].ID != "comment-1" || titles.leftOut != 1 {
+		t.Fatalf("kept %+v, left out %d", kept, titles.leftOut)
+	}
+}
+
+func TestActivityOnTheRunsOwnDashboardIsKeptWhateverItsTargetIs(t *testing.T) {
+	hidden := mustUUID(t, "22222222-2222-4222-8222-222222222222")
+	run := Run{DashboardID: "dash", Access: datasource.Access{By: adminCaller, Audience: datasource.AudienceCaller}}
+	titles := &restrictedTitles{rule: titleRuleFor(run, true, false), run: run, adminsOnly: map[pgtype.UUID]bool{hidden: true}}
+	folderID, dashboardID, other := hidden.String(), "dash", "elsewhere"
+	events := []activity.EventJSON{
+		{Type: "annotation.created", Target: activity.TargetJSON{ID: "annotation-1"}, DashboardID: &dashboardID, FolderID: &folderID},
+		{Type: "annotation.created", Target: activity.TargetJSON{ID: "annotation-2"}, DashboardID: &other, FolderID: &folderID},
+	}
+	kept := keepActivity(titles, events)
+	if len(kept) != 1 || kept[0].Target.ID != "annotation-1" || titles.leftOut != 1 {
 		t.Fatalf("kept %+v, left out %d", kept, titles.leftOut)
 	}
 }

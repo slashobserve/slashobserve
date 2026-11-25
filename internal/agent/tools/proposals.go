@@ -158,10 +158,12 @@ func (r *Registry) getProposal(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return r.proposalFailure(ctx, err)
 	}
-	if dashboardID, err := db.ParseUUID(proposal.DashboardID); err == nil {
-		if err := r.readDashboardContent(ctx, principal, dashboardID); err != nil {
-			return r.proposalFailure(ctx, err)
-		}
+	dashboardID, err := db.ParseUUID(proposal.DashboardID)
+	if err != nil {
+		return Result{}, fmt.Errorf("parse proposal dashboard id: %w", err)
+	}
+	if err := r.readDashboardContent(ctx, principal, dashboardID); err != nil {
+		return r.proposalFailure(ctx, err)
 	}
 	out := proposals.NewProposalJSON(proposal)
 	step := "Read proposal revision " + strconv.Itoa(out.Revision)

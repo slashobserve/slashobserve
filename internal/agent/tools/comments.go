@@ -12,11 +12,13 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/anchor"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -255,7 +257,7 @@ func commentFailure(err error) (Result, error) {
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
-	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, annotations.ErrNotFound), errors.Is(err, proposals.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeNotFound, commentNotFoundNotice), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
