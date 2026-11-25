@@ -177,12 +177,16 @@ func TestSummarizeSeriesStats(t *testing.T) {
 	}
 }
 
-func TestSummarizeSaysRangeExtremesAreOfSampledPoints(t *testing.T) {
-	frames := []datasource.Frame{timeNumberFrame(nil, 1, 3, 2)}
-	run := func(kind queryproxy.Kind, step time.Duration, frames []datasource.Frame) querySummary {
-		return summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}, Kind: kind, Step: step})
-	}
-	coarse := run(queryproxy.KindRange, 216*time.Second, frames)
+func rangeSummary(t *testing.T, ds datasource.Datasource, kind queryproxy.Kind, step time.Duration, frames ...datasource.Frame) querySummary {
+	t.Helper()
+	s := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Kind: kind, Step: step, Frames: frames}}, Kind: kind})
+	s.noteSampling(ds)
+	return s
+}
+
+func TestNoteSamplingSaysRangeExtremesAreOfSampledPoints(t *testing.T) {
+	series := timeNumberFrame(nil, 1, 3, 2)
+	coarse := rangeSummary(t, &fakeDS{}, queryproxy.KindRange, 216*time.Second, series)
 	for _, want := range []string{"sampled every 3m36s", "min, max and last", "between samples", "max_over_time", "min_over_time", "query_instant"} {
 		if !strings.Contains(coarse.Note, want) {
 			t.Errorf("note = %q, want it to contain %q", coarse.Note, want)
@@ -192,10 +196,11 @@ func TestSummarizeSaysRangeExtremesAreOfSampledPoints(t *testing.T) {
 		t.Fatalf("existing fields changed: %+v", coarse)
 	}
 	for name, got := range map[string]querySummary{
-		"fine step":    run(queryproxy.KindRange, 18*time.Second, frames),
-		"instant":      run(queryproxy.KindInstant, 0, frames),
-		"no series":    run(queryproxy.KindRange, 216*time.Second, []datasource.Frame{logRows(2)}),
-		"empty result": run(queryproxy.KindRange, 216*time.Second, []datasource.Frame{timeNumberFrame(nil)}),
+		"step at the default scrape": rangeSummary(t, &fakeDS{}, queryproxy.KindRange, 15*time.Second, series),
+		"instant":                    rangeSummary(t, &fakeDS{}, queryproxy.KindInstant, 0, series),
+		"no series":                  rangeSummary(t, &fakeDS{}, queryproxy.KindRange, 216*time.Second, logRows(2)),
+		"empty result":               rangeSummary(t, &fakeDS{}, queryproxy.KindRange, 216*time.Second, timeNumberFrame(nil)),
+		"not a PromQL datasource":    rangeSummary(t, &fakeDS{typ: "clickhouse"}, queryproxy.KindRange, 216*time.Second, series),
 	} {
 		if got.Note != "" {
 			t.Errorf("%s: note = %q, want none", name, got.Note)
@@ -203,10 +208,65 @@ func TestSummarizeSaysRangeExtremesAreOfSampledPoints(t *testing.T) {
 	}
 }
 
-func TestSummarizeKeepsTheLimitNoteBesideTheSampledNote(t *testing.T) {
+func TestNoteSamplingComparesTheStepWithTheDatasourceScrapeInterval(t *testing.T) {
+	series := timeNumberFrame(nil, 1, 3, 2)
+	if got := rangeSummary(t, &fakeDS{minStep: time.Minute}, queryproxy.KindRange, time.Minute, series); got.Note != "" {
+		t.Fatalf("step equal to the scrape interval: note = %q", got.Note)
+	}
+	if got := rangeSummary(t, &fakeDS{minStep: time.Minute}, queryproxy.KindRange, 90*time.Second, series); !strings.Contains(got.Note, "sampled every 1m30s") {
+		t.Fatalf("step above the scrape interval: note = %q", got.Note)
+	}
+	if got := rangeSummary(t, &fakeDS{}, queryproxy.KindRange, 18*time.Second, series); !strings.Contains(got.Note, "sampled every 18s") {
+		t.Fatalf("step above the default 15s: note = %q", got.Note)
+	}
+}
+
+func TestSummarizeTakesTheStepFromTheQueriesThatRan(t *testing.T) {
+	series := timeNumberFrame(nil, 1, 3, 2)
+	got := summarize(queryproxy.Result{
+		Queries: []queryproxy.QueryResult{{Ref: "A", Kind: queryproxy.KindRange, Step: time.Minute, Frames: []datasource.Frame{series}}},
+		Kind:    queryproxy.KindRange,
+		Step:    18 * time.Second,
+	})
+	if got.StepMS != 60000 {
+		t.Fatalf("step_ms = %d, want the query's own 60000", got.StepMS)
+	}
+}
+
+func TestQueryRangeReportsAndNamesTheStepTheQueryRanAt(t *testing.T) {
+	frames := func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
+	}
+	run := func(ds *fakeDS) querySummary {
+		res, err := call(t, newTestRegistry(t, ds, nil), nameQueryRange, `{"datasource":"fake","query":"up","from":"now-1h"}`)
+		if err != nil || res.IsError {
+			t.Fatalf("res = %#v err = %v", res, err)
+		}
+		return res.Content.(querySummary)
+	}
+	held := run(&fakeDS{rangeFn: frames, minStep: time.Minute})
+	if held.StepMS != 60000 || held.Note != "" {
+		t.Fatalf("a 1m minimum over 1h: step_ms = %d note = %q, want 60000 and no note", held.StepMS, held.Note)
+	}
+	coarse := run(&fakeDS{rangeFn: frames, minStep: 5 * time.Second})
+	if coarse.StepMS != 18000 || !strings.Contains(coarse.Note, "sampled every 18s") {
+		t.Fatalf("step_ms = %d note = %q", coarse.StepMS, coarse.Note)
+	}
+}
+
+func TestJoinNotesDropsEmptyNotesAndTrailingPeriods(t *testing.T) {
+	if got := joinNotes("a.", "", "b"); got != "a. b" {
+		t.Fatalf("got %q", got)
+	}
+	if got := joinNotes("", ""); got != "" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestNoteSamplingKeepsTheLimitNoteBesideIt(t *testing.T) {
 	frame := timeNumberFrame(nil, 1, 2)
 	frame.Meta = &datasource.FrameMeta{Partial: true}
-	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}, Kind: queryproxy.KindRange, Step: time.Minute})
+	got := rangeSummary(t, &fakeDS{}, queryproxy.KindRange, time.Minute, frame)
 	if !strings.HasPrefix(got.Note, queryproxy.PartialNote+". min, max and last") {
 		t.Fatalf("note = %q", got.Note)
 	}

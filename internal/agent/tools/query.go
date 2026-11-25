@@ -30,7 +30,7 @@ const (
 	maxDataPoints      = 1000
 	maxTimeExprBytes   = 64
 	maxSeriesOut       = 20
-	coarseStep         = 30 * time.Second
+	defaultScrapeStep  = 15 * time.Second
 	maxTableColumns    = 30
 	maxTableRows       = 10
 	maxSummaryCell     = 200
@@ -291,6 +291,7 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 		return datasourceFailure("Ran a query on "+inst.UID, err)
 	}
 	summary := summarize(out)
+	summary.noteSampling(inst.Datasource)
 	if _, pages := inst.Datasource.(datasource.PageSource); pages && panelType == spec.Table {
 		summary.canPage = true
 		summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, false, true)
@@ -532,7 +533,7 @@ func summarizePage(res queryproxy.Result, pageRows int) querySummary {
 		Kind:     res.Kind,
 		From:     res.Range.From.UTC().Format(time.RFC3339),
 		To:       res.Range.To.UTC().Format(time.RFC3339),
-		StepMS:   res.Step.Milliseconds(),
+		StepMS:   effectiveStep(res).Milliseconds(),
 		Empty:    framesEmpty(frames),
 		Frames:   len(frames),
 		MoreRows: meta.Truncated,
@@ -574,18 +575,43 @@ func summarizePage(res queryproxy.Result, pageRows int) querySummary {
 	if s.Series, cut = fit(series, seriesBudget); cut {
 		s.Truncated = true
 	}
-	if len(s.Series) > 0 && res.Step > coarseStep {
-		s.Note = joinNotes(s.Note, sampledNote(res.Step))
-	}
 	return s
 }
 
-func joinNotes(notes ...string) string {
-	return strings.Join(slices.DeleteFunc(notes, func(n string) bool { return n == "" }), ". ")
+func effectiveStep(res queryproxy.Result) time.Duration {
+	var step time.Duration
+	for _, q := range res.Queries {
+		step = max(step, q.Step)
+	}
+	if step == 0 {
+		return res.Step
+	}
+	return step
 }
 
-func sampledNote(step time.Duration) string {
-	return "min, max and last are of points sampled every " + step.String() + ", so an extreme between samples is not shown; for an exact peak or low over the window on a PromQL datasource, run max_over_time or min_over_time over the window as a query_instant"
+func joinNotes(notes ...string) string {
+	kept := make([]string, 0, len(notes))
+	for _, n := range notes {
+		if n = strings.TrimRight(n, ". "); n != "" {
+			kept = append(kept, n)
+		}
+	}
+	return strings.Join(kept, ". ")
+}
+
+func (s *querySummary) noteSampling(ds datasource.Datasource) {
+	if s.Kind != queryproxy.KindRange || len(s.Series) == 0 || ds.Type() != string(spec.Prometheus) {
+		return
+	}
+	scrape := defaultScrapeStep
+	if src, ok := ds.(datasource.MinStepSource); ok && src.MinStep() > 0 {
+		scrape = src.MinStep()
+	}
+	step := time.Duration(s.StepMS) * time.Millisecond
+	if step <= scrape {
+		return
+	}
+	s.Note = joinNotes(s.Note, "min, max and last are of points sampled every "+step.String()+", so an extreme between samples is not shown; for an exact peak or low over the window, run max_over_time or min_over_time over the window as a query_instant")
 }
 
 func isLogStream(f datasource.Frame) bool {
