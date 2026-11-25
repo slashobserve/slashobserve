@@ -20,6 +20,7 @@ var contextSourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39
 type ContextSource struct {
 	UID          string
 	Name         string
+	Description  string
 	URL          string
 	Audience     datasource.Audience
 	SecretHeader string
@@ -33,6 +34,7 @@ type contextSourcesFile struct {
 type fileContextSource struct {
 	UID          string `yaml:"uid"`
 	Name         string `yaml:"name"`
+	Description  string `yaml:"description"`
 	URL          string `yaml:"url"`
 	Audience     string `yaml:"audience"`
 	SecretHeader string `yaml:"secretHeader"`
@@ -76,9 +78,21 @@ func loadContextSources(path string, lookup func(string) (string, bool)) ([]Cont
 	return out, nil
 }
 
+const (
+	maxContextSourceNameRunes        = 100
+	maxContextSourceDescriptionRunes = 300
+)
+
 func ValidContextSourceName(name string) bool {
-	n := utf8.RuneCountInString(name)
-	return n >= 1 && n <= 100 && !strings.ContainsFunc(name, isControlOrFormat)
+	return name != "" && plainText(name, maxContextSourceNameRunes)
+}
+
+func ValidContextSourceDescription(description string) bool {
+	return plainText(description, maxContextSourceDescriptionRunes)
+}
+
+func plainText(s string, maxRunes int) bool {
+	return utf8.RuneCountInString(s) <= maxRunes && !strings.ContainsFunc(s, isControlOrFormat)
 }
 
 func convertContextSource(path string, raw fileContextSource, lookup func(string) (string, bool)) (ContextSource, []error) {
@@ -86,7 +100,7 @@ func convertContextSource(path string, raw fileContextSource, lookup func(string
 	fail := func(field, format string, args ...any) {
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
-	source := ContextSource{UID: raw.UID, Name: strings.TrimSpace(raw.Name), URL: strings.TrimSpace(raw.URL), SecretHeader: strings.TrimSpace(raw.SecretHeader)}
+	source := ContextSource{UID: raw.UID, Name: strings.TrimSpace(raw.Name), URL: strings.TrimSpace(raw.URL), Description: strings.TrimSpace(raw.Description), SecretHeader: strings.TrimSpace(raw.SecretHeader)}
 	if !contextSourceUIDPattern.MatchString(raw.UID) {
 		fail("uid", "must match %s", contextSourceUIDPattern)
 	}
@@ -95,6 +109,9 @@ func convertContextSource(path string, raw fileContextSource, lookup func(string
 	}
 	if !ValidContextSourceName(source.Name) {
 		fail("name", "must be 1 to 100 characters without control or format characters")
+	}
+	if !ValidContextSourceDescription(source.Description) {
+		fail("description", "must be at most 300 characters on one line, without control or format characters")
 	}
 	if source.URL == "" {
 		fail("url", "required")

@@ -94,3 +94,16 @@ func TestInvalidErrorNamesTheField(t *testing.T) {
 		t.Errorf("error = %q", err)
 	}
 }
+
+func TestCheckDescription(t *testing.T) {
+	for _, ok := range []string{"", "Runbooks and design notes", strings.Repeat("é", 300)} {
+		if err := checkDescription(ok); err != nil {
+			t.Errorf("description %q: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"two\nlines", "tab\there", "zero\u200bwidth", strings.Repeat("é", 301)} {
+		if checkDescription(bad) == nil {
+			t.Errorf("description %q should be refused", bad)
+		}
+	}
+}

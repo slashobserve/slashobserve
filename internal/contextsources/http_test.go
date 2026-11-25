@@ -27,6 +27,7 @@ var allActions = []audit.Action{actionCreate, actionUpdate, actionDelete, action
 
 type sourceView struct {
 	UID         string  `json:"uid"`
+	Description *string `json:"description"`
 	State       string  `json:"state"`
 	Failure     *string `json:"failure"`
 	SecretSet   bool    `json:"secret_set"`
@@ -462,5 +463,35 @@ func TestConcurrentCreatesCannotPassTheCap(t *testing.T) {
 	}
 	if listed, err := r.service.List(t.Context()); err != nil || len(listed) != MaxSources {
 		t.Fatalf("sources = %d, err %v; want %d", len(listed), err, MaxSources)
+	}
+}
+
+func TestASourceDescriptionIsOptionalAndEditable(t *testing.T) {
+	r := newRig(t)
+	plain := decodeJSON[sourceView](t, r.call(t, http.MethodPost, base, registration("docs", "s3cret-value")), http.StatusCreated)
+	if plain.Description != nil {
+		t.Fatalf("description = %q, want null", *plain.Description)
+	}
+
+	described := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"  Runbooks and design notes  "}`), http.StatusOK)
+	if described.Description == nil || *described.Description != "Runbooks and design notes" {
+		t.Fatalf("description = %v", described.Description)
+	}
+	renamed := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"name":"Renamed"}`), http.StatusOK)
+	if renamed.Description == nil || *renamed.Description != "Runbooks and design notes" {
+		t.Fatalf("a change that leaves the description out must keep it, got %v", renamed.Description)
+	}
+	cleared := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"description":""}`), http.StatusOK)
+	if cleared.Description != nil {
+		t.Fatalf("description = %q, want null after clearing", *cleared.Description)
+	}
+
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"two\nlines"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"`+strings.Repeat("a", 301)+`"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+
+	withDescription := `{"uid":"wiki","url":"https://` + fakeHost + `/mcp","description":"Team wiki"}`
+	wiki := decodeJSON[sourceView](t, r.call(t, http.MethodPost, base, withDescription), http.StatusCreated)
+	if wiki.Description == nil || *wiki.Description != "Team wiki" {
+		t.Fatalf("created description = %v", wiki.Description)
 	}
 }

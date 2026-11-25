@@ -105,6 +105,7 @@ func (c *ToolCounts) add(state ToolState, n int) {
 type Source struct {
 	UID          string
 	Name         string
+	Description  string
 	URL          string
 	Audience     datasource.Audience
 	SecretHeader string
@@ -122,6 +123,7 @@ func sourceOf(row dbsqlc.ContextSource, counts ToolCounts) Source {
 	s := Source{
 		UID:          row.Uid,
 		Name:         row.Name,
+		Description:  row.Description.String,
 		URL:          row.Url,
 		Audience:     datasource.Audience(row.Audience),
 		SecretHeader: row.SecretHeader.String,
@@ -325,6 +327,7 @@ func hostOfURL(raw string) string {
 type Input struct {
 	UID          string
 	Name         string
+	Description  string
 	URL          string
 	Audience     datasource.Audience
 	SecretHeader string
@@ -334,6 +337,7 @@ type Input struct {
 func (in Input) normalized() Input {
 	in.UID = strings.TrimSpace(in.UID)
 	in.Name = strings.TrimSpace(in.Name)
+	in.Description = strings.TrimSpace(in.Description)
 	in.URL = strings.TrimSpace(in.URL)
 	in.SecretHeader = strings.TrimSpace(in.SecretHeader)
 	if in.Name == "" {
@@ -350,6 +354,9 @@ func (in Input) check() (string, error) {
 		return "", err
 	}
 	if err := checkName(in.Name); err != nil {
+		return "", err
+	}
+	if err := checkDescription(in.Description); err != nil {
 		return "", err
 	}
 	if err := checkAudience(in.Audience); err != nil {
@@ -386,7 +393,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 		return Source{}, err
 	}
 	id := newID()
-	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: provisioned}
+	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: provisioned}
 	if in.Secret != "" {
 		if params.Secret, err = s.seal(id, in.Secret); err != nil {
 			return Source{}, err
@@ -428,6 +435,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 
 type Patch struct {
 	Name         *string
+	Description  *string
 	URL          *string
 	Audience     *datasource.Audience
 	SecretHeader *string
@@ -457,9 +465,12 @@ type revision struct {
 }
 
 func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
-	in := Input{UID: row.Uid, Name: row.Name, URL: row.Url, Audience: datasource.Audience(row.Audience), SecretHeader: row.SecretHeader.String}
+	in := Input{UID: row.Uid, Name: row.Name, Description: row.Description.String, URL: row.Url, Audience: datasource.Audience(row.Audience), SecretHeader: row.SecretHeader.String}
 	if p.Name != nil {
 		in.Name = *p.Name
+	}
+	if p.Description != nil {
+		in.Description = *p.Description
 	}
 	if p.URL != nil {
 		in.URL = *p.URL
@@ -492,7 +503,7 @@ func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
 		return revision{}, invalid("secret", "a new host needs the secret again; send it, or clear it")
 	}
 	out := revision{host: host, params: dbsqlc.UpdateContextSourceParams{
-		Uid: row.Uid, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret,
+		Uid: row.Uid, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret,
 	}}
 	switch {
 	case p.Secret != nil:

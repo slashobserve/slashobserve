@@ -249,3 +249,35 @@ func TestContextRevokeAndRemoveCallTheirRoutes(t *testing.T) {
 		t.Fatalf("remove exit %d, output = %q", code, stdout)
 	}
 }
+
+func TestContextDescriptionIsSentOnAddAndEditAndShownInTheFullView(t *testing.T) {
+	f := newContextFake(t)
+	f.status["POST /api/v1/context-sources"] = http.StatusCreated
+	f.replies["POST /api/v1/context-sources"] = contextSourceReply
+	f.replies["PATCH /api/v1/context-sources/docs"] = contextSourceReply
+
+	if _, stderr, code := f.run("", "context", "add", "docs", "--url", "https://docs.example.com/mcp", "--description", "Runbooks and design notes"); code != 0 {
+		t.Fatalf("add exit %d: %s", code, stderr)
+	}
+	var added map[string]any
+	if err := json.Unmarshal([]byte(f.last().body), &added); err != nil || added["description"] != "Runbooks and design notes" {
+		t.Errorf("add body = %v, %v", added, err)
+	}
+
+	if _, stderr, code := f.run("", "context", "edit", "docs", "--description", ""); code != 0 {
+		t.Fatalf("edit exit %d: %s", code, stderr)
+	}
+	var edited map[string]any
+	if err := json.Unmarshal([]byte(f.last().body), &edited); err != nil {
+		t.Fatal(err)
+	}
+	if value, sent := edited["description"]; !sent || value != "" {
+		t.Errorf("an empty --description must be sent to remove it, body = %v", edited)
+	}
+
+	f.replies["GET /api/v1/context-sources/docs"] = strings.Replace(contextSourceReply, `"name":`, `"description":"Runbooks and design notes","name":`, 1)
+	stdout, _, code := f.run("", "context", "list", "docs")
+	if code != 0 || !strings.Contains(stdout, "Runbooks and design notes") {
+		t.Fatalf("exit %d, output = %q", code, stdout)
+	}
+}

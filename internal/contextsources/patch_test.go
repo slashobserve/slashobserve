@@ -64,3 +64,24 @@ func TestPatchWithoutSecretHeaderOnASourceWithoutSecretIsAccepted(t *testing.T) 
 		t.Fatal(err)
 	}
 }
+
+func TestPatchSetsKeepsAndClearsTheDescription(t *testing.T) {
+	s := &Service{key: testKey}
+	row := dbsqlc.ContextSource{ID: newID(), Uid: "docs", Name: "Docs", Url: "https://mcp.example.com/mcp", Audience: "everyone", Description: pgtype.Text{String: "Runbooks", Valid: true}}
+
+	kept, err := s.patched(row, Patch{Name: str("Renamed")})
+	if err != nil || kept.params.Description.String != "Runbooks" || !kept.params.Description.Valid {
+		t.Fatalf("kept = %+v, %v", kept.params.Description, err)
+	}
+	cleared, err := s.patched(row, Patch{Description: str("  ")})
+	if err != nil || cleared.params.Description.Valid {
+		t.Fatalf("cleared = %+v, %v", cleared.params.Description, err)
+	}
+	set, err := s.patched(row, Patch{Description: str("Wiki")})
+	if err != nil || set.params.Description.String != "Wiki" {
+		t.Fatalf("set = %+v, %v", set.params.Description, err)
+	}
+	if _, err := s.patched(row, Patch{Description: str("a\nb")}); err == nil {
+		t.Fatal("a description with a line break must be refused")
+	}
+}

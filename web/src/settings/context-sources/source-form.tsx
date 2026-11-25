@@ -51,6 +51,7 @@ function inputOf(source: ContextSource | undefined): SourceInput {
   return {
     uid: source?.uid ?? "",
     name: source?.name ?? "",
+    description: source?.description ?? "",
     url: source?.url ?? "",
     audience: source?.audience ?? "everyone",
     secretHeader: source?.secret_header ?? "",
@@ -161,6 +162,7 @@ export function SourceForm({
 
   const uidId = `${baseId}-uid`
   const nameId = `${baseId}-name`
+  const descriptionId = `${baseId}-description`
   const urlId = `${baseId}-url`
   const audienceId = `${baseId}-audience`
   const headerId = `${baseId}-header`
@@ -212,6 +214,23 @@ export function SourceForm({
           aria-invalid={problems.name !== undefined}
           aria-describedby={describedBy(nameId, problems.name)}
           onChange={(event) => change({ name: event.target.value })}
+        />
+      </Field>
+      <Field
+        id={descriptionId}
+        label="Description"
+        error={problems.description}
+        hint="What the source is for, in one line. Optional."
+      >
+        <Input
+          id={descriptionId}
+          className="narrow:h-11"
+          autoComplete="off"
+          placeholder="Runbooks and design notes"
+          value={values.description}
+          aria-invalid={problems.description !== undefined}
+          aria-describedby={describedBy(descriptionId, problems.description)}
+          onChange={(event) => change({ description: event.target.value })}
         />
       </Field>
       <Field

@@ -19,6 +19,7 @@ import type { ContextSource, ContextTool } from "./queries"
 const input: SourceInput = {
   uid: "docs",
   name: "Docs",
+  description: "",
   url: "https://mcp.example.com/mcp",
   audience: "everyone",
   secretHeader: "",
@@ -32,6 +33,7 @@ function source(overrides: Partial<ContextSource> = {}): ContextSource {
   return {
     uid: "docs",
     name: "Docs",
+    description: null,
     url: "https://mcp.example.com/mcp",
     audience: "everyone",
     secret_header: null,
@@ -113,6 +115,16 @@ describe("sourceProblems", () => {
     ).toEqual({})
   })
 
+  test("limits the description to one line of at most 300 characters", () => {
+    const refused = (description: string) =>
+      sourceProblems({ ...input, description }, "add", false).description
+    expect(refused("Runbooks and design notes")).toBeUndefined()
+    expect(refused("é".repeat(300))).toBeUndefined()
+    expect(refused("é".repeat(301))).toBeDefined()
+    expect(refused("two\nlines")).toBeDefined()
+    expect(refused("zero\u200Bwidth")).toBeDefined()
+  })
+
   test("refuses a secret with a line break", () => {
     const problems = sourceProblems(
       { ...input, secret: "a\nb", secretHeader: "X-Api-Key" },
@@ -133,6 +145,24 @@ describe("request bodies", () => {
     expect(
       createBody({ ...input, secret: "s3cret", secretHeader: " X-Api-Key " })
     ).toMatchObject({ secret: "s3cret", secret_header: "X-Api-Key" })
+  })
+
+  test("a description is sent when set, and an edit can remove it", () => {
+    expect(createBody({ ...input, description: " Runbooks " })).toMatchObject({
+      description: "Runbooks",
+    })
+    expect(createBody(input)).not.toHaveProperty("description")
+    const described = source({ description: "Runbooks" })
+    expect(
+      updateBody(described, { ...input, description: "Runbooks" })
+    ).toEqual({})
+    expect(updateBody(described, { ...input, description: "Wiki" })).toEqual({
+      description: "Wiki",
+    })
+    expect(updateBody(described, { ...input, description: " " })).toEqual({
+      description: "",
+    })
+    expect(updateBody(source(), input)).toEqual({})
   })
 
   test("an edit sends only what changed", () => {

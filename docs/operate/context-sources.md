@@ -18,6 +18,8 @@ The agent's use of approved tools is a separate step and is not covered here.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters without control or format characters.
      It defaults to the id.
+   - **Description**, what the source is for, on one line of at most 300 characters.
+     It is optional.
    - **Address**, the server's `https` MCP address with a domain name, no login, no query and no fragment.
    - **Who can use its tools**, either **Everyone** or **Admins only**.
      Admins manage every source whatever you choose.
@@ -32,6 +34,7 @@ The CLI does the same:
 ```sh
 printf '%s' "$DOCS_TOKEN" | observe context add docs \
   --url https://docs.example.com/mcp \
+  --description "Runbooks and design notes" \
   --secret-header Authorization --secret-stdin
 observe context discover docs
 observe context tools docs
@@ -98,6 +101,7 @@ A source is `unchecked` until its first discovery, `unreachable` when the last d
 A failed discovery answers `200` with the failure code in `failure`: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
 Changing the address or the secret resets the check.
 Changing the address also deletes the stored tools, so approvals never carry over to another server.
+A change that sends an empty `description` removes it.
 A change cannot send an empty `secret`, or an empty `secret_header` while a secret is stored; both answer `422 invalid_context_source`.
 Send `clear_secret` to remove the secret, with an empty `secret_header` to remove the header too.
 
@@ -110,6 +114,7 @@ The server reads it at startup and makes its entries match.
 contextSources:
   - uid: docs
     name: Company docs
+    description: Runbooks and design notes
     url: https://docs.example.com/mcp
     audience: admins
     secretHeader: Authorization
@@ -117,6 +122,7 @@ contextSources:
 ```
 
 - `uid` and `url` are required, and `name` defaults to the uid.
+- `description` is optional and follows the same rules as in the app.
 - `audience` is `everyone` (the default) or `admins`.
 - A secret is never written in the file.
   Name an environment variable with `secretEnv`, whose name starts with `SLASHOBSERVE_`, or a file with `secretFile`.

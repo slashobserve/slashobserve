@@ -58,7 +58,7 @@ func (q *Queries) DeleteContextSourceTools(ctx context.Context, sourceID pgtype.
 }
 
 const getContextSource = `-- name: GetContextSource :one
-SELECT id, uid, name, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1
 `
 
 func (q *Queries) GetContextSource(ctx context.Context, uid string) (ContextSource, error) {
@@ -68,6 +68,7 @@ func (q *Queries) GetContextSource(ctx context.Context, uid string) (ContextSour
 		&i.ID,
 		&i.Uid,
 		&i.Name,
+		&i.Description,
 		&i.Url,
 		&i.Audience,
 		&i.SecretHeader,
@@ -113,15 +114,16 @@ func (q *Queries) GetContextSourceTool(ctx context.Context, arg GetContextSource
 }
 
 const insertContextSource = `-- name: InsertContextSource :one
-INSERT INTO context_sources (id, uid, name, url, audience, secret_header, secret, provisioned, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, uid, name, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
+INSERT INTO context_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
 `
 
 type InsertContextSourceParams struct {
 	ID           pgtype.UUID
 	Uid          string
 	Name         string
+	Description  pgtype.Text
 	Url          string
 	Audience     string
 	SecretHeader pgtype.Text
@@ -135,6 +137,7 @@ func (q *Queries) InsertContextSource(ctx context.Context, arg InsertContextSour
 		arg.ID,
 		arg.Uid,
 		arg.Name,
+		arg.Description,
 		arg.Url,
 		arg.Audience,
 		arg.SecretHeader,
@@ -147,6 +150,7 @@ func (q *Queries) InsertContextSource(ctx context.Context, arg InsertContextSour
 		&i.ID,
 		&i.Uid,
 		&i.Name,
+		&i.Description,
 		&i.Url,
 		&i.Audience,
 		&i.SecretHeader,
@@ -230,7 +234,7 @@ func (q *Queries) ListContextSourceTools(ctx context.Context, sourceID pgtype.UU
 }
 
 const listContextSources = `-- name: ListContextSources :many
-SELECT id, uid, name, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources ORDER BY uid
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources ORDER BY uid
 `
 
 func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, error) {
@@ -246,6 +250,7 @@ func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, erro
 			&i.ID,
 			&i.Uid,
 			&i.Name,
+			&i.Description,
 			&i.Url,
 			&i.Audience,
 			&i.SecretHeader,
@@ -268,7 +273,7 @@ func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, erro
 }
 
 const lockContextSource = `-- name: LockContextSource :one
-SELECT id, uid, name, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1 FOR UPDATE
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1 FOR UPDATE
 `
 
 func (q *Queries) LockContextSource(ctx context.Context, uid string) (ContextSource, error) {
@@ -278,6 +283,7 @@ func (q *Queries) LockContextSource(ctx context.Context, uid string) (ContextSou
 		&i.ID,
 		&i.Uid,
 		&i.Name,
+		&i.Description,
 		&i.Url,
 		&i.Audience,
 		&i.SecretHeader,
@@ -370,17 +376,18 @@ func (q *Queries) PutContextSourceTool(ctx context.Context, arg PutContextSource
 
 const updateContextSource = `-- name: UpdateContextSource :one
 UPDATE context_sources
-SET name = $1, url = $2, audience = $3, secret_header = $4, secret = $5,
-    provisioned = $6,
-    checked_at = CASE WHEN $7::boolean THEN NULL ELSE checked_at END,
-    failure = CASE WHEN $7::boolean THEN NULL ELSE failure END,
+SET name = $1, description = $2, url = $3, audience = $4, secret_header = $5, secret = $6,
+    provisioned = $7,
+    checked_at = CASE WHEN $8::boolean THEN NULL ELSE checked_at END,
+    failure = CASE WHEN $8::boolean THEN NULL ELSE failure END,
     updated_at = clock_timestamp()
-WHERE uid = $8
-RETURNING id, uid, name, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
+WHERE uid = $9
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
 `
 
 type UpdateContextSourceParams struct {
 	Name         string
+	Description  pgtype.Text
 	Url          string
 	Audience     string
 	SecretHeader pgtype.Text
@@ -393,6 +400,7 @@ type UpdateContextSourceParams struct {
 func (q *Queries) UpdateContextSource(ctx context.Context, arg UpdateContextSourceParams) (ContextSource, error) {
 	row := q.db.QueryRow(ctx, updateContextSource,
 		arg.Name,
+		arg.Description,
 		arg.Url,
 		arg.Audience,
 		arg.SecretHeader,
@@ -406,6 +414,7 @@ func (q *Queries) UpdateContextSource(ctx context.Context, arg UpdateContextSour
 		&i.ID,
 		&i.Uid,
 		&i.Name,
+		&i.Description,
 		&i.Url,
 		&i.Audience,
 		&i.SecretHeader,

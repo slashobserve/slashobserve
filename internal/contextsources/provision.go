@@ -50,7 +50,7 @@ func (s *Service) Provision(ctx context.Context, entries []config.ContextSource)
 }
 
 func (s *Service) provisionOne(ctx context.Context, q *dbsqlc.Queries, e config.ContextSource, row dbsqlc.ContextSource, count int) (bool, error) {
-	in := Input{UID: e.UID, Name: e.Name, URL: e.URL, Audience: e.Audience, SecretHeader: e.SecretHeader, Secret: e.Secret.Reveal()}.normalized()
+	in := Input{UID: e.UID, Name: e.Name, Description: e.Description, URL: e.URL, Audience: e.Audience, SecretHeader: e.SecretHeader, Secret: e.Secret.Reveal()}.normalized()
 	host, err := in.check()
 	if err != nil {
 		return false, err
@@ -69,7 +69,7 @@ func (s *Service) provisionNew(ctx context.Context, q *dbsqlc.Queries, in Input,
 		return ErrTooMany
 	}
 	id := newID()
-	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: true}
+	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: true}
 	if in.Secret != "" {
 		var err error
 		if params.Secret, err = s.seal(id, in.Secret); err != nil {
@@ -87,7 +87,7 @@ func (s *Service) provisionExisting(ctx context.Context, q *dbsqlc.Queries, in I
 	current, _ := s.open(row)
 	credentials := current.Reveal() != in.Secret || row.SecretHeader.String != in.SecretHeader
 	next := revision{host: host, credentials: credentials, params: dbsqlc.UpdateContextSourceParams{
-		Uid: row.Uid, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret, Provisioned: true,
+		Uid: row.Uid, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret, Provisioned: true,
 	}}
 	if credentials {
 		next.params.Secret = nil
@@ -98,7 +98,7 @@ func (s *Service) provisionExisting(ctx context.Context, q *dbsqlc.Queries, in I
 			}
 		}
 	}
-	unchanged := !credentials && in.Name == row.Name && in.URL == row.Url && string(in.Audience) == row.Audience && row.Provisioned
+	unchanged := !credentials && in.Name == row.Name && in.Description == row.Description.String && in.URL == row.Url && string(in.Audience) == row.Audience && row.Provisioned
 	if unchanged {
 		return nil
 	}

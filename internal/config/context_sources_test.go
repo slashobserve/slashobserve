@@ -26,6 +26,7 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
 	path := contextSourcesFixture(t, `contextSources:
   - uid: docs
     name: Company docs
+    description: Runbooks and design notes
     url: https://mcp.example.com/mcp
     audience: admins
     secretHeader: Authorization
@@ -45,10 +46,10 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("got %d sources, want 3", len(got))
 	}
-	if d := got[0]; d.UID != "docs" || d.Name != "Company docs" || d.Audience != datasource.AudienceAdmins || d.SecretHeader != "Authorization" || d.Secret.Reveal() != "env-secret" {
+	if d := got[0]; d.UID != "docs" || d.Name != "Company docs" || d.Description != "Runbooks and design notes" || d.Audience != datasource.AudienceAdmins || d.SecretHeader != "Authorization" || d.Secret.Reveal() != "env-secret" {
 		t.Errorf("docs = %+v", d)
 	}
-	if w := got[1]; w.Name != "wiki" || w.Audience != datasource.AudienceEveryone || w.Secret.Reveal() != "file-secret" {
+	if w := got[1]; w.Name != "wiki" || w.Description != "" || w.Audience != datasource.AudienceEveryone || w.Secret.Reveal() != "file-secret" {
 		t.Errorf("wiki = %+v", w)
 	}
 	if o := got[2]; !o.Secret.IsZero() || o.SecretHeader != "" {
@@ -58,18 +59,20 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
 
 func TestContextSourcesFileRefusals(t *testing.T) {
 	cases := map[string]struct{ body, want string }{
-		"no list":            {"other: 1\n", "field"},
-		"missing list":       {"{}\n", "contextSources: required"},
-		"bad uid":            {"contextSources:\n  - uid: \"-x\"\n    url: https://a.example.com\n", "contextSources[0].uid"},
-		"duplicate uid":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n  - uid: a\n    url: https://b.example.com\n", "already used by contextSources[0]"},
-		"no url":             {"contextSources:\n  - uid: a\n", "contextSources[0].url: required"},
-		"bad audience":       {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    audience: nobody\n", "contextSources[0].audience"},
-		"both secret fields": {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n    secretEnv: SLASHOBSERVE_A\n    secretFile: /x\n", "mutually exclusive"},
-		"secret no header":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretEnv: SLASHOBSERVE_A\n", "secretHeader: required"},
-		"header no secret":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n", "needs secretEnv or secretFile"},
-		"env prefix":         {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n    secretEnv: HOME\n", "must start with SLASHOBSERVE_"},
-		"format character":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    name: \"Do\\u200Bcs\"\n", "contextSources[0].name"},
-		"two documents":      {"contextSources: []\n---\ncontextSources: []\n", "multiple YAML documents"},
+		"no list":               {"other: 1\n", "field"},
+		"missing list":          {"{}\n", "contextSources: required"},
+		"bad uid":               {"contextSources:\n  - uid: \"-x\"\n    url: https://a.example.com\n", "contextSources[0].uid"},
+		"duplicate uid":         {"contextSources:\n  - uid: a\n    url: https://a.example.com\n  - uid: a\n    url: https://b.example.com\n", "already used by contextSources[0]"},
+		"no url":                {"contextSources:\n  - uid: a\n", "contextSources[0].url: required"},
+		"bad audience":          {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    audience: nobody\n", "contextSources[0].audience"},
+		"both secret fields":    {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n    secretEnv: SLASHOBSERVE_A\n    secretFile: /x\n", "mutually exclusive"},
+		"secret no header":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretEnv: SLASHOBSERVE_A\n", "secretHeader: required"},
+		"header no secret":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n", "needs secretEnv or secretFile"},
+		"env prefix":            {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n    secretEnv: HOME\n", "must start with SLASHOBSERVE_"},
+		"format character":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    name: \"Do\\u200Bcs\"\n", "contextSources[0].name"},
+		"multiline description": {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    description: \"one\\ntwo\"\n", "contextSources[0].description"},
+		"long description":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    description: " + strings.Repeat("x", 301) + "\n", "contextSources[0].description"},
+		"two documents":         {"contextSources: []\n---\ncontextSources: []\n", "multiple YAML documents"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -162,6 +162,7 @@ The file holds one `contextSources` list:
 contextSources:
   - uid: docs
     name: Company docs
+    description: Runbooks and design notes
     url: https://docs.example.com/mcp
     audience: admins
     secretHeader: Authorization
@@ -173,6 +174,7 @@ contextSources:
 | `uid` | Required. Starts with a letter or digit and has at most 40 letters, digits, `_` and `-`. |
 | `url` | Required. An `https` MCP address with a domain name. |
 | `name` | At most 100 characters without control or format characters. Defaults to the `uid`. |
+| `description` | Optional. At most 300 characters on one line, without control or format characters. |
 | `audience` | `everyone` (the default) or `admins`. |
 | `secretHeader` | Required with a secret, and refused without one. |
 | `secretEnv`, `secretFile` | One of them holds the secret. `secretEnv` names a variable that starts with `SLASHOBSERVE_`. |

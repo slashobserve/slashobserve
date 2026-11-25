@@ -58,6 +58,13 @@ func checkName(name string) error {
 	return nil
 }
 
+func checkDescription(description string) error {
+	if !config.ValidContextSourceDescription(description) {
+		return invalid("description", "must be at most 300 characters on one line, without control or format characters")
+	}
+	return nil
+}
+
 func checkAudience(audience datasource.Audience) error {
 	if audience != datasource.AudienceEveryone && audience != datasource.AudienceAdmins {
 		return invalid("audience", "must be everyone or admins")
