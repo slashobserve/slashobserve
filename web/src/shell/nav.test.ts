@@ -12,10 +12,7 @@ import {
 } from "./nav"
 
 describe("isNavItemActive", () => {
-  test("Inbox covers its own page only, not the chat or the importer", () => {
-    expect(isNavItemActive("/inbox", "/inbox")).toBe(true)
-    expect(isNavItemActive("/inbox", "/inbox-x")).toBe(false)
-    expect(isNavItemActive("/inbox", "/dashboards")).toBe(false)
+  test("no item covers the chat or the importer", () => {
     const active = (pathname: string) =>
       visibleNavItems("admin")
         .filter((item) => isNavItemActive(item.to, pathname))
@@ -60,7 +57,7 @@ describe("isNavItemActive", () => {
     expect(active).toEqual(["Observations"])
     expect(isNavItemActive("/observations", "/observations")).toBe(true)
     expect(isNavItemActive("/observations", "/observations-x")).toBe(false)
-    expect(isNavItemActive("/inbox", "/o/abc")).toBe(false)
+    expect(isNavItemActive("/dashboards", "/o/abc")).toBe(false)
   })
 
   test("Traces also covers a single trace", () => {
@@ -163,7 +160,7 @@ describe("subNavState", () => {
       parent: "current",
       currentId: null,
     })
-    expect(subNavState(observations, rows, "/inbox")).toEqual({
+    expect(subNavState(observations, rows, "/agents")).toEqual({
       parent: "none",
       currentId: null,
     })
@@ -185,11 +182,11 @@ describe("subNavState", () => {
   })
 
   test("an item with no sub-list is current on its section and never contains one", () => {
-    expect(subNavState(item("/inbox"), [], "/inbox")).toEqual({
+    expect(subNavState(item("/agents"), [], "/agents")).toEqual({
       parent: "current",
       currentId: null,
     })
-    expect(subNavState(item("/inbox"), [], "/o/o1")).toEqual({
+    expect(subNavState(item("/agents"), [], "/o/o1")).toEqual({
       parent: "none",
       currentId: null,
     })
@@ -212,7 +209,7 @@ describe("subNavState", () => {
 describe("Home", () => {
   test("is active on the root path only", () => {
     expect(isNavItemActive("/", "/")).toBe(true)
-    expect(isNavItemActive("/", "/inbox")).toBe(false)
+    expect(isNavItemActive("/", "/agents")).toBe(false)
     expect(isNavItemActive("/", "/o/abc")).toBe(false)
     expect(isNavItemActive("/", "/login")).toBe(false)
   })
@@ -229,10 +226,9 @@ describe("visibleNavItems", () => {
   const labels = (role: Parameters<typeof visibleNavItems>[0]) =>
     visibleNavItems(role).map((item) => item.label)
 
-  test("an Admin sees all thirteen pages, API keys among them, and the chat is not one of them", () => {
+  test("an Admin sees all twelve pages, API keys among them, and neither the chat nor the Inbox is one of them", () => {
     expect(labels("admin")).toEqual([
       "Home",
-      "Inbox",
       "Observations",
       "Dashboards",
       "Logs",
@@ -252,7 +248,6 @@ describe("visibleNavItems", () => {
     (role) => {
       expect(labels(role)).toEqual([
         "Home",
-        "Inbox",
         "Observations",
         "Dashboards",
         "Logs",

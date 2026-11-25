@@ -21,10 +21,7 @@ import {
 } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import { touchesObservation } from "@/live/activity-match"
-import {
-  useActivityStream,
-  useDocumentVisible,
-} from "@/live/use-activity-stream"
+import { useActivitySubscription } from "@/live/activity-stream"
 
 import { BlockVersionConflict, unwrapBlockWrite } from "./errors"
 
@@ -544,11 +541,9 @@ export function useObservationLive(
   observation: Pick<Observation, "id" | "folder_id" | "thread_id" | "blocks">
 ) {
   const queryClient = useQueryClient()
-  const visible = useDocumentVisible()
   const discussion = threadKeys.list(`observation:${observation.id}`)
-  useActivityStream({
+  useActivitySubscription({
     folderId: observation.folder_id,
-    enabled: visible,
     onEvent: (event) => {
       const touched = touchesObservation(event, observation)
       if (touched === "observation" || touched === "both") {

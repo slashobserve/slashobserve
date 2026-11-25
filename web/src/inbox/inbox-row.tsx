@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react"
 import { Link } from "@tanstack/react-router"
 import { CheckIcon, MailIcon, MailOpenIcon, UndoIcon } from "lucide-react"
 
@@ -22,21 +23,23 @@ type Props = {
   tabStop: boolean
   asLink: boolean
   onSelect: (item: InboxItem) => void
-  onOpen?: (item: InboxItem) => void
+  onOpen?: (item: InboxItem, event: MouseEvent) => void
   onToggleUnread?: (item: InboxItem) => void
   onToggleDone?: (item: InboxItem) => void
   done?: boolean
+  expanded?: boolean
 }
 
 const rowClass =
   "flex min-h-14 w-full items-start gap-3 rounded-control py-2 pr-3 pl-3 text-left no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-function ItemLine({ item }: { item: InboxItem }) {
+function ItemLine({ item, full }: { item: InboxItem; full: boolean }) {
   const { actor, verb, object } = itemText(item)
   return (
     <span
       className={cn(
-        "line-clamp-2 text-[13px] leading-snug",
+        "text-[13px] leading-snug",
+        !full && "line-clamp-2",
         item.unread && "font-medium"
       )}
     >
@@ -46,7 +49,7 @@ function ItemLine({ item }: { item: InboxItem }) {
   )
 }
 
-function RowBody({ item }: { item: InboxItem }) {
+function RowBody({ item, full }: { item: InboxItem; full: boolean }) {
   const excerpt = itemExcerpt(item)
   const hint = itemHint(item)
   return (
@@ -61,14 +64,24 @@ function RowBody({ item }: { item: InboxItem }) {
       {item.unread ? <span className="sr-only">Unread</span> : null}
       <AuthorMark mark={markOf(item.actor)} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <ItemLine item={item} />
+        <ItemLine item={item} full={full} />
         {excerpt === null ? null : (
-          <span className="line-clamp-2 text-xs leading-snug wrap-anywhere text-muted-foreground">
+          <span
+            className={cn(
+              "text-xs leading-snug wrap-anywhere text-muted-foreground",
+              !full && "line-clamp-2"
+            )}
+          >
             {excerpt}
           </span>
         )}
         {hint === null ? null : (
-          <span className="line-clamp-3 text-xs leading-snug wrap-anywhere text-muted-foreground">
+          <span
+            className={cn(
+              "text-xs leading-snug wrap-anywhere text-muted-foreground",
+              !full && "line-clamp-3"
+            )}
+          >
             {hint}
           </span>
         )}
@@ -91,6 +104,7 @@ export function InboxRow({
   onToggleUnread,
   onToggleDone,
   done = false,
+  expanded,
 }: Props) {
   const className = cn(
     rowClass,
@@ -107,23 +121,25 @@ export function InboxRow({
         <Link
           to={link.to}
           search={link.search}
-          data-inbox-row=""
+          data-inbox-row={item.seq}
           tabIndex={tabStop ? 0 : -1}
+          aria-current={selected ? "true" : undefined}
           className={className}
-          onClick={() => onOpen?.(item)}
+          onClick={(event) => onOpen?.(item, event)}
         >
-          <RowBody item={item} />
+          <RowBody item={item} full={false} />
         </Link>
       ) : (
         <button
           type="button"
-          data-inbox-row=""
+          data-inbox-row={item.seq}
           tabIndex={tabStop ? 0 : -1}
           aria-current={selected ? "true" : undefined}
+          aria-expanded={expanded}
           onClick={() => onSelect(item)}
           className={className}
         >
-          <RowBody item={item} />
+          <RowBody item={item} full={expanded === true} />
         </button>
       )}
       {onToggleDone === undefined ? null : (

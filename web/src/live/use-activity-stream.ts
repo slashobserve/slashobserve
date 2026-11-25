@@ -6,8 +6,6 @@ import { closeWhileCached } from "@/lib/page-cache"
 import type { ActivityEvent } from "./activity-match"
 
 type ActivityStreamInput = {
-  folderId?: string | null
-  types?: readonly string[]
   enabled: boolean
   onEvent: (event: ActivityEvent) => void
   onGap: () => void
@@ -28,17 +26,6 @@ export function useDocumentVisible(): boolean {
   )
 }
 
-function streamUrl(
-  folderId: string | null | undefined,
-  types: readonly string[]
-): string {
-  const params = new URLSearchParams()
-  if (folderId) params.set("folder_id", folderId)
-  for (const type of types) params.append("type", type)
-  const query = params.toString()
-  return query === "" ? streamPath : `${streamPath}?${query}`
-}
-
 function parseActivity(data: string): ActivityEvent | null {
   try {
     const event = JSON.parse(data) as ActivityEvent
@@ -49,8 +36,6 @@ function parseActivity(data: string): ActivityEvent | null {
 }
 
 export function useActivityStream({
-  folderId,
-  types,
   enabled,
   onEvent,
   onGap,
@@ -60,14 +45,12 @@ export function useActivityStream({
     handlers.current = { onEvent, onGap }
   })
   const mayHaveMissed = useRef(false)
-  const typesKey = (types ?? []).join(",")
 
   useEffect(() => {
     if (!enabled) {
       mayHaveMissed.current = true
       return
     }
-    const url = streamUrl(folderId, typesKey === "" ? [] : typesKey.split(","))
     let source: EventSource | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let attempt = 0
@@ -75,7 +58,7 @@ export function useActivityStream({
     mayHaveMissed.current = true
 
     function open() {
-      const stream = new EventSource(url)
+      const stream = new EventSource(streamPath)
       source = stream
       stream.addEventListener("ready", () => {
         if (source !== stream) return
@@ -126,5 +109,5 @@ export function useActivityStream({
       stopWatchingCache()
       close()
     }
-  }, [folderId, typesKey, enabled])
+  }, [enabled])
 }

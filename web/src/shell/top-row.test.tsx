@@ -23,7 +23,22 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
   }),
 }))
 
+const streams: string[] = []
+
+class QuietEventSource {
+  static CLOSED = 2
+  readyState = 0
+  onerror: (() => void) | null = null
+  constructor(url: string) {
+    streams.push(url)
+  }
+  addEventListener() {}
+  close() {}
+}
+
 beforeEach(() => {
+  streams.length = 0
+  vi.stubGlobal("EventSource", QuietEventSource)
   vi.stubGlobal(
     "fetch",
     vi.fn(
@@ -86,16 +101,23 @@ describe("top row title", () => {
     expect(within(topRow()).getByText("Health")).toBeTruthy()
   })
 
-  it("shows no breadcrumb and collapses the row on a page without crumbs, such as Home", async () => {
+  it("shows no breadcrumb on a page without crumbs, such as Home, and keeps the bell", async () => {
     await renderPage(undefined, "What are you working on?")
     expect(
       within(topRow()).queryByRole("navigation", { name: "Breadcrumb" })
     ).toBeNull()
     expect(within(topRow()).queryByText("Home")).toBeNull()
-    expect(topRow().hasAttribute("data-crumb-hidden")).toBe(true)
     expect(
       topRow().querySelector("[data-slot=top-row-actions]")?.childElementCount
     ).toBe(0)
+    expect(
+      within(topRow()).getByRole("button", { name: "Inbox" })
+    ).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("opens the activity stream once so the Inbox badge stays live on every shell page", async () => {
+    await renderPage([{ label: "Health" }], "Dashboard health")
+    expect(streams).toEqual(["/api/v1/activity/stream"])
   })
 
   it("keeps a trail of several crumbs", async () => {

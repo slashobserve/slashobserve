@@ -31,7 +31,6 @@ async function noHorizontalOverflow(page: Page) {
 }
 
 const pages = [
-  ["/inbox", "Inbox", "Inbox"],
   ["/agents", "Agents", "Agents"],
   ["/dashboards", "Dashboards", "Dashboards"],
   ["/datasources", "Datasources", "Datasources"],

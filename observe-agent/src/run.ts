@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto"
 import { log, type Fields } from "./log"
 import { type Made, madeAnswer, madeBy } from "./made"
-import type { ClaimApi, RunTools } from "./mcp"
+import {
+  type ClaimApi,
+  type RunTools,
+  isRetryable,
+  startReadTimeoutMs,
+} from "./mcp"
 import { isSave, offersWrite } from "./phase"
 import {
   type BriefReason,
@@ -42,7 +47,6 @@ export const pruneKeepTurns = 4
 export const pruneStepBytes = 64 << 10
 export const maxCutOffsInRow = 2
 export const saveFindingTool = "save_finding"
-export const listToolsTimeoutMs = 10_000
 
 export type ClaimedRun = {
   run: OfferedRun
@@ -56,7 +60,7 @@ export type RunOptions = Partial<ReporterOptions> & {
 
 type FinishBody =
   | { outcome: "succeeded"; commit?: boolean }
-  | { outcome: "failed"; failure_code?: FailureCode }
+  | { outcome: "failed"; failure_code?: FailureCode; message?: string }
 
 type Mode = "create" | "revise" | "investigate" | "suggest"
 
@@ -67,6 +71,18 @@ class Failure extends Error {
     super(`the run failed: ${code}`)
     this.name = "Failure"
     this.code = code
+  }
+}
+
+export const briefUnavailableMessage =
+  "the agent could not load the run's brief from the server"
+export const toolsUnavailableMessage =
+  "the agent could not load the run's tools from the server"
+
+class StartUnavailable extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "StartUnavailable"
   }
 }
 
@@ -286,6 +302,18 @@ class RunLoop {
       log("info", "run is no longer ours", { run_id: this.runRef.run_id })
       return
     }
+    if (error instanceof StartUnavailable) {
+      log("warn", "run failed", {
+        ...this.counters(),
+        failure_code: "agent_failed",
+        error: error.name,
+      })
+      await this.finishQuietly({
+        outcome: "failed",
+        message: error.message,
+      })
+      return
+    }
     const code = failureOf(error)
     log("warn", "run failed", {
       ...this.counters(),
@@ -309,10 +337,13 @@ class RunLoop {
   }
 
   private async main(): Promise<void> {
-    this.specs = await retryWithin(
-      (signal) => this.tools.listTools(listToolsTimeoutMs, signal),
-      this.cancel.signal,
-      this.startRetry
+    this.specs = await this.unavailableAs(
+      toolsUnavailableMessage,
+      retryWithin(
+        (signal) => this.tools.listTools(startReadTimeoutMs, signal),
+        this.cancel.signal,
+        this.startRetry
+      )
     )
     let reason: BriefReason | undefined
     let carry: { results: ToolResult[] | undefined } | undefined
@@ -339,10 +370,7 @@ class RunLoop {
     reason: BriefReason | undefined,
     carry: { results: ToolResult[] | undefined } | undefined
   ): Promise<SessionEnd> {
-    const brief = await this.claim.getRunBrief(
-      { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
-      this.cancel.signal
-    )
+    const brief = await this.loadBrief(reason)
     this.build = brief.build ?? null
     this.buildSaves = brief.build?.saves ?? 0
     this.sessionBytes = 0
@@ -363,6 +391,30 @@ class RunLoop {
         return step.end
       }
       results = step.results
+    }
+  }
+
+  private loadBrief(reason: BriefReason | undefined) {
+    return this.unavailableAs(
+      briefUnavailableMessage,
+      this.claim.getRunBrief(
+        { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
+        this.cancel.signal
+      )
+    )
+  }
+
+  private async unavailableAs<T>(
+    message: string,
+    request: Promise<T>
+  ): Promise<T> {
+    try {
+      return await request
+    } catch (error) {
+      if (!this.cancel.signal.aborted && isRetryable(error)) {
+        throw new StartUnavailable(message)
+      }
+      throw error
     }
   }
 
