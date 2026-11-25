@@ -284,6 +284,7 @@ Details of a finding:
 - A finding that says a metric is missing is sent back once when no `list_metrics` call of the run set `scope`.
 - A finding that says there was no deploy is sent back once when the run did not read `list_annotations`.
 - A finding that gives counts but no evidence panel is sent back once when the run read data with `query_range` or `query_instant`.
+- A finding whose title names a cause, such as "caused by" or "tied to", over text that calls the cause likely or unconfirmed is sent back once to title the symptom instead.
 
 Details of the time zone:
 

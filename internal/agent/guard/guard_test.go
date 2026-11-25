@@ -1107,6 +1107,54 @@ func TestAQueryThatFailedDoesNotAskForEvidence(t *testing.T) {
 	}
 }
 
+func TestATitleThatClaimsACauseTheTextCallsUnconfirmedIsSentBackOnce(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		text  string
+		want  bool
+	}{
+		{"a cause in the title and a hedge in the text", "Checkout errors tied to paymentUnreachable flag", "The flag most likely matches; its variant was not read.", true},
+		{"a cause in the title and a confirmed text", "Checkout errors caused by a bad deploy", "The deploy at 14:02 UTC introduced the error.", false},
+		{"a symptom title over a hedged text", "Checkout 5xx errors by pod", "This probably started with the deploy.", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tools.ModeInvestigate)
+			s.BeginTurn(false)
+			body, err := json.Marshal(map[string]string{"title": tt.title, "markdown": tt.text})
+			if err != nil {
+				t.Fatal(err)
+			}
+			adm := s.Admit(0, jsonCall("save_finding", string(body)))
+			if !tt.want {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), "title names a cause") {
+				t.Fatalf("admission = %+v, want the title sent back", adm)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", string(body))); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}
+
+func TestEvidenceAndTitleFaultsAreNamedTogether(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_instant", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"title": "Errors caused by shipping", "markdown": "46 error spans, most likely shipping."}`))
+	text := string(adm.Content)
+	if adm.Verdict != Refuse || !strings.Contains(text, "no evidence panel") || !strings.Contains(text, "title names a cause") {
+		t.Fatalf("admission = %+v, want both faults named", adm)
+	}
+}
+
 func TestARestartForgetsWhatWasAskedOfTheAnswer(t *testing.T) {
 	s := New(tools.ModeInvestigate)
 	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})

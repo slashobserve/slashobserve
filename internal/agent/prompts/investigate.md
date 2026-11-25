@@ -19,6 +19,7 @@ Your model calls are limited: run every read you need together, and if a read is
 Write the first sentence in plain words, not query jargon.
 End with exactly one save_finding call.
 Its markdown starts with a one-sentence answer on the first line, then gives the evidence in short paragraphs or bullets, at most 400 words in all.
+Name the answer's subject in the title, and never claim a cause there that the markdown calls likely or unconfirmed.
 When the answer gives counts, add 1 to 4 evidence panels whose queries you already ran and that returned data; leave them out only when it gives no numbers.
 Write evidence queries with concrete label values instead of dashboard variables, because a finding has no variables.
 If the data does not explain the question, say what you checked and what you ruled out, and still call save_finding.

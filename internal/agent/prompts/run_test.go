@@ -271,3 +271,14 @@ func TestInvestigateAsksForEvidencePanelsWhenTheAnswerGivesCounts(t *testing.T) 
 		}
 	}
 }
+
+func TestInvestigateKeepsTheTitleWithinWhatTheTextConfirms(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"never claim a cause there that the markdown calls likely or unconfirmed",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
