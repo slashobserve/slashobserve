@@ -878,6 +878,7 @@ Each row shows these columns:
 
 - **Root service** and **Root span**.
 - **Duration**, with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line.
+  When that p95 is above the slowest trace shown, the bars have no tick.
   Every duration takes the width of the longest one, up to 16 characters, so the bar starts after the number and never runs under it.
 - **Spans** and **Errors**.
   **Errors** reads OK, or Failed with the number of error spans.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { barColumnMinWidth, barShare, textWidthCh } from "./bar"
+import { barColumnMinWidth, barShare, markerShare, textWidthCh } from "./bar"
 
 describe("textWidthCh", () => {
   it("fits the longest text", () => {
@@ -30,6 +30,19 @@ describe("barShare", () => {
     expect(barShare(null, 100)).toBe(0)
     expect(barShare(10, 0)).toBe(0)
     expect(barShare(Number.NaN, 100)).toBe(0)
+  })
+})
+
+describe("markerShare", () => {
+  it("places the tick against the largest value", () => {
+    expect(markerShare(50, 200)).toBe(0.25)
+    expect(markerShare(200, 200)).toBe(1)
+  })
+
+  it("draws no tick past the end of the bar or without a scale", () => {
+    expect(markerShare(300, 200)).toBeNull()
+    expect(markerShare(null, 200)).toBeNull()
+    expect(markerShare(10, 0)).toBeNull()
   })
 })
 
