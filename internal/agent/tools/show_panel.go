@@ -27,11 +27,13 @@ const (
 
 	descShowPanel = "Draw a chart in the conversation, in a host that supports MCP Apps: a query, or a panel of a saved dashboard. Give datasource and query (type picks the drawing, timeseries by default) or dashboard_id and panel. It runs like query_range, under the same limits, and returns the same summary plus a link that opens it in SlashObserve. A host without apps shows only the summary; use query_range to read numbers."
 
-	propShowType  = `"type":{"type":"string","enum":["timeseries","barchart","stat","gauge","bargauge","piechart","table","trend","histogram","heatmap","state-timeline","status-history","logs"],"description":"How to draw a datasource and query. Default timeseries."}`
-	propShowTitle = `"title":{"type":"string","maxLength":200,"description":"Title of the chart for a datasource and query. Default the start of the query."}`
-	propShowPanel = `"panel":{"type":"string","maxLength":64,"description":"Panel id in the dashboard, from get_dashboard."}`
+	propShowTypeHead = `"type":{"type":"string","enum":`
+	propShowTypeTail = `,"description":"How to draw a datasource and query. Default timeseries."}`
+	propShowTitle    = `"title":{"type":"string","maxLength":200,"description":"Title of the chart for a datasource and query. Default the start of the query."}`
+	propShowPanel    = `"panel":{"type":"string","maxLength":64,"description":"Panel id in the dashboard, from get_dashboard."}`
 
-	schemaShowPanel = `{"type":"object","properties":{` + propDatasource + `,` + propQuery + `,` + propShowType + `,` + propShowTitle + `,` + propVersionDashboardID + `,` + propShowPanel + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `},"additionalProperties":false}`
+	schemaShowPanelHead = `{"type":"object","properties":{`
+	schemaShowPanelTail = `,` + propShowTitle + `,` + propVersionDashboardID + `,` + propShowPanel + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `},"additionalProperties":false}`
 
 	maxShowTitleChars = 200
 	untitledChart     = "Query result"
@@ -41,6 +43,16 @@ const (
 var chartTypes = []spec.PanelType{
 	spec.Timeseries, spec.BarChart, spec.Stat, spec.Gauge, spec.BarGauge, spec.PieChart, spec.Table, spec.Trend,
 	spec.Histogram, spec.Heatmap, spec.StateTimeline, spec.StatusHistory, spec.Logs,
+}
+
+var schemaShowPanel = showPanelSchema()
+
+func showPanelSchema() string {
+	names, err := json.Marshal(chartTypeNames())
+	if err != nil {
+		panic(err)
+	}
+	return schemaShowPanelHead + propDatasource + `,` + propQuery + `,` + propShowTypeHead + string(names) + propShowTypeTail + schemaShowPanelTail
 }
 
 var chartFormats = map[spec.PanelType]string{
@@ -102,7 +114,7 @@ type shownPanel struct {
 	points      int
 	datasources []string
 	timezone    string
-	from, to    string
+	explore     bool
 	openURL     string
 }
 
@@ -120,8 +132,10 @@ func (r *Registry) showPanel(ctx context.Context, input json.RawMessage) (Result
 		err   error
 	)
 	switch {
-	case in.DashboardID != "" && (in.Datasource != "" || in.Query != ""):
-		return invalid("give either datasource and query, or dashboard_id and panel, not both"), nil
+	case in.DashboardID != "" && (in.Datasource != "" || in.Query != "" || in.Type != "" || in.Title != ""):
+		return invalid("give either datasource and query, or dashboard_id and panel, not both; type and title apply only to a datasource and query"), nil
+	case in.DashboardID == "" && in.Panel != "":
+		return invalid("panel needs dashboard_id; for a datasource and query leave panel out"), nil
 	case in.DashboardID != "":
 		shown, res, ok, err = r.savedPanel(ctx, in, points)
 	case in.Datasource != "" || in.Query != "":
@@ -138,7 +152,7 @@ func (r *Registry) showPanel(ctx context.Context, input json.RawMessage) (Result
 func (r *Registry) adhocPanel(ctx context.Context, in showPanelInput, points int) (shownPanel, Result, bool, error) {
 	panelType := spec.PanelType(cmp.Or(in.Type, string(spec.Timeseries)))
 	if !slices.Contains(chartTypes, panelType) {
-		return shownPanel{}, invalid("type must be one of %s", joinTypes(chartTypes)), false, nil
+		return shownPanel{}, invalid("type must be one of %s", strings.Join(chartTypeNames(), ", ")), false, nil
 	}
 	if utf8.RuneCountInString(in.Title) > maxShowTitleChars {
 		return shownPanel{}, invalid("title must be at most %d characters", maxShowTitleChars), false, nil
@@ -170,8 +184,7 @@ func (r *Registry) adhocPanel(ctx context.Context, in showPanelInput, points int
 		selections:  selections,
 		points:      points,
 		datasources: []string{inst.UID},
-		from:        from,
-		to:          to,
+		explore:     true,
 		openURL:     r.exploreURL(inst, in.Query, from, to),
 	}, Result{}, true, nil
 }
@@ -209,13 +222,20 @@ func (r *Registry) savedPanel(ctx context.Context, in showPanelInput, points int
 	if err != nil {
 		return shownPanel{}, Result{}, false, err
 	}
-	d := ver.Spec
+	return r.panelOfDashboard(ctx, dash.ID, ver.Spec, in, points)
+}
+
+func (r *Registry) panelOfDashboard(ctx context.Context, dashboardID string, d *spec.Dashboard, in showPanelInput, points int) (shownPanel, Result, bool, error) {
+	listed, exists := d.FindPanel(in.Panel)
+	if !exists {
+		return shownPanel{}, toolError(string(queryproxy.CodePanelNotFound), "this dashboard has no panel "+clip(in.Panel, maxStepNameBytes)), false, nil
+	}
+	link := links.Dashboard(r.deps.PublicURL, dashboardID, d.Title)
 	entry, found := d.FindDataPanel(in.Panel)
-	if !found {
-		return shownPanel{}, toolError(string(queryproxy.CodePanelNotFound), "this dashboard has no data panel "+clip(in.Panel, maxStepNameBytes)), false, nil
+	if !found || !slices.Contains(chartTypes, listed.Panel.Type) {
+		return shownPanel{}, invalid("panel %s is a %s panel, which the chart view does not draw; open %s", listed.Panel.ID, listed.Panel.Type, link), false, nil
 	}
 	displayed := *entry.Panel
-	link := links.Dashboard(r.deps.PublicURL, dash.ID, d.Title)
 	address := url.Values{"viewPanel": {displayed.ID}}
 	for name, value := range map[string]string{"from": in.From, "to": in.To} {
 		if value != "" {
@@ -223,9 +243,6 @@ func (r *Registry) savedPanel(ctx context.Context, in showPanelInput, points int
 		}
 	}
 	openURL := link + "?" + address.Encode()
-	if !slices.Contains(chartTypes, displayed.Type) {
-		return shownPanel{}, invalid("panel %s is a %s panel, which the chart view does not draw; open %s", displayed.ID, displayed.Type, link), false, nil
-	}
 	source := entry
 	if reused, reuses := d.SourceOf(displayed.ID); reuses {
 		if displayed.Queries[0].Hide {
@@ -233,25 +250,18 @@ func (r *Registry) savedPanel(ctx context.Context, in showPanelInput, points int
 		}
 		source = reused
 	}
-	now := Now(ctx)
-	opts, err := spec.TimeOptionsFor(d, "")
-	if err != nil {
-		return shownPanel{}, invalid("the dashboard time zone is not known"), false, nil
-	}
-	from, to := cmp.Or(in.From, d.Time.From), cmp.Or(in.To, d.Time.To)
-	rng, res, ok := resolveSavedRange(from, to, now, opts)
-	if !ok {
+	if res, ok := checkTimeExprs(in.From, in.To); !ok {
 		return shownPanel{}, res, false, nil
 	}
-	rng = queryproxy.PanelRange(source.Panel, rng, now, opts)
-	if rng.To.Sub(rng.From) > queryproxy.MaxRange {
-		return shownPanel{}, invalid("the time range must be at most 400 days"), false, nil
+	window, err := proxyhttp.ResolvePanelWindow(d, source.Panel, in.From, in.To, points, Now(ctx))
+	if errors.Is(err, queryproxy.ErrInvalidRequest) {
+		return shownPanel{}, invalid("%s", strings.TrimPrefix(err.Error(), queryproxy.ErrInvalidRequest.Error()+": ")), false, nil
 	}
-	if source.Panel.MaxDataPoints > 0 {
-		points = min(points, source.Panel.MaxDataPoints)
+	if err != nil {
+		return shownPanel{}, Result{}, false, err
 	}
 	principal, _ := auth.FromContext(ctx)
-	selections, err := r.deps.Runner.Defaults(ctx, d, rng, nil, queryproxy.UserFor(principal))
+	selections, err := r.deps.Runner.Defaults(ctx, d, window.Range, nil, queryproxy.UserFor(principal))
 	if err != nil {
 		res, err := datasourceFailure("Showed a panel of "+d.Title, err)
 		return shownPanel{}, res, false, err
@@ -269,35 +279,32 @@ func (r *Registry) savedPanel(ctx context.Context, in showPanelInput, points int
 		panel:       displayed,
 		dashboard:   d,
 		panelID:     source.Panel.ID,
-		rng:         rng,
+		rng:         window.Range,
 		selections:  selections,
-		points:      points,
-		datasources: slices.Compact(slices.Sorted(slices.Values(slices.Concat(panelDatasources(*source.Panel), panelDatasources(displayed))))),
+		points:      window.MaxDataPoints,
+		datasources: resolvedDatasources(d, selections, slices.Concat(panelDatasources(*source.Panel), panelDatasources(displayed))),
 		timezone:    timezone,
-		from:        from,
-		to:          to,
 		openURL:     openURL,
 	}, Result{}, true, nil
 }
 
-func resolveSavedRange(from, to string, now time.Time, opts spec.TimeOptions) (datasource.TimeRange, Result, bool) {
-	for field, value := range map[string]string{"from": from, "to": to} {
-		if len(value) > maxTimeExprBytes {
-			return datasource.TimeRange{}, invalid("%s must be at most %d bytes", field, maxTimeExprBytes), false
+func resolvedDatasources(d *spec.Dashboard, selections map[string]queryproxy.Selection, refs []string) []string {
+	uids := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if uid, err := queryproxy.ResolveDatasourceUID(d, ref, selections); err == nil {
+			uids = append(uids, uid)
 		}
 	}
-	start, err := spec.ResolveTime(from, now, false, opts)
-	if err != nil {
-		return datasource.TimeRange{}, invalid("from: %s", err), false
+	return slices.Compact(slices.Sorted(slices.Values(uids)))
+}
+
+func checkTimeExprs(from, to string) (Result, bool) {
+	for field, value := range map[string]string{"from": from, "to": to} {
+		if len(value) > maxTimeExprBytes {
+			return invalid("%s must be at most %d bytes", field, maxTimeExprBytes), false
+		}
 	}
-	end, err := spec.ResolveTime(to, now, true, opts)
-	if err != nil {
-		return datasource.TimeRange{}, invalid("to: %s", err), false
-	}
-	if !start.Before(end) {
-		return datasource.TimeRange{}, invalid("from must be before to"), false
-	}
-	return datasource.TimeRange{From: start, To: end}, Result{}, true
+	return Result{}, true
 }
 
 func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, error) {
@@ -312,7 +319,7 @@ func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, err
 		Selections:    shown.selections,
 		MaxDataPoints: shown.points,
 		Limits:        queryproxy.DraftLimits,
-		Explore:       shown.panelID == adhocPanelID,
+		Explore:       shown.explore,
 		User:          queryproxy.UserFor(principal),
 	})
 	if err != nil {
@@ -325,8 +332,8 @@ func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, err
 		Datasources: r.panelAppDatasources(ctx, shown.datasources),
 		Variables:   selectedValues(shown.selections),
 		Timezone:    shown.timezone,
-		From:        shown.from,
-		To:          shown.to,
+		From:        drawn.Result.Range.From.UTC().Format(time.RFC3339),
+		To:          drawn.Result.Range.To.UTC().Format(time.RFC3339),
 		OpenURL:     shown.openURL,
 	})
 	if err != nil {
@@ -356,10 +363,10 @@ func selectedValues(selections map[string]queryproxy.Selection) map[string][]str
 	return out
 }
 
-func joinTypes(types []spec.PanelType) string {
-	names := make([]string, len(types))
-	for i, t := range types {
+func chartTypeNames() []string {
+	names := make([]string, len(chartTypes))
+	for i, t := range chartTypes {
 		names[i] = string(t)
 	}
-	return strings.Join(names, ", ")
+	return names
 }

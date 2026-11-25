@@ -1098,9 +1098,10 @@ Draws a chart for a host that supports MCP Apps, as [Charts in MCP Apps hosts](#
 It is read-only, and it runs through the same path and under the same limits as `query_range`.
 
 - Give `datasource` and `query`, with `type` (`timeseries`, `barchart`, `stat`, `gauge`, `bargauge`, `piechart`, `table`, `trend`, `histogram`, `heatmap`, `state-timeline`, `status-history` or `logs`; default `timeseries`), `title`, `from`, `to`, `max_data_points` and `variables` as for `query_range`.
-- Or give `dashboard_id` and `panel`, with `from`, `to` and `max_data_points`.
+- Or give `dashboard_id` and `panel`, with `from`, `to` and `max_data_points`; `type`, `title` and `variables` are refused with it.
   The panel runs with its dashboard's variables, time zone and time overrides, for a reader who can view the dashboard.
   A panel type the chart view does not draw, such as a map or a text panel, is refused with a link to the dashboard.
+- The chart shows the range actually queried, after the panel's time override and shift.
 - It returns the summary of `query_range` and `open_url`, the address of the query in Explore or of the panel in its dashboard.
 - Data over 2 MiB is refused with `limit_exceeded`; ask for a shorter range or fewer series.
 

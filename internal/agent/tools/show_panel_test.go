@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -46,7 +48,9 @@ func TestShowPanelDrawsAQueryWithTheDataAndASummary(t *testing.T) {
 	if app.Title != "Up rate" || app.Panel.Type != "barchart" || app.Panel.Queries[0].Query != "rate(up[5m])" {
 		t.Errorf("panel = %q %q %+v", app.Title, app.Panel.Type, app.Panel.Queries)
 	}
-	if app.From != "now-6h" || app.To != "now" {
+	from, errFrom := time.Parse(time.RFC3339, app.From)
+	to, errTo := time.Parse(time.RFC3339, app.To)
+	if errFrom != nil || errTo != nil || to.Sub(from) < 6*time.Hour-time.Minute || to.Sub(from) > 6*time.Hour+time.Minute {
 		t.Errorf("range = %q to %q", app.From, app.To)
 	}
 	var data struct {
@@ -127,6 +131,10 @@ func TestShowPanelRefusesWhatQueryRangeRefuses(t *testing.T) {
 		{"both a query and a dashboard", `{"datasource":"fake","query":"up","dashboard_id":"00000000-0000-0000-0000-000000000001","panel":"p"}`},
 		{"a datasource without a query", `{"datasource":"fake"}`},
 		{"a dashboard without a panel", `{"dashboard_id":"00000000-0000-0000-0000-000000000001"}`},
+		{"a type with a dashboard", `{"dashboard_id":"00000000-0000-0000-0000-000000000001","panel":"p","type":"stat"}`},
+		{"a title with a dashboard", `{"dashboard_id":"00000000-0000-0000-0000-000000000001","panel":"p","title":"t"}`},
+		{"a panel without a dashboard", `{"panel":"p"}`},
+		{"a panel with a query", `{"datasource":"fake","query":"up","panel":"p"}`},
 		{"a dashboard id that is not a uuid", `{"dashboard_id":"x","panel":"p"}`},
 		{"variables with a dashboard", `{"dashboard_id":"00000000-0000-0000-0000-000000000001","panel":"p","variables":{"a":["b"]}}`},
 		{"unknown type", `{"datasource":"fake","query":"up","type":"geomap"}`},
@@ -193,20 +201,145 @@ func TestShowPanelIsAViewerToolAndNoRunOffersIt(t *testing.T) {
 	t.Fatal("show_panel is not registered")
 }
 
-func TestResolveSavedRangeAppliesTheDashboardRules(t *testing.T) {
-	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
-	rng, res, ok := resolveSavedRange("now-90d", "now", now, specTimeOptions())
-	if !ok || rng.To.Sub(rng.From) != 90*24*time.Hour {
-		t.Fatalf("rng = %+v res = %#v", rng, res)
+func TestShowPanelRefusesAnOverlongTimeExpression(t *testing.T) {
+	if _, ok := checkTimeExprs("now-1h", "now"); !ok {
+		t.Fatal("a short expression was refused")
 	}
-	for _, bad := range [][2]string{{"now", "now-1h"}, {"yesterday", "now"}, {strings.Repeat("a", maxTimeExprBytes+1), "now"}} {
-		if _, res, ok := resolveSavedRange(bad[0], bad[1], now, specTimeOptions()); ok || !res.IsError {
-			t.Errorf("%v: ok = %v res = %#v", bad, ok, res)
-		}
+	if res, ok := checkTimeExprs(strings.Repeat("a", maxTimeExprBytes+1), "now"); ok || !res.IsError {
+		t.Fatalf("res = %#v ok = %v", res, ok)
 	}
 }
 
-func specTimeOptions() spec.TimeOptions { return spec.TimeOptions{} }
+func savedDashboard() *spec.Dashboard {
+	return &spec.Dashboard{
+		SpecVersion: spec.Version,
+		Title:       "Shop",
+		Time:        spec.TimeRange{From: "now-6h", To: "now"},
+		Timezone:    "UTC",
+		Variables:   []spec.Variable{{Name: "ds", Type: spec.DatasourceVariable, DatasourceType: spec.Prometheus}},
+		Panels: []spec.Panel{
+			{ID: "adhoc", Type: spec.Timeseries, Title: "Saved under the ad hoc id", Datasource: "${ds}", TimeShift: "1h", Queries: []spec.Query{{Query: "up"}}},
+			{ID: "note", Type: spec.Text, Title: "Notes"},
+		},
+	}
+}
+
+func showSaved(t *testing.T, input string) (Result, error) {
+	t.Helper()
+	r := newTestRegistry(t, seriesDS("prometheus"), nil)
+	var in showPanelInput
+	if err := json.Unmarshal([]byte(input), &in); err != nil {
+		t.Fatal(err)
+	}
+	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin})
+	shown, res, ok, err := r.panelOfDashboard(ctx, "00000000-0000-0000-0000-000000000001", savedDashboard(), in, 200)
+	if err != nil || !ok {
+		return res, err
+	}
+	return r.drawPanel(ctx, shown)
+}
+
+func TestShowPanelDrawsASavedPanelWhoseIDIsAdhocAsADashboardPanel(t *testing.T) {
+	res, err := showSaved(t, `{"panel":"adhoc"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := decodeApp(t, res)
+	if app.Title != "Saved under the ad hoc id" || strings.Contains(app.OpenURL, "/explore") || !strings.Contains(app.OpenURL, "viewPanel=adhoc") {
+		t.Errorf("title = %q link = %s", app.Title, app.OpenURL)
+	}
+}
+
+func TestShowPanelListsTheDatasourceAVariableSelectsInTheSavedPanel(t *testing.T) {
+	res, err := showSaved(t, `{"panel":"adhoc"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := decodeApp(t, res)
+	if len(app.Datasources) != 1 || app.Datasources[0].UID != fakeUID || app.Datasources[0].Type != "prometheus" {
+		t.Fatalf("datasources = %+v", app.Datasources)
+	}
+	if app.Variables["ds"][0] != fakeUID {
+		t.Errorf("variables = %v", app.Variables)
+	}
+}
+
+func TestShowPanelReportsTheRangeItQueriedAfterTheShiftOfThePanel(t *testing.T) {
+	now := time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC)
+	res, err := showSaved(t, `{"panel":"adhoc","from":"now-2h","to":"now"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := decodeApp(t, res)
+	from, errFrom := time.Parse(time.RFC3339, app.From)
+	to, errTo := time.Parse(time.RFC3339, app.To)
+	if errFrom != nil || errTo != nil {
+		t.Fatalf("from %q to %q", app.From, app.To)
+	}
+	if got := to.Sub(from); got < 2*time.Hour-time.Minute || got > 2*time.Hour+time.Minute {
+		t.Errorf("queried %v, want about two hours", got)
+	}
+	if time.Since(to) < 59*time.Minute {
+		t.Errorf("to %v does not carry the one hour shift (now %v)", to, now)
+	}
+}
+
+func TestShowPanelRefusesATextPanelWithALinkToTheDashboard(t *testing.T) {
+	res, err := showSaved(t, `{"panel":"note"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := errorCode(t, res); code != codeInvalidRequest {
+		t.Fatalf("code = %q", code)
+	}
+	if text := fmt.Sprint(res.Content); !strings.Contains(text, "text panel") || !strings.Contains(text, "/d/") {
+		t.Errorf("refusal = %s", text)
+	}
+	res, err = showSaved(t, `{"panel":"missing"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := errorCode(t, res); code != string(queryproxy.CodePanelNotFound) {
+		t.Errorf("code = %q", code)
+	}
+}
+
+func TestShowPanelRefusesARangeOverFourHundredDaysOfASavedPanel(t *testing.T) {
+	res, err := showSaved(t, `{"panel":"adhoc","from":"now-401d"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := errorCode(t, res); code != codeInvalidRequest {
+		t.Fatalf("code = %q", code)
+	}
+}
+
+func TestTheChartTypesOfTheSchemaAreThoseOfTheViteRendererList(t *testing.T) {
+	var schema struct {
+		Properties struct {
+			Type struct {
+				Enum []string `json:"enum"`
+			} `json:"type"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal([]byte(schemaShowPanel), &schema); err != nil {
+		t.Fatal(err)
+	}
+	if got := schema.Properties.Type.Enum; !slices.Equal(got, chartTypeNames()) {
+		t.Errorf("schema enum = %v, chart types = %v", got, chartTypeNames())
+	}
+	raw, err := os.ReadFile("../../../web/chart-types.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var built []string
+	if err := json.Unmarshal(raw, &built); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(built, chartTypeNames()) {
+		t.Errorf("web/chart-types.json = %v, chart types = %v", built, chartTypeNames())
+	}
+}
 
 func TestShowPanelDrawsAPanelOfASavedDashboard(t *testing.T) {
 	rig := newPanelsRig(t)
@@ -214,7 +347,7 @@ func TestShowPanelDrawsAPanelOfASavedDashboard(t *testing.T) {
 	caller := rig.as(rig.ctx)
 	res, _ := caller.run(t, nameShowPanel, fmt.Sprintf(`{"dashboard_id":%q,"panel":"p1","from":"now-2h"}`, id))
 	app := decodeApp(t, res)
-	if app.Title != "One" || app.Panel.Type != "stat" || app.From != "now-2h" || app.To != "now" {
+	if app.Title != "One" || app.Panel.Type != "stat" || app.From == "" || app.To == "" {
 		t.Errorf("app = %q %q %q to %q", app.Title, app.Panel.Type, app.From, app.To)
 	}
 	link, err := url.Parse(app.OpenURL)
@@ -224,10 +357,10 @@ func TestShowPanelDrawsAPanelOfASavedDashboard(t *testing.T) {
 	if len(app.Variables["svc"]) == 0 {
 		t.Errorf("variables = %v", app.Variables)
 	}
-	for _, missing := range []string{"nope", "r1"} {
-		res, _ := caller.run(t, nameShowPanel, fmt.Sprintf(`{"dashboard_id":%q,"panel":%q}`, id, missing))
-		if code := errorCode(t, res); code != string(queryproxy.CodePanelNotFound) {
-			t.Errorf("%s: code = %q", missing, code)
+	for panel, want := range map[string]string{"nope": string(queryproxy.CodePanelNotFound), "r1": codeInvalidRequest} {
+		res, _ := caller.run(t, nameShowPanel, fmt.Sprintf(`{"dashboard_id":%q,"panel":%q}`, id, panel))
+		if code := errorCode(t, res); code != want {
+			t.Errorf("%s: code = %q, want %q", panel, code, want)
 		}
 	}
 	res, _ = caller.run(t, nameShowPanel, `{"dashboard_id":"00000000-0000-0000-0000-000000000001","panel":"p1"}`)
