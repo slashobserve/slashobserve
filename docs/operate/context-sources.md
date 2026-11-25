@@ -11,8 +11,9 @@ This page covers registering a source, approving its tools and what the agent ma
 
 ## Register a source
 
-1. Sign in as an Admin and open **Settings**, then **Context sources**.
-2. Choose **Add source** and fill in the form:
+1. Sign in as an Admin and open **Datasources**.
+   The **MCP sources** table below the datasources holds the context sources, and `/datasources/context-sources` opens the page at that table.
+2. Choose **Add source** in the header of the **MCP sources** table and fill in the form:
    - **Id**, which names the source in the CLI and the audit log and cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters without control or format characters.

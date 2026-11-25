@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   isMovedAuditLog,
+  isMovedContextSources,
   sectionNotice,
   selectedSectionId,
   settingsGroups,
@@ -27,7 +28,7 @@ describe("settingsGroups", () => {
       },
       {
         label: "Integrations",
-        ids: ["grafana", "webhooks", "context-sources"],
+        ids: ["grafana", "webhooks"],
       },
     ])
   })
@@ -69,7 +70,6 @@ describe("settingsGroups", () => {
       "Agent access",
       "Grafana connection",
       "Webhooks",
-      "Context sources",
     ])
   })
 })
@@ -120,12 +120,7 @@ describe("selectedSectionId", () => {
   test("falls back to the server for a section the role cannot see", () => {
     for (const role of ["editor", "commenter", "viewer"] as const) {
       const groups = settingsGroups(role)
-      for (const hash of [
-        "agent-access",
-        "grafana",
-        "webhooks",
-        "context-sources",
-      ]) {
+      for (const hash of ["agent-access", "grafana", "webhooks"]) {
         expect(selectedSectionId(groups, hash)).toBe("server")
       }
     }
@@ -193,31 +188,6 @@ describe("settingsPanel", () => {
     ).toBeNull()
   })
 
-  test("opens the context source panels on their section", () => {
-    expect(settingsPanel("context-sources", { panel: "context-add" })).toEqual({
-      kind: "context-add",
-    })
-    expect(
-      settingsPanel("context-sources", {
-        panel: "context-edit",
-        source: "docs",
-      })
-    ).toEqual({ kind: "context-edit", uid: "docs" })
-  })
-
-  test("opens no context source edit panel without a source, or on another section", () => {
-    expect(
-      settingsPanel("context-sources", { panel: "context-edit" })
-    ).toBeNull()
-    expect(
-      settingsPanel("context-sources", { panel: "context-edit", source: "" })
-    ).toBeNull()
-    expect(settingsPanel("webhooks", { panel: "context-add" })).toBeNull()
-    expect(
-      settingsPanel("context-sources", { panel: "webhook-add" })
-    ).toBeNull()
-  })
-
   test("opens no panel for an unknown or missing panel key", () => {
     expect(settingsPanel("webhooks", { panel: "export" })).toBeNull()
     expect(settingsPanel("grafana", { panel: "export" })).toBeNull()
@@ -231,5 +201,14 @@ describe("isMovedAuditLog", () => {
     expect(isMovedAuditLog("")).toBe(false)
     expect(isMovedAuditLog("webhooks")).toBe(false)
     expect(isMovedAuditLog("Audit-log")).toBe(false)
+  })
+})
+
+describe("isMovedContextSources", () => {
+  test("names the section hash that now lives at /datasources/context-sources", () => {
+    expect(isMovedContextSources("context-sources")).toBe(true)
+    expect(isMovedContextSources("")).toBe(false)
+    expect(isMovedContextSources("webhooks")).toBe(false)
+    expect(isMovedContextSources("Context-sources")).toBe(false)
   })
 })
