@@ -1005,6 +1005,7 @@ describe("DataGrid", () => {
         { id: "note", label: "Note", text: "slow" },
         { id: "open", label: null, text: "Open Search" },
       ])
+      expect(card).toHaveClass("whitespace-normal")
       expect(card?.firstElementChild).toHaveClass("basis-full", "font-medium")
       for (const cell of card?.children ?? []) {
         if (cell.hasAttribute("data-label")) {
@@ -1110,6 +1111,9 @@ describe("DataGrid", () => {
       )
       expect(container.querySelectorAll("[data-full-width-row]")).toHaveLength(
         1
+      )
+      expect(container.querySelector("[data-full-width-row]")).toHaveClass(
+        "whitespace-normal"
       )
     })
 

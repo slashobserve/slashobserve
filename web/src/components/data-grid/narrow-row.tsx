@@ -37,7 +37,7 @@ export function NarrowRow<T>({
   if (data === undefined) return null
   if (fullWidth?.is(data.row)) {
     return (
-      <div ref={ref} data-full-width-row="">
+      <div ref={ref} data-full-width-row="" className="whitespace-normal">
         {fullWidth.render(data.row)}
       </div>
     )
@@ -50,7 +50,7 @@ export function NarrowRow<T>({
     <div
       ref={ref}
       data-narrow-row=""
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-3 text-[13px] leading-normal"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-3 text-[13px] leading-normal whitespace-normal"
       onPointerEnter={() => onHighlight(node.id ?? null)}
     >
       <div
