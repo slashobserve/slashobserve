@@ -247,9 +247,7 @@ describe("InboxPanel", () => {
     ])
     await user.click(screen.getByRole("option", { name: "Mentions" }))
 
-    await waitFor(() =>
-      expect(server.views).toEqual(["for_you", "for_you", "mentions"])
-    )
+    await waitFor(() => expect(server.views).toEqual(["for_you", "mentions"]))
     expect(useInboxPanelStore.getState().view).toBe("mentions")
   })
 
@@ -488,5 +486,28 @@ describe("InboxPanel", () => {
     await screen.findByRole("heading", { name: "Needs you" })
     expect(screen.queryByText("Ada version created")).toBeNull()
     expect(server.cursors).toEqual([])
+  })
+
+  it("trims For you to its first page when it closes, so its refresh stays one request", async () => {
+    mockServer({ items: [mention] })
+    const queryClient = testQueryClient()
+    const { user } = renderPanel(false, queryClient)
+    openPanel()
+    await screen.findByRole("heading", { name: "Needs you" })
+    queryClient.setQueryData(inboxKeys.list("for_you", "open"), {
+      pages: [
+        { items: [mention], next_cursor: "page-2", unread_count: 1 },
+        { items: [activity], next_cursor: null, unread_count: 1 },
+      ],
+      pageParams: [undefined, "page-2"],
+    })
+
+    await user.click(screen.getByRole("button", { name: "Close Inbox" }))
+
+    expect(
+      queryClient.getQueryData<{ pages: unknown[] }>(
+        inboxKeys.list("for_you", "open")
+      )?.pages
+    ).toHaveLength(1)
   })
 })

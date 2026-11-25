@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react"
 import {
   infiniteQueryOptions,
-  queryOptions,
   useInfiniteQuery,
   useMutation,
-  useQuery,
   useQueryClient,
   type InfiniteData,
   type QueryClient,
@@ -23,8 +21,10 @@ import { useDocumentVisible } from "@/live/use-activity-stream"
 
 import { useInboxPanelStore } from "./inbox-panel-store"
 
-type InboxList = components["schemas"]["InboxList"]
-type InboxPages = InfiniteData<InboxList, string | undefined>
+type InboxPages = InfiniteData<
+  components["schemas"]["InboxList"],
+  string | undefined
+>
 
 const pageSize = 50
 const countStaleTime = 30_000
@@ -42,26 +42,22 @@ function useInboxPollInterval(): number | false {
   return inboxPollInterval(useHasActivityStream(), useDocumentVisible())
 }
 
-function fetchInboxPage(
-  view: InboxView,
-  filter: InboxFilter,
-  cursor: string | undefined,
-  limit: number,
-  signal?: AbortSignal
-): Promise<InboxList> {
-  return api
-    .GET("/inbox", {
-      params: { query: { view, filter, cursor, limit } },
-      signal,
-    })
-    .then(unwrap)
+function isForYou(view: InboxView, filter: InboxFilter): boolean {
+  return view === "for_you" && filter === "open"
 }
 
 function inboxInfiniteQuery(view: InboxView, filter: InboxFilter = "open") {
   return infiniteQueryOptions({
     queryKey: inboxKeys.list(view, filter),
     queryFn: ({ pageParam, signal }) =>
-      fetchInboxPage(view, filter, pageParam, pageSize, signal),
+      api
+        .GET("/inbox", {
+          params: {
+            query: { view, filter, cursor: pageParam, limit: pageSize },
+          },
+          signal,
+        })
+        .then(unwrap),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   })
@@ -85,9 +81,10 @@ export function keepInboxHead(
 }
 
 export function usePanelInboxList(view: InboxView, filter: InboxFilter) {
+  const interval = useInboxPollInterval()
   return useInfiniteQuery({
     ...inboxInfiniteQuery(view, filter),
-    refetchInterval: useInboxPollInterval(),
+    refetchInterval: isForYou(view, filter) ? false : interval,
   })
 }
 
@@ -95,22 +92,13 @@ export function useInboxForYou() {
   return useInfiniteQuery({
     ...inboxInfiniteQuery("for_you"),
     staleTime: countStaleTime,
+    refetchInterval: useInboxPollInterval(),
   })
 }
 
-const inboxBadgeQuery = queryOptions({
-  queryKey: inboxKeys.badge(),
-  queryFn: ({ signal }) =>
-    fetchInboxPage("for_you", "open", undefined, 1, signal),
-})
-
 export function useInboxCount(): number | null {
-  const badge = useQuery({
-    ...inboxBadgeQuery,
-    staleTime: countStaleTime,
-    refetchInterval: useInboxPollInterval(),
-  })
-  return badge.data?.unread_count ?? null
+  const first = useInboxForYou().data?.pages[0]
+  return first === undefined ? null : first.unread_count
 }
 
 export function useMarkInboxRead() {
@@ -159,10 +147,10 @@ export function useInboxLive() {
     throttle(() => {
       const { open, view, filter } = useInboxPanelStore.getState()
       void queryClient.invalidateQueries({
-        queryKey: inboxKeys.badge(),
+        queryKey: inboxKeys.list("for_you", "open"),
         exact: true,
       })
-      if (open) {
+      if (open && !isForYou(view, filter)) {
         void queryClient.invalidateQueries({
           queryKey: inboxKeys.list(view, filter),
           exact: true,

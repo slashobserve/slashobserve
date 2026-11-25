@@ -486,7 +486,6 @@ export type InboxFilter = "open" | "unread" | "done"
 
 export const inboxKeys = {
   all: ["inbox"] as const,
-  badge: () => ["inbox", "badge"] as const,
   list: (view: InboxView, filter: InboxFilter = "open") =>
     ["inbox", "list", view, filter] as const,
 }

@@ -109,10 +109,10 @@ function InboxCard() {
   const [target] = useState(() => useInboxPanelStore.getState().item)
   const queryClient = useQueryClient()
   const [opened] = useState({ view, filter })
-  useLayoutEffect(
-    () => keepInboxHead(queryClient, opened.view, opened.filter),
-    [queryClient, opened]
-  )
+  useLayoutEffect(() => {
+    keepInboxHead(queryClient, opened.view, opened.filter)
+    return () => keepInboxHead(queryClient, "for_you", "open")
+  }, [queryClient, opened])
   const query = usePanelInboxList(view, filter)
   const markRead = useMarkInboxRead()
   const setUnread = useSetInboxItemUnread()
