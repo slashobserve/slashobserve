@@ -140,7 +140,7 @@ func TestDiscoverSpansKeepsAServiceWhoseSpanNamesFailed(t *testing.T) {
 	if !reflect.DeepEqual(fields[0].Values, []any{"checkout"}) || !reflect.DeepEqual(fields[1].Values, []any{nil}) {
 		t.Fatalf("services = %v, span names = %v", fields[0].Values, fields[1].Values)
 	}
-	if want := []string{"span names were not read for 1 of 1 services because Tempo did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
+	if want := []string{"span names were not read for 1 of 1 services: Tempo returned an error or did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
 		t.Fatalf("notes = %v, want %v", got.Notes, want)
 	}
 }
@@ -178,7 +178,7 @@ func TestDiscoverSpansListsEveryServiceWhenTheDeadlineCutsSpanNameLookups(t *tes
 	if fields[1].Values[2] != nil || fields[1].Values[0] == nil || fields[1].Values[1] == nil {
 		t.Fatalf("span names = %v, want only the slow service without one", fields[1].Values)
 	}
-	if want := []string{"span names were not read for 1 of 3 services because Tempo did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
+	if want := []string{"span names were not read for 1 of 3 services: Tempo returned an error or did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
 		t.Fatalf("notes = %v, want %v", got.Notes, want)
 	}
 }

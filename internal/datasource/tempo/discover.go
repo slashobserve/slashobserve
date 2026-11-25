@@ -179,7 +179,7 @@ func (d *Datasource) discoverSpans(ctx context.Context, r datasource.TimeRange) 
 		Truncated: truncated,
 	}
 	if unreadCount > 0 {
-		catalog.Notes = []string{fmt.Sprintf("span names were not read for %d of %d services because Tempo did not answer in time", unreadCount, len(services))}
+		catalog.Notes = []string{fmt.Sprintf("span names were not read for %d of %d services: Tempo returned an error or did not answer in time", unreadCount, len(services))}
 	}
 	return catalog, nil
 }

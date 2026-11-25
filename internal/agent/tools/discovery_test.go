@@ -649,7 +649,7 @@ func spanCatalog(truncated bool) *datasource.Catalog {
 }
 
 func TestGetSchemaOnTempoReportsServicesWithoutSpanNames(t *testing.T) {
-	note := "span names were not read for 1 of 2 services because Tempo did not answer in time"
+	note := "span names were not read for 1 of 2 services: Tempo returned an error or did not answer in time"
 	ds := &fakeDS{typ: "tempo", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		return &datasource.Catalog{
 			Sample: &datasource.Frame{Fields: []datasource.Field{
