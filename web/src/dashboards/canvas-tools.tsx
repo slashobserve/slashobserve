@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   AtSignIcon,
   MessageSquarePlusIcon,
@@ -22,6 +22,7 @@ import {
 } from "@/shortcuts/chords"
 
 import { HeldDraft } from "./held-draft"
+import { useSlotBox } from "./use-slot-box"
 
 import type { DashboardPermissions } from "./permissions"
 
@@ -219,8 +220,6 @@ type Props = {
   pageFooter?: boolean
 }
 
-const pageFooterClass = "order-last mt-auto -mx-6 -mb-7"
-
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
 
@@ -352,14 +351,25 @@ function ToolBar({
     </div>
   )
   const docked = active !== "select"
+  const hint = docked ? (
+    <p role="status" className="text-center text-xs text-muted-foreground">
+      {modeTexts[active]}
+    </p>
+  ) : null
+  if (pageFooter) {
+    return (
+      <PageFooter docked={docked} bar={bar}>
+        {hint}
+      </PageFooter>
+    )
+  }
   return (
     <div
       className={cn(
         "sticky bottom-0 z-30 narrow:hidden",
-        pageFooter && pageFooterClass,
         docked
           ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
-          : cn("pointer-events-none", pageFooter ? "h-18" : "h-0")
+          : "pointer-events-none h-0"
       )}
     >
       <div
@@ -369,11 +379,36 @@ function ToolBar({
       >
         {bar}
       </div>
-      {docked ? (
-        <p role="status" className="text-center text-xs text-muted-foreground">
-          {modeTexts[active]}
-        </p>
-      ) : null}
+      {hint}
+    </div>
+  )
+}
+
+function PageFooter({
+  docked,
+  bar,
+  children,
+}: {
+  docked: boolean
+  bar: ReactNode
+  children: ReactNode
+}) {
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
+  const box = useSlotBox(slot)
+  return (
+    <div ref={setSlot} data-page-footer="" className="-mt-8 h-24 narrow:hidden">
+      <div
+        style={box}
+        className={cn(
+          "fixed z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1",
+          docked
+            ? "bottom-0 border-t bg-background px-4 py-2"
+            : "pointer-events-none bottom-4"
+        )}
+      >
+        {bar}
+        {children}
+      </div>
     </div>
   )
 }

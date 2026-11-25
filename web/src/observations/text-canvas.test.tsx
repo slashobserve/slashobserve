@@ -101,19 +101,25 @@ const shown: { set: (blocks: Block[]) => void } = { set: () => {} }
 
 function Harness({ canComment }: { canComment: boolean }) {
   const [blocks, setBlocks] = useState<Block[]>([textBlock])
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     shown.set = setBlocks
   }, [])
   return (
-    <BlockList
-      observation={observation}
-      blocks={blocks}
-      canAdd
-      canComment={canComment}
-      reveal={null}
-      onRevealed={() => {}}
-      onAdded={() => {}}
-    />
+    <>
+      <BlockList
+        observation={observation}
+        blocks={blocks}
+        canAdd
+        canComment={canComment}
+        reveal={null}
+        onRevealed={() => {}}
+        onAdded={() => {}}
+        footerSlot={slot}
+      />
+      <button type="button">Add a block</button>
+      <div ref={setSlot} data-testid="footer-slot" className="contents" />
+    </>
   )
 }
 
@@ -255,13 +261,14 @@ describe("a text block on the canvas", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("gives the floating toolbar its own room after the blocks and pins it last in the page column", async () => {
+  it("mounts the floating toolbar after the Add a block control so Tab reaches it last", async () => {
     show()
-    const list = await screen.findByRole("list", { name: "Blocks" })
-    const box = screen.getByRole("toolbar", { name: "Canvas tools" })
-      .parentElement?.parentElement
-    expect(box).toHaveClass("sticky", "h-18", "order-last", "mt-auto")
-    expect(box?.parentElement).toBe(list.parentElement)
+    const add = await screen.findByRole("button", { name: "Add a block" })
+    const bar = await screen.findByRole("toolbar", { name: "Canvas tools" })
+    expect(
+      add.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(screen.getByTestId("footer-slot")).toContainElement(bar)
   })
 
   it("offers nothing to someone who cannot comment", async () => {

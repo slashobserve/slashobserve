@@ -109,6 +109,7 @@ function LoadedObservation({
   const [editorKey, setEditorKey] = useState(0)
   const replaceGuard = useRef<ReplaceGuard | null>(null)
   const [reveal, setReveal] = useState<Reveal | null>(null)
+  const [footerSlot, setFooterSlot] = useState<HTMLDivElement | null>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const moreButton = useRef<HTMLButtonElement>(null)
@@ -191,7 +192,7 @@ function LoadedObservation({
 
   return (
     <>
-      <div className={cn(columnClass, "min-h-full")}>
+      <div className={columnClass}>
         <ObservationHeader
           envelope={envelope}
           discussion={{
@@ -228,6 +229,7 @@ function LoadedObservation({
                 reveal={reveal}
                 onRevealed={revealed}
                 onAdded={added}
+                footerSlot={footerSlot}
               />
             </BlockInspectContext>
           </PageRangeContext>
@@ -250,6 +252,7 @@ function LoadedObservation({
             />
           ) : null}
         </BlockEditorContext>
+        <div ref={setFooterSlot} className="contents" />
       </div>
       {discussionShown ? (
         <DiscussionPane
