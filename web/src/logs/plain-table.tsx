@@ -1,6 +1,6 @@
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 
 export function isPlainResult(data: PanelDataResponse): boolean {
@@ -20,6 +20,8 @@ export function cellText(value: unknown): string {
 const untimedNote =
   "This query selects no Timestamp, so the rows show as a table."
 
+const rowId = (row: number) => String(row)
+
 export function PlainTable({
   frame,
   note = untimedNote,
@@ -29,34 +31,48 @@ export function PlainTable({
   note?: string
   renderCell?: (field: string, value: unknown, type: string) => ReactNode
 }) {
-  const rows = frame.fields.reduce(
-    (most, field) => Math.max(most, field.values.length),
-    0
+  const rows = useMemo(
+    () =>
+      Array.from(
+        {
+          length: frame.fields.reduce(
+            (most, field) => Math.max(most, field.values.length),
+            0
+          ),
+        },
+        (_, row) => row
+      ),
+    [frame]
+  )
+  const columns = useMemo<DataGridColumn<number>[]>(
+    () =>
+      frame.fields.map((field) => ({
+        id: field.name,
+        header: field.name,
+        minWidth: 120,
+        autoHeight: true,
+        cell: (row) => {
+          const value = field.values[row]
+          const content =
+            renderCell?.(field.name, value, field.type) ?? cellText(value)
+          return content === "" ? null : (
+            <span className="min-w-0 py-2 font-mono break-words whitespace-normal">
+              {content}
+            </span>
+          )
+        },
+      })),
+    [frame, renderCell]
   )
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
       <p className="text-xs text-muted-foreground">{note}</p>
-      <TableCard label="Query results" minWidth={480}>
-        <thead>
-          <tr>
-            {frame.fields.map((field) => (
-              <HeaderCell key={field.name}>{field.name}</HeaderCell>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }, (_, row) => (
-            <tr key={row}>
-              {frame.fields.map((field) => (
-                <Cell key={field.name} className="font-mono">
-                  {renderCell?.(field.name, field.values[row], field.type) ??
-                    cellText(field.values[row])}
-                </Cell>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <DataGrid
+        label="Query results"
+        rows={rows}
+        columns={columns}
+        rowId={rowId}
+      />
     </div>
   )
 }
