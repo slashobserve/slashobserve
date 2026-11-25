@@ -10,10 +10,14 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/health/repairprompt"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 )
 
-const inboxExcerptRunes = 200
+const (
+	inboxExcerptRunes = 200
+	repairQuestion    = "a panel repair"
+)
 
 type objectRef struct {
 	kind string
@@ -66,6 +70,7 @@ type inboxTexts struct {
 	bodies    map[string]string
 	questions map[string]string
 	prompts   map[string]string
+	asked     map[string]string
 	subjects  map[string]objectRef
 	failures  map[string]string
 	closes    map[string]string
@@ -77,6 +82,17 @@ func (t inboxTexts) subjectOf(item InboxItem) objectRef {
 		return ref
 	}
 	return subjectOf(item.Event)
+}
+
+func (t inboxTexts) runQuestion(run string) string {
+	if repairprompt.Is(t.prompts[run]) {
+		return repairQuestion
+	}
+	text := t.prompts[run]
+	if message, ok := t.asked[run]; ok {
+		text = t.bodies[message]
+	}
+	return usertext.ShortTitle(plainMentions(text))
 }
 
 func (t inboxTexts) excerptOf(item InboxItem) string {
@@ -106,7 +122,7 @@ func (s *Store) describeInbox(ctx context.Context, a folders.Audience, items []I
 		case item.Type == TypeThreadReplied:
 			item.Question = usertext.ShortTitle(plainMentions(texts.questions[dataOf(item.Event).MessageID]))
 		case quotesRun(*item):
-			item.Question = usertext.ShortTitle(plainMentions(texts.prompts[item.TargetID]))
+			item.Question = texts.runQuestion(item.TargetID)
 		}
 	}
 	return nil
@@ -148,29 +164,42 @@ func inboxRefsOf(items []InboxItem) inboxRefs {
 	return refs
 }
 
+func (t inboxTexts) addRuns(rows []dbsqlc.InboxRunTextsRow, refs inboxRefs) {
+	for _, r := range rows {
+		id := r.ID.String()
+		t.failures[id] = r.Error
+		t.prompts[id] = r.Prompt
+		switch {
+		case r.ThreadMessageID.Valid:
+			t.asked[id] = r.ThreadMessageID.String()
+			refs.messages[r.ThreadMessageID.String()] = true
+		case r.Trigger == "mention":
+			t.asked[id] = ""
+		}
+		switch {
+		case r.DashboardID.Valid:
+			t.subjects[id] = objectRef{"dashboard", r.DashboardID.String()}
+		case r.SubjectObservationID.Valid:
+			t.subjects[id] = objectRef{"observation", r.SubjectObservationID.String()}
+		case r.ObservationID.Valid:
+			t.subjects[id] = objectRef{"observation", r.ObservationID.String()}
+		}
+		if ref, ok := t.subjects[id]; ok {
+			refs.byKind[ref.kind][ref.id] = true
+		}
+	}
+}
+
 func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []InboxItem) (inboxTexts, error) {
 	q := s.db.Queries()
 	refs := inboxRefsOf(items)
 	byKind, messages, runs, closed := refs.byKind, refs.messages, refs.runs, refs.closed
-	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, questions: map[string]string{}, prompts: map[string]string{}, subjects: map[string]objectRef{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
+	texts := inboxTexts{titles: map[objectRef]string{}, bodies: map[string]string{}, questions: map[string]string{}, prompts: map[string]string{}, asked: map[string]string{}, subjects: map[string]objectRef{}, failures: map[string]string{}, closes: map[string]string{}, notes: map[string]string{}}
 	runRows, err := q.InboxRunTexts(ctx, uuidsOf(runs))
 	if err != nil {
 		return inboxTexts{}, fmt.Errorf("list inbox runs: %w", err)
 	}
-	for _, r := range runRows {
-		id := r.ID.String()
-		texts.failures[id] = firstNonEmpty(r.Error, r.Prompt)
-		texts.prompts[id] = r.Prompt
-		switch {
-		case r.DashboardID.Valid:
-			texts.subjects[id] = objectRef{"dashboard", r.DashboardID.String()}
-		case r.SubjectObservationID.Valid:
-			texts.subjects[id] = objectRef{"observation", r.SubjectObservationID.String()}
-		}
-		if ref, ok := texts.subjects[id]; ok {
-			byKind[ref.kind][ref.id] = true
-		}
-	}
+	texts.addRuns(runRows, refs)
 	titleRows, err := q.InboxObjectTitles(ctx, dbsqlc.InboxObjectTitlesParams{
 		DashboardIds:   uuidsOf(byKind["dashboard"]),
 		ObservationIds: uuidsOf(byKind["observation"]),
@@ -209,13 +238,4 @@ func (s *Store) loadInboxTexts(ctx context.Context, a folders.Audience, items []
 		texts.notes[r.ID.String()] = r.Note
 	}
 	return texts, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }

@@ -118,7 +118,7 @@ Details of the rules:
 
 - A `proposal` item is one whose proposal is still open.
 - A `requested_block` item is one whose block is waiting to be kept or discarded.
-- A `reply` by someone else counts when you wrote earlier in the thread, or when an agent run wrote it for a run you requested; the failure reply of a run you requested that failed is left out, because the `run_failed` item stands for it.
+- A `reply` by someone else counts when you wrote earlier in the thread, or when an agent run wrote it for a run you requested; the failure reply of a run you requested that failed is left out while the `run_failed` item stands for it, but an answer the run posted before it failed stays.
 - A `repaired` item comes from a health repair you started from a dashboard or the dashboards list.
 - An `access_request` item is for a dashboard or observation in a folder you manage, or as an instance Admin when nobody manages it.
 - An item leaves the inbox when its reason stops being true, for example when the proposal is merged or the failed run is continued.
@@ -158,14 +158,15 @@ Details of `target_title`: on a `run_failed` item it is the dashboard or observa
 Details of `excerpt`:
 
 - It is the start of the comment for a `mention` or `reply`, with each mention shown as `@Name`.
-- It is the error of a failed run, the reason a proposal was discarded, or the note of an access request.
+- It is the error of a failed run (null when the run stored none), the reason a proposal was discarded, or the note of an access request.
 - It is plain text of at most 200 characters.
 - It is null for other items, and for a comment in a thread you can no longer read.
 
 Details of `question`:
 
 - It is the first line of the thread message that an agent run answered, cut to a title of at most 60 characters, on the `thread.replied` item that run wrote.
-- On a `run_failed` item it is the first line of the failed run's prompt, cut the same way.
+- On a `run_failed` item it is the first line of the question the run was asked, cut the same way: the thread message for a run asked in a thread, null once that message is deleted or you can no longer read the thread, and the prompt for any other run.
+- On a `run_failed` item for a health repair it is "a panel repair", not the generated prompt.
 - It is null on every other item, once that message is deleted or withdrawn, and when you can no longer read the thread.
 
 The rest of an item carries no comment, message or finding text, as in the log.

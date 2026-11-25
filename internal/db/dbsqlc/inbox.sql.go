@@ -121,7 +121,7 @@ func (q *Queries) InboxProposalCloseReasons(ctx context.Context, ids []pgtype.UU
 }
 
 const inboxRunTexts = `-- name: InboxRunTexts :many
-SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt, r.dashboard_id, r.subject_observation_id FROM agent_requests r WHERE r.id = ANY($1::uuid[])
+SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt, r.dashboard_id, r.subject_observation_id, r.observation_id, r.thread_message_id, r.trigger FROM agent_requests r WHERE r.id = ANY($1::uuid[])
 `
 
 type InboxRunTextsRow struct {
@@ -130,6 +130,9 @@ type InboxRunTextsRow struct {
 	Prompt               string
 	DashboardID          pgtype.UUID
 	SubjectObservationID pgtype.UUID
+	ObservationID        pgtype.UUID
+	ThreadMessageID      pgtype.UUID
+	Trigger              string
 }
 
 func (q *Queries) InboxRunTexts(ctx context.Context, ids []pgtype.UUID) ([]InboxRunTextsRow, error) {
@@ -147,6 +150,9 @@ func (q *Queries) InboxRunTexts(ctx context.Context, ids []pgtype.UUID) ([]Inbox
 			&i.Prompt,
 			&i.DashboardID,
 			&i.SubjectObservationID,
+			&i.ObservationID,
+			&i.ThreadMessageID,
+			&i.Trigger,
 		); err != nil {
 			return nil, err
 		}

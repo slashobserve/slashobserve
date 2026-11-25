@@ -2269,7 +2269,7 @@ components:
         question:
           type: string
           nullable: true
-          description: The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote, and the first line of the prompt of a failed run on its `run_failed` item; null for every other item, when that message is gone, and when the caller cannot read the thread.
+          description: The first line of the thread message an agent run answered, cut to a title of at most 60 characters, on a `thread.replied` item the run wrote, and the first line of the question a failed run was asked on its `run_failed` item; null for every other item, when that message is gone, and when the caller cannot read the thread.
     InboxList:
       type: object
       additionalProperties: false

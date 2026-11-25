@@ -101,7 +101,7 @@ WHERE m.id = ANY(@ids::uuid[])
   ) = ANY(@folders::uuid[]));
 
 -- name: InboxRunTexts :many
-SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt, r.dashboard_id, r.subject_observation_id FROM agent_requests r WHERE r.id = ANY(@ids::uuid[]);
+SELECT r.id, coalesce(r.error, '')::text AS error, r.prompt, r.dashboard_id, r.subject_observation_id, r.observation_id, r.thread_message_id, r.trigger FROM agent_requests r WHERE r.id = ANY(@ids::uuid[]);
 
 -- name: InboxProposalCloseReasons :many
 SELECT p.id, p.close_reason::text AS close_reason FROM proposals p WHERE p.id = ANY(@ids::uuid[]) AND p.close_reason IS NOT NULL;
