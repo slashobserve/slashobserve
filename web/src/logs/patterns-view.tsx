@@ -123,7 +123,7 @@ function FilterButton({
 
 type PatternRewrite = (pattern: string, mode: PatternMode) => string | null
 
-function patternColumns({
+export function patternColumns({
   total,
   largest,
   expanded,
@@ -142,8 +142,8 @@ function patternColumns({
     {
       id: "pattern",
       header: "Pattern",
-      minWidth: 240,
-      flex: 3,
+      minWidth: 160,
+      flex: 1,
       cell: (item) => (
         <div className="flex min-w-0 items-center gap-2">
           <span
@@ -164,7 +164,7 @@ function patternColumns({
       id: "documents",
       header: "Documents",
       align: "right",
-      width: 130,
+      width: 110,
       cell: (item) => (
         <div className="flex flex-col items-end gap-1 tabular-nums">
           {item.count.toLocaleString("en")}
@@ -182,7 +182,7 @@ function patternColumns({
       id: "share",
       header: "Share",
       align: "right",
-      width: 90,
+      width: 80,
       cell: (item) => (
         <span className="tabular-nums">
           {shareText(patternShare(item.count, total))}
@@ -192,7 +192,7 @@ function patternColumns({
     {
       id: "trend",
       header: "Trend",
-      width: 200,
+      width: 170,
       cell: (item) => {
         const change = trendChange(item.trend)
         return (
@@ -223,7 +223,7 @@ function patternColumns({
       header: "Actions",
       align: "right",
       action: true,
-      width: 250,
+      width: 240,
       cell: (item) => (
         <div className="flex flex-wrap items-center justify-end gap-1">
           <FilterButton
