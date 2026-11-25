@@ -2,12 +2,13 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
   type RefObject,
 } from "react"
-import { useInfiniteQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { useActivityStore, usePanelLayout } from "@/activity/activity-store"
@@ -35,7 +36,8 @@ import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
 import {
   inboxInfiniteQuery,
-  useInboxPollInterval,
+  keepInboxHead,
+  useInboxHeadPolling,
   useMarkInboxRead,
   useSetInboxItemDone,
   useSetInboxItemUnread,
@@ -106,10 +108,14 @@ function InboxCard() {
   const { view, filter, opener, setView, setFilter, close } =
     useInboxPanelStore()
   const [target] = useState(() => useInboxPanelStore.getState().item)
-  const query = useInfiniteQuery({
-    ...inboxInfiniteQuery(view, filter),
-    refetchInterval: useInboxPollInterval(),
-  })
+  const queryClient = useQueryClient()
+  const [opened] = useState({ view, filter })
+  useLayoutEffect(
+    () => keepInboxHead(queryClient, opened.view, opened.filter),
+    [queryClient, opened]
+  )
+  const query = useInfiniteQuery(inboxInfiniteQuery(view, filter))
+  useInboxHeadPolling(view, filter)
   const markRead = useMarkInboxRead()
   const setUnread = useSetInboxItemUnread()
   const setDone = useSetInboxItemDone()
