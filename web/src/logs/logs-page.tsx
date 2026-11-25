@@ -24,6 +24,7 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
+import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -40,7 +41,6 @@ import { applyPills, decodePills } from "./pills"
 import { unreadableKql } from "./query-problem"
 import { QueryBar } from "./query-bar"
 import { ResultSkeleton, ResultsSection } from "./results-section"
-import { modeOnSavedSearch } from "./saved-mode"
 import { logsTimeRange, runPatch, searchAfter, type LogsSearch } from "./search"
 import { useLiveTail } from "./use-live-tail"
 import { useLogsShortcuts } from "./use-logs-shortcuts"
@@ -225,12 +225,7 @@ function LogsWorkspaceView({
     hasQuery: q !== undefined,
     hasAsk: search.ask !== undefined,
   })
-  const [seenSaved, setSeenSaved] = useState(search.saved)
-  if (seenSaved !== search.saved) {
-    setSeenSaved(search.saved)
-    const next = modeOnSavedSearch(mode, seenSaved, search.saved)
-    if (next !== mode) setMode(next, false)
-  }
+  useLeaveAskOnSavedOpen(mode, setMode)
 
   const { results, paging } = useLogsResults({
     datasource,
