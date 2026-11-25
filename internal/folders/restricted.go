@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,7 +24,7 @@ var (
 	ErrLinkedObservationMove = errors.New("an RCA of this observation has public links, and a folder only Admins can read has none; revoke them before you move it there")
 	ErrLinkedFolder          = errors.New("a dashboard or an RCA in this folder has public links, and a folder only Admins can read has none; revoke them before you make it Admins only")
 	ErrRestrictedAnswer      = errors.New("this answer read data only Admins can read, such as the audit trail or what is in a folder only Admins can read, and people who are not Admins read where it would go; " +
-		"keep it in the private chat, or show it in a folder only Admins can read")
+		"keep it in the private chat, or save it in the Audit folder or another folder only Admins can read")
 )
 
 type restrictedAnswerError struct{ message string }
@@ -32,9 +33,27 @@ func (e restrictedAnswerError) Error() string { return e.message }
 
 func (restrictedAnswerError) Is(target error) bool { return target == ErrRestrictedAnswer }
 
-func RestrictedAnswerMove(kind ContentKind) error {
+type AnswerRef struct {
+	RunID  string
+	Prompt string
+}
+
+const answerPromptRunes = 80
+
+func (a AnswerRef) described() string {
+	if a.RunID == "" {
+		return "an answer"
+	}
+	prompt := strings.Join(strings.Fields(a.Prompt), " ")
+	if runes := []rune(prompt); len(runes) > answerPromptRunes {
+		prompt = string(runes[:answerPromptRunes-1]) + "…"
+	}
+	return fmt.Sprintf("the answer to %q (run %s)", prompt, a.RunID)
+}
+
+func RestrictedAnswerMove(kind ContentKind, answer AnswerRef) error {
 	return restrictedAnswerError{fmt.Sprintf(
-		"this %s holds an answer that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun())}
+		"this %s holds %s that read data only Admins can query, such as the audit trail, so it can only move to another folder only Admins can read", kind.Noun(), answer.described())}
 }
 
 func RestrictedAnswerCopy(kind ContentKind) error {

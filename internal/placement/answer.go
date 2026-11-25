@@ -69,7 +69,7 @@ func AnswerKeptWithAdmins(ctx context.Context, q *dbsqlc.Queries, runID pgtype.U
 
 type keptWithAdmins struct{ Restricted, InFlight bool }
 
-func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error)) error {
+func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error), restrictedAnswer func() (folders.AnswerRef, error)) error {
 	folder, err := q.ShareFolderPlacement(ctx, to)
 	if err == nil && folder.AdminsOnly {
 		return nil
@@ -84,7 +84,11 @@ func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind fol
 	case err != nil:
 		return fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
 	case held.Restricted:
-		return folders.RestrictedAnswerMove(kind)
+		answer, err := restrictedAnswer()
+		if err != nil {
+			return fmt.Errorf("read which answer the %s holds that read Admin-only data: %w", kind.Noun(), err)
+		}
+		return folders.RestrictedAnswerMove(kind, answer)
 	case held.InFlight:
 		return folders.RunInFlightMove(kind)
 	}
@@ -109,4 +113,14 @@ func restrictedAnswerOpening(ctx context.Context, q *dbsqlc.Queries, folderID pg
 		return folders.RunInFlightOpening(items)
 	}
 	return folders.RestrictedAnswerOpening(items)
+}
+
+func answerRef(runID pgtype.UUID, prompt string, err error) (folders.AnswerRef, error) {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return folders.AnswerRef{}, nil
+	}
+	if err != nil {
+		return folders.AnswerRef{}, err
+	}
+	return folders.AnswerRef{RunID: runID.String(), Prompt: prompt}, nil
 }

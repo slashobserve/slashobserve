@@ -64,6 +64,25 @@ func (q *Queries) DashboardKeptWithAdmins(ctx context.Context, id pgtype.UUID) (
 	return i, err
 }
 
+const dashboardRestrictedRun = `-- name: DashboardRestrictedRun :one
+SELECT r.id, r.prompt FROM agent_requests r
+WHERE (r.dashboard_id = $1 OR r.id IN (SELECT v.agent_request_id FROM dashboard_versions v WHERE v.dashboard_id = $1))
+  AND run_answer_kept_with_admins(r.id, ARRAY[$1::uuid])
+ORDER BY r.created_at, r.id LIMIT 1
+`
+
+type DashboardRestrictedRunRow struct {
+	ID     pgtype.UUID
+	Prompt string
+}
+
+func (q *Queries) DashboardRestrictedRun(ctx context.Context, id pgtype.UUID) (DashboardRestrictedRunRow, error) {
+	row := q.db.QueryRow(ctx, dashboardRestrictedRun, id)
+	var i DashboardRestrictedRunRow
+	err := row.Scan(&i.ID, &i.Prompt)
+	return i, err
+}
+
 const findingRun = `-- name: FindingRun :one
 SELECT agent_request_id FROM findings WHERE id = $1
 `
@@ -121,6 +140,25 @@ func (q *Queries) ObservationKeptWithAdmins(ctx context.Context, id pgtype.UUID)
 	row := q.db.QueryRow(ctx, observationKeptWithAdmins, id)
 	var i ObservationKeptWithAdminsRow
 	err := row.Scan(&i.Restricted, &i.InFlight)
+	return i, err
+}
+
+const observationRestrictedRun = `-- name: ObservationRestrictedRun :one
+SELECT r.id, r.prompt FROM agent_requests r
+WHERE (r.observation_id = $1 OR r.subject_observation_id = $1 OR r.id IN (SELECT b.run_id FROM observation_blocks b WHERE b.observation_id = $1))
+  AND run_answer_kept_with_admins(r.id, ARRAY[$1::uuid])
+ORDER BY r.created_at, r.id LIMIT 1
+`
+
+type ObservationRestrictedRunRow struct {
+	ID     pgtype.UUID
+	Prompt string
+}
+
+func (q *Queries) ObservationRestrictedRun(ctx context.Context, id pgtype.UUID) (ObservationRestrictedRunRow, error) {
+	row := q.db.QueryRow(ctx, observationRestrictedRun, id)
+	var i ObservationRestrictedRunRow
+	err := row.Scan(&i.ID, &i.Prompt)
 	return i, err
 }
 

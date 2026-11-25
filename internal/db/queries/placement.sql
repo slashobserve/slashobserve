@@ -104,6 +104,18 @@ SELECT (observation_holds_restricted_answer(o.id) OR observation_holds_restricte
   (f.admins_only AND observation_has_run_in_flight(o.id))::boolean AS in_flight
 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = @id;
 
+-- name: DashboardRestrictedRun :one
+SELECT r.id, r.prompt FROM agent_requests r
+WHERE (r.dashboard_id = @id OR r.id IN (SELECT v.agent_request_id FROM dashboard_versions v WHERE v.dashboard_id = @id))
+  AND run_answer_kept_with_admins(r.id, ARRAY[@id::uuid])
+ORDER BY r.created_at, r.id LIMIT 1;
+
+-- name: ObservationRestrictedRun :one
+SELECT r.id, r.prompt FROM agent_requests r
+WHERE (r.observation_id = @id OR r.subject_observation_id = @id OR r.id IN (SELECT b.run_id FROM observation_blocks b WHERE b.observation_id = @id))
+  AND run_answer_kept_with_admins(r.id, ARRAY[@id::uuid])
+ORDER BY r.created_at, r.id LIMIT 1;
+
 -- name: RestrictedAnswerHolders :many
 SELECT kind, id, title, restricted FROM (
   SELECT 'dashboard'::text AS kind, d.id, d.title, (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted, dashboard_has_run_in_flight(d.id) AS in_flight

@@ -2,6 +2,7 @@ package folders_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -75,5 +76,37 @@ func TestARestrictedAnswerRefusalAnswersRestrictedAnswerWithWhy(t *testing.T) {
 	message, _ := body["error"].(string)
 	if body["code"] != folders.CodeRestrictedAnswer || !strings.Contains(message, "only Admins") || !strings.Contains(message, "private chat") {
 		t.Fatalf("body = %v", body)
+	}
+}
+
+func TestRestrictedAnswerMoveNamesTheAnswer(t *testing.T) {
+	err := folders.RestrictedAnswerMove(folders.ContentObservation, folders.AnswerRef{RunID: "ede0314a", Prompt: "is anything\nbroken   right now?"})
+	if !errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("err = %v, want a restricted answer", err)
+	}
+	want := `this observation holds the answer to "is anything broken right now?" (run ede0314a) that read data only Admins can query`
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("message = %q, want it to contain %q", err.Error(), want)
+	}
+}
+
+func TestRestrictedAnswerMoveShortensALongQuestion(t *testing.T) {
+	err := folders.RestrictedAnswerMove(folders.ContentDashboard, folders.AnswerRef{RunID: "r1", Prompt: strings.Repeat("é", 200)})
+	if !strings.Contains(err.Error(), strings.Repeat("é", 79)+`…" (run r1)`) {
+		t.Fatalf("message = %q", err.Error())
+	}
+}
+
+func TestRestrictedAnswerMoveWithoutARunStaysGeneral(t *testing.T) {
+	err := folders.RestrictedAnswerMove(folders.ContentDashboard, folders.AnswerRef{})
+	if !strings.Contains(err.Error(), "this dashboard holds an answer that read data only Admins can query") {
+		t.Fatalf("message = %q", err.Error())
+	}
+}
+
+func TestRestrictedAnswerRefusalTellsAnAdminWhatToDo(t *testing.T) {
+	msg := folders.ErrRestrictedAnswer.Error()
+	if strings.Contains(strings.ToLower(msg), "ask an admin") || !strings.Contains(msg, "Audit folder") {
+		t.Fatalf("message = %q", msg)
 	}
 }

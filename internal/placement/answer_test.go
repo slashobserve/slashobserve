@@ -247,3 +247,20 @@ func TestARunInFlightKeepsWhatItIsAboutWhereOnlyAdminsReadUntilItEnds(t *testing
 		})
 	}
 }
+
+func TestAMoveRefusedForARestrictedAnswerNamesTheRunThatCausedIt(t *testing.T) {
+	r := newHoldersRig(t)
+	g := New(nil)
+	general := r.uuid(t, r.scalar(t, `SELECT id::text FROM folders WHERE general`))
+	id := r.observation(t, foldertest.AdminsOnly(t, r.d, "named answer"))
+	run := r.run(t, true)
+	r.d.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2::uuid WHERE id = $1::uuid`, run, id)
+
+	err := g.MoveObservation(t.Context(), r.d.Queries(), r.uuid(t, id), general)
+	if !errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("moving it to General: err = %v, want the restricted answer refusal", err)
+	}
+	if !strings.Contains(err.Error(), `the answer to "who changed it" (run `+run+`)`) {
+		t.Fatalf("message = %q, want it to name the answer", err.Error())
+	}
+}

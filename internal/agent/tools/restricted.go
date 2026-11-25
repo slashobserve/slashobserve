@@ -10,7 +10,7 @@ const (
 	codeProvisioned       = folders.CodeProvisioned
 	codeRestrictedContent = folders.CodeRestrictedContent
 	provisionedHint       = " (" + nameDuplicateDashboard + " makes an editable copy)"
-	restrictedContentHint = "; use a folder whose admins_only is true (see " + nameListFolders + "), or ask an Admin to set a folder to Only Admins with `observe folders permissions admins-only`"
+	restrictedContentHint = "; use a folder whose admins_only is true (see " + nameListFolders + "), or set a folder to Only Admins with `observe folders permissions admins-only`"
 )
 
 func restrictedRefusal(err error) (Result, bool) {
