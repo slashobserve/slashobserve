@@ -178,6 +178,12 @@ function closedProposalText(item: InboxItem): ItemText {
   }
 }
 
+function failedRunObject(item: InboxItem): string {
+  const title = titleOf(item)
+  if (item.question === null) return title ?? kindWords[item.target.kind]
+  return title === null ? item.question : `${title}: ${item.question}`
+}
+
 export function itemText(item: InboxItem): ItemText {
   const actor = item.actor.label
   if (item.type === "run.succeeded" && item.reason === "repaired") {
@@ -219,7 +225,7 @@ export function itemText(item: InboxItem): ItemText {
       return {
         actor: "",
         verb: "Your run failed on",
-        object: titleOf(item) ?? kindWords[item.target.kind],
+        object: failedRunObject(item),
       }
     default:
       return {

@@ -64,6 +64,7 @@ func replyForRun(ctx context.Context, q *dbsqlc.Queries, run dbsqlc.AgentRequest
 		RunID:        run.ID,
 
 		RunAssignedKind: run.AssignedKind,
+		RunFailed:       revisions.State(run.State) == revisions.StateFailed,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
