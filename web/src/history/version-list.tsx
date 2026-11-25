@@ -1,18 +1,16 @@
+import { useMemo } from "react"
 import { Link } from "@tanstack/react-router"
 
 import { AgentMark } from "@/components/agent-mark"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import {
+  dataCell,
+  skeletonRows,
+  type SkeletonRow,
+} from "@/components/data-grid/skeleton-cell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { dashboardSearchFromBack } from "@/dashboards/search"
 import { formatDateTime, formatRelative } from "@/lib/time"
 import { cn } from "@/lib/utils"
@@ -28,11 +26,6 @@ type Props = {
   onCompare: (version: number) => void
   onRestored: () => void
 }
-
-const skeletonRows = 5
-const rowLayout =
-  "max-sm:flex max-sm:flex-wrap max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-1.5 max-sm:px-2 max-sm:py-3"
-const cellLayout = "max-sm:p-0"
 
 function Author({ meta }: { meta: VersionMeta }) {
   if (meta.agent_request_id === null) return meta.actor.label
@@ -52,109 +45,128 @@ function Author({ meta }: { meta: VersionMeta }) {
   )
 }
 
-function VersionRow({
+type Row = { kind: "version"; id: string; meta: VersionMeta } | SkeletonRow
+
+function versionColumns({
   dashboardId,
-  meta,
   latestVersion,
   back,
   onCompare,
   onRestored,
-}: Props & { meta: VersionMeta }) {
-  const latest = meta.version === latestVersion
-  return (
-    <TableRow className={rowLayout}>
-      <TableCell className={cellLayout}>
+}: Props): DataGridColumn<Row>[] {
+  return [
+    {
+      id: "version",
+      header: "Version",
+      width: 190,
+      autoHeight: true,
+      cell: dataCell<Row, "version">("version", "h-5 w-10", ({ meta }) => (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium tabular-nums">v{meta.version}</span>
-          {latest ? <Badge variant="secondary">Latest</Badge> : null}
+          {meta.version === latestVersion ? (
+            <Badge variant="secondary">Latest</Badge>
+          ) : null}
           {meta.restored_from !== null ? (
             <Badge variant="outline">Restored from v{meta.restored_from}</Badge>
           ) : null}
         </div>
-      </TableCell>
-      <TableCell
-        className={`${cellLayout} wrap-anywhere whitespace-normal max-sm:w-full`}
-      >
-        {meta.summary}
-      </TableCell>
-      <TableCell className={`${cellLayout} wrap-anywhere whitespace-normal`}>
-        <Author meta={meta} />
-      </TableCell>
-      <TableCell className={`${cellLayout} text-muted-foreground`}>
-        <time
-          dateTime={meta.created_at}
-          title={formatDateTime(meta.created_at)}
-        >
-          {formatRelative(meta.created_at)}
-        </time>
-      </TableCell>
-      <TableCell className={`${cellLayout} max-sm:mt-1 max-sm:w-full`}>
-        <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
-          <Link
-            {...dashboardLink(dashboardId)}
-            search={
-              latest
-                ? dashboardSearchFromBack(back, { dropVersion: true })
-                : {
-                    ...dashboardSearchFromBack(back, { dropVersion: true }),
-                    version: meta.version,
-                  }
-            }
-            aria-label={`View version ${meta.version}`}
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "-ml-[11px]"
+      )),
+    },
+    {
+      id: "summary",
+      header: "Summary",
+      minWidth: 200,
+      flex: 2,
+      autoHeight: true,
+      cell: dataCell<Row, "version">(
+        "version",
+        "h-5 w-40 max-w-full",
+        ({ meta }) => <span className="wrap-anywhere">{meta.summary}</span>
+      ),
+    },
+    {
+      id: "author",
+      header: "Author",
+      minWidth: 160,
+      flex: 1,
+      autoHeight: true,
+      cell: dataCell<Row, "version">("version", "h-5 w-20", ({ meta }) => (
+        <span className="wrap-anywhere">
+          <Author meta={meta} />
+        </span>
+      )),
+    },
+    {
+      id: "saved",
+      header: "Saved",
+      width: 110,
+      cell: dataCell<Row, "version">("version", "h-5 w-16", ({ meta }) => (
+        <span className="text-muted-foreground">
+          <time
+            dateTime={meta.created_at}
+            title={formatDateTime(meta.created_at)}
+          >
+            {formatRelative(meta.created_at)}
+          </time>
+        </span>
+      )),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      width: 250,
+      action: true,
+      cell: dataCell<Row, "version">("version", "h-7 w-32", ({ meta }) => {
+        const latest = meta.version === latestVersion
+        return (
+          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
+            <Link
+              {...dashboardLink(dashboardId)}
+              search={
+                latest
+                  ? dashboardSearchFromBack(back, { dropVersion: true })
+                  : {
+                      ...dashboardSearchFromBack(back, { dropVersion: true }),
+                      version: meta.version,
+                    }
+              }
+              aria-label={`View version ${meta.version}`}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "-ml-[11px]"
+              )}
+            >
+              View
+            </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={`Compare version ${meta.version} with ${
+                meta.version === 1
+                  ? "an empty dashboard"
+                  : `version ${meta.version - 1}`
+              }`}
+              onClick={() => onCompare(meta.version)}
+            >
+              Compare
+            </Button>
+            {latest ? null : (
+              <RestoreVersionButton
+                dashboardId={dashboardId}
+                version={meta.version}
+                latestVersion={latestVersion}
+                onRestored={onRestored}
+              />
             )}
-          >
-            View
-          </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={`Compare version ${meta.version} with ${
-              meta.version === 1
-                ? "an empty dashboard"
-                : `version ${meta.version - 1}`
-            }`}
-            onClick={() => onCompare(meta.version)}
-          >
-            Compare
-          </Button>
-          {latest ? null : (
-            <RestoreVersionButton
-              dashboardId={dashboardId}
-              version={meta.version}
-              latestVersion={latestVersion}
-              onRestored={onRestored}
-            />
-          )}
-        </div>
-      </TableCell>
-    </TableRow>
-  )
+          </div>
+        )
+      }),
+    },
+  ]
 }
 
-function SkeletonRows() {
-  return Array.from({ length: skeletonRows }, (_, index) => (
-    <TableRow key={index} className={`${rowLayout} hover:bg-transparent`}>
-      <TableCell className={cellLayout}>
-        <Skeleton className="h-5 w-10" />
-      </TableCell>
-      <TableCell className={`${cellLayout} max-sm:w-full`}>
-        <Skeleton className="h-5 w-40 max-w-full" />
-      </TableCell>
-      <TableCell className={cellLayout}>
-        <Skeleton className="h-5 w-20" />
-      </TableCell>
-      <TableCell className={cellLayout}>
-        <Skeleton className="h-5 w-16" />
-      </TableCell>
-      <TableCell className={`${cellLayout} max-sm:w-full`}>
-        <Skeleton className="h-7 w-32" />
-      </TableCell>
-    </TableRow>
-  ))
-}
+const rowId = (row: Row) => row.id
+const skeleton = skeletonRows(5)
 
 export function VersionList({
   dashboardId,
@@ -164,7 +176,28 @@ export function VersionList({
   onRestored,
 }: Props) {
   const query = useVersionHistory(dashboardId)
-  const versions = query.data?.pages.flatMap((page) => page.versions) ?? []
+  const rows = useMemo<Row[]>(
+    () =>
+      query.data?.pages
+        .flatMap((page) => page.versions)
+        .map((meta) => ({
+          kind: "version",
+          id: String(meta.version),
+          meta,
+        })) ?? [],
+    [query.data]
+  )
+  const columns = useMemo(
+    () =>
+      versionColumns({
+        dashboardId,
+        latestVersion,
+        back,
+        onCompare,
+        onRestored,
+      }),
+    [dashboardId, latestVersion, back, onCompare, onRestored]
+  )
   const loadMoreFailed = query.isFetchNextPageError
 
   return (
@@ -189,38 +222,13 @@ export function VersionList({
         </Alert>
       ) : null}
       {query.isError && !query.data ? null : (
-        <Table
-          aria-label="Versions"
-          aria-busy={query.isPending}
-          className="max-sm:block max-sm:[&_tbody]:block max-sm:[&_thead]:hidden"
-        >
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Version</TableHead>
-              <TableHead>Summary</TableHead>
-              <TableHead>Author</TableHead>
-              <TableHead>Saved</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {query.isPending ? (
-              <SkeletonRows />
-            ) : (
-              versions.map((meta) => (
-                <VersionRow
-                  key={meta.version}
-                  dashboardId={dashboardId}
-                  meta={meta}
-                  latestVersion={latestVersion}
-                  back={back}
-                  onCompare={onCompare}
-                  onRestored={onRestored}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataGrid
+          label="Versions"
+          busy={query.isPending}
+          rows={query.isPending ? skeleton : rows}
+          columns={columns}
+          rowId={rowId}
+        />
       )}
       {query.hasNextPage ? (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
