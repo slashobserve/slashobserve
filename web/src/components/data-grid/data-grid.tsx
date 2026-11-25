@@ -38,6 +38,7 @@ import {
 import { gridTheme } from "./theme"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
+import { useWidth } from "./use-width"
 
 const modules = [
   ClientSideRowModelModule,
@@ -58,6 +59,7 @@ export type DataGridColumn<T> = {
   autoHeight?: boolean
   action?: boolean
   headerCell?: () => ReactNode
+  hideBelow?: number
 }
 
 export type DataGridSort = {
@@ -162,7 +164,7 @@ export function DataGrid<T>({
   label,
   labelledBy,
   rows,
-  columns,
+  columns: allColumns,
   rowId,
   sort = null,
   onSort,
@@ -193,6 +195,18 @@ export function DataGrid<T>({
 }) {
   const narrow = useNarrow()
   const containerRef = useRef<HTMLDivElement>(null)
+  const hides = allColumns.some((column) => column.hideBelow !== undefined)
+  const width = useWidth(containerRef, hides && !narrow)
+  const columns = useMemo(
+    () =>
+      width === 0
+        ? allColumns
+        : allColumns.filter(
+            (column) =>
+              column.hideBelow === undefined || width >= column.hideBelow
+          ),
+    [allColumns, width]
+  )
   const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)

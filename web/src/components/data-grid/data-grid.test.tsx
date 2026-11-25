@@ -332,6 +332,65 @@ describe("DataGrid", () => {
     ).toBeInTheDocument()
   })
 
+  describe("hideBelow", () => {
+    const hiding = columns.map((column) =>
+      column.id === "owner" ? { ...column, hideBelow: 900 } : column
+    )
+
+    function widthOfGrid(width: number) {
+      return vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: HTMLElement) {
+          const grid = this.hasAttribute("data-layout")
+          return { width: grid ? width : 0 } as DOMRect
+        })
+    }
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it("drops the column while the grid is narrower than its limit", async () => {
+      widthOfGrid(800)
+      render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      await screen.findByRole("columnheader", { name: "Name" })
+      expect(screen.queryByRole("columnheader", { name: "Owner" })).toBeNull()
+    })
+
+    it("keeps the column at its limit and while the width is unknown", async () => {
+      widthOfGrid(900)
+      const { unmount } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      expect(
+        await screen.findByRole("columnheader", { name: "Owner" })
+      ).toBeInTheDocument()
+      unmount()
+      widthOfGrid(0)
+      render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      expect(
+        await screen.findByRole("columnheader", { name: "Owner" })
+      ).toBeInTheDocument()
+    })
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid
