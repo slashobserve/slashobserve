@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { contextSourcesQuery } from "./context-sources/queries"
 import { McpSourcesSection } from "./context-sources/sources-table"
 import type { DatasourceType } from "./draft"
 import { DatasourcePanel } from "./datasource-panel"
 import { DatasourceTable } from "./datasource-table"
+import { datasourcesQuery } from "./queries"
 
 type Target =
   { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
@@ -21,11 +24,18 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
   const trigger = useRef<HTMLElement | null>(null)
   const mcpHeading = useRef<HTMLHeadingElement>(null)
 
+  const datasourcesPending = useQuery(datasourcesQuery()).isPending
+  const mcpPending = useQuery(contextSourcesQuery()).isPending
+  const settled = !datasourcesPending && !mcpPending
+
   useEffect(() => {
-    if (!focusMcpSources) return
-    mcpHeading.current?.scrollIntoView({ block: "start" })
-    mcpHeading.current?.focus({ preventScroll: true })
-  }, [focusMcpSources])
+    if (!focusMcpSources || !settled) return
+    const frame = requestAnimationFrame(() => {
+      mcpHeading.current?.scrollIntoView({ block: "start" })
+      mcpHeading.current?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focusMcpSources, settled])
 
   function open(next: Target, from: HTMLElement) {
     trigger.current = from
@@ -40,11 +50,6 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
   function pickNative(type: DatasourceType) {
     setAddingMcp(false)
     setTarget({ mode: "create", type })
-  }
-
-  function addMcp(from: HTMLElement) {
-    trigger.current = from
-    setAddingMcp(true)
   }
 
   return (
@@ -80,7 +85,6 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
           Datasources
         </h2>
         <DatasourceTable
-          onAdd={(from) => open({ mode: "create" }, from)}
           onEdit={(uid, from) => open({ mode: "edit", uid }, from)}
         />
         <p className="mt-3 text-xs text-muted-foreground">
@@ -88,12 +92,11 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
           and header values never leave the server.
         </p>
       </section>
-      <div className="mt-10">
+      <div className={cn("mt-10", focusMcpSources && "min-h-dvh")}>
         <McpSourcesSection
           headingRef={mcpHeading}
           adding={addingMcp}
           addTrigger={trigger}
-          onAddMcp={addMcp}
           onAddClose={() => setAddingMcp(false)}
           onPickNative={pickNative}
         />
