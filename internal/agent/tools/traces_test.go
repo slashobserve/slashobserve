@@ -288,7 +288,7 @@ func TestTraceStatsAlignsTheRangeAndCapsTheBuckets(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("tool error: %#v", res.Content)
 	}
-	if want := "Read trace stats on tempo: 42 spans, p95 120.4 ms"; res.Step != want {
+	if want := "Read trace stats on tempo: 42 spans, p95 120.4 ms in the peak bucket"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 	body, err := json.Marshal(res.Content)
@@ -312,6 +312,64 @@ func TestTraceStatsAlignsTheRangeAndCapsTheBuckets(t *testing.T) {
 	}
 	if got := errorCode(t, res); got != codeInvalidRequest {
 		t.Fatalf("code = %q", got)
+	}
+}
+
+func TestTraceStatsReportsTheWholeWindowAndGroups(t *testing.T) {
+	r, ds := newTraceRig(t)
+	bucketP95, windowP95, p50, p99 := 900.0, 410.5, 33.1, 1200.0
+	ds.statsFn = func(_ context.Context, req datasource.TraceStatsRequest) (datasource.TraceStats, error) {
+		return datasource.TraceStats{
+			Step: req.Step, Spans: 10, Errors: 2,
+			Buckets: []datasource.TraceBucket{{Start: req.Range.From, Spans: 10, Errors: 2, P95: &bucketP95}},
+			Window:  &datasource.TraceQuantiles{P50: &p50, P95: &windowP95, P99: &p99},
+			GroupBy: req.GroupBy,
+			Groups: []datasource.TraceGroup{
+				{Value: "checkout", Spans: 7, Errors: 2, TraceQuantiles: datasource.TraceQuantiles{P99: &p99}},
+				{Value: "cart", Spans: 3},
+			},
+			GroupsTruncated: true,
+		}, nil
+	}
+	res, err := call(t, r, nameTraceStats, `{"datasource":"tempo","query":"{}","group_by":"resource.service.name"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("err = %v, result = %#v", err, res.Content)
+	}
+	if want := "Read trace stats on tempo: 10 spans, p95 410.5 ms"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+	if got := ds.stats[0].GroupBy; got != "resource.service.name" {
+		t.Fatalf("group by = %q", got)
+	}
+	body, err := json.Marshal(res.Content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"window":{"p50_ms":33.1,"p95_ms":410.5,"p99_ms":1200}`,
+		`"group_by":"resource.service.name"`,
+		`"groups":[{"value":"checkout","spans":7,"errors":2,"p50_ms":null,"p95_ms":null,"p99_ms":1200},{"value":"cart","spans":3,"errors":0,"p50_ms":null,"p95_ms":null,"p99_ms":null}]`,
+		`"groups_truncated":true`,
+		`"note":"Tempo quantiles are interpolated from its log-scale duration buckets, so treat them as approximate.`,
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("body = %s\nmissing %s", body, want)
+		}
+	}
+}
+
+func TestTraceStatsKeepsADatasourceNoteWithoutAWindow(t *testing.T) {
+	r, ds := newTraceRig(t)
+	ds.statsFn = func(context.Context, datasource.TraceStatsRequest) (datasource.TraceStats, error) {
+		return datasource.TraceStats{Note: "per bucket only"}, nil
+	}
+	res, err := call(t, r, nameTraceStats, `{"datasource":"tempo","query":"x","group_by":"service"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("err = %v, result = %#v", err, res.Content)
+	}
+	body, _ := json.Marshal(res.Content)
+	if !strings.Contains(string(body), `"note":"per bucket only"`) || strings.Contains(string(body), `"window"`) || res.Step != "Read trace stats on tempo: 0 spans, p95 n/a" {
+		t.Fatalf("step = %q, body = %s", res.Step, body)
 	}
 }
 
