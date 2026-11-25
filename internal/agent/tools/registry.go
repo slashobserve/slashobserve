@@ -532,12 +532,13 @@ func trimmedSave(content any, limit int) (any, bool) {
 		c.Panels, _ = fit(panels, limit-jsonSize(c))
 		return c, jsonSize(c) <= limit
 	case buildOut:
-		changed := c.ChangedPanels
-		c.ChangedPanels = []panelOut{}
+		changed, reverified := c.ChangedPanels, c.Reverified
+		c.ChangedPanels, c.Reverified = []panelOut{}, nil
 		if jsonSize(c) > limit {
 			c.Layout = nil
 		}
 		c.ChangedPanels, _ = fit(changed, limit-jsonSize(c))
+		c.Reverified, _ = fit(reverified, limit-jsonSize(c)-len(`,"reverified":[]`))
 		return c, jsonSize(c) <= limit
 	}
 	return nil, false
