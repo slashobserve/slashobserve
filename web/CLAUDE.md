@@ -153,7 +153,7 @@ The rules below are how the code applies it.
   App pages fill the content width like the dashboards list; Home and the chat pages centre a 720 reading column, and the side panel is always 384.
 - Type sizes are 12 for hints, 13 for secondary text, 14 for body, 15 for document text, 20 for page titles and 28 for document titles.
 - Under 1200 the sidebar folds to icons.
-  Under 1100 the side panel and margin comments drop below the content, and Inbox shows the list alone.
+  Under 1100 the side panel and margin comments drop below the content.
   Under 900 the sidebar becomes a top bar, tiles go two across and panels go full width; `narrow` and the `matchMedia` phone queries use this one breakpoint.
 - Colour is one teal accent for the main action, the slash, the built-in agent, selection and unread.
   People get a tint, status keeps green, amber and red, and blue, orange and green belong to chart data only.
