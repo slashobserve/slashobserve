@@ -148,7 +148,7 @@ func (q Query) Follow(w Window, after Position, limit int) (Compiled, error) {
 	sql := "SELECT " + strings.Join(columns, ", ") + " FROM " + tableName + " WHERE " + where +
 		" AND xid < pg_snapshot_xmin(pg_current_snapshot())" +
 		" AND (xid, seq) > (" + b.add(strconv.FormatUint(after.Xid, 10)) + "::text::xid8, " + b.add(after.Seq) + "::bigint)" +
-		" ORDER BY xid, seq LIMIT " + b.add(limit)
+		" ORDER BY " + tableName + ".xid, " + tableName + ".seq LIMIT " + b.add(limit)
 	return Compiled{SQL: sql, Args: b.args, Columns: columns, Limit: limit}, nil
 }
 

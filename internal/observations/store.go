@@ -81,7 +81,7 @@ func (s *store) findingFields(ctx context.Context, observationID pgtype.UUID) ([
 	}
 	out := make([]RunFields, len(rows))
 	for i, r := range rows {
-		out[i] = RunFields{RunID: r.AgentRequestID.String(), Fields: findings.StructuredOf(r)}
+		out[i] = RunFields{RunID: r.AgentRequestID.String(), Fields: findings.StructuredOf(r), Unverified: findings.UnverifiedOf(r.Unverified)}
 	}
 	return out, nil
 }
