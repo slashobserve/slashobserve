@@ -100,6 +100,14 @@ describe("madeAnswer", () => {
     )
   })
 
+  test("escapes backslashes and brackets in a title", () => {
+    expect(
+      madeAnswer([
+        { tool: "create_folder", title: "a\\[b]\\", url: "http://app/f/1" },
+      ])
+    ).toContain("- Create folder: [a\\\\\\[b\\]\\\\](http://app/f/1)")
+  })
+
   test("counts what is past the line cap", () => {
     const made = Array.from({ length: maxMadeLines + 2 }, () => ({
       tool: "add_block",
