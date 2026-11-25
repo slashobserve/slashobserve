@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"strings"
 	"sync"
@@ -66,7 +65,7 @@ type callRig struct {
 func newCallRig(t *testing.T, limits Limits) *callRig {
 	t.Helper()
 	connector := &scriptedConnector{}
-	service := New(Deps{Key: testKey, Connector: connector, Limits: limits, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	service := New(Deps{Key: testKey, Connector: connector, Limits: limits, Logger: slog.New(slog.DiscardHandler)})
 	row := dbsqlc.ContextSource{ID: newID(), Uid: "code", Name: "Code", Url: "https://" + fakeHost + "/mcp", Audience: string(datasource.AudienceEveryone)}
 	return &callRig{service: service, connector: connector, row: row, attempt: &callAttempt{uid: row.Uid, tool: "search", row: row, known: true}}
 }
@@ -408,7 +407,9 @@ func TestLongNestedAndPasswordArgumentsAreSummarisedOrMasked(t *testing.T) {
 
 func TestACallEventCarriesSourceToolAndDurationAndNoResult(t *testing.T) {
 	r := newCallRig(t, Limits{})
-	r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"checkout","token":"abc-123"}`, approvedSearch(t, ToolApproved))
+	if _, err := r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"checkout","token":"abc-123"}`, approvedSearch(t, ToolApproved)); err != nil {
+		t.Fatal(err)
+	}
 	event := callEvent(*r.attempt, nil, 42*time.Millisecond)
 	raw, _ := json.Marshal(event.Data)
 	if event.Action != actionCall || event.Outcome != audit.OutcomeSuccess || event.Duration != 42*time.Millisecond || event.Target.ID != "code" || event.Target.Name != "Code" {
