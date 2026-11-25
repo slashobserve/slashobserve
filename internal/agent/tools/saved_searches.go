@@ -149,7 +149,9 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	if err != nil {
 		return savedSearchFailure(err)
 	}
-	return success("Saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
+	res = success("Saved search "+saved.ID, savedsearches.JSONOf(saved))
+	res.Created = []string{saved.ID}
+	return res, nil
 }
 
 func (r *Registry) updateSavedSearch(ctx context.Context, input json.RawMessage) (Result, error) {

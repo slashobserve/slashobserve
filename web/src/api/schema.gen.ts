@@ -6472,7 +6472,7 @@ export interface components {
             /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
-            phase: "discover" | "lint" | "query" | "save" | "repair";
+            phase: "discover" | "lint" | "query" | "save" | "write" | "repair";
             tool: string;
             /** @enum {string} */
             status: "ok" | "error";
