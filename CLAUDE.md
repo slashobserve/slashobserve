@@ -109,7 +109,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
   `web/bunfig.toml` and `observe-agent/bunfig.toml` enforce both for npm packages; Go dependencies are exact in `go.mod`.
 - `go.mod` has `ignore ./web` so `./...` skips the frontend's `node_modules`; keep it (requires Go 1.25 or newer).
 - Dev tools run as `go tool -modfile=tools/<tool>/go.mod <tool>`; bump one with `go get -modfile=tools/<tool>/go.mod -tool <package>@<version>`; never run `go mod tidy` against a tool modfile.
-- `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it.
+- `mark3labs/mcp-go` serves `/mcp`, and only `internal/server/mcp` imports it as a server; `internal/contextsources` is the one place that imports it as a client.
 - The model clients are `anthropic-sdk-go` and `openai-go/v3` for draft queries, and `ai`, `@ai-sdk/anthropic` and `@ai-sdk/openai-compatible` for observe-agent; each side retries in one place.
   Adapters stream, retry in one place (`llm.Retry`, the SDKs' retries off) and keep provider history append-only except `Session.Compact`; request-side pruning changes only what is sent.
   They pass Anthropic responses back with `Message.ToParam()` so thinking blocks stay intact (compaction drops thinking only from older kept turns).
@@ -145,6 +145,8 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - A webhook is an Admin's decision: no agent or MCP tool reads, creates, changes, tests or deletes one.
 - Connecting an MCP client is a person's decision on the consent page: no agent, MCP tool or key approves, lists or disconnects one.
 - A Grafana connection stores a credential and is the same kind of decision: no agent, MCP tool or key creates, changes, tests or deletes one.
+- A context source is an Admin's decision: no agent or MCP tool registers, changes, discovers or deletes one, or approves one of its tools, and discovery never approves anything.
+  A tool is approved by its hash, and a changed definition stops being served until an Admin approves it again.
 - Every query the agent runs is time-bounded and limited (series, rows, points, timeout) on the server, whatever the prompt says.
 - Tools are defined once in `internal/agent/tools`, with one description per tool and per parameter; MCP and the built-in agent read the same text except the six named variants in `wording.go` (`guide`, `folder`, `run target`, `restricted titles`, `left out`, `build`; `restricted titles` gives `list_dashboards`, `list_folders` and `list_observations` their in-run `include_restricted`, and `left out` drops the names of tools no run has), and `TestSurfacesDifferOnlyByNamedVariants` fails on any other difference; runs offer every tool except the 21 of `leftOutOfRuns`, which are MCP-only: the claim tools (`claim_run`, `report_run`, `finish_run`, `get_run_brief`), the comment writes (`create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment`, `reopen_comment`), `start_run`, `retry_run`, `cancel_run`, `restore_dashboard_version`, `make_dashboard`, `duplicate_dashboard`, `merge_proposal`, `draft_query`, `share_answer`, `apply_suggested_change`, `save_run_answer` and `run_dashboard_health`.
   A suggest run gets no writes and an investigate run no Spec writers; a run never starts, retries or cancels a run, and `get_spec_guide` returns only the JSON Schema inside a run, because the guide and example are in the agent's system text.

@@ -1792,6 +1792,37 @@ It exits 1 when any dashboard failed or the import failed or was canceled, and `
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
 
+### Context sources
+
+An Admin registers MCP servers for the agent and approves their tools with `observe context`; see [Context sources](../operate/context-sources.md).
+
+```sh
+printf '%s' "$DOCS_TOKEN" | observe context add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
+observe context discover docs
+observe context tools docs
+observe context approve docs search
+observe context approve docs --all-read-only
+observe context revoke docs search
+```
+
+- `list [uid]` prints every source with its state, audience and tool counts, or one source in full.
+  It never prints a secret, only whether one is set and the header that carries it.
+- `add <uid> --url <address>` registers a source and asks the server nothing.
+  `--name`, `--audience` (`everyone` or `admins`), `--secret-header` and `--secret-stdin` complete it.
+  The secret comes from standard input and needs `--secret-header`, which needs `--secret-stdin` in turn.
+- `edit <uid>` changes the flags you pass, takes `--clear-secret`, and needs at least one flag.
+  A new host needs `--secret-stdin` again, or `--clear-secret`.
+- `remove <uid>` deletes the source, its tools and its secret.
+- `discover <uid>` lists the server's tools and prints how many are new, changed, gone or ignored.
+  It exits 1 and prints the failure when the server could not be asked.
+- `tools <uid>` prints each tool with its state and its refusal.
+- `approve <uid> <tool>` approves one tool as it is listed now, and fails when the server changed it since.
+  `approve <uid> --all-read-only` approves every tool still to review.
+  A refused tool cannot be approved.
+- `revoke <uid> <tool>` withdraws an approval.
+
+Every command takes `--json` to print the API response, and needs an Admin key.
+
 ### Webhooks
 
 `observe webhooks` manages the [webhooks](webhooks.md) that send workspace activity to an outside address as signed requests.

@@ -147,6 +147,15 @@ See [Roles](../teams/roles.md).
 Unset means no datasources from a file.
 An Admin can still [add them in the app](../connect/datasources-in-the-app.md).
 
+## Context sources
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_CONTEXT_SOURCES_FILE` | unset | Path to a YAML file of [context sources](../operate/context-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
+
+Unset means no context sources from a file.
+An Admin can still add them in the app.
+
 ## Service accounts
 
 | Variable | Default | What it does |
