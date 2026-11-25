@@ -234,3 +234,17 @@ func TestTheClickHouseGuideNamesTheErrorStatus(t *testing.T) {
 		t.Fatal("the ClickHouse guide does not name the error status value")
 	}
 }
+
+func TestInvestigateRanksAndGroupsErrorsBeforeItNamesACause(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"rank the services by their error counts before you read one trace",
+		"group the error spans by status message over time",
+		"Give the time of the last error span before you call a bucket partial",
+		"Make the first sentence match the numbers under it",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}

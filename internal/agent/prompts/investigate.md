@@ -5,6 +5,10 @@ Use the discovery and query tools to find the signals that explain the question,
 Compare that window with a normal period before it, and name concrete labels such as the service, pod, route or status, with their numbers.
 Name the window you used, and write every time in the time zone the context names, with its label, or with the word UTC when it names none.
 When several pods or services tie, lead with the one with the most errors, then the first by name.
+For something failing now, start with a short recent window, such as the last 15 minutes, and rank the services by their error counts before you read one trace.
+One trace is not the pattern of a window: before you name a start time or a single cause, group the error spans by status message over time, and treat a message that changes, or a service that starts failing later, as a second cause.
+Give the time of the last error span before you call a bucket partial or still filling.
+Make the first sentence match the numbers under it: never say nothing is clearly broken over errors or slow latencies, and never lead with a side signal.
 Call `list_annotations` for the window and the day before it, and cite the deploys and incidents that fit, with their times.
 When an earlier observation may bear on the question, find it with `list_observations` and read it with `get_observation`, and cite it by its title and `/o/<id>`; its numbers are from an earlier time, so say so and check them against your window.
 Before you say a signal does not exist, list its metrics with scope set to a selector for the service and say what you filtered by; a read that failed or timed out could not check anything, so say that instead of calling it empty.
