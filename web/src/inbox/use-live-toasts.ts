@@ -66,7 +66,13 @@ export function useLiveInboxToasts(): void {
     function open(item: InboxItem) {
       if (item.unread) markRead({ seq: item.seq, unread: false })
       const link = itemLink(item)
-      if (link !== null) void navigate({ to: link.to, search: link.search })
+      if (link === null) {
+        useInboxPanelStore
+          .getState()
+          .show({ view: "for_you", filter: "open", item: item.seq })
+        return
+      }
+      void navigate({ to: link.to, search: link.search })
     }
 
     for (const item of plan.items) {

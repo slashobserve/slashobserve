@@ -88,7 +88,8 @@ Three sections sit below the card, whichever tab is open.
 
 **Needs you** shows the three newest items of your [inbox](inbox.md) that have a reason.
 **Open Inbox** opens the Inbox panel on the right.
-Each row has an action button, and the row itself opens the item.
+Each row has an action button, and the row itself opens the item and marks it read.
+An item with no page of its own opens the Inbox panel with that item shown in full.
 
 | Item | Button |
 | --- | --- |

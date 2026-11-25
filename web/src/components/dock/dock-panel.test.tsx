@@ -221,4 +221,44 @@ describe("DockPanel", () => {
     act(() => useInboxPanelStore.getState().close())
     expect(container.querySelector("aside")).not.toBeVisible()
   })
+
+  it("closes the Inbox when another panel opens after it", () => {
+    setViewport(1440)
+    act(() => useInboxPanelStore.getState().show())
+    const { rerender } = render(
+      <DockPanel
+        hidden
+        labelledBy="t"
+        width={400}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked={false}
+      >
+        <h2 id="t">Activity</h2>
+      </DockPanel>
+    )
+    expect(useInboxPanelStore.getState().open).toBe(true)
+    rerender(
+      <DockPanel
+        labelledBy="t"
+        width={400}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked={false}
+      >
+        <h2 id="t">Activity</h2>
+      </DockPanel>
+    )
+    expect(useInboxPanelStore.getState().open).toBe(false)
+    expect(
+      screen.getByRole("complementary", { name: "Activity" })
+    ).toBeVisible()
+  })
+
+  it("closes the Inbox when another panel mounts open", () => {
+    setViewport(1440)
+    act(() => useInboxPanelStore.getState().show())
+    render(<Panel />)
+    expect(useInboxPanelStore.getState().open).toBe(false)
+  })
 })

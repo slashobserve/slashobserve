@@ -199,4 +199,28 @@ describe("useLiveInboxToasts", () => {
     await setItems(queryClient, key, [mention(8), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
   })
+
+  it("opens the panel on the item when it has no page of its own", async () => {
+    const { queryClient } = renderWithProviders(<Probe />, {
+      route: { path: "/", url: "/" },
+    })
+    const key = inboxKeys.list("for_you", "open")
+    const pageless = {
+      ...mention(6),
+      type: "user.invited",
+      reason: "proposal",
+      unread: false,
+      target: { kind: "user", id: "u9" },
+    } as InboxItem
+    await screen.findByText("mounted")
+    await setItems(queryClient, key, [mention(5)])
+    await setItems(queryClient, key, [pageless, mention(5)])
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+    act(() => toastMock.mock.calls[0][1].action.onClick())
+    const state = useInboxPanelStore.getState()
+    expect(state.open).toBe(true)
+    expect(state.item).toBe(6)
+    expect(state.view).toBe("for_you")
+    expect(state.filter).toBe("open")
+  })
 })

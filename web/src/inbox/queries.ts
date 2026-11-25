@@ -21,11 +21,17 @@ const pollMs = 15_000
 
 export const InboxStreamContext = createContext(false)
 
-export function forYouPollInterval(
+export function inboxPollInterval(
   streamed: boolean,
   visible: boolean
 ): number | false {
   return !streamed && visible ? pollMs : false
+}
+
+export function useInboxPollInterval(): number | false {
+  const streamed = useContext(InboxStreamContext)
+  const visible = useDocumentVisible()
+  return inboxPollInterval(streamed, visible)
 }
 
 export function inboxInfiniteQuery(
@@ -49,12 +55,10 @@ export function inboxInfiniteQuery(
 }
 
 export function useInboxForYou() {
-  const streamed = useContext(InboxStreamContext)
-  const visible = useDocumentVisible()
   return useInfiniteQuery({
     ...inboxInfiniteQuery("for_you"),
     staleTime: countStaleTime,
-    refetchInterval: forYouPollInterval(streamed, visible),
+    refetchInterval: useInboxPollInterval(),
   })
 }
 

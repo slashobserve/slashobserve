@@ -6,7 +6,7 @@ import { inboxChoice } from "@/inbox/inbox-views"
 export const Route = createFileRoute("/_authed/_shell/inbox")({
   beforeLoad: ({ search, preload }) => {
     if (!preload) {
-      useInboxPanelStore.getState().show(inboxChoice(search))
+      useInboxPanelStore.getState().showAfterNavigation(inboxChoice(search))
     }
     throw redirect({ to: "/", replace: true })
   },

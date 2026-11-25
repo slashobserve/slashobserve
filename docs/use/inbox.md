@@ -13,28 +13,31 @@ A service-account key gets 403 `user_session_required`, and the `observe` comman
 ## Work through your inbox
 
 1. Choose the bell at the top right of any page to open the Inbox panel on the right.
-   A badge on the bell shows the unread count, "99+" from 100, and it updates as activity arrives; on a dashboard it refreshes every 15 seconds.
+   A badge on the bell shows the unread count, "99+" from 100, and it updates as activity arrives; on a dashboard, a build or a dashboard's versions, the badge and the open panel refresh every 15 seconds.
    On a phone the bell is in the bar at the top, and on a narrow screen the panel opens as a sheet from the bottom.
 2. Read the **Needs you** group.
    Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
 3. Select an item to open it.
    Opening it marks it read, takes you to its dashboard, observation, proposal or chat, and closes the panel.
+   An item with no page of its own, such as a note on a dashboard that was deleted, opens in place instead: the row grows to show its whole text and is marked read, and selecting it again folds it back.
 4. Act on it there: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
 5. Mark the item done, with **Mark done**.
    A "Marked done" toast offers **Undo**.
 
 Opening the panel marks nothing read.
-**Escape** or **Close Inbox** closes it and puts focus back on the bell.
+**Escape** or **Close Inbox** closes it and puts focus back where you opened it from, or on the bell when that is gone.
 The command palette's **Inbox** and Home's **Open Inbox** open it too.
 The old address `/inbox` opens Home with the panel open, keeping its `view` and `filter`.
+With `item=<seq>` the panel also scrolls to that item, focuses and highlights it, and opens it in place when it has no page of its own.
 
 When something in **Needs you** arrives while the tab is visible and the panel is closed, a toast appears at the top right under the bell for eight seconds.
-Its **Open** action does what selecting the item does.
+Its **Open** action does what selecting the item does, and for an item with no page of its own it opens the panel on that item.
 More than three at once give one "N new in Inbox" toast whose **Open** opens the panel.
 Workspace activity never makes a toast, and neither do items that arrived before you opened the app.
 
-One right panel shows at a time.
-While the Inbox panel is open, the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, is hidden, and it comes back as it was when the Inbox closes.
+One right panel shows at a time, and the newest one wins.
+Opening the Inbox hides the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, and it comes back as it was when the Inbox closes.
+Opening another panel while the Inbox is open closes the Inbox, and so does moving to another page.
 
 Each row names who did what and the real title of the dashboard, observation or proposal.
 It shows the start of the comment for a mention or a reply, and has a dot while it is unread.
@@ -43,6 +46,7 @@ A connected agent keeps its own name, such as "Ada (via Claude Code)".
 
 The list refreshes when new activity arrives.
 Scrolling to the end fetches the next page, and arrow keys move through the rows.
+When a page fails to load, the panel stops fetching and shows **Retry** below the list.
 
 ## Choose what the list shows
 
@@ -58,7 +62,7 @@ The panel keeps the view and the filter until you reload the page.
 Two buttons at the right of a row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
 
 **Mark all read** marks the newest item in the list and everything older as read.
-It shows only while something is unread.
+It shows only in **For you** and **Everything**, and only while something is unread.
 
 ## What opens when you open an item
 

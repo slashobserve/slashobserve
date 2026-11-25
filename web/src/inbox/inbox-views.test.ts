@@ -12,9 +12,18 @@ describe("inboxChoice", () => {
 
   test("falls back to For you and Open for anything else", () => {
     expect(inboxChoice({})).toEqual({ view: "for_you", filter: "open" })
-    expect(inboxChoice({ view: "spam", filter: 3, item: "12" })).toEqual({
+    expect(inboxChoice({ view: "spam", filter: 3, item: "1e3" })).toEqual({
       view: "for_you",
       filter: "open",
     })
+  })
+
+  test("carries the item an old Inbox link pointed at", () => {
+    expect(inboxChoice({ item: "12" })).toEqual({
+      view: "for_you",
+      filter: "open",
+      item: 12,
+    })
+    expect(inboxChoice({ item: 12 })).toMatchObject({ item: 12 })
   })
 })

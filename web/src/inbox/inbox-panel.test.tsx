@@ -1,6 +1,7 @@
 import { act, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { inboxKeys } from "@/api/keys"
 import { InboxBell } from "@/shell/inbox-bell"
 import { PanelHostContext, SidePanel } from "@/shell/side-panel"
 import { renderWithProviders } from "@/test/render"
@@ -8,6 +9,7 @@ import { renderWithProviders } from "@/test/render"
 import type { InboxItem } from "./inbox-item"
 import { InboxPanel } from "./inbox-panel"
 import { useInboxPanelStore } from "./inbox-panel-store"
+import { InboxStreamContext } from "./queries"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -57,6 +59,17 @@ const mention = item({
   unread: true,
 })
 const activity = item({ seq: 9 })
+const longNote =
+  "The deploy at 14:02 moved the checkout pool to the new region. ".repeat(6)
+const note = item({
+  seq: 7,
+  type: "annotation.created",
+  target: { kind: "annotation", id: "8d1e3f2c-0b5a-4c7d-9e11-2a6b8c4d5e72" },
+  dashboard_id: null,
+  data: withData({ text: longNote }),
+  excerpt: longNote,
+  unread: true,
+})
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -68,11 +81,17 @@ function json(body: unknown, status = 200): Response {
 function mockServer({
   items = [mention, activity],
   unread = 1,
-}: { items?: InboxItem[]; unread?: number } = {}) {
+  nextPage,
+}: {
+  items?: InboxItem[]
+  unread?: number
+  nextPage?: () => Response
+} = {}) {
   const reads: unknown[] = []
   const states: { path: string; body: unknown }[] = []
   const views: (string | null)[] = []
   const filters: (string | null)[] = []
+  const cursors: string[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
@@ -85,21 +104,42 @@ function mockServer({
         states.push({ path: url.pathname, body: await request.clone().json() })
         return new Response(null, { status: 204 })
       }
+      const cursor = url.searchParams.get("cursor")
+      if (url.pathname === "/api/v1/inbox" && cursor !== null && nextPage) {
+        cursors.push(cursor)
+        return nextPage()
+      }
       if (url.pathname === "/api/v1/inbox") {
         views.push(url.searchParams.get("view"))
         filters.push(url.searchParams.get("filter"))
-        return json({ items, next_cursor: null, unread_count: unread })
+        return json({
+          items,
+          next_cursor: nextPage ? "page-2" : null,
+          unread_count: unread,
+        })
       }
       return json({ error: "unexpected", code: "unexpected" }, 500)
     })
   )
-  return { reads, states, views, filters }
+  return { reads, states, views, filters, cursors }
 }
 
-function Harness({ pagePanel = false }: { pagePanel?: boolean }) {
+function Harness({
+  pagePanel = false,
+  streamed = false,
+}: {
+  pagePanel?: boolean
+  streamed?: boolean
+}) {
   return (
-    <>
-      <InboxBell place="top" className="" badgeClassName="" />
+    <InboxStreamContext value={streamed}>
+      <button
+        type="button"
+        onClick={() => useInboxPanelStore.getState().show()}
+      >
+        Open from Home
+      </button>
+      <InboxBell className="" badgeClassName="" />
       <PanelHostContext.Provider value={document.getElementById("host")}>
         {pagePanel ? (
           <SidePanel title="History" onClose={() => {}}>
@@ -108,16 +148,25 @@ function Harness({ pagePanel = false }: { pagePanel?: boolean }) {
         ) : null}
         <InboxPanel />
       </PanelHostContext.Provider>
-    </>
+    </InboxStreamContext>
   )
 }
 
-function renderPanel(pagePanel = false) {
+function renderPanel(pagePanel = false, streamed = false) {
   const host = document.createElement("div")
   host.id = "host"
   document.body.append(host)
-  return renderWithProviders(<Harness pagePanel={pagePanel} />, {
-    route: { path: "/", url: "/" },
+  return renderWithProviders(
+    <Harness pagePanel={pagePanel} streamed={streamed} />,
+    { route: { path: "/", url: "/" } }
+  )
+}
+
+function findRow(seq: number): Promise<HTMLElement> {
+  return waitFor(() => {
+    const row = document.querySelector<HTMLElement>(`[data-inbox-row="${seq}"]`)
+    if (row === null) throw new Error(`no row ${seq}`)
+    return row
   })
 }
 
@@ -125,13 +174,26 @@ function openPanel() {
   act(() => useInboxPanelStore.getState().show())
 }
 
+const intersecting = { now: false }
+
 beforeEach(() => {
+  intersecting.now = false
   useInboxPanelStore.setState({ open: false, view: "for_you", filter: "open" })
   toasts.success.mockReset()
   vi.stubGlobal(
     "IntersectionObserver",
     class {
-      observe() {}
+      readonly callback: IntersectionObserverCallback
+      constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback
+      }
+      observe() {
+        if (intersecting.now)
+          this.callback(
+            [{ isIntersecting: true } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver
+          )
+      }
       disconnect() {}
     }
   )
@@ -288,5 +350,144 @@ describe("InboxPanel", () => {
     expect(screen.queryByRole("complementary", { name: "Inbox" })).toBeNull()
     expect(history).toBeVisible()
     expect(within(history).getByText("Version 3")).toBeTruthy()
+  })
+
+  it("stops loading more after a failed page and retries from a button below the list", async () => {
+    intersecting.now = true
+    let failures = 1
+    const server = mockServer({
+      nextPage: () =>
+        failures-- > 0
+          ? json({ error: "The inbox is busy.", code: "unavailable" }, 503)
+          : json({ items: [], next_cursor: null, unread_count: 1 }),
+    })
+    const { user } = renderPanel()
+    openPanel()
+
+    const problem = await screen.findByText("Could not load more of the inbox")
+    expect(server.cursors).toEqual(["page-2"])
+    expect(screen.getByRole("heading", { name: "Needs you" })).toBeTruthy()
+
+    await user.click(
+      within(problem.parentElement as HTMLElement).getByRole("button", {
+        name: "Retry",
+      })
+    )
+    await waitFor(() =>
+      expect(screen.queryByText("Could not load more of the inbox")).toBeNull()
+    )
+    expect(server.cursors).toEqual(["page-2", "page-2"])
+  })
+
+  it("expands an item with no page to open in place, marking it read", async () => {
+    const server = mockServer({ items: [mention, note] })
+    const { user } = renderPanel()
+    openPanel()
+    const row = await findRow(7)
+    expect(row).toHaveAttribute("aria-expanded", "false")
+    expect(within(row).getByText(longNote.trim())).toHaveClass("line-clamp-2")
+
+    await user.click(row)
+
+    expect(row).toHaveAttribute("aria-expanded", "true")
+    expect(within(row).getByText(longNote.trim())).not.toHaveClass(
+      "line-clamp-2"
+    )
+    expect(useInboxPanelStore.getState().open).toBe(true)
+    await waitFor(() =>
+      expect(server.states).toEqual([
+        { path: "/api/v1/inbox/items/7", body: { unread: false } },
+      ])
+    )
+
+    await user.click(row)
+    expect(row).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("focuses, highlights and expands the item it was opened on", async () => {
+    mockServer({ items: [mention, note] })
+    renderPanel()
+    act(() => useInboxPanelStore.getState().show({ item: 7 }))
+
+    const row = await findRow(7)
+    expect(row).toHaveAttribute("aria-expanded", "true")
+    expect(row).toHaveAttribute("aria-current", "true")
+    await waitFor(() => expect(row).toHaveFocus())
+    expect(row).toHaveAttribute("tabindex", "0")
+  })
+
+  it("focuses and highlights a linked item it was opened on without expanding it", async () => {
+    mockServer()
+    renderPanel()
+    act(() => useInboxPanelStore.getState().show({ item: 12 }))
+
+    const needs = await screen.findByRole("heading", { name: "Needs you" })
+    const row = within(needs.nextElementSibling as HTMLElement).getByRole(
+      "link"
+    )
+    expect(row).toHaveAttribute("aria-current", "true")
+    expect(row).not.toHaveAttribute("aria-expanded")
+    await waitFor(() => expect(row).toHaveFocus())
+  })
+
+  it.each(["proposals", "mentions"] as const)(
+    "offers no Mark all read in %s",
+    async (view) => {
+      mockServer({ unread: 2 })
+      renderPanel()
+      act(() => useInboxPanelStore.getState().show({ view }))
+      await screen.findByRole("heading", { name: "Needs you" })
+
+      expect(screen.queryByRole("button", { name: "Mark all read" })).toBeNull()
+    }
+  )
+
+  it("offers Mark all read in Everything", async () => {
+    mockServer({ unread: 2 })
+    renderPanel()
+    act(() => useInboxPanelStore.getState().show({ view: "everything" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Mark all read" })
+    ).toBeTruthy()
+  })
+
+  it.each([
+    { streamed: false, interval: 15_000 },
+    { streamed: true, interval: false },
+  ])(
+    "polls its own list only outside the shell (streamed $streamed)",
+    async ({ streamed, interval }) => {
+      mockServer()
+      const { queryClient } = renderPanel(false, streamed)
+      act(() => useInboxPanelStore.getState().show({ view: "mentions" }))
+      await screen.findByRole("heading", { name: "Needs you" })
+
+      const observer = queryClient
+        .getQueryCache()
+        .find({ queryKey: inboxKeys.list("mentions", "open") })?.observers[0]
+      expect(observer?.options.refetchInterval).toBe(interval)
+    }
+  )
+
+  it("returns focus on close to what opened it, or to the bell when that is gone", async () => {
+    mockServer()
+    const { user } = renderPanel()
+    const opener = await screen.findByRole("button", { name: "Open from Home" })
+
+    await user.click(opener)
+    await user.click(await screen.findByRole("button", { name: "Close Inbox" }))
+    expect(opener).toHaveFocus()
+
+    const gone = document.createElement("button")
+    document.body.append(gone)
+    gone.focus()
+    act(() => useInboxPanelStore.getState().show())
+    await screen.findByRole("complementary", { name: "Inbox" })
+    gone.remove()
+    await user.keyboard("{Escape}")
+    expect(
+      screen.getByRole("button", { name: "Inbox, 1 unread" })
+    ).toHaveFocus()
   })
 })
