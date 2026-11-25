@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
@@ -96,10 +95,7 @@ export function RunAnswer({
       findingId,
       crypto.randomUUID()
     )
-    if ("error" in plan) {
-      toast.error(plan.error)
-      return false
-    }
+    if ("error" in plan) return plan.error
     try {
       await deliver(plan)
       return true
@@ -107,8 +103,7 @@ export function RunAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(reviseFailureText(error))
-      return false
+      return reviseFailureText(error)
     }
   }
 

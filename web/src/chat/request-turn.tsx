@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
-import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
@@ -147,10 +146,7 @@ export function ChatAnswer({
 
   async function revise(): Promise<RevisionAsked> {
     const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
-    if ("error" in plan) {
-      toast.error(plan.error)
-      return false
-    }
+    if ("error" in plan) return plan.error
     try {
       const sent = await deliver(plan)
       if (sent.via === "chat") await onRevised(sent.request)
@@ -159,8 +155,7 @@ export function ChatAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(reviseFailureText(error))
-      return false
+      return reviseFailureText(error)
     }
   }
 
