@@ -220,6 +220,60 @@ describe("leaving the grid on Tab", () => {
     expect(after).toHaveFocus()
   })
 
+  it("skips controls that are out of the tab order or hidden", () => {
+    const { before, grid, rows } = page()
+    const removed = document.createElement("button")
+    removed.tabIndex = -1
+    const hidden = document.createElement("button")
+    hidden.setAttribute("aria-hidden", "true")
+    before.after(removed, hidden)
+    const event = tab(rows[0]!.cell, grid, true)
+    expect(event.defaultPrevented).toBe(true)
+    expect(before).toHaveFocus()
+  })
+
+  it("tabs from a textarea to the control after it in the same row before leaving", () => {
+    const { after, grid, rows } = page()
+    const cell = rows[0]!.cell
+    const field = document.createElement("textarea")
+    const save = document.createElement("button")
+    cell.replaceChildren(field, save)
+    field.focus()
+    expect(tab(field, grid).defaultPrevented).toBe(true)
+    expect(save).toHaveFocus()
+    expect(tab(save, grid).defaultPrevented).toBe(true)
+    expect(after).toHaveFocus()
+  })
+
+  it("treats a child of an editable region as that region", () => {
+    const { grid, rows } = page()
+    const cell = rows[0]!.cell
+    const editor = document.createElement("div")
+    editor.setAttribute("contenteditable", "true")
+    const word = document.createElement("b")
+    editor.append(word)
+    const save = document.createElement("button")
+    cell.replaceChildren(editor, save)
+    tab(word, grid)
+    expect(save).toHaveFocus()
+  })
+
+  it("leaves a nested grid's keys to the nested grid", () => {
+    const { after, grid, rows } = page()
+    const outer = document.createElement("div")
+    outer.setAttribute("role", "grid")
+    grid.replaceChildren(outer)
+    const inner = document.createElement("div")
+    inner.setAttribute("role", "grid")
+    const cell = document.createElement("div")
+    cell.className = "ag-cell"
+    inner.append(cell)
+    outer.append(rows[0]!.cell, inner)
+    const event = tab(cell, grid)
+    expect(event.defaultPrevented).toBe(false)
+    expect(after).not.toHaveFocus()
+  })
+
   it("leaves the event alone when nothing follows the grid", () => {
     const { after, grid, rows } = page()
     after.remove()
@@ -232,17 +286,30 @@ describe("leaving the grid on Tab", () => {
 })
 
 describe("focusEntryCell", () => {
+  const columns = ["name", "owner"].map((id) => ({ getColId: () => id }))
+
   function api(
-    focused: { rowIndex: number; column: string } | null,
-    rowCount: number
+    focused: { rowIndex: number; column: string; rowPinned?: string } | null,
+    rowCount: number,
+    displayed = columns,
+    pinnedBottom = 0
   ) {
     const setFocusedCell = vi.fn()
     return {
       setFocusedCell,
       params: {
         api: {
+          getAllDisplayedColumns: () => displayed,
           getDisplayedRowCount: () => rowCount,
-          getFocusedCell: () => focused,
+          getPinnedBottomRowCount: () => pinnedBottom,
+          getFocusedCell: () =>
+            focused === null
+              ? null
+              : {
+                  rowPinned: null,
+                  ...focused,
+                  column: { getColId: () => focused.column },
+                },
           setFocusedCell,
         },
       } as unknown as FocusGridInnerElementParams,
@@ -251,20 +318,40 @@ describe("focusEntryCell", () => {
 
   it("returns to the last focused cell", () => {
     const { params, setFocusedCell } = api({ rowIndex: 4, column: "owner" }, 9)
-    expect(focusEntryCell("name")(params)).toBe(true)
-    expect(setFocusedCell).toHaveBeenCalledWith(4, "owner", undefined)
+    expect(focusEntryCell(params)).toBe(true)
+    expect(setFocusedCell).toHaveBeenCalledWith(4, columns[1], null)
   })
 
-  it("starts at the first cell when none was focused or its row is gone", () => {
+  it("starts at the first displayed cell when none was focused or its row is gone", () => {
     for (const focused of [null, { rowIndex: 9, column: "owner" }]) {
       const { params, setFocusedCell } = api(focused, 3)
-      expect(focusEntryCell("name")(params)).toBe(true)
-      expect(setFocusedCell).toHaveBeenCalledWith(0, "name")
+      expect(focusEntryCell(params)).toBe(true)
+      expect(setFocusedCell).toHaveBeenCalledWith(0, columns[0])
     }
   })
 
+  it("falls back to the first displayed column when the focused one is hidden", () => {
+    const { params, setFocusedCell } = api(
+      { rowIndex: 1, column: "owner" },
+      3,
+      columns.slice(0, 1)
+    )
+    expect(focusEntryCell(params)).toBe(true)
+    expect(setFocusedCell).toHaveBeenCalledWith(1, columns[0], null)
+  })
+
+  it("checks a pinned footer row against the footer count", () => {
+    const footer = { rowIndex: 1, column: "name", rowPinned: "bottom" }
+    const kept = api(footer, 5, columns, 2)
+    expect(focusEntryCell(kept.params)).toBe(true)
+    expect(kept.setFocusedCell).toHaveBeenCalledWith(1, columns[0], "bottom")
+    const gone = api(footer, 5, columns, 1)
+    expect(focusEntryCell(gone.params)).toBe(true)
+    expect(gone.setFocusedCell).toHaveBeenCalledWith(0, columns[0])
+  })
+
   it("leaves the entry to the grid without rows or columns", () => {
-    expect(focusEntryCell("name")(api(null, 0).params)).toBe(false)
-    expect(focusEntryCell(undefined)(api(null, 3).params)).toBe(false)
+    expect(focusEntryCell(api(null, 0).params)).toBe(false)
+    expect(focusEntryCell(api(null, 3, []).params)).toBe(false)
   })
 })

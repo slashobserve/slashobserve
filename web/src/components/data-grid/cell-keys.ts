@@ -1,12 +1,25 @@
 import type {
   FocusGridInnerElementParams,
+  GridApi,
+  RowPinnedType,
   SuppressKeyboardEventParams,
 } from "ag-grid-community"
 
 import { tabStaysInHeader } from "./header-keys"
 
-const controlSelector =
-  "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])"
+const notRemoved = ":not([tabindex='-1'])"
+const controlSelector = [
+  "a[href]",
+  "button:not(:disabled)",
+  "input:not(:disabled):not([type=hidden])",
+  "select:not(:disabled)",
+  "textarea:not(:disabled)",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[tabindex]",
+]
+  .map((alternative) => alternative + notRemoved)
+  .join(", ")
+const gridSelector = "[role=grid], [role=treegrid]"
 const keyStopSelector = ".ag-cell, .ag-full-width-row"
 const controlKeys = new Set(["Enter", " "])
 const arrowKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"])
@@ -23,9 +36,6 @@ function isField(target: HTMLElement): boolean {
 function leavesArrowsToGrid(target: HTMLElement): boolean {
   return target.matches("a[href]")
 }
-
-const tabbableSelector =
-  "a[href], button:not(:disabled), input:not(:disabled):not([type=hidden]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])"
 
 export type CellKeyAction =
   { kind: "click" | "focus"; stop: number } | { kind: "leave" } | null
@@ -51,19 +61,31 @@ export function leaveGridOnTab(): boolean {
   return false
 }
 
-export function focusEntryCell(firstColumnId: string | undefined) {
-  return ({ api }: FocusGridInnerElementParams): boolean => {
-    const rowCount = api.getDisplayedRowCount()
-    if (rowCount === 0) return false
-    const focused = api.getFocusedCell()
-    if (focused !== null && focused.rowIndex < rowCount) {
-      api.setFocusedCell(focused.rowIndex, focused.column, focused.rowPinned)
-      return true
-    }
-    if (firstColumnId === undefined) return false
-    api.setFocusedCell(0, firstColumnId)
+function rowCountAt(api: GridApi, pinned: RowPinnedType): number {
+  if (pinned === "bottom") return api.getPinnedBottomRowCount()
+  if (pinned === "top") return api.getPinnedTopRowCount()
+  return api.getDisplayedRowCount()
+}
+
+export function focusEntryCell({
+  api,
+}: Pick<FocusGridInnerElementParams, "api">): boolean {
+  const displayed = api.getAllDisplayedColumns()
+  const first = displayed[0]
+  if (first === undefined) return false
+  const focused = api.getFocusedCell()
+  if (
+    focused !== null &&
+    focused.rowIndex < rowCountAt(api, focused.rowPinned)
+  ) {
+    const column =
+      displayed.find((c) => c.getColId() === focused.column.getColId()) ?? first
+    api.setFocusedCell(focused.rowIndex, column, focused.rowPinned)
     return true
   }
+  if (api.getDisplayedRowCount() === 0) return false
+  api.setFocusedCell(0, first)
+  return true
 }
 
 function focusBeyond(grid: HTMLElement, backwards: boolean): boolean {
@@ -71,14 +93,14 @@ function focusBeyond(grid: HTMLElement, backwards: boolean): boolean {
     ? Node.DOCUMENT_POSITION_PRECEDING
     : Node.DOCUMENT_POSITION_FOLLOWING
   const candidates = Array.from(
-    grid.ownerDocument.querySelectorAll<HTMLElement>(tabbableSelector)
+    grid.ownerDocument.querySelectorAll<HTMLElement>(controlSelector)
   ).filter(
     (element) =>
       !grid.contains(element) &&
       !element.contains(grid) &&
       (grid.compareDocumentPosition(element) & wanted) !== 0 &&
-      element.closest("[inert]") === null &&
-      element.checkVisibility?.() !== false
+      element.closest("[inert], [aria-hidden='true']") === null &&
+      element.checkVisibility?.({ visibilityProperty: true }) !== false
   )
   const target = backwards ? candidates.at(-1) : candidates[0]
   target?.focus()
@@ -99,6 +121,21 @@ export function keepKeysOnFocusedControl({
   return cell !== null && cell !== target
 }
 
+function stopOf(
+  stops: readonly HTMLElement[],
+  target: HTMLElement,
+  withinStop: boolean
+): number {
+  const exact = stops.indexOf(target)
+  if (exact >= 0 || !withinStop) return exact
+  return stops.findLastIndex((stop) => stop.contains(target))
+}
+
+function ownsCell(grid: HTMLElement, cell: HTMLElement): boolean {
+  const inner = cell.closest(gridSelector)
+  return inner === null || inner === grid.querySelector(gridSelector)
+}
+
 export function handleCellKey(event: KeyboardEvent, grid: HTMLElement): void {
   const target = event.target
   if (!(target instanceof HTMLElement)) return
@@ -114,12 +151,12 @@ export function handleCellKey(event: KeyboardEvent, grid: HTMLElement): void {
     return
   }
   const cell = target.closest<HTMLElement>(keyStopSelector)
-  if (cell === null || !grid.contains(cell)) return
+  if (cell === null || !grid.contains(cell) || !ownsCell(grid, cell)) return
   const stops = [cell, ...cell.querySelectorAll<HTMLElement>(controlSelector)]
   const action = cellKeyAction(
     event.key,
     event.shiftKey,
-    stops.indexOf(target),
+    stopOf(stops, target, event.key === "Tab"),
     stops.length - 1
   )
   if (action === null) return

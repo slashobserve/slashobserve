@@ -1,5 +1,6 @@
 import {
   ClientSideRowModelApiModule,
+  ColumnApiModule,
   ClientSideRowModelModule,
   RowApiModule,
   RowAutoHeightModule,
@@ -27,6 +28,7 @@ import {
   useImperativeHandle,
   useRef,
   type ReactNode,
+  type PointerEvent,
   type Ref,
 } from "react"
 
@@ -55,6 +57,7 @@ import { useWidth } from "./use-width"
 
 const modules = [
   ClientSideRowModelModule,
+  ColumnApiModule,
   RowAutoHeightModule,
   RowStyleModule,
   ClientSideRowModelApiModule,
@@ -91,6 +94,15 @@ type CellParams<T> = ICellRendererParams<GridLine<T>> & {
   column: DataGridColumn<T>
 }
 
+function titleWhenCut(event: PointerEvent<HTMLElement>) {
+  const element = event.currentTarget
+  if (element.scrollWidth > element.clientWidth) {
+    element.title = element.textContent ?? ""
+  } else {
+    element.removeAttribute("title")
+  }
+}
+
 function GridCell<T>({ data, column }: CellParams<T>) {
   if (data === undefined) return null
   const content = column.cell(data.row)
@@ -106,7 +118,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
       )}
     >
       {plainText ? (
-        <span className="truncate" title={String(content)}>
+        <span className="truncate" onPointerEnter={titleWhenCut}>
           {content}
         </span>
       ) : (
@@ -185,7 +197,7 @@ function SortHeader({
 }
 
 const highlightClass = "bg-selection!"
-const selectedClass = "ag-row-selected"
+const selectedClass = "row-selected"
 
 function FullWidthRow<T>(params: ICellRendererParams<GridLine<T>>) {
   return params.data?.detail === true ? (
@@ -351,7 +363,6 @@ export function DataGrid<T>({
   )
   const renderDetail = detail?.render as
     ((row: unknown) => ReactNode) | undefined
-  const entryCell = useMemo(() => focusEntryCell(columns[0]?.id), [columns])
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
@@ -484,7 +495,7 @@ export function DataGrid<T>({
       tabIndex={-1}
       aria-busy={busy || undefined}
       className={cn(
-        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full",
+        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full [&_.row-selected]:bg-selection!",
         bare &&
           "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
         className
@@ -516,7 +527,7 @@ export function DataGrid<T>({
             headerHeight={narrow ? 0 : headerHeight}
             suppressMovableColumns
             tabToNextCell={leaveGridOnTab}
-            focusGridInnerElement={entryCell}
+            focusGridInnerElement={focusEntryCell}
             isFullWidthRow={isFullWidthRow}
             fullWidthCellRenderer={FullWidthRow}
             getRowHeight={getRowHeight}

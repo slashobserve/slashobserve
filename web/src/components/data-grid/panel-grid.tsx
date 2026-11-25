@@ -246,7 +246,6 @@ export function PanelGrid<T>({
     [columns, sizeToContent]
   )
 
-  const entryCell = useMemo(() => focusEntryCell(columns[0]?.id), [columns])
   const getRowId = useCallback(
     ({ data }: GetRowIdParams<Item<T>>) => data.id,
     []
@@ -336,7 +335,7 @@ export function PanelGrid<T>({
           fullWidthCellRenderer={DetailRow}
           suppressMovableColumns
           tabToNextCell={leaveGridOnTab}
-          focusGridInnerElement={entryCell}
+          focusGridInnerElement={focusEntryCell}
           suppressColumnVirtualisation
           ensureDomOrder
           suppressDragLeaveHidesColumns

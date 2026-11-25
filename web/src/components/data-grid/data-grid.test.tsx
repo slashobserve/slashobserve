@@ -404,6 +404,30 @@ describe("DataGrid", () => {
     expect(screen.getByRole("button", { name: "After" })).toHaveFocus()
   })
 
+  it("hands Tab to the grid's own end guard when nothing follows it, so the next row's link is not the next stop", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+      />
+    )
+    const cell = (await screen.findByText("Checkout")).closest<HTMLElement>(
+      "[role=gridcell]"
+    ) as HTMLElement
+    cell.focus()
+    const forward = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    })
+    cell.dispatchEvent(forward)
+    expect(forward.defaultPrevented).toBe(false)
+    expect(document.activeElement).toHaveClass("ag-tab-guard-bottom")
+    expect(container.contains(document.activeElement)).toBe(true)
+  })
+
   it("marks the rows it is told are selected, and only those", async () => {
     const props = {
       label: "Services",
@@ -416,13 +440,13 @@ describe("DataGrid", () => {
     )
     const row = (id: string) =>
       container.querySelector<HTMLElement>(`[role=row][row-id="${id}"]`)
-    await waitFor(() => expect(row("b")).toHaveClass("ag-row-selected"))
-    expect(row("a")).not.toHaveClass("ag-row-selected")
+    await waitFor(() => expect(row("b")).toHaveClass("row-selected"))
+    expect(row("a")).not.toHaveClass("row-selected")
     rerender(<DataGrid {...props} selectedRowIds={new Set(["a", "b"])} />)
-    await waitFor(() => expect(row("a")).toHaveClass("ag-row-selected"))
+    await waitFor(() => expect(row("a")).toHaveClass("row-selected"))
     rerender(<DataGrid {...props} selectedRowIds={new Set()} />)
-    await waitFor(() => expect(row("b")).not.toHaveClass("ag-row-selected"))
-    expect(row("a")).not.toHaveClass("ag-row-selected")
+    await waitFor(() => expect(row("b")).not.toHaveClass("row-selected"))
+    expect(row("a")).not.toHaveClass("row-selected")
   })
 
   it("truncates a plain text cell with an ellipsis and the full text in a title, but not one that wraps", async () => {
@@ -447,7 +471,23 @@ describe("DataGrid", () => {
     const cells = await screen.findAllByText(long)
     const [name, owner] = cells as [HTMLElement, HTMLElement]
     expect(name).toHaveClass("truncate")
+    expect(name).not.toHaveAttribute("title")
+    Object.defineProperty(name, "scrollWidth", {
+      value: 200,
+      configurable: true,
+    })
+    Object.defineProperty(name, "clientWidth", {
+      value: 80,
+      configurable: true,
+    })
+    fireEvent.pointerEnter(name)
     expect(name).toHaveAttribute("title", long)
+    Object.defineProperty(name, "scrollWidth", {
+      value: 80,
+      configurable: true,
+    })
+    fireEvent.pointerEnter(name)
+    expect(name).not.toHaveAttribute("title")
     expect(owner).not.toHaveClass("truncate")
     expect(owner).not.toHaveAttribute("title")
   })
