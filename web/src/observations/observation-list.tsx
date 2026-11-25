@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { EllipsisIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import {
+  dataCell,
+  skeletonRows,
+  type SkeletonRow,
+} from "@/components/data-grid/skeleton-cell"
 import { EmptyState } from "@/components/empty-state"
 import { FilterToolbar } from "@/components/filter-toolbar"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -27,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { clampQuery } from "@/dashboards/list-filters"
 import { foldersQuery, type Folder } from "@/folders/queries"
@@ -74,8 +78,7 @@ function isStateFilter(value: unknown): value is ObservationStateFilter {
   return stateItems.some((item) => item.value === value)
 }
 
-const tableWidth = 860
-const skeletonRows = 3
+const skeletonCount = 3
 const tableLabel = "Observations"
 const searchDelayMs = 250
 const emptyList: Observation[] = []
@@ -164,8 +167,10 @@ export function ObservationList({ view, creating, onChange }: Props) {
     ids: ReadonlySet<string>
   }>({ key: viewKey, ids: new Set() })
   const selected = selection.key === viewKey ? selection.ids : noneSelected
-  const setSelected = (next: ReadonlySet<string>) =>
-    setSelection({ key: viewKey, ids: next })
+  const setSelected = useCallback(
+    (next: ReadonlySet<string>) => setSelection({ key: viewKey, ids: next }),
+    [viewKey]
+  )
   const [deleting, setDeleting] = useState<readonly Observation[] | null>(null)
   const [resolving, setResolving] = useState<readonly Observation[] | null>(
     null
@@ -173,6 +178,10 @@ export function ObservationList({ view, creating, onChange }: Props) {
   const reopen = useReopenObservationRow()
 
   const shown = useMemo(() => new Set(items.map((o) => o.id)), [items])
+  const rows = useMemo<Row[]>(
+    () => items.map((item) => ({ kind: "observation", id: item.id, item })),
+    [items]
+  )
   const chosen = useMemo(
     () => items.filter((o) => selected.has(o.id)),
     [items, selected]
@@ -186,12 +195,15 @@ export function ObservationList({ view, creating, onChange }: Props) {
     onChange({ ...view, page: 1, ...next }, creating)
   }
 
-  function toggle(id: string, on: boolean) {
-    const next = new Set(selected)
-    if (on) next.add(id)
-    else next.delete(id)
-    setSelected(next)
-  }
+  const toggle = useCallback(
+    (id: string, on: boolean) => {
+      const next = new Set(selected)
+      if (on) next.add(id)
+      else next.delete(id)
+      setSelected(next)
+    },
+    [selected, setSelected]
+  )
 
   function forget(ids: readonly string[]) {
     const next = new Set(selected)
@@ -199,21 +211,63 @@ export function ObservationList({ view, creating, onChange }: Props) {
     setSelected(next)
   }
 
-  function reopenRow(observation: Observation) {
-    reopen.mutate(observation.id, {
-      onError: (error) =>
-        toast.error(
-          error instanceof Error && error.message !== ""
-            ? error.message
-            : "It could not be reopened. Try again."
-        ),
-    })
-  }
+  const { mutate: reopenMutate } = reopen
+  const reopenRow = useCallback(
+    (observation: Observation) => {
+      reopenMutate(observation.id, {
+        onError: (error) =>
+          toast.error(
+            error instanceof Error && error.message !== ""
+              ? error.message
+              : "It could not be reopened. Try again."
+          ),
+      })
+    },
+    [reopenMutate]
+  )
+  const selectPage = useCallback(
+    (on: boolean) => setSelected(on ? new Set(shown) : new Set()),
+    [setSelected, shown]
+  )
+  const resolveRow = useCallback(
+    (observation: Observation) => setResolving([observation]),
+    []
+  )
+  const deleteRow = useCallback(
+    (observation: Observation) => setDeleting([observation]),
+    []
+  )
 
   const allShown = items.length > 0 && items.every((o) => selected.has(o.id))
   const someShown = items.some((o) => selected.has(o.id))
   const resolvable = chosen.filter((o) => mayDo(o, "resolve"))
   const deletable = chosen.filter((o) => mayDo(o, "delete"))
+
+  const columns = useMemo(
+    () =>
+      observationColumns({
+        folderOf,
+        selected,
+        allShown,
+        someShown,
+        onSelectPage: selectPage,
+        onSelect: toggle,
+        onResolve: resolveRow,
+        onReopen: reopenRow,
+        onDelete: deleteRow,
+      }),
+    [
+      folderOf,
+      selected,
+      allShown,
+      someShown,
+      selectPage,
+      toggle,
+      resolveRow,
+      reopenRow,
+      deleteRow,
+    ]
+  )
 
   const newObservation = (
     <Button ref={newButton} onClick={() => onChange(view, true)}>
@@ -373,46 +427,13 @@ export function ObservationList({ view, creating, onChange }: Props) {
               />
             </div>
           ) : null}
-          <TableCard label={tableLabel} stackOnNarrow minWidth={tableWidth}>
-            <thead>
-              <tr>
-                <HeaderCell>
-                  <span className="inline-flex items-center gap-2.5">
-                    <Checkbox
-                      aria-label="Select every observation on this page"
-                      checked={allShown}
-                      indeterminate={someShown && !allShown}
-                      onCheckedChange={(on) =>
-                        setSelected(on ? new Set(shown) : new Set())
-                      }
-                    />
-                    Title
-                  </span>
-                </HeaderCell>
-                <HeaderCell>Folder</HeaderCell>
-                <HeaderCell>State</HeaderCell>
-                <HeaderCell>Opened by</HeaderCell>
-                <HeaderCell>Updated</HeaderCell>
-                <HeaderCell>
-                  <span className="sr-only">Actions</span>
-                </HeaderCell>
-              </tr>
-            </thead>
-            <tbody aria-busy={list.isPlaceholderData || clampTo !== null}>
-              {items.map((observation) => (
-                <ObservationRow
-                  key={observation.id}
-                  observation={observation}
-                  folder={folderOf.get(observation.folder_id)}
-                  selected={selected.has(observation.id)}
-                  onSelect={(on) => toggle(observation.id, on)}
-                  onResolve={() => setResolving([observation])}
-                  onReopen={() => reopenRow(observation)}
-                  onDelete={() => setDeleting([observation])}
-                />
-              ))}
-            </tbody>
-          </TableCard>
+          <DataGrid
+            label={tableLabel}
+            busy={list.isPlaceholderData || clampTo !== null}
+            rows={rows}
+            columns={columns}
+            rowId={rowId}
+          />
           {pageCount > 1 || total > pageSizes[0] ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -473,81 +494,158 @@ export function ObservationList({ view, creating, onChange }: Props) {
   )
 }
 
-type RowProps = {
-  observation: Observation
-  folder: Folder | undefined
-  selected: boolean
-  onSelect: (on: boolean) => void
-  onResolve: () => void
-  onReopen: () => void
-  onDelete: () => void
+type Row = { kind: "observation"; id: string; item: Observation } | SkeletonRow
+
+type ColumnProps = {
+  folderOf: ReadonlyMap<string, Folder>
+  selected: ReadonlySet<string>
+  allShown: boolean
+  someShown: boolean
+  onSelectPage: (on: boolean) => void
+  onSelect: (id: string, on: boolean) => void
+  onResolve: (observation: Observation) => void
+  onReopen: (observation: Observation) => void
+  onDelete: (observation: Observation) => void
 }
 
-function ObservationRow({
-  observation,
-  folder,
+const quiet = "motion-safe:animate-none"
+
+function observationColumns({
+  folderOf,
   selected,
+  allShown,
+  someShown,
+  onSelectPage,
   onSelect,
   onResolve,
   onReopen,
   onDelete,
-}: RowProps) {
-  const canResolve = mayDo(observation, "resolve")
-  const canReopen = mayDo(observation, "reopen")
-  const canDelete = mayDo(observation, "delete")
-  return (
-    <tr data-observation-id={observation.id}>
-      <Cell className="max-w-[48ch] font-medium wrap-anywhere">
+}: ColumnProps): DataGridColumn<Row>[] {
+  return [
+    {
+      id: "title",
+      header: "Title",
+      headerCell: () => (
         <span className="inline-flex items-center gap-2.5">
           <Checkbox
-            aria-label={`Select ${plainTitle(observation.title)}`}
-            checked={selected}
-            onCheckedChange={onSelect}
+            aria-label="Select every observation on this page"
+            checked={allShown}
+            indeterminate={someShown && !allShown}
+            onCheckedChange={onSelectPage}
           />
-          <Link
-            {...observationLink(observation.id)}
-            className="underline-offset-4 hover:underline"
-          >
-            {plainTitle(observation.title)}
-          </Link>
+          Title
         </span>
-      </Cell>
-      <Cell data-label="Folder" className="wrap-anywhere">
-        {folder === undefined ? null : (
-          <Link
-            to="/f/$folderId"
-            params={{ folderId: folder.id }}
-            className="underline-offset-4 hover:underline"
-          >
-            {folder.title}
-          </Link>
-        )}
-      </Cell>
-      <Cell>
-        {observation.state === "open" ? (
-          <StatusLabel tone="ok">Open</StatusLabel>
-        ) : (
-          <StatusLabel tone="none">Resolved</StatusLabel>
-        )}
-      </Cell>
-      <Cell>
-        <span className="inline-flex items-center gap-2">
-          <AuthorMark mark={markOf(observation.created_by)} size={20} />
-          {observation.created_by.label}
-        </span>
-      </Cell>
-      <Cell className="whitespace-nowrap text-muted-foreground">
-        <RelativeTime iso={observation.updated_at} />
-      </Cell>
-      <Cell data-cell="action" className="w-10">
-        {canResolve || canReopen || canDelete ? (
+      ),
+      minWidth: 260,
+      flex: 3,
+      autoHeight: true,
+      cell: dataCell<Row, "observation">(
+        "observation",
+        `h-4 w-56 ${quiet}`,
+        ({ item }) => (
+          <span className="inline-flex items-center gap-2.5 py-2 font-medium wrap-anywhere">
+            <Checkbox
+              aria-label={`Select ${plainTitle(item.title)}`}
+              checked={selected.has(item.id)}
+              onCheckedChange={(on) => onSelect(item.id, on)}
+            />
+            <Link
+              {...observationLink(item.id)}
+              className="underline-offset-4 hover:underline"
+            >
+              {plainTitle(item.title)}
+            </Link>
+          </span>
+        )
+      ),
+    },
+    {
+      id: "folder",
+      header: "Folder",
+      minWidth: 120,
+      flex: 1,
+      autoHeight: true,
+      cell: dataCell<Row, "observation">(
+        "observation",
+        `h-4 w-24 ${quiet}`,
+        ({ item }) => {
+          const folder = folderOf.get(item.folder_id)
+          return folder === undefined ? null : (
+            <Link
+              to="/f/$folderId"
+              params={{ folderId: folder.id }}
+              className="wrap-anywhere underline-offset-4 hover:underline"
+            >
+              {folder.title}
+            </Link>
+          )
+        }
+      ),
+    },
+    {
+      id: "state",
+      header: "State",
+      width: 110,
+      cell: dataCell<Row, "observation">(
+        "observation",
+        `h-4 w-14 ${quiet}`,
+        ({ item }) =>
+          item.state === "open" ? (
+            <StatusLabel tone="ok">Open</StatusLabel>
+          ) : (
+            <StatusLabel tone="none">Resolved</StatusLabel>
+          )
+      ),
+    },
+    {
+      id: "openedBy",
+      header: "Opened by",
+      minWidth: 150,
+      flex: 1,
+      cell: dataCell<Row, "observation">(
+        "observation",
+        `h-4 w-28 ${quiet}`,
+        ({ item }) => (
+          <span className="inline-flex items-center gap-2">
+            <AuthorMark mark={markOf(item.created_by)} size={20} />
+            {item.created_by.label}
+          </span>
+        )
+      ),
+    },
+    {
+      id: "updated",
+      header: "Updated",
+      width: 110,
+      cell: dataCell<Row, "observation">(
+        "observation",
+        `h-4 w-12 ${quiet}`,
+        ({ item }) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            <RelativeTime iso={item.updated_at} />
+          </span>
+        )
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      headerCell: () => <span className="sr-only">Actions</span>,
+      width: 56,
+      action: true,
+      cell: dataCell<Row, "observation">("observation", "", ({ item }) => {
+        const canResolve = mayDo(item, "resolve")
+        const canReopen = mayDo(item, "reopen")
+        const canDelete = mayDo(item, "delete")
+        if (!canResolve && !canReopen && !canDelete) return null
+        return (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Actions for ${plainTitle(observation.title)}`}
+                  aria-label={`Actions for ${plainTitle(item.title)}`}
                 />
               }
             >
@@ -555,62 +653,56 @@ function ObservationRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-max">
               {canResolve ? (
-                <DropdownMenuItem onClick={onResolve}>Resolve</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onResolve(item)}>
+                  Resolve
+                </DropdownMenuItem>
               ) : null}
               {canReopen ? (
-                <DropdownMenuItem onClick={onReopen}>Reopen</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onReopen(item)}>
+                  Reopen
+                </DropdownMenuItem>
               ) : null}
               {canDelete ? (
-                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => onDelete(item)}
+                >
                   <Trash2Icon aria-hidden="true" />
                   Delete
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : null}
-      </Cell>
-    </tr>
-  )
+        )
+      }),
+    },
+  ]
 }
+
+const rowId = (row: Row) => row.id
+const skeleton = skeletonRows(skeletonCount)
+const skeletonColumns = observationColumns({
+  folderOf: new Map(),
+  selected: noneSelected,
+  allShown: false,
+  someShown: false,
+  onSelectPage: () => undefined,
+  onSelect: () => undefined,
+  onResolve: () => undefined,
+  onReopen: () => undefined,
+  onDelete: () => undefined,
+}).map((column) =>
+  column.id === "title" ? { ...column, headerCell: undefined } : column
+)
 
 function ObservationSkeleton() {
   return (
-    <TableCard label={tableLabel} stackOnNarrow minWidth={tableWidth}>
-      <thead>
-        <tr>
-          <HeaderCell>Title</HeaderCell>
-          <HeaderCell>Folder</HeaderCell>
-          <HeaderCell>State</HeaderCell>
-          <HeaderCell>Opened by</HeaderCell>
-          <HeaderCell>Updated</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
-      <tbody aria-busy="true">
-        {Array.from({ length: skeletonRows }, (_, index) => (
-          <tr key={index}>
-            <Cell>
-              <Skeleton className="h-4 w-56 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-24 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-14 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-28 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-12 motion-safe:animate-none" />
-            </Cell>
-            <Cell />
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
+    <DataGrid
+      label={tableLabel}
+      busy
+      rows={skeleton}
+      columns={skeletonColumns}
+      rowId={rowId}
+    />
   )
 }

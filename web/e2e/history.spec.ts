@@ -47,7 +47,7 @@ async function openHistory(page: Page, id: string, search = "") {
   await expect(
     page.getByRole("heading", { level: 1, name: /^Versions of / })
   ).toBeVisible()
-  await expect(page.getByRole("table", { name: "Versions" })).toBeVisible()
+  await expect(versionsGrid(page)).toBeVisible()
 }
 
 function dialog(page: Page) {
@@ -74,9 +74,16 @@ function textLeft(locator: Locator) {
   })
 }
 
+function versionsGrid(page: Page) {
+  return page.getByRole("grid", { name: "Versions" })
+}
+
+function versionRowAt(page: Page, index: number) {
+  return versionsGrid(page).locator(`[role="row"][row-index="${index}"]`)
+}
+
 function versionRow(page: Page, version: number) {
-  return page
-    .getByRole("table", { name: "Versions" })
+  return versionsGrid(page)
     .getByRole("row")
     .filter({
       has: page.getByRole("link", { name: `View version ${version}` }),
@@ -96,17 +103,16 @@ test("lists versions newest first", async ({ page, request }) => {
     `Versions of ${spec.title} renamed - SlashObserve`
   )
 
-  const rows = page.getByRole("table", { name: "Versions" }).getByRole("row")
-  await expect(rows).toHaveCount(4)
-  await expect(rows.nth(1)).toContainText("v3")
-  await expect(rows.nth(1)).toContainText("Latest")
-  await expect(rows.nth(1)).toContainText("Simplify query")
-  await expect(rows.nth(1)).toContainText(me.name)
-  await expect(rows.nth(2)).toContainText("v2")
-  await expect(rows.nth(2)).toContainText("Rename")
-  await expect(rows.nth(2)).not.toContainText("Latest")
-  await expect(rows.nth(3)).toContainText("v1")
-  await expect(rows.nth(3)).toContainText(me.name)
+  await expect(versionsGrid(page).locator("[row-index]")).toHaveCount(3)
+  await expect(versionRowAt(page, 0)).toContainText("v3")
+  await expect(versionRowAt(page, 0)).toContainText("Latest")
+  await expect(versionRowAt(page, 0)).toContainText("Simplify query")
+  await expect(versionRowAt(page, 0)).toContainText(me.name)
+  await expect(versionRowAt(page, 1)).toContainText("v2")
+  await expect(versionRowAt(page, 1)).toContainText("Rename")
+  await expect(versionRowAt(page, 1)).not.toContainText("Latest")
+  await expect(versionRowAt(page, 2)).toContainText("v1")
+  await expect(versionRowAt(page, 2)).toContainText(me.name)
   await expect(
     page.getByRole("button", { name: "Restore version 3" })
   ).toHaveCount(0)
@@ -289,10 +295,7 @@ test("restores v1 from history", async ({ page, request }) => {
   await expect(versionButton(page)).toHaveText(/v4$/)
 
   await openVersionsFromMenu(page)
-  const row = page
-    .getByRole("table", { name: "Versions" })
-    .getByRole("row")
-    .nth(1)
+  const row = versionRowAt(page, 0)
   await expect(row).toContainText("v4")
   await expect(row).toContainText("Restored from v1")
   await expect(row).toContainText("Restore version 1")
@@ -311,9 +314,7 @@ test("cancelling the restore dialog changes nothing", async ({
   await expect(
     page.getByRole("button", { name: "Restore version 2" })
   ).toBeFocused()
-  await expect(
-    page.getByRole("table", { name: "Versions" }).getByRole("row")
-  ).toHaveCount(4)
+  await expect(versionsGrid(page).locator("[row-index]")).toHaveCount(3)
 })
 
 test("restores a pinned version from the Versions page", async ({
@@ -394,7 +395,9 @@ test("a save that lands while the dialog is open still gets the conflict flow", 
     3,
     "Concurrent change"
   )
-  const saved = page.locator("tr", { hasText: "Concurrent change" })
+  const saved = versionsGrid(page)
+    .getByRole("row")
+    .filter({ hasText: "Concurrent change" })
   await expect(saved).toContainText("Latest")
   await expect(dialog(page)).toContainText("This saves a new version 4")
 
@@ -730,14 +733,29 @@ test.describe("on a phone", () => {
     expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(844)
   })
 
-  test("aligns the View link with the row text", async ({ page, request }) => {
+  test("keeps each row's actions inside its card", async ({
+    page,
+    request,
+  }) => {
     const { id } = await createHistory(request)
     await openHistory(page, id)
 
     const row = versionRow(page, 2)
-    const label = row.getByText("v2", { exact: true })
-    const view = row.getByRole("link", { name: "View version 2" })
-    expect(await textLeft(view)).toBeCloseTo(await textLeft(label), 0)
+    const card = await row.locator("[data-narrow-row]").boundingBox()
+    for (const name of [
+      "View version 2",
+      "Compare version 2 with version 1",
+      "Restore version 2",
+    ]) {
+      const box = await row
+        .getByRole("button", { name })
+        .or(row.getByRole("link", { name }))
+        .boundingBox()
+      expect(box?.x ?? 0).toBeGreaterThanOrEqual(card?.x ?? 0)
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+        (card?.x ?? 0) + (card?.width ?? 0)
+      )
+    }
   })
 })
 

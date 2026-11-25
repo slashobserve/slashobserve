@@ -7,7 +7,7 @@ const listPath = "/api/v1/dashboards"
 
 const cardColors = {
   light: { background: "rgb(255, 255, 255)", border: "rgb(228, 228, 233)" },
-  dark: { background: "rgb(19, 20, 23)", border: "rgb(46, 48, 54)" },
+  dark: { background: "rgb(26, 27, 31)", border: "rgb(46, 48, 54)" },
 } as const
 
 function isListRequest(url: URL): boolean {
@@ -95,10 +95,16 @@ function listBody(dashboards: Summary[], nextCursor: string | null = null) {
   }
 }
 
-const headerAndFolderRows = 2
+const folderRows = 1
 
 function dashboardsCard(page: Page) {
-  return page.getByRole("region", { name: "Dashboards" })
+  return page.getByRole("grid", { name: "Dashboards" })
+}
+
+function dashboardsSurface(page: Page) {
+  return dashboardsCard(page).locator(
+    "xpath=ancestor::div[contains(@class, 'ag-root-wrapper')]"
+  )
 }
 
 function filterBox(page: Page) {
@@ -114,8 +120,8 @@ function rowFor(page: Page, title: string) {
 async function filterByTitle(page: Page, title: string) {
   await filterBox(page).fill(title)
   await expect(rowFor(page, title)).toBeVisible()
-  await expect(dashboardsCard(page).getByRole("row")).toHaveCount(
-    headerAndFolderRows + 1
+  await expect(dashboardsCard(page).locator("[row-index]")).toHaveCount(
+    folderRows + 1
   )
 }
 
@@ -145,6 +151,7 @@ test("lists dashboards newest first", async ({ page, request }) => {
     ).toBeVisible()
   }
   await expect(dashboardsCard(page)).toBeVisible()
+  await page.setViewportSize({ width: 1600, height: 900 })
   await expect(page.getByRole("columnheader")).toHaveText([
     "Title",
     "Health",
@@ -179,7 +186,7 @@ for (const scheme of ["light", "dark"] as const) {
 
       await page.goto("/dashboards")
       await filterByTitle(page, title)
-      const cells = rowFor(page, title).getByRole("cell")
+      const cells = rowFor(page, title).getByRole("gridcell")
       await expect(cells.nth(1)).toHaveText("")
       await expect(cells.nth(2)).toContainText(maker)
       await expect(cells.nth(2)).toContainText("· Web")
@@ -187,7 +194,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(cells.nth(4)).toHaveText("")
       await expect(cells.nth(5)).toHaveText("v1")
 
-      const card = dashboardsCard(page)
+      const card = dashboardsSurface(page)
       await expect(card).toHaveCSS(
         "background-color",
         cardColors[scheme].background
@@ -656,7 +663,7 @@ test("keeps the empty state and a busy Retry when a refetch fails", async ({
     .click()
   await expect(page.getByRole("alert")).toContainText("Boom.")
   await expect(emptyHeading).toBeVisible()
-  await expect(page.getByRole("table")).toHaveCount(0)
+  await expect(page.getByRole("grid")).toHaveCount(0)
 
   mode = "slow"
   const retry = page.getByRole("button", { name: "Retry" })

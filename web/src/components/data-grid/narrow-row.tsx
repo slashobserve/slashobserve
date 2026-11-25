@@ -1,5 +1,5 @@
 import type { ICellRendererParams } from "ag-grid-community"
-import { createContext, useContext, useRef } from "react"
+import { createContext, useContext, useRef, type ReactNode } from "react"
 
 import type { DataGridColumn } from "./data-grid"
 import { useFitRowHeight } from "./use-fit-row-height"
@@ -7,9 +7,15 @@ import type { GridLine } from "./lines"
 
 export const narrowRowEstimate = 72
 
+export type FullWidthRows<T> = {
+  is: (row: T) => boolean
+  render: (row: T) => ReactNode
+}
+
 export type NarrowRows<T> = {
   columns: readonly DataGridColumn<T>[]
   onHighlight: (rowId: string | null) => void
+  fullWidth?: FullWidthRows<T>
 }
 
 export const NarrowRowsContext = createContext<NarrowRows<unknown>>({
@@ -22,13 +28,20 @@ export function NarrowRow<T>({
   node,
   api,
 }: ICellRendererParams<GridLine<T>>) {
-  const { columns, onHighlight } = useContext(
+  const { columns, onHighlight, fullWidth } = useContext(
     NarrowRowsContext
   ) as NarrowRows<T>
   const ref = useRef<HTMLDivElement>(null)
   useFitRowHeight(ref, node, api)
 
   if (data === undefined) return null
+  if (fullWidth?.is(data.row)) {
+    return (
+      <div ref={ref} data-full-width-row="">
+        {fullWidth.render(data.row)}
+      </div>
+    )
+  }
   const [title, ...rest] = columns
   if (title === undefined) return null
   const fields = rest.filter((column) => !column.action)

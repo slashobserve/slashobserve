@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { MessageSquareIcon, PinIcon, SearchIcon } from "lucide-react"
 
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { EmptyState } from "@/components/empty-state"
 import { FilterToolbar } from "@/components/filter-toolbar"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { RelativeTime } from "@/components/relative-time"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -244,6 +244,48 @@ function SearchField({
   )
 }
 
+const rowActionClass =
+  "opacity-0 [.ag-row-hover_&]:opacity-100 [[data-narrow-row]:hover_&]:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100"
+
+function ChatTitle({
+  chat,
+  everyone,
+  renaming,
+  onRenamed,
+}: {
+  chat: Chat
+  everyone: boolean
+  renaming: boolean
+  onRenamed: () => void
+}) {
+  if (renaming) return <ChatRenameForm request={chat} onDone={onRenamed} />
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5 py-1.5">
+      <Link
+        id={chatRowId(chat.id)}
+        to="/c/$requestId"
+        params={{ requestId: chat.id }}
+        className="flex min-w-0 items-center gap-1.5 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {chat.pinned_at !== null ? (
+          <PinIcon
+            aria-label="Pinned"
+            className="size-3.5 flex-none text-muted-foreground"
+          />
+        ) : null}
+        <span className="truncate">{chat.title}</span>
+      </Link>
+      {everyone ? (
+        <span className="truncate text-xs text-muted-foreground">
+          {chat.owner.name}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+const chatId = (chat: Chat) => chat.id
+
 function ChatTable({
   chats,
   everyone,
@@ -252,104 +294,84 @@ function ChatTable({
   everyone: boolean
 }) {
   const table = useRef<HTMLDivElement>(null)
-  return (
-    <TableCard ref={table} label="Chats" minWidth={560} stackOnNarrow>
-      <thead>
-        <tr>
-          <HeaderCell>Chat</HeaderCell>
-          <HeaderCell>Dashboard</HeaderCell>
-          <HeaderCell>Turns</HeaderCell>
-          <HeaderCell>Last message</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
-      <tbody>
-        {chats.map((chat) => (
-          <ChatRow
-            key={chat.id}
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const columns = useMemo<DataGridColumn<Chat>[]>(
+    () => [
+      {
+        id: "chat",
+        header: "Chat",
+        minWidth: 240,
+        flex: 3,
+        autoHeight: true,
+        cell: (chat) => (
+          <ChatTitle
             chat={chat}
             everyone={everyone}
-            afterDelete={table}
+            renaming={renamingId === chat.id}
+            onRenamed={() => setRenamingId(null)}
           />
-        ))}
-      </tbody>
-    </TableCard>
+        ),
+      },
+      {
+        id: "dashboard",
+        header: "Dashboard",
+        minWidth: 160,
+        flex: 2,
+        cell: (chat) => (
+          <span className="block max-w-[240px] truncate text-muted-foreground">
+            {dashboardLabel(chat) ?? noDashboardLabel}
+          </span>
+        ),
+      },
+      {
+        id: "turns",
+        header: "Turns",
+        width: 80,
+        cell: (chat) => (
+          <span className="text-muted-foreground">
+            {chat.turns.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        id: "lastMessage",
+        header: "Last message",
+        width: 140,
+        cell: (chat) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            <RelativeTime iso={chat.last_turn_at} />
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        headerCell: () => <span className="sr-only">Actions</span>,
+        width: 56,
+        action: true,
+        cell: (chat) =>
+          chat.read_only || renamingId === chat.id ? null : (
+            <ChatRowMenu
+              request={chat}
+              wholeChat
+              current={false}
+              onRename={() => setRenamingId(chat.id)}
+              afterDelete={table}
+              className={rowActionClass}
+            />
+          ),
+      },
+    ],
+    [everyone, renamingId]
   )
-}
-
-const rowActionClass =
-  "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100"
-
-function ChatRow({
-  chat,
-  everyone,
-  afterDelete,
-}: {
-  chat: Chat
-  everyone: boolean
-  afterDelete: RefObject<HTMLElement | null>
-}) {
-  const [renaming, setRenaming] = useState(false)
-  const own = !chat.read_only
-
   return (
-    <tr className="group/row">
-      <Cell className="min-w-0">
-        {renaming ? (
-          <ChatRenameForm request={chat} onDone={() => setRenaming(false)} />
-        ) : (
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <Link
-              id={chatRowId(chat.id)}
-              to="/c/$requestId"
-              params={{ requestId: chat.id }}
-              className="flex min-w-0 items-center gap-1.5 rounded-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {chat.pinned_at !== null ? (
-                <PinIcon
-                  aria-label="Pinned"
-                  className="size-3.5 flex-none text-muted-foreground"
-                />
-              ) : null}
-              <span className="truncate">{chat.title}</span>
-            </Link>
-            {everyone ? (
-              <span className="truncate text-xs text-muted-foreground">
-                {chat.owner.name}
-              </span>
-            ) : null}
-          </div>
-        )}
-      </Cell>
-      <Cell data-label="Dashboard" className="text-muted-foreground">
-        <span className="block max-w-[240px] truncate">
-          {dashboardLabel(chat) ?? noDashboardLabel}
-        </span>
-      </Cell>
-      <Cell data-label="Turns" className="text-muted-foreground">
-        {chat.turns.toLocaleString()}
-      </Cell>
-      <Cell
-        data-label="Last message"
-        className="whitespace-nowrap text-muted-foreground"
-      >
-        <RelativeTime iso={chat.last_turn_at} />
-      </Cell>
-      <Cell data-cell="action" className="w-10 py-1 text-right">
-        {own && !renaming ? (
-          <ChatRowMenu
-            request={chat}
-            wholeChat
-            current={false}
-            onRename={() => setRenaming(true)}
-            afterDelete={afterDelete}
-            className={rowActionClass}
-          />
-        ) : null}
-      </Cell>
-    </tr>
+    <DataGrid
+      label="Chats"
+      ref={table}
+      rows={chats}
+      columns={columns}
+      rowId={chatId}
+    />
   )
 }
 

@@ -112,7 +112,7 @@ describe("AuditObservations", () => {
     )
     renderPage()
 
-    const table = await screen.findByRole("region", { name: "Observations" })
+    const table = await screen.findByRole("grid", { name: "Observations" })
     expect(
       within(table).getByRole("link", { name: "Login failures" })
     ).toHaveAttribute("href", "/o/o1")

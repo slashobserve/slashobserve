@@ -16,7 +16,6 @@ type Props = {
   folder: Folder
   collapsed: boolean
   countText: string | null
-  columnCount: number
   onToggle: () => void
   continued?: boolean
 }
@@ -25,7 +24,6 @@ export function FolderHeaderRow({
   folder,
   collapsed,
   countText,
-  columnCount,
   onToggle,
   continued = false,
 }: Props) {
@@ -36,54 +34,48 @@ export function FolderHeaderRow({
       : UsersIcon
   const yourAccess = yourAccessText(folder)
   return (
-    <tr>
-      <th
-        scope="rowgroup"
-        colSpan={columnCount}
-        className="border-b px-3.5 py-2.5 text-left font-normal narrow:basis-full narrow:border-0 narrow:p-0"
-      >
-        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-expanded={!collapsed}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${folder.title}`}
-            onClick={onToggle}
-          >
-            {collapsed ? (
-              <ChevronRightIcon aria-hidden="true" />
-            ) : (
-              <ChevronDownIcon aria-hidden="true" />
-            )}
-          </Button>
-          <span className="font-semibold wrap-anywhere">{folder.title}</span>
-          {countText === null ? null : (
-            <span className="text-xs text-muted-foreground">{countText}</span>
+    <div className="px-3.5 py-2.5 text-[13px]">
+      <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${folder.title}`}
+          onClick={onToggle}
+        >
+          {collapsed ? (
+            <ChevronRightIcon aria-hidden="true" />
+          ) : (
+            <ChevronDownIcon aria-hidden="true" />
           )}
-          {continued ? (
-            <span className="text-xs text-muted-foreground">
-              Continued from the previous page
-            </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
-            {accessSummary(folder)}
+        </Button>
+        <span className="font-semibold wrap-anywhere">{folder.title}</span>
+        {countText === null ? null : (
+          <span className="text-xs text-muted-foreground">{countText}</span>
+        )}
+        {continued ? (
+          <span className="text-xs text-muted-foreground">
+            Continued from the previous page
           </span>
-          {yourAccess === null ? null : (
-            <span className="text-xs text-muted-foreground">{yourAccess}</span>
-          )}
-          {folder.permissions.manage ? (
-            <Link
-              to="/f/$folderId"
-              params={{ folderId: folder.id }}
-              search={{ settings: "1" }}
-              className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Folder settings
-            </Link>
-          ) : null}
+        ) : null}
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <AccessIcon aria-hidden="true" className="size-3.5 flex-none" />
+          {accessSummary(folder)}
         </span>
-      </th>
-    </tr>
+        {yourAccess === null ? null : (
+          <span className="text-xs text-muted-foreground">{yourAccess}</span>
+        )}
+        {folder.permissions.manage ? (
+          <Link
+            to="/f/$folderId"
+            params={{ folderId: folder.id }}
+            search={{ settings: "1" }}
+            className="ml-auto rounded-sm text-xs outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Folder settings
+          </Link>
+        ) : null}
+      </span>
+    </div>
   )
 }

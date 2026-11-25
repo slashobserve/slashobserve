@@ -24,8 +24,10 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useImperativeHandle,
   useRef,
   type ReactNode,
+  type Ref,
 } from "react"
 
 import { cn } from "@/lib/utils"
@@ -38,11 +40,13 @@ import {
   NarrowRow,
   NarrowRowsContext,
   narrowRowEstimate,
+  type FullWidthRows,
   type NarrowRows,
 } from "./narrow-row"
 import { gridTheme } from "./theme"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
+import { useWidth } from "./use-width"
 
 const modules = [
   ClientSideRowModelModule,
@@ -64,6 +68,8 @@ export type DataGridColumn<T> = {
   sortable?: boolean
   autoHeight?: boolean
   action?: boolean
+  headerCell?: () => ReactNode
+  hideBelow?: number
 }
 
 export type DataGridSort = {
@@ -96,6 +102,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
 }
 
 type HeaderParams = IHeaderParams & {
+  headerCell?: () => ReactNode
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
@@ -104,6 +111,7 @@ type HeaderParams = IHeaderParams & {
 
 function SortHeader({
   displayName,
+  headerCell,
   eGridHeader,
   align,
   direction,
@@ -137,7 +145,7 @@ function SortHeader({
           hidden && "sr-only"
         )}
       >
-        {displayName}
+        {headerCell?.() ?? displayName}
       </span>
     )
   }
@@ -153,7 +161,7 @@ function SortHeader({
         direction !== null && "text-foreground"
       )}
     >
-      {displayName}
+      {headerCell?.() ?? displayName}
       {direction !== null ? (
         <Arrow className="size-3" aria-hidden="true" />
       ) : null}
@@ -171,10 +179,6 @@ function FullWidthRow<T>(params: ICellRendererParams<GridLine<T>>) {
   )
 }
 
-function detailHeight<T>({ data }: RowHeightParams<GridLine<T>>) {
-  return data?.detail === true ? detailRowEstimate : undefined
-}
-
 function narrowHeight<T>({ data }: RowHeightParams<GridLine<T>>) {
   return data?.detail === true ? detailRowEstimate : narrowRowEstimate
 }
@@ -183,14 +187,11 @@ function everyRowFullWidth() {
   return true
 }
 
-function detailRowFullWidth<T>({ rowNode }: IsFullWidthRowParams<GridLine<T>>) {
-  return rowNode.data?.detail === true
-}
-
 export function DataGrid<T>({
   label,
+  labelledBy,
   rows,
-  columns,
+  columns: allColumns,
   rowId,
   sort = null,
   onSort,
@@ -203,9 +204,13 @@ export function DataGrid<T>({
   rowAttributes,
   bare = false,
   empty,
+  fullWidthRow,
+  busy = false,
+  ref,
   className,
 }: {
-  label: string
+  label?: string
+  labelledBy?: string
   rows: readonly T[]
   columns: readonly DataGridColumn<T>[]
   rowId: (row: T) => string
@@ -220,16 +225,33 @@ export function DataGrid<T>({
   rowAttributes?: (row: T) => Readonly<Record<string, string>>
   bare?: boolean
   empty?: ReactNode
+  fullWidthRow?: FullWidthRows<T>
+  busy?: boolean
+  ref?: Ref<HTMLDivElement>
   className?: string
 }) {
   const narrow = useNarrow()
   const containerRef = useRef<HTMLDivElement>(null)
+  const hides = allColumns.some((column) => column.hideBelow !== undefined)
+  const showsEmpty = rows.length === 0 && empty !== undefined
+  const width = useWidth(containerRef, hides && !narrow && !showsEmpty)
+  const columns = useMemo(
+    () =>
+      width === 0
+        ? allColumns
+        : allColumns.filter(
+            (column) =>
+              column.hideBelow === undefined || width >= column.hideBelow
+          ),
+    [allColumns, width]
+  )
+  const rowAttributesRef = useRef(rowAttributes)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
-  const rowAttributesRef = useRef(rowAttributes)
-  const labelRef = useRef(label)
+  const nameRef = useRef({ label, labelledBy })
+  useImperativeHandle(ref, () => containerRef.current as HTMLDivElement)
   useLayoutEffect(() => {
-    labelRef.current = label
+    nameRef.current = { label, labelledBy }
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
     rowAttributesRef.current = rowAttributes
@@ -238,6 +260,7 @@ export function DataGrid<T>({
   const sortKey = sort?.key ?? null
   const sortDirection = sort?.direction ?? null
   const open = detail?.open
+  const hasDetail = detail !== undefined
   const lines = useMemo(() => gridLines(rows, rowId, open), [rows, rowId, open])
   const getRowId = useCallback(
     ({ data }: GetRowIdParams<GridLine<T>>) => data.id,
@@ -272,12 +295,42 @@ export function DataGrid<T>({
     [highlight]
   )
   const narrowRows = useMemo(
-    () => ({ columns, onHighlight: highlight }) as NarrowRows<unknown>,
-    [columns, highlight]
+    () =>
+      ({
+        columns,
+        onHighlight: highlight,
+        fullWidth: fullWidthRow,
+      }) as NarrowRows<unknown>,
+    [columns, highlight, fullWidthRow]
+  )
+  const isFullWidthRow = useMemo(
+    () =>
+      narrow
+        ? everyRowFullWidth
+        : hasDetail || fullWidthRow !== undefined
+          ? ({ rowNode }: IsFullWidthRowParams<GridLine<T>>) =>
+              rowNode.data !== undefined &&
+              (rowNode.data.detail ||
+                fullWidthRow?.is(rowNode.data.row) === true)
+          : undefined,
+    [narrow, hasDetail, fullWidthRow]
+  )
+  const getRowHeight = useMemo(
+    () =>
+      narrow
+        ? narrowHeight
+        : hasDetail || fullWidthRow !== undefined
+          ? ({ data }: RowHeightParams<GridLine<T>>) =>
+              data?.detail === true
+                ? detailRowEstimate
+                : data !== undefined && fullWidthRow?.is(data.row)
+                  ? narrowRowEstimate
+                  : undefined
+          : undefined,
+    [narrow, hasDetail, fullWidthRow]
   )
   const renderDetail = detail?.render as
     ((row: unknown) => ReactNode) | undefined
-  const hasDetail = detail !== undefined
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
@@ -294,6 +347,7 @@ export function DataGrid<T>({
         cellRendererParams: { column },
         headerComponent: SortHeader,
         headerComponentParams: {
+          headerCell: column.headerCell,
           align: column.align ?? "left",
           hidden: column.action === true,
           direction: sortKey === column.id ? sortDirection : null,
@@ -303,7 +357,7 @@ export function DataGrid<T>({
               : undefined,
         },
         ...(narrow
-          ? { flex: 1 }
+          ? { flex: 1, minWidth: 1 }
           : {
               width: column.width,
               minWidth: column.minWidth,
@@ -379,11 +433,18 @@ export function DataGrid<T>({
   }, [bodyViewport])
 
   const labelGrid = useCallback(() => {
-    containerRef.current
-      ?.querySelector("[role=grid]")
-      ?.setAttribute("aria-label", labelRef.current)
+    const grid = containerRef.current?.querySelector("[role=grid]")
+    if (grid === null || grid === undefined) return
+    const name = nameRef.current
+    for (const [attribute, value] of [
+      ["aria-label", name.label],
+      ["aria-labelledby", name.labelledBy],
+    ] as const) {
+      if (value === undefined) grid.removeAttribute(attribute)
+      else grid.setAttribute(attribute, value)
+    }
   }, [])
-  useEffect(labelGrid, [label, labelGrid])
+  useEffect(labelGrid, [label, labelledBy, labelGrid])
   const onGridReady = useCallback(
     (event: GridReadyEvent<GridLine<T>>) => {
       apiRef.current = event.api
@@ -392,15 +453,17 @@ export function DataGrid<T>({
     [labelGrid]
   )
 
-  if (rows.length === 0 && empty !== undefined) return <>{empty}</>
+  if (showsEmpty) return <>{empty}</>
 
   return (
     <div
       ref={containerRef}
       data-layout={narrow ? "narrow" : "wide"}
       data-dom-layout={layout}
+      tabIndex={-1}
+      aria-busy={busy || undefined}
       className={cn(
-        "w-full text-[13px]",
+        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full",
         bare &&
           "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
         className
@@ -431,17 +494,9 @@ export function DataGrid<T>({
             rowHeight={rowHeight}
             headerHeight={narrow ? 0 : headerHeight}
             suppressMovableColumns
-            isFullWidthRow={
-              narrow
-                ? everyRowFullWidth
-                : hasDetail
-                  ? detailRowFullWidth
-                  : undefined
-            }
+            isFullWidthRow={isFullWidthRow}
             fullWidthCellRenderer={FullWidthRow}
-            getRowHeight={
-              narrow ? narrowHeight : hasDetail ? detailHeight : undefined
-            }
+            getRowHeight={getRowHeight}
             rowClassRules={rowClassRules}
             processRowPostCreate={processRowPostCreate}
             onCellMouseOver={onCellMouseOver}

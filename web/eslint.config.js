@@ -92,19 +92,9 @@ const notTables = [
 ]
 
 const waitingForDataGrid = [
-  "src/chat/chats-page.tsx",
   "src/components/table-card.test.tsx",
   "src/components/table-card.tsx",
   "src/components/ui/table.tsx",
-  "src/dashboards/dashboard-columns.test.tsx",
-  "src/dashboards/dashboard-columns.tsx",
-  "src/dashboards/dashboard-list.tsx",
-  "src/folders/folder-observations.tsx",
-  "src/folders/folder-saved-searches.tsx",
-  "src/history/version-list.tsx",
-  "src/import/repair/repair-page.tsx",
-  "src/observations/observation-list.tsx",
-  "src/saved-searches/saved-search-table.tsx",
 ]
 
 const tableExempt = [...notTables, ...waitingForDataGrid]
