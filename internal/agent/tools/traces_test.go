@@ -118,7 +118,10 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 	if fmt.Sprint(out.Services) != fmt.Sprint(wantServices) {
 		t.Fatalf("services = %+v, want %+v", out.Services, wantServices)
 	}
-	wantErrors := []spanRefOut{{SpanID: "pay0000000000000", Name: "charge", Service: "payments"}, {SpanID: "db00000000000000", Name: "SELECT cards", Service: "payments"}}
+	wantErrors := []spanRefOut{
+		{SpanID: "pay0000000000000", ParentSpanID: "chk0000000000000", Name: "charge", Service: "payments", Depth: 2},
+		{SpanID: "db00000000000000", ParentSpanID: "pay0000000000000", Name: "SELECT cards", Service: "payments", Depth: 3, Origin: true},
+	}
 	if fmt.Sprint(out.Errors) != fmt.Sprint(wantErrors) {
 		t.Fatalf("errors = %+v, want %+v", out.Errors, wantErrors)
 	}
@@ -129,11 +132,11 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 		t.Fatalf("links = %d to %v, want one linked span to %s", out.Links, out.LinkedTraces, linkedTraceID)
 	}
 	wantSlowest := []slowSpanOut{
-		{"root000000000000", "POST /checkout", "gateway", 900, 0},
-		{"chk0000000000000", "checkout", "checkout", 800, 1},
-		{"pay0000000000000", "charge", "payments", 700, 2},
-		{"db00000000000000", "SELECT cards", "payments", 650, 3},
-		{"inv0000000000025", "reserve", "inventory", 26, 2},
+		{"root000000000000", "POST /checkout", "gateway", 900, 100, 0},
+		{"chk0000000000000", "checkout", "checkout", 800, 100, 1},
+		{"pay0000000000000", "charge", "payments", 700, 50, 2},
+		{"db00000000000000", "SELECT cards", "payments", 650, 650, 3},
+		{"inv0000000000025", "reserve", "inventory", 26, 26, 2},
 	}
 	if fmt.Sprint(out.Slowest[:5]) != fmt.Sprint(wantSlowest) {
 		t.Fatalf("slowest = %+v, want %+v", out.Slowest[:5], wantSlowest)
@@ -142,7 +145,7 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"trace_id"`, `"spans"`, `"spans_returned"`, `"truncated"`, `"services"`, `"duration_ms"`, `"root"`, `"errors"`, `"slowest"`, `"depth"`, `"links"`, `"linked_traces"`} {
+	for _, key := range []string{`"trace_id"`, `"spans"`, `"spans_returned"`, `"truncated"`, `"services"`, `"duration_ms"`, `"root"`, `"errors"`, `"slowest"`, `"depth"`, `"parent_span_id"`, `"origin"`, `"self_time_ms"`, `"links"`, `"linked_traces"`} {
 		if !strings.Contains(string(body), key) {
 			t.Errorf("JSON lacks %s: %s", key, body)
 		}
@@ -354,5 +357,107 @@ func TestTraceStatsRefusesBadInputAndOtherDatasources(t *testing.T) {
 	}
 	if want := "Read trace stats on tempo: 0 spans, p95 n/a"; res.Step != want {
 		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+}
+
+type shapedSpan struct {
+	id, parent, status, message string
+	offset, duration            time.Duration
+}
+
+func shapedTrace(spans ...shapedSpan) datasource.Frame {
+	names := []string{"SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage"}
+	f := datasource.Frame{Fields: make([]datasource.Field, len(names))}
+	for i, name := range names {
+		f.Fields[i] = datasource.Field{Name: name, Type: datasource.FieldString}
+	}
+	for _, s := range spans {
+		row := []any{s.id, s.parent, "op-" + s.id, "svc", fixtureStart.Add(s.offset), int64(s.duration), s.status, s.message}
+		for c := range row {
+			f.Fields[c].Values = append(f.Fields[c].Values, row[c])
+		}
+	}
+	return f
+}
+
+func originsOf(refs []spanRefOut) []string {
+	var ids []string
+	for _, r := range refs {
+		if r.Origin {
+			ids = append(ids, r.SpanID)
+		}
+	}
+	return ids
+}
+
+func TestSummarizeTraceFlagsTheDeepestErrorOfAChainAsTheOrigin(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "b", parent: "a", status: "Error", offset: ms, duration: 90 * ms},
+		shapedSpan{id: "c", parent: "b", status: "Unset", offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "d", parent: "c", status: "Error", offset: 3 * ms, duration: 70 * ms},
+	))
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"d"}) {
+		t.Fatalf("origins = %v, want only the deepest error across a clean span", got)
+	}
+	if b, d := out.Errors[0], out.Errors[1]; b.SpanID != "b" || b.ParentSpanID != "a" || b.Depth != 1 || d.ParentSpanID != "c" || d.Depth != 3 {
+		t.Fatalf("errors = %+v", out.Errors)
+	}
+}
+
+func TestSummarizeTraceKeepsAParentWithItsOwnErrorMessageAsAnOrigin(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "own", parent: "a", status: "Error", message: "card declined", offset: ms, duration: 90 * ms},
+		shapedSpan{id: "relay", parent: "own", status: "Error", message: "timeout", offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "echo", parent: "relay", status: "Error", message: "timeout", offset: 3 * ms, duration: 70 * ms},
+	))
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"own", "echo"}) {
+		t.Fatalf("origins = %v, want the parent with a distinct message and the deepest span", got)
+	}
+	relayed := shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "p", parent: "a", status: "Error", message: "timeout", offset: ms, duration: 90 * ms},
+		shapedSpan{id: "q", parent: "p", status: "Error", message: "timeout", offset: 2 * ms, duration: 80 * ms},
+	)
+	if got := originsOf(summarizeTrace(fixtureTraceID, relayed).Errors); !slices.Equal(got, []string{"q"}) {
+		t.Fatalf("origins = %v, want a parent that repeats its child's message to relay it", got)
+	}
+}
+
+func TestSummarizeTraceFlagsTheDeepestErrorOfEachIndependentChain(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "left", parent: "a", status: "Error", offset: ms, duration: 40 * ms},
+		shapedSpan{id: "left-leaf", parent: "left", status: "Error", offset: 2 * ms, duration: 30 * ms},
+		shapedSpan{id: "right", parent: "a", status: "Error", offset: 50 * ms, duration: 40 * ms},
+		shapedSpan{id: "right-leaf", parent: "right", status: "Error", offset: 51 * ms, duration: 30 * ms},
+	))
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"left-leaf", "right-leaf"}) {
+		t.Fatalf("origins = %v, want one per chain", got)
+	}
+}
+
+func TestSummarizeTraceSelfTimeSubtractsTheUnionOfOverlappingChildren(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "x", parent: "a", status: "Unset", offset: 10 * ms, duration: 40 * ms},
+		shapedSpan{id: "y", parent: "a", status: "Unset", offset: 30 * ms, duration: 40 * ms},
+		shapedSpan{id: "z", parent: "a", status: "Unset", offset: 90 * ms, duration: 50 * ms},
+		shapedSpan{id: "w", parent: "x", status: "Unset", offset: 10 * ms, duration: 60 * ms},
+	))
+	selfByID := map[string]float64{}
+	for _, s := range out.Slowest {
+		selfByID[s.SpanID] = s.SelfTimeMS
+	}
+	want := map[string]float64{"a": 100 - 60 - 10, "x": 0, "y": 40, "z": 50, "w": 60}
+	for id, w := range want {
+		if selfByID[id] != w {
+			t.Errorf("self time of %s = %v, want %v (all: %v)", id, selfByID[id], w, selfByID)
+		}
 	}
 }
