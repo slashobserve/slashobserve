@@ -47,15 +47,17 @@ var chartTypes = []spec.PanelType{
 var schemaShowPanel = showPanelSchema()
 
 func showPanelSchema() string {
-	property, err := json.Marshal(struct {
-		Type        string   `json:"type"`
-		Enum        []string `json:"enum"`
-		Description string   `json:"description"`
-	}{"string", chartTypeNames(), descShowType})
+	var schema map[string]any
+	if err := json.Unmarshal([]byte(schemaShowPanelHead+propDatasource+`,`+propQuery+schemaShowPanelTail), &schema); err != nil {
+		panic(err)
+	}
+	properties, _ := schema["properties"].(map[string]any)
+	properties["type"] = map[string]any{"type": "string", "enum": chartTypeNames(), "description": descShowType}
+	out, err := json.Marshal(schema)
 	if err != nil {
 		panic(err)
 	}
-	return schemaShowPanelHead + propDatasource + `,` + propQuery + `,"type":` + string(property) + schemaShowPanelTail
+	return string(out)
 }
 
 var chartFormats = map[spec.PanelType]string{
