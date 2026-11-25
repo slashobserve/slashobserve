@@ -27,6 +27,7 @@ import {
 import { ServerSection } from "@/settings/server-section"
 import { SettingsNav, SettingsSectionSelect } from "@/settings/settings-nav"
 import { SignInSection } from "@/settings/sign-in-section"
+import { ContextSourcesSettings } from "@/settings/context-sources/context-sources-settings"
 import { WebhooksSettings } from "@/settings/webhooks/webhooks-settings"
 
 type SettingsSearch = {
@@ -34,6 +35,7 @@ type SettingsSearch = {
   sync?: string
   panel?: string
   webhook?: string
+  source?: string
 }
 
 function optionalText(value: unknown): string | undefined {
@@ -47,6 +49,7 @@ export const Route = createFileRoute("/_authed/_shell/settings/")({
     sync: optionalText(search.sync),
     panel: optionalText(search.panel),
     webhook: optionalText(search.webhook),
+    source: optionalText(search.source),
   }),
   beforeLoad: ({ location }) => {
     if (!isMovedAuditLog(location.hash)) return
@@ -77,6 +80,7 @@ function SettingsPage() {
         ...prev,
         panel: next?.kind,
         webhook: next?.kind === "webhook-edit" ? next.webhookId : undefined,
+        source: next?.kind === "context-edit" ? next.uid : undefined,
       }),
       replace: true,
     })
@@ -148,6 +152,7 @@ function SelectedSection({
                 sync: syncId,
                 panel: undefined,
                 webhook: undefined,
+                source: undefined,
               },
               hash: "grafana" satisfies SettingsSectionId,
             })
@@ -158,5 +163,7 @@ function SelectedSection({
       )
     case "webhooks":
       return <WebhooksSettings panel={panel} onPanel={onPanel} />
+    case "context-sources":
+      return <ContextSourcesSettings panel={panel} onPanel={onPanel} />
   }
 }

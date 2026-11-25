@@ -10,6 +10,7 @@ export type SettingsSectionId =
   | "agent-access"
   | "grafana"
   | "webhooks"
+  | "context-sources"
 
 type SettingsSection = { id: SettingsSectionId; label: string }
 
@@ -22,6 +23,8 @@ export type SettingsPanel =
   | { kind: "grafana-add" }
   | { kind: "webhook-add" }
   | { kind: "webhook-edit"; webhookId: string }
+  | { kind: "context-add" }
+  | { kind: "context-edit"; uid: string }
 
 const youGroup: SettingsGroup = {
   label: "You",
@@ -70,6 +73,7 @@ const adminGroups: readonly SettingsGroup[] = [
     sections: [
       { id: "grafana", label: "Grafana connection" },
       { id: "webhooks", label: "Webhooks" },
+      { id: "context-sources", label: "Context sources" },
     ],
   },
 ]
@@ -118,11 +122,12 @@ export function sectionNotice(
 
 export function settingsPanel(
   section: SettingsSectionId,
-  search: { panel?: string; webhook?: string }
+  search: { panel?: string; webhook?: string; source?: string }
 ): SettingsPanel | null {
   if (section === "grafana" && search.panel === "grafana-add") {
     return { kind: "grafana-add" }
   }
+  if (section === "context-sources") return contextPanel(search)
   if (section !== "webhooks") return null
   if (search.panel === "webhook-add") return { kind: "webhook-add" }
   if (
@@ -131,6 +136,21 @@ export function settingsPanel(
     search.webhook !== ""
   ) {
     return { kind: "webhook-edit", webhookId: search.webhook }
+  }
+  return null
+}
+
+function contextPanel(search: {
+  panel?: string
+  source?: string
+}): SettingsPanel | null {
+  if (search.panel === "context-add") return { kind: "context-add" }
+  if (
+    search.panel === "context-edit" &&
+    search.source !== undefined &&
+    search.source !== ""
+  ) {
+    return { kind: "context-edit", uid: search.source }
   }
   return null
 }

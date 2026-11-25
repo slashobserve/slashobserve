@@ -25,7 +25,10 @@ describe("settingsGroups", () => {
         label: "Workspace",
         ids: ["server", "sign-in", "outbound-access", "agent-access"],
       },
-      { label: "Integrations", ids: ["grafana", "webhooks"] },
+      {
+        label: "Integrations",
+        ids: ["grafana", "webhooks", "context-sources"],
+      },
     ])
   })
 
@@ -66,6 +69,7 @@ describe("settingsGroups", () => {
       "Agent access",
       "Grafana connection",
       "Webhooks",
+      "Context sources",
     ])
   })
 })
@@ -116,7 +120,12 @@ describe("selectedSectionId", () => {
   test("falls back to the server for a section the role cannot see", () => {
     for (const role of ["editor", "commenter", "viewer"] as const) {
       const groups = settingsGroups(role)
-      for (const hash of ["agent-access", "grafana", "webhooks"]) {
+      for (const hash of [
+        "agent-access",
+        "grafana",
+        "webhooks",
+        "context-sources",
+      ]) {
         expect(selectedSectionId(groups, hash)).toBe("server")
       }
     }
@@ -181,6 +190,31 @@ describe("settingsPanel", () => {
     expect(settingsPanel("webhooks", { panel: "webhook-edit" })).toBeNull()
     expect(
       settingsPanel("webhooks", { panel: "webhook-edit", webhook: "" })
+    ).toBeNull()
+  })
+
+  test("opens the context source panels on their section", () => {
+    expect(settingsPanel("context-sources", { panel: "context-add" })).toEqual({
+      kind: "context-add",
+    })
+    expect(
+      settingsPanel("context-sources", {
+        panel: "context-edit",
+        source: "docs",
+      })
+    ).toEqual({ kind: "context-edit", uid: "docs" })
+  })
+
+  test("opens no context source edit panel without a source, or on another section", () => {
+    expect(
+      settingsPanel("context-sources", { panel: "context-edit" })
+    ).toBeNull()
+    expect(
+      settingsPanel("context-sources", { panel: "context-edit", source: "" })
+    ).toBeNull()
+    expect(settingsPanel("webhooks", { panel: "context-add" })).toBeNull()
+    expect(
+      settingsPanel("context-sources", { panel: "webhook-add" })
     ).toBeNull()
   })
 
