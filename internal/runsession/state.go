@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -41,6 +42,8 @@ type State struct {
 
 	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
 	Loop   bool                   `json:"loop,omitempty"`
+
+	Grounding *grounding.Record `json:"grounding,omitempty"`
 }
 
 type Settled struct {

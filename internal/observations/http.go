@@ -71,6 +71,7 @@ type ObservationJSON struct {
 type RunFindingJSON struct {
 	RunID string `json:"run_id"`
 	findings.StructuredJSON
+	Unverified []findings.Unverified `json:"unverified"`
 }
 
 type BlockJSON struct {
@@ -172,7 +173,7 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		ChatRename:     o.ChatRename,
 	}
 	for _, f := range o.Findings {
-		body.Findings = append(body.Findings, RunFindingJSON{RunID: f.RunID, StructuredJSON: findings.StructuredJSONOf(f.Fields)})
+		body.Findings = append(body.Findings, RunFindingJSON{RunID: f.RunID, StructuredJSON: findings.StructuredJSONOf(f.Fields), Unverified: append([]findings.Unverified{}, f.Unverified...)})
 	}
 	if o.Blocks != nil {
 		blocks := make([]BlockJSON, len(o.Blocks))

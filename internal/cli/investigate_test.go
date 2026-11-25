@@ -279,3 +279,17 @@ func TestPrintFindingShowsTheStructuredFieldsAboveTheAnswerOnlyWhenSet(t *testin
 		t.Errorf("printed %q\nwant %q", stdout.String(), want)
 	}
 }
+
+func TestPrintFindingListsTheItemsNotFoundInWhatTheAgentRead(t *testing.T) {
+	var stdout bytes.Buffer
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{
+		Title:      "Checkout latency",
+		Markdown:   "p99 rose to 523 ms.",
+		URL:        "https://o.example/o/1",
+		Unverified: []findingUnverified{{Kind: "figure", Text: "523 ms"}, {Kind: "component", Text: "cartservice"}},
+	}, investigationID)
+	want := "Checkout latency\n\nNot found in what the agent read: 523 ms; cartservice\n\np99 rose to 523 ms.\n\nhttps://o.example/o/1\n"
+	if stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+}

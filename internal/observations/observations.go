@@ -39,8 +39,9 @@ type Observation struct {
 }
 
 type RunFields struct {
-	RunID  string
-	Fields findings.Structured
+	RunID      string
+	Fields     findings.Structured
+	Unverified []findings.Unverified
 }
 
 type Block struct {

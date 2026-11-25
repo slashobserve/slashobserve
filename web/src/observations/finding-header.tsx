@@ -29,13 +29,46 @@ export function hasFindingHeader(finding: RunFinding): boolean {
   )
 }
 
+function hasUnverified(finding: RunFinding): boolean {
+  return finding.unverified.length > 0
+}
+
+type UnverifiedKind = RunFinding["unverified"][number]["kind"]
+
+function subjectOf(kind: UnverifiedKind, count: number): string {
+  switch (kind) {
+    case "figure":
+      return count === 1 ? "1 figure" : `${count} figures`
+    case "component":
+      return "the root cause component"
+    case "onset":
+      return "the onset time"
+  }
+}
+
+export function unverifiedLine(finding: RunFinding): string {
+  const counts = new Map<UnverifiedKind, number>()
+  for (const item of finding.unverified) {
+    counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1)
+  }
+  const subjects = [...counts].map(([kind, n]) => subjectOf(kind, n))
+  const subject =
+    subjects.length > 1
+      ? `${subjects.slice(0, -1).join(", ")} and ${subjects.at(-1)}`
+      : (subjects[0] ?? "")
+  const plural = subjects.length > 1 || (counts.get("figure") ?? 0) > 1
+  const items = finding.unverified.map((item) => item.text).join(", ")
+  const sentence = `${subject} ${plural ? "were" : "was"} not found in what the agent read: ${items}`
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1)
+}
+
 export function headerBlocks(
   blocks: readonly Block[],
   findings: Observation["findings"]
 ): Map<string, RunFinding> {
   const headers = new Map<string, RunFinding>()
   for (const finding of findings ?? []) {
-    if (!hasFindingHeader(finding)) continue
+    if (!hasFindingHeader(finding) && !hasUnverified(finding)) continue
     const answers = blocks
       .filter((b) => b.kind === "text" && b.run_id === finding.run_id)
       .toSorted((a, b) => a.position - b.position)
@@ -54,12 +87,26 @@ function Row({ label, children }: { label: string; children: string }) {
   )
 }
 
+function UnverifiedLine({ finding }: { finding: RunFinding }) {
+  const line = unverifiedLine(finding)
+  return <p className="text-[12px] text-muted-foreground">{line}</p>
+}
+
 export function FindingHeader({ finding }: { finding: RunFinding }) {
+  return (
+    <div className="mb-3 flex flex-col gap-1">
+      {hasFindingHeader(finding) ? <FindingSummary finding={finding} /> : null}
+      {hasUnverified(finding) ? <UnverifiedLine finding={finding} /> : null}
+    </div>
+  )
+}
+
+function FindingSummary({ finding }: { finding: RunFinding }) {
   const cause = finding.root_cause
   return (
     <section
       aria-label="Finding summary"
-      className="mb-3 flex flex-col gap-1 rounded-card border border-border px-3 py-2 text-[13px]"
+      className="flex flex-col gap-1 rounded-card border border-border px-3 py-2 text-[13px]"
     >
       {finding.no_incident ? (
         <p className="font-medium">No incident found</p>

@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 )
 
 func TestSessionRenewSetting(t *testing.T) {
@@ -149,6 +151,37 @@ func TestAgentInvestigationLoopIsOffUnlessSet(t *testing.T) {
 			}
 			if cfg.Agent.InvestigationLoop != tt.want {
 				t.Fatalf("InvestigationLoop = %v, want %v", cfg.Agent.InvestigationLoop, tt.want)
+			}
+		})
+	}
+}
+
+func TestFindingGroundingIsOffUnlessSet(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		set     map[string]string
+		want    grounding.Mode
+		wantErr bool
+	}{
+		{name: "unset", want: grounding.Off},
+		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: grounding.Off},
+		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, want: grounding.Report},
+		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: grounding.Enforce},
+		{name: "a boolean", set: map[string]string{envAgentFindingGrounding: "true"}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), envAgentFindingGrounding+": must be off, report or enforce") {
+					t.Fatalf("Load error = %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.FindingGrounding != tt.want {
+				t.Fatalf("FindingGrounding = %q, want %q", cfg.Agent.FindingGrounding, tt.want)
 			}
 		})
 	}

@@ -416,6 +416,8 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
 - The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token and `get_run_brief` gives it the prompt section too, never outside a run; its calls are neither reads nor writes, so they are not refused at the call limit, and a turn with only ledger calls counts as stalled.
   The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
+- The grounding check: with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, a finding saved in an investigate run is checked against what the run read, for a connected agent as for the built-in one.
+  With `enforce`, `save_finding` is sent back once with the figures and names that were not found, the next call may read past the call limit, and the second save is accepted; the send-back is not a rejected save.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
   Without `usage` the server cannot know the cost and never stops a run for it.

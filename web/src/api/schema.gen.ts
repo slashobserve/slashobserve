@@ -7001,6 +7001,15 @@ export interface components {
             /** @description One sentence on what failed. */
             summary: string;
         };
+        FindingUnverified: {
+            /**
+             * @description A figure from the Markdown or the impact, the root cause component, or the onset time.
+             * @enum {string}
+             */
+            kind: "figure" | "component" | "onset";
+            /** @description The item as the agent wrote it, such as "523 ms". */
+            text: string;
+        };
         /** @description The structured fields of the finding one run wrote into the observation. */
         ObservationRunFinding: {
             /**
@@ -7028,6 +7037,8 @@ export interface components {
             next_steps: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident: boolean;
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            unverified: components["schemas"]["FindingUnverified"][];
         };
         FindingAskOn: {
             /** Format: uuid */
@@ -7091,6 +7102,8 @@ export interface components {
             next_steps?: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident?: boolean;
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            unverified?: components["schemas"]["FindingUnverified"][];
             /**
              * Format: date-time
              * @description The start of the window the evidence shows.
@@ -8093,7 +8106,7 @@ export interface components {
             allowed_actions: components["schemas"]["ObservationAction"][];
             /** @description The blocks in page order; present when one observation is read, absent from lists. */
             blocks?: components["schemas"]["ObservationBlock"][];
-            /** @description The structured fields of each finding a run wrote into the observation, oldest first; present only when one observation is read and a finding set at least one field. */
+            /** @description The structured fields of each finding a run wrote into the observation, oldest first; present only when one observation is read and a finding set at least one field or has unverified items. */
             findings?: components["schemas"]["ObservationRunFinding"][];
             /**
              * @description Present only in the answer to a title change of the one observation made from a chat with no dashboard. `renamed` when the chat now has the observation's title, `kept` when the caller did not start that chat and its title was left as it is.

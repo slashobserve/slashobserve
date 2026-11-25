@@ -73,6 +73,7 @@ type SaveInput struct {
 	SuggestedChange string
 	ObserveWorthy   bool
 	Structured      Structured
+	Unverified      []Unverified
 }
 
 func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Finding, bool, error) {

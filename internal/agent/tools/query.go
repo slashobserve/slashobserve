@@ -298,7 +298,11 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 }
 
 func resolveRunRange(ctx context.Context, from, to string) (datasource.TimeRange, Result, bool) {
-	return resolveRange(from, to, Now(ctx))
+	rng, res, ok := resolveRange(from, to, Now(ctx))
+	if ok {
+		noteRange(ctx, rng)
+	}
+	return rng, res, ok
 }
 
 func resolveRange(from, to string, now time.Time) (datasource.TimeRange, Result, bool) {
