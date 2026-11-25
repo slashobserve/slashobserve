@@ -183,6 +183,7 @@ func (sess *session) endedAnswerWith(answer Answer, notes []string) Answer {
 func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dispatched) (Answer, error) {
 	state := &sess.state
 	state.Usage.ToolMS += d.took.Milliseconds()
+	sess.endRead(c, a)
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
 	if d.err != nil {
 		return Answer{}, sess.settleFailed(ctx, c, a, step)
@@ -225,6 +226,12 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (sess *session) endRead(c guard.Call, a admitted) {
+	if a.adm.Verdict != guard.Refuse && sess.state.Turn.Open && sess.state.Turn.Seq == a.seq {
+		sess.state.Guard.EndRead(c)
+	}
 }
 
 func (sess *session) settleFailed(ctx context.Context, c guard.Call, a admitted, step revisions.Step) error {

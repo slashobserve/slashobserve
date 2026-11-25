@@ -47,12 +47,14 @@ type Read struct {
 }
 
 type Turn struct {
-	ReadGuard string             `json:"read_guard,omitempty"`
-	SaveSeen  bool               `json:"save_seen,omitempty"`
-	Answered  int                `json:"answered"`
-	Progress  bool               `json:"progress,omitempty"`
-	Rejected  bool               `json:"rejected,omitempty"`
-	Keys      map[string]TurnKey `json:"keys,omitempty"`
+	ReadGuard string `json:"read_guard,omitempty"`
+	SaveSeen  bool   `json:"save_seen,omitempty"`
+	Answered  int    `json:"answered"`
+	Progress  bool   `json:"progress,omitempty"`
+	Rejected  bool   `json:"rejected,omitempty"`
+
+	ReadsInFlight int                `json:"reads_in_flight,omitempty"`
+	Keys          map[string]TurnKey `json:"keys,omitempty"`
 }
 
 type TurnKey struct {

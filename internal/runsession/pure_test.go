@@ -308,3 +308,32 @@ func TestAWriteThatCreatedObjectsLetsTheNextCallWriteOnThem(t *testing.T) {
 		t.Fatalf("a failed write recorded ids: %v", sess.state.Created)
 	}
 }
+
+func TestAWriteInTheTurnOfAnUnsettledReadIsRefusedUntilTheReadSettles(t *testing.T) {
+	ctx := context.Background()
+	sess := &session{state: State{Guard: guard.New(tools.ModeCreate)}}
+	turn := &Turn{ID: "turn", Calls: 3}
+	read := guard.Call{Name: "list_datasources", Input: json.RawMessage(`{}`)}
+	write := guard.Call{Name: "add_block", Input: json.RawMessage(`{"observation_id":"o"}`)}
+
+	first, err := sess.admit(ctx, read, turn)
+	if err != nil || first.adm.Verdict != guard.Dispatch {
+		t.Fatalf("read = %+v, %v", first.adm, err)
+	}
+	refused, err := sess.admit(ctx, write, turn)
+	if err != nil || refused.answer == nil || !refused.answer.IsError || !strings.Contains(string(refused.answer.Content), "read_in_flight") {
+		t.Fatalf("write beside the read = %+v, %v", refused.answer, err)
+	}
+	if sess.state.Guard.Writes != 0 {
+		t.Fatalf("the refused write used the cap: %d", sess.state.Guard.Writes)
+	}
+
+	done := dispatched{res: tools.Result{}, content: []byte(`{}`), start: time.Now()}
+	if _, err := sess.settle(ctx, read, first, done); err != nil {
+		t.Fatal(err)
+	}
+	retried, err := sess.admit(ctx, write, turn)
+	if err != nil || retried.answer != nil || retried.adm.Verdict != guard.Dispatch {
+		t.Fatalf("write after the read settled = %+v, %v", retried.adm, err)
+	}
+}

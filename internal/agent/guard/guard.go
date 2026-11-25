@@ -37,6 +37,7 @@ const (
 	guardRepeatedSave  = "repeated_save"
 	guardTooManyWrites = "too_many_writes"
 	guardRepeatedWrite = "repeated_write"
+	guardReadInFlight  = "read_in_flight"
 )
 
 const (
@@ -75,6 +76,11 @@ var rules = map[string]rule{
 		message: fmt.Sprintf("this run already made %d changes, the most one run may; say in your answer what is left for the person to do", maxWritesPerAttempt),
 		refused: fmt.Sprintf("%d writes already ran", maxWritesPerAttempt),
 		stopped: fmt.Sprintf("Stopped: the model kept writing after %d writes", maxWritesPerAttempt),
+	},
+	guardReadInFlight: {
+		message: "a read in this same call is still running, so this change was not made; make it in your next call, after you have the read's result",
+		refused: "a read from the same call was still running",
+		stopped: "Stopped: every change was refused because a read from the same call was still running",
 	},
 	guardRepeatedWrite: {
 		message: "this change is identical to an earlier one in this run and changes nothing; say what you did instead of repeating it",
@@ -237,12 +243,28 @@ func (s *State) Admit(position int, c Call) Admission {
 	case tools.PhaseWrite:
 		return s.admitWrite(c, adm)
 	}
-	return s.admitRead(position, c, adm)
+	adm = s.admitRead(position, c, adm)
+	if adm.Verdict != Refuse {
+		s.Turn.ReadsInFlight++
+	}
+	return adm
+}
+
+func (s *State) EndRead(c Call) {
+	switch tools.Phase(c.Name) {
+	case tools.PhaseSave, tools.PhaseWrite:
+		return
+	}
+	if s.Turn.ReadsInFlight > 0 {
+		s.Turn.ReadsInFlight--
+	}
 }
 
 func (s *State) admitWrite(c Call, adm Admission) Admission {
 	adm.Key = writeKey(c)
 	switch {
+	case s.Turn.ReadsInFlight > 0:
+		return s.refuse(c, adm, guardReadInFlight)
 	case s.Writes >= maxWritesPerAttempt:
 		return s.refuse(c, adm, guardTooManyWrites)
 	case s.WriteKeys[adm.Key]:
@@ -363,7 +385,7 @@ func (s *State) rejectWith(c Call, adm Admission, code, reason string) Admission
 func (s *State) refuse(c Call, adm Admission, name string) Admission {
 	s.LastGuard, s.LastLimit = name, s.windowLimit()
 	code := codeInvalidRequest
-	if name == guardTooManyWrites || name == guardRepeatedWrite {
+	if name == guardTooManyWrites || name == guardRepeatedWrite || name == guardReadInFlight {
 		code = name
 	}
 	adm = s.rejectWith(c, adm, code, s.rule(name).message)

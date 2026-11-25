@@ -202,3 +202,37 @@ func TestWriteKeysKeepLargeIntegersApart(t *testing.T) {
 		t.Fatal("key order changed the key")
 	}
 }
+
+func TestWriteIsRefusedWhileAReadOfTheTurnIsInFlight(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.BeginTurn(false)
+	read := writeCall("list_datasources", `{}`)
+	if adm := s.Admit(0, read); adm.Verdict != Dispatch {
+		t.Fatalf("read = %+v", adm)
+	}
+	adm := s.Admit(1, writeCall("add_block", `{"n":1}`))
+	if adm.Verdict != Refuse || adm.Step != "Refused add_block: a read from the same call was still running" {
+		t.Fatalf("write beside a read = %+v", adm)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(adm.Content, &body); err != nil || body["code"] != "read_in_flight" {
+		t.Fatalf("content = %s", adm.Content)
+	}
+	if s.Writes != 0 || len(s.WriteKeys) != 0 {
+		t.Fatalf("refused write was recorded: %d %v", s.Writes, s.WriteKeys)
+	}
+	s.EndRead(read)
+	if adm := s.Admit(2, writeCall("add_block", `{"n":1}`)); adm.Verdict != Dispatch {
+		t.Fatalf("write after the read = %+v", adm)
+	}
+}
+
+func TestANewTurnStartsWithNoReadsInFlight(t *testing.T) {
+	s := New(tools.ModeCreate)
+	s.BeginTurn(false)
+	s.Admit(0, writeCall("list_datasources", `{}`))
+	s.BeginTurn(false)
+	if s.Turn.ReadsInFlight != 0 {
+		t.Fatalf("a new turn kept the old reads: %d", s.Turn.ReadsInFlight)
+	}
+}
