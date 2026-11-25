@@ -64,7 +64,7 @@ describe("WebhooksCard", () => {
     )
 
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
     await user.click(

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react"
+import { useMemo, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { EllipsisIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { webhookKeys } from "@/api/keys"
 import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -108,6 +108,10 @@ export function WebhooksCard({
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
+  const openDetail = useMemo(
+    () => new Set(viewing === null ? [] : [viewing]),
+    [viewing]
+  )
   const busy =
     rotate.isPending ||
     remove.isPending ||
@@ -196,179 +200,185 @@ export function WebhooksCard({
     )
   }
 
+  const columns: DataGridColumn<Webhook>[] = [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 150,
+      autoHeight: true,
+      cell: (webhook) => (
+        <div className="py-2 font-medium wrap-anywhere">
+          {webhook.name}
+          <span className="block text-xs font-normal text-muted-foreground">
+            Owner: {webhook.owner.label}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "address",
+      header: "Address",
+      minWidth: 200,
+      flex: 1.5,
+      autoHeight: true,
+      cell: (webhook) => (
+        <div className="py-2 text-xs wrap-anywhere">
+          <span className="font-mono">{webhook.url}</span>
+          {webhook.format === "generic" ? null : (
+            <span className="block text-muted-foreground">
+              Sends {formatLabels[webhook.format]}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "events",
+      header: "Events",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (webhook) => (
+        <span className="py-2 wrap-break-word">
+          {eventTypeSummary(webhook.event_types)}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      minWidth: 160,
+      autoHeight: true,
+      cell: (webhook) => {
+        const status = webhookStatus(webhook)
+        return (
+          <div className="flex flex-col gap-0.5 py-2">
+            <StatusLabel tone={status.tone}>{status.label}</StatusLabel>
+            {status.detail === null ? null : (
+              <span className="text-xs text-muted-foreground">
+                {status.detail}
+              </span>
+            )}
+            {status.waiting === null ? null : (
+              <span className="text-xs text-muted-foreground">
+                {status.waiting}
+                {webhook.enabled ? (
+                  <>
+                    , <NextAttempt iso={webhook.next_attempt_at} />
+                  </>
+                ) : null}
+              </span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 250,
+      cell: (webhook) => {
+        const testing = test.isPending && test.variables === webhook.id
+        const open = viewing === webhook.id
+        return (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="narrow:h-11"
+              disabled={testing}
+              focusableWhenDisabled
+              aria-busy={testing}
+              aria-label={`Test ${webhook.name}`}
+              onClick={() => runTest(webhook)}
+            >
+              {testing ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="motion-safe:animate-spin"
+                />
+              ) : null}
+              Test
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="narrow:h-11"
+              aria-expanded={open}
+              aria-label={`Attempts of ${webhook.name}`}
+              onClick={() => toggleAttempts(webhook, open)}
+            >
+              Attempts
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="narrow:size-11"
+                    aria-label={`More for ${webhook.name}`}
+                  />
+                }
+              >
+                <EllipsisIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(webhook.id)}>
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toggleEnabled(webhook)}>
+                  {webhook.enabled ? "Disable" : "Enable"}
+                </DropdownMenuItem>
+                {webhook.enabled && webhook.consecutive_failures > 0 ? (
+                  <DropdownMenuItem
+                    onClick={() => setConfirming({ kind: "skip", webhook })}
+                  >
+                    Skip stuck event
+                  </DropdownMenuItem>
+                ) : null}
+                {webhook.owner.id === meId ? null : (
+                  <DropdownMenuItem
+                    onClick={() => setConfirming({ kind: "own", webhook })}
+                  >
+                    Make me the owner
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => setConfirming({ kind: "rotate", webhook })}
+                >
+                  Rotate secret
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setConfirming({ kind: "delete", webhook })}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <>
-      <TableCard
+      <DataGrid
         label="Webhooks"
-        minWidth={760}
-        stackOnNarrow
-        className="rounded-none border-0 border-t bg-transparent"
-      >
-        <thead>
-          <tr>
-            <HeaderCell>Name</HeaderCell>
-            <HeaderCell>Address</HeaderCell>
-            <HeaderCell>Events</HeaderCell>
-            <HeaderCell>Status</HeaderCell>
-            <HeaderCell>
-              <span className="sr-only">Actions</span>
-            </HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {webhooks.map((webhook) => {
-            const status = webhookStatus(webhook)
-            const testing = test.isPending && test.variables === webhook.id
-            const open = viewing === webhook.id
-            return (
-              <Fragment key={webhook.id}>
-                <tr
-                  className={
-                    webhook.id === editingId ? "bg-selection" : undefined
-                  }
-                >
-                  <Cell className="font-medium wrap-anywhere">
-                    {webhook.name}
-                    <span className="block text-xs font-normal text-muted-foreground">
-                      Owner: {webhook.owner.label}
-                    </span>
-                  </Cell>
-                  <Cell className="text-xs wrap-anywhere">
-                    <span className="font-mono">{webhook.url}</span>
-                    {webhook.format === "generic" ? null : (
-                      <span className="block text-muted-foreground">
-                        Sends {formatLabels[webhook.format]}
-                      </span>
-                    )}
-                  </Cell>
-                  <Cell className="wrap-break-word">
-                    {eventTypeSummary(webhook.event_types)}
-                  </Cell>
-                  <Cell>
-                    <div className="flex flex-col gap-0.5">
-                      <StatusLabel tone={status.tone}>
-                        {status.label}
-                      </StatusLabel>
-                      {status.detail === null ? null : (
-                        <span className="text-xs text-muted-foreground">
-                          {status.detail}
-                        </span>
-                      )}
-                      {status.waiting === null ? null : (
-                        <span className="text-xs text-muted-foreground">
-                          {status.waiting}
-                          {webhook.enabled ? (
-                            <>
-                              , <NextAttempt iso={webhook.next_attempt_at} />
-                            </>
-                          ) : null}
-                        </span>
-                      )}
-                    </div>
-                  </Cell>
-                  <Cell data-cell="action">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="narrow:h-11"
-                        disabled={testing}
-                        focusableWhenDisabled
-                        aria-busy={testing}
-                        aria-label={`Test ${webhook.name}`}
-                        onClick={() => runTest(webhook)}
-                      >
-                        {testing ? (
-                          <LoaderCircleIcon
-                            aria-hidden="true"
-                            className="motion-safe:animate-spin"
-                          />
-                        ) : null}
-                        Test
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="narrow:h-11"
-                        aria-expanded={open}
-                        aria-label={`Attempts of ${webhook.name}`}
-                        onClick={() => toggleAttempts(webhook, open)}
-                      >
-                        Attempts
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="outline"
-                              size="icon-sm"
-                              className="narrow:size-11"
-                              aria-label={`More for ${webhook.name}`}
-                            />
-                          }
-                        >
-                          <EllipsisIcon aria-hidden="true" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(webhook.id)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => toggleEnabled(webhook)}
-                          >
-                            {webhook.enabled ? "Disable" : "Enable"}
-                          </DropdownMenuItem>
-                          {webhook.enabled &&
-                          webhook.consecutive_failures > 0 ? (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setConfirming({ kind: "skip", webhook })
-                              }
-                            >
-                              Skip stuck event
-                            </DropdownMenuItem>
-                          ) : null}
-                          {webhook.owner.id === meId ? null : (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setConfirming({ kind: "own", webhook })
-                              }
-                            >
-                              Make me the owner
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setConfirming({ kind: "rotate", webhook })
-                            }
-                          >
-                            Rotate secret
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() =>
-                              setConfirming({ kind: "delete", webhook })
-                            }
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </Cell>
-                </tr>
-                {open ? (
-                  <tr>
-                    <td colSpan={5} className="border-b bg-muted/30 p-0">
-                      <DeliveriesList webhookId={webhook.id} />
-                    </td>
-                  </tr>
-                ) : null}
-              </Fragment>
-            )
-          })}
-        </tbody>
-      </TableCard>
+        rows={webhooks}
+        columns={columns}
+        rowId={(webhook) => webhook.id}
+        highlightedRowId={editingId}
+        detail={{
+          open: openDetail,
+          render: (webhook) => <DeliveriesList webhookId={webhook.id} />,
+        }}
+        bare
+        className="border-t"
+      />
       <AlertDialog open={confirming !== null} onOpenChange={changeConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
