@@ -1,0 +1,271 @@
+{
+  "schema": 1,
+  "benchmark": "o11y-bench",
+  "benchmark_version": null,
+  "harbor_version": "0.24.0",
+  "server": {
+    "version": "0.1.4-6-gc75cceda2",
+    "commit": "c75cceda2"
+  },
+  "model": "anthropic/claude-sonnet-5-5",
+  "judge": "claude-haiku-5-5@high",
+  "settings": {
+    "investigation_calls": null,
+    "llm_effort": null,
+    "run_max_cost_usd": 0.5,
+    "wall_timeout_sec": null
+  },
+  "started_at": "2026-11-23T11:00:53.977525Z",
+  "finished_at": "2026-11-23T11:20:03.951245Z",
+  "notes": [
+    "The v0.1.5 baseline: the adapter's fixed ten-task subset, one attempt, not a benchmark score.",
+    "A null setting was the server default: 12 investigation calls and the server's default effort.",
+    "Server image built from core main at c75cceda2 (the server reports 0.1.4-6-gc75cceda2), run on msi two trials at a time.",
+    "The o11y-bench checkout version was not kept with the job folders."
+  ],
+  "summary": {
+    "tasks": 10,
+    "attempts_per_task": 1,
+    "trials": 10,
+    "skipped_trials": 0,
+    "mean_reward": 0.8891,
+    "trials_passed": 8,
+    "tasks_passed_every_attempt": 8,
+    "pass_all_attempts": 0.8,
+    "cost_usd": 0.687014,
+    "failures_by_cause": {
+      "adapter_fault": 0,
+      "missing_capability": 0,
+      "agent_mistake": 2
+    }
+  },
+  "skipped": [],
+  "tasks": [
+    {
+      "task": "dependency-outage-false-lead",
+      "digest": "e50d1b43888e8ffd35f2211ca5e7918ce25046510440526ad28ebf2373b5c638",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "dependency-outage-false-lead__FLeXZPV",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 135123,
+          "cache_tokens": 122314,
+          "output_tokens": 2115,
+          "cost_usd": 0.077629,
+          "agent_seconds": 25.2,
+          "trial_seconds": 73.3,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "incident-triage",
+      "digest": "283c34d96a4ce3f128826ff92420d09d93e9e51014b3982cb1b7e0ce8fb8fe41",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "incident-triage__SBub3Yc",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 153748,
+          "cache_tokens": 124473,
+          "output_tokens": 4074,
+          "cost_usd": 0.138815,
+          "agent_seconds": 37.6,
+          "trial_seconds": 85.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-top-5xx-endpoint",
+      "digest": "9649c2718274a16eb094a61c48cc93eb58b9f0747159cd13e2f2aa7f7912e203",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-top-5xx-endpoint__Z4JZsBz",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 70273,
+          "cache_tokens": 44949,
+          "output_tokens": 974,
+          "cost_usd": 0.082036,
+          "agent_seconds": 18.6,
+          "trial_seconds": 64.3,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-unwrap-orders-p95-latency",
+      "digest": "0b101f1a7f50c71502ea2dc2bf77ba7f9dae6f7f73837408b9ae43414497afe3",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-unwrap-orders-p95-latency__nHuhDaB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 90857,
+          "cache_tokens": 88117,
+          "output_tokens": 1108,
+          "cost_usd": 0.035548,
+          "agent_seconds": 16.0,
+          "trial_seconds": 60.7,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "payments-path-root-cause",
+      "digest": "6e50b2ff260aed12816c3a02f8d894c0e0a751a34caf946057ad4814ff0be11e",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "payments-path-root-cause__KWeZXmv",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 168874,
+          "cache_tokens": 163277,
+          "output_tokens": 1496,
+          "cost_usd": 0.0616,
+          "agent_seconds": 100.4,
+          "trial_seconds": 447.7,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-error-rate",
+      "digest": "c3b1a69ab8fa638f10c4fca6058d3226ab79de93318b28c57e3c43d1ea66a5b6",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-error-rate__vn5XdtT",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 66503,
+          "cache_tokens": 64471,
+          "output_tokens": 1237,
+          "cost_usd": 0.03034,
+          "agent_seconds": 19.0,
+          "trial_seconds": 60.2,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-offset-traffic-compare",
+      "digest": "4d702cd21a97085f2083159e22db736eb12c1a72950ea31c7bfa16c48712bde6",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-offset-traffic-compare__a8CRADR",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 133330,
+          "cache_tokens": 131139,
+          "output_tokens": 1337,
+          "cost_usd": 0.045068,
+          "agent_seconds": 276.6,
+          "trial_seconds": 583.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-topk-5xx-share",
+      "digest": "6aec97fef8a057e2a05c92b2a3a118e585dbed73c6cd674c67c4149b6d0cc7e2",
+      "mean_reward": 1.0,
+      "attempts_passed": 1,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-topk-5xx-share__SVsadMm",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 87497,
+          "cache_tokens": 65105,
+          "output_tokens": 662,
+          "cost_usd": 0.075616,
+          "agent_seconds": 45.7,
+          "trial_seconds": 295.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-checkout-p99-by-service",
+      "digest": "8600612c88eaa384e31221ccd3389009e3b68d0f28c740d04e627b41a1edfbd4",
+      "mean_reward": 0.3529,
+      "attempts_passed": 0,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-checkout-p99-by-service__dEY4pqt",
+          "reward": 0.35294117647058826,
+          "passed": false,
+          "input_tokens": 100191,
+          "cache_tokens": 90682,
+          "output_tokens": 1871,
+          "cost_usd": 0.060614,
+          "agent_seconds": 21.9,
+          "trial_seconds": 61.8,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent named the right service but gave a p99 from one busy time window as the six-hour p99, although the tool's whole-range histogram held the data for the right figure."
+          }
+        }
+      ]
+    },
+    {
+      "task": "traceql-error-chain-orders",
+      "digest": "6ebf3f96db9b5c6d10882b6d189a89b008567af9875252a201517e94212b0ad2",
+      "mean_reward": 0.5385,
+      "attempts_passed": 0,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-error-chain-orders__TkYEXPz",
+          "reward": 0.5384615384615385,
+          "passed": false,
+          "input_tokens": 67862,
+          "cache_tokens": 44284,
+          "output_tokens": 1195,
+          "cost_usd": 0.079748,
+          "agent_seconds": 45.5,
+          "trial_seconds": 147.2,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent named the outermost error span as where the request first failed, when the error starts at the deepest error span, though the cited trace, path and durations were right."
+          }
+        }
+      ]
+    }
+  ]
+}

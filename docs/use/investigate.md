@@ -243,6 +243,31 @@ It saves nothing by itself.
 
 Both are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
 
+### Structured fields
+
+An investigation's answer may also carry a few fields that sum it up, all optional.
+The agent fills them when it saves an investigation, and they must agree with the Markdown answer.
+
+- `root_cause` has a `component`, a `kind` and a `summary`, all three or none.
+  The `kind` is one of `deploy`, `config_or_flag`, `dependency`, `resource`, `data`, `traffic`, `infrastructure` or `unknown`.
+- `onset` is the absolute time the problem began, in RFC 3339.
+- `impact` is one or two sentences with numbers.
+- `confidence` is `high`, `medium` or `low`.
+- `ruled_out` lists at most 5 causes that were checked and excluded, and `next_steps` lists at most 3 things to do.
+- `no_incident` is true when nothing was wrong.
+  It cannot be set together with `root_cause`.
+
+A component is at most 120 characters, a sentence at most 300 and a list line at most 200, each on one line.
+A save that breaks a rule is refused with the reason, and the agent fixes it and saves again.
+The agent is offered these fields only in an investigation.
+A save outside an investigation that sets any of them is still saved, without them, and its result says they were dropped.
+
+The observation shows the fields as a compact summary above the answer, and shows nothing extra when none is set.
+They are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
+`GET /observations/{id}` and `get_observation` return them as `findings`, one entry per saved answer with its `run_id`, and only for answers the caller can see.
+`observe investigate` and `observe observations show` print them as lines before the answer.
+Search finds an observation by the name of its root cause component.
+
 ### CLI flags for investigate
 
 | Flag | Meaning |

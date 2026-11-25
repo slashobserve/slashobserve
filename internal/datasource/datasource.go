@@ -141,6 +141,7 @@ type Catalog struct {
 	Tables  []Table  `json:"tables,omitempty"`
 	Columns []Column `json:"columns,omitempty"`
 	Sample  *Frame   `json:"sample,omitempty"`
+	Notes   []string `json:"notes,omitempty"`
 
 	Families        []Family `json:"families,omitempty"`
 	FamiliesTotal   int      `json:"families_total,omitempty"`

@@ -84,7 +84,7 @@ func (h *handler) serveRun(w http.ResponseWriter, r *http.Request, cred Credenti
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", err, slog.String("agent_request_id", req.ID))...)
 				return nil, nil, err
 			}
-			transport, ok := h.runTransports[scope.Mode]
+			transport, ok := h.runTransports[runShape{scope.Mode, scope.Investigation}]
 			if !ok {
 				h.logger.ErrorContext(ctx, "open run session", logattrs.Failure("run_scope_failed", errNoRunTransport, slog.String("agent_request_id", req.ID))...)
 				return nil, nil, errNoRunTransport

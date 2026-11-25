@@ -96,7 +96,7 @@ def test_unparsable_port_is_an_error(output):
 
 
 def test_stack_writes_config_files_readable_by_the_nonroot_container(tmp_path):
-    stack = server.Stack(config(), STORES, tmp_path, None)
+    stack = server.Stack(config(), server.datasources_yaml(STORES), tmp_path, None)
     config_dir = stack._write_config()
     try:
         assert (config_dir / "benchmark.key").read_text() == stack.key + "\n"
@@ -109,7 +109,7 @@ def test_stack_writes_config_files_readable_by_the_nonroot_container(tmp_path):
 
 
 def test_llm_env_file_is_private(tmp_path):
-    stack = server.Stack(config(llm_provider="anthropic"), STORES, tmp_path, "sk-test")
+    stack = server.Stack(config(llm_provider="anthropic"), server.datasources_yaml(STORES), tmp_path, "sk-test")
     try:
         path = stack._write_env_file()
         assert path.stat().st_mode & 0o077 == 0

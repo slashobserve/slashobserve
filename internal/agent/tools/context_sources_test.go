@@ -57,7 +57,7 @@ func contextInvestigation(ctx context.Context) context.Context {
 func TestTheContextToolsAreInvestigationOnlyReadsForEveryRole(t *testing.T) {
 	var found []string
 	for _, tool := range New(Deps{}).List() {
-		if !tool.InvestigateOnly {
+		if tool.OnlyIn != ModeInvestigate || tool.AgentOnly {
 			continue
 		}
 		found = append(found, tool.Name)
@@ -523,7 +523,7 @@ func TestContextToolsWithoutADeskEndTheRun(t *testing.T) {
 
 func TestContextToolDescriptionsStayUnderTheAgentWordingCap(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if !tool.InvestigateOnly {
+		if tool.OnlyIn != ModeInvestigate || tool.AgentOnly {
 			continue
 		}
 		if len(tool.AgentDescription) > 2000 || len(tool.Description) > 2000 {
