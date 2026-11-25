@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import recipientCasesText from "../../../spec/examples/threads/recipient-cases.json?raw"
 import {
+  agentLoadOf,
   defaultDelivery,
   deliveryGate,
   flips,
@@ -164,6 +165,34 @@ describe("deliveryGate", () => {
     expect(deliveryGate(off, toEveryone)).toEqual({ kind: "allowed" })
   })
 
+  it("holds while the agent loads and stops when it cannot be reached, only for a message to the agent", () => {
+    const loading = { ...open, agentAvailable: undefined }
+    expect(deliveryGate({ ...loading, agentLoad: "loading" }, toAgent)).toEqual(
+      { kind: "hold" }
+    )
+    expect(deliveryGate({ ...loading, agentLoad: "failed" }, toAgent)).toEqual({
+      kind: "unreachable",
+    })
+    expect(deliveryGate({ ...loading, agentLoad: "ready" }, toAgent)).toEqual({
+      kind: "allowed",
+    })
+    expect(
+      deliveryGate({ ...loading, agentLoad: "loading" }, toEveryone)
+    ).toEqual({ kind: "allowed" })
+  })
+
+  it("reports no model and a blocking reason before it holds", () => {
+    expect(
+      deliveryGate(
+        { ...open, agentAvailable: false, agentLoad: "loading" },
+        toAgent
+      )
+    ).toEqual({ kind: "no-model" })
+    expect(
+      deliveryGate({ ...open, pinned: true, agentLoad: "loading" }, toAgent)
+    ).toEqual({ kind: "blocked", reason: pinnedText })
+  })
+
   it.each([
     ["a pinned version", { pinned: true }, pinnedText],
     ["a layout being edited", { layoutEditing: true }, layoutEditingText],
@@ -175,6 +204,31 @@ describe("deliveryGate", () => {
       expect(deliveryGate(input, toEveryone)).toEqual({ kind: "allowed" })
     }
   )
+})
+
+describe("agentLoadOf", () => {
+  it("reads the query state", () => {
+    const base = {
+      data: undefined,
+      status: "pending",
+      fetchStatus: "fetching",
+    } as const
+    expect(agentLoadOf(base)).toBe("loading")
+    expect(agentLoadOf({ ...base, fetchStatus: "paused" })).toBe("failed")
+    expect(
+      agentLoadOf({ ...base, status: "error", fetchStatus: "fetching" })
+    ).toBe("loading")
+    expect(agentLoadOf({ ...base, status: "error", fetchStatus: "idle" })).toBe(
+      "failed"
+    )
+    expect(
+      agentLoadOf({
+        data: { available: false },
+        status: "success",
+        fetchStatus: "idle",
+      })
+    ).toBe("ready")
+  })
 })
 
 describe("reviseBlock", () => {

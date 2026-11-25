@@ -18,8 +18,8 @@ export type ColumnWidths = { widths: number[]; total: number }
 const rowHeights = ["sm", "md", "lg"] as const
 
 const freeColumnFloor = 64
-const headerPx = 32
-const footerRowPx = 25
+export const headerPx = 32
+export const footerRowPx = 25
 const controlsPx = 40
 const rowPx: Record<RowHeight, number> = { sm: 25, md: 33, lg: 41 }
 const minPageSize = 1
@@ -82,16 +82,6 @@ export function columnWidths(
   return { widths, total: widths.reduce((sum, width) => sum + width, 0) }
 }
 
-export function stickyOffsets(widths: number[], frozen: number): number[] {
-  const offsets: number[] = []
-  let left = 0
-  for (let index = 0; index < Math.min(frozen, widths.length); index++) {
-    offsets.push(left)
-    left += widths[index]
-  }
-  return offsets
-}
-
 export function frozenCount(display: Record<string, unknown>): number {
   const { frozenColumns } = display
   return typeof frozenColumns === "number" && frozenColumns > 0
@@ -111,7 +101,7 @@ export function pageSizeFor(
   return Math.max(minPageSize, Math.floor((height - used) / rowPx[rowHeight]))
 }
 
-export type Page<T> = {
+type Page<T> = {
   rows: T[]
   page: number
   pageCount: number
