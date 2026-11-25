@@ -106,3 +106,18 @@ func TestEscapesAreToolErrorsThatNameNoServerPath(t *testing.T) {
 		t.Fatalf("missing path: %+v", res)
 	}
 }
+
+func TestCallerMistakesKeepTheirOwnMessage(t *testing.T) {
+	c := connect(t)
+	cases := map[string]string{
+		"main.go/x":               "not a directory",
+		strings.Repeat("a", 5000): "path is not valid",
+		"pkg":                     "is a directory; use list_dir",
+	}
+	for path, want := range cases {
+		res := call3(t, c, "read_file", map[string]any{"path": path})
+		if !res.IsError || text(res) != want {
+			t.Errorf("%.20s: got %q, want %q", path, text(res), want)
+		}
+	}
+}

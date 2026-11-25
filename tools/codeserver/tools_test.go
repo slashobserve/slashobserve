@@ -42,17 +42,15 @@ func fixture(t *testing.T) (*Code, string) {
 	if err := os.Symlink(base, filepath.Join(root, "link-dir")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink("main.go", filepath.Join(root, "link-inside")); err != nil {
-		t.Fatal(err)
-	}
 	r, err := NewRoot(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = r.Close() })
 	return &Code{root: r}, root
 }
 
-func TestResolveRefusesEscapes(t *testing.T) {
+func TestEscapesAreRefused(t *testing.T) {
 	code, root := fixture(t)
 	outside := filepath.Join(filepath.Dir(root), "secret.txt")
 	cases := []struct {
@@ -73,10 +71,10 @@ func TestResolveRefusesEscapes(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := code.root.Resolve(tc.path); !errors.Is(err, tc.want) {
-				t.Fatalf("Resolve(%q) = %v, want %v", tc.path, err, tc.want)
+			if _, err := code.root.Stat(tc.path); !errors.Is(err, tc.want) {
+				t.Fatalf("Stat(%q) = %v, want %v", tc.path, err, tc.want)
 			}
-			if _, err := code.ReadFile(tc.path, 1, 10); err == nil {
+			if _, err := code.ReadFile(context.Background(), tc.path, 1, 10); err == nil {
 				t.Fatalf("ReadFile(%q) succeeded", tc.path)
 			}
 			if _, err := code.ListDir(tc.path); err == nil {
@@ -89,16 +87,19 @@ func TestResolveRefusesEscapes(t *testing.T) {
 	}
 }
 
-func TestResolveAllowsPathsInsideTheRoot(t *testing.T) {
-	code, _ := fixture(t)
+func TestPathsInsideTheRootAreAllowed(t *testing.T) {
+	code, root := fixture(t)
+	if err := os.Symlink("main.go", filepath.Join(root, "link-inside")); err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range []string{"", ".", "pkg", "pkg/../main.go", "./pkg/a.go", "link-inside"} {
-		if _, err := code.root.Resolve(p); err != nil {
-			t.Fatalf("Resolve(%q): %v", p, err)
+		if _, err := code.root.Stat(p); err != nil {
+			t.Fatalf("Stat(%q): %v", p, err)
 		}
 	}
 }
 
-func TestResolveRefusesSiblingWithSharedPrefix(t *testing.T) {
+func TestSiblingWithSharedPrefixIsRefused(t *testing.T) {
 	base := t.TempDir()
 	for _, d := range []string{"src", "src-other"} {
 		if err := os.MkdirAll(filepath.Join(base, d), 0o750); err != nil {
@@ -109,7 +110,7 @@ func TestResolveRefusesSiblingWithSharedPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := r.Resolve("../src-other"); !errors.Is(err, errOutside) {
+	if _, err := r.Stat("../src-other"); !errors.Is(err, errOutside) {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -172,29 +173,29 @@ func TestListDirCutsLongListings(t *testing.T) {
 
 func TestReadFile(t *testing.T) {
 	code, _ := fixture(t)
-	got, err := code.ReadFile("main.go", 1, 0)
+	got, err := code.ReadFile(context.Background(), "main.go", 1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(got, "     3\tfunc flagValue()") {
 		t.Fatalf("got %q", got)
 	}
-	got, _ = code.ReadFile("main.go", 3, 1)
+	got, _ = code.ReadFile(context.Background(), "main.go", 3, 1)
 	if got != "     3\tfunc flagValue() string { return \"paymentFailure\" }\n" {
 		t.Fatalf("got %q", got)
 	}
-	got, _ = code.ReadFile("empty.txt", 1, 10)
+	got, _ = code.ReadFile(context.Background(), "empty.txt", 1, 10)
 	if got != "(empty file)" {
 		t.Fatalf("got %q", got)
 	}
-	got, _ = code.ReadFile("main.go", 50, 10)
+	got, _ = code.ReadFile(context.Background(), "main.go", 50, 10)
 	if !strings.Contains(got, "no lines at offset 50") {
 		t.Fatalf("got %q", got)
 	}
-	if _, err := code.ReadFile("bin.dat", 1, 10); err == nil || err.Error() != "binary file" {
+	if _, err := code.ReadFile(context.Background(), "bin.dat", 1, 10); err == nil || err.Error() != "binary file" {
 		t.Fatalf("binary: %v", err)
 	}
-	if _, err := code.ReadFile("pkg", 1, 10); err == nil || !strings.Contains(err.Error(), "list_dir") {
+	if _, err := code.ReadFile(context.Background(), "pkg", 1, 10); err == nil || !strings.Contains(err.Error(), "list_dir") {
 		t.Fatalf("dir: %v", err)
 	}
 }
@@ -208,7 +209,7 @@ func TestReadFileCapsLinesAndBytes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "long.txt"), []byte(lines.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got, err := code.ReadFile("long.txt", 1, 100000)
+	got, err := code.ReadFile(context.Background(), "long.txt", 1, 100000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +224,7 @@ func TestReadFileCapsLinesAndBytes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "wide.txt"), []byte(strings.Repeat(wide, 100)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got, _ = code.ReadFile("wide.txt", 1, 0)
+	got, _ = code.ReadFile(context.Background(), "wide.txt", 1, 0)
 	if len(got) > maxReadBytes+200 || !strings.Contains(got, "[cut: size limit reached; continue with offset=") {
 		t.Fatalf("size cap: len %d, tail %q", len(got), got[len(got)-80:])
 	}
@@ -234,7 +235,7 @@ func TestReadFileCutsAVeryLongLine(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "min.js"), []byte(strings.Repeat("a", 3*maxLineBytes)+"\nnext\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got, _ := code.ReadFile("min.js", 1, 0)
+	got, _ := code.ReadFile(context.Background(), "min.js", 1, 0)
 	first, rest, _ := strings.Cut(got, "\n")
 	if !strings.HasSuffix(first, "[line cut]") || len(first) > maxLineBytes+40 {
 		t.Fatalf("first line %d bytes: %q", len(first), first[len(first)-20:])

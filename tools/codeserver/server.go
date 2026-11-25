@@ -42,18 +42,18 @@ func NewHandler(code *Code, version string) http.Handler {
 		mcp.WithString("path", mcp.Required(), mcp.Description("File path relative to the root.")),
 		mcp.WithNumber("offset", mcp.Min(1), mcp.Description("First line to return, starting at 1.")),
 		mcp.WithNumber("limit", mcp.Min(1), mcp.Description("Most lines to return.")),
-	)...), call(func(_ context.Context, req mcp.CallToolRequest) (string, error) {
+	)...), call(func(ctx context.Context, req mcp.CallToolRequest) (string, error) {
 		path, err := req.RequireString("path")
 		if err != nil {
 			return "", refusal("path is required")
 		}
-		return code.ReadFile(path, req.GetInt("offset", 1), req.GetInt("limit", maxReadLines))
+		return code.ReadFile(ctx, path, req.GetInt("offset", 1), req.GetInt("limit", maxReadLines))
 	}))
 	srv.AddTool(mcp.NewTool("grep", append(readOnly,
 		mcp.WithDescription("Search file contents with a regular expression (Go syntax; prefix with (?i) to ignore case). Returns path:line: text for each match, and stops with a note after "+strconv.Itoa(maxGrepMatches)+" matches."),
 		mcp.WithString("pattern", mcp.Required(), mcp.Description("Regular expression to look for in each line.")),
 		mcp.WithString("path", mcp.Description("Directory or file to search, relative to the root. Defaults to the whole root.")),
-		mcp.WithString("glob", mcp.Description("Only search files whose name matches, for example *.go; a glob with a slash is matched against the path from the root.")),
+		mcp.WithString("glob", mcp.Description("Only search files whose name matches, for example *.go; a glob with a slash is matched against the path from the root, and ** matches any number of directories, as in **/*.go.")),
 	)...), call(func(ctx context.Context, req mcp.CallToolRequest) (string, error) {
 		pattern, err := req.RequireString("pattern")
 		if err != nil {
