@@ -4,7 +4,6 @@ import { roleAtLeast, type Role } from "@/lib/roles"
 
 export type NavPath =
   | "/"
-  | "/inbox"
   | "/observations"
   | "/dashboards"
   | "/logs"
@@ -26,7 +25,6 @@ export type NavItem = {
 
 const navItems: readonly NavItem[] = [
   { to: "/", label: "Home", group: "main", minRole: "viewer" },
-  { to: "/inbox", label: "Inbox", group: "main", minRole: "viewer" },
   {
     to: "/observations",
     label: "Observations",

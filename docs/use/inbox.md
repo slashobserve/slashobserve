@@ -12,19 +12,31 @@ A service-account key gets 403 `user_session_required`, and the `observe` comman
 
 ## Work through your inbox
 
-1. Choose **Inbox** in the sidebar, under Home, which opens `/inbox`.
-   A badge on the entry shows the unread count, in the full sidebar and on the icon rail.
+1. Choose the bell at the top right of any page to open the Inbox panel on the right.
+   A badge on the bell shows the unread count, "99+" from 100, and it updates as activity arrives; on a dashboard, a build or a dashboard's versions, the badge and the open panel refresh every 15 seconds.
+   On a phone the bell is in the bar at the top, and on a narrow screen the panel opens as a sheet from the bottom.
 2. Read the **Needs you** group.
    Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
 3. Select an item to open it.
-   Opening it marks it read.
-4. Act on it: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
+   Opening it marks it read, takes you to its dashboard, observation, proposal or chat, and closes the panel.
+   Opening it in a new tab or window, with Ctrl, Cmd or Shift held, marks it read and leaves the panel open.
+   An item with no page of its own, such as a note on a dashboard that was deleted, opens in place instead: the row grows to show its whole text and is marked read, and selecting it again folds it back.
+4. Act on it there: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
 5. Mark the item done, with **Mark done**.
    A "Marked done" toast offers **Undo**.
 
-On a window 1100 pixels wide or more, a selected row opens in a pane beside the list.
-The address keeps the view and the item (`view` and `item`).
-On a narrower window the list stands alone, each row is a link, and following it marks the item read.
+Opening the panel marks nothing read.
+**Escape** or **Close Inbox** closes it and puts focus back where you opened it from, or on the bell when that is gone.
+The command palette's **Inbox** and Home's **Open Inbox** open it too.
+Pressing `g` then `i` opens or closes it from any page, except while you type in a field or a menu or dialog is open.
+The old address `/inbox` opens Home with the panel open, keeping its `view` and `filter`.
+With `item=<seq>` the panel also scrolls to that item, loading further pages until it finds it, focuses and highlights it, and opens it in place when it has no page of its own.
+When no page holds the item, the panel says so above the list.
+
+One right panel shows at a time, and the newest one wins.
+Opening the Inbox hides the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, and it comes back as it was when the Inbox closes.
+Opening another panel while the Inbox is open closes the Inbox, and so does moving to another page.
+While the Inbox hides a page's panel, that panel's button, such as **Activity** or the discussion button, shows as not pressed, and pressing it, or choosing **Inspect** again, closes the Inbox and shows the panel as it was.
 
 Each row names who did what and the real title of the dashboard, observation or proposal.
 It shows the start of the comment for a mention or a reply, and has a dot while it is unread.
@@ -32,37 +44,24 @@ A reply the agent wrote reads "Observe Agent answered" followed by the question 
 A connected agent keeps its own name, such as "Ada (via Claude Code)".
 
 The list refreshes when new activity arrives.
-**Load more** fetches the next page, and arrow keys move through the rows.
+Scrolling to the end fetches the next page, and arrow keys move through the rows.
+When a page fails to load, the panel stops fetching and shows **Retry** below the list.
 
 ## Choose what the list shows
 
-The tabs **For you**, **Everything**, **Proposals** and **Mentions** are the [views](#views).
+The view menu at the top of the panel picks **For you**, **Proposals**, **Mentions** or **Everything**, the [views](#views).
 **For you** is the default.
 **Everything** also lists "Workspace activity", the events that have no reason.
 
-Under the tabs, **Open**, **Unread** and **Done** choose which items the list shows; see [Done and the unread filter](#done-and-the-unread-filter).
-**Group by dashboard or observation** puts the items about the same dashboard, observation or proposal together under its title, newest group first.
-The view, the filter, the grouping and the selected item are kept in the address.
+The **Show** menu beside it picks **Open**, **Unread** or **Done**; see [Done and the unread filter](#done-and-the-unread-filter).
+The panel keeps the view and the filter until you reload the page.
 
 ## Mark items read or done
 
 Two buttons at the right of a row, shown when you hover or focus the row, mark that one item read or unread, and done or, on the Done filter, back in the inbox.
 
-**Mark all read** marks the newest item on the page and everything older as read.
-It shows only while something is unread.
-
-Opening an item marks it read, once.
-Marking it unread again while it is open keeps it unread.
-
-The pane of an item has an **Open** button, **Mark as read** or **Mark as unread**, and **Mark done** or, on the Done filter, **Move back to the inbox**.
-
-## Reply or merge from the pane
-
-- A proposal opens with its changes, **Merge** and **Discard**.
-  **Open proposal** goes to its page.
-- A mention or a reply opens as the whole thread, with a **Reply** box that works as it does on the page.
-  `@` asks an agent, and you can edit or delete your own comments.
-- Any other item shows its text.
+**Mark all read** marks the newest item in the list and everything older as read.
+It shows only in **For you** and **Everything**, and only while something is unread.
 
 ## What opens when you open an item
 
