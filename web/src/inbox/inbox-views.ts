@@ -1,5 +1,7 @@
 import type { InboxFilter, InboxView } from "@/api/keys"
 
+import type { InboxChoice } from "./inbox-panel-store"
+
 export const inboxViews: readonly { value: InboxView; label: string }[] = [
   { value: "for_you", label: "For you" },
   { value: "proposals", label: "Proposals" },
@@ -21,12 +23,13 @@ function isInboxView(value: unknown): value is InboxView {
   return inboxViews.some((view) => view.value === value)
 }
 
-export function inboxChoice(search: Record<string, unknown>): {
-  view: InboxView
-  filter: InboxFilter
-} {
+const seqPattern = /^[0-9]{1,15}$/
+
+export function inboxChoice(search: Record<string, unknown>): InboxChoice {
+  const item = String(search.item ?? "")
   return {
     view: isInboxView(search.view) ? search.view : "for_you",
     filter: isInboxFilter(search.filter) ? search.filter : "open",
+    ...(seqPattern.test(item) ? { item: Number(item) } : {}),
   }
 }

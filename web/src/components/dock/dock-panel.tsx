@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type CSSProperties,
   type KeyboardEvent,
@@ -7,7 +8,10 @@ import {
 } from "react"
 
 import { useViewportWidth } from "@/activity/activity-store"
-import { useInboxPanelOpen } from "@/inbox/inbox-panel-store"
+import {
+  useInboxPanelOpen,
+  useInboxPanelStore,
+} from "@/inbox/inbox-panel-store"
 import { cn } from "@/lib/utils"
 
 import { isNarrow, type WidthBounds } from "./card-width"
@@ -57,6 +61,10 @@ export function DockPanel({
   children,
 }: Props) {
   const yieldsToInbox = useInboxPanelOpen() && !isInbox
+  const shown = !hidden && !isInbox
+  useEffect(() => {
+    if (shown) useInboxPanelStore.getState().close()
+  }, [shown])
   const narrow = isNarrow(useViewportWidth())
   const [peek, setPeek] = useState(false)
   const mode =

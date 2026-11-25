@@ -72,7 +72,6 @@ export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
       </div>
       <PaletteButton variant="phone" />
       <InboxBell
-        place="phone"
         className={`${iconButton} [&_svg]:size-5`}
         badgeClassName="top-1.5 right-1 border-background"
       />

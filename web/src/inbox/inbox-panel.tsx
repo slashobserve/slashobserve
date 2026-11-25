@@ -29,12 +29,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
 
-import { groupItems, type InboxItem } from "./inbox-item"
-import { focusInboxBell, useInboxPanelStore } from "./inbox-panel-store"
+import { groupItems, itemLink, type InboxItem } from "./inbox-item"
+import { returnFocusFromInbox, useInboxPanelStore } from "./inbox-panel-store"
 import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
 import {
   inboxInfiniteQuery,
+  useInboxPollInterval,
   useMarkInboxRead,
   useSetInboxItemDone,
   useSetInboxItemUnread,
@@ -46,6 +47,8 @@ const emptyText: Record<InboxView, string> = {
   proposals: "No proposals waiting for you.",
   mentions: "No mentions or replies.",
 }
+
+const viewsWithMarkAllRead: readonly InboxView[] = ["for_you", "everything"]
 
 const filterEmptyText: Record<Exclude<InboxFilter, "open">, string> = {
   unread: "Nothing unread.",
@@ -72,7 +75,8 @@ function ListSkeleton() {
 
 export function InboxPanel() {
   const open = useInboxPanelStore((state) => state.open)
-  return open ? <InboxCard /> : null
+  const openings = useInboxPanelStore((state) => state.openings)
+  return open ? <InboxCard key={openings} /> : null
 }
 
 function useLoadMoreOnScroll(
@@ -99,12 +103,21 @@ function InboxCard() {
   const sentinel = useRef<HTMLDivElement>(null)
   const layout = usePanelLayout()
   const setPanelWidth = useActivityStore((state) => state.setPanelWidth)
-  const { view, filter, setView, setFilter, close } = useInboxPanelStore()
-  const query = useInfiniteQuery(inboxInfiniteQuery(view, filter))
+  const { view, filter, opener, setView, setFilter, close } =
+    useInboxPanelStore()
+  const [target] = useState(() => useInboxPanelStore.getState().item)
+  const query = useInfiniteQuery({
+    ...inboxInfiniteQuery(view, filter),
+    refetchInterval: useInboxPollInterval(),
+  })
   const markRead = useMarkInboxRead()
   const setUnread = useSetInboxItemUnread()
   const setDone = useSetInboxItemDone()
-  const [focused, setFocused] = useState<number | null>(null)
+  const [focused, setFocused] = useState<number | null>(target)
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(
+    () => new Set(target === null ? [] : [target])
+  )
+  const revealed = useRef(false)
   const items = query.data?.pages.flatMap((page) => page.items) ?? []
   const groups = groupItems(items)
   const ordered = groups.flatMap((group) => group.items)
@@ -113,18 +126,48 @@ function InboxCard() {
     items.length === 0 ? null : Math.max(...items.map((i) => i.seq))
   const tabStop =
     ordered.find((item) => item.seq === focused) ?? ordered[0] ?? null
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
+  const {
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    fetchNextPage,
+  } = query
 
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage])
-  useLoadMoreOnScroll(sentinel, hasNextPage && !isFetchingNextPage, loadMore)
+  useLoadMoreOnScroll(
+    sentinel,
+    hasNextPage && !isFetchingNextPage && !isFetchNextPageError,
+    loadMore
+  )
 
   useEffect(() => {
     titleRef.current?.focus()
   }, [])
 
-  function closeToBell() {
-    focusInboxBell()
+  useEffect(() => {
+    if (revealed.current || target === null) return
+    const row = listRef.current?.querySelector<HTMLElement>(
+      `[data-inbox-row="${target}"]`
+    )
+    if (!row) return
+    revealed.current = true
+    row.scrollIntoView({ block: "nearest" })
+    row.focus()
+  })
+
+  function closeToOpener() {
+    returnFocusFromInbox(opener)
     close()
+  }
+
+  function toggleExpanded(item: InboxItem) {
+    markOpened(item)
+    setFocused(item.seq)
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (!next.delete(item.seq)) next.add(item.seq)
+      return next
+    })
   }
 
   function markOpened(item: InboxItem) {
@@ -178,7 +221,7 @@ function InboxCard() {
     if (event.key !== "Escape" || event.defaultPrevented) return
     if (!asideRef.current?.contains(event.target as Node)) return
     event.preventDefault()
-    closeToBell()
+    closeToOpener()
   }
 
   function onListKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -238,10 +281,15 @@ function InboxCard() {
                 <li key={item.seq}>
                   <InboxRow
                     item={item}
-                    selected={false}
+                    selected={item.seq === target}
                     tabStop={item.seq === tabStop?.seq}
                     asLink
-                    onSelect={markOpened}
+                    expanded={
+                      itemLink(item) === null
+                        ? expanded.has(item.seq)
+                        : undefined
+                    }
+                    onSelect={toggleExpanded}
                     onOpen={openItem}
                     onToggleUnread={toggleUnread}
                     onToggleDone={toggleDone}
@@ -254,6 +302,16 @@ function InboxCard() {
         ))}
         <div ref={sentinel} aria-hidden="true" className="h-px" />
         {isFetchingNextPage ? <ListSkeleton /> : null}
+        {isFetchNextPageError && !isFetchingNextPage ? (
+          <div className="mt-2 px-1">
+            <LoadProblem
+              title="Could not load more of the inbox"
+              detail={sentence(query.error?.message ?? "")}
+              retrying={false}
+              onRetry={loadMore}
+            />
+          </div>
+        ) : null}
       </div>
     )
   }
@@ -274,7 +332,9 @@ function InboxCard() {
         headingRef={titleRef}
         title="Inbox"
         controls={
-          unread > 0 && newest !== null ? (
+          viewsWithMarkAllRead.includes(view) &&
+          unread > 0 &&
+          newest !== null ? (
             <Button
               variant="outline"
               size="sm"
@@ -285,7 +345,7 @@ function InboxCard() {
             </Button>
           ) : null
         }
-        onClose={closeToBell}
+        onClose={closeToOpener}
         closeLabel="Close Inbox"
       />
       <div

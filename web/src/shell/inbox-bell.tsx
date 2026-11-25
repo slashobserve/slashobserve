@@ -12,11 +12,9 @@ function inboxBellLabel(unread: string | null): string {
 }
 
 export function InboxBell({
-  place,
   className,
   badgeClassName,
 }: {
-  place: "top" | "phone"
   className: string
   badgeClassName: string
 }) {
@@ -26,10 +24,10 @@ export function InboxBell({
   return (
     <button
       type="button"
-      data-inbox-bell={place}
+      data-inbox-bell=""
       aria-label={inboxBellLabel(unread)}
       aria-expanded={open}
-      onClick={toggle}
+      onClick={(event) => toggle(event.currentTarget)}
       className={cn("relative", className)}
     >
       <BellIcon aria-hidden="true" className="size-4" strokeWidth={1.8} />
@@ -43,7 +41,6 @@ export function InboxBell({
 export function TopRowInboxBell() {
   return (
     <InboxBell
-      place="top"
       className="grid size-8 flex-none place-items-center rounded-control text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted narrow:hidden"
       badgeClassName="-top-0.5 -right-1 border-background"
     />

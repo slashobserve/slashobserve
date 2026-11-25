@@ -7,23 +7,23 @@ import { inboxKeys } from "@/api/keys"
 import { testQueryClient } from "@/test/render"
 
 import {
-  forYouPollInterval,
+  inboxPollInterval,
   InboxStreamContext,
   useInboxForYou,
 } from "./queries"
 
-describe("forYouPollInterval", () => {
+describe("inboxPollInterval", () => {
   test("polls every 15 s outside the shell while the page is visible", () => {
-    expect(forYouPollInterval(false, true)).toBe(15_000)
+    expect(inboxPollInterval(false, true)).toBe(15_000)
   })
 
   test("never polls inside the shell, whose activity stream keeps it live", () => {
-    expect(forYouPollInterval(true, true)).toBe(false)
-    expect(forYouPollInterval(true, false)).toBe(false)
+    expect(inboxPollInterval(true, true)).toBe(false)
+    expect(inboxPollInterval(true, false)).toBe(false)
   })
 
   test("never polls while the page is hidden", () => {
-    expect(forYouPollInterval(false, false)).toBe(false)
+    expect(inboxPollInterval(false, false)).toBe(false)
   })
 })
 

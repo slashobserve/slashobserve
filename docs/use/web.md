@@ -526,7 +526,7 @@ The button is missing on an older version and while a layout or panel is being e
 #### Details of query strings
 
 - `/`: `tab=observe` or `tab=import` opens that tab.
-- `/inbox`: `view` and `filter` open the Inbox panel on that view and filter.
+- `/inbox`: `view` and `filter` open the Inbox panel on that view and filter, and `item` scrolls to that item and highlights it.
 - `/o/<observation id>`: `rca=1` opens the Publish as RCA panel.
 - `/d/<dashboard id>/<slug>`: `thread=<thread id>` opens the activity pane on that comment thread.
 - `/f/<folder id>`: the folder's page shows its dashboards with the same search and filters as the Dashboards list, its observations and its saved searches, and **Folder settings** for its name, access and deletion where you can manage it.
