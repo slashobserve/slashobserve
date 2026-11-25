@@ -40,7 +40,7 @@ var variants = []variant{
 			"{folders_restricted_prop}":      agentFoldersRestrictedProp,
 			"{observations_restricted_prop}": agentObservationsRestrictedProp + ",",
 		}},
-	{name: "left out", tools: []string{nameListChats, nameSaveSearch, nameUpdateSavedSearch, nameListComments, nameListMentionable, nameGetRunBuild, nameCancelRun, nameRetryRun, namePinRun, nameUnpinRun, nameArchiveRun},
+	{name: "left out", tools: []string{nameListChats, nameSaveSearch, nameUpdateSavedSearch, nameListComments, nameListMentionable, nameGetRunBuild, nameCancelRun, nameRetryRun, namePinRun, nameUnpinRun, nameArchiveRun, nameListDashboardHealth},
 		mcp: map[string]string{
 			"{chat_next_turn}":     ", and send its id as chat_id to start_run to ask the next turn",
 			"{draft_query_writes}": "; draft_query writes one",
@@ -48,6 +48,7 @@ var variants = []variant{
 			"{new_comment}":        "create_comment",
 			"{comment_writers}":    "create_comment or reply_to_comment",
 			"{run_starter}":        "start_run, ",
+			"{or_run_health}":      " or run_dashboard_health",
 		},
 		agent: map[string]string{"{new_comment}": "a new comment", "{comment_writers}": "a comment"}},
 	{name: "build", tools: []string{nameCreateDashboard, nameUpdateDashboard, nameUpdatePanels},

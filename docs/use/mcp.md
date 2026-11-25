@@ -393,7 +393,7 @@ The loop of an agent that takes runs:
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
-It lists none of the 19 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
+It lists none of the 21 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
@@ -964,6 +964,7 @@ The built-in agent has it too.
 Starts the health run, as `POST /api/v1/health/run` does, and needs an Admin.
 It answers at once and starts nothing more while a run is going.
 The `job` field of `list_dashboard_health` shows how it went.
+It is over MCP only, because it checks every dashboard of the workspace, far beyond what one agent run is about.
 
 #### `pin_dashboard`, `unpin_dashboard` and `list_pinned_dashboards`
 
@@ -1451,6 +1452,7 @@ Reopens a resolved observation.
 Pins an observation to a dashboard as an annotation.
 
 - It pins to `dashboard_id`, or by default to the dashboard its run was about, and needs edit access to that dashboard.
+  Inside an agent run `dashboard_id` is required, so the run's scope sees which dashboard it changes.
 - Pinning again answers with the same annotation and `created: false`.
 - An observation with no dashboard to pin to answers `observation_has_no_dashboard`.
 
@@ -1629,6 +1631,7 @@ Files the answer of a run as an observation.
   It reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 - Only the one who asked can save it.
   An Admin gets `forbidden_role`, and anyone else and a run without an answer get `no_answer`.
+- It is over MCP only: inside a run a later turn of a chat could publish an earlier private ask's answer.
 
 #### `share_answer`
 

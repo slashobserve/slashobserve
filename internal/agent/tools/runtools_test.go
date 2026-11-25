@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -81,7 +82,7 @@ func TestScopeAllowsCreatingNewObjectsOutsideAPrivateAsk(t *testing.T) {
 }
 
 func TestScopeRefusesEverySharedWriteInAPrivateAsk(t *testing.T) {
-	for _, tool := range []string{nameCreateObservation, nameAddBlock, nameSaveRunAnswer, nameMoveDashboard} {
+	for _, tool := range []string{nameCreateObservation, nameAddBlock, namePinObservation, nameMoveDashboard} {
 		got := violation(tool, privateChat(), WriteScope{Created: []string{subjectID}}, `{"observation_id":"`+subjectID+`","run_id":"`+otherID+`","dashboard_id":"`+subjectID+`"}`)
 		if !strings.Contains(got, "private ask writes nothing shared") {
 			t.Errorf("%s: %q", tool, got)
@@ -108,16 +109,16 @@ func TestScopeAllowsPersonStateOnlyInAChatRun(t *testing.T) {
 
 func TestScopeRunTargetsAreTheRunsOwnChat(t *testing.T) {
 	run := homeChat()
-	input := `{"run_id":"` + otherID + `"}`
-	if got := violation(nameSaveRunAnswer, run, WriteScope{}, input); got != "" {
+	input := `{"id":"` + otherID + `"}`
+	if got := violation(nameRenameRun, run, WriteScope{}, input); got != "" {
 		t.Errorf("own run: %s", got)
 	}
-	other := `{"run_id":"` + madeID + `"}`
+	other := `{"id":"` + madeID + `"}`
 	inChat := func(id string) bool { return id == madeID }
-	if got := writeScopeViolation(nameSaveRunAnswer, run, WriteScope{}, writeTargets[nameSaveRunAnswer](json.RawMessage(other)), inChat); got != "" {
+	if got := writeScopeViolation(nameRenameRun, run, WriteScope{}, writeTargets[nameRenameRun](json.RawMessage(other)), inChat); got != "" {
 		t.Errorf("run of the chat: %s", got)
 	}
-	if got := violation(nameSaveRunAnswer, run, WriteScope{}, other); got == "" {
+	if got := violation(nameRenameRun, run, WriteScope{}, other); got == "" {
 		t.Error("a run of another chat was allowed")
 	}
 	if got := violation(namePinRun, run, WriteScope{}, `{"id":"`+madeID+`"}`); got == "" {
@@ -143,21 +144,49 @@ func TestScopeRefusesEveryWriteInASuggestRun(t *testing.T) {
 
 func TestScopeChecksBothTargetsOfPinObservation(t *testing.T) {
 	run := threadAsk()
-	input := `{"observation_id":"` + subjectID + `","dashboard_id":"` + otherID + `"}`
-	if got := violation(namePinObservation, run, WriteScope{}, input); got == "" {
+	if got := violation(namePinObservation, run, WriteScope{}, `{"observation_id":"`+subjectID+`","dashboard_id":"`+otherID+`"}`); got == "" {
 		t.Error("pinning onto a dashboard outside the run was allowed")
 	}
-	if got := violation(namePinObservation, run, WriteScope{}, `{"observation_id":"`+subjectID+`"}`); got != "" {
-		t.Errorf("subject only: %s", got)
+	if got := violation(namePinObservation, run, WriteScope{}, `{"observation_id":"`+subjectID+`"}`); !strings.Contains(got, "names no target") {
+		t.Errorf("pinning onto the observation's own dashboard, which the scope never sees: %q", got)
+	}
+	if got := violation(namePinObservation, run, WriteScope{Committed: builtID}, `{"observation_id":"`+subjectID+`","dashboard_id":"`+builtID+`"}`); got != "" {
+		t.Errorf("subject onto the built dashboard: %s", got)
 	}
 }
 
-func TestScopePassesAMissingIDToTheHandlerToReject(t *testing.T) {
-	if got := violation(nameAddBlock, threadAsk(), WriteScope{}, `{"kind":"markdown"}`); got != "" {
-		t.Errorf("missing id: %s", got)
+func TestScopeRefusesAWriteThatNamesNoTarget(t *testing.T) {
+	cases := map[string]struct {
+		tool  string
+		run   Run
+		input string
+	}{
+		"no observation":     {nameAddBlock, threadAsk(), `{"kind":"markdown"}`},
+		"malformed input":    {nameAddBlock, threadAsk(), `not json`},
+		"no block":           {nameDiscardBlock, threadAsk(), `{}`},
+		"no run":             {nameRenameRun, homeChat(), `{"title":"t"}`},
+		"an empty dashboard": {nameMoveDashboard, homeChat(), `{"dashboard_id":""}`},
 	}
-	if got := violation(nameAddBlock, threadAsk(), WriteScope{}, `not json`); got != "" {
-		t.Errorf("malformed input: %s", got)
+	for name, c := range cases {
+		if got := violation(c.tool, c.run, WriteScope{}, c.input); !strings.Contains(got, "names no target") {
+			t.Errorf("%s: %q", name, got)
+		}
+	}
+}
+
+func TestWriteTablesNameOnlyToolsOfferedInRuns(t *testing.T) {
+	tables := map[string][]string{
+		"writeTargets":      slices.Collect(maps.Keys(writeTargets)),
+		"personStateWrites": slices.Collect(maps.Keys(personStateWrites)),
+		"creatingWrites":    slices.Collect(maps.Keys(creatingWrites)),
+		"webActions":        slices.Collect(maps.Keys(webActions)),
+	}
+	for table, names := range tables {
+		for _, name := range names {
+			if reason := leftOutOfRuns[name]; reason != "" {
+				t.Errorf("%s lists %s, which no run offers (%s)", table, name, reason)
+			}
+		}
 	}
 }
 
@@ -207,8 +236,8 @@ func TestWriteTargetsNameRegisteredWriteToolsWithAWebAction(t *testing.T) {
 			t.Errorf("%s is person state without a write target", name)
 		}
 	}
-	if len(writeTargets) != 32 {
-		t.Errorf("write targets = %d, want 32", len(writeTargets))
+	if len(writeTargets) != 30 {
+		t.Errorf("write targets = %d, want 30", len(writeTargets))
 	}
 }
 

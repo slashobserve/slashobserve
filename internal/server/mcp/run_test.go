@@ -204,7 +204,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(
 						t.Errorf("%s does not carry the agent wording", name)
 					}
 				}
-				for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run_brief", "start_run", "create_comment"} {
+				for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run_brief", "start_run", "create_comment", "save_run_answer", "run_dashboard_health"} {
 					if _, ok := listed[name]; ok {
 						t.Errorf("%s is listed in a run session", name)
 					}
@@ -217,7 +217,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(
 func TestRunSessionHidesTheAdminToolsFromAViewerAndListsThemForAnAdmin(t *testing.T) {
 	f := newRunFixture(t, tools.ModeRevise)
 	viewer, admin := f.listToolsAs(t, runToken), f.listToolsAs(t, adminRunToken)
-	for _, name := range []string{"search_audit_events", "run_dashboard_health"} {
+	for _, name := range []string{"search_audit_events", "list_audit_fields"} {
 		if _, ok := viewer[name]; ok {
 			t.Errorf("%s is listed for a Viewer", name)
 		}
