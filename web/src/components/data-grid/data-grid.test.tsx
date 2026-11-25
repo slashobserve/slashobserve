@@ -417,6 +417,114 @@ describe("DataGrid", () => {
     })
   })
 
+  it("scrolls the revealed row into view when its id changes", async () => {
+    const scrolled: (string | null)[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.getAttribute("row-id"))
+    }
+    try {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(<DataGrid {...props} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="b"]')).not.toBeNull()
+      )
+      rerender(<DataGrid {...props} revealRowId="b" />)
+      await waitFor(() => expect(scrolled).toEqual(["b"]))
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+
+  describe("keepScrollOnPrepend", () => {
+    const many = Array.from({ length: 150 }, (_, index) => ({
+      id: `r${index}`,
+      name: `Service ${index}`,
+      owner: "Payments",
+      note: "",
+    }))
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+      keepScrollOnPrepend: true,
+    }
+    const added: Row[] = ["x", "y", "z"].map((id) => ({
+      id,
+      name: `New ${id}`,
+      owner: "Payments",
+      note: "",
+    }))
+
+    async function scrolled(container: HTMLElement, top: number) {
+      const viewport = container.querySelector(
+        ".ag-grid-viewport"
+      ) as HTMLElement
+      viewport.scrollTop = top
+      fireEvent.scroll(viewport)
+      await waitFor(() => expect(viewport.scrollTop).toBe(top))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return viewport
+    }
+
+    it("keeps the same row in place when rows are prepended while scrolled away from the top", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const rowTop = (id: string) =>
+        Number(
+          (
+            container.querySelector(`[role=row][row-id="${id}"]`) as HTMLElement
+          ).style.transform.match(/translateY\((\d+)px\)/)?.[1]
+        )
+      const before = viewport.scrollTop - rowTop("r10")
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() =>
+        expect(viewport.scrollTop - rowTop("r10")).toBe(before)
+      )
+      expect(viewport.scrollTop).toBeGreaterThan(400)
+    })
+
+    it("does not hold the viewport on an old row when the rows are replaced", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const filtered = many.slice(60)
+      rerender(<DataGrid {...props} rows={filtered} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="r60"]')).not.toBeNull()
+      )
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+    })
+
+    it("lets new rows show at the top when the list is not scrolled", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      expect(
+        (container.querySelector(".ag-grid-viewport") as HTMLElement).scrollTop
+      ).toBe(0)
+    })
+  })
+
   describe("narrow", () => {
     it("draws each row as a card: the title, labelled values, then the action", async () => {
       vi.mocked(useNarrow).mockReturnValue(true)
