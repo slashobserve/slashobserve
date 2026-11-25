@@ -214,6 +214,27 @@ describe("DataGrid", () => {
     expect(first).toHaveFocus()
   })
 
+  it("redraws a row whose content changes under the same id", async () => {
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+    }
+    const { rerender } = render(<DataGrid {...props} rows={rows} />)
+    await screen.findByRole("gridcell", { name: "Search" })
+    rerender(
+      <DataGrid
+        {...props}
+        rows={rows.map((row) =>
+          row.id === "b" ? { ...row, name: "Search v2" } : row
+        )}
+      />
+    )
+    expect(
+      await screen.findByRole("gridcell", { name: "Search v2" })
+    ).toBeInTheDocument()
+  })
+
   it("reports the hovered row and paints the highlighted one", async () => {
     const onHighlightRow = vi.fn()
     const { rerender, container } = render(
@@ -362,6 +383,36 @@ describe("DataGrid", () => {
       card?.focus()
       fireEvent.keyDown(card as HTMLElement, { key: "Enter" })
       expect(clicked).toHaveBeenCalledTimes(1)
+    })
+
+    it("redraws a card whose content changes under the same id", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const props = {
+        label: "Services",
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={rows} />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search")
+      )
+      rerender(
+        <DataGrid
+          {...props}
+          rows={rows.map((row) =>
+            row.id === "b" ? { ...row, name: "Search v2" } : row
+          )}
+        />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search v2")
+      )
     })
 
     it("places each card below the measured height of the one before", async () => {
