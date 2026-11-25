@@ -203,6 +203,7 @@ It stays there when the dashboard moves.
 The web app sends the time zone you read times in.
 That is the dashboard's zone, or the one in its time zone box, on a dashboard, and your browser's elsewhere.
 The agent writes every time in the finding in that zone with its label, such as 19:52 IST.
+The agent is also told the current time in that zone and asked to state the window it queried.
 A finding that labels its times UTC instead is sent back to the agent to convert.
 
 Over the CLI and MCP no zone is known, so times are written in UTC with the word UTC.

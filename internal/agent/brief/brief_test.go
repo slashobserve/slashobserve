@@ -151,3 +151,16 @@ func TestRenderTellsAnAsOfRunItsNow(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderGivesTheCurrentTimeInThePersonsZone(t *testing.T) {
+	at := time.Date(2026, 11, 25, 5, 29, 0, 0, time.UTC)
+	task := Task{Mode: tools.ModeInvestigate, Prompt: "why is a slow", TimeZone: "Asia/Kolkata", AsOf: &at}
+	got, err := Render(statuses, task, View{}, Fresh, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "It is now 10:59 IST on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried."
+	if !strings.Contains(got.Context, want) {
+		t.Fatalf("context lacks %q:\n%s", want, got.Context)
+	}
+}

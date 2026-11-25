@@ -248,3 +248,15 @@ func TestInvestigateRanksAndGroupsErrorsBeforeItNamesACause(t *testing.T) {
 		}
 	}
 }
+
+func TestInvestigateNamesTheWindowItQueriedFromTheContextTime(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"Name the window you queried, from its start to its end",
+		"never add an offset to a time you wrote in UTC",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
