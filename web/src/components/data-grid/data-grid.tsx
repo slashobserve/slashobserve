@@ -85,7 +85,8 @@ function GridCell<T>({ data, column }: CellParams<T>) {
   return (
     <div
       className={cn(
-        "flex h-full min-w-0 items-center leading-normal",
+        "flex min-w-0 items-center leading-normal",
+        column.autoHeight === true ? "whitespace-normal" : "h-full",
         column.align === "right" && "justify-end text-right"
       )}
     >
