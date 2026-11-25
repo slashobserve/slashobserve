@@ -454,8 +454,8 @@ func TestOffersListApprovedToolsWithOneLineAndTheirArguments(t *testing.T) {
 		storedFrom(t, ToolOffered, Found{Name: "other", Description: "not approved", ReadOnly: yes()}),
 		storedFrom(t, ToolChanged, Found{Name: "moved", Description: "changed", ReadOnly: yes()}),
 	}
-	offer := offerOf(Source{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", State: StateUnreachable, Failure: FailureTimeout}, stored)
-	if offer.Host != fakeHost || !offer.Unreachable || offer.Failure != FailureTimeout || len(offer.Tools) != 1 {
+	offer := offerOf(Source{UID: "code", Name: "Code", Description: "Runbooks", URL: "https://" + fakeHost + "/mcp", State: StateUnreachable, Failure: FailureTimeout}, stored)
+	if offer.Host != fakeHost || offer.Description != "Runbooks" || !offer.Unreachable || offer.Failure != FailureTimeout || len(offer.Tools) != 1 {
 		t.Fatalf("offer = %+v", offer)
 	}
 	tool := offer.Tools[0]
