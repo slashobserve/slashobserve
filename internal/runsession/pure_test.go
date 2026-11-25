@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/anchor"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -239,5 +240,52 @@ func TestBriefTaskMarksOnlyAThreadAskAsAskedOnItsObservation(t *testing.T) {
 	thread := revisions.Request{SubjectObservationID: "o1", ThreadAsk: true}
 	if got := briefTask(thread, tools.ModeInvestigate).Pointer; !got.ThreadAsk || got.ObservationID != "o1" {
 		t.Fatalf("thread ask pointer = %+v", got)
+	}
+}
+
+func TestCreatedIDsAreKeptOnceAndWithinTheirCap(t *testing.T) {
+	var s State
+	s.noteCreated([]string{"a", "", "b", "a"})
+	if len(s.Created) != 2 || s.Created[0] != "a" || s.Created[1] != "b" {
+		t.Fatalf("created = %v", s.Created)
+	}
+	for i := range maxCreatedIDs * 2 {
+		s.noteCreated([]string{strconv.Itoa(i)})
+	}
+	if len(s.Created) != maxCreatedIDs {
+		t.Fatalf("created = %d ids", len(s.Created))
+	}
+}
+
+func TestWriteScopeIsACopyOfTheStoredState(t *testing.T) {
+	s := State{Created: []string{"a"}, Committed: "d"}
+	scope := s.writeScope()
+	scope.Created[0] = "changed"
+	if s.Created[0] != "a" || scope.Committed != "d" {
+		t.Fatalf("state = %+v scope = %+v", s, scope)
+	}
+}
+
+func TestACommitRecordsTheDashboardTheRunMayStillWriteTo(t *testing.T) {
+	sess := &session{}
+	sess.settleByCommit(dashboards.Commit{Dashboard: dashboards.Dashboard{ID: "d1"}, Version: dashboards.Version{Number: 3}})
+	if sess.state.Settled != (Settled{Kind: settledSaved, Version: 3}) || sess.state.Committed != "d1" {
+		t.Fatalf("state = %+v", sess.state)
+	}
+	proposed := &session{}
+	proposed.settleByCommit(dashboards.Commit{Dashboard: dashboards.Dashboard{ID: "d2"}, Proposal: &dashboards.ProposalRef{}})
+	if proposed.state.Settled.Kind != settledProposed || proposed.state.Committed != "" {
+		t.Fatalf("proposed = %+v", proposed.state)
+	}
+}
+
+func TestCreatedAndCommittedSurviveAStoredStateRoundTrip(t *testing.T) {
+	raw, err := json.Marshal(State{Created: []string{"a"}, Committed: "d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back State
+	if err := json.Unmarshal(raw, &back); err != nil || back.Committed != "d" || len(back.Created) != 1 {
+		t.Fatalf("back = %+v, err = %v", back, err)
 	}
 }

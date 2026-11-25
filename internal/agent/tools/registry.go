@@ -134,6 +134,7 @@ type Result struct {
 	Refusal    Refusal
 	Edits      Edits
 	Unchecked  string
+	Created    []string
 }
 
 type Edits struct {
@@ -220,6 +221,8 @@ type Run struct {
 	WriteFolders  []pgtype.UUID
 	Investigation bool
 	AsOf          time.Time
+	ChatID        string
+	ThreadAsk     bool
 }
 
 func (run Run) asOf() *time.Time {
@@ -436,7 +439,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}
-	if res, ok := offered(e.tool, run, inRun); !ok {
+	if res, ok := r.admitted(ctx, e.tool, run, inRun, input); !ok {
 		return res, nil
 	}
 	ctx = callAccess(ctx, principal, run, inRun)

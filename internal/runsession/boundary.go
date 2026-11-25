@@ -49,6 +49,7 @@ type admitted struct {
 	seq    int
 	notes  []string
 	answer *Answer
+	scope  tools.WriteScope
 }
 
 type dispatched struct {
@@ -78,7 +79,7 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	}
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
-	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked))
+	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), first.scope))
 	done.took = time.Since(done.start)
 	if readRestricted() {
 		if err := s.markReadRestricted(ctx, req); err != nil {
@@ -142,6 +143,7 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	open.Admitted++
 	out.seq = open.Seq
 	out.adm = sess.state.Guard.Admit(position, c)
+	out.scope = sess.state.writeScope()
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil
 	}
@@ -228,6 +230,9 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 		answer.Notes = append(answer.Notes, settled.Note)
 	}
 	if !isSave(c.Name) {
+		if tools.Phase(c.Name) == tools.PhaseWrite && !d.res.IsError {
+			state.noteCreated(d.res.Created)
+		}
 		if found := d.res.Discovered; found != nil && !d.res.IsError {
 			state.addDiscovery(*found)
 		}
@@ -258,6 +263,7 @@ func (sess *session) apply(ctx context.Context, out guard.Outcome) (restarted bo
 		state.Settled = Settled{Kind: settledProposed}
 	case out.Saved != nil:
 		state.Settled = Settled{Kind: settledSaved, Version: out.Saved.Version}
+		state.Committed = out.Saved.DashboardID
 	case out.Conflict:
 		return sess.resolveConflict(ctx)
 	case out.NotFound:

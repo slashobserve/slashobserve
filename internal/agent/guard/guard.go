@@ -17,6 +17,7 @@ const (
 	maxChangesPerPanel     = 4
 	maxChurnedSavesInRow   = 3
 	maxIssueCodes          = 3
+	maxWritesPerAttempt    = 8
 
 	DefaultInvestigationCalls = 12
 
@@ -28,11 +29,13 @@ const (
 
 	StepReusedRead = "Reused the result of an identical call"
 
-	guardSaveNow      = "save_now"
-	guardFindingNow   = "finding_now"
-	guardProposeNow   = "propose_now"
-	guardRepeatedRead = "repeated_read"
-	guardRepeatedSave = "repeated_save"
+	guardSaveNow       = "save_now"
+	guardFindingNow    = "finding_now"
+	guardProposeNow    = "propose_now"
+	guardRepeatedRead  = "repeated_read"
+	guardRepeatedSave  = "repeated_save"
+	guardTooManyWrites = "too_many_writes"
+	guardRepeatedWrite = "repeated_write"
 )
 
 const (
@@ -66,6 +69,16 @@ var rules = map[string]rule{
 		message: "this save is identical to an earlier one and changes nothing; save the next panel, or set finish: true when every planned panel is built",
 		refused: "the same save was sent again",
 		stopped: "Stopped: the same save was sent again and again",
+	},
+	guardTooManyWrites: {
+		message: fmt.Sprintf("this run already made %d changes, the most one run may; say in your answer what is left for the person to do", maxWritesPerAttempt),
+		refused: fmt.Sprintf("%d writes already ran", maxWritesPerAttempt),
+		stopped: fmt.Sprintf("Stopped: the model kept writing after %d writes", maxWritesPerAttempt),
+	},
+	guardRepeatedWrite: {
+		message: "this change is identical to an earlier one in this run and changes nothing; say what you did instead of repeating it",
+		refused: "the same write was sent again",
+		stopped: "Stopped: the same write was sent again and again",
 	},
 }
 
@@ -217,10 +230,40 @@ func (s *State) nudge() string {
 func (s *State) Admit(position int, c Call) Admission {
 	s.Counts.ToolCalls++
 	adm := Admission{Phase: s.Phase(c.Name)}
-	if isSave(c.Name) {
+	switch tools.Phase(c.Name) {
+	case tools.PhaseSave:
 		return s.admitSave(c, adm)
+	case tools.PhaseWrite:
+		return s.admitWrite(c, adm)
 	}
 	return s.admitRead(position, c, adm)
+}
+
+func (s *State) admitWrite(c Call, adm Admission) Admission {
+	adm.Key = writeKey(c)
+	switch {
+	case s.Writes >= maxWritesPerAttempt:
+		return s.refuse(c, adm, guardTooManyWrites)
+	case s.WriteKeys[adm.Key]:
+		return s.refuse(c, adm, guardRepeatedWrite)
+	}
+	if s.WriteKeys == nil {
+		s.WriteKeys = map[string]bool{}
+	}
+	s.WriteKeys[adm.Key] = true
+	s.Writes++
+	s.Turn.Answered++
+	return adm
+}
+
+func writeKey(c Call) string {
+	var parsed any
+	if json.Unmarshal(c.Input, &parsed) == nil {
+		if canonical, err := json.Marshal(parsed); err == nil {
+			return Key(c.Name, canonical)
+		}
+	}
+	return Key(c.Name, c.Input)
 }
 
 func (s *State) admitRead(position int, c Call, adm Admission) Admission {
@@ -296,15 +339,23 @@ func (s *State) noteSave(key string) (repeated bool) {
 }
 
 func (s *State) reject(c Call, adm Admission, reason string) Admission {
+	return s.rejectWith(c, adm, codeInvalidRequest, reason)
+}
+
+func (s *State) rejectWith(c Call, adm Admission, code, reason string) Admission {
 	adm.Verdict = Refuse
-	adm.Content, _ = json.Marshal(map[string]string{"code": codeInvalidRequest, "message": reason})
+	adm.Content, _ = json.Marshal(map[string]string{"code": code, "message": reason})
 	adm.Step = "Rejected " + c.label() + " input: " + reason
 	return adm
 }
 
 func (s *State) refuse(c Call, adm Admission, name string) Admission {
 	s.LastGuard, s.LastLimit = name, s.windowLimit()
-	adm = s.reject(c, adm, s.rule(name).message)
+	code := codeInvalidRequest
+	if name == guardTooManyWrites || name == guardRepeatedWrite {
+		code = name
+	}
+	adm = s.rejectWith(c, adm, code, s.rule(name).message)
 	adm.Step = "Refused " + c.label() + ": " + s.rule(name).refused
 	return adm
 }

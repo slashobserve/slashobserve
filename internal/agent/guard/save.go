@@ -76,7 +76,11 @@ type issueBody struct {
 }
 
 func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error) {
-	if !isSave(c.Name) {
+	switch tools.Phase(c.Name) {
+	case tools.PhaseWrite:
+		return Settled{}, nil
+	case tools.PhaseSave:
+	default:
 		return s.settleRead(c, res), nil
 	}
 	if res.Refusal == tools.RefusalOnePanel {
