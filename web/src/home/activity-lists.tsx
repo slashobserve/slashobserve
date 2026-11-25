@@ -12,7 +12,7 @@ import { dashboardsHealthQuery } from "@/health/queries"
 import { InboxRow } from "@/inbox/inbox-row"
 import { itemText, type InboxItem } from "@/inbox/inbox-item"
 import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
-import { useInboxForYou } from "@/inbox/queries"
+import { useInboxForYou, useSetInboxItemUnread } from "@/inbox/queries"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeSubmitError, useRetryRequest } from "@/observe/queries"
 import { pinProblemText } from "@/pins/pin-problems"
@@ -102,7 +102,11 @@ function ActionControl({
 
 function NeedsYouRow({ item }: { item: InboxItem }) {
   const showInbox = useInboxPanelStore((state) => state.show)
+  const setUnread = useSetInboxItemUnread()
   const action = needsYouAction(item)
+  function markRead() {
+    if (item.unread) setUnread.mutate({ seq: item.seq, unread: false })
+  }
   return (
     <div className="flex items-center gap-2 p-1 pr-3">
       <div className="min-w-0 flex-1">
@@ -111,7 +115,11 @@ function NeedsYouRow({ item }: { item: InboxItem }) {
           selected={false}
           tabStop
           asLink
-          onSelect={() => showInbox()}
+          onOpen={markRead}
+          onSelect={() => {
+            markRead()
+            showInbox({ view: "for_you", filter: "open", item: item.seq })
+          }}
         />
       </div>
       {action === null ? null : (
