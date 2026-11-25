@@ -1,0 +1,97 @@
+import { useEffect, useRef, useState } from "react"
+
+import { useTheme } from "@/lib/theme"
+
+import { connect, type Host, type HostContext } from "./host"
+import { PanelApp } from "./panel-app"
+import {
+  failureOf,
+  payloadOf,
+  type PanelPayload,
+  type ToolResult,
+} from "./payload"
+
+type View =
+  | { kind: "waiting" }
+  | { kind: "ready"; payload: PanelPayload }
+  | { kind: "problem"; message: string }
+
+const chartHeight = 360
+const fallbackWidth = 640
+
+export function viewOf(result: ToolResult): View {
+  const payload = payloadOf(result)
+  return payload
+    ? { kind: "ready", payload }
+    : { kind: "problem", message: failureOf(result) }
+}
+
+type Props = { target?: Window; self?: Window }
+
+export function McpPanel({ target = window.parent, self = window }: Props) {
+  const [view, setView] = useState<View>({ kind: "waiting" })
+  const [context, setContext] = useState<HostContext>({})
+  const [width, setWidth] = useState(self.innerWidth || fallbackWidth)
+  const host = useRef<Host>(undefined)
+  const body = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let live = true
+    let connected: Host | undefined
+    connect(target, self, {
+      onToolResult: (result) => setView(viewOf(result)),
+      onToolCancelled: () =>
+        setView({ kind: "problem", message: "The query was cancelled." }),
+      onContext: setContext,
+    }).then(
+      (h) => {
+        if (!live) return h.disconnect()
+        connected = h
+        host.current = h
+      },
+      () => setView({ kind: "problem", message: "The host did not answer." })
+    )
+    return () => {
+      live = false
+      connected?.disconnect()
+      host.current = undefined
+    }
+  }, [target, self])
+
+  const { setPreference } = useTheme()
+  useEffect(() => {
+    setPreference(context.theme ?? "system")
+  }, [context.theme, setPreference])
+
+  useEffect(() => {
+    const element = body.current
+    if (!element) return
+    const observer = new ResizeObserver(() => {
+      const box = element.getBoundingClientRect()
+      if (box.width > 0) setWidth(Math.floor(box.width))
+      host.current?.reportSize(Math.ceil(box.width), Math.ceil(box.height))
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [view.kind])
+
+  const dimensions = context.containerDimensions
+  const height = dimensions?.height ?? chartHeight
+
+  return (
+    <div ref={body} className="w-full p-1 text-foreground">
+      {view.kind === "ready" ? (
+        <PanelApp
+          payload={view.payload}
+          width={width - 8}
+          height={height}
+          onOpen={(url) => void host.current?.openLink(url)}
+        />
+      ) : (
+        <p className="p-3 text-sm text-muted-foreground" role="status">
+          {view.kind === "waiting" ? "Waiting for the panel." : view.message}
+        </p>
+      )}
+    </div>
+  )
+}
