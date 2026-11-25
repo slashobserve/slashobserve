@@ -256,7 +256,7 @@ func changesOf(prev, next *spec.Dashboard) panelChanges {
 	changes := panelChanges{shown: []panelOut{}, edits: editsOf(prev, next)}
 	for _, e := range next.AllPanels() {
 		isNew := !known[e.Panel.ID]
-		if !isNew && !slices.Contains(edited, e.Panel.ID) {
+		if !isNew && (!slices.Contains(edited, e.Panel.ID) || !slices.Contains(changes.edits.Panels, e.Panel.ID)) {
 			continue
 		}
 		if len(changes.shown) < maxChangedPanels {

@@ -79,6 +79,39 @@ func TestChangesOfListsOnlyNewAndEditedPanels(t *testing.T) {
 	}
 }
 
+func TestChangesOfSkipsPanelsOnlyAVariableEditReaches(t *testing.T) {
+	withVariable := func(variable string, panels ...string) *spec.Dashboard {
+		raw := strings.Replace(boardSpecOf(panels...), `{"name":"svc","type":"custom","options":["a","b"]}`, variable, 1)
+		d, err := spec.Parse([]byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	panels := []string{
+		suggestStat("a", "A", `up{svc="$svc"}`, 0),
+		suggestStat("b", "B", `sum(up{svc="$svc"})`, 4),
+		suggestStat("c", "C", `max(up{svc="$svc"})`, 8),
+	}
+	prev := withVariable(`{"name":"svc","type":"custom","options":["a","b"]}`, panels...)
+	next := withVariable(`{"name":"svc","type":"custom","options":["a","b"],"label":"Service","default":"a"}`, panels...)
+	if changed, _ := dashboards.ChangedSince(prev, next); len(changed) != 3 {
+		t.Fatalf("setup: the variable edit marks %v for re-verification, want all three panels", changed)
+	}
+	if res, ok := onePanelPerSave(changesOf(prev, next)); !ok {
+		t.Fatalf("a variable-only edit was refused: %#v", res.Content)
+	}
+	edited := withVariable(`{"name":"svc","type":"custom","options":["a","b"],"label":"Service"}`,
+		suggestStat("a", "A", `up{svc="$svc"}`, 0),
+		suggestStat("b", "B", `count(up{svc="$svc"})`, 4),
+		panels[2],
+	)
+	changes := changesOf(prev, edited)
+	if changes.count != 1 || len(changes.shown) != 1 || changes.shown[0].ID != "b" {
+		t.Fatalf("a variable edit with one real panel edit = %+v, want only panel b", changes)
+	}
+}
+
 func describedStat(id, description string, y int) string {
 	return fmt.Sprintf(`{"id":%q,"type":"stat","title":"P","description":%q,"gridPos":{"x":0,"y":%d,"w":6,"h":4},"datasource":%q,"queries":[{"query":"up"}]}`, id, description, y, fakeUID)
 }

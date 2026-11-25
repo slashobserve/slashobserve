@@ -187,6 +187,7 @@ A new dashboard has no id until the build commits, so the model saves and reads 
 
 A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each.
 Deletes, moves, variables and dashboard fields may go with the panel.
+A panel that only reads a variable the save edits, such as a new default or label, counts as unchanged, so a variable edit saves in one call however many panels use it.
 Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
 
 `planned_panels`, `finish` and `row` exist only for the built-in agent, and MCP clients keep one version per accepted save.
