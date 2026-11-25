@@ -65,10 +65,11 @@ type fakeCall struct {
 }
 
 type fakeRuns struct {
-	mode     tools.Mode
-	scopeErr error
-	notes    []string
-	meta     runsession.RunMeta
+	mode          tools.Mode
+	investigation bool
+	scopeErr      error
+	notes         []string
+	meta          runsession.RunMeta
 
 	mu    sync.Mutex
 	calls []fakeCall
@@ -78,7 +79,7 @@ func (r *fakeRuns) Scope(_ context.Context, req revisions.Request) (tools.Run, e
 	if r.scopeErr != nil {
 		return tools.Run{}, r.scopeErr
 	}
-	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate}, nil
+	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation}, nil
 }
 
 func (r *fakeRuns) Call(ctx context.Context, req revisions.Request, call runsession.Call, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
@@ -188,7 +189,7 @@ func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(
 				want := map[string]tools.Tool{}
 				for _, tool := range f.reg.List() {
 					if tool.OfferedIn(mode) && (tool.Answers || r.principal.Role.AtLeast(tool.MinRole)) {
-						want[tool.Name] = tool.ForRun(mode)
+						want[tool.Name] = tool.ForRun(mode, false)
 					}
 				}
 				if len(listed) != len(want) {
@@ -272,6 +273,26 @@ func TestRunSessionOfAnInvestigationSavesFindingsNotPanels(t *testing.T) {
 	build := newRunFixture(t, tools.ModeRevise).listTools(t)
 	if _, ok := build["update_panels"]; !ok {
 		t.Error("update_panels is not listed in a revision")
+	}
+}
+
+func TestRunSessionOffersTheStructuredFindingFieldsOnlyToAnInvestigation(t *testing.T) {
+	for _, investigation := range []bool{false, true} {
+		f := newRunFixture(t, tools.ModeInvestigate)
+		f.runs.investigation = investigation
+		finding, ok := f.listTools(t)["save_finding"]
+		if !ok {
+			t.Fatal("save_finding is not listed")
+		}
+		var schema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if err := json.Unmarshal(finding.InputSchema, &schema); err != nil {
+			t.Fatal(err)
+		}
+		if _, has := schema.Properties["root_cause"]; has != investigation {
+			t.Errorf("investigation %t: root_cause in schema = %t", investigation, has)
+		}
 	}
 }
 

@@ -413,6 +413,8 @@ The server enforces the guards of [SlashObserve's own agent](../concepts/agent.m
 - Rejected saves in a row: the third ends the run as `validation_exhausted`.
 - Saves refused with `restricted_answer` in a row: the third ends the run as `restricted_answer`, and they do not count as rejected saves.
 - Stalled turns: two turns in a row in which every call was refused end the run as `no_progress`.
+- The hypothesis ledger: with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigate run has `note_hypotheses`, which a connected agent gets only in an investigate run with a run token and `get_run_brief` gives it the prompt section too, never outside a run; its calls are neither reads nor writes, so they are not refused at the call limit, and a turn with only ledger calls counts as stalled.
+  The stages, the stage line after each turn and the call limit that grow with progress (`SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`) belong to the built-in agent only; a connected agent never sees a stage line and keeps the fixed limit.
 - Churn: a save that changes no panel, or changes a panel for the fifth time, gets a note, and the fourth such save in a row ends the run as `no_progress`.
 - The cost limit: when `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is set and `report_run` or `finish_run` reports `usage` whose cost reaches it, the answer has `stop: true` and the run ends as `budget_exhausted`.
   Without `usage` the server cannot know the cost and never stops a run for it.
@@ -696,7 +698,7 @@ Each datasource type answers these discovery tools:
   - `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`.
   - `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`.
   - `list_metrics` with a stream selector as `scope`.
-- Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
+- Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for the services seen in the last hour with their span names as `columns` and `rows`, plus `attributes`; when Tempo does not answer in time for some services, they are still listed with a null span name and `notes` says how many; `list_labels` and `list_label_values` read the same hour unless you pass `from` and `to`.
 - Jaeger: `list_label_values` for the services, or for the operations of one service with `service=checkout` as `metric`, and `get_schema` for every service with its span names as `columns` and `rows`.
   Tags are free-form and are not listed.
 - Elasticsearch and OpenSearch:
@@ -1368,6 +1370,8 @@ Returns the observation with `allowed_actions` and its blocks in order.
   A snapshot never carries query text, so none is shown.
   When the snapshot cannot be read, the block has `data_error` instead of the summary.
 - `blocks_truncated` says the rest did not fit.
+- `findings` holds the structured fields of each saved investigation answer, as in [Investigate](investigate.md#structured-fields), with the `run_id` that wrote it.
+  It is left out when no answer set a field.
 - A block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 - The built-in agent also has this tool, and only reads with it.
 
@@ -1533,6 +1537,7 @@ Reads one run of the built-in agent by the id of a `run.*` event from `list_acti
   It stays set after the answer is saved into another observation.
   It is null when the run is `redacted` or when you cannot open that observation.
 - The run's `investigation` field says whether it is an investigation.
+- The run's `finding` also carries the structured fields `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
 - `anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it.
   They are filled only for the person who asked the run, and are `null` for anyone else and for a run that points at nothing.
   The turns of `get_chat` carry the same two fields under the same rule.

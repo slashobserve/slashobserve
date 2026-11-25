@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ type investigateOptions struct {
 
 type findingSummary struct {
 	ID       string        `json:"id"`
+	RunID    string        `json:"run_id"`
 	Title    string        `json:"title"`
 	Markdown string        `json:"markdown"`
 	URL      string        `json:"url"`
@@ -36,6 +38,49 @@ type findingSummary struct {
 
 	SuggestedChange string `json:"suggested_change"`
 	DashboardID     string `json:"dashboard_id"`
+
+	RootCause  *findingRootCause `json:"root_cause"`
+	Onset      string            `json:"onset"`
+	Impact     string            `json:"impact"`
+	Confidence string            `json:"confidence"`
+	RuledOut   []string          `json:"ruled_out"`
+	NextSteps  []string          `json:"next_steps"`
+	NoIncident bool              `json:"no_incident"`
+}
+
+type findingRootCause struct {
+	Component string `json:"component"`
+	Kind      string `json:"kind"`
+	Summary   string `json:"summary"`
+}
+
+func (f findingSummary) header() []string {
+	var lines []string
+	if c := f.RootCause; c != nil {
+		lines = append(lines, fmt.Sprintf("Root cause: %s (%s) - %s", text(c.Component), text(c.Kind), text(c.Summary)))
+	}
+	if f.NoIncident {
+		lines = append(lines, "No incident found.")
+	}
+	for _, field := range [][2]string{{"Onset", f.Onset}, {"Impact", f.Impact}, {"Confidence", f.Confidence}} {
+		if field[1] != "" {
+			lines = append(lines, field[0]+": "+text(field[1]))
+		}
+	}
+	for _, list := range []struct {
+		label string
+		items []string
+	}{{"Ruled out", f.RuledOut}, {"Next steps", f.NextSteps}} {
+		if len(list.items) == 0 {
+			continue
+		}
+		cleaned := make([]string, len(list.items))
+		for i, item := range list.items {
+			cleaned[i] = text(item)
+		}
+		lines = append(lines, list.label+": "+strings.Join(cleaned, "; "))
+	}
+	return lines
 }
 
 type findingAskOn struct {
@@ -172,6 +217,12 @@ func investigatePayload(args []string, o investigateOptions) (map[string]any, er
 func printFinding(out *output, f findingSummary, requestID string) {
 	out.line("%s", text(f.Title))
 	out.line("")
+	if header := f.header(); len(header) > 0 {
+		for _, line := range header {
+			out.line("%s", line)
+		}
+		out.line("")
+	}
 	for line := range strings.SplitSeq(strings.TrimSpace(f.Markdown), "\n") {
 		out.line("%s", text(line))
 	}
