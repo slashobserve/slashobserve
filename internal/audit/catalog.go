@@ -76,6 +76,7 @@ var (
 	contextKeys  = []string{"name", "host", "audience", "changes", "url_changed", "credential_changed"}
 	probeKeys    = []string{"host", "found", "new", "changed", "gone", "ignored"}
 	toolKeys     = []string{"host", "tool", "hash"}
+	callKeys     = []string{"host", "tool", "arguments", "truncated"}
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
@@ -196,17 +197,18 @@ var catalog = map[Action]Spec{
 	"finding.apply":               change(CategoryConversation, []string{"run_id"}),
 	"finding.save_as_observation": change(CategoryConversation),
 
-	"run.queue":       change(CategoryAgent, runKeys),
-	"run.start":       change(CategoryAgent, runKeys),
-	"run.finish":      change(CategoryAgent, runKeys, usageKeys),
-	"run.cancel":      change(CategoryAgent, runKeys),
-	"run.release":     change(CategoryAgent, runKeys),
-	"run.keep":        change(CategoryAgent, runKeys),
-	"run.retry":       change(CategoryAgent),
-	"run.continue":    change(CategoryAgent),
-	"run.update":      change(CategoryAgent),
-	"run.archive":     change(CategoryAgent),
-	"agent.tool_call": access(CategoryAgent),
+	"run.queue":           change(CategoryAgent, runKeys),
+	"run.start":           change(CategoryAgent, runKeys),
+	"run.finish":          change(CategoryAgent, runKeys, usageKeys),
+	"run.cancel":          change(CategoryAgent, runKeys),
+	"run.release":         change(CategoryAgent, runKeys),
+	"run.keep":            change(CategoryAgent, runKeys),
+	"run.retry":           change(CategoryAgent),
+	"run.continue":        change(CategoryAgent),
+	"run.update":          change(CategoryAgent),
+	"run.archive":         change(CategoryAgent),
+	"agent.tool_call":     access(CategoryAgent),
+	"context_source.call": access(CategoryAgent, callKeys),
 
 	"query.run": access(CategoryQuery, streamKeys, windowKeys, queryKeys),
 

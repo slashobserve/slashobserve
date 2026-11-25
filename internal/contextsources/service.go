@@ -56,6 +56,7 @@ type Domains interface {
 }
 
 type Deps struct {
+	Limits    Limits
 	DB        *db.DB
 	Key       sealed.Key
 	Domains   Domains
@@ -64,6 +65,8 @@ type Deps struct {
 }
 
 type Service struct {
+	limits    Limits
+	gate      gate
 	db        *db.DB
 	key       sealed.Key
 	domains   Domains
@@ -76,7 +79,7 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Service{db: d.DB, key: d.Key, domains: d.Domains, connector: d.Connector, logger: logger}
+	return &Service{limits: d.Limits.filled(), db: d.DB, key: d.Key, domains: d.Domains, connector: d.Connector, logger: logger}
 }
 
 type ToolCounts struct {

@@ -496,6 +496,12 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, Logger: logger,
 	})
+	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
+	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
+	contextSourcesService := contextsources.New(contextsources.Deps{
+		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+	})
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
 		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
@@ -526,6 +532,7 @@ func run() error {
 		Provider:       llmProvider,
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,
+		ContextSources: contextSourcesService,
 		Logger:         logger,
 	})
 
@@ -573,8 +580,6 @@ func run() error {
 		<-provisionDone
 	}()
 
-	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
-	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
 	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
@@ -596,10 +601,6 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
-	contextSourcesService := contextsources.New(contextsources.Deps{
-		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
-		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
-	})
 	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
 		return contextSourcesService.Provision(ctx, cfg.ContextSources)
 	}); err != nil {

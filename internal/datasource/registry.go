@@ -255,7 +255,7 @@ func (r *Registry) Describe(ctx context.Context, uid string) (Instance, error) {
 		return Instance{}, ErrNotVisible
 	}
 	if !access.Reads(in.Audience) {
-		return Instance{}, access.refusal(in.Audience)
+		return Instance{}, access.Refusal(in.Audience)
 	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
