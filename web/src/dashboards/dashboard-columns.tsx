@@ -33,7 +33,7 @@ export type DashboardRow =
   | { kind: "empty"; id: string }
   | SkeletonRow
 
-const hideBelowWidth = 952
+const hideBelowWidth = 1000
 
 const cell = (
   skeletonClassName: string,
