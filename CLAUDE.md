@@ -70,6 +70,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 - `deploy/compose/`: `compose.yaml` (the stores, Dex and the server that the Astronomy Shop and replicas stacks extend or override), `dashboards/` (the provisioned dashboards), `compose.build.yaml` (the override that builds the server image from the checkout), `compose.replicas.yaml` and `replicas/` (the override and configs of the `slashobserve-replicas` stack: two servers, PgBouncer, HAProxy and the build fixture), and the configs mounted into the stack's services.
 - `loadtest/`: the load test (`package main`, standard library only): `target.go` refuses the demo stack, `viewers.go`, `streams.go`, `mcp.go` and `agent.go` are the scenarios, `promtext.go` reads `/metrics`, and `report.go` writes the report and the gates; `loadtest/reports/` is git-ignored.
 - `tools/<tool>/go.mod`: pinned Go dev tools.
+- `tools/codeserver/`: a read-only MCP server over a directory (`list_dir`, `read_file`, `grep`, streamable HTTP, `-root` and `-addr` flags), part of the root module and not a dev tool; `Root.Resolve` is the only place a path becomes a file, and a path that is absolute or leaves the root, by `..` or by a symlink, is refused; its `Dockerfile` builds from the repo root (`docker build -f tools/codeserver/Dockerfile .`) and is for the demo.
 - `docs/`: the operator guide, one page per topic, grouped by folder.
 
 ## Conventions
