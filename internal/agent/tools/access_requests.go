@@ -33,8 +33,8 @@ func init() { registerEntries((*Registry).accessRequestEntries) }
 
 func (r *Registry) accessRequestEntries() []entry {
 	return []entry{
-		{Tool{Name: nameRequestCommentAccess, Description: descRequestCommentAccess, InputSchema: json.RawMessage(schemaRequestCommentAccess), MCPOnly: true, MinRole: auth.RoleViewer}, r.requestCommentAccess},
-		{Tool{Name: nameListAccessRequests, Description: descListAccessRequests, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listAccessRequests},
+		{Tool{Name: nameRequestCommentAccess, Description: descRequestCommentAccess, InputSchema: json.RawMessage(schemaRequestCommentAccess), MinRole: auth.RoleViewer}, r.requestCommentAccess},
+		{Tool{Name: nameListAccessRequests, Description: descListAccessRequests, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.listAccessRequests},
 	}
 }
 

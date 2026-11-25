@@ -26,8 +26,8 @@ func init() { registerEntries((*Registry).rcaReadEntries) }
 
 func (r *Registry) rcaReadEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListRCAs, Description: descListRCAs, InputSchema: json.RawMessage(schemaListRCAs), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listRCAs},
-		{Tool{Name: nameGetRCA, Description: descGetRCA, InputSchema: json.RawMessage(schemaGetRCA), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.getRCA},
+		{Tool{Name: nameListRCAs, Description: descListRCAs, InputSchema: json.RawMessage(schemaListRCAs), ReadOnly: true, MinRole: auth.RoleViewer}, r.listRCAs},
+		{Tool{Name: nameGetRCA, Description: descGetRCA, InputSchema: json.RawMessage(schemaGetRCA), ReadOnly: true, MinRole: auth.RoleViewer}, r.getRCA},
 	}
 }
 

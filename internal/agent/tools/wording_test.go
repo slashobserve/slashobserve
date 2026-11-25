@@ -29,35 +29,56 @@ func toolsByName(t *testing.T) map[string]Tool {
 
 func TestBuiltInToolsNeverMentionToolsTheyLack(t *testing.T) {
 	all := New(Deps{}).List()
-	var absent []string
-	for _, tool := range all {
-		if tool.MCPOnly {
-			absent = append(absent, tool.Name)
-		}
-	}
-	if len(absent) == 0 {
-		t.Fatal("no MCP-only tools to check against")
-	}
-	checked := 0
-	for _, tool := range all {
-		if tool.MCPOnly {
-			continue
-		}
-		checked++
-		offered := tool.ForAgent()
-		text := offered.Description + string(offered.InputSchema)
-		for _, name := range absent {
-			if strings.Contains(text, name) {
-				t.Errorf("%s: the built-in agent's description or schema mentions %s, which it does not have", tool.Name, name)
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate, ModeSuggest} {
+		t.Run(string(mode), func(t *testing.T) {
+			var absent []string
+			for _, tool := range all {
+				if tool.MCPOnly {
+					absent = append(absent, tool.Name)
+				}
 			}
-		}
-		if !json.Valid(offered.InputSchema) {
-			t.Errorf("%s: built-in schema is not valid JSON: %s", tool.Name, offered.InputSchema)
-		}
+			if len(absent) == 0 {
+				t.Fatal("no left out tools to check against")
+			}
+			checked := 0
+			for _, tool := range all {
+				if !tool.OfferedIn(mode) {
+					continue
+				}
+				checked++
+				offered := tool.ForRun(mode)
+				text := offered.Description + string(offered.InputSchema)
+				for _, name := range absent {
+					if mentionsTool(text, name) {
+						t.Errorf("%s: the built-in agent's description or schema mentions %s, which it does not have", tool.Name, name)
+					}
+				}
+				if !json.Valid(offered.InputSchema) {
+					t.Errorf("%s: built-in schema is not valid JSON: %s", tool.Name, offered.InputSchema)
+				}
+			}
+			if checked == 0 {
+				t.Fatal("no built-in tools checked")
+			}
+		})
 	}
-	if checked == 0 {
-		t.Fatal("no built-in tools checked")
+}
+
+var toolNameChar = regexp.MustCompile(`[a-z_]`)
+
+func mentionsTool(text, name string) bool {
+	for i := strings.Index(text, name); i >= 0; {
+		before, after := i-1, i+len(name)
+		if (before < 0 || !toolNameChar.MatchString(text[before:before+1])) && (after >= len(text) || !toolNameChar.MatchString(text[after:after+1])) {
+			return true
+		}
+		next := strings.Index(text[i+1:], name)
+		if next < 0 {
+			return false
+		}
+		i += 1 + next
 	}
+	return false
 }
 
 func TestToolTextHasNoPlaceholderLeft(t *testing.T) {
@@ -169,6 +190,17 @@ func TestGuideVariant(t *testing.T) {
 	}
 }
 
+func folderVariant(t *testing.T) variant {
+	t.Helper()
+	for _, v := range variants {
+		if v.name == "folder" {
+			return v
+		}
+	}
+	t.Fatal("no folder variant")
+	return variant{}
+}
+
 func TestFolderVariant(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
 		if tool.MCPOnly {
@@ -176,8 +208,20 @@ func TestFolderVariant(t *testing.T) {
 		}
 		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
 		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
-		if mcp != (tool.Name == nameCreateDashboard || tool.Name == nameListObservations) || agent != (tool.Name == nameCreateDashboard) {
+		if (mcp != agent) != slices.Contains(folderVariant(t).tools, tool.Name) {
 			t.Errorf("%s offers folder_id: MCP %t, agent %t", tool.Name, mcp, agent)
+		}
+	}
+	byName := toolsByName(t)
+	for name, want := range map[string]struct{ mcp, agent bool }{
+		nameCreateDashboard:  {true, true},
+		nameListObservations: {true, false},
+	} {
+		tool := byName[name]
+		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
+		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
+		if mcp != want.mcp || agent != want.agent {
+			t.Errorf("%s offers folder_id: MCP %t, agent %t; want MCP %t, agent %t", name, mcp, agent, want.mcp, want.agent)
 		}
 	}
 }

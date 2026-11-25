@@ -121,19 +121,19 @@ func TestListInboxRefusesBadInput(t *testing.T) {
 	}
 }
 
-func TestListInboxIsMCPOnlyAndNeedsAViewer(t *testing.T) {
+func TestListInboxIsOfferedInEveryRunAndNeedsAViewer(t *testing.T) {
 	var tool Tool
 	for _, candidate := range New(Deps{}).List() {
 		if candidate.Name == nameListInbox {
 			tool = candidate
 		}
 	}
-	if !tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
+	if tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
 		t.Fatalf("list_inbox = %+v", tool)
 	}
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
-		if tool.OfferedIn(mode) {
-			t.Errorf("list_inbox is offered to the agent in %s", mode)
+		if !tool.OfferedIn(mode) {
+			t.Errorf("list_inbox is not offered to the agent in %s", mode)
 		}
 	}
 }

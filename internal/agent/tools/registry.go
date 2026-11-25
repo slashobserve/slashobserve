@@ -195,7 +195,7 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	switch {
 	case t.MCPOnly:
 		return false
-	case t.Answers:
+	case t.Answers, phaseOf(t) == PhaseWrite:
 		return mode != ModeSuggest
 	case mode == ModeInvestigate:
 		return t.ReadOnly
@@ -367,6 +367,7 @@ func New(d Deps) *Registry {
 			panic("tools: " + e.tool.Name + " has no MinRole")
 		}
 		e.tool.Destructive = destructiveTools[e.tool.Name]
+		e.tool.MCPOnly = leftOutOfRuns[e.tool.Name] != ""
 		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
@@ -434,7 +435,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 	if inRun && !hasPrincipal {
 		return Result{}, fmt.Errorf("tool %s: %w: a run without a principal", name, ErrInvariant)
 	}
-	if !claimOnly && !allowed(principal, inRun, e.tool.MinRole) {
+	if !claimOnly && !allowed(principal, inRun, e.tool) {
 		res := failure("", errorBody{Code: codeForbiddenRole, Message: roleRefusal(principal, name), NeededRole: string(e.tool.MinRole)})
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
@@ -618,7 +619,7 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case t.MCPOnly:
 		return Result{}, true
 	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
-		message = "an investigate run only reads data and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
+		message = "an investigate run never edits a dashboard's panels, variables or settings and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for such a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
 	case !inRun && t.AgentOnly:
@@ -631,8 +632,8 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	return res, false
 }
 
-func allowed(p auth.Principal, inRun bool, floor auth.Role) bool {
-	return inRun || p.Role.AtLeast(floor)
+func allowed(p auth.Principal, inRun bool, t Tool) bool {
+	return (inRun && t.Answers) || p.Role.AtLeast(t.MinRole)
 }
 
 func errorStep(tool, code string) string {

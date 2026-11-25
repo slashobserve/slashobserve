@@ -65,8 +65,8 @@ const agentDocsPath = "../../../docs/concepts/agent.md"
 
 var (
 	agentDocsServerTools = regexp.MustCompile(`The server has (\d+) tools: MCP clients get (\d+),`)
-	agentDocsAgentTools  = regexp.MustCompile(`The built-in agent gets (\d+) in a new-dashboard or revision request and (\d+) in a suggestion`)
-	agentDocsMCPOnly     = regexp.MustCompile(`The other (\d+) tools are for MCP clients only`)
+	agentDocsRunTools    = regexp.MustCompile(`A run offers (\d+) of them in a new-dashboard or revision request, (\d+) in an investigation and (\d+) in a suggestion`)
+	agentDocsLeftOut     = regexp.MustCompile(`The other (\d+) tools are left out of every run`)
 )
 
 func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
@@ -74,7 +74,7 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var total, mcp, create, suggest, mcpOnly int
+	var total, mcp, create, investigate, suggest, leftOut int
 	for _, tool := range New(Deps{}).List() {
 		total++
 		if !tool.AgentOnly {
@@ -83,11 +83,14 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 		if tool.OfferedIn(ModeCreate) {
 			create++
 		}
+		if tool.OfferedIn(ModeInvestigate) {
+			investigate++
+		}
 		if tool.OfferedIn(ModeSuggest) {
 			suggest++
 		}
 		if tool.MCPOnly {
-			mcpOnly++
+			leftOut++
 		}
 	}
 	cases := []struct {
@@ -96,8 +99,8 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 		want    []string
 	}{
 		{"the server and MCP counts", agentDocsServerTools, []string{strconv.Itoa(total), strconv.Itoa(mcp)}},
-		{"the built-in agent counts", agentDocsAgentTools, []string{strconv.Itoa(create), strconv.Itoa(suggest)}},
-		{"the MCP-only count", agentDocsMCPOnly, []string{strconv.Itoa(mcpOnly)}},
+		{"the run counts", agentDocsRunTools, []string{strconv.Itoa(create), strconv.Itoa(investigate), strconv.Itoa(suggest)}},
+		{"the left-out count", agentDocsLeftOut, []string{strconv.Itoa(leftOut)}},
 	}
 	for _, c := range cases {
 		m := c.pattern.FindStringSubmatch(string(page))

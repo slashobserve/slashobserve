@@ -30,10 +30,14 @@ const (
 	runToken        = "Bearer run-token"
 	requesterToken  = "Bearer requester"
 	proposeRunToken = "Bearer propose-run-token"
+	adminRunToken   = "Bearer admin-run-token"
 	runRequestID    = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 )
 
-var requester = auth.Principal{Kind: auth.KindUser, ID: "u-requester", Name: "Rae", Role: auth.RoleViewer}
+var (
+	requester      = auth.Principal{Kind: auth.KindUser, ID: "u-requester", Name: "Rae", Role: auth.RoleViewer}
+	adminRequester = auth.Principal{Kind: auth.KindUser, ID: "u-admin", Name: "Ada", Role: auth.RoleAdmin}
+)
 
 type runAuth struct{ req revisions.Request }
 
@@ -45,6 +49,10 @@ func (a runAuth) Authenticate(_ context.Context, header string) (Credential, boo
 	case proposeRunToken:
 		req := a.req
 		return Credential{Principal: requester, Run: &req, Mode: grantmode.Propose}, true, nil
+	case adminRunToken:
+		req := a.req
+		req.RequestedBy = adminRequester
+		return Credential{Principal: adminRequester, Run: &req}, true, nil
 	case requesterToken:
 		return Credential{Principal: requester}, true, nil
 	}
@@ -145,7 +153,12 @@ type listedTool struct {
 
 func (f *runFixture) listTools(t *testing.T) map[string]listedTool {
 	t.Helper()
-	rec := f.post(runToken, rpc(1, "tools/list", map[string]any{}))
+	return f.listToolsAs(t, runToken)
+}
+
+func (f *runFixture) listToolsAs(t *testing.T, token string) map[string]listedTool {
+	t.Helper()
+	rec := f.post(token, rpc(1, "tools/list", map[string]any{}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("tools/list status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -162,36 +175,79 @@ func (f *runFixture) listTools(t *testing.T) map[string]listedTool {
 	return out
 }
 
-func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKind(t *testing.T) {
-	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate} {
-		t.Run(string(mode), func(t *testing.T) {
-			f := newRunFixture(t, mode)
-			listed := f.listTools(t)
-			want := map[string]tools.Tool{}
-			for _, tool := range f.reg.List() {
-				if tool.OfferedIn(mode) {
-					want[tool.Name] = tool.ForRun(mode)
+func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(t *testing.T) {
+	requesters := []struct {
+		token     string
+		principal auth.Principal
+	}{{runToken, requester}, {adminRunToken, adminRequester}}
+	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate, tools.ModeSuggest} {
+		for _, r := range requesters {
+			t.Run(string(mode)+"/"+string(r.principal.Role), func(t *testing.T) {
+				f := newRunFixture(t, mode)
+				listed := f.listToolsAs(t, r.token)
+				want := map[string]tools.Tool{}
+				for _, tool := range f.reg.List() {
+					if tool.OfferedIn(mode) && (tool.Answers || r.principal.Role.AtLeast(tool.MinRole)) {
+						want[tool.Name] = tool.ForRun(mode)
+					}
 				}
-			}
-			if len(listed) != len(want) {
-				t.Errorf("listed %d tools, want %d", len(listed), len(want))
-			}
-			for name, tool := range want {
-				got, ok := listed[name]
-				if !ok {
-					t.Errorf("%s is not listed", name)
-					continue
+				if len(listed) != len(want) {
+					t.Errorf("listed %d tools, want %d", len(listed), len(want))
 				}
-				if got.Description != tool.Description || !jsonEqual(got.InputSchema, tool.InputSchema) {
-					t.Errorf("%s does not carry the agent wording", name)
+				for name, tool := range want {
+					got, ok := listed[name]
+					if !ok {
+						t.Errorf("%s is not listed", name)
+						continue
+					}
+					if got.Description != tool.Description || !jsonEqual(got.InputSchema, tool.InputSchema) {
+						t.Errorf("%s does not carry the agent wording", name)
+					}
 				}
-			}
-			for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run", "list_inbox"} {
-				if _, ok := listed[name]; ok {
-					t.Errorf("%s is listed in a run session", name)
+				for _, name := range []string{"claim_run", "report_run", "finish_run", "get_run_brief", "start_run", "create_comment", "save_run_answer", "run_dashboard_health"} {
+					if _, ok := listed[name]; ok {
+						t.Errorf("%s is listed in a run session", name)
+					}
 				}
-			}
-		})
+			})
+		}
+	}
+}
+
+func TestRunSessionHidesTheAdminToolsFromAViewerAndListsThemForAnAdmin(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	viewer, admin := f.listToolsAs(t, runToken), f.listToolsAs(t, adminRunToken)
+	for _, name := range []string{"search_audit_events", "list_audit_fields"} {
+		if _, ok := viewer[name]; ok {
+			t.Errorf("%s is listed for a Viewer", name)
+		}
+		if _, ok := admin[name]; !ok {
+			t.Errorf("%s is not listed for an Admin", name)
+		}
+	}
+	for _, name := range []string{"get_run", "list_inbox", "save_finding"} {
+		if _, ok := viewer[name]; !ok {
+			t.Errorf("%s is not listed for a Viewer", name)
+		}
+	}
+}
+
+func TestRunSessionNeverRunsAToolLeftOutOfRuns(t *testing.T) {
+	f := newRunFixture(t, tools.ModeRevise)
+	reached := false
+	f.handler.call = func(context.Context, string, json.RawMessage) (tools.Result, error) {
+		reached = true
+		return tools.Result{Content: map[string]string{"ok": "true"}}, nil
+	}
+	rec := f.post(adminRunToken, rpc(1, "tools/call", map[string]any{"name": "start_run", "arguments": map[string]any{"prompt": "build it"}}))
+	if reached {
+		t.Fatal("start_run reached its handler inside a run")
+	}
+	if resp := decodeRPC(t, rec); resp.Error == nil || resp.Error.Code != -32602 {
+		t.Errorf("start_run inside a run answered %s, want the unknown tool error", rec.Body.String())
+	}
+	if calls := f.runs.recorded(); len(calls) != 0 {
+		t.Errorf("start_run was recorded as a run call: %+v", calls)
 	}
 }
 

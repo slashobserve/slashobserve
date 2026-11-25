@@ -24,7 +24,7 @@ func init() { registerEntries((*Registry).applyEntries) }
 
 func (r *Registry) applyEntries() []entry {
 	return []entry{
-		{Tool{Name: nameApplySuggestedChange, Description: descApplySuggestedChange, InputSchema: json.RawMessage(schemaApplySuggestedChange), MCPOnly: true, MinRole: auth.RoleViewer}, r.applySuggestedChange},
+		{Tool{Name: nameApplySuggestedChange, Description: descApplySuggestedChange, InputSchema: json.RawMessage(schemaApplySuggestedChange), MinRole: auth.RoleViewer}, r.applySuggestedChange},
 	}
 }
 

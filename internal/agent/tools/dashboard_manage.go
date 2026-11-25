@@ -32,8 +32,8 @@ func init() { registerEntries((*Registry).dashboardManageEntries) }
 
 func (r *Registry) dashboardManageEntries() []entry {
 	return []entry{
-		{Tool{Name: nameMoveDashboard, Description: descMoveDashboard, InputSchema: json.RawMessage(schemaMoveDashboard), MCPOnly: true, MinRole: auth.RoleViewer}, r.moveDashboard},
-		{Tool{Name: nameDuplicateDashboard, Description: descDuplicateDashboard, InputSchema: json.RawMessage(schemaDuplicateDashboard), MCPOnly: true, MinRole: auth.RoleViewer}, r.duplicateDashboard},
+		{Tool{Name: nameMoveDashboard, Description: descMoveDashboard, InputSchema: json.RawMessage(schemaMoveDashboard), MinRole: auth.RoleViewer}, r.moveDashboard},
+		{Tool{Name: nameDuplicateDashboard, Description: descDuplicateDashboard, InputSchema: json.RawMessage(schemaDuplicateDashboard), MinRole: auth.RoleViewer}, r.duplicateDashboard},
 	}
 }
 

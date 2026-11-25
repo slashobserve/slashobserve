@@ -43,7 +43,7 @@ func init() { registerEntries((*Registry).searchEntries) }
 
 func (r *Registry) searchEntries() []entry {
 	return []entry{
-		{Tool{Name: nameSearchWorkspace, Description: descSearchWorkspace, InputSchema: json.RawMessage(schemaSearchWorkspace), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.searchWorkspace},
+		{Tool{Name: nameSearchWorkspace, Description: descSearchWorkspace, InputSchema: json.RawMessage(schemaSearchWorkspace), ReadOnly: true, MinRole: auth.RoleViewer}, r.searchWorkspace},
 	}
 }
 

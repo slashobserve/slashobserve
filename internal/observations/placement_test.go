@@ -1,12 +1,14 @@
 package observations_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/observations"
@@ -93,5 +95,29 @@ func TestCreatingWithABlockOnAnAdminsOnlyDatasourceOutsideAnAdminsOnlyFolderLeav
 	list, _, err := r.service.List(ctx, admin, observations.ListFilter{FolderID: r.shared}, 10, "")
 	if err != nil || len(list) != 0 {
 		t.Errorf("the refused create left %d observations, %v", len(list), err)
+	}
+}
+
+func TestARunThatReadAdminOnlyDataNeitherCreatesNorMovesAnObservationWhereOthersRead(t *testing.T) {
+	r := newRig(t)
+	const run = "88888888-8888-4888-8888-888888888888"
+	r.db.Exec(t, `INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, read_restricted) VALUES ($1::uuid, 'ask', 'investigate', 'who changed it', 'user', $2::uuid, 'Root', true)`, run, admin.ID)
+	locked := foldertest.AdminsOnly(t, r.db, "Payroll")
+	held := r.create(t, admin, locked)
+	for name, ctx := range map[string]context.Context{
+		"the built-in agent": actor.WithRun(reading(t.Context()), run),
+		"a connected agent":  actor.AsConnectedAgent(actor.WithRun(reading(t.Context()), run)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := r.service.Create(ctx, admin, observations.CreateInput{FolderID: r.shared, Title: "Payroll audit"}); !errors.Is(err, folders.ErrRestrictedAnswer) {
+				t.Fatalf("create where others read = %v, want ErrRestrictedAnswer", err)
+			}
+			if _, err := r.service.Move(ctx, admin, mustUUID(t, held.ID), r.shared); !errors.Is(err, folders.ErrRestrictedAnswer) {
+				t.Fatalf("move where others read = %v, want ErrRestrictedAnswer", err)
+			}
+			if _, err := r.service.Create(ctx, admin, observations.CreateInput{FolderID: locked, Title: "Payroll audit"}); err != nil {
+				t.Fatalf("create where only Admins read: %v", err)
+			}
+		})
 	}
 }

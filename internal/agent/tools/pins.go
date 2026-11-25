@@ -28,9 +28,9 @@ func init() { registerEntries((*Registry).pinEntries) }
 
 func (r *Registry) pinEntries() []entry {
 	return []entry{
-		{Tool{Name: namePinDashboard, Description: descPinDashboard, InputSchema: json.RawMessage(schemaPinDashboard), MCPOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.pinDashboard},
-		{Tool{Name: nameUnpinDashboard, Description: descUnpinDashboard, InputSchema: json.RawMessage(schemaPinDashboard), MCPOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.unpinDashboard},
-		{Tool{Name: nameListPinnedDashboards, Description: descListPinnedDashboards, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listPinnedDashboards},
+		{Tool{Name: namePinDashboard, Description: descPinDashboard, InputSchema: json.RawMessage(schemaPinDashboard), MinRole: auth.RoleViewer, PersonOnly: true}, r.pinDashboard},
+		{Tool{Name: nameUnpinDashboard, Description: descUnpinDashboard, InputSchema: json.RawMessage(schemaPinDashboard), MinRole: auth.RoleViewer, PersonOnly: true}, r.unpinDashboard},
+		{Tool{Name: nameListPinnedDashboards, Description: descListPinnedDashboards, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listPinnedDashboards},
 	}
 }
 

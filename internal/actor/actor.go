@@ -37,8 +37,13 @@ func WithRun(ctx context.Context, runID string) context.Context {
 	return context.WithValue(ctx, runKey{}, runID)
 }
 
+func RunIn(ctx context.Context) string {
+	runID, _ := ctx.Value(runKey{}).(string)
+	return runID
+}
+
 func In(ctx context.Context, p auth.Principal, runID string) Actor {
-	inRun, _ := ctx.Value(runKey{}).(string)
+	inRun := RunIn(ctx)
 	if connected, _ := ctx.Value(connectedKey{}).(bool); connected {
 		inRun = ""
 	}

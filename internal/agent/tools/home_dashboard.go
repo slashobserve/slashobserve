@@ -28,9 +28,9 @@ func init() { registerEntries((*Registry).homeDashboardEntries) }
 
 func (r *Registry) homeDashboardEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetHomeDashboard, Description: descGetHomeDashboard, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.getHomeDashboard},
-		{Tool{Name: nameSetHomeDashboard, Description: descSetHomeDashboard, InputSchema: json.RawMessage(schemaSetHomeDashboard), MCPOnly: true, MinRole: auth.RoleViewer}, r.setHomeDashboard},
-		{Tool{Name: nameClearHomeDashboard, Description: descClearHomeDashboard, InputSchema: json.RawMessage(schemaEmpty), MCPOnly: true, MinRole: auth.RoleViewer}, r.clearHomeDashboard},
+		{Tool{Name: nameGetHomeDashboard, Description: descGetHomeDashboard, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.getHomeDashboard},
+		{Tool{Name: nameSetHomeDashboard, Description: descSetHomeDashboard, InputSchema: json.RawMessage(schemaSetHomeDashboard), MinRole: auth.RoleViewer}, r.setHomeDashboard},
+		{Tool{Name: nameClearHomeDashboard, Description: descClearHomeDashboard, InputSchema: json.RawMessage(schemaEmpty), MinRole: auth.RoleViewer}, r.clearHomeDashboard},
 	}
 }
 

@@ -56,7 +56,7 @@ func init() { registerEntries((*Registry).auditEntries) }
 
 func (r *Registry) auditEntries() []entry {
 	tool := func(name, desc, schema string) Tool {
-		return Tool{Name: name, Description: desc, InputSchema: json.RawMessage(schema), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleAdmin}
+		return Tool{Name: name, Description: desc, InputSchema: json.RawMessage(schema), ReadOnly: true, MinRole: auth.RoleAdmin}
 	}
 	return []entry{
 		{tool(nameSearchAuditEvents, descSearchAuditEvents, schemaSearchAuditEvents), r.searchAuditEvents},

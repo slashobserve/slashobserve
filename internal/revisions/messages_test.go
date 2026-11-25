@@ -90,3 +90,27 @@ func TestValidationExhaustedMessageFitsWhatWasRejected(t *testing.T) {
 		}
 	}
 }
+
+func TestARunThatWroteIsNeverReportedAsEndingWithoutAResult(t *testing.T) {
+	cases := []struct {
+		name   string
+		ending Ending
+		want   string
+	}{
+		{"no call, wrote", Ending{Failure: FailureNoToolCall, Message: messageNoDashboard, Wrote: true}, messageWroteUnanswered},
+		{"no finding, wrote", Ending{Failure: FailureNoFinding, Message: messageNoFindingRun, Wrote: true}, messageWroteUnanswered},
+		{"no call, nothing written", Ending{Failure: FailureNoToolCall, Message: messageNoDashboard}, messageNoDashboard},
+		{"another failure, wrote", Ending{Failure: FailureRateLimited, Message: "the model provider is rate limiting requests", Wrote: true}, "the model provider is rate limiting requests"},
+	}
+	for _, c := range cases {
+		if got := c.ending.failureMessage(); got != c.want {
+			t.Errorf("%s: message = %q, want %q", c.name, got, c.want)
+		}
+	}
+	if got := (Ending{Wrote: true}).unansweredMessage(noSaveMessage); got != messageWroteUnanswered {
+		t.Errorf("a committed run that wrote and saved nothing reads %q", got)
+	}
+	if got := (Ending{}).unansweredMessage(noSaveMessage); got != noSaveMessage {
+		t.Errorf("a run that wrote nothing reads %q", got)
+	}
+}

@@ -109,23 +109,23 @@ func TestHealthAndAnnotationToolsAreOfferedOnlyWhereTheyBelong(t *testing.T) {
 		byName[tool.Name] = tool
 	}
 	cases := []struct {
-		tool        string
-		build, look bool
+		tool    string
+		suggest bool
 	}{
-		{nameListDashboardHealth, false, false},
-		{nameCreateAnnotation, false, false},
-		{nameUpdateAnnotation, false, false},
-		{nameListAnnotations, true, true},
+		{nameListDashboardHealth, true},
+		{nameCreateAnnotation, false},
+		{nameUpdateAnnotation, false},
+		{nameListAnnotations, true},
 	}
 	for _, c := range cases {
 		tool := byName[c.tool]
-		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
-			if tool.OfferedIn(mode) != c.build {
-				t.Errorf("%s offered in %s = %t", c.tool, mode, !c.build)
+		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
+			if !tool.OfferedIn(mode) {
+				t.Errorf("%s is not offered in %s", c.tool, mode)
 			}
 		}
-		if tool.OfferedIn(ModeInvestigate) != c.look {
-			t.Errorf("%s offered in investigate = %t", c.tool, !c.look)
+		if tool.OfferedIn(ModeSuggest) != c.suggest {
+			t.Errorf("%s offered in suggest = %t", c.tool, !c.suggest)
 		}
 	}
 	if tool := byName[nameListAnnotations]; !tool.ReadOnly || tool.MCPOnly || tool.AgentOnly {
@@ -198,16 +198,27 @@ func TestCreateAnnotationOnADashboardFollowsFolderAccess(t *testing.T) {
 	}
 }
 
-func TestCreateAnnotationIsRefusedInsideARun(t *testing.T) {
+func TestCreateAnnotationInsideARunNeedsTheDashboardItIsAbout(t *testing.T) {
 	r := New(Deps{})
 	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
 	for _, mode := range []Mode{ModeCreate, ModeInvestigate} {
-		res, err := r.Call(WithRun(editor, Run{Mode: mode}), nameCreateAnnotation, []byte(`{"text":"deploy v2"}`))
+		res, err := r.Call(WithRun(editor, Run{Mode: mode, DashboardID: dashA}), nameCreateAnnotation, []byte(`{"text":"deploy v2"}`))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "for MCP clients") {
-			t.Errorf("%s run: %#v", mode, res.Content)
+		if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeOutOfScope || !strings.Contains(body.Message, "every dashboard") {
+			t.Errorf("%s run without dashboard_id: %#v", mode, res.Content)
+		}
+		res, err = r.Call(WithRun(editor, Run{Mode: mode, DashboardID: dashA}), nameCreateAnnotation, []byte(`{"text":"deploy v2","dashboard_id":"`+dashB+`"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeOutOfScope {
+			t.Errorf("%s run on another dashboard: %#v", mode, res.Content)
+		}
+		_, err = r.Call(WithRun(editor, Run{Mode: mode, DashboardID: dashA}), nameCreateAnnotation, []byte(`{"text":"deploy v2","dashboard_id":"`+dashA+`"}`))
+		if !errors.Is(err, errAnnotationsNotConfigured) {
+			t.Errorf("%s run on its dashboard did not reach the handler: %v", mode, err)
 		}
 	}
 }
@@ -252,15 +263,20 @@ func TestUpdateAnnotationChangesWhatTheCallerAdded(t *testing.T) {
 	}
 }
 
-func TestUpdateAnnotationIsRefusedInsideARun(t *testing.T) {
+func TestUpdateAnnotationInsideARunChangesOnlyWhatTheRunAdded(t *testing.T) {
 	r := New(Deps{})
 	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: editorCaller.ID, Role: auth.RoleEditor})
-	res, err := r.Call(WithRun(editor, Run{Mode: ModeInvestigate}), nameUpdateAnnotation, []byte(`{"id":"0a1b2c3d-0000-4000-8000-000000000001","text":"x"}`))
+	const added = "0a1b2c3d-0000-4000-8000-000000000001"
+	res, err := r.Call(WithRun(editor, Run{Mode: ModeInvestigate}), nameUpdateAnnotation, []byte(`{"id":"`+added+`","text":"x"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeInvalidRequest || !strings.Contains(body.Message, "for MCP clients") {
+	if body, _ := res.Content.(errorBody); !res.IsError || body.Code != codeOutOfScope {
 		t.Errorf("%#v", res.Content)
+	}
+	ctx := WithWriteScope(WithRun(editor, Run{Mode: ModeInvestigate}), WriteScope{Created: []string{added}})
+	if _, err := r.Call(ctx, nameUpdateAnnotation, []byte(`{"id":"`+added+`","text":"x"}`)); !errors.Is(err, errAnnotationsNotConfigured) {
+		t.Errorf("an annotation the run added did not reach the handler: %v", err)
 	}
 }
 

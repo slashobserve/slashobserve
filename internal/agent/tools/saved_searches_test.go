@@ -78,18 +78,23 @@ func (r *searchRig) newFolder(t *testing.T, title string) pgtype.UUID {
 	return folder.ID
 }
 
-func TestSavedSearchToolsOnlyRunOutsideAgentRuns(t *testing.T) {
+func TestSavedSearchToolsInARunStayWithinItsWriteScope(t *testing.T) {
 	r := newSearchRig(t)
-	for name, input := range map[string]string{
-		nameSaveSearch:        `{"kind":"logs","title":"Errors","datasource_uid":"logs","query":"{app=\"x\"}"}`,
-		nameListSavedSearches: `{}`,
-		nameUpdateSavedSearch: `{"id":"99999999-9999-4999-8999-999999999999","from":"now-2h"}`,
-	} {
-		res := r.call(t, &Run{Mode: ModeCreate}, keyCaller, name, input)
-		body, ok := res.Content.(errorBody)
-		if errorCode(t, res) != codeInvalidRequest || !ok || body.Message != name+" is for MCP clients; a run saves only dashboards or a finding" {
-			t.Errorf("%s in a run: %#v", name, res.Content)
-		}
+	chat := &Run{Mode: ModeCreate, Build: true, RequestID: ownRunID, ChatID: "chat"}
+	saved := r.call(t, chat, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource":"logs","query":"{app=\"x\"}"}`)
+	out, ok := saved.Content.(savedsearches.SavedSearchJSON)
+	if saved.IsError || !ok || len(saved.Created) != 1 || saved.Created[0] != out.ID {
+		t.Fatalf("save_search in a chat run: %#v, created %v", saved.Content, saved.Created)
+	}
+	if list := r.call(t, chat, keyCaller, nameListSavedSearches, `{}`); list.IsError {
+		t.Fatalf("list_saved_searches in a run: %#v", list.Content)
+	}
+	if code := errorCode(t, r.call(t, chat, keyCaller, nameUpdateSavedSearch, `{"id":"99999999-9999-4999-8999-999999999999","from":"now-2h"}`)); code != codeOutOfScope {
+		t.Errorf("update_saved_search of a search the run did not save answered %s, want %s", code, codeOutOfScope)
+	}
+	private := &Run{Mode: ModeInvestigate, RequestID: ownRunID, ChatID: "chat", DashboardID: subjectID}
+	if code := errorCode(t, r.call(t, private, keyCaller, nameSaveSearch, `{"kind":"logs","title":"Errors","datasource":"logs","query":"{app=\"x\"}"}`)); code != codeOutOfScope {
+		t.Errorf("save_search in a private ask answered %s, want %s", code, codeOutOfScope)
 	}
 }
 

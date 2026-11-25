@@ -25,6 +25,8 @@ const (
 	actsForAnotherMessage = "this agent acts for another person"
 	noObservationMessage  = "No observation to write into; the answer stays on this run"
 	noSaveMessage         = "the agent finished without saving a dashboard"
+
+	messageWroteUnanswered = "the agent made the change it was asked for but ended without an answer naming it"
 )
 
 type Claimed struct {
@@ -46,6 +48,21 @@ type Ending struct {
 	Message    string
 	Usage      *Usage
 	Suggestion json.RawMessage
+	Wrote      bool
+}
+
+func (e Ending) unansweredMessage(fallback string) string {
+	if e.Wrote {
+		return messageWroteUnanswered
+	}
+	return fallback
+}
+
+func (e Ending) failureMessage() string {
+	if e.Failure == FailureNoToolCall || e.Failure == FailureNoFinding {
+		return e.unansweredMessage(e.Message)
+	}
+	return e.Message
 }
 
 func (s *Service) Claim(ctx context.Context, c Claimant) (Claimed, bool, error) {
@@ -207,13 +224,13 @@ func (s *Service) endingOutcome(ctx context.Context, row dbsqlc.AgentRequest, e 
 	case current.CancelRequestedAt.Valid:
 		return canceledOutcome(nil, e.Usage), nil
 	case e.Failure != "":
-		return outcome{message: e.Message, code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
+		return outcome{message: e.failureMessage(), code: "agent_run_failed", failure: e.Failure, usage: e.Usage}, nil
 	case SourceOf(row) == SourceSuggest:
 		return suggestionOutcome(e.Suggestion, e.Usage), nil
 	case SourceOf(row) == SourceInvestigate:
-		return outcome{message: noFindingMessage, code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
+		return outcome{message: e.unansweredMessage(noFindingMessage), code: "agent_no_finding", failure: FailureNoFinding, usage: e.Usage}, nil
 	}
-	return outcome{message: noSaveMessage, code: "agent_no_save", failure: FailureNoToolCall, usage: e.Usage}, nil
+	return outcome{message: e.unansweredMessage(noSaveMessage), code: "agent_no_save", failure: FailureNoToolCall, usage: e.Usage}, nil
 }
 
 func (s *Service) savedOutcome(ctx context.Context, row dbsqlc.AgentRequest, usage *Usage) (success outcome, saved bool, err error) {

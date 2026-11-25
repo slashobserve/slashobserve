@@ -130,7 +130,8 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate, tools.ModeSuggest} {
 		run := mcpserver.NewMCPServer(serverName, opts.Version,
 			mcpserver.WithToolCapabilities(false),
-			mcpserver.WithRecovery())
+			mcpserver.WithRecovery(),
+			mcpserver.WithToolFilter(listableRunTools(reg.List())))
 		for _, t := range reg.List() {
 			if t.OfferedIn(mode) {
 				run.AddTool(toolFor(t.ForRun(mode)), h.callRunTool(t.Name))
@@ -154,6 +155,23 @@ func listablePersonTools(all []tools.Tool) mcpserver.ToolFilterFunc {
 			return listed
 		}
 		return slices.DeleteFunc(slices.Clone(listed), func(t mcplib.Tool) bool { return personOnly[t.Name] })
+	}
+}
+
+func listableRunTools(all []tools.Tool) mcpserver.ToolFilterFunc {
+	byName := map[string]tools.Tool{}
+	for _, t := range all {
+		byName[t.Name] = t
+	}
+	return func(ctx context.Context, listed []mcplib.Tool) []mcplib.Tool {
+		p, ok := auth.FromContext(ctx)
+		if len(listed) == 1 || !ok {
+			return listed
+		}
+		return slices.DeleteFunc(slices.Clone(listed), func(listed mcplib.Tool) bool {
+			t := byName[listed.Name]
+			return (t.PersonOnly && p.Kind != auth.KindUser) || (!t.Answers && !p.Role.AtLeast(t.MinRole))
+		})
 	}
 }
 

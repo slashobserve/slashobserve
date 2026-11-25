@@ -44,9 +44,9 @@ func init() { registerEntries((*Registry).versionEntries) }
 
 func (r *Registry) versionEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListDashboardVersions, Description: descListDashboardVersions, InputSchema: json.RawMessage(schemaListDashboardVersions), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listDashboardVersions},
-		{Tool{Name: nameDiffDashboardVersions, Description: descDiffDashboardVersions, InputSchema: json.RawMessage(schemaDiffDashboardVersions), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.diffDashboardVersions},
-		{Tool{Name: nameRestoreDashboardVersion, Description: descRestoreDashboardVersion, InputSchema: json.RawMessage(schemaRestoreDashboardVersion), MCPOnly: true, MinRole: auth.RoleViewer}, r.restoreDashboardVersion},
+		{Tool{Name: nameListDashboardVersions, Description: descListDashboardVersions, InputSchema: json.RawMessage(schemaListDashboardVersions), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDashboardVersions},
+		{Tool{Name: nameDiffDashboardVersions, Description: descDiffDashboardVersions, InputSchema: json.RawMessage(schemaDiffDashboardVersions), ReadOnly: true, MinRole: auth.RoleViewer}, r.diffDashboardVersions},
+		{Tool{Name: nameRestoreDashboardVersion, Description: descRestoreDashboardVersion, InputSchema: json.RawMessage(schemaRestoreDashboardVersion), MinRole: auth.RoleViewer}, r.restoreDashboardVersion},
 	}
 }
 
