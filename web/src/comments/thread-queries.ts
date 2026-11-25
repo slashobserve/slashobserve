@@ -169,6 +169,7 @@ export function useOpenThread(target: string) {
       panelId?: string | null
       blockId?: string | null
       anchor?: Anchor
+      timeZone?: string
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads", {
@@ -183,6 +184,9 @@ export function useOpenThread(target: string) {
             ...(input.panelId == null ? {} : { panel_id: input.panelId }),
             ...(input.blockId == null ? {} : { block_id: input.blockId }),
             ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
+            ...(input.timeZone === undefined
+              ? {}
+              : { time_zone: input.timeZone }),
           },
         })
       )
@@ -203,6 +207,7 @@ export function useReplyToThread(target: string) {
       clientId?: string
       blockId?: string | null
       replyToId?: string | null
+      timeZone?: string
     }) =>
       resendOnceOffline(input.clientId, () =>
         api.POST("/threads/{thread_id}/messages", {
@@ -217,6 +222,9 @@ export function useReplyToThread(target: string) {
             ...(input.replyToId == null
               ? {}
               : { reply_to_id: input.replyToId }),
+            ...(input.timeZone === undefined
+              ? {}
+              : { time_zone: input.timeZone }),
           },
         })
       )

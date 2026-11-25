@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -47,7 +49,7 @@ const (
 	requestedBlockNote      = "added as a requested block; a person who can edit keeps or discards it"
 
 	descCreateObservation  = "Start an observation, a page of text, panel and snapshot blocks about one question, filed in a folder. Optional blocks are created with it, in order: a refused block creates nothing and the result names its index. Returns the id and url."
-	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it."
+	descGetObservation     = "Read an observation: its state, summary (the last one given, kept when it is reopened), range, allowed actions and blocks in order, each with kind, state, version and a short view (Markdown clipped, panel title, type and datasources, snapshot id) and, for a panel block, its full panel, so you can read what you added before you revise it. A snapshot block also shows its frozen panel's title, type, unit and range and up to 10 series with their differing labels, min, max, last and the times of min and max, never a query; data_error says it could not be read."
 	descListObservations   = "List observations you may see, most recently changed first, only the open or resolved ones or those in one folder. Page with next_cursor."
 	descAddBlock           = "Add a block to an observation: text (Markdown, no HTML), panel (a data panel whose query returns data in its range) or snapshot (freezes the data of a panel block). A panel that uses $variables needs their values in variables, or the block is refused as variable_missing. A person who can only comment gets a requested block that an editor keeps or discards."
 	descUpdateBlock        = "Change a text or panel block: send the version you read and the new markdown, or the new panel with its range, and optionally width, height or position. follow_page: true drops a panel's own range so it shows the observation's. A stale version answers version_conflict, and a width, height or position change raises the version too, so to lay out a page use arrange_blocks."
@@ -216,12 +218,15 @@ type blockViewOut struct {
 	MarkdownTruncated bool                `json:"markdown_truncated,omitempty"`
 	Title             string              `json:"title,omitempty"`
 	Type              string              `json:"type,omitempty"`
+	Unit              string              `json:"unit,omitempty"`
 	Datasources       []string            `json:"datasources,omitempty"`
 	Panel             json.RawMessage     `json:"panel,omitempty"`
 	Variables         map[string][]string `json:"variables,omitempty"`
 	From              string              `json:"from,omitempty"`
 	To                string              `json:"to,omitempty"`
 	SnapshotID        string              `json:"snapshot_id,omitempty"`
+	Data              *snapshotDataOut    `json:"data,omitempty"`
+	DataError         string              `json:"data_error,omitempty"`
 	RunID             string              `json:"run_id,omitempty"`
 }
 
@@ -808,9 +813,47 @@ func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (R
 		out.Blocks[i] = blockView(b)
 	}
 	budget := listBudget - jsonSize(observationViewOut{ObservationJSON: out.ObservationJSON, Blocks: []blockViewOut{}})
-	kept, cut := fit(out.Blocks, budget)
+	kept, cut := fitBlocks(out.Blocks, budget)
+	for i := range kept {
+		kept[i] = r.withSnapshot(ctx, principal, kept[i])
+	}
 	out.Blocks, out.BlocksTruncated = kept, cut
 	return success("Read observation "+o.ID+": "+plural(len(kept), "block", "blocks"), out), nil
+}
+
+func fitBlocks(blocks []blockViewOut, budget int) ([]blockViewOut, bool) {
+	type reserved struct {
+		blockViewOut
+		Reserve string `json:"reserve,omitempty"`
+	}
+	sized := make([]reserved, len(blocks))
+	for i, b := range blocks {
+		sized[i].blockViewOut = b
+		if b.Kind == string(observations.KindSnapshot) {
+			sized[i].Reserve = strings.Repeat("x", maxSnapshotSummaryBytes)
+		}
+	}
+	kept, cut := fit(sized, budget)
+	return blocks[:len(kept)], cut
+}
+
+func (r *Registry) withSnapshot(ctx context.Context, by auth.Principal, view blockViewOut) blockViewOut {
+	if view.Kind != string(observations.KindSnapshot) {
+		return view
+	}
+	id, err := db.ParseUUID(view.SnapshotID)
+	if err == nil {
+		var snap observations.Snapshot
+		if snap, err = r.deps.Observations.Snapshot(ctx, by, id); err == nil {
+			var shown blockViewOut
+			if shown, err = snapshotView(view, snap); err == nil {
+				return shown
+			}
+		}
+	}
+	r.deps.Logger.WarnContext(ctx, "snapshot read failed", logattrs.Failure(failureSnapshotRead, err, slog.String("block_id", view.ID))...)
+	view.DataError = snapshotReadError
+	return view
 }
 
 func blockView(b observations.Block) blockViewOut {
