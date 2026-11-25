@@ -177,6 +177,41 @@ func TestSummarizeSeriesStats(t *testing.T) {
 	}
 }
 
+func TestSummarizeSaysRangeExtremesAreOfSampledPoints(t *testing.T) {
+	frames := []datasource.Frame{timeNumberFrame(nil, 1, 3, 2)}
+	run := func(kind queryproxy.Kind, step time.Duration, frames []datasource.Frame) querySummary {
+		return summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}, Kind: kind, Step: step})
+	}
+	coarse := run(queryproxy.KindRange, 216*time.Second, frames)
+	for _, want := range []string{"sampled every 3m36s", "min, max and last", "between samples", "max_over_time", "min_over_time", "query_instant"} {
+		if !strings.Contains(coarse.Note, want) {
+			t.Errorf("note = %q, want it to contain %q", coarse.Note, want)
+		}
+	}
+	if coarse.StepMS != 216000 || *coarse.Series[0].Max != 3 {
+		t.Fatalf("existing fields changed: %+v", coarse)
+	}
+	for name, got := range map[string]querySummary{
+		"fine step":    run(queryproxy.KindRange, 18*time.Second, frames),
+		"instant":      run(queryproxy.KindInstant, 0, frames),
+		"no series":    run(queryproxy.KindRange, 216*time.Second, []datasource.Frame{logRows(2)}),
+		"empty result": run(queryproxy.KindRange, 216*time.Second, []datasource.Frame{timeNumberFrame(nil)}),
+	} {
+		if got.Note != "" {
+			t.Errorf("%s: note = %q, want none", name, got.Note)
+		}
+	}
+}
+
+func TestSummarizeKeepsTheLimitNoteBesideTheSampledNote(t *testing.T) {
+	frame := timeNumberFrame(nil, 1, 2)
+	frame.Meta = &datasource.FrameMeta{Partial: true}
+	got := summarize(queryproxy.Result{Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{frame}}}, Kind: queryproxy.KindRange, Step: time.Minute})
+	if !strings.HasPrefix(got.Note, queryproxy.PartialNote+". min, max and last") {
+		t.Fatalf("note = %q", got.Note)
+	}
+}
+
 func TestSummarizeCapsSeries(t *testing.T) {
 	var frames []datasource.Frame
 	for range maxSeriesOut + 5 {

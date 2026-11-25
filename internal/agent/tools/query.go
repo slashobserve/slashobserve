@@ -30,6 +30,7 @@ const (
 	maxDataPoints      = 1000
 	maxTimeExprBytes   = 64
 	maxSeriesOut       = 20
+	coarseStep         = 30 * time.Second
 	maxTableColumns    = 30
 	maxTableRows       = 10
 	maxSummaryCell     = 200
@@ -573,7 +574,18 @@ func summarizePage(res queryproxy.Result, pageRows int) querySummary {
 	if s.Series, cut = fit(series, seriesBudget); cut {
 		s.Truncated = true
 	}
+	if len(s.Series) > 0 && res.Step > coarseStep {
+		s.Note = joinNotes(s.Note, sampledNote(res.Step))
+	}
 	return s
+}
+
+func joinNotes(notes ...string) string {
+	return strings.Join(slices.DeleteFunc(notes, func(n string) bool { return n == "" }), ". ")
+}
+
+func sampledNote(step time.Duration) string {
+	return "min, max and last are of points sampled every " + step.String() + ", so an extreme between samples is not shown; for an exact peak or low over the window on a PromQL datasource, run max_over_time or min_over_time over the window as a query_instant"
 }
 
 func isLogStream(f datasource.Frame) bool {
