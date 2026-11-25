@@ -29,7 +29,7 @@ Queries run on the server, so datasource credentials never reach the browser.
 5. Click a line to open it, then choose **Show context** to read the lines around it, or **Open trace** to follow it to its trace.
 6. Choose **Copy link** to share the search, **Save search** to keep it, or **Add to dashboard** to turn it into a panel.
 
-If you would rather describe what you want, switch the mode switch to **Ask**, as [Ask in plain language](#ask-in-plain-language) describes.
+If you would rather describe what you want, switch the mode switch to **Write a query**, as [Ask in plain language](#ask-in-plain-language) describes.
 Outside a text field, `/` focuses the query and `?` lists the keys of the page, which [Keyboard shortcuts](keyboard-shortcuts.md#logs-page-keys) describes.
 
 ### Choose a source
@@ -65,7 +65,8 @@ With a model configured on the server, the query box opens in Ask mode instead, 
 
 The mode switch at the top left of the query card has up to three segments.
 
-- **Ask** takes a question.
+- **Write a query** takes a question and writes the query; it does not explain the results.
+  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 - **Builder** edits the query as filter chips.
 - The last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
 
@@ -522,8 +523,8 @@ When the page was opened from **Logs** in an observation's row of **Add a block*
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource.
-You can also type it into **Ask** and press Ask, and the address is never sent to the model.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Write a query** box of an Elasticsearch or OpenSearch datasource.
+You can also type it into **Write a query** and press **Write query**, and the address is never sent to the model.
 The page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 
 The note under the box says what was filled and how many filters from the address were not applied.
@@ -539,12 +540,12 @@ It works on the logs page, the trace search and the [metrics page](metrics.md#as
 
 Ask is off without a model configured on the server.
 [LLM providers](../connect/llm-providers.md) describes how to configure one.
-Without one, the Ask segment is disabled and says "Add a model key to ask in plain language".
+Without one, the Write a query segment is disabled and says "Add a model key to ask in plain language".
 
 ### Ask on the logs page
 
-1. Switch the mode switch at the top left of the query card to **Ask**.
-2. Write a question and press Enter or **Ask**.
+1. Switch the mode switch at the top left of the query card to **Write a query**.
+2. Write a question and press Enter or **Write query**.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 3. The page runs the answer at once.
    The explanation and any warnings show under the question, and the query shows in the editor below them, where you can still change it.
@@ -563,9 +564,9 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **Ask** and **Query**, and on ClickHouse **Ask**, **Search** and **SQL**.
+The toggle reads **Write a query** and **Query**, and on ClickHouse **Write a query**, **Search** and **SQL**.
 
-1. Switch to **Ask**, or press Ctrl+I or Cmd+I.
+1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 3. The search runs at once.

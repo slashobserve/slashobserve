@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 import { AskField } from "@/ask/ask-field"
-import { nextMode, type InputMode } from "@/ask/input-mode"
+import { askModeLabel, nextMode, type InputMode } from "@/ask/input-mode"
 import { InputModeToggle } from "@/ask/input-mode-toggle"
 import { useAsk } from "@/ask/use-ask"
 import { useInputModeShortcut } from "@/ask/use-input-mode-shortcut"
@@ -25,7 +25,7 @@ const helpText = "Ctrl Space completes metric names, labels and functions."
 const askPlaceholder =
   "Ask in plain language, like: requests per second by service over the last hour"
 const modeLabels: Record<InputMode, string> = {
-  ask: "Ask",
+  ask: askModeLabel,
   builder: "Builder",
   code: "PromQL",
 }
