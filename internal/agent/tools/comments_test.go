@@ -106,7 +106,7 @@ func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
 			t.Errorf("%s: InvestigateOnly %v, reason %q", tool.Name, tool.InvestigateOnly, investigateOnly[tool.Name])
 		}
 	}
-	if strings.Join(got, ",") != "call_context_tool,list_context_sources" {
+	if strings.Join(got, ",") != "call_context_tool,find_context_tools,list_context_sources" {
 		t.Fatalf("tools offered in investigations only = %v", got)
 	}
 	for name := range investigateOnly {

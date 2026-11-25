@@ -32,7 +32,7 @@ func init() { registerEntries((*Registry).findContextToolEntries) }
 
 func (r *Registry) findContextToolEntries() []entry {
 	return []entry{
-		{Tool{Name: nameFindContextTools, Description: descFindContextTools, InputSchema: json.RawMessage(schemaFindContextTools), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.findContextTools},
+		{Tool{Name: nameFindContextTools, Description: descFindContextTools, InputSchema: json.RawMessage(schemaFindContextTools), ReadOnly: true, MinRole: auth.RoleViewer}, r.findContextTools},
 	}
 }
 
