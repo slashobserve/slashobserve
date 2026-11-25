@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -27,21 +28,46 @@ func TestToolRoles(t *testing.T) {
 
 func TestAllowed(t *testing.T) {
 	roles := []auth.Role{auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor, auth.RoleAdmin}
-	floors := []auth.Role{auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor}
+	floors := []auth.Role{auth.RoleViewer, auth.RoleCommenter, auth.RoleEditor, auth.RoleAdmin}
 	for i, role := range roles {
 		for j, floor := range floors {
-			if got, want := allowed(auth.Principal{Role: role}, false, floor), i >= j; got != want {
+			tool := Tool{Name: "t", MinRole: floor}
+			if got, want := allowed(auth.Principal{Role: role}, false, tool), i >= j; got != want {
 				t.Errorf("allowed(%s, outside a run, %s) = %v, want %v", role, floor, got, want)
 			}
-			if !allowed(auth.Principal{Role: role}, true, floor) {
-				t.Errorf("allowed(%s, in a run, %s) = false, want true", role, floor)
+			if got, want := allowed(auth.Principal{Role: role}, true, tool), i >= j; got != want {
+				t.Errorf("allowed(%s, in a run, %s) = %v, want %v", role, floor, got, want)
+			}
+			answers := Tool{Name: "t", MinRole: floor, Answers: true}
+			if !allowed(auth.Principal{Role: role}, true, answers) {
+				t.Errorf("allowed(%s, in a run, answering %s) = false, want true", role, floor)
+			}
+			if got, want := allowed(auth.Principal{Role: role}, false, answers), i >= j; got != want {
+				t.Errorf("allowed(%s, outside a run, answering %s) = %v, want %v", role, floor, got, want)
 			}
 		}
 	}
 	for _, floor := range floors {
-		if allowed(auth.Principal{}, false, floor) {
+		if allowed(auth.Principal{}, false, Tool{MinRole: floor}) {
 			t.Errorf("the empty principal outside a run is allowed %s", floor)
 		}
+	}
+}
+
+func TestARunRefusesAnAdminToolToAnEditorAndLetsACommenterAnswer(t *testing.T) {
+	r := newTestRegistry(t, &fakeDS{}, nil)
+	editor := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
+	res, err := r.Call(WithRun(editor, Run{Mode: ModeCreate, RequestID: dashA}), nameSearchAuditEvents, []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if errorCode(t, res) != codeForbiddenRole || res.Step != "Refused "+nameSearchAuditEvents+": "+codeForbiddenRole {
+		t.Fatalf("res = %#v", res)
+	}
+	commenter := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleCommenter})
+	_, err = r.Call(WithRun(commenter, Run{Mode: ModeInvestigate, RequestID: dashA}), nameSaveFinding, []byte(`{}`))
+	if !errors.Is(err, errFindingsNotConfigured) {
+		t.Fatalf("a commenter's ask did not reach save_finding: %v", err)
 	}
 }
 

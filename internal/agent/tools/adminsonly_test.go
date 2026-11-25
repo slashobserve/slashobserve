@@ -137,7 +137,11 @@ func TestARunReadsAnAdminsOnlyDatasourceOnlyForAnAdminWritingWhereOnlyAdminsRead
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r, touched := adminsOnlyTools(t)
-			ctx := WithRun(auth.WithPrincipal(t.Context(), tc.access.By), Run{Mode: ModeInvestigate, Access: tc.access})
+			requester := tc.access.By
+			if requester.Role == "" {
+				requester = auth.Principal{Kind: auth.KindUser, ID: "v", Role: auth.RoleViewer}
+			}
+			ctx := WithRun(auth.WithPrincipal(t.Context(), requester), Run{Mode: ModeInvestigate, Access: tc.access})
 			res, err := r.Call(ctx, nameQueryInstant, []byte(`{"datasource":"audit","query":"up"}`))
 			if err != nil {
 				t.Fatal(err)

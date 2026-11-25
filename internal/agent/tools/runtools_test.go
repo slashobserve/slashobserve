@@ -282,22 +282,12 @@ func TestScopeRefusesACreatingWriteOnceTheRunTracksTheMostObjects(t *testing.T) 
 	}
 }
 
-var writesLeftOutOfRuns = []string{
-	"claim_run", "report_run", "finish_run",
-	"create_comment", "reply_to_comment", "edit_comment", "resolve_comment", "reopen_comment",
-	"share_answer", "apply_suggested_change",
-	"start_run", "retry_run", "cancel_run",
-	"restore_dashboard_version", "merge_proposal", "make_dashboard", "duplicate_dashboard",
-}
-
 func TestEveryWriteToolHasARunScopeOrIsLeftOutOfRuns(t *testing.T) {
-	var writes []string
 	for _, tool := range New(Deps{}).List() {
 		if Phase(tool.Name) != PhaseWrite {
 			continue
 		}
-		writes = append(writes, tool.Name)
-		scoped, leftOut := writeTargets[tool.Name] != nil, slices.Contains(writesLeftOutOfRuns, tool.Name)
+		scoped, leftOut := writeTargets[tool.Name] != nil, leftOutOfRuns[tool.Name] != ""
 		switch {
 		case scoped && leftOut:
 			t.Errorf("%s has a run scope and is listed as left out of runs", tool.Name)
@@ -305,11 +295,6 @@ func TestEveryWriteToolHasARunScopeOrIsLeftOutOfRuns(t *testing.T) {
 			t.Errorf("%s writes and has neither a run scope nor a place in the left out list", tool.Name)
 		case leftOut && !tool.MCPOnly:
 			t.Errorf("%s is left out of runs and is not MCP only", tool.Name)
-		}
-	}
-	for _, name := range writesLeftOutOfRuns {
-		if !slices.Contains(writes, name) {
-			t.Errorf("%s is in the left out list and is not a write tool", name)
 		}
 	}
 }

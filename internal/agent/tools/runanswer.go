@@ -46,8 +46,8 @@ func init() { registerEntries((*Registry).runAnswerEntries) }
 
 func (r *Registry) runAnswerEntries() []entry {
 	return []entry{
-		{Tool{Name: nameSaveRunAnswer, Description: descSaveRunAnswer, InputSchema: json.RawMessage(schemaSaveRunAnswer), MCPOnly: true, MinRole: auth.RoleViewer}, r.saveRunAnswer},
-		{Tool{Name: nameShareAnswer, Description: descShareAnswer, InputSchema: json.RawMessage(schemaShareAnswer), MCPOnly: true, MinRole: auth.RoleViewer}, r.shareAnswer},
+		{Tool{Name: nameSaveRunAnswer, Description: descSaveRunAnswer, InputSchema: json.RawMessage(schemaSaveRunAnswer), MinRole: auth.RoleViewer}, r.saveRunAnswer},
+		{Tool{Name: nameShareAnswer, Description: descShareAnswer, InputSchema: json.RawMessage(schemaShareAnswer), MinRole: auth.RoleViewer}, r.shareAnswer},
 	}
 }
 

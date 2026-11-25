@@ -130,14 +130,14 @@ func TestStartRunInAChatOnlyAnOwnerMayAskInAnswersReadOnlyNotNotFound(t *testing
 	}
 }
 
-func TestChatToolsAreMCPOnlyReadOnlyAndNeedAViewer(t *testing.T) {
+func TestChatToolsAreReadOnlyRunToolsAndNeedAViewer(t *testing.T) {
 	byName := map[string]Tool{}
 	for _, tool := range New(Deps{}).List() {
 		byName[tool.Name] = tool
 	}
 	for _, name := range []string{nameListChats, nameGetChat} {
 		tool := byName[name]
-		if !tool.MCPOnly || !tool.ReadOnly || tool.Destructive || tool.MinRole != auth.RoleViewer || tool.PersonOnly {
+		if tool.MCPOnly || !tool.OfferedIn(ModeCreate) || !tool.ReadOnly || tool.Destructive || tool.MinRole != auth.RoleViewer || tool.PersonOnly {
 			t.Errorf("%s = %+v", name, tool)
 		}
 	}

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"maps"
 	"strings"
 	"testing"
 
@@ -18,6 +19,12 @@ const (
 	readsTitles     inRunRead = "titles only, from folders.Access.Levels"
 	readsRunOnly    inRunRead = "only the run's own build or input"
 	readsNothing    inRunRead = "no stored content"
+
+	readsOneObject  inRunRead = "one stored object's content, noted through folders.Read of the dashboard or observation it belongs to"
+	readsKeptTitles inRunRead = "titles only, kept or left out through restrictedTitles"
+	readsPrivate    inRunRead = "chats, runs and the inbox, through guardPrivateRead"
+	readsAudit      inRunRead = "the audit trail, through guardAuditRead"
+	writesInScope   inRunRead = "only what its write scope lets it change: the run's subject, what it created, the build it committed, runs of its chat or the requester's own state"
 )
 
 var inRunReads = map[string]inRunRead{
@@ -51,23 +58,63 @@ var inRunReads = map[string]inRunRead{
 	nameImportGrafana:    readsRunOnly,
 	nameSaveFinding:      readsRunOnly,
 	nameGetSpecGuide:     readsNothing,
+
+	nameRecheckDatasource:     readsDatasource,
+	nameListDashboardVersions: readsContent,
+	nameDiffDashboardVersions: readsContent,
+	nameListDashboardViewers:  readsContent,
+	nameListComments:          readsContent,
+	nameListMentionable:       readsContent,
+	nameListRCAs:              readsContent,
+	nameListProposals:         readsContent,
+	nameGetRCA:                readsOneObject,
+	nameGetProposal:           readsOneObject,
+
+	nameListPinnedDashboards: readsKeptTitles,
+	nameGetHomeDashboard:     readsKeptTitles,
+	nameListDashboardHealth:  readsKeptTitles,
+	nameSearchWorkspace:      readsKeptTitles,
+	nameListSavedSearches:    readsKeptTitles,
+	nameListActivity:         readsKeptTitles,
+	nameListAccessRequests:   readsKeptTitles,
+
+	nameGetRun:      readsPrivate,
+	nameGetRunBuild: readsPrivate,
+	nameListRuns:    readsPrivate,
+	nameListChats:   readsPrivate,
+	nameGetChat:     readsPrivate,
+	nameListInbox:   readsPrivate,
+
+	nameSearchAuditEvents:    readsAudit,
+	nameGetAuditEvent:        readsAudit,
+	nameListAuditFacets:      readsAudit,
+	nameGetAuditHistogram:    readsAudit,
+	nameAggregateAuditEvents: readsAudit,
+	nameListAuditFields:      readsAudit,
 }
 
 func TestEveryToolOfferedInARunSaysHowItReadsWhatOnlyAdminsRead(t *testing.T) {
+	reads := maps.Clone(inRunReads)
+	for name := range writeTargets {
+		if kind, ok := reads[name]; ok {
+			t.Errorf("%s has a write scope and inRunReads says it reads %s", name, kind)
+		}
+		reads[name] = writesInScope
+	}
 	offered := map[string]bool{}
 	for _, tool := range New(Deps{}).List() {
 		if tool.MCPOnly {
 			continue
 		}
 		offered[tool.Name] = true
-		if _, ok := inRunReads[tool.Name]; !ok {
+		if _, ok := reads[tool.Name]; !ok {
 			t.Errorf("%s is offered in runs but inRunReads does not say how it reads what only Admins read", tool.Name)
 		}
-		if inRunReads[tool.Name] == readsContent && contentReads[tool.Name] == nil {
+		if reads[tool.Name] == readsContent && contentReads[tool.Name] == nil {
 			t.Errorf("%s reads stored content in runs but has no case in contentReads", tool.Name)
 		}
 	}
-	for name := range inRunReads {
+	for name := range reads {
 		if !offered[name] {
 			t.Errorf("inRunReads names %s, which runs are not offered", name)
 		}
@@ -85,8 +132,15 @@ var contentReads = map[string]func(adminsOnlyContent) string{
 	nameGetPanels: func(c adminsOnlyContent) string {
 		return `{"dashboard_id":"` + c.dashboard.String() + `","ids":["p_up"]}`
 	},
-	nameGetObservation:  func(c adminsOnlyContent) string { return `{"observation_id":"` + c.observation.String() + `"}` },
-	nameListAnnotations: func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameGetObservation:        func(c adminsOnlyContent) string { return `{"observation_id":"` + c.observation.String() + `"}` },
+	nameListAnnotations:       func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameListDashboardVersions: func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameDiffDashboardVersions: func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameListDashboardViewers:  func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameListComments:          func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
+	nameListMentionable:       func(c adminsOnlyContent) string { return `{"target":"dashboard:` + c.dashboard.String() + `"}` },
+	nameListRCAs:              func(c adminsOnlyContent) string { return `{"observation_id":"` + c.observation.String() + `"}` },
+	nameListProposals:         func(c adminsOnlyContent) string { return `{"dashboard_id":"` + c.dashboard.String() + `"}` },
 }
 
 func (r *accessRig) adminsOnlyContent(t *testing.T) adminsOnlyContent {

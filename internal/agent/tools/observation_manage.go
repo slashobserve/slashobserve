@@ -36,9 +36,9 @@ func init() { registerEntries((*Registry).observationManageEntries) }
 
 func (r *Registry) observationManageEntries() []entry {
 	return []entry{
-		{Tool{Name: nameUpdateObservation, Description: descUpdateObservation, InputSchema: json.RawMessage(schemaUpdateObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateObservation},
-		{Tool{Name: nameMoveObservation, Description: descMoveObservation, InputSchema: json.RawMessage(schemaMoveObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.moveObservation},
-		{Tool{Name: nameReopenObservation, Description: descReopenObservation, InputSchema: json.RawMessage(schemaReopenObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.reopenObservation},
+		{Tool{Name: nameUpdateObservation, Description: descUpdateObservation, InputSchema: json.RawMessage(schemaUpdateObservation), MinRole: auth.RoleViewer}, r.updateObservation},
+		{Tool{Name: nameMoveObservation, Description: descMoveObservation, InputSchema: json.RawMessage(schemaMoveObservation), MinRole: auth.RoleViewer}, r.moveObservation},
+		{Tool{Name: nameReopenObservation, Description: descReopenObservation, InputSchema: json.RawMessage(schemaReopenObservation), MinRole: auth.RoleViewer}, r.reopenObservation},
 	}
 }
 

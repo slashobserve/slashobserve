@@ -24,7 +24,7 @@ func init() { registerEntries((*Registry).rcaEntries) }
 
 func (r *Registry) rcaEntries() []entry {
 	return []entry{
-		{Tool{Name: namePublishRCA, Description: descPublishRCA, InputSchema: json.RawMessage(schemaPublishRCA), MCPOnly: true, MinRole: auth.RoleViewer}, r.publishRCA},
+		{Tool{Name: namePublishRCA, Description: descPublishRCA, InputSchema: json.RawMessage(schemaPublishRCA), MinRole: auth.RoleViewer}, r.publishRCA},
 	}
 }
 

@@ -18,7 +18,7 @@ const (
 	defaultListChats = 20
 	maxListChats     = 50
 
-	descListChats = "List your chats with the built-in agent, pinned ones first and then the one most recently asked in, 20 per page by default; scope all orders them by last turn only. A chat is the run of requests one person sent about one thing; its owner and Admins read it, nobody else. scope all lists every person's chats, Admin only. Keep chats about a dashboard_id or an observation_id, pinned or unpinned ones, or those whose title or any prompt contains q. Each has its id, title, owner, read_only, dashboard_id, dashboard_title (null when you cannot see that dashboard), observation_id, pinned_at, created_at, last_turn_at, how many turns it has and its last turn. Read one with get_chat, and send its id as chat_id to start_run to ask the next turn. Page with next_cursor."
+	descListChats = "List your chats with the built-in agent, pinned ones first and then the one most recently asked in, 20 per page by default; scope all orders them by last turn only. A chat is the run of requests one person sent about one thing; its owner and Admins read it, nobody else. scope all lists every person's chats, Admin only. Keep chats about a dashboard_id or an observation_id, pinned or unpinned ones, or those whose title or any prompt contains q. Each has its id, title, owner, read_only, dashboard_id, dashboard_title (null when you cannot see that dashboard), observation_id, pinned_at, created_at, last_turn_at, how many turns it has and its last turn. Read one with get_chat{chat_next_turn}. Page with next_cursor."
 	descGetChat   = "Read one of your chats, or as an Admin anyone's read only, with its turns, oldest first, each the run it started as get_run returns it without steps. Another person's chat for a non-Admin, an archived chat or an unknown id answers not_found. When the turns do not all fit, truncated is true and next_offset reads the rest."
 
 	schemaListChats = `{"type":"object","properties":{` +
@@ -38,8 +38,8 @@ func init() { registerEntries((*Registry).chatEntries) }
 
 func (r *Registry) chatEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListChats, Description: descListChats, InputSchema: json.RawMessage(schemaListChats), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listChats},
-		{Tool{Name: nameGetChat, Description: descGetChat, InputSchema: json.RawMessage(schemaGetChat), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.getChat},
+		{Tool{Name: nameListChats, Description: descListChats, InputSchema: json.RawMessage(schemaListChats), ReadOnly: true, MinRole: auth.RoleViewer}, r.listChats},
+		{Tool{Name: nameGetChat, Description: descGetChat, InputSchema: json.RawMessage(schemaGetChat), ReadOnly: true, MinRole: auth.RoleViewer}, r.getChat},
 	}
 }
 

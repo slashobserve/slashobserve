@@ -41,7 +41,7 @@ func init() { registerEntries((*Registry).activityEntries) }
 
 func (r *Registry) activityEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListActivity, Description: descListActivity, InputSchema: json.RawMessage(schemaListActivity), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listActivity},
+		{Tool{Name: nameListActivity, Description: descListActivity, InputSchema: json.RawMessage(schemaListActivity), ReadOnly: true, MinRole: auth.RoleViewer}, r.listActivity},
 	}
 }
 

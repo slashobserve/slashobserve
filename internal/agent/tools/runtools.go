@@ -17,6 +17,39 @@ const (
 	MaxCreatedIDs = 256
 )
 
+const (
+	reasonClaims    = "a run token works a run and never claims one; only a claimer calls the claim tools"
+	reasonComments  = "the server answers and resolves threads after a run"
+	reasonRuns      = "a run never starts, retries or cancels a run, because the new run would escape the cost and call limits of this one"
+	reasonVersions  = "only the finished build becomes a version, one per request"
+	reasonDraft     = "a run's cost is computed once by runsession, and draft_query makes model calls outside it"
+	reasonShare     = "only the requester shares a finished answer into a thread, and inside a run the answer is not finished"
+	reasonApply     = "it posts in a thread and starts a run"
+	reasonProposals = "merging writes a dashboard version outside the build"
+)
+
+var leftOutOfRuns = map[string]string{
+	nameClaimRun:                reasonClaims,
+	nameReportRun:               reasonClaims,
+	nameFinishRun:               reasonClaims,
+	nameGetRunBrief:             reasonClaims,
+	nameCreateComment:           reasonComments,
+	nameReplyToComment:          reasonComments,
+	nameEditComment:             reasonComments,
+	nameResolveComment:          reasonComments,
+	nameReopenComment:           reasonComments,
+	nameShareAnswer:             reasonShare,
+	nameApplySuggestedChange:    reasonApply,
+	nameStartRun:                reasonRuns,
+	nameRetryRun:                reasonRuns,
+	nameCancelRun:               reasonRuns,
+	nameDraftQuery:              reasonDraft,
+	nameRestoreDashboardVersion: reasonVersions,
+	nameMergeProposal:           reasonProposals,
+	nameMakeDashboard:           reasonVersions,
+	nameDuplicateDashboard:      reasonVersions,
+}
+
 var creatingWrites = map[string]bool{
 	nameCreateObservation: true,
 	nameAddBlock:          true,

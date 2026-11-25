@@ -307,19 +307,19 @@ func TestListActivityRefusesBadInput(t *testing.T) {
 	}
 }
 
-func TestListActivityIsMCPOnlyAndNeedsAViewer(t *testing.T) {
+func TestListActivityIsOfferedInEveryRunAndNeedsAViewer(t *testing.T) {
 	var tool Tool
 	for _, candidate := range New(Deps{}).List() {
 		if candidate.Name == nameListActivity {
 			tool = candidate
 		}
 	}
-	if !tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
+	if tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
 		t.Fatalf("list_activity = %+v", tool)
 	}
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
-		if tool.OfferedIn(mode) {
-			t.Errorf("list_activity is offered to the agent in %s", mode)
+		if !tool.OfferedIn(mode) {
+			t.Errorf("list_activity is not offered to the agent in %s", mode)
 		}
 	}
 }

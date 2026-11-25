@@ -52,8 +52,8 @@ func init() { registerEntries((*Registry).healthEntries) }
 
 func (r *Registry) healthEntries() []entry {
 	return []entry{
-		{Tool{Name: nameRunDashboardHealth, Description: descRunDashboardHealth, InputSchema: json.RawMessage(schemaRunDashboardHealth), MCPOnly: true, MinRole: auth.RoleAdmin}, r.runDashboardHealth},
-		{Tool{Name: nameListDashboardHealth, Description: descListDashboardHealth, InputSchema: json.RawMessage(schemaListDashboardHealth), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listDashboardHealth},
+		{Tool{Name: nameRunDashboardHealth, Description: descRunDashboardHealth, InputSchema: json.RawMessage(schemaRunDashboardHealth), MinRole: auth.RoleAdmin}, r.runDashboardHealth},
+		{Tool{Name: nameListDashboardHealth, Description: descListDashboardHealth, InputSchema: json.RawMessage(schemaListDashboardHealth), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDashboardHealth},
 	}
 }
 

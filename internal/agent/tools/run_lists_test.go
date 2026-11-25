@@ -239,7 +239,7 @@ func TestRunListToolsNeedRuns(t *testing.T) {
 	}
 }
 
-func TestRunListToolsAreMCPOnlyAndNeedAViewer(t *testing.T) {
+func TestRunListToolsAreRunToolsAndNeedAViewer(t *testing.T) {
 	byName := map[string]Tool{}
 	for _, tool := range New(Deps{}).List() {
 		byName[tool.Name] = tool
@@ -247,7 +247,7 @@ func TestRunListToolsAreMCPOnlyAndNeedAViewer(t *testing.T) {
 	readOnly := map[string]bool{nameListRuns: true, nameRenameRun: false, namePinRun: false, nameUnpinRun: false, nameArchiveRun: false}
 	for name, wantReadOnly := range readOnly {
 		tool := byName[name]
-		if !tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly != wantReadOnly || tool.Destructive != (name == nameRenameRun) || tool.PersonOnly {
+		if tool.MCPOnly || !tool.OfferedIn(ModeCreate) || tool.MinRole != auth.RoleViewer || tool.ReadOnly != wantReadOnly || tool.Destructive != (name == nameRenameRun) || tool.PersonOnly {
 			t.Errorf("%s = %+v", name, tool)
 		}
 	}

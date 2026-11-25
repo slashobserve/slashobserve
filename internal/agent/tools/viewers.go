@@ -23,7 +23,7 @@ func init() { registerEntries((*Registry).viewerEntries) }
 
 func (r *Registry) viewerEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListDashboardViewers, Description: descListDashboardViewers, InputSchema: json.RawMessage(schemaListDashboardViewers), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listDashboardViewers},
+		{Tool{Name: nameListDashboardViewers, Description: descListDashboardViewers, InputSchema: json.RawMessage(schemaListDashboardViewers), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDashboardViewers},
 	}
 }
 

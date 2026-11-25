@@ -41,15 +41,18 @@ func TestPhaseFollowsTheRegistryFlags(t *testing.T) {
 	}
 }
 
-func TestNoWriteToolIsOfferedInARunYet(t *testing.T) {
+func TestWriteToolsAreOfferedInEveryRunButSuggest(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if Phase(tool.Name) != PhaseWrite {
+		if Phase(tool.Name) != PhaseWrite || tool.MCPOnly {
 			continue
 		}
-		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
-			if tool.OfferedIn(mode) {
-				t.Errorf("%s is offered in %s runs", tool.Name, mode)
+		for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
+			if !tool.OfferedIn(mode) {
+				t.Errorf("%s is not offered in %s runs", tool.Name, mode)
 			}
+		}
+		if tool.OfferedIn(ModeSuggest) {
+			t.Errorf("%s is offered in suggest runs", tool.Name)
 		}
 	}
 }

@@ -32,8 +32,8 @@ func init() { registerEntries((*Registry).observationOutputEntries) }
 
 func (r *Registry) observationOutputEntries() []entry {
 	return []entry{
-		{Tool{Name: namePinObservation, Description: descPinObservation, InputSchema: json.RawMessage(schemaPinObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.pinObservation},
-		{Tool{Name: nameMakeDashboard, Description: descMakeDashboard, InputSchema: json.RawMessage(schemaMakeDashboard), MCPOnly: true, MinRole: auth.RoleViewer}, r.makeDashboard},
+		{Tool{Name: namePinObservation, Description: descPinObservation, InputSchema: json.RawMessage(schemaPinObservation), MinRole: auth.RoleViewer}, r.pinObservation},
+		{Tool{Name: nameMakeDashboard, Description: descMakeDashboard, InputSchema: json.RawMessage(schemaMakeDashboard), MinRole: auth.RoleViewer}, r.makeDashboard},
 	}
 }
 

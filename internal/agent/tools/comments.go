@@ -45,13 +45,13 @@ func init() { registerEntries((*Registry).commentEntries) }
 
 func (r *Registry) commentEntries() []entry {
 	return []entry{
-		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.createComment},
-		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.editComment},
-		{Tool{Name: nameListMentionable, Description: descListMentionable, InputSchema: json.RawMessage(schemaListMentionable), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listMentionable},
-		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listComments},
-		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.reopenComment},
-		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.replyToComment},
-		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MCPOnly: true, MinRole: auth.RoleViewer}, r.resolveComment},
+		{Tool{Name: nameCreateComment, Description: descCreateComment, InputSchema: json.RawMessage(schemaCreateComment), MinRole: auth.RoleViewer}, r.createComment},
+		{Tool{Name: nameEditComment, Description: descEditComment, InputSchema: json.RawMessage(schemaEditComment), MinRole: auth.RoleViewer}, r.editComment},
+		{Tool{Name: nameListMentionable, Description: descListMentionable, InputSchema: json.RawMessage(schemaListMentionable), ReadOnly: true, MinRole: auth.RoleViewer}, r.listMentionable},
+		{Tool{Name: nameListComments, Description: descListComments, InputSchema: json.RawMessage(schemaListComments), ReadOnly: true, MinRole: auth.RoleViewer}, r.listComments},
+		{Tool{Name: nameReopenComment, Description: descReopenComment, InputSchema: json.RawMessage(schemaReopenComment), MinRole: auth.RoleViewer}, r.reopenComment},
+		{Tool{Name: nameReplyToComment, Description: descReplyToComment, InputSchema: json.RawMessage(schemaReplyToComment), MinRole: auth.RoleViewer}, r.replyToComment},
+		{Tool{Name: nameResolveComment, Description: descResolveComment, InputSchema: json.RawMessage(schemaResolveComment), MinRole: auth.RoleViewer}, r.resolveComment},
 	}
 }
 
@@ -245,7 +245,7 @@ func parseCommentID(raw string) (pgtype.UUID, Result, bool) {
 
 func rejectAgentRun(ctx context.Context) (Result, bool) {
 	if _, scoped := RunFrom(ctx); scoped {
-		return invalid("comment tools are for MCP clients; the server answers and resolves threads after a run"), false
+		return invalid("comment writes are for MCP clients; " + reasonComments), false
 	}
 	return Result{}, true
 }
@@ -343,10 +343,14 @@ func parseCommentQuery(input json.RawMessage) (commentQuery, Result, bool) {
 	return q, Result{}, true
 }
 
-func (r *Registry) commentCaller(ctx context.Context) (auth.Principal, Result, bool, error) {
+func (r *Registry) commentWriter(ctx context.Context) (auth.Principal, Result, bool, error) {
 	if res, ok := rejectAgentRun(ctx); !ok {
 		return auth.Principal{}, res, false, nil
 	}
+	return r.commentCaller(ctx)
+}
+
+func (r *Registry) commentCaller(ctx context.Context) (auth.Principal, Result, bool, error) {
 	if r.deps.Threads == nil {
 		return auth.Principal{}, Result{}, false, errCommentsNotConfigured
 	}
@@ -446,7 +450,7 @@ func commentWithin(ref commentRef, budget int) commentOut {
 }
 
 func (r *Registry) createComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	principal, res, ok, err := r.commentCaller(ctx)
+	principal, res, ok, err := r.commentWriter(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
@@ -495,7 +499,7 @@ func deliveryOf(to string, rawClientID *string) (threads.To, pgtype.UUID, error)
 }
 
 func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	principal, res, ok, err := r.commentCaller(ctx)
+	principal, res, ok, err := r.commentWriter(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
@@ -530,7 +534,7 @@ func (r *Registry) replyToComment(ctx context.Context, input json.RawMessage) (R
 }
 
 func (r *Registry) editComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	principal, res, ok, err := r.commentCaller(ctx)
+	principal, res, ok, err := r.commentWriter(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
@@ -557,7 +561,7 @@ func (r *Registry) editComment(ctx context.Context, input json.RawMessage) (Resu
 }
 
 func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	principal, res, ok, err := r.commentCaller(ctx)
+	principal, res, ok, err := r.commentWriter(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
@@ -572,7 +576,7 @@ func (r *Registry) resolveComment(ctx context.Context, input json.RawMessage) (R
 }
 
 func (r *Registry) reopenComment(ctx context.Context, input json.RawMessage) (Result, error) {
-	principal, res, ok, err := r.commentCaller(ctx)
+	principal, res, ok, err := r.commentWriter(ctx)
 	if err != nil || !ok {
 		return res, err
 	}
@@ -646,6 +650,9 @@ func (r *Registry) listMentionable(ctx context.Context, input json.RawMessage) (
 	}
 	if res, ok := checkLength("query", in.Query, maxNameBytes); !ok {
 		return res, nil
+	}
+	if err := r.readCommentTarget(ctx, principal, target); err != nil {
+		return commentFailure(err)
 	}
 	people, more, err := r.deps.Threads.MentionablePeople(ctx, principal, target, in.Query, limit)
 	if err != nil {

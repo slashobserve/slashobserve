@@ -54,10 +54,10 @@ func init() { registerEntries((*Registry).proposalEntries) }
 
 func (r *Registry) proposalEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListProposals, Description: descListProposals, InputSchema: json.RawMessage(schemaListProposals), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.listProposals},
-		{Tool{Name: nameGetProposal, Description: descGetProposal, InputSchema: json.RawMessage(schemaGetProposal), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.getProposal},
-		{Tool{Name: nameMergeProposal, Description: descMergeProposal, InputSchema: json.RawMessage(schemaMergeProposal), MCPOnly: true, MinRole: auth.RoleViewer}, r.mergeProposal},
-		{Tool{Name: nameDiscardProposal, Description: descDiscardProposal, InputSchema: json.RawMessage(schemaDiscardProposal), MCPOnly: true, MinRole: auth.RoleViewer}, r.discardProposal},
+		{Tool{Name: nameListProposals, Description: descListProposals, InputSchema: json.RawMessage(schemaListProposals), ReadOnly: true, MinRole: auth.RoleViewer}, r.listProposals},
+		{Tool{Name: nameGetProposal, Description: descGetProposal, InputSchema: json.RawMessage(schemaGetProposal), ReadOnly: true, MinRole: auth.RoleViewer}, r.getProposal},
+		{Tool{Name: nameMergeProposal, Description: descMergeProposal, InputSchema: json.RawMessage(schemaMergeProposal), MinRole: auth.RoleViewer}, r.mergeProposal},
+		{Tool{Name: nameDiscardProposal, Description: descDiscardProposal, InputSchema: json.RawMessage(schemaDiscardProposal), MinRole: auth.RoleViewer}, r.discardProposal},
 	}
 }
 

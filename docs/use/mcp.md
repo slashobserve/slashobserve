@@ -392,7 +392,8 @@ The loop of an agent that takes runs:
 
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
 
-The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none of the claim tools.
+The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
+It lists none of the 19 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
@@ -681,6 +682,7 @@ The names in `tools/list` are the documented ones; a run of the built-in agent t
 On `initialize` the server sends instructions with the order of work: read `get_spec_guide` once before the first save, find real names with the discovery tools, check each query with `lint_query` and `query_range` or `query_instant`, then save, sending changes with `update_panels`.
 Each tool's description and input schema are the text the built-in agent reads.
 MCP clients differ in three places: the full guide from `get_spec_guide`, `folder_id` on `create_dashboard`, and `dashboard_id` and `parent_version` on `update_dashboard` and `update_panels`.
+Where a description names a tool no run has, such as `create_comment` or `start_run`, the agent's text leaves that name out.
 `get_spec_guide` returns the core of the authoring guide plus one section per datasource type the server has configured, the text the built-in agent reads.
 An Admin also gets the section on the built-in audit datasource.
 
@@ -943,12 +945,12 @@ See [Import Grafana dashboards](import-grafana.md).
 
 Lists, by name, the other people who have the dashboard open in the web app now, so a client can see who is looking before it changes the dashboard.
 It needs View, and the list is empty when nobody is looking.
-It is over MCP only.
+The built-in agent has it too.
 
 #### `list_dashboard_health`
 
 Lists the dashboards with [health problems](dashboard-health.md) in the folders the key can see.
-It is over MCP only.
+The built-in agent has it too.
 
 - The order is the one in [Dashboard health](dashboard-health.md): failing first, then no data, then duplicate title, then unopened, and within each the most recently opened first.
 - A page has 20 dashboards by default and at most 50.
@@ -992,7 +994,7 @@ Every other tool names a datasource by this `uid`.
 
 Runs a fresh health check on one datasource instead of reading the cached one, and answers its status.
 Calls within 2 seconds of the last check return that check.
-The built-in agent does not have it.
+The built-in agent has it too.
 
 #### `list_metrics`
 
@@ -1090,7 +1092,7 @@ Use it for a table panel's query, or a query with `instant: true`.
 
 Turns a question into a checked LogQL, ClickHouse SQL, KQL, PromQL or TraceQL query, or trace search filters, as [Ask](logs-and-traces.md#ask-in-plain-language) does.
 It works for one Loki, ClickHouse, Elasticsearch, OpenSearch, Prometheus, Tempo or Jaeger datasource.
-It is over MCP only.
+It is over MCP only, because a run's cost is counted once for the run and `draft_query` makes model calls outside it.
 
 - `signal` is `logs`, `traces` or `metrics`.
   It defaults to the one the datasource holds, and a ClickHouse datasource needs it.
@@ -1163,7 +1165,7 @@ The built-in agent has the same tool.
 
 #### `save_search`
 
-Saves a logs, trace or metrics search with a title, outside an agent run, so people can open it from the logs, traces or metrics page.
+Saves a logs, trace or metrics search with a title, so people can open it from the logs, traces or metrics page.
 
 - It takes `kind` (`logs`, `traces` or `metrics`), `title` and `datasource`, and optionally `query`, `filters`, `from`, `to` and `folder_id`.
   It returns the saved search with its `url`.
@@ -1196,7 +1198,8 @@ Each search has its datasource, query, filters, range, folder and `url`.
 
 #### `update_saved_search`
 
-Changes what a saved search runs, outside an agent run.
+Changes what a saved search runs.
+Inside a run it changes only a search that run saved.
 Pass its `id` from `list_saved_searches` and any of `query`, `filters`, `from` and `to`.
 
 - Each one replaces the saved value.
@@ -1333,14 +1336,14 @@ It takes `object_kind` (`dashboard` or `observation`), `object_id` and an option
 - It changes no access, and its answer never names who received the request.
 - It answers what `POST /api/v1/access-requests` answers, including `already_can_comment` and `not_found`.
   It also answers `request_open` with `requested_at`, also named in its message, while a request is open.
-- It is over MCP only, and a service-account key may call it.
+- A service-account key may call it, and the built-in agent has it only in a chat, because it changes the requester's own requests.
 
 #### `list_access_requests`
 
 Lists the open requests on the folders the caller manages, as `GET /api/v1/access-requests` does, with each request's `folder`.
 When `folder.general` is true, the object is in General, which takes no folder entry.
 Only a role change or moving the object to another folder first grants it.
-It is over MCP only, and a service-account key may call it.
+A service-account key may call it, and the built-in agent has it too.
 
 ### Observation tools
 
@@ -1476,7 +1479,9 @@ No tool withdraws a revision: people do that in the web app, through the HTTP AP
 ### Built-in agent run tools
 
 These tools hand work to SlashObserve's own agent and read its runs.
-They are over MCP only, and act as the person who connected the client, with their role and folder access.
+They act as the person who connected the client, with their role and folder access.
+`start_run`, `retry_run` and `cancel_run` are over MCP only, because a run that started another would escape the cost and call limits of the first.
+The built-in agent has the reads, and renames, pins, unpins and archives only runs of its own chat.
 
 #### `start_run`
 
@@ -1676,7 +1681,7 @@ Runs the [search](search.md) of the workspace.
 - Pass `q`, and optionally `kinds` (`dashboard`, `annotation`, `observation`, `comment`, `saved_search`), `limit` (20 by default, at most 50) and `cursor`.
 - Each result has its `kind`, `id`, `title`, a plain-text `snippet`, the `url`, the `folder` and `updated_at`.
   For a comment it also has the `target` it is on and its `thread_id`.
-- It finds only what the key may read, and it is over MCP only.
+- It finds only what the key may read, and the built-in agent has it too.
 
 #### `list_annotations`
 
@@ -1685,7 +1690,7 @@ Lists [annotations](annotations.md), such as deploy markers, newest first.
 - It returns the global ones, plus one dashboard's own with `dashboard_id`.
   It is narrowed by `from` and `to` (RFC 3339) and `tags`.
 - A page has 50 by default and at most 100.
-- It is the one annotation tool the built-in agent also has, in every run and as the person who asked, so it can see a deploy beside a spike.
+- The built-in agent has it in every run, as the person who asked, so it can see a deploy beside a spike.
 
 #### `create_annotation`
 
@@ -1693,12 +1698,12 @@ Adds an annotation.
 It has the fields of `POST /api/v1/annotations`: `text`, `tags`, `time_from` and `time_to`, and `dashboard_id` and `panel_id` to place it on one dashboard or panel.
 Without `dashboard_id` the annotation shows on every dashboard.
 It needs Edit on the dashboard's folder, and an annotation with no `dashboard_id` needs the Editor role.
-It is over MCP only.
+Inside a run it needs the `dashboard_id` of the dashboard the run is about or built, so a run never adds an annotation to every dashboard.
 
 #### `update_annotation`
 
 Changes the `text`, the `tags` or both of an annotation by `id`.
-Only the caller who added it, or an Admin, may.
+Only the caller who added it, or an Admin, may, and inside a run only an annotation that run added.
 Its time and dashboard never change.
 No tool deletes an annotation: people do that in the web app or through the HTTP API.
 
@@ -1710,7 +1715,7 @@ It covers dashboard saves, restores, moves and deletes, annotations, findings an
 - Narrow it with `dashboard_id`, `folder_id`, `observation_id`, `actor_id`, `types`, `since` and `until` (RFC 3339).
 - A page has 50 by default and at most 100, and pages with `next_cursor`.
 - It lists only the events of folders the key may see, plus the [admin changes](activity.md#admin-changes) when the key is an Admin's.
-- It is over MCP only, so the built-in agent does not have it.
+- The built-in agent has it too.
 
 #### `list_inbox`
 
@@ -1722,7 +1727,6 @@ Each item has the `reason` and whether it is `unread`, and the result has `unrea
   `limit` is 50 by default and at most 100.
 - It answers what `GET /api/v1/inbox` answers, and it does not mark anything read.
 - A service-account key gets `user_session_required`.
-  It is over MCP only, so the built-in agent does not have it.
 
 #### `set_inbox_item_done`
 

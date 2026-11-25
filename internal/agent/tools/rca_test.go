@@ -98,11 +98,11 @@ func TestPublishRCAIsAViewerToolAndTellsThatPeopleMakeLinks(t *testing.T) {
 	if !ok {
 		t.Fatal("publish_rca is not registered")
 	}
-	if !tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly {
+	if tool.MCPOnly || tool.MinRole != auth.RoleViewer || tool.ReadOnly {
 		t.Errorf("publish_rca = MCPOnly %v, MinRole %s, ReadOnly %v", tool.MCPOnly, tool.MinRole, tool.ReadOnly)
 	}
-	if tool.OfferedIn(ModeCreate) || tool.OfferedIn(ModeInvestigate) {
-		t.Error("publish_rca is offered to the built-in agent")
+	if !tool.OfferedIn(ModeCreate) || !tool.OfferedIn(ModeInvestigate) || tool.OfferedIn(ModeSuggest) {
+		t.Error("publish_rca is not offered to the built-in agent where it writes")
 	}
 	if len(tool.Description) > agentToolTextCap {
 		t.Errorf("description is %d bytes", len(tool.Description))

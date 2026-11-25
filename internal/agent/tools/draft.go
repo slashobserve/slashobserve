@@ -160,7 +160,7 @@ func init() { registerEntries((*Registry).draftEntries) }
 
 func (r *Registry) draftEntries() []entry {
 	return []entry{
-		{Tool{Name: nameDraftQuery, Description: descDraftQuery, InputSchema: json.RawMessage(schemaDraftQuery), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.draftQuery},
+		{Tool{Name: nameDraftQuery, Description: descDraftQuery, InputSchema: json.RawMessage(schemaDraftQuery), ReadOnly: true, MinRole: auth.RoleViewer}, r.draftQuery},
 	}
 }
 

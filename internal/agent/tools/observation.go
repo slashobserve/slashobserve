@@ -96,15 +96,15 @@ func init() { registerEntries((*Registry).observationEntries) }
 
 func (r *Registry) observationEntries() []entry {
 	return []entry{
-		{Tool{Name: nameCreateObservation, Description: descCreateObservation, InputSchema: json.RawMessage(schemaCreateObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createObservation},
+		{Tool{Name: nameCreateObservation, Description: descCreateObservation, InputSchema: json.RawMessage(schemaCreateObservation), MinRole: auth.RoleViewer}, r.createObservation},
 		{Tool{Name: nameGetObservation, Description: descGetObservation, InputSchema: json.RawMessage(schemaGetObservation), ReadOnly: true, MinRole: auth.RoleViewer}, r.getObservation},
 		{Tool{Name: nameListObservations, Description: descListObservations, InputSchema: json.RawMessage(schemaListObservations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listObservations},
-		{Tool{Name: nameAddBlock, Description: descAddBlock, InputSchema: json.RawMessage(schemaAddBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.addBlock},
-		{Tool{Name: nameUpdateBlock, Description: descUpdateBlock, InputSchema: json.RawMessage(schemaUpdateBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateBlock},
-		{Tool{Name: nameArrangeBlocks, Description: descArrangeBlocks, InputSchema: json.RawMessage(schemaArrangeBlocks), MCPOnly: true, MinRole: auth.RoleViewer}, r.arrangeBlocks},
-		{Tool{Name: nameResolveObservation, Description: descResolveObservation, InputSchema: json.RawMessage(schemaResolveObservation), MCPOnly: true, MinRole: auth.RoleViewer}, r.resolveObservation},
-		{Tool{Name: nameKeepBlock, Description: descKeepBlock, InputSchema: json.RawMessage(schemaKeepBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.keepBlock},
-		{Tool{Name: nameDiscardBlock, Description: descDiscardBlock, InputSchema: json.RawMessage(schemaDiscardBlock), MCPOnly: true, MinRole: auth.RoleViewer}, r.discardBlock},
+		{Tool{Name: nameAddBlock, Description: descAddBlock, InputSchema: json.RawMessage(schemaAddBlock), MinRole: auth.RoleViewer}, r.addBlock},
+		{Tool{Name: nameUpdateBlock, Description: descUpdateBlock, InputSchema: json.RawMessage(schemaUpdateBlock), MinRole: auth.RoleViewer}, r.updateBlock},
+		{Tool{Name: nameArrangeBlocks, Description: descArrangeBlocks, InputSchema: json.RawMessage(schemaArrangeBlocks), MinRole: auth.RoleViewer}, r.arrangeBlocks},
+		{Tool{Name: nameResolveObservation, Description: descResolveObservation, InputSchema: json.RawMessage(schemaResolveObservation), MinRole: auth.RoleViewer}, r.resolveObservation},
+		{Tool{Name: nameKeepBlock, Description: descKeepBlock, InputSchema: json.RawMessage(schemaKeepBlock), MinRole: auth.RoleViewer}, r.keepBlock},
+		{Tool{Name: nameDiscardBlock, Description: descDiscardBlock, InputSchema: json.RawMessage(schemaDiscardBlock), MinRole: auth.RoleViewer}, r.discardBlock},
 	}
 }
 

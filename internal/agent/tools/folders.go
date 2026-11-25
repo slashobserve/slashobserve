@@ -36,8 +36,8 @@ func init() { registerEntries((*Registry).folderEntries) }
 func (r *Registry) folderEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListFolders, Description: descListFolders, InputSchema: json.RawMessage(schemaListFolders), ReadOnly: true, MinRole: auth.RoleViewer}, r.listFolders},
-		{Tool{Name: nameCreateFolder, Description: descCreateFolder, InputSchema: json.RawMessage(schemaCreateFolder), MCPOnly: true, MinRole: auth.RoleViewer}, r.createFolder},
-		{Tool{Name: nameRenameFolder, Description: descRenameFolder, InputSchema: json.RawMessage(schemaRenameFolder), MCPOnly: true, MinRole: auth.RoleViewer}, r.renameFolder},
+		{Tool{Name: nameCreateFolder, Description: descCreateFolder, InputSchema: json.RawMessage(schemaCreateFolder), MinRole: auth.RoleViewer}, r.createFolder},
+		{Tool{Name: nameRenameFolder, Description: descRenameFolder, InputSchema: json.RawMessage(schemaRenameFolder), MinRole: auth.RoleViewer}, r.renameFolder},
 	}
 }
 
