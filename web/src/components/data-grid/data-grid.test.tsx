@@ -373,6 +373,75 @@ describe("DataGrid", () => {
     expect(screen.queryByRole("grid")).not.toBeInTheDocument()
   })
 
+  describe("detail rows", () => {
+    const detail = (open: string[]) => ({
+      open: new Set(open),
+      render: (row: Row) => <p>Detail of {row.name}</p>,
+    })
+
+    it("inserts a full-width row below each opened row and removes it when closed", async () => {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(
+        <DataGrid {...props} detail={detail([])} />
+      )
+      await screen.findByRole("gridcell", { name: "Checkout" })
+      expect(screen.queryByText("Detail of Search")).not.toBeInTheDocument()
+      rerender(<DataGrid {...props} detail={detail(["b"])} />)
+      expect(await screen.findByText("Detail of Search")).toBeInTheDocument()
+      const ids = [...container.querySelectorAll("[role=row][row-id]")].map(
+        (row) => row.getAttribute("row-id")
+      )
+      expect(ids).toEqual(["a", "b", "b#detail"])
+      expect(
+        container.querySelector('[row-id="b#detail"] [data-detail-row]')
+      ).not.toBeNull()
+      rerender(<DataGrid {...props} detail={detail([])} />)
+      await waitFor(() =>
+        expect(screen.queryByText("Detail of Search")).not.toBeInTheDocument()
+      )
+    })
+
+    it("tags the row and not its detail row with the row's attributes", async () => {
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          rowAttributes={(row) => ({ "data-row-key": row.id })}
+          detail={detail(["b"])}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      expect(container.querySelectorAll("[data-row-key]")).toHaveLength(2)
+      expect(
+        container.querySelector('[row-id="b#detail"]')
+      ).not.toHaveAttribute("data-row-key")
+    })
+
+    it("keeps the cards of the other rows when narrow", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          detail={detail(["a"])}
+        />
+      )
+      expect(await screen.findByText("Detail of Checkout")).toBeInTheDocument()
+      await waitFor(() =>
+        expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
+      )
+    })
+  })
+
   describe("narrow", () => {
     it("draws each row as a card: the title, labelled values, then the action", async () => {
       vi.mocked(useNarrow).mockReturnValue(true)
