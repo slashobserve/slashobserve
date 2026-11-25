@@ -150,6 +150,34 @@ describe("query format table", () => {
     ])
   })
 
+  it("names a table query's value by its legend when several table queries returned data", () => {
+    const placed = frame([time([1]), num("Value", [5])], {
+      ref: "A",
+      name: "orders",
+      labels: { status: "ok" },
+    })
+    const failed = frame([time([1]), num("Value", [2])], {
+      ref: "B",
+      name: "orders",
+      labels: { status: "bad" },
+    })
+    const out = prepareFrames(
+      panel([
+        { format: "table", legend: "placed" },
+        { ref: "B", format: "table", legend: "{{status}} orders" },
+      ]),
+      [placed, failed]
+    )
+    expect(out.map((f) => f.fields.map((field) => field.name))).toEqual([
+      ["Time", "__name__", "status", "Value #A"],
+      ["Time", "__name__", "status", "Value #B"],
+    ])
+    expect(out.map((f) => seriesName(f, f.fields[3]))).toEqual([
+      "placed",
+      "bad orders",
+    ])
+  })
+
   it("adds no __name__ without a frame name and unions label keys", () => {
     const [plain] = prepareFrames(tablePanel, [
       frame([num("Value", [1])], { labels: { pod: "a" } }),
@@ -267,7 +295,7 @@ describe("query format table", () => {
     expect(prepareFrames(panel([{}]), [a])).toEqual([named(a, '{pod="a"}')])
   })
 
-  it("stamps a legend on timeseries queries but never on table queries", () => {
+  it("stamps a legend on timeseries and table queries", () => {
     const series = frame([time([1]), num("Value", [1])], {
       labels: { pod: "checkout-0" },
     })
@@ -282,11 +310,114 @@ describe("query format table", () => {
       panel([{ format: "table", legend: "{{pod}} pod" }]),
       [series]
     )
-    expect(flat.fields.every((f) => f.seriesName === undefined)).toBe(true)
+    expect(flat.fields.map((f) => f.name)).toEqual(["Time", "pod", "Value"])
+    expect(seriesName(flat, flat.fields[2])).toBe("checkout-0 pod")
+  })
+
+  it("shows the legend of a single table query without renaming its column", () => {
+    const [out] = prepareFrames(
+      panel([{ format: "table", legend: "placed" }]),
+      [frame([time([1]), num("Value", [5])], { name: "orders" })]
+    )
+    expect(out.fields.map((f) => f.name)).toEqual(["Time", "__name__", "Value"])
+    expect(seriesName(out, out.fields[2])).toBe("placed")
+  })
+
+  it("qualifies table legends that render the same for different queries", () => {
+    const out = prepareFrames(
+      panel([
+        { format: "table", legend: "orders" },
+        { ref: "B", format: "table", legend: "orders" },
+        { ref: "C", format: "table", legend: "other" },
+      ]),
+      ["A", "B", "C"].map((ref) =>
+        frame([time([1]), num("Value", [1])], { ref })
+      )
+    )
+    expect(out.map((f) => seriesName(f, f.fields[1]))).toEqual([
+      "A: orders",
+      "B: orders",
+      "other",
+    ])
+  })
+
+  it("keeps Value #ref when a table query's legend differs per series", () => {
+    const out = prepareFrames(
+      panel([
+        { format: "table", legend: "{{pod}}" },
+        { ref: "B", format: "table", legend: "{{pod}}" },
+      ]),
+      [
+        frame([time([1]), num("Value", [1])], {
+          ref: "A",
+          labels: { pod: "a" },
+        }),
+        frame([time([1]), num("Value", [2])], {
+          ref: "A",
+          labels: { pod: "b" },
+        }),
+        frame([time([1]), num("Value", [3])], {
+          ref: "B",
+          labels: { pod: "c" },
+        }),
+      ]
+    )
+    expect(out[0].fields.map((f) => f.name)).toEqual([
+      "Time",
+      "pod",
+      "Value #A",
+    ])
+    expect(seriesName(out[0], out[0].fields[2])).toBe("Value #A")
+    expect(seriesName(out[1], out[1].fields[2])).toBe("c")
+  })
+
+  it("names a sql table query's value by its legend, adding the field name for several numbers", () => {
+    const sql = panel([{ format: "table", legend: "total" }])
+    const types = () => "postgres"
+    const [one] = prepareFrames(sql, [frame([num("Value", [1])])], types)
+    expect(seriesName(one, one.fields[0])).toBe("total")
+    const [two] = prepareFrames(
+      sql,
+      [frame([num("Value", [1]), num("Other", [2])])],
+      types
+    )
+    expect(seriesName(two, two.fields[0])).toBe("total Value")
   })
 })
 
 describe("merge", () => {
+  it("keeps series names and field config through a merge", () => {
+    const config = { unit: "ms" }
+    const [out] = prepareFrames(
+      panel(
+        [{ format: "timeseries", legend: "{{pod}} pod" }],
+        [{ type: "merge" }]
+      ),
+      [
+        frame([time([1]), num("Value", [1])], { labels: { pod: "a" } }),
+        frame([time([2]), num("Value", [2])], { labels: { pod: "a" } }),
+      ]
+    )
+    expect(seriesName(out, out.fields[2])).toBe("a pod")
+
+    const withConfig = frame([time([1]), num("Value", [1])], {
+      labels: { pod: "a" },
+    })
+    const [kept] = run(
+      [
+        {
+          ...withConfig,
+          fields: withConfig.fields.map((f) =>
+            f.type === "number" ? { ...f, config } : f
+          ),
+        } as WireFrame,
+        frame([time([2]), num("Value", [2])], { labels: { pod: "a" } }),
+      ],
+      { type: "merge" }
+    )
+    expect(kept.fields.find((f) => f.name === "Value")?.config).toEqual(config)
+  })
+
   it("combines rows with equal time and labels into one row", () => {
     const [out, ...rest] = run(
       [

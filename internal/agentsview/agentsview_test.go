@@ -64,6 +64,7 @@ type stats struct {
 	Runs                   int      `json:"runs"`
 	Failed                 int      `json:"failed"`
 	CostUSD                *float64 `json:"cost_usd"`
+	UnpricedRuns           int      `json:"unpriced_runs"`
 	MedianQueueWaitSeconds *float64 `json:"median_queue_wait_seconds"`
 }
 
@@ -248,17 +249,30 @@ func TestRevokedAndExpiredGrantsAreAbsent(t *testing.T) {
 	}
 }
 
-func TestACostIsNullWhenAFinishedRunHasNoPrice(t *testing.T) {
+func TestACostSumsThePricedRunsAndCountsTheFinishedRunsWithoutOne(t *testing.T) {
 	r := newRig(t, Observe{Enabled: true})
 	r.run(t, run{kind: "builtin", by: ada, state: "succeeded", cost: price(0.25)})
 	r.run(t, run{kind: "builtin", by: ada, state: "queued"})
-	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 2 || s.CostUSD == nil || *s.CostUSD != 0.25 {
-		t.Fatalf("stats with a priced and a queued run = %+v, want 0.25 USD", s)
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 2 || s.CostUSD == nil || *s.CostUSD != 0.25 || s.UnpricedRuns != 0 {
+		t.Fatalf("stats with a priced and a queued run = %+v, want 0.25 USD and no unpriced run", s)
+	}
+
+	r.run(t, run{kind: "builtin", by: ada, state: "canceled"})
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 3 || s.UnpricedRuns != 0 {
+		t.Fatalf("stats with a canceled run = %+v, want no unpriced run", s)
 	}
 
 	r.run(t, run{kind: "builtin", by: ada, state: "failed"})
-	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 3 || s.Failed != 1 || s.CostUSD != nil {
-		t.Fatalf("stats with an unpriced finished run = %+v, want a null cost", s)
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 4 || s.Failed != 1 || s.CostUSD == nil || *s.CostUSD != 0.25 || s.UnpricedRuns != 1 {
+		t.Fatalf("stats with an unpriced finished run = %+v, want 0.25 USD and one unpriced run", s)
+	}
+}
+
+func TestACostIsNullWhenNoFinishedRunHasAPrice(t *testing.T) {
+	r := newRig(t, Observe{Enabled: true})
+	r.run(t, run{kind: "builtin", by: ada, state: "failed"})
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.CostUSD != nil || s.UnpricedRuns != 1 {
+		t.Fatalf("stats with only an unpriced run = %+v, want a null cost and one unpriced run", s)
 	}
 }
 

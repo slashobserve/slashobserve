@@ -205,11 +205,13 @@ func (sess *session) rebaseAndCommit(ctx context.Context) (commit dashboards.Com
 	return commit, true, nil
 }
 
-func settledByCommit(commit dashboards.Commit) Settled {
+func (sess *session) settleByCommit(commit dashboards.Commit) {
 	if commit.Proposal != nil {
-		return Settled{Kind: settledProposed}
+		sess.state.Settled = Settled{Kind: settledProposed}
+		return
 	}
-	return Settled{Kind: settledSaved, Version: commit.Version.Number}
+	sess.state.Settled = Settled{Kind: settledSaved, Version: commit.Version.Number}
+	sess.state.Committed = commit.Dashboard.ID
 }
 
 func (sess *session) restartFromLatest(ctx context.Context) error {
@@ -240,7 +242,7 @@ func (sess *session) resolveConflict(ctx context.Context) (restarted bool, err e
 		return false, err
 	}
 	if committed {
-		sess.state.Settled = settledByCommit(commit)
+		sess.settleByCommit(commit)
 		sess.state.Build = nil
 		return false, nil
 	}
@@ -256,7 +258,7 @@ func (sess *session) commit(ctx context.Context) (restarted bool, err error) {
 	var required *dashboards.ProposalRequiredError
 	switch {
 	case err == nil:
-		sess.state.Settled = settledByCommit(commit)
+		sess.settleByCommit(commit)
 		sess.state.Build = nil
 		return false, nil
 	case errors.Is(err, dashboards.ErrBuildNotFound):

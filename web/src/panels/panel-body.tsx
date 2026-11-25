@@ -9,6 +9,7 @@ import {
   displayWithDefaults,
   resolveDatasourceRef,
   type DataPanel,
+  type Override,
 } from "@/spec"
 
 import { createFieldResolver, type FieldResolver } from "./field-config"
@@ -16,7 +17,11 @@ import { dataRenderers, staticRenderers } from "./index"
 import { PanelSkeleton } from "./panel-skeleton"
 import { RendererBoundary } from "./renderer-boundary"
 import type { SharedCursor } from "./shared-cursor"
-import { prepareFrames, type DatasourceTypeOf } from "./transforms"
+import {
+  prepareFrames,
+  type DatasourceTypeOf,
+  type PreparedFrame,
+} from "./transforms"
 import type { ReusedFilter } from "./transforms/ad-hoc-filter"
 import { useGazetteers } from "./transforms/use-gazetteers"
 import type { PanelRendererProps, StaticPanelProps } from "./types"
@@ -61,6 +66,10 @@ type Props = {
   asTable?: boolean
   reusedFilter?: ReusedFilter
   annotations?: readonly Annotation[]
+  columnOverrides?: (
+    frames: readonly PreparedFrame[],
+    fields: FieldResolver
+  ) => Override[]
 }
 
 export function PanelBody({
@@ -79,6 +88,7 @@ export function PanelBody({
   asTable = false,
   reusedFilter,
   annotations,
+  columnOverrides,
 }: Props) {
   const datasources = useDatasources()
   const typeOf = useMemo<DatasourceTypeOf>(
@@ -110,7 +120,17 @@ export function PanelBody({
         : undefined,
     [panel, ghost, typeOf, reusedFilter, vars, gazetteers]
   )
-  const fields = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
+  const given = useMemo(() => createFieldResolver(panel, vars), [panel, vars])
+  const shown = useMemo(() => {
+    const added = columnOverrides?.(frames, given) ?? []
+    return added.length === 0
+      ? panel
+      : { ...panel, overrides: [...added, ...(panel.overrides ?? [])] }
+  }, [panel, frames, given, columnOverrides])
+  const fields = useMemo(
+    () => (shown === panel ? given : createFieldResolver(shown, vars)),
+    [shown, panel, given, vars]
+  )
   const display = useMemo(
     () => displayWithDefaults(panel.type, panel.display),
     [panel]
@@ -127,7 +147,7 @@ export function PanelBody({
       <Suspense fallback={<PanelSkeleton />}>
         {Renderer ? (
           <Renderer
-            panel={panel}
+            panel={shown}
             frames={frames}
             fields={fields}
             display={display}

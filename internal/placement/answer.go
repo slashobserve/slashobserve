@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
@@ -69,7 +71,7 @@ func AnswerKeptWithAdmins(ctx context.Context, q *dbsqlc.Queries, runID pgtype.U
 
 type keptWithAdmins struct{ Restricted, InFlight bool }
 
-func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error)) error {
+func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind folders.ContentKind, to pgtype.UUID, kept func() (keptWithAdmins, error), restrictedAnswer func() (folders.AnswerRef, error)) error {
 	folder, err := q.ShareFolderPlacement(ctx, to)
 	if err == nil && folder.AdminsOnly {
 		return nil
@@ -84,7 +86,12 @@ func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind fol
 	case err != nil:
 		return fmt.Errorf("read whether the %s holds an answer that read Admin-only data: %w", kind.Noun(), err)
 	case held.Restricted:
-		return folders.RestrictedAnswerMove(kind)
+		answer, err := restrictedAnswer()
+		if err != nil {
+			slog.Default().WarnContext(ctx, "could not name the answer that stops a move", slog.String("kind", string(kind)), slog.String("reason", err.Error()))
+			answer = folders.AnswerRef{}
+		}
+		return folders.RestrictedAnswerMove(kind, answer)
 	case held.InFlight:
 		return folders.RunInFlightMove(kind)
 	}
@@ -109,4 +116,32 @@ func restrictedAnswerOpening(ctx context.Context, q *dbsqlc.Queries, folderID pg
 		return folders.RunInFlightOpening(items)
 	}
 	return folders.RestrictedAnswerOpening(items)
+}
+
+type answerRun struct {
+	ID          pgtype.UUID
+	Prompt      string
+	RequesterOf string
+	RequesterID pgtype.UUID
+}
+
+func answerRef(ctx context.Context, run answerRun, err error) (folders.AnswerRef, error) {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return folders.AnswerRef{}, nil
+	}
+	if err != nil {
+		return folders.AnswerRef{}, err
+	}
+	caller, ok := auth.FromContext(ctx)
+	if !mayNameAnswer(caller, ok, run) {
+		return folders.AnswerRef{}, nil
+	}
+	return folders.AnswerRef{RunID: run.ID.String(), Prompt: run.Prompt}, nil
+}
+
+func mayNameAnswer(caller auth.Principal, known bool, run answerRun) bool {
+	if !known {
+		return false
+	}
+	return caller.Role == auth.RoleAdmin || (string(caller.Kind) == run.RequesterOf && caller.ID == run.RequesterID.String())
 }

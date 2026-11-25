@@ -65,25 +65,25 @@ func TestAStarterDashboardStillTakesCommentsAnnotationsAndDuplicatesOverMCP(t *t
 }
 
 func TestSaveFailureNamesAProvisionedRefusal(t *testing.T) {
-	res, err := saveFailure(folders.ErrProvisioned)
+	res, err := saveFailure(t.Context(), folders.ErrProvisioned)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := errorCode(t, res); got != folders.CodeProvisioned {
 		t.Fatalf("code = %q", got)
 	}
-	if _, err := saveFailure(errors.New("other")); err == nil {
+	if _, err := saveFailure(t.Context(), errors.New("other")); err == nil {
 		t.Fatal("an unknown error must not be reported as a tool result")
 	}
 }
 
 func TestStartingOrApplyingARunOnAStarterNamesTheProvisionedRefusal(t *testing.T) {
 	err := fmt.Errorf("check the run: %w", folders.ErrProvisioned)
-	applied, ok := applyRefusal(err)
+	applied, ok := applyRefusal(t.Context(), err)
 	if !ok {
 		t.Fatal("apply_suggested_change does not report the provisioned refusal as a tool result")
 	}
-	started, failed := runFailure(err)
+	started, failed := runFailure(t.Context(), err)
 	if failed != nil {
 		t.Fatalf("start_run: %v, want a tool result", failed)
 	}

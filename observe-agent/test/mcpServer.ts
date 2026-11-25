@@ -49,6 +49,7 @@ export function startMcpServer(
             name: "lint_query",
             description: "Checks a query.",
             inputSchema: { type: "object", properties: {} },
+            annotations: { readOnlyHint: true },
           },
         ],
       }))

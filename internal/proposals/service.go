@@ -22,7 +22,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/grantmode"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -116,7 +115,7 @@ func (s *Service) Propose(ctx context.Context, by auth.Principal, in dashboards.
 	if err := s.dashboards.CheckProposal(ctx, by, in.DashboardID, in.BaseVersion, in.Spec, in.Partial); err != nil {
 		return dashboards.ProposalRef{}, err
 	}
-	who := actor.Of(by, origin.From(ctx), in.RequestID.String())
+	who := actor.In(ctx, by, in.RequestID.String())
 	cols, err := who.Columns()
 	if err != nil {
 		return dashboards.ProposalRef{}, err
@@ -405,7 +404,7 @@ func (s *Service) Merge(ctx context.Context, by auth.Principal, id pgtype.UUID, 
 	if err := checkChoices(choices); err != nil {
 		return Proposal{}, err
 	}
-	who := actor.Of(by, origin.From(ctx), "")
+	who := actor.In(ctx, by, "")
 	cols, err := who.Columns()
 	if err != nil {
 		return Proposal{}, err
@@ -476,7 +475,7 @@ func (s *Service) Discard(ctx context.Context, by auth.Principal, id pgtype.UUID
 	case !slices.Contains(allowedActions(f), ActionDiscard):
 		return Proposal{}, ErrForbidden
 	}
-	who := actor.Of(by, origin.From(ctx), "")
+	who := actor.In(ctx, by, "")
 	cols, err := who.Columns()
 	if err != nil {
 		return Proposal{}, err

@@ -115,7 +115,7 @@ describe("observationChanges", () => {
         at: "2026-11-12T10:00:00Z",
         actor: ada,
         verb: "added a block",
-        subject: { id: "b1", title: "Text" },
+        subject: { id: "b1", title: "b1" },
         detail: null,
       },
       {
@@ -123,7 +123,7 @@ describe("observationChanges", () => {
         at: "2026-11-12T11:00:00Z",
         actor: agent,
         verb: "suggested a block",
-        subject: { id: "b2", title: "Text" },
+        subject: { id: "b2", title: "b2" },
         detail: null,
       },
     ])
@@ -263,7 +263,8 @@ describe("blockSubject", () => {
     const untitled = block("b2", { kind: "panel", body: { panel: {} } })
     expect(blockSubject(titled)).toBe("Panel: Latency")
     expect(blockSubject(untitled)).toBe("Panel")
-    expect(blockSubject(block("b3"))).toBe("Text")
+    expect(blockSubject(block("b3"))).toBe("b3")
+    expect(blockSubject(block("b5", { body: { markdown: "" } }))).toBe("Text")
     const snapshot = block("b4", {
       kind: "snapshot",
       body: { snapshot_id: "s1" },
@@ -325,7 +326,7 @@ describe("observationChanges state and block events", () => {
     })
     const edits = changes.filter((change) => change.verb === "changed a block")
     expect(edits.map((change) => change.subject)).toEqual([
-      { id: "b1", title: "Text" },
+      { id: "b1", title: "b1" },
       null,
     ])
   })

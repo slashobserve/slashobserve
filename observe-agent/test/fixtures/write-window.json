@@ -1,0 +1,14 @@
+{
+  "prompt": "create then write",
+  "turns": [
+    {
+      "text": "building",
+      "tool_calls": [{ "name": "create_dashboard", "input": { "title": "t" } }]
+    },
+    {
+      "text": "pinning",
+      "tool_calls": [{ "name": "pin_observation", "input": { "id": "o" } }]
+    },
+    { "text": "done" }
+  ]
+}

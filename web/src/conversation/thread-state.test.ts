@@ -8,6 +8,7 @@ import {
   panelText,
   replyCountText,
   runLineText,
+  runProgress,
   threadStatus,
   unansweredRun,
   type Run,
@@ -125,6 +126,8 @@ describe("runLineText", () => {
     ["running", "Observe Agent is working on it"],
     ["succeeded", "Observe Agent finished"],
     ["failed", "Observe Agent could not finish"],
+    ["canceling", "Stopping"],
+    ["canceled", "Stopped"],
   ] as const)("words a built-in run that is %s", (status, text) => {
     expect(runLineText(builtinRun, status, "Observe Agent")).toBe(text)
   })
@@ -133,6 +136,18 @@ describe("runLineText", () => {
     expect(
       runLineText({ assigned_kind: "grant" }, "running", "Claude Code")
     ).toBe("Claude Code was asked")
+  })
+})
+
+describe("runProgress", () => {
+  it.each([
+    [{ status: "running", state: "canceling" }, "canceling"],
+    [{ status: "failed", state: "canceled" }, "canceled"],
+    [{ status: "running", state: "running" }, "running"],
+    [{ status: "succeeded" }, "succeeded"],
+    [undefined, "queued"],
+  ] as const)("reads %j as %s", (request, expected) => {
+    expect(runProgress(request, "queued")).toBe(expected)
   })
 })
 

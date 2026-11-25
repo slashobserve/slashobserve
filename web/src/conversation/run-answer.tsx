@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { toast } from "sonner"
 
 import { ApiError } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import { observeRequestQuery } from "@/observe/queries"
+import { StopRequestButton } from "@/observe/request-actions"
 
 import {
   AnswerCard,
@@ -13,7 +13,12 @@ import {
 } from "./answer-card"
 import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
 import { planRevise, subjectOf } from "./send-plan"
-import { askedAgentName, runLineText, type Run } from "./thread-state"
+import {
+  askedAgentName,
+  runLineText,
+  runProgress,
+  type Run,
+} from "./thread-state"
 import { useDeliver } from "./use-composer"
 
 const runLinkClass = "underline underline-offset-2 hover:text-foreground"
@@ -37,17 +42,20 @@ export function RunLine({ message, run }: { message: Message; run: Run }) {
     enabled: builtin,
     retry: false,
   })
-  const status = request.data?.status ?? run.status
+  const progress = runProgress(request.data, run.status)
   return (
-    <p role="status" className="text-xs text-muted-foreground">
-      {runLineText(run, status, askedAgentName(message, run))}
-      {builtin ? (
-        <>
-          {" · "}
-          <RunLink runId={run.id} />
-        </>
-      ) : null}
-    </p>
+    <div className="flex items-center gap-2">
+      <p role="status" className="text-xs text-muted-foreground">
+        {runLineText(run, progress, askedAgentName(message, run))}
+        {builtin ? (
+          <>
+            {" · "}
+            <RunLink runId={run.id} />
+          </>
+        ) : null}
+      </p>
+      {builtin ? <StopRequestButton requestId={run.id} variant="text" /> : null}
+    </div>
   )
 }
 
@@ -96,10 +104,7 @@ export function RunAnswer({
       findingId,
       crypto.randomUUID()
     )
-    if ("error" in plan) {
-      toast.error(plan.error)
-      return false
-    }
+    if ("error" in plan) return plan.error || reviseFailureText(null)
     try {
       await deliver(plan)
       return true
@@ -107,8 +112,7 @@ export function RunAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(reviseFailureText(error))
-      return false
+      return reviseFailureText(error)
     }
   }
 
