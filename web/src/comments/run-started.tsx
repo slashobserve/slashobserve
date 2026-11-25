@@ -69,7 +69,7 @@ function BuiltinRun({
           View the run
         </Link>
       </p>
-      <StopRequestButton requestId={id} />
+      <StopRequestButton requestId={id} variant="text" />
     </div>
   )
 }

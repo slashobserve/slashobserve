@@ -91,11 +91,11 @@ describe("RunStarted", () => {
       refusal: null,
       agentName: "Observe Agent",
     })
-    fireEvent.click(await screen.findByRole("button", { name: "Stop the run" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Stop" }))
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("Stopped.")
     )
-    expect(screen.queryByRole("button", { name: "Stop the run" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
     expect(
       fetchMock.mock.calls.some(
         ([input]) =>
