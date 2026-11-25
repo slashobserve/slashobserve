@@ -210,6 +210,9 @@ func (st store) move(ctx context.Context, id, from, to pgtype.UUID, by actor.Act
 }
 
 func (st store) moveIn(ctx context.Context, q *dbsqlc.Queries, id, from, to pgtype.UUID, by actor.Actor) error {
+	if err := placement.RunWrite(ctx, q, by, to); err != nil {
+		return err
+	}
 	if err := st.guard.MoveDashboard(ctx, q, id, to); err != nil {
 		return err
 	}

@@ -16,8 +16,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/placement"
 )
 
 type store struct {
@@ -226,7 +226,7 @@ func (s *store) listBy(ctx context.Context, by auth.Principal, visible []pgtype.
 }
 
 func createdOwner(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Finding) (activity.Owner, error) {
-	kept, err := placement.AnswerKeptWithAdmins(ctx, q, row.AgentRequestID)
+	kept, err := folders.RunAnswerKeptWithAdmins(ctx, q, row.AgentRequestID)
 	if err != nil || !kept {
 		return activityOwner(row.DashboardID, row.ObservationID), err
 	}

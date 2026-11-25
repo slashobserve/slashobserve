@@ -515,6 +515,9 @@ func (s *Service) move(ctx context.Context, by auth.Principal, id, folderID pgty
 		if err := permit(Machine, State(row.State), ActionMove, can(abilities, false)); err != nil {
 			return err
 		}
+		if err := placement.RunWrite(ctx, q, who, target.ID); err != nil {
+			return err
+		}
 		if err := s.guard.MoveObservation(ctx, q, id, target.ID); err != nil {
 			return err
 		}

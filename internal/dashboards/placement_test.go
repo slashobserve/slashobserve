@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -192,5 +193,27 @@ func TestADuplicateWithoutAFolderGoesToMyDashboardsWhenTheCallerOnlyViewsTheSour
 				t.Fatalf("the copy is in folder %v, want %v", got, want)
 			}
 		})
+	}
+}
+
+func TestARunThatReadAdminOnlyDataMovesNoDashboardWhereOthersRead(t *testing.T) {
+	r := newPlacementRig(t)
+	const run = "99999999-9999-4999-8999-999999999999"
+	r.db.Exec(t, `INSERT INTO agent_requests (id, intent, kind, prompt, requested_by_kind, requested_by_id, requested_by_name, read_restricted) VALUES ($1::uuid, 'ask', 'investigate', 'who changed it', 'user', $2::uuid, 'Ada', true)`, run, testUserID)
+	locked, other := r.folder(t, "Payroll", true), r.folder(t, "Payroll archive", true)
+	dash, _, err := r.service.Create(reading(t.Context()), placementAdmin, locked, panelsSpec("Latency", "rps"), "create")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := db.ParseUUID(dash.ID)
+	ctx := actor.AsConnectedAgent(actor.WithRun(reading(t.Context()), run))
+	if _, _, err := r.service.Move(ctx, placementAdmin, id, r.generalFolder(t)); !errors.Is(err, folders.ErrRestrictedAnswer) {
+		t.Fatalf("move where others read = %v, want ErrRestrictedAnswer", err)
+	}
+	if got := r.folderOfDashboard(t, id); got != locked {
+		t.Fatalf("folder after the refusal = %v", got)
+	}
+	if _, _, err := r.service.Move(ctx, placementAdmin, id, other); err != nil {
+		t.Fatalf("move where only Admins read = %v", err)
 	}
 }
