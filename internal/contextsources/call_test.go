@@ -533,3 +533,34 @@ func TestARefusedOrFailedCallDoesNotMarkTheRunRestricted(t *testing.T) {
 		})
 	}
 }
+
+func TestListingAnAdminsOnlySourceMarksTheRunRestricted(t *testing.T) {
+	sources := []Source{
+		{UID: "open", Name: "Open", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, Tools: ToolCounts{Approved: 1}},
+		{UID: "private", Name: "Private", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceAdmins, Tools: ToolCounts{Approved: 1}},
+	}
+	toolsOf := func(string) ([]Tool, error) { return []Tool{approvedSearch(t, ToolApproved)}, nil }
+	admin := datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}}
+	cases := map[string]struct {
+		access     datasource.Access
+		sources    []Source
+		restricted bool
+		listed     int
+	}{
+		"an Admin listing both":            {admin, sources, true, 2},
+		"an Admin listing only the open":   {admin, sources[:1], false, 1},
+		"a viewer, who never sees private": {personAccess(auth.RoleViewer), sources, false, 1},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx, restricted := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), c.access))
+			offers, err := offered(ctx, c.access, c.sources, toolsOf)
+			if err != nil || len(offers) != c.listed {
+				t.Fatalf("offers = %d err = %v", len(offers), err)
+			}
+			if restricted() != c.restricted {
+				t.Errorf("restricted = %v, want %v", restricted(), c.restricted)
+			}
+		})
+	}
+}
