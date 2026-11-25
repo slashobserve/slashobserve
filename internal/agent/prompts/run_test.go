@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 24095
-	fullSystemTextBudget = 28817
+	systemTextBudget     = 24307
+	fullSystemTextBudget = 29029
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -288,6 +288,18 @@ func TestBuildClosesWithTheSummaryOfItsLastSave(t *testing.T) {
 	for _, want := range []string{
 		"Your last save's `summary` is the closing line the person reads",
 		"how many panels are still unverified or empty",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildReadsGridPosBeforeAMove(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"read their `gridPos` with `get_panels` first",
+		"name in `summary` where it went",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
