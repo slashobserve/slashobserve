@@ -150,6 +150,34 @@ describe("query format table", () => {
     ])
   })
 
+  it("names a table query's value by its legend when several table queries returned data", () => {
+    const placed = frame([time([1]), num("Value", [5])], {
+      ref: "A",
+      name: "orders",
+      labels: { status: "ok" },
+    })
+    const failed = frame([time([1]), num("Value", [2])], {
+      ref: "B",
+      name: "orders",
+      labels: { status: "bad" },
+    })
+    const out = prepareFrames(
+      panel([
+        { format: "table", legend: "placed" },
+        { ref: "B", format: "table", legend: "{{status}} orders" },
+      ]),
+      [placed, failed]
+    )
+    expect(out.map((f) => f.fields.map((field) => field.name))).toEqual([
+      ["Time", "__name__", "status", "Value #A"],
+      ["Time", "__name__", "status", "Value #B"],
+    ])
+    expect(out.map((f) => seriesName(f, f.fields[3]))).toEqual([
+      "placed",
+      "bad orders",
+    ])
+  })
+
   it("adds no __name__ without a frame name and unions label keys", () => {
     const [plain] = prepareFrames(tablePanel, [
       frame([num("Value", [1])], { labels: { pod: "a" } }),

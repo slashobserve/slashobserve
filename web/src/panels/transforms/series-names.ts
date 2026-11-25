@@ -71,14 +71,14 @@ function metricNameFromLabels(labels: Labels): string {
   return `${name}{${pairs.join(", ")}}`
 }
 
-function renderLegend(template: string, labels: Labels): string {
+export function renderLegend(template: string, labels: Labels): string {
   return template.replace(/\{\{\s*(.+?)\s*\}\}/g, (_match, key: string) => {
     const label = key.trim()
     return Object.hasOwn(labels, label) ? labels[label] : ""
   })
 }
 
-function prometheusLabels(frame: WireFrame): Labels {
+export function prometheusLabels(frame: WireFrame): Labels {
   return {
     ...frame.labels,
     ...(frame.name !== undefined ? { __name__: frame.name } : {}),

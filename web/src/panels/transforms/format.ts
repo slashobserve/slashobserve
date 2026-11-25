@@ -7,6 +7,7 @@ import {
   type PreparedField,
   type PreparedFrame,
 } from "./names"
+import { prometheusLabels, renderLegend } from "./series-names"
 
 const nameKey = "__name__"
 
@@ -92,11 +93,33 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
   return { ref: frames[0].ref, fields }
 }
 
-function renameValues(frame: PreparedFrame, ref: string): PreparedFrame {
+function legendName(
+  frames: PreparedFrame[],
+  legend: string | undefined
+): string | undefined {
+  if (!legend || legend === "__auto") return undefined
+  const names = new Set(
+    frames.map((frame) => renderLegend(legend, prometheusLabels(frame)))
+  )
+  const [only] = names
+  return names.size === 1 && only !== "" ? only : undefined
+}
+
+function renameValues(
+  frame: PreparedFrame,
+  ref: string,
+  legend: string | undefined
+): PreparedFrame {
   return {
     ...frame,
     fields: frame.fields.map((field) =>
-      field.name === "Value" ? { ...field, name: `Value #${ref}` } : field
+      field.name === "Value"
+        ? {
+            ...field,
+            name: `Value #${ref}`,
+            ...(legend === undefined ? {} : { seriesName: legend }),
+          }
+        : field
     ),
   }
 }
@@ -105,13 +128,14 @@ export function applyQueryFormats(
   panel: DataPanel,
   frames: PreparedFrame[]
 ): PreparedFrame[] {
-  const tableRefs = new Set(
+  const legends = new Map(
     panel.queries.flatMap((query, index) =>
       isPanelQuery(query) && query.format === "table"
-        ? [queryRef(query, index)]
+        ? [[queryRef(query, index), query.legend] as const]
         : []
     )
   )
+  const tableRefs = new Set(legends.keys())
   if (tableRefs.size === 0) return frames.map(copyFrame)
 
   const groups = new Map<string, PreparedFrame[]>()
@@ -133,8 +157,13 @@ export function applyQueryFormats(
     }
     if (emitted.has(ref)) continue
     emitted.add(ref)
-    const table = flattenFrames(groups.get(ref) ?? [])
-    out.push(several ? renameValues(table, ref) : table)
+    const group = groups.get(ref) ?? []
+    const table = flattenFrames(group)
+    out.push(
+      several
+        ? renameValues(table, ref, legendName(group, legends.get(ref)))
+        : table
+    )
   }
   return out
 }
