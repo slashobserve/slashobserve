@@ -5400,7 +5400,7 @@ components:
         impact:
           type: string
           nullable: true
-          description: Who or what was affected, one sentence with the numbers that show it; null when the agent gave none.
+          description: Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none.
         confidence:
           type: string
           nullable: true
@@ -5411,12 +5411,14 @@ components:
           maxItems: 5
           items:
             type: string
+            maxLength: 200
           description: Up to 5 things the agent checked and excluded, one line each; empty when it listed none.
         next_steps:
           type: array
           maxItems: 3
           items:
             type: string
+            maxLength: 200
           description: Up to 3 suggested actions, one line each; empty when it listed none.
         no_incident:
           type: boolean
@@ -5530,7 +5532,7 @@ components:
         impact:
           type: string
           nullable: true
-          description: Who or what was affected, one sentence with the numbers that show it; null when the agent gave none.
+          description: Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none.
         confidence:
           type: string
           nullable: true
@@ -5541,12 +5543,14 @@ components:
           maxItems: 5
           items:
             type: string
+            maxLength: 200
           description: Up to 5 things the agent checked and excluded, one line each; empty when it listed none.
         next_steps:
           type: array
           maxItems: 3
           items:
             type: string
+            maxLength: 200
           description: Up to 3 suggested actions, one line each; empty when it listed none.
         no_incident:
           type: boolean

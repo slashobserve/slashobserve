@@ -118,7 +118,7 @@ func sentence(name, raw string, maxRunes int) (string, error) {
 	text := strings.TrimSpace(raw)
 	switch {
 	case utf8.RuneCountInString(text) > maxRunes:
-		return "", fmt.Errorf("%s takes at most %d characters; say it in one sentence", name, maxRunes)
+		return "", fmt.Errorf("%s takes at most %d characters; shorten it", name, maxRunes)
 	case strings.ContainsFunc(text, unicode.IsControl):
 		return "", fmt.Errorf("%s is one plain line with no line breaks", name)
 	}

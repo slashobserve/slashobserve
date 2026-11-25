@@ -126,18 +126,11 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 		to = Now(ctx)
 		from = to.Add(-defaultWindow)
 	}
-	askOn, res, ok := askOnTarget(in.AskOn, run)
+	extras, res, ok := checkedExtras(in, run)
 	if !ok {
 		return res, nil
 	}
-	suggested, res, ok := suggestedChange(in.SuggestedChange, run)
-	if !ok {
-		return res, nil
-	}
-	structured, err := in.StructuredInput.Check()
-	if err != nil {
-		return invalid("%s", err), nil
-	}
+	suggested := extras.suggested
 	in.Markdown = markdownWithoutSuggestedChange(in.Markdown, suggested)
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Investigation))
 	if err != nil || !ok {
@@ -146,9 +139,9 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if res, wrong := zoneMismatch(save.Markdown, run.TimeZone, save.From, save.To); wrong {
 		return res, nil
 	}
-	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
+	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
-	save.Structured = structured
+	save.Structured = extras.structured
 	save.AsOf = run.asOf()
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
@@ -182,6 +175,39 @@ func askOnTarget(raw string, run Run) (pgtype.UUID, Result, bool) {
 		return pgtype.UUID{}, invalid("ask_on_dashboard_id must be the id of a dashboard from list_dashboards"), false
 	}
 	return id, Result{}, true
+}
+
+type findingExtras struct {
+	askOn      pgtype.UUID
+	suggested  string
+	structured findings.Structured
+}
+
+func checkedExtras(in findingInput, run Run) (findingExtras, Result, bool) {
+	var out findingExtras
+	var res Result
+	var ok bool
+	if out.askOn, res, ok = askOnTarget(in.AskOn, run); !ok {
+		return findingExtras{}, res, false
+	}
+	if out.suggested, res, ok = suggestedChange(in.SuggestedChange, run); !ok {
+		return findingExtras{}, res, false
+	}
+	if out.structured, res, ok = structuredFields(in.StructuredInput, run); !ok {
+		return findingExtras{}, res, false
+	}
+	return out, Result{}, true
+}
+
+func structuredFields(in findings.StructuredInput, run Run) (findings.Structured, Result, bool) {
+	structured, err := in.Check()
+	switch {
+	case err != nil:
+		return findings.Structured{}, invalid("%s", err), false
+	case !structured.Empty() && !run.Investigation:
+		return findings.Structured{}, invalid("root_cause, onset, impact, confidence, ruled_out, next_steps and no_incident apply only to an investigation; leave them out here"), false
+	}
+	return structured, Result{}, true
 }
 
 func suggestedChange(raw string, run Run) (string, Result, bool) {

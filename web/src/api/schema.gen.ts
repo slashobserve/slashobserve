@@ -6995,7 +6995,7 @@ export interface components {
              * @description When the failure started, as the agent judged it; null when it gave none.
              */
             onset: string | null;
-            /** @description Who or what was affected, one sentence with the numbers that show it; null when the agent gave none. */
+            /** @description Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none. */
             impact: string | null;
             /**
              * @description How sure the agent is of the root cause; null when it gave none.
@@ -7058,7 +7058,7 @@ export interface components {
              * @description When the failure started, as the agent judged it; null when it gave none.
              */
             onset?: string | null;
-            /** @description Who or what was affected, one sentence with the numbers that show it; null when the agent gave none. */
+            /** @description Who or what was affected, one or two sentences with the numbers that show it; null when the agent gave none. */
             impact?: string | null;
             /**
              * @description How sure the agent is of the root cause; null when it gave none.
