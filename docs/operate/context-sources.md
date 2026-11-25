@@ -123,6 +123,12 @@ contextSources:
 - `uid` and `url` are required, and `name` defaults to the uid.
 - `description` is optional and follows the same rules as in the app.
 - `audience` is `everyone` (the default) or `admins`.
+- `allowPrivate: true` lets the source be an `http` address on any port that resolves to a private network, such as another container on the same Compose network.
+  It follows the same rule as a [Grafana connection](../use/switch-from-grafana.md#who-can-connect-and-why-private-hosts-are-allowed): the host must still be a domain name with a dot, never an IP address or `localhost`, and it must still be on the outbound allowlist.
+  Only this file can set it.
+  The API, the CLI and the web app never accept it, and an `http` address without it is refused with `422 invalid_context_source`.
+  A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
+  Removing the line makes the source public again, resets its check and refuses an `http` address.
 - A secret is never written in the file.
   Name an environment variable with `secretEnv`, whose name starts with `SLASHOBSERVE_`, or a file with `secretFile`.
   `secretHeader` is required with a secret.
@@ -132,6 +138,7 @@ contextSources:
 - Removing an entry from the file deletes its source at the next start.
 - The file does not touch the allowlist.
   Allow the server's domain yourself, or the first discovery reports `outbound_domain_not_allowed`.
+  With a `SLASHOBSERVE_OUTBOUND_DOMAINS` list, name the domain in it.
 - Approvals survive a restart and a rename.
   They are dropped only when the address changes.
 

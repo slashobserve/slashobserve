@@ -500,7 +500,7 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	contextSourcesService := contextsources.New(contextsources.Deps{
 		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
-		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), PrivateTrip: egressClient.PrivateCallTripper(), Version: version}, Logger: logger,
 	})
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{

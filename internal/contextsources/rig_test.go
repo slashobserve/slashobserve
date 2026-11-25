@@ -83,7 +83,7 @@ func newRigWith(t *testing.T, opts rigOptions, tools ...mcp.Tool) *rig {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", fake.handler())
 	client := egresstest.NewClient(t, store, mux, fakeHost)
-	service := New(Deps{DB: database.DB, Key: opts.key, Domains: store, Connector: MCPConnector{Trip: client.CallTripper(), Version: "test"}, Logger: logger})
+	service := New(Deps{DB: database.DB, Key: opts.key, Domains: store, Connector: MCPConnector{Trip: client.CallTripper(), PrivateTrip: client.PrivateCallTripper(), Version: "test"}, Logger: logger})
 
 	user, err := database.Queries().UpsertUser(t.Context(), dbsqlc.UpsertUserParams{OidcIssuer: "issuer", OidcSubject: "ada", Email: "ada@example.com"})
 	if err != nil {

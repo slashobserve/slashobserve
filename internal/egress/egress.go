@@ -91,15 +91,16 @@ func (e *HostError) Error() string { return e.Host + ": " + e.Err.Error() }
 func (e *HostError) Unwrap() error { return e.Err }
 
 type Client struct {
-	allow     Allowlist
-	userAgent string
-	transport *http.Transport
-	private   *http.Transport
-	calls     *http.Transport
-	hits      *ttlcache.Cache[string, visited]
-	failures  *ttlcache.Cache[string, error]
-	group     *ttlcache.Group[visited]
-	slots     chan struct{}
+	allow        Allowlist
+	userAgent    string
+	transport    *http.Transport
+	private      *http.Transport
+	calls        *http.Transport
+	privateCalls *http.Transport
+	hits         *ttlcache.Cache[string, visited]
+	failures     *ttlcache.Cache[string, error]
+	group        *ttlcache.Group[visited]
+	slots        chan struct{}
 }
 
 type visited struct {
@@ -137,16 +138,19 @@ func newClient(allow Allowlist, opts Options, guarded, open, calls dialFunc, roo
 	}
 	callTransport := newTransport(calls, roots)
 	callTransport.ResponseHeaderTimeout = callHeaderTimeout
+	privateCallTransport := newTransport(open, roots)
+	privateCallTransport.ResponseHeaderTimeout = callHeaderTimeout
 	return &Client{
-		allow:     allow,
-		userAgent: opts.UserAgent,
-		transport: newTransport(guarded, roots),
-		private:   newTransport(open, roots),
-		calls:     callTransport,
-		hits:      ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
-		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
-		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
-		slots:     make(chan struct{}, maxConcurrent),
+		allow:        allow,
+		userAgent:    opts.UserAgent,
+		transport:    newTransport(guarded, roots),
+		private:      newTransport(open, roots),
+		calls:        callTransport,
+		privateCalls: privateCallTransport,
+		hits:         ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
+		failures:     ttlcache.New[string, error](failureTTL, failureBytes),
+		group:        ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
+		slots:        make(chan struct{}, maxConcurrent),
 	}
 }
 

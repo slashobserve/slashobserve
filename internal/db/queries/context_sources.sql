@@ -20,14 +20,14 @@ SELECT * FROM context_source_tools WHERE source_id = @source_id AND name = @name
 SELECT count(*) FROM context_sources;
 
 -- name: InsertContextSource :one
-INSERT INTO context_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, created_by)
-VALUES (@id, @uid, @name, @description, @url, @audience, @secret_header, @secret, @provisioned, @created_by)
+INSERT INTO context_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, allow_private, created_by)
+VALUES (@id, @uid, @name, @description, @url, @audience, @secret_header, @secret, @provisioned, @allow_private, @created_by)
 RETURNING *;
 
 -- name: UpdateContextSource :one
 UPDATE context_sources
 SET name = @name, description = @description, url = @url, audience = @audience, secret_header = @secret_header, secret = @secret,
-    provisioned = @provisioned,
+    provisioned = @provisioned, allow_private = @allow_private,
     checked_at = CASE WHEN @reset_check::boolean THEN NULL ELSE checked_at END,
     failure = CASE WHEN @reset_check::boolean THEN NULL ELSE failure END,
     updated_at = clock_timestamp()

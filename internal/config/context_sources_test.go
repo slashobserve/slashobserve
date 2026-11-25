@@ -37,14 +37,17 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
     secretFile: `+secretFile+`
   - uid: open
     url: https://open.example.com/mcp
+  - uid: code
+    url: http://codeserver.demo.internal:8080/mcp
+    allowPrivate: true
 `)
 	lookup := func(name string) (string, bool) { return "env-secret", name == "SLASHOBSERVE_DOCS_TOKEN" }
 	got, err := loadContextSources(path, lookup)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 3 {
-		t.Fatalf("got %d sources, want 3", len(got))
+	if len(got) != 4 {
+		t.Fatalf("got %d sources, want 4", len(got))
 	}
 	if d := got[0]; d.UID != "docs" || d.Name != "Company docs" || d.Description != "Runbooks and design notes" || d.Audience != datasource.AudienceAdmins || d.SecretHeader != "Authorization" || d.Secret.Reveal() != "env-secret" {
 		t.Errorf("docs = %+v", d)
@@ -52,8 +55,11 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
 	if w := got[1]; w.Name != "wiki" || w.Description != "" || w.Audience != datasource.AudienceEveryone || w.Secret.Reveal() != "file-secret" {
 		t.Errorf("wiki = %+v", w)
 	}
-	if o := got[2]; !o.Secret.IsZero() || o.SecretHeader != "" {
+	if o := got[2]; !o.Secret.IsZero() || o.SecretHeader != "" || o.AllowPrivate {
 		t.Errorf("open = %+v", o)
+	}
+	if c := got[3]; !c.AllowPrivate || c.URL != "http://codeserver.demo.internal:8080/mcp" || got[0].AllowPrivate {
+		t.Errorf("code = %+v", c)
 	}
 }
 

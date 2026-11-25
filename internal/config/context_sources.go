@@ -25,6 +25,7 @@ type ContextSource struct {
 	Audience     datasource.Audience
 	SecretHeader string
 	Secret       datasource.Secret
+	AllowPrivate bool
 }
 
 type contextSourcesFile struct {
@@ -40,6 +41,7 @@ type fileContextSource struct {
 	SecretHeader string `yaml:"secretHeader"`
 	SecretEnv    string `yaml:"secretEnv"`
 	SecretFile   string `yaml:"secretFile"`
+	AllowPrivate bool   `yaml:"allowPrivate"`
 }
 
 func loadContextSources(path string, lookup func(string) (string, bool)) ([]ContextSource, error) {
@@ -100,7 +102,7 @@ func convertContextSource(path string, raw fileContextSource, lookup func(string
 	fail := func(field, format string, args ...any) {
 		errs = append(errs, fmt.Errorf("%s.%s: %s", path, field, fmt.Sprintf(format, args...)))
 	}
-	source := ContextSource{UID: raw.UID, Name: strings.TrimSpace(raw.Name), URL: strings.TrimSpace(raw.URL), Description: strings.TrimSpace(raw.Description), SecretHeader: strings.TrimSpace(raw.SecretHeader)}
+	source := ContextSource{UID: raw.UID, Name: strings.TrimSpace(raw.Name), URL: strings.TrimSpace(raw.URL), Description: strings.TrimSpace(raw.Description), SecretHeader: strings.TrimSpace(raw.SecretHeader), AllowPrivate: raw.AllowPrivate}
 	if !contextSourceUIDPattern.MatchString(raw.UID) {
 		fail("uid", "must match %s", contextSourceUIDPattern)
 	}

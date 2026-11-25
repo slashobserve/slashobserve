@@ -39,6 +39,7 @@ function source(overrides: Partial<ContextSource> = {}): ContextSource {
     secret_header: null,
     secret_set: false,
     provisioned: false,
+    private: false,
     state: "unchecked",
     failure: null,
     checked_at: null,

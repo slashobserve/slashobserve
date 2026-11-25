@@ -1914,7 +1914,7 @@ components:
     ContextSource:
       type: object
       additionalProperties: false
-      required: [uid, name, description, url, audience, secret_header, secret_set, provisioned, state, failure, checked_at, tools, created_at, updated_at]
+      required: [uid, name, description, url, audience, secret_header, secret_set, provisioned, private, state, failure, checked_at, tools, created_at, updated_at]
       properties:
         uid:
           type: string
@@ -1926,7 +1926,7 @@ components:
           description: What the source is for, on one line; null when none was set.
         url:
           type: string
-          description: The MCP endpoint, https, as stored.
+          description: The MCP endpoint as stored; https, or http for a `private` source.
         audience:
           type: string
           enum: [everyone, admins]
@@ -1941,6 +1941,9 @@ components:
         provisioned:
           type: boolean
           description: True when the source comes from the context sources file and cannot be changed or deleted here.
+        private:
+          type: boolean
+          description: True when the context sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API.
         state:
           type: string
           enum: [unchecked, unreachable, ready]

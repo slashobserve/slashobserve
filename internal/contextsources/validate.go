@@ -72,7 +72,7 @@ func checkAudience(audience datasource.Audience) error {
 	return nil
 }
 
-func checkAddress(raw string) (string, error) {
+func checkAddress(raw string, private bool) (string, error) {
 	if raw == "" || len(raw) > maxURLBytes {
 		return "", invalid("url", "must be an https URL of at most 2048 bytes")
 	}
@@ -80,7 +80,7 @@ func checkAddress(raw string) (string, error) {
 	switch {
 	case err != nil || u.Hostname() == "":
 		return "", invalid("url", "must be an https URL such as https://mcp.example.com/mcp")
-	case u.Scheme != "https":
+	case u.Scheme != "https" && (!private || u.Scheme != "http"):
 		return "", invalid("url", "must start with https://")
 	case u.User != nil:
 		return "", invalid("url", "must not contain a login; send the secret in its own field")

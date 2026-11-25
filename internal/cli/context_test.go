@@ -281,3 +281,20 @@ func TestContextDescriptionIsSentOnAddAndEditAndShownInTheFullView(t *testing.T)
 		t.Fatalf("exit %d, output = %q", code, stdout)
 	}
 }
+
+func TestContextFieldsSayWhenASourceMayUseAPrivateAddress(t *testing.T) {
+	has := func(s contextSource) bool {
+		for _, pair := range contextFields(s) {
+			if pair[0] == "Network" {
+				return true
+			}
+		}
+		return false
+	}
+	if has(contextSource{UID: "docs"}) {
+		t.Error("a public source shows a network line")
+	}
+	if !has(contextSource{UID: "code", Provisioned: true, Private: true}) {
+		t.Error("a private source does not say so")
+	}
+}

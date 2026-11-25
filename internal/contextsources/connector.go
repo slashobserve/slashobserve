@@ -15,6 +15,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/egress"
 )
 
@@ -33,10 +34,17 @@ const (
 	FailureUnreadable   = "secret_unreadable"
 )
 
+var errNoTripper = errors.New("no round tripper for this source")
+
 type Target struct {
-	URL    string
-	Header string
-	Secret datasource.Secret
+	URL     string
+	Header  string
+	Secret  datasource.Secret
+	Private bool
+}
+
+func connectTarget(row dbsqlc.ContextSource, secret datasource.Secret) Target {
+	return Target{URL: row.Url, Header: row.SecretHeader.String, Secret: secret, Private: row.AllowPrivate}
 }
 
 type Called struct {
@@ -64,8 +72,9 @@ func failureCode(err error) string {
 }
 
 type MCPConnector struct {
-	Trip    http.RoundTripper
-	Version string
+	Trip        http.RoundTripper
+	PrivateTrip http.RoundTripper
+	Version     string
 }
 
 func (c MCPConnector) Tools(ctx context.Context, target Target) ([]Found, error) {
@@ -150,8 +159,15 @@ func (c MCPConnector) connect(ctx context.Context, target Target) (*client.Clien
 	if target.Header != "" {
 		headers[target.Header] = target.Secret.Reveal()
 	}
+	trip := c.Trip
+	if target.Private {
+		trip = c.PrivateTrip
+	}
+	if trip == nil {
+		return nil, errNoTripper
+	}
 	httpClient := &http.Client{
-		Transport:     c.Trip,
+		Transport:     trip,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	mc, err := client.NewStreamableHttpClient(target.URL,

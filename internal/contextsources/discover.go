@@ -21,7 +21,7 @@ func (s *Service) fetch(ctx context.Context, row dbsqlc.ContextSource) ([]Found,
 	if failure != "" {
 		return nil, failure, nil
 	}
-	found, err := s.connector.Tools(ctx, Target{URL: row.Url, Header: row.SecretHeader.String, Secret: secret})
+	found, err := s.connector.Tools(ctx, connectTarget(row, secret))
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, "", ctx.Err()

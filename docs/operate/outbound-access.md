@@ -78,6 +78,7 @@ It follows the same rules: `https` on port 443, a public address, and a domain o
 A [context source](context-sources.md) is an MCP server an Admin registers for the agent.
 The server connects to it under the same address rules, except that any port is allowed, and it never follows a redirect.
 Saving a source adds its domain to the list, and a fixed list refuses a source whose domain is not on it with `403 outbound_domain_not_allowed`.
+A source that the [context sources file](context-sources.md#provision-sources-from-a-file) marks `allowPrivate` is the one exception to the `https` and public address rules, as a Grafana connection is: it may be `http` and resolve to a private address, and its domain must still be on the list.
 
 ## Domains added for a connection, datasource or context source
 

@@ -114,6 +114,7 @@ type Source struct {
 	SecretHeader string
 	SecretSet    bool
 	Provisioned  bool
+	Private      bool
 	State        string
 	Failure      string
 	CheckedAt    *time.Time
@@ -132,6 +133,7 @@ func sourceOf(row dbsqlc.ContextSource, counts ToolCounts) Source {
 		SecretHeader: row.SecretHeader.String,
 		SecretSet:    len(row.Secret) > 0,
 		Provisioned:  row.Provisioned,
+		Private:      row.AllowPrivate,
 		Failure:      row.Failure.String,
 		State:        sourceState(row.CheckedAt.Valid, row.Failure.String),
 		Tools:        counts,
@@ -320,7 +322,7 @@ func (s *Service) releaseHost(ctx context.Context, by auth.Principal, host strin
 }
 
 func hostOfURL(raw string) string {
-	host, err := checkAddress(raw)
+	host, err := checkAddress(raw, true)
 	if err != nil {
 		return ""
 	}
@@ -335,6 +337,7 @@ type Input struct {
 	Audience     datasource.Audience
 	SecretHeader string
 	Secret       string
+	AllowPrivate bool
 }
 
 func (in Input) normalized() Input {
@@ -365,7 +368,7 @@ func (in Input) check() (string, error) {
 	if err := checkAudience(in.Audience); err != nil {
 		return "", err
 	}
-	host, err := checkAddress(in.URL)
+	host, err := checkAddress(in.URL, in.AllowPrivate)
 	if err != nil {
 		return "", err
 	}

@@ -240,7 +240,7 @@ func (s *Service) dispatch(ctx context.Context, access datasource.Access, attemp
 	}
 	callCtx, cancel := context.WithTimeout(ctx, s.limits.Timeout)
 	defer cancel()
-	called, err := s.connector.Call(callCtx, Target{URL: row.Url, Header: row.SecretHeader.String, Secret: secret}, attempt.tool, args)
+	called, err := s.connector.Call(callCtx, connectTarget(row, secret), attempt.tool, args)
 	if ctx.Err() != nil {
 		return tools.ContextResult{}, ctx.Err()
 	}
@@ -358,6 +358,9 @@ func callEvent(attempt callAttempt, err error, took time.Duration) audit.Event {
 	if attempt.known {
 		e.Target = targetOf(attempt.row)
 		data["host"] = hostOfURL(attempt.row.Url)
+		if attempt.row.AllowPrivate {
+			data["private"] = true
+		}
 	}
 	if len(attempt.arguments) > 0 {
 		data["arguments"] = attempt.arguments

@@ -94,6 +94,7 @@ function SourceRow({
             {audienceLabels[source.audience]}
             {source.secret_set ? ", secret stored" : ""}
             {source.provisioned ? ", set by the context sources file" : ""}
+            {source.private ? ", private network address allowed" : ""}
           </p>
         </div>
         <div className="flex min-w-[180px] flex-col gap-0.5 text-[13px]">

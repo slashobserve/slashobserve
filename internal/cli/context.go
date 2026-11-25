@@ -28,6 +28,7 @@ type contextSource struct {
 	SecretHeader *string `json:"secret_header"`
 	SecretSet    bool    `json:"secret_set"`
 	Provisioned  bool    `json:"provisioned"`
+	Private      bool    `json:"private"`
 	State        string  `json:"state"`
 	Failure      *string `json:"failure"`
 	CheckedAt    *string `json:"checked_at"`
@@ -253,6 +254,9 @@ func contextFields(s contextSource) [][2]string {
 	}
 	if s.Provisioned {
 		pairs = append(pairs, [2]string{"Managed by", "the provisioning file"})
+	}
+	if s.Private {
+		pairs = append(pairs, [2]string{"Network", "private addresses allowed by the provisioning file"})
 	}
 	return append(pairs, [2]string{"Updated", when(s.UpdatedAt)})
 }

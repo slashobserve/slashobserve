@@ -32,6 +32,7 @@ type sourceView struct {
 	Failure     *string `json:"failure"`
 	SecretSet   bool    `json:"secret_set"`
 	Provisioned bool    `json:"provisioned"`
+	Private     bool    `json:"private"`
 	Tools       struct {
 		Offered, Approved, Changed, Gone, Refused int
 	} `json:"tools"`
@@ -493,5 +494,88 @@ func TestASourceDescriptionIsOptionalAndEditable(t *testing.T) {
 	wiki := decodeJSON[sourceView](t, r.call(t, http.MethodPost, base, withDescription), http.StatusCreated)
 	if wiki.Description == nil || *wiki.Description != "Team wiki" {
 		t.Fatalf("created description = %v", wiki.Description)
+	}
+}
+
+func TestAPrivateSourceComesOnlyFromTheFileAndShowsAsPrivate(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search"))
+	expectCode(t, r.call(t, http.MethodPost, base, `{"uid":"code","url":"http://`+fakeHost+`:8080/mcp"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+	expectCode(t, r.call(t, http.MethodPost, base, `{"uid":"code","url":"https://`+fakeHost+`/mcp","allow_private":true}`), http.StatusBadRequest, "invalid_request")
+	expectCode(t, r.call(t, http.MethodPost, base, `{"uid":"code","url":"https://`+fakeHost+`/mcp","private":true}`), http.StatusBadRequest, "invalid_request")
+
+	r.call(t, http.MethodPost, base, registration("docs", "s3cret-value"))
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"url":"http://`+fakeHost+`:8080/mcp"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"allow_private":true}`), http.StatusBadRequest, "invalid_request")
+	if docs := decodeJSON[sourceView](t, r.call(t, http.MethodGet, base+"/docs", ""), http.StatusOK); docs.Private {
+		t.Errorf("an API source is private: %+v", docs)
+	}
+
+	entry := config.ContextSource{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true}
+	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
+		t.Fatal(err)
+	}
+	code := decodeJSON[sourceView](t, r.call(t, http.MethodGet, base+"/code", ""), http.StatusOK)
+	if !code.Private || !code.Provisioned {
+		t.Fatalf("source = %+v", code)
+	}
+	if found := r.discover(t, "code"); found.Source.State != StateReady || !found.Source.Private {
+		t.Fatalf("discovery = %+v", found)
+	}
+	r.call(t, http.MethodPost, base+"/code/tools/approve-read-only", "")
+
+	r.flush()
+	for _, action := range []audit.Action{actionCreate, actionDiscover, actionApprove} {
+		var marked bool
+		for _, e := range r.database.AuditEvents(t, string(action)) {
+			if e.TargetID == "code" && e.Data["private"] == true {
+				marked = true
+			}
+			if e.TargetID == "docs" && e.Data["private"] != nil {
+				t.Errorf("%s of a public source is marked private: %v", action, e.Data)
+			}
+		}
+		if !marked {
+			t.Errorf("no %s event of the private source says private", action)
+		}
+	}
+}
+
+func TestProvisioningTurnsAPrivateSourceOffAndChecksItAgain(t *testing.T) {
+	r := newRig(t, readOnlyTool("search", "Search"))
+	entry := config.ContextSource{UID: "code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true}
+	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
+		t.Fatal(err)
+	}
+	r.allow(t, fakeHost)
+	r.discover(t, "code")
+	entry.AllowPrivate = false
+	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
+		t.Fatal(err)
+	}
+	code := decodeJSON[sourceView](t, r.call(t, http.MethodGet, base+"/code", ""), http.StatusOK)
+	if code.Private || code.State != StateUnchecked {
+		t.Fatalf("source = %+v", code)
+	}
+	r.flush()
+	var changed bool
+	for _, e := range r.database.AuditEvents(t, string(actionUpdate)) {
+		if changes, ok := e.Data["changes"].(map[string]any); ok && changes["private"] != nil {
+			changed = true
+		}
+	}
+	if !changed {
+		t.Error("the update event does not record that the source stopped being private")
+	}
+}
+
+func TestProvisioningRefusesAnHTTPAddressWithoutAllowPrivate(t *testing.T) {
+	r := newRig(t)
+	entry := config.ContextSource{UID: "code", URL: "http://" + fakeHost + ":8080/mcp", Audience: datasource.AudienceEveryone}
+	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err == nil {
+		t.Fatal("an http address was provisioned without allowPrivate")
+	}
+	entry.AllowPrivate = true
+	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -60,6 +60,7 @@ type sourceJSON struct {
 	SecretHeader *string        `json:"secret_header"`
 	SecretSet    bool           `json:"secret_set"`
 	Provisioned  bool           `json:"provisioned"`
+	Private      bool           `json:"private"`
 	State        string         `json:"state"`
 	Failure      *string        `json:"failure"`
 	CheckedAt    *string        `json:"checked_at"`
@@ -71,7 +72,7 @@ type sourceJSON struct {
 func newSourceJSON(s Source) sourceJSON {
 	return sourceJSON{
 		UID: s.UID, Name: s.Name, Description: httpapi.OptionalString(s.Description), URL: s.URL, Audience: string(s.Audience),
-		SecretHeader: httpapi.OptionalString(s.SecretHeader), SecretSet: s.SecretSet, Provisioned: s.Provisioned,
+		SecretHeader: httpapi.OptionalString(s.SecretHeader), SecretSet: s.SecretSet, Provisioned: s.Provisioned, Private: s.Private,
 		State: s.State, Failure: httpapi.OptionalString(s.Failure), CheckedAt: httpapi.FormatOptionalTime(s.CheckedAt),
 		Tools:     toolCountsJSON(s.Tools),
 		CreatedAt: httpapi.FormatTime(s.CreatedAt), UpdatedAt: httpapi.FormatTime(s.UpdatedAt),
