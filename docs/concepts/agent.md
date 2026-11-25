@@ -508,7 +508,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 ### Tools in a run
 
 The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
-A run offers 91 of them in a new-dashboard or revision request, 87 in an investigation and 58 in a suggestion.
+A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -517,19 +517,21 @@ Those are an Admin's counts: inside a run each tool needs the same role as over 
 
 The tools fall in five groups:
 
-- observations: the RCA reads and every observation write, including `pin_observation` and `save_run_answer`;
-- dashboards: versions, pins, the home dashboard, viewers, health, `move_dashboard` and the annotation writes;
+- observations: the RCA reads and every observation write, including `pin_observation`;
+- dashboards: versions, pins, the home dashboard, viewers, the health list, `move_dashboard` and the annotation writes;
 - workspace: search, saved searches, activity, the inbox, comments, mentionable people, access requests, proposals, folders and `recheck_datasource`;
 - runs: `get_run`, `get_run_build`, `list_runs`, `list_chats`, `get_chat`, `rename_run`, `pin_run`, `unpin_run` and `archive_run`;
 - audit: the six audit trail tools, for an Admin.
 
-A write may change only what the run is about (its dashboard or observation), an object the run created, the dashboard its build committed and, for the run list writes and `save_run_answer`, a run of its own chat.
-Writes that change only the requester's own state (pins, the home dashboard, the inbox, the run list, `request_comment_access` and `run_dashboard_health`) are offered only in a chat run.
+A write may change only what the run is about (its dashboard or observation), an object the run created, the dashboard its build committed and, for the run list writes, a run of its own chat.
+It names its target: `pin_observation` inside a run needs `dashboard_id`, and an empty id is refused.
+Writes that change only the requester's own state (pins, the home dashboard, the inbox, the run list and `request_comment_access`) are offered only in a chat run.
 A private ask, a chat about a dashboard or an observation, writes nothing shared: it gets only those writes.
 Anything else is refused with `out_of_scope` and a message that names where the change is made, and every call is recorded as a step of the run.
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
+Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 19 tools are left out of every run, each for a reason:
+The other 21 tools are left out of every run, each for a reason:
 
 - `claim_run`, `report_run`, `finish_run` and `get_run_brief`: a run token works a run and never claims one.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
@@ -539,6 +541,8 @@ The other 19 tools are left out of every run, each for a reason:
 - `draft_query`: it makes model calls outside the run's cost.
 - `share_answer`: only the requester shares a finished answer, and inside a run the answer is not finished.
 - `apply_suggested_change`: it posts in a thread and starts a run.
+- `save_run_answer`: a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer.
+- `run_dashboard_health`: it checks every dashboard of the workspace, far outside what one run is about.
 
 [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open.

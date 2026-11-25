@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 	"github.com/slashobserve/slashobserve/internal/homedash"
 	"github.com/slashobserve/slashobserve/internal/stars"
 )
@@ -159,5 +161,20 @@ func TestHomeDashboardToolsRefuseAServiceAccountKeyAndWhatTheCallerCannotSee(t *
 	}
 	if out := r.home(t, gia, nameGetHomeDashboard, `{}`); out.Status != homedash.StatusNone {
 		t.Errorf("after the refusal = %#v, want none", out)
+	}
+}
+
+func TestSetHomeDashboardInARunChecksAccessWithoutNotingARead(t *testing.T) {
+	r := newAccessRig(t).homing()
+	ada := r.person(t, "ada", auth.RoleAdmin)
+	board := r.seed(t, "Salaries")
+	foldertest.Move(t, r.db, board, foldertest.AdminsOnly(t, r.db, "Payroll"))
+	ctx, read := readsIn(t, ada, datasource.AudienceCaller)
+	res, err := r.registry.setHomeDashboard(ctx, []byte(fmt.Sprintf(`{"dashboard_id":%q}`, board.String())))
+	if err != nil || res.IsError {
+		t.Fatalf("set_home_dashboard = %s, %v", textOf(t, res), err)
+	}
+	if read() {
+		t.Fatal("setting the home dashboard noted a read of what it holds")
 	}
 }

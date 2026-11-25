@@ -95,6 +95,9 @@ func (a *Access) CreateAdminsOnlyFolder(ctx context.Context, by auth.Principal, 
 func (a *Access) insertFolder(ctx context.Context, by auth.Principal, byID pgtype.UUID, title string, adminsOnly bool) (dbsqlc.Folder, error) {
 	var row dbsqlc.Folder
 	err := a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := runWriteInto(ctx, q, adminsOnly); err != nil {
+			return err
+		}
 		var err error
 		row, err = q.CreateFolder(ctx, dbsqlc.CreateFolderParams{
 			Title:         title,
@@ -150,6 +153,9 @@ func (a *Access) renameInTx(ctx context.Context, id pgtype.UUID, title string) (
 	err := a.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		before, err := q.LockFolder(ctx, id)
 		if err != nil {
+			return err
+		}
+		if err := runWriteInto(ctx, q, before.AdminsOnly); err != nil {
 			return err
 		}
 		row, err = q.RenameFolder(ctx, dbsqlc.RenameFolderParams{ID: id, Title: title})

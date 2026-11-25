@@ -212,6 +212,18 @@ func TestFolderVariant(t *testing.T) {
 			t.Errorf("%s offers folder_id: MCP %t, agent %t", tool.Name, mcp, agent)
 		}
 	}
+	byName := toolsByName(t)
+	for name, want := range map[string]struct{ mcp, agent bool }{
+		nameCreateDashboard:  {true, true},
+		nameListObservations: {true, false},
+	} {
+		tool := byName[name]
+		_, mcp := schemaProperties(t, tool.InputSchema)["folder_id"]
+		_, agent := schemaProperties(t, tool.ForAgent().InputSchema)["folder_id"]
+		if mcp != want.mcp || agent != want.agent {
+			t.Errorf("%s offers folder_id: MCP %t, agent %t; want MCP %t, agent %t", name, mcp, agent, want.mcp, want.agent)
+		}
+	}
 }
 
 func TestMissingSpecErrorIsTheSameOnBothSurfaces(t *testing.T) {

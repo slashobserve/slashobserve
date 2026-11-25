@@ -71,7 +71,9 @@ func TestCommentWritesRejectAgentRunsAndCommentReadsReachTheThreads(t *testing.T
 
 func TestToolsLeftOutOfRuns(t *testing.T) {
 	var got []string
+	registered := map[string]bool{}
 	for _, tool := range New(Deps{}).List() {
+		registered[tool.Name] = true
 		if tool.MCPOnly {
 			got = append(got, tool.Name)
 		}
@@ -79,11 +81,16 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 			t.Errorf("%s: MCPOnly %v, left out of runs for %q", tool.Name, tool.MCPOnly, leftOutOfRuns[tool.Name])
 		}
 	}
-	if strings.Join(got, ",") != "apply_suggested_change,cancel_run,claim_run,create_comment,draft_query,duplicate_dashboard,edit_comment,finish_run,get_run_brief,make_dashboard,merge_proposal,reopen_comment,reply_to_comment,report_run,resolve_comment,restore_dashboard_version,retry_run,share_answer,start_run" {
+	if strings.Join(got, ",") != "apply_suggested_change,cancel_run,claim_run,create_comment,draft_query,duplicate_dashboard,edit_comment,finish_run,get_run_brief,make_dashboard,merge_proposal,reopen_comment,reply_to_comment,report_run,resolve_comment,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,share_answer,start_run" {
 		t.Fatalf("tools left out of runs = %v", got)
 	}
-	if len(leftOutOfRuns) != len(got) {
-		t.Errorf("leftOutOfRuns names %d tools and %d are registered", len(leftOutOfRuns), len(got))
+	for name, reason := range leftOutOfRuns {
+		if !registered[name] {
+			t.Errorf("leftOutOfRuns names %s, which is not a registered tool", name)
+		}
+		if reason == "" {
+			t.Errorf("%s is left out of runs without a reason", name)
+		}
 	}
 }
 

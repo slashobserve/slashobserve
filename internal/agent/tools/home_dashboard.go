@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
-	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/homedash"
 )
 
@@ -120,12 +119,6 @@ func (r *Registry) setHomeDashboard(ctx context.Context, input json.RawMessage) 
 	principal, res, ok, err := r.homeOwner(ctx)
 	if err != nil || !ok {
 		return res, err
-	}
-	switch err := r.readDashboardContent(ctx, principal, id); {
-	case errors.Is(err, folders.ErrNoAccess), errors.Is(err, folders.ErrNotFound):
-		return toolError(codeNotFound, "dashboard not found"), nil
-	case err != nil:
-		return Result{}, err
 	}
 	switch err := r.deps.Home.Set(ctx, principal, id); {
 	case errors.Is(err, homedash.ErrNotFound):

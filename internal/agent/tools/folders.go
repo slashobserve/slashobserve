@@ -148,6 +148,8 @@ func folderWriteFailure(err error) (Result, bool) {
 	switch {
 	case errors.As(err, &invalidTitle):
 		return invalid("%s", invalidTitle.Message), true
+	case errors.Is(err, folders.ErrRestrictedAnswer):
+		return toolError(folders.CodeRestrictedAnswer, err.Error()), true
 	case errors.Is(err, folders.ErrFolderExists):
 		return toolError("folder_exists", "a folder with that name already exists"), true
 	case errors.Is(err, folders.ErrGeneralFolder):
