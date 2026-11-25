@@ -363,3 +363,39 @@ func TestTraceStatsRefusesARangeInTheFuture(t *testing.T) {
 		t.Fatalf("%d requests reached Tempo", len(fake.requests))
 	}
 }
+
+func TestTraceStatsReadsTempoInstantSeriesWithTypedLabels(t *testing.T) {
+	filter := "{}"
+	service := func(name string) string {
+		return `{"key":"resource.service.name","value":{"stringValue":"` + name + `"}}`
+	}
+	quantile := func(p string) string { return `{"key":"p","value":{"doubleValue":` + p + `}}` }
+	ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	fake.byStep = map[string]reply{
+		filter + quantiles + " by (resource.service.name)@": {0, `{"series":[` +
+			`{"labels":[` + service("cart") + `,` + quantile("0.99") + `],"value":0.001308969453645057},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.99") + `],"value":0.0005163615238064083},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.5") + `],"value":0.0002},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.95") + `],"value":0.0004}]}`},
+		filter + " | count_over_time() by (resource.service.name)@": {0, `{"series":[` +
+			`{"labels":[` + service("ad") + `],"value":12},{"labels":[` + service("cart") + `],"value":30}]}`},
+		filter + quantiles + "@": {0, `{"series":[` + quantileSeries("0.95", "0.0045") + `]}`},
+	}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, GroupBy: "resource.service.name", Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stats.Groups) != 2 {
+		t.Fatalf("groups = %+v", stats.Groups)
+	}
+	cart, ad := stats.Groups[0], stats.Groups[1]
+	if cart.Value != "cart" || cart.Spans != 30 || !is(cart.P99, 1.309) || cart.P50 != nil || cart.P95 != nil {
+		t.Fatalf("cart = %+v, want 30 spans and a p99 of 1.309 ms", cart)
+	}
+	if ad.Value != "ad" || ad.Spans != 12 || !is(ad.P50, 0.2) || !is(ad.P95, 0.4) || !is(ad.P99, 0.516) {
+		t.Fatalf("ad = %+v, want p50 0.2, p95 0.4 and p99 0.516 ms picked by the p label", ad)
+	}
+	if stats.Window == nil || !is(stats.Window.P95, 4.5) || stats.Window.P50 != nil {
+		t.Fatalf("window = %+v, want only a p95 of 4.5 ms", stats.Window)
+	}
+}
