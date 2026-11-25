@@ -33,6 +33,7 @@ import { groupItems, type InboxItem } from "./inbox-item"
 import { focusInboxBell, useInboxPanelStore } from "./inbox-panel-store"
 import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
+import { useLiveInboxToasts } from "./use-live-toasts"
 import {
   inboxInfiniteQuery,
   useMarkInboxRead,
@@ -72,6 +73,7 @@ function ListSkeleton() {
 
 export function InboxPanel() {
   const open = useInboxPanelStore((state) => state.open)
+  useLiveInboxToasts()
   return open ? <InboxCard /> : null
 }
 

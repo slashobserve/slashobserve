@@ -28,6 +28,11 @@ Opening the panel marks nothing read.
 The command palette's **Inbox** and Home's **Open Inbox** open it too.
 The old address `/inbox` opens Home with the panel open, keeping its `view` and `filter`.
 
+When something in **Needs you** arrives while the tab is visible and the panel is closed, a toast appears at the top right under the bell for eight seconds.
+Its **Open** action does what selecting the item does.
+More than three at once give one "N new in Inbox" toast whose **Open** opens the panel.
+Workspace activity never makes a toast, and neither do items that arrived before you opened the app.
+
 One right panel shows at a time.
 While the Inbox panel is open, the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, is hidden, and it comes back as it was when the Inbox closes.
 
