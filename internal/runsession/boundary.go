@@ -49,7 +49,6 @@ type admitted struct {
 	seq    int
 	notes  []string
 	answer *Answer
-	scope  tools.WriteScope
 }
 
 type dispatched struct {
@@ -77,9 +76,22 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	if first.answer != nil {
 		return *first.answer, nil
 	}
+	var scope tools.WriteScope
+	if tools.Phase(call.Name) == tools.PhaseWrite {
+		err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
+			scope = sess.state.writeScope()
+			return nil
+		})
+		if errors.Is(err, errRunNotRunning) {
+			return endedAnswer(), nil
+		}
+		if err != nil {
+			return Answer{}, err
+		}
+	}
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
-	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), first.scope))
+	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), scope))
 	done.took = time.Since(done.start)
 	if readRestricted() {
 		if err := s.markReadRestricted(ctx, req); err != nil {
@@ -143,7 +155,6 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 	open.Admitted++
 	out.seq = open.Seq
 	out.adm = sess.state.Guard.Admit(position, c)
-	out.scope = sess.state.writeScope()
 	if out.adm.Verdict != guard.Refuse {
 		return out, nil
 	}
