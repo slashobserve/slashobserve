@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { createContext, useContext, useEffect, useRef } from "react"
 import {
   infiniteQueryOptions,
   useInfiniteQuery,
@@ -17,6 +17,16 @@ import {
 const pageSize = 50
 const countStaleTime = 30_000
 const liveDebounceMs = 1000
+const pollMs = 15_000
+
+export const InboxStreamContext = createContext(false)
+
+export function forYouPollInterval(
+  streamed: boolean,
+  visible: boolean
+): number | false {
+  return !streamed && visible ? pollMs : false
+}
 
 export function inboxInfiniteQuery(
   view: InboxView,
@@ -39,9 +49,12 @@ export function inboxInfiniteQuery(
 }
 
 export function useInboxForYou() {
+  const streamed = useContext(InboxStreamContext)
+  const visible = useDocumentVisible()
   return useInfiniteQuery({
     ...inboxInfiniteQuery("for_you"),
     staleTime: countStaleTime,
+    refetchInterval: forYouPollInterval(streamed, visible),
   })
 }
 

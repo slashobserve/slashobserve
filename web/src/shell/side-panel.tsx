@@ -13,7 +13,6 @@ import { createPortal } from "react-dom"
 import { useActivityStore, usePanelLayout } from "@/activity/activity-store"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
-import { useInboxPanelOpen } from "@/inbox/inbox-panel-store"
 
 export const PanelHostContext = createContext<HTMLElement | null>(null)
 
@@ -54,7 +53,6 @@ function PanelCard({
   const titleRef = titleRefProp ?? ownTitleRef
   const layout = usePanelLayout()
   const setPanelWidth = useActivityStore((state) => state.setPanelWidth)
-  const inboxOpen = useInboxPanelOpen()
 
   useEffect(() => {
     const previous = document.activeElement
@@ -88,7 +86,7 @@ function PanelCard({
   return (
     <DockPanel
       ref={asideRef}
-      hidden={hidden || inboxOpen}
+      hidden={hidden}
       labelledBy={titleId}
       onKeyDown={onKeyDown}
       width={layout.width}

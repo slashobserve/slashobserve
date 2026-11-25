@@ -7,6 +7,7 @@ import {
 } from "react"
 
 import { useViewportWidth } from "@/activity/activity-store"
+import { useInboxPanelOpen } from "@/inbox/inbox-panel-store"
 import { cn } from "@/lib/utils"
 
 import { isNarrow, type WidthBounds } from "./card-width"
@@ -22,6 +23,7 @@ type Props = {
   onWidthChange: (width: number) => void
   stacked: DockStacking
   hidden?: boolean
+  isInbox?: boolean
   onKeyDown?: (event: KeyboardEvent<HTMLElement>) => void
   ref?: Ref<HTMLElement>
   children: ReactNode
@@ -49,10 +51,12 @@ export function DockPanel({
   onWidthChange,
   stacked,
   hidden,
+  isInbox = false,
   onKeyDown,
   ref,
   children,
 }: Props) {
+  const yieldsToInbox = useInboxPanelOpen() && !isInbox
   const narrow = isNarrow(useViewportWidth())
   const [peek, setPeek] = useState(false)
   const mode =
@@ -69,7 +73,7 @@ export function DockPanel({
     <aside
       ref={ref}
       id={id}
-      hidden={hidden}
+      hidden={hidden || yieldsToInbox}
       aria-labelledby={labelledBy}
       onKeyDown={onKeyDown}
       data-sheet={mode === "sheet" ? "" : undefined}

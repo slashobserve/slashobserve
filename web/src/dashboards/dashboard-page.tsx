@@ -49,6 +49,7 @@ import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { PinToggle } from "@/pins/pin-toggle"
 import { ShareToggle } from "@/share/share-pane"
+import { InboxPanel } from "@/inbox/inbox-panel"
 import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
@@ -1204,6 +1205,7 @@ function DashboardView({
                   data-panel-host=""
                   className="contents"
                 />
+                {kiosk ? null : <InboxPanel />}
                 {specOpen ? (
                   <SpecJsonPane
                     dashboardId={dashboardId}

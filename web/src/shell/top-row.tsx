@@ -1,6 +1,6 @@
 import { Breadcrumb } from "./breadcrumb"
 import { useCrumbs } from "./crumbs"
-import { InboxBell } from "./inbox-bell"
+import { TopRowInboxBell } from "./inbox-bell"
 
 export function TopRow({
   setActionsHost,
@@ -25,11 +25,7 @@ export function TopRow({
         data-slot="top-row-actions"
         className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5"
       />
-      <InboxBell
-        place="top"
-        className="grid size-8 flex-none place-items-center rounded-control text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted narrow:hidden"
-        badgeClassName="-top-0.5 -right-1 border-background"
-      />
+      <TopRowInboxBell />
     </header>
   )
 }

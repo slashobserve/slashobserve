@@ -182,6 +182,7 @@ function InboxCard() {
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== "Escape" || event.defaultPrevented) return
     if (!asideRef.current?.contains(event.target as Node)) return
+    event.preventDefault()
     closeToBell()
   }
 
@@ -265,6 +266,7 @@ function InboxCard() {
   return (
     <DockPanel
       ref={asideRef}
+      isInbox
       labelledBy={titleId}
       onKeyDown={onKeyDown}
       width={layout.width}

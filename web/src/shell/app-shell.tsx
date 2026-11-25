@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
 import { InboxPanel } from "@/inbox/inbox-panel"
-import { useInboxLive } from "@/inbox/queries"
+import { InboxStreamContext, useInboxLive } from "@/inbox/queries"
 import { isModChord } from "@/lib/shortcuts"
 
 import { CommandPalette } from "./command-palette"
@@ -53,32 +53,34 @@ export function AppShell() {
   const [titleHost, setTitleHost] = useState<HTMLSpanElement | null>(null)
   const [crumbHidden, setCrumbHidden] = useState(false)
   return (
-    <PanelHostContext value={panelHost}>
-      <ActionsHostContext value={actionsHost}>
-        <TitleHostContext value={titleHost}>
-          <HideCrumbContext value={setCrumbHidden}>
-            <div className="flex h-svh bg-chrome text-foreground">
-              <Sidebar />
-              <div className="group/shell @container flex min-w-0 flex-1 flex-wrap overflow-y-auto bg-background">
-                <main className="flex max-h-full min-h-0 min-w-0 flex-[1_1_560px] flex-col overflow-hidden @max-[1000px]:group-has-[aside]/shell:max-h-none">
-                  <PhoneBar />
-                  <TopRow
-                    setActionsHost={setActionsHost}
-                    setTitleHost={setTitleHost}
-                    crumbHidden={crumbHidden}
-                  />
-                  <div className="relative min-h-0 flex-1 overflow-auto px-6 pt-3.5 pb-7 narrow:px-4">
-                    <Outlet />
-                  </div>
-                </main>
-                <div ref={setPanelHost} className="contents" />
-                <InboxPanel />
+    <InboxStreamContext value={true}>
+      <PanelHostContext value={panelHost}>
+        <ActionsHostContext value={actionsHost}>
+          <TitleHostContext value={titleHost}>
+            <HideCrumbContext value={setCrumbHidden}>
+              <div className="flex h-svh bg-chrome text-foreground">
+                <Sidebar />
+                <div className="group/shell @container flex min-w-0 flex-1 flex-wrap overflow-y-auto bg-background">
+                  <main className="flex max-h-full min-h-0 min-w-0 flex-[1_1_560px] flex-col overflow-hidden @max-[1000px]:group-has-[aside]/shell:max-h-none">
+                    <PhoneBar />
+                    <TopRow
+                      setActionsHost={setActionsHost}
+                      setTitleHost={setTitleHost}
+                      crumbHidden={crumbHidden}
+                    />
+                    <div className="relative min-h-0 flex-1 overflow-auto px-6 pt-3.5 pb-7 narrow:px-4">
+                      <Outlet />
+                    </div>
+                  </main>
+                  <div ref={setPanelHost} className="contents" />
+                  <InboxPanel />
+                </div>
+                <CommandPalette />
               </div>
-              <CommandPalette />
-            </div>
-          </HideCrumbContext>
-        </TitleHostContext>
-      </ActionsHostContext>
-    </PanelHostContext>
+            </HideCrumbContext>
+          </TitleHostContext>
+        </ActionsHostContext>
+      </PanelHostContext>
+    </InboxStreamContext>
   )
 }

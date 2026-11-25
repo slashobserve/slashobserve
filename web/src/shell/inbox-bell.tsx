@@ -39,3 +39,13 @@ export function InboxBell({
     </button>
   )
 }
+
+export function TopRowInboxBell() {
+  return (
+    <InboxBell
+      place="top"
+      className="grid size-8 flex-none place-items-center rounded-control text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-muted narrow:hidden"
+      badgeClassName="-top-0.5 -right-1 border-background"
+    />
+  )
+}

@@ -13,7 +13,7 @@ A service-account key gets 403 `user_session_required`, and the `observe` comman
 ## Work through your inbox
 
 1. Choose the bell at the top right of any page to open the Inbox panel on the right.
-   A badge on the bell shows the unread count, "99+" from 100, and it updates while you use the app.
+   A badge on the bell shows the unread count, "99+" from 100, and it updates as activity arrives; on a dashboard it refreshes every 15 seconds.
    On a phone the bell is in the bar at the top, and on a narrow screen the panel opens as a sheet from the bottom.
 2. Read the **Needs you** group.
    Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
@@ -29,7 +29,7 @@ The command palette's **Inbox** and Home's **Open Inbox** open it too.
 The old address `/inbox` opens Home with the panel open, keeping its `view` and `filter`.
 
 One right panel shows at a time.
-While the Inbox panel is open, the page's own panel, such as a dashboard's Chat and Activity or a History panel, is hidden, and it comes back as it was when the Inbox closes.
+While the Inbox panel is open, the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, is hidden, and it comes back as it was when the Inbox closes.
 
 Each row names who did what and the real title of the dashboard, observation or proposal.
 It shows the start of the comment for a mention or a reply, and has a dot while it is unread.
