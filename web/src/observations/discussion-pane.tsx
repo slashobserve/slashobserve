@@ -166,6 +166,12 @@ export function DiscussionPane({
     setFilterBlock(noFilter.blockId)
   }
 
+  const [filteredFor, setFilteredFor] = useState(focusedThreadId)
+  if (filteredFor !== focusedThreadId) {
+    setFilteredFor(focusedThreadId)
+    if (focusedThreadId !== undefined) clearFilter()
+  }
+
   if (!host) return null
   return createPortal(
     <DockPanel
@@ -214,7 +220,7 @@ export function DiscussionPane({
           onShow: onShowBlock,
         }}
         view={{ filter, onClear: clearFilter }}
-        focusedThreadId={focusedThreadId}
+        focusedThreadId={hidden ? undefined : focusedThreadId}
         readOnlyAction={
           <RequestCommentAccess
             object={{ kind: "observation", id: observation.id }}
