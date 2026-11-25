@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -203,6 +203,30 @@ describe("WebhooksCard", () => {
     await waitFor(() =>
       expect(screen.queryByText(`Attempts of ${stuck.id}`)).toBeNull()
     )
+  })
+
+  it("tabs through Test, Attempts and More in the actions cell", async () => {
+    renderCard(stuck)
+    const test = await screen.findByRole("button", {
+      name: "Test Dashboard changes",
+    })
+    const attempts = screen.getByRole("button", {
+      name: "Attempts of Dashboard changes",
+    })
+    const more = screen.getByRole("button", {
+      name: "More for Dashboard changes",
+    })
+    const cell = test.closest<HTMLElement>("[role=gridcell]") as HTMLElement
+    cell.focus()
+
+    fireEvent.keyDown(cell, { key: "Tab" })
+    expect(test).toHaveFocus()
+    fireEvent.keyDown(test, { key: "Tab" })
+    expect(attempts).toHaveFocus()
+    fireEvent.keyDown(attempts, { key: "Tab" })
+    expect(more).toHaveFocus()
+    fireEvent.keyDown(more, { key: "Tab", shiftKey: true })
+    expect(attempts).toHaveFocus()
   })
 
   it("marks the row of the webhook being edited", async () => {
