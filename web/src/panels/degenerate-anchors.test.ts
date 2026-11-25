@@ -195,6 +195,7 @@ describe("anchors stay inside what the server accepts", () => {
     const anchor = tableAt(
       {
         body,
+        gridBottom: body.height,
         header: null,
         columns,
         rows: [

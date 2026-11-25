@@ -6,6 +6,7 @@ import { hitTest, locate, reveal, type TableAnchorLayout } from "./anchors"
 
 const layout: TableAnchorLayout = {
   body: { width: 400, height: 200 },
+  gridBottom: 160,
   header: { y: 0, height: 32 },
   columns: [
     { name: "service", left: 0, width: 100, dimension: true },
@@ -97,14 +98,22 @@ describe("table locate", () => {
     })
   })
 
-  it("points at the bottom edge for a row scrolled out of view", () => {
+  it("points at the grid bottom edge, above the pagination bar, for a row on another page", () => {
     const scrolled = {
       ...layout,
       elsewhere: [{ key: "r9", cells: ["search", "query", "12"] }],
     }
     expect(
       locate(scrolled, { kind: "row", pos, row: { service: "search" } })
-    ).toEqual({ x: 0, y: 200 - edgeHeight, width: 400, height: edgeHeight })
+    ).toEqual({ x: 0, y: 160 - edgeHeight, width: 400, height: edgeHeight })
+    const edge = locate(scrolled, {
+      kind: "row",
+      pos,
+      row: { service: "search" },
+    })
+    expect(edge ? edge.y + edge.height : 0).toBeLessThanOrEqual(
+      scrolled.gridBottom
+    )
   })
 
   it("returns null when the row or column is gone", () => {

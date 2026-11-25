@@ -27,6 +27,7 @@ export type AnchorRow = {
 
 export type TableAnchorLayout = {
   body: Size
+  gridBottom: number
   header: Pick<Rect, "y" | "height"> | null
   columns: readonly AnchorColumn[]
   rows: readonly AnchorRow[]
@@ -143,7 +144,7 @@ export function locate(layout: TableAnchorLayout, anchor: Anchor): Rect | null {
       if (row === null)
         return rowElsewhere(layout, anchor) === null
           ? null
-          : bottomEdge(layout.body)
+          : bottomEdge({ width: layout.body.width, height: layout.gridBottom })
       return column === undefined
         ? rowRect(layout, row)
         : columnRect(layout, column, row)

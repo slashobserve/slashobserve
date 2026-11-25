@@ -1043,6 +1043,7 @@ function tableAnchorLayout(
   )
   return {
     body,
+    gridBottom: area.y + area.height,
     header,
     columns,
     rows,
