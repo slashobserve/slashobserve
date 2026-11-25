@@ -91,9 +91,16 @@ func (r *Registry) getHomeDashboard(ctx context.Context, input json.RawMessage) 
 	if err != nil || !ok {
 		return res, err
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
+	}
 	home, err := r.deps.Home.Get(ctx, principal)
 	if err != nil {
 		return Result{}, err
+	}
+	if home.Status == homedash.StatusOK {
+		titles.holds(ctx, home.FolderID)
 	}
 	return success(homeSummary(home), homeOut(home)), nil
 }

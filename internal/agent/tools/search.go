@@ -80,6 +80,7 @@ type searchResultOut struct {
 type searchListOut struct {
 	Results    []searchResultOut `json:"results"`
 	NextCursor *string           `json:"next_cursor"`
+	leftOutOut
 }
 
 func (r *Registry) searchWorkspace(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -104,13 +105,18 @@ func (r *Registry) searchWorkspace(ctx context.Context, input json.RawMessage) (
 	if res, ok := checkLength("cursor", in.Cursor, maxNameBytes); !ok {
 		return res, nil
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		page, err := r.deps.Search.Search(ctx, principal, search.Request{Q: in.Q, Kinds: kinds, Limit: limit, Cursor: in.Cursor})
 		if err != nil {
 			return searchFailure(err)
 		}
-		out := searchListOut{Results: make([]searchResultOut, 0, len(page.Results))}
+		page.Results = keepReadable(titles, page.Results, resultFolder)
+		out := searchListOut{Results: make([]searchResultOut, 0, len(page.Results)), leftOutOut: titles.report("result", "results")}
 		for _, result := range page.Results {
 			out.Results = append(out.Results, searchResultOf(result))
 		}
@@ -119,10 +125,22 @@ func (r *Registry) searchWorkspace(ctx context.Context, input json.RawMessage) (
 		}
 		kept, cut := fit(out.Results, listBudget-jsonSize(searchListOut{Results: []searchResultOut{}, NextCursor: out.NextCursor}))
 		if !cut || len(out.Results) == 1 {
+			titles.done(ctx)
 			return success("Found "+plural(len(out.Results), "result", "results"), out), nil
 		}
 		limit = max(len(kept), 1)
 	}
+}
+
+func resultFolder(r search.Result) (string, string) {
+	subject := r.ID
+	if r.Target != nil {
+		subject = r.Target.ID
+	}
+	if r.Folder == nil {
+		return "", subject
+	}
+	return r.Folder.ID, subject
 }
 
 func searchResultOf(r search.Result) searchResultOut {

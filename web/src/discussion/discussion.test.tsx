@@ -163,6 +163,26 @@ describe("Discussion", () => {
     expect(rows[1]).toHaveTextContent("body of m2")
   })
 
+  it("marks the opening message of the focused thread and no other", async () => {
+    const opening = message("t1", grace, "2020-11-10T09:00:00Z")
+    mockServer({ threads: [thread], messages: () => [opening, later] })
+    renderDiscussion({ focusedThreadId: "t1" })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    const rows = within(list)
+      .getAllByRole("listitem")
+      .filter((row) => !row.hasAttribute("data-day"))
+    expect(rows[0]).toHaveAttribute("aria-current", "true")
+    expect(rows[1]).not.toHaveAttribute("aria-current")
+  })
+
+  it("marks nothing when no thread is focused", async () => {
+    const opening = message("t1", grace, "2020-11-10T09:00:00Z")
+    mockServer({ threads: [thread], messages: () => [opening, later] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(list.querySelector("[aria-current]")).toBeNull()
+  })
+
   it("replies in the thread with the typed body", async () => {
     const posts = mockServer({
       threads: [thread],

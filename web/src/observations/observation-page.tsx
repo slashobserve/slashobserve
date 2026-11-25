@@ -77,9 +77,13 @@ type RcaControl = { open: boolean; onOpenChange: (open: boolean) => void }
 function LoadedObservation({
   envelope,
   rca,
+  focusedThreadId,
+  onClearThread,
 }: {
   envelope: ObservationEnvelope
   rca: RcaControl
+  focusedThreadId?: string
+  onClearThread: () => void
 }) {
   const { observation, permissions } = envelope
   const blocks = observation.blocks ?? []
@@ -91,9 +95,14 @@ function LoadedObservation({
   const revisions = useQuery(rcasQuery(observation.id))
   const hasRevisions = (revisions.data?.length ?? 0) > 0
   const rcaButton = useRef<HTMLButtonElement>(null)
-  const [discussionShown, setDiscussionShown] = useState(() =>
-    opensByDefault(window.innerWidth)
+  const [discussionShown, setDiscussionShown] = useState(
+    () => focusedThreadId !== undefined || opensByDefault(window.innerWidth)
   )
+  const [openedFor, setOpenedFor] = useState(focusedThreadId)
+  if (openedFor !== focusedThreadId) {
+    setOpenedFor(focusedThreadId)
+    if (focusedThreadId !== undefined) setDiscussionShown(true)
+  }
   const [moving, setMoving] = useState(false)
   const [picking, setPicking] = useState(false)
   const [editing, setEditing] = useState<BlockEditRequest | null>(null)
@@ -167,6 +176,7 @@ function LoadedObservation({
   function onToggle() {
     if (discussionShown) {
       setDiscussionShown(false)
+      if (focusedThreadId !== undefined) onClearThread()
       return
     }
     focusAfterToggle.current = "heading"
@@ -176,6 +186,7 @@ function LoadedObservation({
   function onClosePane() {
     focusAfterToggle.current = "toggle"
     setDiscussionShown(false)
+    if (focusedThreadId !== undefined) onClearThread()
   }
 
   return (
@@ -250,6 +261,7 @@ function LoadedObservation({
             rca.open || moving || picking || inspecting || editing !== null
           }
           headingRef={headingRef}
+          focusedThreadId={focusedThreadId}
           onClose={onClosePane}
           onShowBlock={onShowBlock}
           onAdded={addedFromDiscussion}
@@ -311,9 +323,13 @@ function LoadedObservation({
 export function ObservationPage({
   observationId,
   rca,
+  focusedThreadId,
+  onClearThread,
 }: {
   observationId: string
   rca: RcaControl
+  focusedThreadId?: string
+  onClearThread: () => void
 }) {
   const query = useObservation(observationId)
   const title =
@@ -326,7 +342,14 @@ export function ObservationPage({
       : `${title} - Observations - SlashObserve`
   )
   if (query.data !== undefined)
-    return <LoadedObservation envelope={query.data} rca={rca} />
+    return (
+      <LoadedObservation
+        envelope={query.data}
+        rca={rca}
+        focusedThreadId={focusedThreadId}
+        onClearThread={onClearThread}
+      />
+    )
   if (observationIsMissing(query.error)) {
     return <ObservationNotFound />
   }
