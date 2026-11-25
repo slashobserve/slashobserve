@@ -69,7 +69,7 @@ export function SourcePanel({
 
   return (
     <SidePanel
-      title={adding ? "Add a context source" : `Edit ${mode.source.name}`}
+      title={adding ? "Add an MCP server" : `Edit ${mode.source.name}`}
       description={
         adding
           ? "Register an MCP server the agent can use for outside context."
