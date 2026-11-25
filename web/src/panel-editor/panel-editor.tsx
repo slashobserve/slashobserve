@@ -600,7 +600,7 @@ export default function PanelEditor({
     <div className="flex min-h-0 flex-1 flex-col">
       <ScrollPane
         ref={bodyRef}
-        className="flex flex-1 flex-col gap-4 px-4 py-3.5"
+        className="@container flex flex-1 flex-col gap-4 px-4 py-3.5"
       >
         {backup.kept ? (
           <Alert>
@@ -656,7 +656,7 @@ export default function PanelEditor({
         )}
         {view === "editor" ? (
           <>
-            <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 narrow:grid-cols-1">
+            <div className="grid grid-cols-[minmax(0,1fr)_220px] items-start gap-5 @max-[34rem]:grid-cols-1">
               <div className="flex min-w-0 flex-col gap-3">
                 {data && !reusesPanel(data) ? (
                   <div className="flex flex-wrap items-center justify-between gap-2">

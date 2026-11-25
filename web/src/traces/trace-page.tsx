@@ -259,7 +259,7 @@ function TraceHeader({
             </span>
           </>
         ) : null}
-        <span aria-current="page" className="min-w-0 truncate font-medium">
+        <span aria-current="page" className="min-w-16 truncate font-medium">
           {title || "Trace"}
         </span>
       </TopRowTitle>
