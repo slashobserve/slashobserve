@@ -104,13 +104,25 @@ const inboxBadgeQuery = queryOptions({
     fetchInboxPage("for_you", "open", undefined, 1, signal),
 })
 
-export function useInboxCount(): number | null {
-  const badge = useQuery({
+function useInboxBadge() {
+  return useQuery({
     ...inboxBadgeQuery,
     staleTime: countStaleTime,
     refetchInterval: useInboxPollInterval(),
   })
-  return badge.data?.unread_count ?? null
+}
+
+export function useInboxCount(): number | null {
+  return useInboxBadge().data?.unread_count ?? null
+}
+
+export function useInboxNewestSeq(): number | null {
+  const badge = useInboxBadge().data
+  return badge === undefined ? null : (badge.items[0]?.seq ?? 0)
+}
+
+export function fetchInboxHead(): Promise<InboxList> {
+  return fetchInboxPage("for_you", "open", undefined, pageSize)
 }
 
 export function useMarkInboxRead() {

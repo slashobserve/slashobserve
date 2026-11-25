@@ -7,8 +7,18 @@ import { useDocumentVisible } from "@/live/use-activity-stream"
 
 import { itemLink, itemText, type InboxItem } from "./inbox-item"
 import { useInboxPanelStore } from "./inbox-panel-store"
-import { liveToastDuration, liveToasterId, planLiveToasts } from "./live-toasts"
-import { useInboxForYou, useSetInboxItemUnread } from "./queries"
+import {
+  gateLiveToasts,
+  liveToastDuration,
+  liveToasterId,
+  planLiveToasts,
+  type LiveToastPlan,
+} from "./live-toasts"
+import {
+  fetchInboxHead,
+  useInboxNewestSeq,
+  useSetInboxItemUnread,
+} from "./queries"
 
 type Cursor = { principal: string | null; seen: number | null; resync: boolean }
 
@@ -39,29 +49,30 @@ function toastDescription(item: InboxItem): string | undefined {
 export function useLiveInboxToasts(): void {
   const navigate = useNavigate()
   const { mutate: markRead } = useSetInboxItemUnread()
-  const data = useInboxForYou().data
+  const newest = useInboxNewestSeq()
   const visible = useDocumentVisible()
-  const principal = useMatch({
-    from: "/_authed",
-    shouldThrow: false,
-    select: (match) => match.context.principal.id,
-  })
+  const principal =
+    useMatch({
+      from: "/_authed",
+      shouldThrow: false,
+      select: (match) => match.context.principal.id,
+    }) ?? null
 
   useEffect(() => {
-    if (!visible) cursorFor(principal ?? null).resync = true
+    if (!visible) cursorFor(principal).resync = true
   }, [visible, principal])
 
   useEffect(() => {
-    if (data === undefined) return
-    const current = cursorFor(principal ?? null)
-    const items = data.pages.flatMap((page) => page.items)
+    if (newest === null) return
+    const current = cursorFor(principal)
     const hidden = document.hidden
-    const plan = planLiveToasts(items, current.seen, {
+    const gate = gateLiveToasts(newest, current.seen, {
       panelOpen: useInboxPanelStore.getState().open,
       resync: current.resync || hidden,
     })
-    current.seen = plan.seen
+    current.seen = gate.seen
     current.resync = hidden
+    if (!gate.fetch) return
 
     function open(item: InboxItem) {
       if (item.unread) markRead({ seq: item.seq, unread: false })
@@ -75,23 +86,42 @@ export function useLiveInboxToasts(): void {
       void navigate({ to: link.to, search: link.search })
     }
 
-    for (const item of plan.items) {
-      toast(toastTitle(item), {
-        toasterId: liveToasterId,
-        duration: liveToastDuration,
-        description: toastDescription(item),
-        action: { label: "Open", onClick: () => open(item) },
-      })
+    function show(plan: LiveToastPlan) {
+      for (const item of plan.items) {
+        toast(toastTitle(item), {
+          toasterId: liveToasterId,
+          duration: liveToastDuration,
+          description: toastDescription(item),
+          action: { label: "Open", onClick: () => open(item) },
+        })
+      }
+      if (plan.overflow > 0) {
+        toast(`${plan.overflow} new in Inbox`, {
+          toasterId: liveToasterId,
+          duration: liveToastDuration,
+          action: {
+            label: "Open",
+            onClick: () => useInboxPanelStore.getState().show(),
+          },
+        })
+      }
     }
-    if (plan.overflow > 0) {
-      toast(`${plan.overflow} new in Inbox`, {
-        toasterId: liveToasterId,
-        duration: liveToastDuration,
-        action: {
-          label: "Open",
-          onClick: () => useInboxPanelStore.getState().show(),
-        },
-      })
-    }
-  }, [data, principal, navigate, markRead])
+
+    void fetchInboxHead().then(
+      (head) => {
+        if (cursor !== current || current.seen === null) return
+        if (useInboxPanelStore.getState().open || document.hidden) {
+          current.seen = Math.max(
+            current.seen,
+            ...head.items.map((item) => item.seq)
+          )
+          return
+        }
+        const plan = planLiveToasts(head.items, current.seen)
+        current.seen = plan.seen
+        show(plan)
+      },
+      () => {}
+    )
+  }, [newest, principal, navigate, markRead])
 }
