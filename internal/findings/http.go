@@ -86,6 +86,7 @@ type FindingJSON struct {
 	Restricted      bool    `json:"restricted"`
 
 	StructuredJSON
+	Unverified []Unverified `json:"unverified"`
 
 	From         string            `json:"from"`
 	To           string            `json:"to"`
@@ -147,6 +148,7 @@ func JSONOf(f Finding, url string) FindingJSON {
 		ObserveWorthy:   f.ObserveWorthy,
 		Restricted:      f.Restricted,
 		StructuredJSON:  StructuredJSONOf(f.Structured),
+		Unverified:      append([]Unverified{}, f.Unverified...),
 		From:            httpapi.FormatTime(f.From),
 		To:              httpapi.FormatTime(f.To),
 		AsOf:            httpapi.FormatOptionalTime(f.AsOf),

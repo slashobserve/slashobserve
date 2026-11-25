@@ -160,7 +160,7 @@ func TestFollowReadsInCommitOrderAfterAPosition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"xid < pg_snapshot_xmin(pg_current_snapshot())", "(xid, seq) > (", "ORDER BY xid, seq LIMIT"} {
+	for _, want := range []string{"xid < pg_snapshot_xmin(pg_current_snapshot())", "(xid, seq) > (", "ORDER BY audit_events.xid, audit_events.seq LIMIT"} {
 		if !strings.Contains(c.SQL, want) {
 			t.Errorf("follow SQL lacks %q: %s", want, c.SQL)
 		}

@@ -157,6 +157,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, extras.askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
 	save.Structured = extras.structured
+	save.Unverified = unverifiedOf(ctx)
 	save.AsOf = run.asOf()
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {

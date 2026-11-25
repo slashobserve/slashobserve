@@ -1,12 +1,12 @@
 -- name: InsertFinding :one
 INSERT INTO findings (id, agent_request_id, dashboard_id, ask_dashboard_id, observation_id, title, markdown, evidence, time_from, time_to,
   created_by_kind, created_by_id, created_by_name, origin, origin_client, suggested_change, observe_worthy, as_of,
-  root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident)
+  root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified)
 VALUES (coalesce(sqlc.narg('id')::uuid, gen_random_uuid()), sqlc.narg('agent_request_id')::uuid, sqlc.narg('dashboard_id')::uuid, sqlc.narg('ask_dashboard_id')::uuid, @observation_id,
   @title, @markdown, @evidence::jsonb, @time_from, @time_to, @created_by_kind, @created_by_id, @created_by_name,
   sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, sqlc.narg('suggested_change')::text, @observe_worthy, sqlc.narg('as_of')::timestamptz,
   sqlc.narg('root_cause_component')::text, sqlc.narg('root_cause_kind')::text, sqlc.narg('root_cause_summary')::text, sqlc.narg('onset')::timestamptz,
-  sqlc.narg('impact')::text, sqlc.narg('confidence')::text, sqlc.narg('ruled_out')::text[], sqlc.narg('next_steps')::text[], sqlc.narg('no_incident')::boolean)
+  sqlc.narg('impact')::text, sqlc.narg('confidence')::text, sqlc.narg('ruled_out')::text[], sqlc.narg('next_steps')::text[], sqlc.narg('no_incident')::boolean, sqlc.narg('unverified')::jsonb)
 ON CONFLICT (agent_request_id) WHERE agent_request_id IS NOT NULL DO NOTHING
 RETURNING *;
 
@@ -87,5 +87,5 @@ WHERE f.observation_id = @observation_id
     WHERE b.observation_id = f.observation_id AND b.run_id = f.agent_request_id AND b.kind = 'text'
   )
   AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
-    OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL)
+    OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL OR unverified IS NOT NULL)
 ORDER BY f.created_at, f.id;

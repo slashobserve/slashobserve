@@ -5710,10 +5710,23 @@ components:
           type: string
           maxLength: 300
           description: One sentence on what failed.
+    FindingUnverified:
+      type: object
+      additionalProperties: false
+      required: [kind, text]
+      properties:
+        kind:
+          type: string
+          enum: [figure, component, onset]
+          description: A figure from the Markdown or the impact, the root cause component, or the onset time.
+        text:
+          type: string
+          maxLength: 120
+          description: The item as the agent wrote it, such as "523 ms".
     ObservationRunFinding:
       type: object
       additionalProperties: false
-      required: [run_id, root_cause, onset, impact, confidence, ruled_out, next_steps, no_incident]
+      required: [run_id, root_cause, onset, impact, confidence, ruled_out, next_steps, no_incident, unverified]
       description: The structured fields of the finding one run wrote into the observation.
       properties:
         run_id:
@@ -5756,6 +5769,12 @@ components:
         no_incident:
           type: boolean
           description: True when the investigation found nothing wrong.
+        unverified:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/FindingUnverified"
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
     FindingAskOn:
       type: object
       additionalProperties: false
@@ -5888,6 +5907,12 @@ components:
         no_incident:
           type: boolean
           description: True when the investigation found nothing wrong.
+        unverified:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/FindingUnverified"
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
         from:
           type: string
           format: date-time
@@ -7779,7 +7804,7 @@ components:
             $ref: "#/components/schemas/ObservationBlock"
         findings:
           type: array
-          description: The structured fields of each finding a run wrote into the observation, oldest first; present only when one observation is read and a finding set at least one field.
+          description: The structured fields of each finding a run wrote into the observation, oldest first; present only when one observation is read and a finding set at least one field or has unverified items.
           items:
             $ref: "#/components/schemas/ObservationRunFinding"
         chat_rename:
