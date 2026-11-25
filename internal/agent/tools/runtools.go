@@ -59,7 +59,7 @@ func (run Run) chatRun() bool {
 }
 
 func (run Run) privateAsk() bool {
-	return run.ChatID != "" && !run.Investigation && (run.DashboardID != "" || len(run.Observations) > 0)
+	return run.Mode == ModeInvestigate && run.ChatID != "" && !run.ThreadAsk && !run.Investigation && (run.DashboardID != "" || len(run.Observations) > 0)
 }
 
 func (run Run) subjectIs(id string) bool {

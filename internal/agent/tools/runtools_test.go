@@ -232,3 +232,34 @@ func writeTool(r *Registry, name string) Tool {
 	tool.MCPOnly = false
 	return tool
 }
+
+func TestOnlyAChatAskInInvestigateModeIsPrivate(t *testing.T) {
+	apply := Run{Mode: ModeRevise, Build: true, RequestID: otherID, ChatID: "chat", DashboardID: subjectID}
+	threadWithChat := threadAsk()
+	threadWithChat.ChatID = "chat"
+	investigation := privateChat()
+	investigation.Investigation = true
+	cases := map[string]struct {
+		run  Run
+		want bool
+	}{
+		"chat ask on a dashboard":  {privateChat(), true},
+		"home chat":                {homeChat(), false},
+		"apply from a chat":        {apply, false},
+		"thread ask with a chat":   {threadWithChat, false},
+		"investigation from chat":  {investigation, false},
+		"ask on an observation":    {Run{Mode: ModeInvestigate, ChatID: "chat", Observations: []string{subjectID}}, true},
+		"investigate without chat": {Run{Mode: ModeInvestigate, DashboardID: subjectID}, false},
+	}
+	for name, tc := range cases {
+		if got := tc.run.privateAsk(); got != tc.want {
+			t.Errorf("%s: privateAsk = %v, want %v", name, got, tc.want)
+		}
+	}
+	if got := violation(nameMoveDashboard, apply, WriteScope{}, `{"dashboard_id":"`+subjectID+`"}`); got != "" {
+		t.Errorf("a write on the subject of an apply run from a chat: %s", got)
+	}
+	if got := violation(nameAddBlock, threadWithChat, WriteScope{}, `{"observation_id":"`+subjectID+`"}`); got != "" {
+		t.Errorf("a write on the subject of a thread ask with a chat id: %s", got)
+	}
+}
