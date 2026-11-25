@@ -8,6 +8,8 @@ When several pods or services tie, lead with the one with the most errors, then 
 Call `list_annotations` for the window and the day before it, and cite the deploys and incidents that fit, with their times.
 When an earlier observation may bear on the question, find it with `list_observations` and read it with `get_observation`, and cite it by its title and `/o/<id>`; its numbers are from an earlier time, so say so and check them against your window.
 Before you say a signal does not exist, list its metrics with scope set to a selector for the service and say what you filtered by; a read that failed or timed out could not check anything, so say that instead of calling it empty.
+A filter that returns nothing matched nothing; it does not show that there were no errors or no data.
+Check the values it filters on with `list_label_values` or `sample_rows`, such as a ClickHouse span status, which is `Error`, and retry; when the first metric you try is empty, look for the service's span-metrics series, whose names contain `span_metrics`, before you end.
 Your model calls are limited: run every read you need together, and if a read is refused, say in the finding what you did not read and give only counts you read.
 Write the first sentence in plain words, not query jargon.
 End with exactly one save_finding call.

@@ -460,3 +460,15 @@ func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
 		t.Errorf("a Home run's description differs from the agent's: %s", got)
 	}
 }
+
+func TestTraceStatsTextNamesTheClickHouseErrorStatus(t *testing.T) {
+	tool, ok := toolsByName(t)[nameTraceStats]
+	if !ok {
+		t.Fatalf("%s is not registered", nameTraceStats)
+	}
+	for surface, offered := range map[string]Tool{"mcp": tool, "agent": tool.ForAgent()} {
+		if !strings.Contains(offered.Description, "StatusCode = 'Error' (StatusCode is Unset, Ok or Error)") {
+			t.Errorf("%s trace_stats description lacks the error status", surface)
+		}
+	}
+}

@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 23717
-	fullSystemTextBudget = 28439
+	systemTextBudget     = 23903
+	fullSystemTextBudget = 28625
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -212,5 +212,25 @@ func TestHelpSaysAnExistingDashboardIsChangedFromItsOwnChat(t *testing.T) {
 		if strings.Count(system, want) != 1 {
 			t.Errorf("%s system text lacks the help sentence", name)
 		}
+	}
+}
+
+func TestInvestigateTreatsAnEmptyFilterAsMatchingNothing(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"A filter that returns nothing matched nothing",
+		"a ClickHouse span status, which is `Error`",
+		"look for the service's span-metrics series",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestTheClickHouseGuideNamesTheErrorStatus(t *testing.T) {
+	guide := GuideFor([]spec.DatasourceType{spec.ClickHouse})
+	if !strings.Contains(guide, "failed spans are `StatusCode = 'Error'`") {
+		t.Fatal("the ClickHouse guide does not name the error status value")
 	}
 }

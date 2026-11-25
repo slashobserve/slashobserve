@@ -1,6 +1,7 @@
 ## ClickHouse (OpenTelemetry exporter tables)
 - `otel_logs` (Timestamp, ServiceName, SeverityText, Body, LogAttributes), `otel_traces` (Timestamp, ServiceName, SpanName, Duration, StatusCode, SpanAttributes), `otel_metrics_*`; check columns with `get_schema`.
 - Always filter time with `$__timeFilter(Timestamp)`.
+- `otel_traces` StatusCode is `Unset`, `Ok` or `Error`: failed spans are `StatusCode = 'Error'`; check a status filter's values with `GROUP BY StatusCode` before calling a result empty.
 - `otel_traces` Duration is nanoseconds: divide by 1e6 for `unit: ms`, or keep it with `unit: ns`.
 - Time series: `SELECT $__timeInterval(Timestamp) AS time, ServiceName, count() AS logs FROM otel_logs WHERE $__timeFilter(Timestamp) GROUP BY time, ServiceName ORDER BY time`.
 - Filter by a variable that can select All with `$__conditionalAll(ServiceName IN (${service:singlequote}), $service)`; when All must filter by something else, put that condition before the variable: `$__conditionalAll(ServiceName IN (${service:singlequote}), ServiceName = 'api', $service)`.
