@@ -1358,8 +1358,9 @@ Returns the observation with `allowed_actions` and its blocks in order.
 
 - Each block has its `kind`, `state`, `position`, `width`, `height`, `version` and a short view.
 - The short view is Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources, `variables` (the values it runs with) and its full `panel`, in the shape `update_block` takes, or a snapshot's `snapshot_id`.
-- A snapshot block also has its frozen panel's `title`, `type` and `unit`, its `from` and `to`, and a `data` summary of at most 10 series, each with its `name` or `labels`, `points`, `min`, `max` and `last` and the times `min_at` and `max_at`; `series_total` counts them all and `other_frames` counts the frames that are not series.
+- A snapshot block also has its frozen panel's `title`, `type` and `unit`, its `from` and `to`, and a `data` summary of at most 10 series within 1.5 KiB, each with its `name`, the `labels` that differ between the series (at most 5), `points`, `min`, `max` and `last` and the times `min_at` and `max_at`; `series_total` counts them all and `other_frames` counts the frames that are not series.
   A snapshot never carries query text, so none is shown.
+  When the snapshot cannot be read, the block has `data_error` instead of the summary.
 - `blocks_truncated` says the rest did not fit.
 - A block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 - The built-in agent also has this tool, and only reads with it.

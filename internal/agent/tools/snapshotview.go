@@ -2,7 +2,9 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -11,9 +13,13 @@ import (
 )
 
 const (
-	maxSnapshotSeries     = 10
-	maxSnapshotNameBytes  = 120
-	maxSnapshotLabelBytes = 80
+	maxSnapshotSeries       = 10
+	maxSnapshotNameBytes    = 120
+	maxSnapshotLabelBytes   = 80
+	maxSnapshotLabels       = 5
+	maxSnapshotSummaryBytes = 1536
+	failureSnapshotRead     = "snapshot_read_failed"
+	snapshotReadError       = "snapshot data could not be read"
 )
 
 type snapshotDataOut struct {
@@ -33,23 +39,30 @@ type snapshotSeriesOut struct {
 	Last   *float64          `json:"last,omitempty"`
 }
 
-func snapshotView(out blockViewOut, snap observations.Snapshot) blockViewOut {
+func snapshotView(out blockViewOut, snap observations.Snapshot) (blockViewOut, error) {
+	var data struct {
+		Frames []datasource.Frame `json:"frames"`
+	}
+	if err := json.Unmarshal(snap.Data, &data); err != nil {
+		return out, fmt.Errorf("decode snapshot frames: %w", err)
+	}
 	var panel spec.Panel
 	if json.Unmarshal(snap.Panel, &panel) == nil {
 		out.Title, out.Type, out.Unit = panel.Title, string(panel.Type), panel.Unit
 	}
 	out.From, out.To = snap.From.UTC().Format(time.RFC3339), snap.To.UTC().Format(time.RFC3339)
-	var data struct {
-		Frames []datasource.Frame `json:"frames"`
-	}
-	if json.Unmarshal(snap.Data, &data) == nil {
-		summary := summarizeSnapshot(data.Frames)
-		out.Data = &summary
-	}
-	return out
+	summary := summarizeSnapshot(data.Frames)
+	out.Data = &summary
+	return out, nil
+}
+
+type seriesMember struct {
+	frame datasource.Frame
+	field datasource.Field
 }
 
 func summarizeSnapshot(frames []datasource.Frame) snapshotDataOut {
+	var members []seriesMember
 	var out snapshotDataOut
 	for _, f := range frames {
 		if !f.IsSeries() {
@@ -57,21 +70,59 @@ func summarizeSnapshot(frames []datasource.Frame) snapshotDataOut {
 			continue
 		}
 		for _, field := range f.Fields[1:] {
-			out.SeriesTotal++
-			if len(out.Series) < maxSnapshotSeries {
-				out.Series = append(out.Series, snapshotSeries(f, field))
+			members = append(members, seriesMember{f, field})
+		}
+	}
+	out.SeriesTotal = len(members)
+	var distinct map[string]bool
+	if len(members) > 0 {
+		distinct = distinguishingLabels(members)
+	}
+	for _, m := range members[:min(len(members), maxSnapshotSeries)] {
+		out.Series = append(out.Series, snapshotSeries(m.frame, m.field, distinct))
+	}
+	for len(out.Series) > 0 && jsonSize(out) > maxSnapshotSummaryBytes {
+		out.Series = out.Series[:len(out.Series)-1]
+	}
+	return out
+}
+
+func distinguishingLabels(members []seriesMember) map[string]bool {
+	keys := map[string]bool{}
+	for _, m := range members {
+		for k := range m.frame.Labels {
+			keys[k] = true
+		}
+	}
+	out := map[string]bool{}
+	for k := range keys {
+		first, firstOK := members[0].frame.Labels[k]
+		for _, m := range members[1:] {
+			if v, ok := m.frame.Labels[k]; ok != firstOK || v != first {
+				out[k] = true
+				break
 			}
 		}
 	}
 	return out
 }
 
-func snapshotSeries(f datasource.Frame, field datasource.Field) snapshotSeriesOut {
+func snapshotSeries(f datasource.Frame, field datasource.Field, distinct map[string]bool) snapshotSeriesOut {
 	s := snapshotSeriesOut{Name: clip(snapshotName(f, field), maxSnapshotNameBytes), Points: len(field.Values)}
-	if len(f.Labels) > 0 {
-		s.Labels = make(map[string]string, len(f.Labels))
-		for k, v := range f.Labels {
-			s.Labels[clip(k, maxSnapshotLabelBytes)] = clip(v, maxSnapshotLabelBytes)
+	keys := make([]string, 0, len(f.Labels))
+	for k := range f.Labels {
+		if distinct[k] {
+			keys = append(keys, k)
+		}
+	}
+	slices.Sort(keys)
+	if len(keys) > maxSnapshotLabels {
+		keys = keys[:maxSnapshotLabels]
+	}
+	if len(keys) > 0 {
+		s.Labels = make(map[string]string, len(keys))
+		for _, k := range keys {
+			s.Labels[clip(k, maxSnapshotLabelBytes)] = clip(f.Labels[k], maxSnapshotLabelBytes)
 		}
 	}
 	times := f.Fields[0].Values
