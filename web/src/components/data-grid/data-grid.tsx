@@ -1,6 +1,7 @@
 import {
   ClientSideRowModelApiModule,
   ClientSideRowModelModule,
+  RowApiModule,
   RowAutoHeightModule,
   RowStyleModule,
   ScrollApiModule,
@@ -43,6 +44,7 @@ const modules = [
   RowAutoHeightModule,
   RowStyleModule,
   ClientSideRowModelApiModule,
+  RowApiModule,
   ScrollApiModule,
 ]
 
@@ -166,6 +168,7 @@ export function DataGrid<T>({
   highlightedRowId = null,
   onHighlightRow,
   revealRowId = null,
+  keepScrollOnPrepend = false,
   compact = false,
   empty,
   className,
@@ -179,6 +182,7 @@ export function DataGrid<T>({
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
   revealRowId?: string | null
+  keepScrollOnPrepend?: boolean
   compact?: boolean
   empty?: ReactNode
   className?: string
@@ -278,6 +282,36 @@ export function DataGrid<T>({
   }, [])
   useEffect(reveal, [revealRowId, reveal])
 
+  const anchorRef = useRef<{ id: string; offset: number } | null>(null)
+  const keepRef = useRef(keepScrollOnPrepend)
+  useLayoutEffect(() => {
+    keepRef.current = keepScrollOnPrepend
+  })
+  const bodyViewport = useCallback(
+    () => containerRef.current?.querySelector<HTMLElement>(".ag-grid-viewport"),
+    []
+  )
+  const anchorFirstRow = useCallback(() => {
+    const api = apiRef.current
+    anchorRef.current = null
+    if (!keepRef.current || layoutRef.current !== "normal") return
+    if (api === null || api.isDestroyed()) return
+    const top = api.getVerticalPixelRange().top
+    const node = api.getDisplayedRowAtIndex(api.getFirstDisplayedRowIndex())
+    if (top <= 0 || node?.id == null || node.rowTop === null) return
+    anchorRef.current = { id: node.id, offset: node.rowTop - top }
+  }, [])
+  const restoreAnchor = useCallback(() => {
+    const api = apiRef.current
+    const anchor = anchorRef.current
+    if (anchor === null || api === null || api.isDestroyed()) return
+    const node = api.getRowNode(anchor.id)
+    const viewport = bodyViewport()
+    if (node?.rowTop == null || viewport == null) return
+    viewport.scrollTop = node.rowTop - anchor.offset
+    viewport.dispatchEvent(new Event("scroll"))
+  }, [bodyViewport])
+
   const labelGrid = useCallback(() => {
     containerRef.current
       ?.querySelector("[role=grid]")
@@ -322,6 +356,8 @@ export function DataGrid<T>({
           onCellMouseOver={onCellMouseOver}
           onGridReady={onGridReady}
           onFirstDataRendered={reveal}
+          onBodyScroll={anchorFirstRow}
+          onRowDataUpdated={restoreAnchor}
         />
       </NarrowRowsContext>
     </div>

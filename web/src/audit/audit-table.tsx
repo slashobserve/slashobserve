@@ -135,6 +135,7 @@ export function AuditTable({
         rowId={eventId}
         highlightedRowId={selected}
         revealRowId={selected}
+        keepScrollOnPrepend
       />
     </div>
   )
