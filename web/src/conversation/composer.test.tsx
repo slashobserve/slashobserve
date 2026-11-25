@@ -47,6 +47,7 @@ function stubCreate() {
 function ChatComposer({
   subject: initialSubject = null,
   removableSubject = false,
+  layout = "page",
   chatId = null,
   initialText,
   runningRequestId,
@@ -54,6 +55,7 @@ function ChatComposer({
 }: {
   subject?: Subject | null
   removableSubject?: boolean
+  layout?: "page" | "docked"
   chatId?: string | null
   initialText?: string
   runningRequestId?: string
@@ -72,7 +74,8 @@ function ChatComposer({
     <>
       <Composer
         model={model}
-        layout="page"
+        layout={layout}
+        label="Message the agent"
         placeholder="Describe a dashboard"
       />
       {removableSubject ? (
@@ -383,6 +386,23 @@ describe("Composer in a chat", () => {
       await waitFor(() => expect(screen.queryByText(holdingText)).toBeNull())
       expect(posts).toHaveLength(1)
       expect(toasts.message).not.toHaveBeenCalled()
+    })
+
+    it("shows the hold, the failure and the escape in a docked composer too", async () => {
+      const { user, posts, resolveAgent } = renderLoading({
+        initialText: "Why is it slow?",
+        layout: "docked",
+      })
+      const field = await box()
+      await user.type(field, "{Enter}")
+      expect(await screen.findByText(holdingText)).toBeVisible()
+      await user.keyboard("{Escape}")
+      expect(screen.queryByText(holdingText)).toBeNull()
+      await user.type(field, "{Enter}")
+      await screen.findByText(holdingText)
+      resolveAgent(json({}, 500))
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(posts).toEqual([])
     })
 
     it("holds a click on Send the same way", async () => {

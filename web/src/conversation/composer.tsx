@@ -138,6 +138,16 @@ function sendLabel(model: ComposerModel): string {
     : "Send"
 }
 
+function cancelsHold(
+  model: ComposerModel,
+  event: KeyboardEvent<HTMLTextAreaElement>
+): boolean {
+  if (event.key !== "Escape" || !model.holding) return false
+  event.preventDefault()
+  model.cancelHold()
+  return true
+}
+
 function useKeyDown(
   model: ComposerModel,
   send: () => void,
@@ -200,6 +210,11 @@ function Feedback({
   const startedShown = startedRun !== null && runShown?.(startedRun.id) === true
   return (
     <>
+      {model.holding ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {holdingText}
+        </p>
+      ) : null}
       {model.sendBlock !== null ? (
         <p className="text-xs text-muted-foreground">{model.sendBlock}</p>
       ) : null}
@@ -270,7 +285,11 @@ function DockedComposer({
   const errorId = useId()
   const agent = useAgentInfo()
   const modelName = agentLabel(agent.data)
-  const onKeyDown = useKeyDown(model, () => void model.submit())
+  const onKeyDown = useKeyDown(
+    model,
+    () => void model.submit(),
+    (event) => cancelsHold(model, event)
+  )
   const unavailable = typeof disabledReason === "string"
   const counter = promptCounter(model.wire)
   return (
@@ -423,14 +442,11 @@ function PageComposer({
     if (disabled) return
     void model.submit()
   }
-  const onKeyDown = useKeyDown(model, send, (event) => {
-    if (event.key === "Escape" && model.holding) {
-      event.preventDefault()
-      model.cancelHold()
-      return true
-    }
-    return picker.handleKeyDown(event)
-  })
+  const onKeyDown = useKeyDown(
+    model,
+    send,
+    (event) => cancelsHold(model, event) || picker.handleKeyDown(event)
+  )
   const agentOff = agent.data?.available === false
   const modelName = agentLabel(agent.data)
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
@@ -619,11 +635,6 @@ function PageComposer({
         </p>
       ) : null}
       <div className="flex flex-col gap-1 pt-1.5 text-[13px]">
-        {model.holding ? (
-          <p role="status" className="text-xs text-muted-foreground">
-            {holdingText}
-          </p>
-        ) : null}
         <Feedback model={model} errorId={errorId} />
       </div>
     </div>
