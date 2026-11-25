@@ -33,13 +33,14 @@ type queuedRun struct {
 	ThreadContext   sql.NullString
 	Prompt          string
 	RequestedByID   string
+	TimeZone        string
 }
 
 func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	t.Helper()
 	rows, err := r.db.SQLDB(t).QueryContext(reading(t.Context()), `SELECT id::text, intent, kind, trigger, assigned_kind, coalesce(assigned_id::text, ''), coalesce(comment_id::text, ''),
 		coalesce(observation_id::text, ''), coalesce(subject_observation_id::text, ''), coalesce(dashboard_id::text, ''), coalesce(base_version::text, ''), coalesce(thread_message_id::text, ''),
-		thread_context, prompt, requested_by_id::text FROM agent_requests ORDER BY created_at, id`)
+		thread_context, prompt, requested_by_id::text, coalesce(time_zone, '') FROM agent_requests ORDER BY created_at, id`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +48,7 @@ func (r *rig) queuedRuns(t *testing.T) []queuedRun {
 	var out []queuedRun
 	for rows.Next() {
 		var q queuedRun
-		if err := rows.Scan(&q.ID, &q.Intent, &q.Kind, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.SubjectID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID); err != nil {
+		if err := rows.Scan(&q.ID, &q.Intent, &q.Kind, &q.Trigger, &q.AssignedKind, &q.AssignedID, &q.CommentID, &q.ObservationID, &q.SubjectID, &q.DashboardID, &q.BaseVersion, &q.ThreadMessageID, &q.ThreadContext, &q.Prompt, &q.RequestedByID, &q.TimeZone); err != nil {
 			t.Fatal(err)
 		}
 		out = append(out, q)
@@ -263,6 +264,30 @@ func TestMentioningObserveOnAnObservationThreadQueuesAnAskAboutIt(t *testing.T) 
 	}
 	if queued = r.queuedRuns(t); len(queued) != 2 || queued[1].ThreadContext.String != "Ada: @observe what changed at 09:10?" {
 		t.Fatalf("runs = %+v", queued)
+	}
+}
+
+func TestAnAskKeepsTheTimeZoneTheCallerNamedAndStaysNullWithoutOne(t *testing.T) {
+	r := newAgentRig(t, true)
+	id := r.createObservation(t, testUser, pgtype.UUID{})
+	named := revisions.WithTimeZone(reading(t.Context()), "Asia/Kolkata")
+
+	thread, _, run, _, err := r.askOpen(named, testUser, OpenInput{Target: target(KindObservation, id), Body: "@observe first"}, true)
+	if err != nil || run == nil {
+		t.Fatalf("open: run %+v, err %v", run, err)
+	}
+	if _, _, _, _, err := r.askReply(named, testUser, mustParse(t, thread.ID), ReplyInput{Body: "@observe second"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, run, _ := r.replyWithRun(t, testUser, thread.ID, "@observe third"); run == nil {
+		t.Fatal("the reply with no zone started no run")
+	}
+	var zones []string
+	for _, q := range r.queuedRuns(t) {
+		zones = append(zones, q.TimeZone)
+	}
+	if want := []string{"Asia/Kolkata", "Asia/Kolkata", ""}; !slices.Equal(zones, want) {
+		t.Fatalf("run time zones %q, want %q", zones, want)
 	}
 }
 
@@ -642,6 +667,27 @@ func TestHTTPStartsAnAskOnAnObservationThread(t *testing.T) {
 	if len(queued) != 1 || queued[0].Intent != "ask" || queued[0].SubjectID != id.String() ||
 		started.at(t, "message", "run", "id") != queued[0].ID || started.at(t, "message", "run_refusal") != nil {
 		t.Fatalf("answer %v, runs %+v", started.body, queued)
+	}
+}
+
+func TestHTTPPostsAMessageWhoseTimeZoneTheServerDoesNotKnowAndLeavesTheRunsZoneNull(t *testing.T) {
+	r := newAgentRig(t, true)
+	id := r.createObservation(t, testUser, pgtype.UUID{})
+
+	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "to": "agent", "time_zone": "Asia/Kolkata"})
+	started.expect(t, http.StatusCreated, "")
+	threadID := started.at(t, "thread", "id").(string)
+	unknown := r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "@observe and now?", "to": "agent", "time_zone": "Mars/Olympus"})
+	unknown.expect(t, http.StatusCreated, "")
+	if unknown.at(t, "message", "run", "id") == nil {
+		t.Fatalf("a message with an unknown zone started no run: %v", unknown.body)
+	}
+	var zones []string
+	for _, q := range r.queuedRuns(t) {
+		zones = append(zones, q.TimeZone)
+	}
+	if want := []string{"Asia/Kolkata", ""}; !slices.Equal(zones, want) {
+		t.Fatalf("run time zones %q, want %q", zones, want)
 	}
 }
 

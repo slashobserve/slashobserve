@@ -73,20 +73,22 @@ describe("QueryBar", () => {
     await screen.findByRole("radiogroup", { name: "Input mode" })
     expect(
       screen.getAllByRole("radio").map((radio) => radio.textContent)
-    ).toEqual(["PromQL", "Ask"])
+    ).toEqual(["PromQL", "Write a query"])
     expect(screen.getByRole("radio", { name: "PromQL" })).toBeChecked()
   })
 
   it("switches to Ask from the Ask segment and remembers the choice", async () => {
     const { setInputMode, focusQuery, user } = setup()
-    await user.click(await screen.findByRole("radio", { name: "Ask" }))
+    await user.click(
+      await screen.findByRole("radio", { name: "Write a query" })
+    )
     expect(setInputMode).toHaveBeenCalledWith("ask", true)
     expect(focusQuery).toHaveBeenCalled()
   })
 
   it("keeps Ask disabled without a model and says why", async () => {
     const { setInputMode, user } = setup({ agentAvailable: false })
-    const ask = await screen.findByRole("radio", { name: "Ask" })
+    const ask = await screen.findByRole("radio", { name: "Write a query" })
     expect(ask).toHaveAttribute("aria-disabled", "true")
     expect(ask).toHaveAccessibleDescription(
       "Add a model key to ask in plain language"
