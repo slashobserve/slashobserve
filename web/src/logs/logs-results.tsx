@@ -43,7 +43,7 @@ import { ColumnsHeader, FieldsMenu } from "./fields-menu"
 import { defaultColumns, fieldNames, lineId } from "./line-fields"
 import { usePrepared } from "./prepared"
 import { volumeKindNames, volumeKinds } from "./volume"
-import { traceIdOf, traceRangeAround } from "./trace-link"
+import { spanIdOf, traceIdOf, traceRangeAround } from "./trace-link"
 import { useFirstRowShortcut } from "./row-shortcut"
 import { useElementSize } from "./use-element-size"
 
@@ -221,18 +221,20 @@ export function OpenTraceLink({
   traceId,
   traceDatasource,
   time,
+  spanId,
   className,
   children,
 }: {
   traceId: string
   traceDatasource: string
   time: number
+  spanId: string | undefined
   className?: string
   children: React.ReactNode
 }) {
   return (
     <Link
-      {...traceLink(traceId, traceDatasource, traceRangeAround(time))}
+      {...traceLink(traceId, traceDatasource, traceRangeAround(time), spanId)}
       aria-label={`Open trace ${traceId}`}
       className={className}
     >
@@ -401,6 +403,7 @@ export function LogsResults({
               traceId={traceId}
               traceDatasource={traceDatasource}
               time={entry.time}
+              spanId={spanIdOf(entry)}
               className={cn(
                 buttonVariants({ variant: "outline", size: "xs" }),
                 "narrow:h-11"

@@ -1,6 +1,7 @@
 package threads
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -130,6 +131,7 @@ type openThreadRequest struct {
 	Body     string         `json:"body"`
 	To       string         `json:"to"`
 	ClientID *string        `json:"client_id"`
+	TimeZone *string        `json:"time_zone"`
 }
 
 type messageBodyRequest struct {
@@ -142,6 +144,7 @@ type replyRequest struct {
 	ReplyToID *string `json:"reply_to_id"`
 	To        string  `json:"to"`
 	ClientID  *string `json:"client_id"`
+	TimeZone  *string `json:"time_zone"`
 }
 
 func ParseClientID(raw *string) (pgtype.UUID, error) {
@@ -272,7 +275,8 @@ func (th *Threads) open(c *gin.Context) {
 		th.fail(c, "open thread", err)
 		return
 	}
-	sent, err := th.asks.Open(c.Request.Context(), httpapi.Caller(c), OpenInput{
+	ctx := withRequestZone(c.Request.Context(), req.TimeZone)
+	sent, err := th.asks.Open(ctx, httpapi.Caller(c), OpenInput{
 		Target: target, Version: req.Version, PanelID: req.PanelID, BlockID: req.BlockID, Anchor: req.Anchor, ClientID: clientID, Body: req.Body,
 	}, to)
 	if err != nil {
@@ -301,12 +305,24 @@ func (th *Threads) reply(c *gin.Context) {
 		th.fail(c, "reply to thread", err)
 		return
 	}
-	sent, err := th.asks.Reply(c.Request.Context(), httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID, ClientID: clientID}, to)
+	ctx := withRequestZone(c.Request.Context(), req.TimeZone)
+	sent, err := th.asks.Reply(ctx, httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID, ClientID: clientID}, to)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
 		return
 	}
 	th.respondSent(c, sent)
+}
+
+func withRequestZone(ctx context.Context, zone *string) context.Context {
+	if zone == nil {
+		return ctx
+	}
+	checked, err := revisions.CheckTimeZone(*zone)
+	if err != nil {
+		return ctx
+	}
+	return revisions.WithTimeZone(ctx, checked)
 }
 
 func (th *Threads) respondSent(c *gin.Context, sent Sent) {

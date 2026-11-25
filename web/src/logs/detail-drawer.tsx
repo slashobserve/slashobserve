@@ -36,14 +36,13 @@ import {
 } from "./pills"
 import { filterTarget, isStreamLabel } from "./query-filters"
 import { isSearchFamily } from "./search"
-import { detailValue, traceDatasourceFor, traceIdOf } from "./trace-link"
+import { spanIdOf, traceDatasourceFor, traceIdOf } from "./trace-link"
 import { useLogsWorkspace, type DetailTab } from "./workspace"
 
 const coreNames = ["time", "level", "service", "trace_id", "span_id", "id"]
 const hiddenNames = new Set(["body", "timens"])
 const expandedPrefix = "Fields."
 const tracePrefixLength = 8
-const allZeros = /^0+$/
 const tabs: readonly DetailTab[] = ["table", "json", "context"]
 
 export function documentGroups(details: readonly LogDetail[]): {
@@ -89,15 +88,6 @@ export function entryJson(
       ])
     ),
   }
-}
-
-function spanIdOf(entry: LogEntry): string | null {
-  for (const detail of entry.details) {
-    if (detail.name.toLowerCase().replaceAll("_", "") !== "spanid") continue
-    const text = detailValue(detail).trim()
-    if (text !== "" && !allZeros.test(text)) return text
-  }
-  return null
 }
 
 function IdChip({ label, value }: { label: string; value: string }) {
@@ -448,7 +438,7 @@ export function DetailDrawer({
         >
           {entry.message}
         </p>
-        {traceId !== null || spanId !== null ? (
+        {traceId !== null || spanId !== undefined ? (
           <div className="flex flex-wrap gap-1.5">
             {traceId === null ? null : (
               <IdChip
@@ -456,7 +446,9 @@ export function DetailDrawer({
                 value={traceId.slice(0, tracePrefixLength)}
               />
             )}
-            {spanId === null ? null : <IdChip label="Span" value={spanId} />}
+            {spanId === undefined ? null : (
+              <IdChip label="Span" value={spanId} />
+            )}
           </div>
         ) : null}
         <div
@@ -472,6 +464,7 @@ export function DetailDrawer({
                 traceId={traceId}
                 traceDatasource={traceDatasource}
                 time={entry.time}
+                spanId={spanId}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "sm" })
                 )}

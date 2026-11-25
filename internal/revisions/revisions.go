@@ -241,6 +241,7 @@ type Request struct {
 	ContinueNote string
 
 	ThreadContext string
+	ThreadAsk     bool
 
 	Anchor  *anchor.Anchor
 	BlockID string

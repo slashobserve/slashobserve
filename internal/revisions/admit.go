@@ -328,6 +328,7 @@ func RequestOf(row dbsqlc.AgentRequest) Request {
 		ContinueNote: row.ContinueNote.String,
 
 		ThreadContext: row.ThreadContext.String,
+		ThreadAsk:     row.ThreadMessageID.Valid,
 
 		Anchor:  anchorOf(row.Anchor),
 		BlockID: row.BlockID.String(),

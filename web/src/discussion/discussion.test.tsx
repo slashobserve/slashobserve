@@ -177,6 +177,7 @@ describe("Discussion", () => {
           body: {
             body: "Rolling back now",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -197,6 +198,7 @@ describe("Discussion", () => {
             target,
             body: "First",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -275,6 +277,7 @@ describe("Discussion", () => {
           body: {
             body: "@observe why did latency rise",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -322,6 +325,7 @@ describe("Discussion", () => {
     expect(posts[0].body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 })
@@ -617,6 +621,7 @@ describe("DiscussionFeed on an observation", () => {
           body: {
             body: "Yes",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
             reply_to_id: "m1",
           },
         },
@@ -639,6 +644,7 @@ describe("DiscussionFeed on an observation", () => {
     expect(posts[0].body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 
@@ -659,6 +665,7 @@ describe("DiscussionFeed on an observation", () => {
             target,
             body: "Why",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
             block_id: "b1",
           },
         },
@@ -679,6 +686,7 @@ describe("DiscussionFeed on an observation", () => {
     expect(posts[0].body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 })

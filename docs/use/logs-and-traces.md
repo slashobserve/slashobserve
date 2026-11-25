@@ -29,7 +29,7 @@ Queries run on the server, so datasource credentials never reach the browser.
 5. Click a line to open it, then choose **Show context** to read the lines around it, or **Open trace** to follow it to its trace.
 6. Choose **Copy link** to share the search, **Save search** to keep it, or **Add to dashboard** to turn it into a panel.
 
-If you would rather describe what you want, switch the mode switch to **Ask**, as [Ask in plain language](#ask-in-plain-language) describes.
+If you would rather describe what you want, switch the mode switch to **Write a query**, as [Ask in plain language](#ask-in-plain-language) describes.
 Outside a text field, `/` focuses the query and `?` lists the keys of the page, which [Keyboard shortcuts](keyboard-shortcuts.md#logs-page-keys) describes.
 
 ### Choose a source
@@ -59,13 +59,14 @@ The page starts as soon as it opens, with a query for the datasource.
 - On Loki it runs `{service_name=~".+"}`, which reads every stream that has a `service_name` label.
   A Loki whose streams carry no `service_name` answers no lines until you pick a label.
 
-With a model configured on the server, the query box opens in Ask mode instead, as [Ask in plain language](#ask-in-plain-language) describes.
+With a model configured on the server, the query box opens in Write a query mode instead, as [Ask in plain language](#ask-in-plain-language) describes.
 
 ### Query modes
 
 The mode switch at the top left of the query card has up to three segments.
 
-- **Ask** takes a question.
+- **Write a query** takes a question and writes the query; it does not explain the results.
+  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 - **Builder** edits the query as filter chips.
 - The last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
 
@@ -148,7 +149,7 @@ It puts a caret under the offending character, says the problem in plain words a
 
 - A missing closing parenthesis is closed before the next top-level `and`, or at the end.
 - A query that reads as Lucene, such as one with `+`, `-` or `~` operators, offers **Switch to Lucene**, which adds the `lucene:` prefix and runs the text as written.
-- **Fix it with Ask** asks the model to repair the text.
+- **Rewrite with a query** asks the model to repair the text.
 - **Open in the builder** shows it as chips when it can.
 - **KQL reference** opens this section.
 
@@ -522,8 +523,8 @@ When the page was opened from **Logs** in an observation's row of **Add a block*
 
 ## Paste a Discover link
 
-Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Ask** box of an Elasticsearch or OpenSearch datasource.
-You can also type it into **Ask** and press Ask, and the address is never sent to the model.
+Paste a Kibana or OpenSearch Dashboards Discover address into the query box or the **Write a query** box of an Elasticsearch or OpenSearch datasource.
+You can also type it into **Write a query** and press **Write query**, and the address is never sent to the model.
 The page fills in the query, the time range, the columns and the filters that match one value or a list of values.
 
 The note under the box says what was filled and how many filters from the address were not applied.
@@ -539,21 +540,21 @@ It works on the logs page, the trace search and the [metrics page](metrics.md#as
 
 Ask is off without a model configured on the server.
 [LLM providers](../connect/llm-providers.md) describes how to configure one.
-Without one, the Ask segment is disabled and says "Add a model key to ask in plain language".
+Without one, the Write a query segment is disabled and says "Add a model key to ask in plain language".
 
 ### Ask on the logs page
 
-1. Switch the mode switch at the top left of the query card to **Ask**.
-2. Write a question and press Enter or **Ask**.
+1. Switch the mode switch at the top left of the query card to **Write a query**.
+2. Write a question and press Enter or **Write query**.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 3. The page runs the answer at once.
    The explanation and any warnings show under the question, and the query shows in the editor below them, where you can still change it.
 
 On Elasticsearch and OpenSearch the model answers in KQL, and the Builder then shows the answer as chips when it can.
 Ctrl+I or Cmd+I steps through the modes the datasource offers from anywhere on the page, the editor included, and skips a mode that is not available.
-The page remembers the mode you last chose with the switch, the shortcut or **Ask again**, and opens in the query when the address carries one.
+The page remembers the mode you last chose with the switch, the shortcut or **Write again**, and opens in the query when the address carries one.
 
-Editing the query switches to the query segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+Editing the query switches to the query segment, with a "From: <question>" line and **Write again**, which brings the question back.
 A label from the label browser also switches to the query segment.
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the query segment.
 
@@ -563,9 +564,9 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **Ask** and **Query**, and on ClickHouse **Ask**, **Search** and **SQL**.
+The toggle reads **Write a query** and **Query**, and on ClickHouse **Write a query**, **Search** and **SQL**.
 
-1. Switch to **Ask**, or press Ctrl+I or Cmd+I.
+1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 3. The search runs at once.
@@ -576,7 +577,7 @@ A duration the form cannot read is left empty.
 
 The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min span duration** with `500ms`, and any warnings show under the question.
 **Edit the query** switches to Query with the answer's values in the form.
-The row under the form then shows a "From: <question>" line and **Ask again**, which brings the question back.
+The row under the form then shows a "From: <question>" line and **Write again**, which brings the question back.
 The address keeps the question as `ask` until you change a field and search again, which drops it because the fields are then your own query.
 
 The mode you last chose on either page is the one both pages open in.
@@ -649,6 +650,7 @@ The summary ends with the short trace id, and **Copy trace id** beside it copies
 The value must be a trace id of 16 or 32 hexadecimal characters that is not all zeros.
 A Loki, Elasticsearch or OpenSearch line opens in the first Tempo datasource, or in the first Jaeger datasource when there is no Tempo, so the trace has to be in that datasource too.
 A ClickHouse line opens in the same ClickHouse datasource.
+When the line also carries a `SpanId`, `spanID`, `span_id` or `spanId` field holding a span id of 16 hexadecimal characters that is not all zeros, the trace opens with that span selected.
 An address with a trace id and no `ds` opens the only trace datasource when there is one, and otherwise asks which datasource to use.
 
 ### Waterfall
@@ -714,6 +716,7 @@ A datasource that has not answered after 15 seconds ends in an error with **Retr
 
 A ClickHouse trace reads its logs from a ClickHouse datasource, and a Tempo trace from Loki.
 With more than one logs datasource, a select in the section picks one, and the browser remembers the choice.
+The built-in audit datasource is never one of them, so a server with no other logs datasource shows the prompt to connect one.
 
 ### Time range and large traces
 
@@ -823,7 +826,7 @@ The limit is named in days when it is a whole number of days, in hours when it i
 
 ### SQL on ClickHouse
 
-On ClickHouse the query card has a **Search** and **SQL** switch beside **Ask**, and Ctrl+I or Cmd+I moves through them.
+On ClickHouse the query card has a **Search** and **SQL** switch beside **Write a query**, and Ctrl+I or Cmd+I moves through them.
 **SQL** opens an editor with the search of the fields written as SQL over `otel_traces`, so you can start from it.
 Ctrl+Space completes the columns of `otel_traces` and the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter, to run it.
@@ -985,6 +988,7 @@ A range written like that stays relative, so the search opens on the latest hour
    To open it again, choose **Saved searches** next to it, or open it from the Logs, Traces or Metrics list or from a folder.
 
 A search opened that way shows its title and folder above the query, and the address carries its id as `saved`.
+On the logs page and the metrics page, opening a saved search from **Saved searches** while the query bar is on **Ask** switches it to the query, so the saved query shows, including when it is the search already open.
 **Close the saved search** removes it.
 The title shows only for a search among the 100 most recently changed that the list holds.
 

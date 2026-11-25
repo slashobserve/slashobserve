@@ -67,7 +67,7 @@ export function QueryProblemCard({
               if (agentAvailable) onFixWithAsk(`Fix this KQL: ${text}`)
             }}
           >
-            Fix it with Ask
+            Rewrite with a query
           </Button>
           <Button
             type="button"
