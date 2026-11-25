@@ -924,11 +924,11 @@ On ClickHouse, `labels` and `label-values` need `--table` or `--metric`.
 
 #### See which services a datasource has
 
-`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour.
+`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen in the last hour.
 For each it shows the label, column or attribute that holds them.
 
 - `--window` takes a duration such as 15m, from 1 minute up to 6h, and the default is 1h.
-- `--signal` picks `logs` or `traces`.
+- `--signal` picks `logs`, `traces` or `metrics`.
 - `--service checkout` keeps only the sources that hold a service whose name contains the text, without regard to case.
   That answers which source holds a service.
 
