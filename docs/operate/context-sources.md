@@ -13,7 +13,9 @@ This page covers registering a source, approving its tools and what the agent ma
 
 1. Sign in as an Admin and open **Datasources**.
    The **MCP sources** table below the datasources holds the context sources, and `/datasources/context-sources` opens the page at that table.
-2. Choose **Add source** in the header of the **MCP sources** table and fill in the form:
+2. Choose **Add source** in the page header, then choose **MCP server** as the **Type**.
+   On an empty **MCP sources** table, **Add an MCP server** opens the same form with that type already chosen.
+   Fill in the form:
    - **Id**, which names the source in the CLI and the audit log and cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters without control or format characters.
@@ -25,6 +27,7 @@ This page covers registering a source, approving its tools and what the agent ma
      Admins manage every source whatever you choose.
    - **Secret header** and **Secret**, when the server needs a credential, such as `Authorization` with `Bearer ...`.
 3. Choose **Add source**.
+   The new row appears in the **MCP sources** table, open, with its tools to discover.
 
 Registering a source asks the server nothing.
 Choose **Discover** on its row to list the tools, then review them.
