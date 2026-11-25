@@ -425,6 +425,7 @@ describe("table anchors", () => {
     expect(published?.type).toBe("table")
     const layout = published?.layout as TableAnchorLayout
     expect(layout.body).toEqual({ width: 400, height: 240 })
+    expect(layout.gridBottom).toBe(240)
     expect(layout.header).toEqual({ y: 0, height: 32 })
     expect(layout.columns).toEqual([
       { name: "route", left: 0, width: 200, dimension: true },
