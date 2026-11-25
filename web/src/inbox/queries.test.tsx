@@ -15,7 +15,9 @@ import {
   keepInboxHead,
   useInboxCount,
   useInboxLive,
+  useMarkInboxRead,
   usePanelInboxList,
+  useSetInboxItemDone,
 } from "./queries"
 
 function item(seq: number): InboxItem {
@@ -109,6 +111,97 @@ describe("useInboxCount", () => {
   test("polls For you on a page outside the shell and not inside it", () => {
     expect(intervalWhen(false)).toBe(15_000)
     expect(intervalWhen(true)).toBe(false)
+  })
+})
+
+describe("inbox mutations", () => {
+  function unreadItem(seq: number): InboxItem {
+    return { seq, unread: true, reason: "mention" } as InboxItem
+  }
+
+  function seedUnread(client: QueryClient) {
+    client.setQueryData(inboxKeys.list("for_you", "open"), {
+      pages: [
+        {
+          items: [unreadItem(9), unreadItem(8)],
+          next_cursor: null,
+          unread_count: 2,
+        },
+      ],
+      pageParams: [undefined],
+    })
+  }
+
+  function holdWrites() {
+    const answer = { send: () => {} }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (request: Request) => {
+        const url = new URL(request.url)
+        requests.push(url)
+        if (request.method === "GET")
+          return new Response(JSON.stringify(page([9, 8])), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        return new Promise<Response>((resolve) => {
+          answer.send = () => resolve(new Response(null, { status: 204 }))
+        })
+      })
+    )
+    return answer
+  }
+
+  function renderWith(client: QueryClient) {
+    return renderHook(
+      () => ({
+        count: useInboxCount(),
+        markRead: useMarkInboxRead(),
+        setDone: useSetInboxItemDone(),
+      }),
+      { wrapper: wrapperFor(client, true) }
+    )
+  }
+
+  test("Mark all read drops the badge before the server answers, then refetches", async () => {
+    const answer = holdWrites()
+    const client = testQueryClient()
+    seedUnread(client)
+    const { result } = renderWith(client)
+    expect(result.current.count).toBe(2)
+
+    act(() => result.current.markRead.mutate(9))
+
+    await waitFor(() => expect(result.current.count).toBe(0))
+    expect(requests.some((url) => url.pathname === "/api/v1/inbox")).toBe(false)
+    act(() => answer.send())
+    await waitFor(() => expect(requests.at(-1)?.pathname).toBe("/api/v1/inbox"))
+  })
+
+  test("marking one item done drops the badge by one at once", async () => {
+    holdWrites()
+    const client = testQueryClient()
+    seedUnread(client)
+    const { result } = renderWith(client)
+
+    act(() => result.current.setDone.mutate({ seq: 8, done: true }))
+
+    await waitFor(() => expect(result.current.count).toBe(1))
+  })
+
+  test("puts the count back when the write fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 500 }))
+    )
+    const client = testQueryClient()
+    seedUnread(client)
+    const { result } = renderWith(client)
+
+    act(() => result.current.markRead.mutate(9))
+
+    await waitFor(() => expect(result.current.markRead.isError).toBe(true))
+    expect(result.current.count).toBe(2)
   })
 })
 
