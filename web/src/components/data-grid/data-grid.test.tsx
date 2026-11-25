@@ -299,6 +299,23 @@ describe("DataGrid", () => {
     )
   })
 
+  it("drops the frame of its own when it sits inside a card", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        bare
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(container.firstElementChild).toHaveClass(
+      "[&_.ag-root-wrapper]:border-0!",
+      "[&_.ag-root-wrapper]:rounded-none!"
+    )
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid

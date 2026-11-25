@@ -170,6 +170,7 @@ export function DataGrid<T>({
   onHighlightRow,
   compact = false,
   rowAttributes,
+  bare = false,
   empty,
   className,
 }: {
@@ -183,6 +184,7 @@ export function DataGrid<T>({
   onHighlightRow?: (rowId: string | null) => void
   compact?: boolean
   rowAttributes?: (row: T) => Readonly<Record<string, string>>
+  bare?: boolean
   empty?: ReactNode
   className?: string
 }) {
@@ -217,7 +219,9 @@ export function DataGrid<T>({
   const processRowPostCreate = useCallback(
     ({ eRow, node }: ProcessRowParams<T>) => {
       const attributes =
-        node.data === undefined ? undefined : rowAttributesRef.current?.(node.data)
+        node.data === undefined
+          ? undefined
+          : rowAttributesRef.current?.(node.data)
       for (const [name, value] of Object.entries(attributes ?? {})) {
         eRow.setAttribute(name, value)
       }
@@ -286,7 +290,12 @@ export function DataGrid<T>({
       ref={containerRef}
       data-layout={narrow ? "narrow" : "wide"}
       data-dom-layout={layout}
-      className={cn("w-full text-[13px]", className)}
+      className={cn(
+        "w-full text-[13px]",
+        bare &&
+          "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0!",
+        className
+      )}
       style={layout === "normal" ? { height } : undefined}
       onPointerLeave={() => onHighlightRow?.(null)}
     >
