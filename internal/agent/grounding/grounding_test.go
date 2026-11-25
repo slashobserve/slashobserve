@@ -2,8 +2,10 @@ package grounding
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -169,10 +171,11 @@ func TestARecordIsBounded(t *testing.T) {
 		raw, _ := json.Marshal(values)
 		r.AddRead(raw, nil, nil)
 	}
-	if len(r.Values) != MaxValues {
-		t.Fatalf("values = %d, want the cap %d", len(r.Values), MaxValues)
+	if got := len(allValues(r)); got != MaxValues {
+		t.Fatalf("values = %d, want the cap %d", got, MaxValues)
 	}
-	if newest := r.Values[len(r.Values)-1]; newest != rounded(float64(100+maxValuesOfRead-1)*math.Pow10(9)) {
+	last := r.Reads[len(r.Reads)-1]
+	if newest := last[len(last)-1]; newest != rounded(float64(100+maxValuesOfRead-1)*math.Pow10(9)) {
 		t.Errorf("newest value = %v, want the last read kept", newest)
 	}
 }
@@ -236,6 +239,96 @@ func TestTheToleranceIsAtMostATenthOfTheFigure(t *testing.T) {
 		r.AddRead(raw, nil, nil)
 		if got := len(r.Check(finding(c.text, nil))) == 0; got != c.ok {
 			t.Errorf("%q on a read of %v verified = %t, want %t", c.text, c.read, got, c.ok)
+		}
+	}
+}
+
+func verified(r *Record, text string) bool {
+	return len(r.Check(finding(text, nil))) == 0
+}
+
+func recordOf(reads ...string) *Record {
+	r := NewRecord(Report)
+	for _, read := range reads {
+		r.AddRead([]byte(read), nil, nil)
+	}
+	return r
+}
+
+func TestAPercentIsDerivedOnlyAsAFractionOrAChange(t *testing.T) {
+	if verified(recordOf(`[300, 382]`), "orders rose 82%") {
+		t.Error("82% passed as the raw difference of 300 and 382")
+	}
+	if verified(recordOf(`[30, 52]`), "orders rose 82%") {
+		t.Error("82% passed as the raw sum of 30 and 52")
+	}
+	if !verified(recordOf(`[100, 182]`), "orders rose 82%") {
+		t.Error("82% failed as the change from 100 to 182")
+	}
+	if !verified(recordOf(`[0.4, 0.42]`), "the share grew by 2 percent") {
+		t.Error("2 percent failed as the difference of two fractions")
+	}
+}
+
+func TestDerivedFiguresComeFromOneRead(t *testing.T) {
+	if verified(recordOf(`[300]`, `[382]`), "there were 82 more orders") {
+		t.Error("a difference of values from two reads passed")
+	}
+	if !verified(recordOf(`[300, 382]`), "there were 82 more orders") {
+		t.Error("a difference of values from one read failed")
+	}
+}
+
+func allValues(r *Record) []float64 {
+	var out []float64
+	for _, read := range r.Reads {
+		out = append(out, read...)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func TestTimesAndNumericKeysAreNotValues(t *testing.T) {
+	r := recordOf(
+		`{"before":[{"time":"2026-11-20T10:05:12Z","time_ns":"1763633112000000000","body":"took 523ms"}]}`,
+		`{"columns":[{"name":"Timestamp","type":"time"},{"name":"p99","type":"number"}],"rows":[[1763633112000,4.5]],"total_rows":1}`,
+		`{"buckets":{"0.25":12,"0.5":40}}`,
+	)
+	if got, want := allValues(r), []float64{4.5, 12, 40, 523}; !slices.Equal(got, want) {
+		t.Errorf("values = %v, want %v", got, want)
+	}
+}
+
+func TestALongTextIsCutAtAWordBoundary(t *testing.T) {
+	raw, _ := json.Marshal([]string{strings.Repeat("a", maxScannedBytes-4) + " 123456 more"})
+	if got := allValues(recordOf(string(raw))); len(got) != 0 {
+		t.Errorf("values = %v, want none from a number the cut split", got)
+	}
+}
+
+func TestTheRecordKeepsTheSameValuesWhateverTheMapOrder(t *testing.T) {
+	object := map[string]int{}
+	for i := range 600 {
+		object[fmt.Sprintf("k%03d", i)] = (100 + i) * 10
+	}
+	raw, _ := json.Marshal(object)
+	first := allValues(recordOf(string(raw)))
+	if len(first) != maxValuesOfRead || first[len(first)-1] != (100+maxValuesOfRead-1)*10 {
+		t.Fatalf("kept %d values ending in %v, want the first %d keys", len(first), first[len(first)-1], maxValuesOfRead)
+	}
+	for range 10 {
+		if got := allValues(recordOf(string(raw))); !slices.Equal(got, first) {
+			t.Fatal("a second read of the same result kept other values")
+		}
+	}
+}
+
+func TestAnOnsetPassesOnATimeAResultShowed(t *testing.T) {
+	r := recordOf(`{"anchor":"x","before":[{"time":"2026-11-20T10:05:12Z","body":"timeout"}]}`)
+	for onset, ok := range map[string]bool{"2026-11-20T10:05:00Z": true, "2026-11-20T12:00:00Z": false} {
+		got := len(r.Check(finding("Nothing numeric.", map[string]any{"onset": onset}))) == 0
+		if got != ok {
+			t.Errorf("onset %s verified = %t, want %t", onset, got, ok)
 		}
 	}
 }

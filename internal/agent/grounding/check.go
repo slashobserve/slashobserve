@@ -41,8 +41,7 @@ func (r *Record) Check(input json.RawMessage) []findings.Unverified {
 	if json.Unmarshal(input, &in) != nil {
 		return nil
 	}
-	values := slices.Clone(r.Values)
-	sort.Float64s(values)
+	seen := r.sortedReads()
 	var out []findings.Unverified
 	add := func(kind, text string) {
 		item := findings.Unverified{Kind: kind, Text: clip(text)}
@@ -52,7 +51,7 @@ func (r *Record) Check(input json.RawMessage) []findings.Unverified {
 	}
 	for _, text := range []string{in.Markdown, in.Impact} {
 		for _, f := range Figures(text) {
-			if !found(values, f) {
+			if !seen.found(f) {
 				add(findings.UnverifiedFigure, f.Text)
 			}
 		}
@@ -90,27 +89,46 @@ func intervalsOf(f Figure) []interval {
 	return out
 }
 
-func found(values []float64, f Figure) bool {
+type sortedReads struct {
+	all   []float64
+	reads [][]float64
+}
+
+func (r *Record) sortedReads() sortedReads {
+	var out sortedReads
+	for _, read := range r.Reads {
+		sorted := slices.Clone(read)
+		sort.Float64s(sorted)
+		out.reads = append(out.reads, sorted)
+		out.all = append(out.all, read...)
+	}
+	sort.Float64s(out.all)
+	return out
+}
+
+func (s sortedReads) found(f Figure) bool {
 	intervals := intervalsOf(f)
 	for _, in := range intervals {
-		if anyIn(values, in.lo, in.hi) {
-			return true
-		}
-	}
-	ratios := unitless[f.Unit]
-	for _, in := range intervals {
-		if derived(values, in) || ratios && ratioIn(values, in) {
+		if anyIn(s.all, in.lo, in.hi) {
 			return true
 		}
 	}
 	if f.Unit == "%" {
-		for _, in := range intervals[1:] {
-			if ratioIn(values, interval{1 + in.lo, 1 + in.hi}) || ratioIn(values, interval{1 - in.hi, 1 - in.lo}) {
+		fraction := intervals[1]
+		changes := []interval{{1 + fraction.lo, 1 + fraction.hi}, {1 - fraction.hi, 1 - fraction.lo}}
+		return slices.ContainsFunc(s.reads, func(read []float64) bool {
+			return derived(read, fraction) || ratioIn(read, fraction) || ratioIn(read, changes[0]) || ratioIn(read, changes[1])
+		})
+	}
+	ratios := unitless[f.Unit]
+	return slices.ContainsFunc(s.reads, func(read []float64) bool {
+		for _, in := range intervals {
+			if derived(read, in) || ratios && ratioIn(read, in) {
 				return true
 			}
 		}
-	}
-	return false
+		return false
+	})
 }
 
 func derived(values []float64, in interval) bool {
@@ -188,7 +206,9 @@ func (r *Record) queried(at time.Time) bool {
 			return true
 		}
 	}
-	return false
+	return slices.ContainsFunc(r.Instants, func(seen time.Time) bool {
+		return at.Sub(seen).Abs() <= onsetSlack
+	})
 }
 
 func SendBack(items []findings.Unverified) string {

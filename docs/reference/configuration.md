@@ -363,10 +363,10 @@ The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end
 ### Details of `SLASHOBSERVE_AGENT_FINDING_GROUNDING`
 
 With `report` or `enforce`, the server keeps a bounded record of what an investigation read, and checks the finding against it when the agent saves.
-The record holds up to 2,000 numbers, rounded to 3 significant figures, the names the run saw and the time ranges it queried.
-A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers the run read.
+The record holds up to 2,000 numbers, rounded to 3 significant figures and kept per read, the names the run saw, the time ranges it queried and the times its results showed.
+A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers from the same read; a percentage is compared as a fraction.
 Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
-`root_cause.component` passes when it is a name the run saw, and `onset` passes when it falls inside a time range the run queried, give or take a minute.
+`root_cause.component` passes when it is a name the run saw, and `onset` passes when it falls inside a time range the run queried or next to a time a result showed, give or take a minute.
 
 - `off` records nothing and checks nothing, so a run is the same as it was before the setting existed.
 - `report` stores the items that did not pass with the finding and changes nothing else.

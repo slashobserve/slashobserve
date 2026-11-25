@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 	maxNames        = 400
 	maxNameBytes    = 64
 	maxRanges       = 64
+	maxInstants     = 256
 	maxScannedBytes = 4 << 10
 	sigFigs         = 3
 )
@@ -32,10 +34,11 @@ type Range struct {
 }
 
 type Record struct {
-	Mode   Mode      `json:"mode"`
-	Values []float64 `json:"values,omitempty"`
-	Names  []string  `json:"names,omitempty"`
-	Ranges []Range   `json:"ranges,omitempty"`
+	Mode     Mode        `json:"mode"`
+	Reads    [][]float64 `json:"reads,omitempty"`
+	Names    []string    `json:"names,omitempty"`
+	Ranges   []Range     `json:"ranges,omitempty"`
+	Instants []time.Time `json:"instants,omitempty"`
 }
 
 func NewRecord(mode Mode) *Record {
@@ -54,17 +57,15 @@ func (r *Record) AddRead(content []byte, names []string, ranges []Range) {
 		return
 	}
 	read := reading{record: r, seen: map[float64]bool{}}
-	for _, v := range r.Values {
-		read.seen[v] = true
-	}
 	decoder := json.NewDecoder(bytes.NewReader(content))
 	decoder.UseNumber()
 	var parsed any
 	if decoder.Decode(&parsed) == nil {
-		read.walk(parsed)
+		read.walk(parsed, slot{})
 	}
-	if over := len(r.Values) - MaxValues; over > 0 {
-		r.Values = slices.Delete(r.Values, 0, over)
+	if len(read.values) > 0 {
+		r.Reads = append(r.Reads, read.values)
+		r.keepValues()
 	}
 	for _, name := range names {
 		r.addName(name)
@@ -74,64 +75,142 @@ func (r *Record) AddRead(content []byte, names []string, ranges []Range) {
 	}
 }
 
+func (r *Record) keepValues() {
+	total := 0
+	for _, read := range r.Reads {
+		total += len(read)
+	}
+	for over := total - MaxValues; over > 0; {
+		if oldest := len(r.Reads[0]); oldest <= over {
+			r.Reads, over = r.Reads[1:], over-oldest
+			continue
+		}
+		r.Reads[0], over = r.Reads[0][over:], 0
+	}
+}
+
+type slot struct {
+	key  string
+	time bool
+}
+
 type reading struct {
 	record *Record
 	seen   map[float64]bool
-	added  int
+	values []float64
 }
 
-func (rd *reading) walk(v any) {
+func (rd *reading) walk(v any, at slot) {
 	switch v := v.(type) {
 	case map[string]any:
-		for key, child := range v {
-			rd.text(key, false)
-			rd.walk(child)
+		if rd.table(v) {
+			return
+		}
+		for _, key := range sortedKeys(v) {
+			rd.walk(v[key], slot{key: key, time: timeKey(key)})
 		}
 	case []any:
 		for _, child := range v {
-			rd.walk(child)
+			rd.walk(child, at)
 		}
 	case json.Number:
-		if f, err := strconv.ParseFloat(string(v), 64); err == nil {
+		if f, err := strconv.ParseFloat(string(v), 64); err == nil && !at.time {
 			rd.value(f)
 		}
 	case string:
-		rd.text(v, true)
+		rd.text(v, at)
 	}
 }
 
-func (rd *reading) text(s string, named bool) {
-	if len(s) > maxScannedBytes {
-		s = s[:maxScannedBytes]
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
 	}
+	slices.Sort(keys)
+	return keys
+}
+
+func (rd *reading) table(m map[string]any) bool {
+	columns, ok := m["columns"].([]any)
+	rows, hasRows := m["rows"].([]any)
+	if !ok || !hasRows {
+		return false
+	}
+	cells := make([]slot, len(columns))
+	for i, column := range columns {
+		switch c := column.(type) {
+		case map[string]any:
+			name, _ := c["name"].(string)
+			kind, _ := c["type"].(string)
+			cells[i] = slot{key: name, time: kind == "time" || timeKey(name)}
+		case string:
+			cells[i] = slot{key: c, time: timeKey(c)}
+		}
+	}
+	for _, row := range rows {
+		values, _ := row.([]any)
+		for i, cell := range values {
+			if i < len(cells) {
+				rd.walk(cell, cells[i])
+			}
+		}
+	}
+	return true
+}
+
+var timeKeys = map[string]bool{
+	"time": true, "timens": true, "timestamp": true, "ts": true, "t": true,
+	"start": true, "end": true, "from": true, "to": true, "at": true,
+	"startns": true, "endns": true, "starttime": true, "endtime": true,
+	"timeunixnano": true, "startunixnano": true, "endunixnano": true,
+}
+
+func timeKey(key string) bool {
+	return timeKeys[normalName(key)]
+}
+
+func (rd *reading) text(s string, at slot) {
+	s = cut(s)
 	if f, err := strconv.ParseFloat(strings.TrimSpace(s), 64); err == nil {
-		rd.value(f)
+		if !at.time {
+			rd.value(f)
+		}
 		return
 	}
-	if _, err := time.Parse(time.RFC3339Nano, s); err == nil {
+	if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(s)); err == nil {
+		rd.record.addInstant(t)
 		return
 	}
-	if named {
-		if identifier.MatchString(s) {
-			rd.record.addName(s)
-		}
-		for _, m := range quotedValue.FindAllStringSubmatch(s, -1) {
-			rd.record.addName(m[1])
-		}
+	if identifier.MatchString(s) {
+		rd.record.addName(s)
+	}
+	for _, m := range quotedValue.FindAllStringSubmatch(s, -1) {
+		rd.record.addName(m[1])
 	}
 	for _, f := range valuesIn(s) {
 		rd.value(f)
 	}
 }
 
+func cut(s string) string {
+	if len(s) <= maxScannedBytes {
+		return s
+	}
+	s = s[:maxScannedBytes]
+	if i := strings.LastIndexFunc(s, unicode.IsSpace); i > 0 {
+		return s[:i]
+	}
+	return s
+}
+
 func (rd *reading) value(v float64) {
 	v = rounded(v)
-	if math.IsNaN(v) || math.IsInf(v, 0) || rd.seen[v] || rd.added >= maxValuesOfRead {
+	if math.IsNaN(v) || math.IsInf(v, 0) || rd.seen[v] || len(rd.values) >= maxValuesOfRead {
 		return
 	}
 	rd.seen[v] = true
-	rd.added++
-	rd.record.Values = append(rd.record.Values, v)
+	rd.values = append(rd.values, v)
 }
 
 func rounded(v float64) float64 {
@@ -171,5 +250,16 @@ func (r *Record) addRange(rng Range) {
 	r.Ranges = append(r.Ranges, rng)
 	if over := len(r.Ranges) - maxRanges; over > 0 {
 		r.Ranges = slices.Delete(r.Ranges, 0, over)
+	}
+}
+
+func (r *Record) addInstant(t time.Time) {
+	t = t.UTC().Truncate(time.Second)
+	if slices.Contains(r.Instants, t) {
+		return
+	}
+	r.Instants = append(r.Instants, t)
+	if over := len(r.Instants) - maxInstants; over > 0 {
+		r.Instants = slices.Delete(r.Instants, 0, over)
 	}
 }
