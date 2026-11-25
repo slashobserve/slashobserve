@@ -105,7 +105,7 @@ func TestServicesRouteRefusesWhatItCannotRead(t *testing.T) {
 	}{
 		{"/api/v1/datasources/nope/services", http.StatusNotFound, "not_found"},
 		{"/api/v1/datasources/prom/services", http.StatusBadRequest, "invalid_request"},
-		{"/api/v1/datasources/loki/services?signal=metrics", http.StatusBadRequest, "invalid_request"},
+		{"/api/v1/datasources/loki/services?signal=events", http.StatusBadRequest, "invalid_request"},
 		{"/api/v1/datasources/loki/services?window=soon", http.StatusBadRequest, "invalid_request"},
 		{"/api/v1/datasources/loki/services?window=10s", http.StatusBadRequest, "invalid_request"},
 		{"/api/v1/datasources/loki/services?window=24h", http.StatusBadRequest, "invalid_request"},

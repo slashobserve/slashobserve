@@ -2096,8 +2096,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the services a log or trace datasource has seen over a recent window.
-         * @description The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log or trace sources has `checkout` without opening each one. Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, Jaeger its list of every retained service, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, and Elasticsearch and OpenSearch the service field of the mapping. `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field. `signal` is `logs` or `traces`; without it the answer is `logs`, and `traces` on Tempo, and a datasource that does not hold the signal answers 422 `query_invalid`. ClickHouse holds both, so a client that wants both asks twice. `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed, except on Jaeger, which lists every service it retains whatever the window. At most 200 services come back, sorted by name, with `truncated` true when there were more. An answer is cached for about a minute per datasource, signal and window, and calls for the same key in flight share one upstream request. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, and counts against the per-caller in-flight limit. A source that does not answer within 5 seconds answers 504 `query_timeout`, so a client can show that the services are unavailable while the other sources answer. Any query parameter not listed below, or one given twice, is a 400. Viewers and above may call it, service-account keys included, and it reads only datasources that are configured on the server.
+         * List the services a log, trace or metric datasource has seen over a recent window.
+         * @description The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log, trace or metric sources has `checkout` without opening each one. Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, Jaeger its list of every retained service, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, Elasticsearch and OpenSearch the service field of the mapping, and Prometheus the first of the labels `service_name`, `service`, `app` and `job` that has values, with `field` empty when none does. `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field. `signal` is `logs`, `traces` or `metrics`; without it the answer is `logs`, `traces` on Tempo, and `metrics` on Prometheus, and a datasource that does not hold the signal answers 422 `query_invalid`. ClickHouse holds both, so a client that wants both asks twice. `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed, except on Jaeger, which lists every service it retains whatever the window. At most 200 services come back, sorted by name, with `truncated` true when there were more. An answer is cached for about a minute per datasource, signal and window, and calls for the same key in flight share one upstream request. The call takes one of the server's shared upstream slots, waiting at most 5 seconds for one before it answers 429 `too_many_requests` with `Retry-After`, and counts against the per-caller in-flight limit. A source that does not answer within 5 seconds answers 504 `query_timeout`, so a client can show that the services are unavailable while the other sources answer. Any query parameter not listed below, or one given twice, is a 400. Viewers and above may call it, service-account keys included, and it reads only datasources that are configured on the server.
          */
         get: operations["listDatasourceServices"];
         put?: never;
@@ -14508,7 +14508,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Which signal to read. */
-                signal?: "logs" | "traces";
+                signal?: "logs" | "traces" | "metrics";
                 /** @description How far back the window reaches from now, as a duration such as `15m` or `1h`. */
                 window?: string;
             };
@@ -14529,7 +14529,7 @@ export interface operations {
                     "application/json": {
                         datasource: string;
                         /** @enum {string} */
-                        signal: "logs" | "traces";
+                        signal: "logs" | "traces" | "metrics";
                         field: string;
                         window_seconds: number;
                         services: string[];
