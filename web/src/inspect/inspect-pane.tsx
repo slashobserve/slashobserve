@@ -67,6 +67,7 @@ export function InspectPane({
       }))
   return (
     <DockPanel
+      panelKey="inspect"
       id={inspectPaneId}
       labelledBy={headingId}
       width={layout.width}

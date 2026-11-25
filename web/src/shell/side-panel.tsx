@@ -85,6 +85,7 @@ function PanelCard({
 
   return (
     <DockPanel
+      panelKey={`side-panel:${title}`}
       ref={asideRef}
       hidden={hidden}
       labelledBy={titleId}

@@ -356,6 +356,7 @@ function InboxCard() {
 
   return (
     <DockPanel
+      panelKey="inbox"
       ref={asideRef}
       isInbox
       labelledBy={titleId}

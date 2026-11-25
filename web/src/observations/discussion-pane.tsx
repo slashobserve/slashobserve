@@ -175,6 +175,7 @@ export function DiscussionPane({
   if (!host) return null
   return createPortal(
     <DockPanel
+      panelKey="discussion"
       labelledBy={headingId}
       width={layout.width}
       bounds={layout.bounds}
