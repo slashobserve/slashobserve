@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { log, type Fields } from "./log"
 import type { ClaimApi, RunTools } from "./mcp"
-import { isSave } from "./phase"
+import { isSave, offersWrite } from "./phase"
 import {
   type BriefReason,
   type BuildProgress,
@@ -174,6 +174,7 @@ class RunLoop {
   private readonly runRef: { run_id: string; attempt: number }
   private readonly renewBytes: number
   private specs: ToolSpec[] = []
+  private inWriteWindow = false
   private session: Session | undefined
   private build: BuildProgress | null = null
   private buildSaves = 0
@@ -509,7 +510,12 @@ class RunLoop {
         this.buildSaves = meta.build.saves
       }
     }
-    switch (settledOf(metas)) {
+    const settled = settledOf(metas)
+    if (settled === "saved" && offersWrite(this.specs)) {
+      this.inWriteWindow = true
+      return { kind: "continue", results }
+    }
+    switch (settled) {
       case "saved":
       case "proposed":
       case "finding":
@@ -549,6 +555,10 @@ class RunLoop {
         }
         this.findingNudged = true
         return this.compaction("no_finding", undefined)
+    }
+    if (this.inWriteWindow) {
+      await this.finish({ outcome: "succeeded" })
+      return { kind: "end", end: { kind: "finished" } }
     }
     const build = this.build
     if (build === null) {

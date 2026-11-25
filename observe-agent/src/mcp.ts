@@ -197,6 +197,9 @@ export class McpClient implements RunTools {
           name: tool.name,
           description: tool.description ?? "",
           inputSchema: tool.inputSchema,
+          ...(tool.annotations?.readOnlyHint === undefined
+            ? {}
+            : { readOnly: tool.annotations.readOnlyHint }),
         })
       }
       cursor = page.nextCursor
