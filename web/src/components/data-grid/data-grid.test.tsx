@@ -168,6 +168,73 @@ describe("DataGrid", () => {
     expect(clicked).toHaveBeenCalledTimes(1)
   })
 
+  it("tabs between the controls of a cell that holds several, and Enter presses the focused one", async () => {
+    const edit = vi.fn()
+    const remove = vi.fn()
+    const withActions: DataGridColumn<Row>[] = [
+      columns[0] as DataGridColumn<Row>,
+      {
+        id: "actions",
+        header: "Actions",
+        action: true,
+        cell: (row) => (
+          <>
+            <button type="button" onClick={() => edit(row.id)}>
+              Edit {row.name}
+            </button>
+            <button type="button" onClick={() => remove(row.id)}>
+              Remove {row.name}
+            </button>
+          </>
+        ),
+      },
+    ]
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={withActions}
+        rowId={(row) => row.id}
+      />
+    )
+    const first = await screen.findByRole("button", { name: "Edit Checkout" })
+    const second = screen.getByRole("button", { name: "Remove Checkout" })
+    const cell = first.closest<HTMLElement>("[role=gridcell]") as HTMLElement
+    cell.focus()
+    fireEvent.keyDown(cell, { key: "Enter" })
+    expect(edit).not.toHaveBeenCalled()
+    fireEvent.keyDown(cell, { key: "Tab" })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(first, { key: "Tab" })
+    expect(second).toHaveFocus()
+    fireEvent.keyDown(second, { key: "Enter" })
+    expect(remove).toHaveBeenCalledWith("a")
+    expect(edit).not.toHaveBeenCalled()
+    fireEvent.keyDown(second, { key: "Tab", shiftKey: true })
+    expect(first).toHaveFocus()
+  })
+
+  it("redraws a row whose content changes under the same id", async () => {
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+    }
+    const { rerender } = render(<DataGrid {...props} rows={rows} />)
+    await screen.findByRole("gridcell", { name: "Search" })
+    rerender(
+      <DataGrid
+        {...props}
+        rows={rows.map((row) =>
+          row.id === "b" ? { ...row, name: "Search v2" } : row
+        )}
+      />
+    )
+    expect(
+      await screen.findByRole("gridcell", { name: "Search v2" })
+    ).toBeInTheDocument()
+  })
+
   it("reports the hovered row and paints the highlighted one", async () => {
     const onHighlightRow = vi.fn()
     const { rerender, container } = render(
@@ -455,6 +522,56 @@ describe("DataGrid", () => {
       ])
       expect(card?.firstElementChild).toHaveClass("basis-full", "font-medium")
       expect(card?.lastElementChild).toHaveClass("ml-auto")
+    })
+
+    it("presses the only control of a focused card on Enter", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+        />
+      )
+      const link = await screen.findByRole("link", { name: "Open Search" })
+      const clicked = vi.fn((event: MouseEvent) => event.preventDefault())
+      link.addEventListener("click", clicked)
+      const card = container.querySelector<HTMLElement>('[row-id="b"]')
+      expect(card).toHaveClass("ag-full-width-row")
+      card?.focus()
+      fireEvent.keyDown(card as HTMLElement, { key: "Enter" })
+      expect(clicked).toHaveBeenCalledTimes(1)
+    })
+
+    it("redraws a card whose content changes under the same id", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const props = {
+        label: "Services",
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={rows} />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search")
+      )
+      rerender(
+        <DataGrid
+          {...props}
+          rows={rows.map((row) =>
+            row.id === "b" ? { ...row, name: "Search v2" } : row
+          )}
+        />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search v2")
+      )
     })
 
     it("places each card below the measured height of the one before", async () => {

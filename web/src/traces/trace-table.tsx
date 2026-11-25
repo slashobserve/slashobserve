@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import {
   barColumnMinWidth,
   barShare,
+  markerShare,
   textWidthCh,
 } from "@/components/data-grid/bar"
 import { BarCell } from "@/components/data-grid/bar-cell"
@@ -158,11 +159,7 @@ export function traceGridColumn(
             text={durationText(row.durationMs)}
             widthCh={context.durationWidthCh}
             share={barShare(row.durationMs, context.slowest)}
-            marker={
-              context.p95 === null || context.slowest <= 0
-                ? null
-                : barShare(context.p95, context.slowest)
-            }
+            marker={markerShare(context.p95, context.slowest)}
             critical={row.errors !== null && row.errors > 0}
           />
         ),

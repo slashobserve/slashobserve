@@ -19,6 +19,10 @@ describe("fillHeight", () => {
     expect(fillHeight(1000, 200)).toBe(752)
   })
 
+  it("never grows past the visible height when the top is above it", () => {
+    expect(fillHeight(1000, -4000)).toBe(952)
+  })
+
   it("keeps a minimum when little of the viewport is left", () => {
     expect(fillHeight(900, 700)).toBe(minGridHeight)
     expect(fillHeight(900, 2000)).toBe(minGridHeight)
