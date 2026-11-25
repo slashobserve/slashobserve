@@ -370,6 +370,10 @@ The save is rejected when:
   A signed-in person can keep such a panel from the [panel editor](../use/edit-panel.md#save-as-a-new-version), marked "Unverified"; the agent, MCP clients and the CLI cannot.
 - the document breaks a rule of the format, such as overlapping panels or an undeclared variable.
 
+A panel or variable the save did not change is not rejected when it only times out, for instance a heavy panel over a longer time range.
+It is saved as "Unverified" with the timeout as its reason, and so are the panels that read a variable that timed out.
+A panel the save changed still has to pass.
+
 The rejection lists each problem with the path of the panel or variable and a code.
 Every rejection in a run lists `failing_panels`, the ids of the panels the problems belong to, with a line that says how to repair them.
 The step of a rejected save names the first problem's path, and a refused input names the reason.

@@ -583,7 +583,7 @@ The conversation shows these as phases, each with a message from the server:
 A save is the real check.
 A full save runs every panel query, and an `update_panels` save runs only the panels and variables it changed, unless it changes the time range, which runs every query.
 Either rejects a panel whose query is invalid or returns no data, except for alert list panels and panels over the built-in audit datasource, which can be quiet.
-A panel whose queries the save did not change and that only times out, such as a heavy panel over a longer time range, is saved as "Unverified" with the timeout as the reason instead of blocking the save.
+A panel or variable whose queries the save did not change and that only times out, such as a heavy panel over a longer time range, is saved as "Unverified" with the timeout as the reason instead of blocking the save, and so are the panels that read a variable that timed out.
 The rejection comes back to the agent with the problem for each panel, and the agent fixes the draft and saves again.
 The agent may repair after a rejection, but the third rejected save in a row stops the run and the request fails.
 A save that finishes the dashboard ends the run.
