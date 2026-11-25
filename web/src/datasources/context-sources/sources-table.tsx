@@ -324,24 +324,24 @@ function SourceName({
   onToggle: () => void
 }) {
   return (
-    <div className="flex min-w-0 items-start gap-1.5 py-1.5">
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-expanded={open}
-        aria-controls={`context-tools-${source.uid}`}
-        aria-label={`Tools of ${source.name}`}
-        onClick={onToggle}
-      >
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={`context-tools-${source.uid}`}
+      aria-label={`Tools of ${source.name}`}
+      onClick={onToggle}
+      className="flex size-full min-w-0 cursor-pointer items-start gap-1.5 rounded-control py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground">
         <ChevronRightIcon
           aria-hidden="true"
           className={cn(
-            "motion-safe:transition-transform",
+            "size-4 motion-safe:transition-transform",
             open && "rotate-90"
           )}
         />
-      </Button>
-      <div className="flex min-w-0 flex-col">
+      </span>
+      <span className="flex min-w-0 flex-col">
         <span className="min-w-0 font-medium wrap-break-word">
           {source.name}
         </span>
@@ -349,12 +349,12 @@ function SourceName({
           {source.uid}
         </span>
         {source.description === null ? null : (
-          <span className="mt-0.5 text-[13px] wrap-anywhere">
+          <span className="mt-0.5 text-[13px] font-normal wrap-anywhere">
             {source.description}
           </span>
         )}
-      </div>
-    </div>
+      </span>
+    </button>
   )
 }
 

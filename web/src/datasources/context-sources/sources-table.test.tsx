@@ -168,6 +168,29 @@ describe("McpSourcesSection", () => {
     )
   })
 
+  it("toggles from a click anywhere on the name cell, not only the chevron", async () => {
+    const { user } = section()
+    const toggle = await screen.findByRole("button", {
+      name: "Tools of Docs index",
+    })
+    await user.click(screen.getByText("Docs index"))
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await user.click(screen.getByText("docs"))
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("expands with Space as well as Enter", async () => {
+    const { user } = section()
+    const toggle = await screen.findByRole("button", {
+      name: "Tools of Docs index",
+    })
+    toggle.focus()
+    await user.keyboard(" ")
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    await user.keyboard("{Enter}")
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+  })
+
   it("expands with the keyboard", async () => {
     const { user } = section()
     const toggle = await screen.findByRole("button", {
@@ -238,7 +261,7 @@ describe("McpSourcesSection", () => {
 
   it("shows the MCP form with MCP server preselected when adding", async () => {
     const { host } = section({ adding: true })
-    expect(await within(host).findByText("Add a context source")).toBeVisible()
+    expect(await within(host).findByText("Add an MCP server")).toBeVisible()
     expect(
       within(host).getByRole("combobox", { name: "Type" })
     ).toHaveTextContent("MCP server")

@@ -237,7 +237,7 @@ function Editor({
 
   return (
     <SidePanel
-      title={mode === "create" ? "Add a datasource" : `Edit ${uid}`}
+      title={mode === "create" ? createTitle(values.type) : `Edit ${uid}`}
       description={
         mode === "create"
           ? "The server connects to it with the address and credentials you give, and only an Admin can change them."
@@ -321,6 +321,10 @@ function Editor({
       </form>
     </SidePanel>
   )
+}
+
+function createTitle(type: FormValues["type"]) {
+  return type === "" ? "Add a source" : "Add a datasource"
 }
 
 function TestResult({ outcome }: { outcome: TestOutcome }) {
