@@ -134,6 +134,7 @@ type Result struct {
 	Refusal    Refusal
 	Edits      Edits
 	Unchecked  string
+	Created    []string
 }
 
 type Edits struct {
@@ -220,6 +221,8 @@ type Run struct {
 	WriteFolders  []pgtype.UUID
 	Investigation bool
 	AsOf          time.Time
+	ChatID        string
+	ThreadAsk     bool
 }
 
 func (run Run) asOf() *time.Time {
@@ -436,7 +439,7 @@ func (r *Registry) call(ctx context.Context, name string, input json.RawMessage,
 		res.Step = "Refused " + name + ": " + codeForbiddenRole
 		return res, nil
 	}
-	if res, ok := offered(e.tool, run, inRun); !ok {
+	if res, ok := r.admitted(ctx, e.tool, run, inRun, input); !ok {
 		return res, nil
 	}
 	ctx = callAccess(ctx, principal, run, inRun)
@@ -529,12 +532,13 @@ func trimmedSave(content any, limit int) (any, bool) {
 		c.Panels, _ = fit(panels, limit-jsonSize(c))
 		return c, jsonSize(c) <= limit
 	case buildOut:
-		changed := c.ChangedPanels
-		c.ChangedPanels = []panelOut{}
+		changed, reverified := c.ChangedPanels, c.Reverified
+		c.ChangedPanels, c.Reverified = []panelOut{}, nil
 		if jsonSize(c) > limit {
 			c.Layout = nil
 		}
 		c.ChangedPanels, _ = fit(changed, limit-jsonSize(c))
+		c.Reverified, _ = fit(reverified, limit-jsonSize(c)-len(`,"reverified":[]`))
 		return c, jsonSize(c) <= limit
 	}
 	return nil, false

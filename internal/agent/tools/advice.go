@@ -187,12 +187,17 @@ func buildAdvice(ctx context.Context, out buildOut, doc *spec.Dashboard, saved [
 	noted := slices.DeleteFunc(doc.AllPanels(), func(e spec.PanelEntry) bool { return !slices.Contains(saved, e.Panel.ID) })
 	out.advice = adviceAbout(doc, inventory, noted)
 	rest := out
-	rest.ChangedPanels = nil
+	rest.ChangedPanels, rest.Reverified = nil, nil
 	body, err := json.Marshal(rest)
 	if err != nil {
 		return out
 	}
 	out.ChangedPanels, _ = fit(out.ChangedPanels, listBudget-len(body))
+	changedBody, err := json.Marshal(out.ChangedPanels)
+	if err != nil {
+		return out
+	}
+	out.Reverified, _ = fit(out.Reverified, listBudget-len(body)-len(changedBody))
 	return out
 }
 

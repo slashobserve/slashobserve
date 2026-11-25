@@ -151,3 +151,45 @@ func TestRenderTellsAnAsOfRunItsNow(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderGivesTheCurrentTimeInThePersonsZone(t *testing.T) {
+	at := time.Date(2026, 11, 25, 5, 29, 0, 0, time.UTC)
+	task := Task{Mode: tools.ModeInvestigate, Prompt: "why is a slow", TimeZone: "Asia/Kolkata", AsOf: &at}
+	got, err := Render(statuses, task, View{}, Fresh, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "It is now 10:59 IST on 2026-11-25, which is 2026-11-25 05:29 UTC; take your window from that time and state the window you queried."
+	if !strings.Contains(got.Context, want) {
+		t.Fatalf("context lacks %q:\n%s", want, got.Context)
+	}
+}
+
+func TestRenderGivesTheCurrentTimeInUTCWhenNoZoneIsKnownOrTheZoneIsUTC(t *testing.T) {
+	at := time.Date(2026, 11, 25, 5, 29, 0, 0, time.UTC)
+	const want = "It is now 2026-11-25 05:29 UTC; take your window from that time and state the window you queried."
+	for name, tc := range renderCases(t) {
+		task := tc.task
+		task.AsOf = &at
+		got, err := Render(statuses, task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if has := strings.Contains(got.Context, want); has == (name == "suggest") {
+			t.Fatalf("%s: UTC time named = %v in\n%s", name, has, got.Context)
+		}
+		if strings.Contains(got.Context, "Time zone:") {
+			t.Fatalf("%s: a run with no zone named one", name)
+		}
+	}
+
+	utc := Task{Mode: tools.ModeInvestigate, Prompt: "why is a slow", TimeZone: "UTC", AsOf: &at}
+	got, err := Render(statuses, utc, View{}, Fresh, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const inUTC = "It is now 05:29 UTC on 2026-11-25; take your window from that time and state the window you queried."
+	if !strings.Contains(got.Context, inUTC) || strings.Contains(got.Context, "which is") {
+		t.Fatalf("context for a UTC zone:\n%s", got.Context)
+	}
+}

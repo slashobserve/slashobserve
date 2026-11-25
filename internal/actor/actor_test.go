@@ -1,6 +1,7 @@
 package actor
 
 import (
+	"context"
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -131,5 +132,57 @@ func TestJSON(t *testing.T) {
 	run := Actor{Kind: auth.KindUser, ID: userID, Name: "Ishan", RunID: runID}.JSON()
 	if run.RunID == nil || *run.RunID != runID {
 		t.Fatalf("run JSON = %+v", run)
+	}
+}
+
+func TestActorInTakesTheRunFromTheContext(t *testing.T) {
+	person := auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ishan"}
+	web := origin.With(context.Background(), origin.Origin{Kind: origin.Web})
+	other := "33333333-3333-3333-3333-333333333333"
+	cases := []struct {
+		name      string
+		ctx       context.Context
+		explicit  string
+		wantRunID string
+	}{
+		{"no run in the context", web, "", ""},
+		{"run in the context", WithRun(web, runID), "", runID},
+		{"context run wins over a different explicit run", WithRun(web, runID), other, runID},
+		{"explicit run without a context run", web, other, other},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := In(tc.ctx, person, tc.explicit)
+			if got.RunID != tc.wantRunID {
+				t.Fatalf("RunID = %q, want %q", got.RunID, tc.wantRunID)
+			}
+			if got.Origin.Kind != origin.Web {
+				t.Fatalf("origin = %q, want web", got.Origin.Kind)
+			}
+		})
+	}
+}
+
+func TestActorInLabelsAnAgentWrite(t *testing.T) {
+	person := auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ishan"}
+	if got := In(WithRun(context.Background(), runID), person, "").Label(); got != "Observe Agent for Ishan" {
+		t.Fatalf("Label() = %q", got)
+	}
+	if got := In(context.Background(), person, "").Label(); got != "Ishan" {
+		t.Fatalf("Label() without a run = %q", got)
+	}
+}
+
+func TestActorInKeepsTheMCPLabelOfAConnectedAgentRun(t *testing.T) {
+	person := auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ada"}
+	mcp := origin.With(context.Background(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	connected := AsConnectedAgent(WithRun(mcp, runID))
+	got := In(connected, person, "")
+	if got.RunID != "" || got.Label() != "Ada (via Claude Code)" {
+		t.Fatalf("connected agent actor = %+v, label %q", got, got.Label())
+	}
+	builtIn := In(WithRun(mcp, runID), person, "")
+	if builtIn.RunID != runID || builtIn.Label() != "Observe Agent for Ada" {
+		t.Fatalf("built-in agent actor = %+v, label %q", builtIn, builtIn.Label())
 	}
 }

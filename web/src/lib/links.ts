@@ -3,6 +3,7 @@ import type { MetricsSearch } from "@/metrics/search"
 import type { TraceSearch } from "@/traces/search"
 
 import { stringifySearch } from "./search"
+import { traceIdToken } from "./trace-id"
 
 const maxSlugLength = 60
 const historySegment = "versions"
@@ -164,4 +165,15 @@ export function traceUrl(
     path("t", traceId) +
     stringifySearch(traceSearch(datasourceUid, range, span, observation))
   )
+}
+
+const idSlot = "traceidslot"
+const fromSlot = "fromslot"
+const toSlot = "toslot"
+
+export function traceUrlTemplate(datasourceUid: string): string {
+  return traceUrl(idSlot, datasourceUid, { from: fromSlot, to: toSlot })
+    .replace(idSlot, traceIdToken)
+    .replace(fromSlot, "${__from}")
+    .replace(toSlot, "${__to}")
 }

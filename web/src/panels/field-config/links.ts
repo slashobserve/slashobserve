@@ -1,5 +1,6 @@
 import type { Selections } from "@/api/keys"
 import { resolveTime, type TimeOptions } from "@/lib/time"
+import { traceIdToken, validTraceId } from "@/lib/trace-id"
 import type { WireFrame } from "@/dashboards/queries"
 import { matchesName } from "@/panels/transforms"
 import {
@@ -51,6 +52,8 @@ const formatSuffix = new RegExp(`^(.+):(${variableFormats.join("|")})$`)
 const labelPrefix = "__field.labels."
 const plainVar = /^[A-Za-z_][A-Za-z0-9_]*$/
 
+const traceIdName = traceIdToken.slice(2, -1)
+
 const unresolvedRange = /\$\{?__(?:from|to)\b/
 
 export function oneClickLink(links: ResolvedLink[]): ResolvedLink | undefined {
@@ -95,6 +98,10 @@ function valuesOf(name: string, scope: LinkScope): string[] | null {
   if (name === "__value.raw") {
     if (scope.value === undefined) return null
     return [scope.value === null ? "" : String(scope.value)]
+  }
+  if (name === traceIdName) {
+    const id = validTraceId(scope.value)
+    return id === null ? null : [id]
   }
   if (name === "__value.text") {
     return scope.valueText === undefined ? null : [scope.valueText]
@@ -191,6 +198,8 @@ export function resolveLink(link: Link, scope: LinkScope): ResolvedLink | null {
   const encode = wholeToken.test(link.url.trim())
     ? identity
     : encodeURIComponent
+  if (link.url.includes(traceIdToken) && valuesOf(traceIdName, scope) === null)
+    return null
   const href = interpolate(link.url, scope, encode).trim()
   if (!isSafeUrl(href)) return null
   return {

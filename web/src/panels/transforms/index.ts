@@ -168,7 +168,8 @@ export function prepareFrames(
 ): PreparedFrame[] {
   const named = applyQueryFormats(
     panel,
-    stampSeriesNames(panel, frames, datasourceTypeOf)
+    stampSeriesNames(panel, frames, datasourceTypeOf),
+    datasourceTypeOf
   )
   const transforms = panel.transform ?? []
   const after = reusedFilter?.after ?? 0

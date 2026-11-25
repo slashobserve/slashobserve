@@ -52,6 +52,8 @@ Merge or discard only what your person asked you to.
 ## Investigate a question
 
 Find the signal with the discovery tools and query_range, and look for causes beside it: list_annotations for deploys and other markers, list_activity for dashboard changes and agent runs.
+For something failing now, start with a short recent window and rank the services by error counts before you read one trace, and group the error spans by status message over time before you name a start time or a single cause.
+A filter that returns nothing matched nothing: check the values it filters on before you say there were no errors (a ClickHouse span status is `Error`), and make the first sentence of the answer match the numbers under it.
 Read earlier observations with list_observations and get_observation first, and cite the one you used by its title and /o/<id> link.
 Save the answer in an observation: create_observation files one in a folder (list_folders gives a folder_id), and add_block adds a text block (Markdown, no HTML), a panel block whose query returns data in its range, or a snapshot that freezes a panel block.
 Put a one-sentence answer first, then the evidence.

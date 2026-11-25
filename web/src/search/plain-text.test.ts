@@ -22,6 +22,24 @@ describe("plainText", () => {
   })
 })
 
+describe("plainText Markdown details", () => {
+  it("drops paired emphasis but keeps lone underscores and stars", () => {
+    expect(plainText("*slow* _late_ a_b_c 3 * 2 * 4")).toBe(
+      "slow late a_b_c 3 * 2 * 4"
+    )
+  })
+
+  it("drops stacked and ordered markers, and image syntax", () => {
+    expect(plainText("> ## Cause\n1. step ![chart](/c.png)")).toBe(
+      "Cause\nstep chart"
+    )
+  })
+
+  it("allows one level of parentheses in a link address", () => {
+    expect(plainText("[page](https://x.test/a_(b)) ok")).toBe("page ok")
+  })
+})
+
 describe("plainSegments", () => {
   it("cleans each segment and keeps which ones matched", () => {
     expect(

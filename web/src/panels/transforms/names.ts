@@ -7,6 +7,7 @@ import { isNumber } from "../reducers"
 
 export type PreparedField = WireField & {
   seriesName?: string
+  headedBySeriesName?: true
   config?: FieldProps
   nested?: { headers: boolean }
 }
@@ -32,6 +33,18 @@ export function matchesName(
   name: string
 ): boolean {
   return field.name === name || seriesName(frame, field) === name
+}
+
+export function carriedProps(
+  sources: readonly PreparedField[]
+): Pick<PreparedField, "seriesName" | "config"> {
+  const names = new Set(sources.map((source) => source.seriesName))
+  const [seriesName] = names
+  const config = sources.find((source) => source.config !== undefined)?.config
+  return {
+    ...(names.size === 1 && seriesName !== undefined ? { seriesName } : {}),
+    ...(config === undefined ? {} : { config }),
+  }
 }
 
 export function rowCount(frame: PreparedFrame): number {

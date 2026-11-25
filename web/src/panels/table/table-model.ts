@@ -287,7 +287,7 @@ function headerOf(draft: Draft, fields: FieldResolver): string {
       .filter((feeder) => isShown(feeder, fields))
       .map(({ frame, field }) =>
         fields.configFor(frame, field).displayName === undefined
-          ? field.name
+          ? (field.headedBySeriesName && field.seriesName) || field.name
           : fields.displayName(frame, field)
       )
   )

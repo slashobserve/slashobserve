@@ -170,7 +170,7 @@ func (r *Registry) listRuns(ctx context.Context, input json.RawMessage) (Result,
 			return invalid("cursor is not valid"), nil
 		}
 		if err != nil {
-			return runFailure(err)
+			return runFailure(ctx, err)
 		}
 		var page struct {
 			Requests   []runListItemOut `json:"requests"`
@@ -233,7 +233,7 @@ func (r *Registry) renameRun(ctx context.Context, input json.RawMessage) (Result
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Update(ctx, id, principal, title, clearTitle, nil)
 	if err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	var shared struct {
 		Observation revisions.SharedTitle `json:"observation_rename"`
@@ -260,7 +260,7 @@ func (r *Registry) setRunPin(ctx context.Context, input json.RawMessage, pinned 
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Update(ctx, id, principal, nil, false, &pinned)
 	if err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	step := "Unpinned run "
 	if pinned {
@@ -292,7 +292,7 @@ func (r *Registry) archiveRun(ctx context.Context, input json.RawMessage) (Resul
 	}
 	principal, _ := auth.FromContext(ctx)
 	if err := r.deps.Runs.Archive(ctx, id, principal); err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	return success("Archived run "+id.String(), archivedRunOut{ID: id.String(), Archived: true}), nil
 }

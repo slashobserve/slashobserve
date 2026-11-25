@@ -76,9 +76,22 @@ func (s *Service) Call(ctx context.Context, req revisions.Request, call Call, di
 	if first.answer != nil {
 		return *first.answer, nil
 	}
+	var scope tools.WriteScope
+	if tools.Phase(call.Name) == tools.PhaseWrite {
+		err = s.with(ctx, req, func(ctx context.Context, sess *session) error {
+			scope = sess.state.writeScope()
+			return nil
+		})
+		if errors.Is(err, errRunNotRunning) {
+			return endedAnswer(), nil
+		}
+		if err != nil {
+			return Answer{}, err
+		}
+	}
 	done := dispatched{start: time.Now()}
 	noted, readRestricted := datasource.NotingRestrictedReads(ctx)
-	done.res, done.err = dispatch(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked))
+	done.res, done.err = dispatch(tools.WithWriteScope(tools.WithUnchecked(tools.WithReadsRefused(noted, first.adm.ReadsRefused), first.adm.Unchecked), scope))
 	done.took = time.Since(done.start)
 	if readRestricted() {
 		if err := s.markReadRestricted(ctx, req); err != nil {
@@ -170,12 +183,10 @@ func (sess *session) endedAnswerWith(answer Answer, notes []string) Answer {
 func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dispatched) (Answer, error) {
 	state := &sess.state
 	state.Usage.ToolMS += d.took.Milliseconds()
+	sess.endRead(c, a)
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
 	if d.err != nil {
-		step.Status, step.Message = "error", internalStep
-		sess.record(step)
-		_, err := sess.complete(ctx, a.seq)
-		return Answer{}, err
+		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
 	if d.res.IsError {
 		step.Status = "error"
@@ -217,6 +228,22 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	return answer, nil
 }
 
+func (sess *session) endRead(c guard.Call, a admitted) {
+	if a.adm.Verdict != guard.Refuse && sess.state.Turn.Open && sess.state.Turn.Seq == a.seq {
+		sess.state.Guard.EndRead(c)
+	}
+}
+
+func (sess *session) settleFailed(ctx context.Context, c guard.Call, a admitted, step revisions.Step) error {
+	step.Status, step.Message = "error", internalStep
+	if tools.Phase(c.Name) == tools.PhaseWrite && a.adm.Verdict == guard.Dispatch {
+		sess.state.Guard.ForgetWrite(c)
+	}
+	sess.record(step)
+	_, err := sess.complete(ctx, a.seq)
+	return err
+}
+
 func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatched, answer *Answer) (restarted bool, err error) {
 	state := &sess.state
 	settled, err := state.Guard.Settle(c, d.res, d.content)
@@ -228,6 +255,9 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 		answer.Notes = append(answer.Notes, settled.Note)
 	}
 	if !isSave(c.Name) {
+		if tools.Phase(c.Name) == tools.PhaseWrite && !d.res.IsError {
+			state.noteCreated(d.res.Created)
+		}
 		if found := d.res.Discovered; found != nil && !d.res.IsError {
 			state.addDiscovery(*found)
 		}
@@ -258,6 +288,7 @@ func (sess *session) apply(ctx context.Context, out guard.Outcome) (restarted bo
 		state.Settled = Settled{Kind: settledProposed}
 	case out.Saved != nil:
 		state.Settled = Settled{Kind: settledSaved, Version: out.Saved.Version}
+		state.Committed = out.Saved.DashboardID
 	case out.Conflict:
 		return sess.resolveConflict(ctx)
 	case out.NotFound:

@@ -54,13 +54,29 @@ export function askedAgentName(
   return named?.name ?? "The agent"
 }
 
+export type RunProgress = Run["status"] | "canceling" | "canceled"
+
+export function runProgress(
+  request: { status: Run["status"]; state?: string } | undefined,
+  sent: Run["status"]
+): RunProgress {
+  if (request?.state === "canceling" || request?.state === "canceled") {
+    return request.state
+  }
+  return request?.status ?? sent
+}
+
 export function runLineText(
   run: Pick<Run, "assigned_kind">,
-  status: Run["status"],
+  progress: RunProgress,
   agentName: string
 ): string {
   if (run.assigned_kind !== "builtin") return `${agentName} was asked`
-  switch (status) {
+  switch (progress) {
+    case "canceling":
+      return "Stopping"
+    case "canceled":
+      return "Stopped"
     case "queued":
     case "running":
       return `${agentName} is working on it`

@@ -71,6 +71,28 @@ func TestVerifyMarksPanelsAndSkipsPlaceholders(t *testing.T) {
 	}
 }
 
+func TestVerifyNamesTheMappedDatasourceOfADatasourceVariable(t *testing.T) {
+	parsed, err := spec.Parse([]byte(`{
+		"specVersion": "0",
+		"title": "Mapped",
+		"time": {"from": "now-6h", "to": "now"},
+		"variables": [{"name": "datasource", "type": "datasource", "datasourceType": "prometheus", "default": "prom"}],
+		"panels": [{"id": "p1", "type": "stat", "title": "Stat", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "datasource": "${datasource}", "queries": [{"query": "up"}]}]
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := &Result{Spec: parsed, Report: Report{Panels: []PanelLine{{PanelID: "p1", Status: statusImported, Reasons: []string{}}}}}
+	res.Verify([]spec.Issue{
+		{Path: "/panels/0/queries/0/query", Message: "bad syntax"},
+		{Path: "/panels/0/datasource", Message: "gone"},
+	})
+	want := []string{"Query A failed on prom: bad syntax", "Datasource prom is not available."}
+	if got := panelLine(t, res, "p1").Reasons; !slices.Equal(got, want) {
+		t.Fatalf("reasons = %q, want %q", got, want)
+	}
+}
+
 func TestQueryEmptyCodeMatchesTheQueryProxy(t *testing.T) {
 	if codeQueryEmpty != queryproxy.CodeQueryEmpty {
 		t.Fatalf("codeQueryEmpty = %q, queryproxy.CodeQueryEmpty = %q", codeQueryEmpty, queryproxy.CodeQueryEmpty)
