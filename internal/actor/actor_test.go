@@ -147,7 +147,7 @@ func TestActorInTakesTheRunFromTheContext(t *testing.T) {
 	}{
 		{"no run in the context", web, "", ""},
 		{"run in the context", WithRun(web, runID), "", runID},
-		{"explicit run wins", WithRun(web, runID), other, other},
+		{"context run wins over a different explicit run", WithRun(web, runID), other, runID},
 		{"explicit run without a context run", web, other, other},
 	}
 	for _, tc := range cases {

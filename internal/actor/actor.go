@@ -32,7 +32,7 @@ func WithRun(ctx context.Context, runID string) context.Context {
 
 func In(ctx context.Context, p auth.Principal, runID string) Actor {
 	inRun, _ := ctx.Value(runKey{}).(string)
-	return Of(p, origin.From(ctx), cmp.Or(runID, inRun))
+	return Of(p, origin.From(ctx), cmp.Or(inRun, runID))
 }
 
 type Columns struct {
