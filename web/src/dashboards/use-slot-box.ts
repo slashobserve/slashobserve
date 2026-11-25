@@ -20,8 +20,13 @@ function scroller(node: HTMLElement): HTMLElement | null {
   return null
 }
 
+function holds(target: EventTarget | null, node: Node): boolean {
+  return target instanceof Node && target.contains(node)
+}
+
 export function useSlotBox(
   node: HTMLElement | null,
+  bar: HTMLElement | null,
   bottomInset: number
 ): SlotBox {
   const [box, setBox] = useState<SlotBox>({
@@ -39,9 +44,11 @@ export function useSlotBox(
       const edges = area?.getBoundingClientRect()
       const lift = edges ? Math.max(0, window.innerHeight - edges.bottom) : 0
       const bottom = bottomInset + lift
+      const barHeight = bar?.getBoundingClientRect().height ?? 0
       const hidden =
         edges !== undefined &&
-        (edges.bottom <= 0 || edges.top >= window.innerHeight)
+        (edges.bottom - bottomInset - barHeight < 0 ||
+          edges.top >= window.innerHeight)
       setBox((current) =>
         current.left === left &&
         current.width === width &&
@@ -51,19 +58,35 @@ export function useSlotBox(
           : { left, width, bottom, hidden }
       )
     }
+    let frame = 0
+    const schedule = () => {
+      if (frame !== 0) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        measure()
+      })
+    }
+    const scrolled = (event: Event) => {
+      if (holds(event.target, area ?? node)) schedule()
+    }
     measure()
     const resize = new ResizeObserver(measure)
     resize.observe(node)
     if (area !== null) resize.observe(area)
+    if (bar !== null) resize.observe(bar)
     resize.observe(document.documentElement)
-    window.addEventListener("resize", measure)
-    window.addEventListener("scroll", measure, { capture: true, passive: true })
+    window.addEventListener("resize", schedule)
+    window.addEventListener("scroll", scrolled, {
+      capture: true,
+      passive: true,
+    })
     return () => {
+      cancelAnimationFrame(frame)
       resize.disconnect()
-      window.removeEventListener("resize", measure)
-      window.removeEventListener("scroll", measure, { capture: true })
+      window.removeEventListener("resize", schedule)
+      window.removeEventListener("scroll", scrolled, { capture: true })
     }
-  }, [node, bottomInset])
+  }, [node, bar, bottomInset])
 
   return box
 }

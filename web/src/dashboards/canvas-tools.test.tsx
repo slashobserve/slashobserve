@@ -188,20 +188,38 @@ function placeBoxes(initial: {
   width?: number
   areaTop?: number
   areaBottom: number
+  barHeight?: number
 }) {
-  const boxes = { left: 0, width: 0, areaTop: 0, ...initial }
+  const boxes = { left: 0, width: 0, areaTop: 0, barHeight: 40, ...initial }
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
       if (this.dataset.testid === "area") {
         return { top: boxes.areaTop, bottom: boxes.areaBottom } as DOMRect
       }
-      return { left: boxes.left, width: boxes.width } as DOMRect
+      return {
+        left: boxes.left,
+        width: boxes.width,
+        height: boxes.barHeight,
+      } as DOMRect
     }
   )
   return boxes
 }
 
 afterEach(() => vi.restoreAllMocks())
+
+function scrollArea() {
+  act(() => {
+    screen.getByTestId("area").dispatchEvent(new Event("scroll"))
+  })
+}
+
+function frames() {
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) => {
+    run(0)
+    return 0
+  })
+}
 
 async function renderTools(
   permissions: { comment: boolean; edit: boolean },
@@ -423,26 +441,79 @@ describe("CanvasTools", () => {
   })
 
   it("follows the column bottom as the page scrolls and hides once the column is out of view", async () => {
+    frames()
+    const boxes = placeBoxes({ areaBottom: window.innerHeight })
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    const fixed = screen.getByRole("toolbar").parentElement
+    boxes.areaBottom = window.innerHeight - 300
+    scrollArea()
+    expect(fixed).toHaveStyle({ bottom: "316px" })
+    expect(fixed).not.toHaveClass("invisible")
+    boxes.areaBottom = 0
+    scrollArea()
+    expect(fixed).toHaveClass("invisible")
+    boxes.areaBottom = window.innerHeight
+    scrollArea()
+    expect(fixed).not.toHaveClass("invisible")
+    expect(fixed).toHaveStyle({ bottom: "16px" })
+  })
+
+  it("ignores scrolls that are not the column's scroll area or an ancestor of it", async () => {
+    frames()
     const boxes = placeBoxes({ areaBottom: window.innerHeight })
     await renderTools({ comment: true, edit: false }, false, true, true)
     const fixed = screen.getByRole("toolbar").parentElement
     boxes.areaBottom = window.innerHeight - 300
     act(() => {
-      window.dispatchEvent(new Event("scroll"))
+      screen.getByText("page").dispatchEvent(new Event("scroll"))
+    })
+    expect(fixed).toHaveStyle({ bottom: "16px" })
+    act(() => {
+      document.dispatchEvent(new Event("scroll"))
     })
     expect(fixed).toHaveStyle({ bottom: "316px" })
-    expect(fixed).not.toHaveClass("invisible")
-    boxes.areaBottom = 0
-    act(() => {
-      window.dispatchEvent(new Event("scroll"))
+  })
+
+  it("batches scroll measurements into one animation frame", async () => {
+    const queued: FrameRequestCallback[] = []
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((run) => {
+      queued.push(run)
+      return queued.length
     })
+    const boxes = placeBoxes({ areaBottom: window.innerHeight })
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    boxes.areaBottom = window.innerHeight - 300
+    scrollArea()
+    scrollArea()
+    scrollArea()
+    expect(queued).toHaveLength(1)
+    act(() => queued[0](0))
+    expect(screen.getByRole("toolbar").parentElement).toHaveStyle({
+      bottom: "316px",
+    })
+  })
+
+  it("hides the page footer as soon as the toolbar no longer fits on screen", async () => {
+    frames()
+    const boxes = placeBoxes({ areaBottom: 56 })
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    const fixed = screen.getByRole("toolbar").parentElement
+    expect(fixed).not.toHaveClass("invisible")
+    boxes.areaBottom = 55
+    scrollArea()
     expect(fixed).toHaveClass("invisible")
-    boxes.areaBottom = window.innerHeight
-    act(() => {
-      window.dispatchEvent(new Event("scroll"))
-    })
-    expect(fixed).not.toHaveClass("invisible")
-    expect(fixed).toHaveStyle({ bottom: "16px" })
+  })
+
+  it("returns to Select when the column scrolls out of view in a drawing mode", async () => {
+    frames()
+    const user = userEvent.setup()
+    const boxes = placeBoxes({ areaBottom: window.innerHeight })
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    await user.click(screen.getByRole("button", { name: "Comment" }))
+    expect(useCanvasTool.getState().tool).toBe("comment")
+    boxes.areaBottom = 0
+    scrollArea()
+    expect(useCanvasTool.getState().tool).toBe("select")
   })
 
   it("hides the page footer when the column starts below the viewport", async () => {
