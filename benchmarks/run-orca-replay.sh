@@ -11,7 +11,7 @@ fixtures="$workdir/fixtures"
 mkdir -m 755 "$fixtures"
 trap 'rm -rf "$workdir"' EXIT
 
-uv run --locked --project "$bench_dir" harbor download "orca-bench/$package" -o "$workdir/task"
+uv run --locked --project "$bench_dir/orca" harbor download "orca-bench/$package" -o "$workdir/task"
 task_dir="$(dirname "$(find "$workdir/task" -name instruction.md -print -quit)")"
 
 PYTHONPATH="$bench_dir" uv run --locked --project "$bench_dir/orca" python -m slashobserve_bench.orca replay-fixture \

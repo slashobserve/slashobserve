@@ -11,9 +11,9 @@ cache_root="${SNAPSHOT_CACHE_ROOT:-$HOME/.cache/sre-snapshot-cache}"
 args=()
 for arg in "$@"; do
   if [ "$arg" = "--subset" ]; then
-    while IFS= read -r flag; do args+=("$flag"); done < <(
-      PYTHONPATH="$bench_dir" uv run --locked --project "$orca_dir" python -m slashobserve_bench.orca include-flags
-    )
+    flags="$(PYTHONPATH="$bench_dir" uv run --locked --project "$orca_dir" python -m slashobserve_bench.orca include-flags)"
+    [ "$(printf '%s\n' "$flags" | wc -l)" -ge 20 ] || { echo "the subset gave fewer than 20 flags" >&2; exit 1; }
+    while IFS= read -r flag; do args+=("$flag"); done <<<"$flags"
   else
     args+=("$arg")
   fi

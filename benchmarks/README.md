@@ -218,9 +218,10 @@ The fixture saves a finding with the structured fields, so it needs a server tha
 The leaderboard judge is a GPT model that needs an OpenAI key.
 `tests/test.sh` calls `check_prediction.py` with no arguments, and the judge model is chosen only from the host of `OPENAI_BASE_URL`, so the in-trial verifier cannot be pointed at another model by an environment variable.
 Run with `--disable-verification` and judge the saved reports afterwards, with a different Claude model than the one under test, through Anthropic's OpenAI-compatible endpoint:
+The download runs from the repository root in the `orca/` project, which pins the Harbor that can read the package; the scoring runs from the ORCA-bench checkout.
 
 ```sh
-uv run harbor download orca-bench/<task package> -o /path/to/task
+uv run --locked --project benchmarks/orca harbor download orca-bench/<task package> -o /path/to/task
 export OPENAI_BASE_URL=https://api.anthropic.com/v1/
 export OPENAI_API_KEY=$(cat /path/to/anthropic.key)
 cd /path/to/ORCA-bench
