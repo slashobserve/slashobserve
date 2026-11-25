@@ -73,10 +73,10 @@ var (
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
-	contextKeys  = []string{"name", "host", "audience", "changes", "url_changed", "credential_changed"}
-	probeKeys    = []string{"host", "found", "new", "changed", "gone", "ignored"}
-	toolKeys     = []string{"host", "tool", "hash"}
-	callKeys     = []string{"host", "tool", "arguments", "truncated"}
+	contextKeys  = []string{"name", "host", "private", "audience", "changes", "url_changed", "credential_changed"}
+	probeKeys    = []string{"host", "private", "found", "new", "changed", "gone", "ignored"}
+	toolKeys     = []string{"host", "private", "tool", "hash", "provisioned"}
+	callKeys     = []string{"host", "private", "tool", "arguments", "truncated"}
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
