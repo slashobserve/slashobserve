@@ -108,7 +108,7 @@ func (s *Service) Offers(ctx context.Context) ([]tools.ContextOffer, error) {
 }
 
 func offerOf(source Source, stored []Tool) tools.ContextOffer {
-	offer := tools.ContextOffer{UID: source.UID, Name: source.Name, Host: hostOfURL(source.URL), Unreachable: source.State == StateUnreachable, Failure: source.Failure}
+	offer := tools.ContextOffer{UID: source.UID, Name: source.Name, Description: source.Description, Host: hostOfURL(source.URL), Unreachable: source.State == StateUnreachable, Failure: source.Failure}
 	for _, tool := range stored {
 		if tool.State == ToolApproved {
 			offer.Tools = append(offer.Tools, tools.ContextOfferedTool{Name: tool.Name, Description: firstLine(tool.Pinned.Description), Arguments: argumentsOf(tool.Pinned.InputSchema)})
@@ -213,11 +213,8 @@ func (s *Service) call(ctx context.Context, attempt *callAttempt, arguments json
 func (s *Service) dispatch(ctx context.Context, access datasource.Access, attempt *callAttempt, stored []Tool, arguments json.RawMessage) (tools.ContextResult, error) {
 	row := attempt.row
 	audience := datasource.Audience(row.Audience)
-	if !access.Reads(audience) {
-		if refusal := access.Refusal(audience); errors.Is(refusal, datasource.ErrWithheld) {
-			return tools.ContextResult{}, refusal
-		}
-		return tools.ContextResult{}, notFound(attempt.uid)
+	if err := readable(access, audience, attempt.uid); err != nil {
+		return tools.ContextResult{}, err
 	}
 	datasource.NoteRead(ctx, audience)
 	pinned, err := approvedTool(row.Uid, stored, attempt.tool)
@@ -250,6 +247,16 @@ func (s *Service) dispatch(ctx context.Context, access datasource.Access, attemp
 	text, cut := cutText(called.Text, s.limits.ResultBytes)
 	attempt.result = tools.ContextResult{Text: text, Bytes: len(called.Text), Cut: cut, IsError: called.IsError}
 	return attempt.result, nil
+}
+
+func readable(access datasource.Access, audience datasource.Audience, uid string) error {
+	if access.Reads(audience) {
+		return nil
+	}
+	if refusal := access.Refusal(audience); errors.Is(refusal, datasource.ErrWithheld) {
+		return refusal
+	}
+	return notFound(uid)
 }
 
 func notFound(uid string) error {

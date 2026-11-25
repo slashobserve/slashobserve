@@ -61,6 +61,7 @@ var inRunReads = map[string]inRunRead{
 	nameGetSpecGuide:       readsNothing,
 	nameListContextSources: readsContextSrc,
 	nameCallContextTool:    readsContextSrc,
+	nameFindContextTools:   readsContextSrc,
 
 	nameRecheckDatasource:     readsDatasource,
 	nameListDashboardVersions: readsContent,
