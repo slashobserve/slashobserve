@@ -4,14 +4,18 @@ import { useQuery } from "@tanstack/react-query"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime, useNow } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels } from "@/lib/roles"
 import { usersQuery } from "@/people/queries"
 
 import { canRevokeKey, expiryState } from "./key-status"
-import { loadProblemText } from "./queries"
+import {
+  loadProblemText,
+  type ServiceAccount,
+  type ServiceAccountKey,
+} from "./queries"
 import { RevokeKeyButton } from "./revoke-key-button"
 import { useAllKeys } from "./use-all-keys"
 
@@ -24,22 +28,103 @@ function problemDetail(error: unknown): string {
   return error === null ? "Trying again." : loadProblemText(error)
 }
 
-function Header() {
-  return (
-    <thead>
-      <tr>
-        <HeaderCell>Name</HeaderCell>
-        <HeaderCell>Key</HeaderCell>
-        <HeaderCell>Role</HeaderCell>
-        <HeaderCell>Created by</HeaderCell>
-        <HeaderCell>Last used</HeaderCell>
-        <HeaderCell>Expires</HeaderCell>
-        <HeaderCell>
-          <span className="sr-only">Actions</span>
-        </HeaderCell>
-      </tr>
-    </thead>
-  )
+type KeyRow = { key: ServiceAccountKey; account: ServiceAccount }
+
+type KeyColumnContext = {
+  now: number
+  usersPending: boolean
+  createdBy: (id: string | null, provisioned: boolean) => string
+  revokeFocus: RefObject<HTMLElement | null>
+}
+
+function keyColumns({
+  now,
+  usersPending,
+  createdBy,
+  revokeFocus,
+}: KeyColumnContext): DataGridColumn<KeyRow>[] {
+  return [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 160,
+      autoHeight: true,
+      cell: ({ key, account }) => (
+        <div className="py-2">
+          <div className="font-medium wrap-anywhere">{key.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {account.name}
+            {account.provisioned ? " - from file" : null}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "key",
+      header: "Key",
+      minWidth: 140,
+      cell: ({ key }) => (
+        <span className="font-mono text-xs">{key.display_prefix}…</span>
+      ),
+    },
+    {
+      id: "role",
+      header: "Role",
+      width: 110,
+      cell: ({ account }) => (
+        <span className="text-muted-foreground">
+          {roleLabels[account.role]}
+        </span>
+      ),
+    },
+    {
+      id: "createdBy",
+      header: "Created by",
+      minWidth: 130,
+      cell: ({ key, account }) =>
+        usersPending && !account.provisioned ? (
+          <Skeleton className="h-4 w-16" />
+        ) : (
+          <span className="truncate text-muted-foreground">
+            {createdBy(key.created_by, account.provisioned)}
+          </span>
+        ),
+    },
+    {
+      id: "lastUsed",
+      header: "Last used",
+      width: 120,
+      cell: ({ key }) => (
+        <span className="text-muted-foreground">
+          <RelativeTime iso={key.last_used_at} fallback="Never" />
+        </span>
+      ),
+    },
+    {
+      id: "expires",
+      header: "Expires",
+      width: 140,
+      cell: ({ key }) => {
+        const state = expiryState(key, now)
+        return <StatusLabel tone={state.tone}>{state.text}</StatusLabel>
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 110,
+      cell: ({ key, account }) =>
+        canRevokeKey(key, account) ? (
+          <RevokeKeyButton
+            account={account}
+            serviceKey={key}
+            finalFocus={revokeFocus}
+          />
+        ) : null,
+    },
+  ]
 }
 
 export function KeysTable({ onCreate, revokeFocus }: Props) {
@@ -49,18 +134,11 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
 
   if (keys.status === "pending") {
     return (
-      <TableCard label="API keys" minWidth={760} stackOnNarrow>
-        <Header />
-        <tbody aria-busy="true">
-          {[0, 1, 2].map((index) => (
-            <tr key={index}>
-              <Cell colSpan={7}>
-                <Skeleton className="h-8 w-full" />
-              </Cell>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <div className="flex flex-col gap-3" aria-busy="true">
+        {[0, 1, 2].map((index) => (
+          <Skeleton key={index} className="h-10 w-full" />
+        ))}
+      </div>
     )
   }
 
@@ -115,62 +193,21 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
   return (
     <>
       {problem}
-      <TableCard label="API keys" minWidth={760} stackOnNarrow>
-        <Header />
-        <tbody aria-busy={keys.loadingMore}>
-          {keys.rows.map(({ key, account }) => {
-            const state = expiryState(key, now)
-            return (
-              <tr key={key.id} data-key-id={key.id}>
-                <Cell>
-                  <div className="font-medium wrap-anywhere">{key.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {account.name}
-                    {account.provisioned ? " - from file" : null}
-                  </div>
-                </Cell>
-                <Cell>
-                  <span className="font-mono text-xs">
-                    {key.display_prefix}…
-                  </span>
-                </Cell>
-                <Cell data-label="Role" className="text-muted-foreground">
-                  {roleLabels[account.role]}
-                </Cell>
-                <Cell data-label="Created by" className="text-muted-foreground">
-                  {users.isPending && !account.provisioned ? (
-                    <Skeleton className="h-4 w-16" />
-                  ) : (
-                    createdBy(key.created_by, account.provisioned)
-                  )}
-                </Cell>
-                <Cell data-label="Last used" className="text-muted-foreground">
-                  <RelativeTime iso={key.last_used_at} fallback="Never" />
-                </Cell>
-                <Cell>
-                  <StatusLabel tone={state.tone}>{state.text}</StatusLabel>
-                </Cell>
-                <Cell data-cell="action" className="text-right">
-                  {canRevokeKey(key, account) ? (
-                    <RevokeKeyButton
-                      account={account}
-                      serviceKey={key}
-                      finalFocus={revokeFocus}
-                    />
-                  ) : null}
-                </Cell>
-              </tr>
-            )
-          })}
-          {keys.loadingMore ? (
-            <tr>
-              <Cell colSpan={7}>
-                <Skeleton className="h-8 w-full" />
-              </Cell>
-            </tr>
-          ) : null}
-        </tbody>
-      </TableCard>
+      <DataGrid
+        label="API keys"
+        rows={keys.rows}
+        columns={keyColumns({
+          now,
+          usersPending: users.isPending,
+          createdBy,
+          revokeFocus,
+        })}
+        rowId={({ key }) => key.id}
+        rowAttributes={({ key }) => ({ "data-key-id": key.id })}
+      />
+      {keys.loadingMore ? (
+        <Skeleton className="mt-2 h-8 w-full" aria-busy="true" />
+      ) : null}
     </>
   )
 }
