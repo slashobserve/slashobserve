@@ -232,7 +232,7 @@ type RowProps = {
 }
 
 const rowButtonClasses =
-  "flex min-h-7 w-full items-start gap-2 px-2 py-1 text-left outline-none"
+  "flex min-h-7 w-full items-start gap-2 px-2 py-1 text-left outline-none @max-xl:flex-wrap @max-xl:gap-y-0"
 
 const gridRowClasses =
   "grid min-h-7 w-full items-start gap-x-2 px-2 py-1 text-left outline-none"
@@ -313,6 +313,7 @@ const LogRow = memo(function LogRow({
         data-logs-message=""
         className={cn(
           "min-w-0 flex-1 font-mono leading-5 text-foreground",
+          columns === undefined && "@max-xl:basis-full",
           wraps ? "[overflow-wrap:anywhere] whitespace-pre-wrap" : "truncate"
         )}
       >
@@ -964,7 +965,7 @@ export function LogsView({
             role="list"
             aria-label={`${panelTitle} log lines`}
             data-logs-count={entries.length}
-            className="m-0 list-none p-0"
+            className="@container m-0 list-none p-0"
             onFocus={(event) => {
               const key = (event.target as HTMLElement)
                 .closest("li")
