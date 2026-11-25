@@ -249,10 +249,10 @@ func TestCreatedIDsAreKeptOnceAndWithinTheirCap(t *testing.T) {
 	if len(s.Created) != 2 || s.Created[0] != "a" || s.Created[1] != "b" {
 		t.Fatalf("created = %v", s.Created)
 	}
-	for i := range maxCreatedIDs * 2 {
+	for i := range tools.MaxCreatedIDs * 2 {
 		s.noteCreated([]string{strconv.Itoa(i)})
 	}
-	if len(s.Created) != maxCreatedIDs {
+	if len(s.Created) != tools.MaxCreatedIDs {
 		t.Fatalf("created = %d ids", len(s.Created))
 	}
 }
@@ -287,5 +287,24 @@ func TestCreatedAndCommittedSurviveAStoredStateRoundTrip(t *testing.T) {
 	var back State
 	if err := json.Unmarshal(raw, &back); err != nil || back.Committed != "d" || len(back.Created) != 1 {
 		t.Fatalf("back = %+v, err = %v", back, err)
+	}
+}
+
+func TestAWriteThatCreatedObjectsLetsTheNextCallWriteOnThem(t *testing.T) {
+	sess := &session{}
+	call := guard.Call{Name: "create_observation", Input: json.RawMessage(`{"title":"t"}`)}
+	done := dispatched{res: tools.Result{Created: []string{"obs", "blk"}}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, done, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := sess.state.writeScope().Created; len(got) != 2 || got[0] != "obs" || got[1] != "blk" {
+		t.Fatalf("created = %v", got)
+	}
+	failed := dispatched{res: tools.Result{IsError: true, Created: []string{"nope"}}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, failed, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sess.state.Created) != 2 {
+		t.Fatalf("a failed write recorded ids: %v", sess.state.Created)
 	}
 }

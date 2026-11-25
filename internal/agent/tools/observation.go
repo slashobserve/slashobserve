@@ -423,7 +423,9 @@ func (r *Registry) addedBlock(b observations.Block) Result {
 	if b.State == observations.BlockRequested {
 		out.Note = requestedBlockNote
 	}
-	return success("Added a "+string(b.Kind)+" block to "+b.ObservationID, out)
+	res := success("Added a "+string(b.Kind)+" block to "+b.ObservationID, out)
+	res.Created = []string{b.ID}
+	return res
 }
 
 func (r *Registry) addBlockTo(ctx context.Context, principal auth.Principal, observationID pgtype.UUID, b blockFields, fallback window, runID pgtype.UUID) (observations.Block, Result, bool, error) {
@@ -492,7 +494,12 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 	if err != nil {
 		return r.observationFailure("Created an observation", err)
 	}
-	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
+	res = success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)})
+	res.Created = []string{o.ID}
+	for _, block := range o.Blocks {
+		res.Created = append(res.Created, block.ID)
+	}
+	return res, nil
 }
 
 func blockRefused(index int, res Result) Result {

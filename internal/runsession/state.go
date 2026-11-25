@@ -19,7 +19,6 @@ const (
 	settledEnded     = "ended"
 
 	maxStoredDigestBytes = 8 << 10
-	maxCreatedIDs        = 256
 )
 
 type State struct {
@@ -64,7 +63,7 @@ func (s *State) writeScope() tools.WriteScope {
 
 func (s *State) noteCreated(ids []string) {
 	for _, id := range ids {
-		if id != "" && len(s.Created) < maxCreatedIDs && !slices.Contains(s.Created, id) {
+		if id != "" && len(s.Created) < tools.MaxCreatedIDs && !slices.Contains(s.Created, id) {
 			s.Created = append(s.Created, id)
 		}
 	}

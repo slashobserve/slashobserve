@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -261,5 +262,22 @@ func TestOnlyAChatAskInInvestigateModeIsPrivate(t *testing.T) {
 	}
 	if got := violation(nameAddBlock, threadWithChat, WriteScope{}, `{"observation_id":"`+subjectID+`"}`); got != "" {
 		t.Errorf("a write on the subject of a thread ask with a chat id: %s", got)
+	}
+}
+
+func TestScopeRefusesACreatingWriteOnceTheRunTracksTheMostObjects(t *testing.T) {
+	created := make([]string, MaxCreatedIDs)
+	for i := range created {
+		created[i] = "id-" + strconv.Itoa(i)
+	}
+	scope := WriteScope{Created: created}
+	if got := violation(nameCreateFolder, homeChat(), scope, `{"title":"t"}`); !strings.Contains(got, "already created 256 objects") {
+		t.Errorf("creating write: %q", got)
+	}
+	if got := violation(nameAddBlock, threadAsk(), scope, `{"observation_id":"`+subjectID+`"}`); !strings.Contains(got, "already created 256 objects") {
+		t.Errorf("add_block: %q", got)
+	}
+	if got := violation(nameResolveObservation, threadAsk(), scope, `{"observation_id":"`+subjectID+`"}`); got != "" {
+		t.Errorf("a write that creates nothing: %s", got)
 	}
 }

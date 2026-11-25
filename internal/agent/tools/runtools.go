@@ -11,7 +11,20 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db"
 )
 
-const codeOutOfScope = "out_of_scope"
+const (
+	codeOutOfScope = "out_of_scope"
+
+	MaxCreatedIDs = 256
+)
+
+var creatingWrites = map[string]bool{
+	nameCreateObservation: true,
+	nameAddBlock:          true,
+	nameCreateFolder:      true,
+	nameSaveSearch:        true,
+	nameCreateAnnotation:  true,
+	nameSaveRunAnswer:     true,
+}
 
 type TargetKind int
 
@@ -205,6 +218,8 @@ func writeScopeViolation(tool string, run Run, scope WriteScope, targets []Targe
 	}
 	person := personStateWrites[tool]
 	switch {
+	case creatingWrites[tool] && len(scope.Created) >= MaxCreatedIDs:
+		return scopeRefusal(tool, fmt.Sprintf("this run already created %d objects, the most it may track", MaxCreatedIDs))
 	case person && !run.chatRun():
 		return scopeRefusal(tool, "it changes the requester's own pins, inbox or run list, which only a chat run may do")
 	case !person && run.privateAsk():
