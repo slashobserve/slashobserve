@@ -1,3 +1,4 @@
+import { createRef, type ComponentProps } from "react"
 import { queryOptions } from "@tanstack/react-query"
 import { screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -12,6 +13,7 @@ const calls = vi.hoisted(() => ({
   approve: vi.fn(),
   revoke: vi.fn(),
   discover: vi.fn(),
+  create: vi.fn(),
   sources: [] as unknown[],
   tools: [] as unknown[],
 }))
@@ -31,6 +33,18 @@ vi.mock("./queries", async (importOriginal) => ({
     }),
   useApproveContextTool: () => ({ mutate: calls.approve, isPending: false }),
   useApproveReadOnlyTools: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateContextSource: () => ({
+    mutate: calls.create,
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+  useUpdateContextSource: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
   useRevokeContextTool: () => ({ mutate: calls.revoke, isPending: false }),
   useDiscoverContextSource: () => ({
     mutate: calls.discover,
@@ -80,6 +94,30 @@ function tool(overrides: Partial<ContextTool>): ContextTool {
   }
 }
 
+const noop = () => undefined
+
+type SectionOverrides = Partial<ComponentProps<typeof McpSourcesSection>>
+
+function section(overrides: SectionOverrides = {}) {
+  const host = document.createElement("div")
+  document.body.append(host)
+  const props = {
+    adding: false,
+    addTrigger: createRef<HTMLElement>(),
+    onAddMcp: noop,
+    onAddClose: noop,
+    onPickNative: noop,
+    ...overrides,
+  }
+  const view = renderWithProviders(
+    <PanelHostContext.Provider value={host}>
+      <McpSourcesSection {...props} />
+    </PanelHostContext.Provider>,
+    { route: { path: "/", url: "/" } }
+  )
+  return { ...view, host }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   calls.sources = [source({})]
@@ -88,7 +126,7 @@ beforeEach(() => {
 
 describe("McpSourcesSection", () => {
   it("names the table and its caption and shows one row per source", async () => {
-    renderWithProviders(<McpSourcesSection />)
+    section()
     expect(
       await screen.findByRole("heading", { name: "MCP sources" })
     ).toBeVisible()
@@ -104,7 +142,7 @@ describe("McpSourcesSection", () => {
   })
 
   it("keeps the tools collapsed until the chevron is used, and collapses them again", async () => {
-    const { user } = renderWithProviders(<McpSourcesSection />)
+    const { user } = section()
     const toggle = await screen.findByRole("button", {
       name: "Tools of Docs index",
     })
@@ -124,7 +162,7 @@ describe("McpSourcesSection", () => {
   })
 
   it("expands with the keyboard", async () => {
-    const { user } = renderWithProviders(<McpSourcesSection />)
+    const { user } = section()
     const toggle = await screen.findByRole("button", {
       name: "Tools of Docs index",
     })
@@ -143,7 +181,7 @@ describe("McpSourcesSection", () => {
         allowed_actions: ["revoke"],
       }),
     ]
-    const { user } = renderWithProviders(<McpSourcesSection />)
+    const { user } = section()
     await user.click(
       await screen.findByRole("button", { name: "Tools of Docs index" })
     )
@@ -163,7 +201,7 @@ describe("McpSourcesSection", () => {
 
   it("disables Edit and Delete for a source from the file but not Discover", async () => {
     calls.sources = [source({ provisioned: true })]
-    renderWithProviders(<McpSourcesSection />)
+    section()
     expect(
       await screen.findByRole("button", { name: "Edit Docs index" })
     ).toBeDisabled()
@@ -175,17 +213,60 @@ describe("McpSourcesSection", () => {
     ).toBeEnabled()
   })
 
-  it("opens the add panel from the table header", async () => {
-    const host = document.createElement("div")
-    document.body.append(host)
-    const { user } = renderWithProviders(
-      <PanelHostContext.Provider value={host}>
-        <McpSourcesSection />
-      </PanelHostContext.Provider>,
-      { route: { path: "/", url: "/" } }
+  it("has no Add source button of its own", async () => {
+    section()
+    await screen.findByText("Docs index")
+    expect(screen.queryByRole("button", { name: "Add source" })).toBeNull()
+  })
+
+  it("offers Add an MCP server from the empty table", async () => {
+    calls.sources = []
+    const onAddMcp = vi.fn()
+    const { user } = section({ onAddMcp })
+    await user.click(
+      await screen.findByRole("button", { name: "Add an MCP server" })
     )
-    await user.click(await screen.findByRole("button", { name: "Add source" }))
+    expect(onAddMcp).toHaveBeenCalledOnce()
+  })
+
+  it("shows the MCP form with MCP server preselected when adding", async () => {
+    const { host } = section({ adding: true })
     expect(await within(host).findByText("Add a context source")).toBeVisible()
-    host.remove()
+    expect(
+      within(host).getByRole("combobox", { name: "Type" })
+    ).toHaveTextContent("MCP server")
+    expect(within(host).getByLabelText("Id")).toBeVisible()
+    expect(within(host).getByLabelText("Address")).toBeVisible()
+  })
+
+  it("switches to a datasource type picked in the MCP form", async () => {
+    const onPickNative = vi.fn()
+    const { user, host } = section({ adding: true, onPickNative })
+    await user.click(
+      await within(host).findByRole("combobox", { name: "Type" })
+    )
+    await user.click(await screen.findByRole("option", { name: "Loki" }))
+    expect(onPickNative).toHaveBeenCalledWith("loki")
+  })
+
+  it("expands a source after it is added so its tools can be approved", async () => {
+    calls.sources = [source({ uid: "wiki", name: "Wiki" })]
+    calls.create.mockImplementation(
+      (_body: unknown, options: { onSuccess: () => void }) =>
+        options.onSuccess()
+    )
+    const onAddClose = vi.fn()
+    const { user, host } = section({ adding: true, onAddClose })
+    const toggle = await screen.findByRole("button", { name: "Tools of Wiki" })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    await user.type(await within(host).findByLabelText("Id"), "wiki")
+    await user.type(
+      within(host).getByLabelText("Address"),
+      "https://wiki.example.com/mcp"
+    )
+    await user.click(within(host).getByRole("button", { name: "Add source" }))
+    expect(calls.create).toHaveBeenCalledOnce()
+    expect(onAddClose).toHaveBeenCalledOnce()
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
   })
 })

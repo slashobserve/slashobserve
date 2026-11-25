@@ -111,11 +111,7 @@ function ServerProblem({
             {" "}
             <Link
               to="/settings"
-              search={(prev) => ({
-                ...prev,
-                panel: undefined,
-                source: undefined,
-              })}
+              search={(prev) => ({ ...prev, panel: undefined })}
               hash="outbound-access"
               className="underline underline-offset-3"
             >

@@ -26,6 +26,7 @@ import {
   savedCredentials,
   splitProblems,
   validate,
+  type DatasourceType,
   type FormValues,
   type Problems,
   type SavedCredentials,
@@ -33,37 +34,54 @@ import {
 import { saveProblemText } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
 
-type Target = { mode: "create" } | { mode: "edit"; uid: string }
+type Target =
+  { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
 
 type Props = {
   target: Target
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  onPickMcp: () => void
 }
 
-export function DatasourcePanel({ target, onClose, trigger }: Props) {
+export function DatasourcePanel({
+  target,
+  onClose,
+  trigger,
+  onPickMcp,
+}: Props) {
   if (target.mode === "create") {
     return (
       <Editor
         target={target}
-        initial={emptyForm}
+        initial={{ ...emptyForm, type: target.type ?? "" }}
         saved={noCredentials}
         onClose={onClose}
         trigger={trigger}
+        onPickMcp={onPickMcp}
       />
     )
   }
-  return <EditLoader uid={target.uid} onClose={onClose} trigger={trigger} />
+  return (
+    <EditLoader
+      uid={target.uid}
+      onClose={onClose}
+      trigger={trigger}
+      onPickMcp={onPickMcp}
+    />
+  )
 }
 
 function EditLoader({
   uid,
   onClose,
   trigger,
+  onPickMcp,
 }: {
   uid: string
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  onPickMcp: () => void
 }) {
   const config = useQuery(datasourceConfigQuery(uid))
   if (config.data !== undefined) {
@@ -74,6 +92,7 @@ function EditLoader({
         saved={savedCredentials(config.data.secrets_set)}
         onClose={onClose}
         trigger={trigger}
+        onPickMcp={onPickMcp}
       />
     )
   }
@@ -117,6 +136,7 @@ function Editor({
   saved,
   onClose,
   trigger,
+  onPickMcp,
 }: Props & {
   initial: FormValues
   saved: SavedCredentials
@@ -275,6 +295,7 @@ function Editor({
           problems={problems}
           saved={saved}
           onChange={change}
+          onPickMcp={onPickMcp}
           firstInputRef={firstInput}
         />
         <div aria-live="polite" className="flex flex-col gap-2">
