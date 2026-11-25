@@ -143,7 +143,7 @@ describe("McpSourcesSection", () => {
 
   it("marks a source that may use a private network address", async () => {
     calls.sources = [source({ private: true })]
-    renderWithProviders(<McpSourcesSection />)
+    section()
     expect(
       await screen.findByText("Private network address allowed")
     ).toBeVisible()
