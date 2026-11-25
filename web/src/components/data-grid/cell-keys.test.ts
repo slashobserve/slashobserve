@@ -66,7 +66,7 @@ describe("keepKeysOnFocusedControl", () => {
   const button = document.createElement("button")
   cell.append(button)
 
-  it("keeps arrows, Space and Enter from the grid while a control in the cell has focus", () => {
+  it("keeps arrows, Space and Enter from the grid while a button in the cell has focus", () => {
     for (const key of [
       "Enter",
       " ",
@@ -77,6 +77,19 @@ describe("keepKeysOnFocusedControl", () => {
     ]) {
       expect(keyOn(button, key)).toBe(true)
     }
+  })
+
+  it("lets the grid move on arrows from a link, and keeps Enter and Space on it", () => {
+    const link = document.createElement("a")
+    link.href = "/somewhere"
+    cell.append(link)
+    for (const key of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
+      expect(keyOn(link, key), key).toBe(false)
+    }
+    for (const key of ["Enter", " "]) {
+      expect(keyOn(link, key), key).toBe(true)
+    }
+    link.remove()
   })
 
   it("lets the grid handle keys on the cell itself and other keys on a control", () => {
