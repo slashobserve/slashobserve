@@ -76,6 +76,7 @@ type DiscussionFeedProps = {
     tools: { reply: (() => void) | null }
   ) => ReactNode
   readOnlyAction?: ReactNode
+  focusedThreadId?: string
 }
 
 type DiscussionProps = Omit<
@@ -161,6 +162,7 @@ export function DiscussionFeed({
   view,
   messageActions,
   readOnlyAction,
+  focusedThreadId,
 }: DiscussionFeedProps) {
   const { principal } = useRouteContext({ from: "/_authed" })
   const {
@@ -312,6 +314,10 @@ export function DiscussionFeed({
                 verb={entry.verb}
                 at={message.created_at}
                 edited={message.edited_at !== null}
+                focused={
+                  focusedThreadId !== undefined &&
+                  message.id === focusedThreadId
+                }
               >
                 {message.reply_to === null ? null : (
                   <p className="border-l-2 pl-2 text-[13px] wrap-anywhere text-muted-foreground">

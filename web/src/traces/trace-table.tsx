@@ -47,6 +47,8 @@ import {
   type TraceSortKey,
 } from "./trace-rows"
 
+const traceRowId = (row: TraceRow) => row.traceId
+
 const rowsP95Label = "p95 of these traces"
 
 type Column = {
@@ -422,7 +424,7 @@ function SortedTraceTable({
         label="Traces"
         rows={sorted}
         columns={gridColumns}
-        rowId={(row) => row.traceId}
+        rowId={traceRowId}
         sort={sort}
         onSort={(key) => {
           const column = shownColumns.find((shown) => shown.key === key)

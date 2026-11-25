@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { exploreKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { PatternsView } from "./patterns-view"
+import { PatternsView, patternColumns } from "./patterns-view"
 import type { LogPattern, LogPatterns } from "./patterns"
 import { LogsWorkspaceContext, type LogsWorkspace } from "./workspace"
 
@@ -165,6 +165,26 @@ describe("PatternsView", () => {
     }
   })
 
+  it("offers Filter and Filter out on every row and Samples only where the row has a sample line", async () => {
+    setup(
+      [
+        pattern({ pattern: "with sample", count: 9, sample: "with sample 1" }),
+        pattern({ pattern: "without sample", count: 1 }),
+      ],
+      10
+    )
+    await screen.findByText("with sample")
+    const actions = (name: string) => {
+      const row = screen.getByText(name).closest<HTMLElement>("[role=row]")
+      expect(row).not.toBeNull()
+      return within(row as HTMLElement)
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    }
+    expect(actions("with sample")).toEqual(["Filter", "Filter out", "Samples"])
+    expect(actions("without sample")).toEqual(["Filter", "Filter out"])
+  })
+
   it("folds the patterns under 1% until Show all", async () => {
     const major = Array.from({ length: 9 }, (_, index) =>
       pattern({ pattern: `major ${index}`, count: 1000 })
@@ -178,5 +198,24 @@ describe("PatternsView", () => {
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Show all" }))
     expect(await screen.findByText("rare one")).toBeTruthy()
+  })
+})
+
+describe("patternColumns", () => {
+  it("fits the 868 px content area at a 1440 px window with the pattern column flexing", () => {
+    const columns = patternColumns({
+      total: 1,
+      largest: 1,
+      expanded: new Set(),
+      onToggle: () => {},
+      rewrite: () => null,
+      onApply: () => {},
+    })
+    const [pattern, ...rest] = columns
+    expect(pattern.width).toBeUndefined()
+    expect(pattern.flex).toBeGreaterThan(0)
+    expect(rest.every((column) => column.width !== undefined)).toBe(true)
+    const fixed = rest.reduce((sum, column) => sum + (column.width ?? 0), 0)
+    expect(fixed + (pattern.minWidth ?? 0)).toBeLessThanOrEqual(868)
   })
 })

@@ -113,7 +113,13 @@ function LoadedProposal({
   )
 }
 
-export function ProposalPage({ proposalId }: { proposalId: string }) {
+export function ProposalPage({
+  proposalId,
+  focusedThreadId,
+}: {
+  proposalId: string
+  focusedThreadId?: string
+}) {
   const query = useQuery(proposalQuery(proposalId))
   const [picks, setPicks] = useState<Picks>({})
   const proposal = query.data
@@ -135,6 +141,7 @@ export function ProposalPage({ proposalId }: { proposalId: string }) {
               target={`proposal:${proposal.id}`}
               hint="Discuss this change with its author"
               emptyText="No messages yet."
+              focusedThreadId={focusedThreadId}
             />
           </div>
         </div>
