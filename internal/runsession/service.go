@@ -221,7 +221,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := State{Guard: guard.New(run.Mode)}
+	state := State{Guard: guard.New(run.Mode), Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:

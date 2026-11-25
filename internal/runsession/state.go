@@ -40,6 +40,7 @@ type State struct {
 	Turn              OpenTurn             `json:"turn"`
 
 	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
+	Loop   bool                   `json:"loop,omitempty"`
 }
 
 type Settled struct {
