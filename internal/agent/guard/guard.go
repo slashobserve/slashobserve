@@ -256,6 +256,14 @@ func (s *State) admitWrite(c Call, adm Admission) Admission {
 	return adm
 }
 
+func (s *State) ForgetWrite(c Call) {
+	key := writeKey(c)
+	if s.WriteKeys[key] {
+		delete(s.WriteKeys, key)
+		s.Writes--
+	}
+}
+
 func writeKey(c Call) string {
 	var parsed any
 	if json.Unmarshal(c.Input, &parsed) == nil {

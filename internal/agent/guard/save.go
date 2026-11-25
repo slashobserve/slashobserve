@@ -78,6 +78,9 @@ type issueBody struct {
 func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error) {
 	switch tools.Phase(c.Name) {
 	case tools.PhaseWrite:
+		if res.IsError {
+			s.ForgetWrite(c)
+		}
 		return Settled{}, nil
 	case tools.PhaseSave:
 	default:

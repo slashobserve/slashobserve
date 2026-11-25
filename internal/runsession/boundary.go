@@ -175,6 +175,9 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
 	if d.err != nil {
 		step.Status, step.Message = "error", internalStep
+		if tools.Phase(c.Name) == tools.PhaseWrite && a.adm.Verdict == guard.Dispatch {
+			state.Guard.ForgetWrite(c)
+		}
 		sess.record(step)
 		_, err := sess.complete(ctx, a.seq)
 		return Answer{}, err

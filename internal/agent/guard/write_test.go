@@ -166,3 +166,28 @@ func TestARestartKeepsTheWriteCountOfTheAttempt(t *testing.T) {
 		t.Fatalf("writes = %d keys = %v", s.Writes, s.WriteKeys)
 	}
 }
+
+func TestAFailedWriteFreesItsCapAndItsKeySoItCanBeRetried(t *testing.T) {
+	s := New(tools.ModeCreate)
+	c := writeCall("add_block", `{"n":1}`)
+	s.BeginTurn(false)
+	s.Admit(0, c)
+	if _, err := s.Settle(c, tools.Result{IsError: true}, []byte(`{"code":"invalid_request"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if s.Writes != 0 || len(s.WriteKeys) != 0 {
+		t.Fatalf("writes = %d keys = %v", s.Writes, s.WriteKeys)
+	}
+	if adm := admitWrite(&s, "add_block", `{"n":1}`); adm.Verdict != Dispatch {
+		t.Fatalf("retry = %+v", adm)
+	}
+}
+
+func TestForgetWriteLeavesAnotherWritesKeyAlone(t *testing.T) {
+	s := New(tools.ModeCreate)
+	admitWrite(&s, "add_block", `{"n":1}`)
+	s.ForgetWrite(writeCall("add_block", `{"n":2}`))
+	if s.Writes != 1 {
+		t.Fatalf("writes = %d", s.Writes)
+	}
+}
