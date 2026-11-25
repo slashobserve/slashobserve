@@ -77,7 +77,7 @@ func TestEscapesAreRefused(t *testing.T) {
 			if _, err := code.ReadFile(context.Background(), tc.path, 1, 10); err == nil {
 				t.Fatalf("ReadFile(%q) succeeded", tc.path)
 			}
-			if _, err := code.ListDir(tc.path); err == nil {
+			if _, err := code.ListDir(context.Background(), tc.path); err == nil {
 				t.Fatalf("ListDir(%q) succeeded", tc.path)
 			}
 			if _, err := code.Grep(context.Background(), "paymentFailure", tc.path, ""); err == nil {
@@ -127,7 +127,7 @@ func TestNewRootRefusesAFile(t *testing.T) {
 
 func TestListDir(t *testing.T) {
 	code, _ := fixture(t)
-	got, err := code.ListDir(".")
+	got, err := code.ListDir(context.Background(), ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,10 +140,10 @@ func TestListDir(t *testing.T) {
 	if err := os.Mkdir(empty, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := code.ListDir("void"); got != "(empty directory)" {
+	if got, _ := code.ListDir(context.Background(), "void"); got != "(empty directory)" {
 		t.Fatalf("got %q", got)
 	}
-	if _, err := code.ListDir("main.go"); err == nil {
+	if _, err := code.ListDir(context.Background(), "main.go"); err == nil {
 		t.Fatal("listing a file succeeded")
 	}
 }
@@ -159,7 +159,7 @@ func TestListDirCutsLongListings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, err := code.ListDir("big")
+	got, err := code.ListDir(context.Background(), "big")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,5 +359,136 @@ func TestGrepStopsWhenTheCallIsCancelled(t *testing.T) {
 	cancel()
 	if _, err := code.Grep(ctx, "paymentFailure", ".", ""); !errors.Is(err, context.Canceled) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathsNameWhatExists(t *testing.T) {
+	code, _ := fixture(t)
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		call func() error
+		want string
+	}{
+		{"list under missing dir", func() error { _, err := code.ListDir(context.Background(), "src/pkg"); return err }, `not found: "src/pkg"; the root has: `},
+		{"grep under missing dir", func() error { _, err := code.Grep(ctx, "x", "src/pkg", ""); return err }, `the root has: `},
+		{"read typo in existing dir", func() error { _, err := code.ReadFile(ctx, "pkg/z.go", 1, 10); return err }, `not found: "pkg/z.go"; pkg has: a.go, b.txt, sub/`},
+		{"read below a missing dir", func() error { _, err := code.ReadFile(ctx, "pkg/nope/x.go", 1, 10); return err }, `pkg has: a.go, b.txt, sub/`},
+	}
+	for _, tc := range cases {
+		err := tc.call()
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want it to contain %q", tc.name, err, tc.want)
+		}
+		var r refusal
+		if !errors.As(err, &r) {
+			t.Errorf("%s: %v is not a refusal the caller sees", tc.name, err)
+		}
+	}
+}
+
+func TestMissingPathHintIsCutAndNamesNoServerPath(t *testing.T) {
+	code, root := fixture(t)
+	if err := os.MkdirAll(filepath.Join(root, "many"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxHintNames + 5 {
+		if err := os.WriteFile(filepath.Join(root, "many", fmt.Sprintf("f%03d", i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := code.ListDir(context.Background(), "many/missing")
+	if err == nil || !strings.Contains(err.Error(), "many has: f000") || !strings.Contains(err.Error(), ", and 5 more") {
+		t.Fatalf("got %v", err)
+	}
+	if strings.Contains(err.Error(), root) {
+		t.Fatalf("leaks the server path: %v", err)
+	}
+	if _, err := code.ListDir(context.Background(), "../nope"); !errors.Is(err, errOutside) {
+		t.Fatalf("an escape was explained instead of refused: %v", err)
+	}
+}
+
+func TestMissingPathStillUnwrapsToNotFound(t *testing.T) {
+	code, _ := fixture(t)
+	if _, err := code.ListDir(context.Background(), "nope/x"); !errors.Is(err, errNotFound) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := code.ReadFile(context.Background(), "pkg/z.go", 1, 1); !errors.Is(err, errNotFound) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathInDanglingSymlinkSaysSo(t *testing.T) {
+	code, root := fixture(t)
+	if err := os.Symlink("gone", filepath.Join(root, "pkg", "dangling")); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"pkg/dangling", "pkg/dangling/x.go"} {
+		_, err := code.ReadFile(context.Background(), rel, 1, 1)
+		if err == nil || !strings.Contains(err.Error(), `"dangling" in pkg is a symlink whose target does not exist`) {
+			t.Errorf("%s: got %v", rel, err)
+		}
+	}
+}
+
+func TestMissingPathInEmptyDirectorySaysEmpty(t *testing.T) {
+	code, root := fixture(t)
+	if err := os.MkdirAll(filepath.Join(root, "void"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	_, err := code.ListDir(context.Background(), "void/x")
+	if err == nil || err.Error() != `not found: "void/x"; void is empty` {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathHintLeadsWithNamesNearTheMissingOne(t *testing.T) {
+	code, root := fixture(t)
+	for _, name := range []string{"charge.js", "charger.js", "index.js", "alpha.js", "Chat.js"} {
+		if err := os.WriteFile(filepath.Join(root, "pkg", name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := code.ReadFile(context.Background(), "pkg/charg.js", 1, 1)
+	if err == nil || !strings.Contains(err.Error(), "pkg has: charge.js, charger.js, Chat.js, ") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathHintSkipsGitAndBoundsTheScan(t *testing.T) {
+	code, root := fixture(t)
+	_, err := code.ListDir(context.Background(), "nope")
+	if err == nil || strings.Contains(err.Error(), ".git") {
+		t.Fatalf("got %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "wide"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxHintScan + 10 {
+		if err := os.WriteFile(filepath.Join(root, "wide", fmt.Sprintf("f%04d", i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = code.ListDir(context.Background(), "wide/x")
+	if err == nil || !strings.HasSuffix(err.Error(), ", and more") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathHintStopsOnACancelledContext(t *testing.T) {
+	code, _ := fixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := code.ListDir(ctx, "nope"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestMissingPathHintReachesTheCallerOverHTTP(t *testing.T) {
+	c := connect(t)
+	res := call3(t, c, "list_dir", map[string]any{"path": "src/pkg"})
+	if !res.IsError || !strings.Contains(text(res), `not found: "src/pkg"; the root has: `) {
+		t.Fatalf("got %+v", res)
 	}
 }

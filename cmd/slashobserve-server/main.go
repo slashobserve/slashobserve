@@ -607,6 +607,11 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
+	contextSourcesService := contextsources.New(contextsources.Deps{
+		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+	})
+
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
