@@ -235,3 +235,19 @@ func snapshotOf(row dbsqlc.Snapshot) Snapshot {
 		CreatedAt:     row.CreatedAt.Time.UTC(),
 	}
 }
+
+func fieldsOfShownAnswers(fields []RunFields, shown []Block, viewer actor.Actor) []RunFields {
+	answered := make(map[string]bool, len(shown))
+	for _, b := range shown {
+		if b.Kind == KindText && b.RunID != "" && (b.State == BlockLive || b.Actor.Kind == viewer.Kind && b.Actor.ID == viewer.ID) {
+			answered[b.RunID] = true
+		}
+	}
+	var out []RunFields
+	for _, f := range fields {
+		if answered[f.RunID] {
+			out = append(out, f)
+		}
+	}
+	return out
+}

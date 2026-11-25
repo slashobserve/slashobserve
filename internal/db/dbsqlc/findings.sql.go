@@ -513,12 +513,16 @@ func (q *Queries) ListFindingsInFolder(ctx context.Context, arg ListFindingsInFo
 }
 
 const listObservationFindingFields = `-- name: ListObservationFindingFields :many
-SELECT id, agent_request_id, dashboard_id, title, markdown, evidence, time_from, time_to, created_by_kind, created_by_id, created_by_name, annotation_id, created_at, origin, origin_client, folder_id, observation_id, ask_dashboard_id, suggested_change, observe_worthy, as_of, root_cause_component, root_cause_kind, root_cause_summary, onset, impact, confidence, ruled_out, next_steps, no_incident FROM findings
-WHERE observation_id = $1
-  AND agent_request_id IS NOT NULL
+SELECT f.id, f.agent_request_id, f.dashboard_id, f.title, f.markdown, f.evidence, f.time_from, f.time_to, f.created_by_kind, f.created_by_id, f.created_by_name, f.annotation_id, f.created_at, f.origin, f.origin_client, f.folder_id, f.observation_id, f.ask_dashboard_id, f.suggested_change, f.observe_worthy, f.as_of, f.root_cause_component, f.root_cause_kind, f.root_cause_summary, f.onset, f.impact, f.confidence, f.ruled_out, f.next_steps, f.no_incident FROM findings f
+WHERE f.observation_id = $1
+  AND f.agent_request_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM observation_blocks b
+    WHERE b.observation_id = f.observation_id AND b.run_id = f.agent_request_id AND b.kind = 'text'
+  )
   AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
     OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL)
-ORDER BY created_at, id
+ORDER BY f.created_at, f.id
 `
 
 func (q *Queries) ListObservationFindingFields(ctx context.Context, observationID pgtype.UUID) ([]Finding, error) {

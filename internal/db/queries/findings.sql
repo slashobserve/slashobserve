@@ -79,9 +79,13 @@ UPDATE findings SET observation_id = NULL WHERE agent_request_id = @agent_reques
 UPDATE findings SET observation_id = @observation_id WHERE id = @id AND observation_id IS NULL;
 
 -- name: ListObservationFindingFields :many
-SELECT * FROM findings
-WHERE observation_id = @observation_id
-  AND agent_request_id IS NOT NULL
+SELECT f.* FROM findings f
+WHERE f.observation_id = @observation_id
+  AND f.agent_request_id IS NOT NULL
+  AND EXISTS (
+    SELECT 1 FROM observation_blocks b
+    WHERE b.observation_id = f.observation_id AND b.run_id = f.agent_request_id AND b.kind = 'text'
+  )
   AND (root_cause_kind IS NOT NULL OR onset IS NOT NULL OR impact IS NOT NULL OR confidence IS NOT NULL
     OR ruled_out IS NOT NULL OR next_steps IS NOT NULL OR no_incident IS NOT NULL)
-ORDER BY created_at, id;
+ORDER BY f.created_at, f.id;

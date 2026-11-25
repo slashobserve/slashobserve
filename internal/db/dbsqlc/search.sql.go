@@ -51,6 +51,10 @@ observation_matches AS NOT MATERIALIZED (
   JOIN visible_observations vo ON vo.id = f.observation_id
   WHERE 'observation' = ANY($4::text[])
     AND f.root_cause_component IS NOT NULL
+    AND EXISTS (
+      SELECT 1 FROM observation_blocks b
+      WHERE b.observation_id = f.observation_id AND b.run_id = f.agent_request_id AND b.kind = 'text' AND b.state = 'live'
+    )
     AND search_vector(f.root_cause_component, '', '', '') @@ search_query($1::text, $2::text)
 ),
 hits AS (

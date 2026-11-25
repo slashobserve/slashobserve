@@ -247,10 +247,11 @@ The agent fills them when it saves an investigation, and they must agree with th
 
 A component is at most 120 characters, a sentence at most 300 and a list line at most 200, each on one line.
 A save that breaks a rule is refused with the reason, and the agent fixes it and saves again.
+A save outside an investigation that sets any of them is refused the same way.
 
 The observation shows the fields as a compact summary above the answer, and shows nothing extra when none is set.
 They are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.
-`GET /observations/{id}` and `get_observation` return them as `findings`, one entry per saved answer with its `run_id`.
+`GET /observations/{id}` and `get_observation` return them as `findings`, one entry per saved answer with its `run_id`, and only for answers the caller can see.
 `observe investigate` and `observe observations show` print them as lines before the answer.
 Search finds an observation by the name of its root cause component.
 
