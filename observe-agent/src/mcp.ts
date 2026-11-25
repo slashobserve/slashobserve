@@ -36,7 +36,7 @@ import { version } from "./version"
 
 export const claimTimeoutMs = 60_000
 export const reportTimeoutMs = 10_000
-export const startReadTimeoutMs = 15_000
+export const startReadTimeoutMs = 30_000
 export const maxTimeoutsInRow = 3
 
 export type ToolReply = {
