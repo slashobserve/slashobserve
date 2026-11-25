@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState, type Ref } from "react"
+import { useMemo, useRef, useState, type Ref, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { ChevronRightIcon, LoaderCircleIcon, PlusIcon } from "lucide-react"
+import { ChevronRightIcon, LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
+import type { DatasourceType } from "../draft"
 import { audienceLabels, contextProblemText, sourceStatus } from "./problems"
 import {
   contextSourcesQuery,
@@ -38,11 +39,23 @@ function sourceId(source: ContextSource): string {
 
 type Props = {
   headingRef?: Ref<HTMLHeadingElement>
+  adding: boolean
+  addTrigger: RefObject<HTMLElement | null>
+  onAddMcp: (from: HTMLElement) => void
+  onAddClose: () => void
+  onPickNative: (type: DatasourceType) => void
 }
 
-export function McpSourcesSection({ headingRef }: Props) {
+export function McpSourcesSection({
+  headingRef,
+  adding,
+  addTrigger,
+  onAddMcp,
+  onAddClose,
+  onPickNative,
+}: Props) {
   const query = useQuery(contextSourcesQuery())
-  const addButton = useRef<HTMLElement | null>(null)
+  const editTrigger = useRef<HTMLElement | null>(null)
   const [panel, setPanel] = useState<SourcePanelMode | null>(null)
   const [openUids, setOpenUids] = useState<readonly string[]>([])
   const [deleting, setDeleting] = useState<ContextSource | null>(null)
@@ -166,7 +179,7 @@ export function McpSourcesSection({ headingRef }: Props) {
             disabled={source.provisioned}
             aria-label={`Edit ${source.name}`}
             onClick={(event) => {
-              addButton.current = event.currentTarget
+              editTrigger.current = event.currentTarget
               setPanel({ kind: "edit", source })
             }}
           >
@@ -188,30 +201,16 @@ export function McpSourcesSection({ headingRef }: Props) {
 
   return (
     <section aria-labelledby="mcp-sources-heading" id="mcp-sources">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <div>
-          <h2
-            id="mcp-sources-heading"
-            ref={headingRef}
-            tabIndex={-1}
-            className="text-base font-semibold outline-none"
-          >
-            MCP sources
-          </h2>
-          <p className="text-[13px] text-muted-foreground">
-            {mcpSourcesCaption}
-          </p>
-        </div>
-        <Button
-          variant={panel === null ? "default" : "outline"}
-          onClick={(event) => {
-            addButton.current = event.currentTarget
-            setPanel({ kind: "add" })
-          }}
+      <div className="mb-3">
+        <h2
+          id="mcp-sources-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-base font-semibold outline-none"
         >
-          <PlusIcon aria-hidden="true" />
-          Add source
-        </Button>
+          MCP sources
+        </h2>
+        <p className="text-[13px] text-muted-foreground">{mcpSourcesCaption}</p>
       </div>
       {query.isError && query.data === undefined ? (
         <LoadProblem
@@ -233,6 +232,12 @@ export function McpSourcesSection({ headingRef }: Props) {
             Register an MCP server, discover its tools and approve the ones the
             agent may call.
           </p>
+          <Button
+            className="mt-3"
+            onClick={(event) => onAddMcp(event.currentTarget)}
+          >
+            Add an MCP server
+          </Button>
         </div>
       ) : (
         <DataGrid
@@ -252,11 +257,20 @@ export function McpSourcesSection({ headingRef }: Props) {
           }}
         />
       )}
+      {adding ? (
+        <SourcePanel
+          mode={{ kind: "add" }}
+          onClose={onAddClose}
+          trigger={addTrigger}
+          onAdded={(uid) => setOpen(uid, true)}
+          onPickNative={onPickNative}
+        />
+      ) : null}
       {panel === null ? null : (
         <SourcePanel
           mode={panel}
           onClose={() => setPanel(null)}
-          trigger={addButton}
+          trigger={editTrigger}
         />
       )}
       <AlertDialog
