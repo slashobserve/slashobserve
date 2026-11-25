@@ -261,6 +261,30 @@ describe("DataGrid", () => {
     expect(screen.queryByRole("grid")).not.toBeInTheDocument()
   })
 
+  it("scrolls the revealed row into view when its id changes", async () => {
+    const scrolled: (string | null)[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.getAttribute("row-id"))
+    }
+    try {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(<DataGrid {...props} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="b"]')).not.toBeNull()
+      )
+      rerender(<DataGrid {...props} revealRowId="b" />)
+      await waitFor(() => expect(scrolled).toEqual(["b"]))
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+
   describe("narrow", () => {
     it("draws each row as a card: the title, labelled values, then the action", async () => {
       vi.mocked(useNarrow).mockReturnValue(true)

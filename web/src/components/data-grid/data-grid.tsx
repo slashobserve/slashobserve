@@ -3,7 +3,10 @@ import {
   ClientSideRowModelModule,
   RowAutoHeightModule,
   RowStyleModule,
+  ScrollApiModule,
   type CellMouseOverEvent,
+  type GridApi,
+  type GridReadyEvent,
   type ColDef,
   type GetRowIdParams,
   type ICellRendererParams,
@@ -40,6 +43,7 @@ const modules = [
   RowAutoHeightModule,
   RowStyleModule,
   ClientSideRowModelApiModule,
+  ScrollApiModule,
 ]
 
 export type DataGridColumn<T> = {
@@ -161,6 +165,7 @@ export function DataGrid<T>({
   onSort,
   highlightedRowId = null,
   onHighlightRow,
+  revealRowId = null,
   compact = false,
   empty,
   className,
@@ -173,6 +178,7 @@ export function DataGrid<T>({
   onSort?: (key: string) => void
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
+  revealRowId?: string | null
   compact?: boolean
   empty?: ReactNode
   className?: string
@@ -250,12 +256,41 @@ export function DataGrid<T>({
     [columns, narrow, sorts, sortKey, sortDirection]
   )
 
+  const apiRef = useRef<GridApi<T> | null>(null)
+  const revealRef = useRef(revealRowId)
+  const layoutRef = useRef(layout)
+  useLayoutEffect(() => {
+    revealRef.current = revealRowId
+    layoutRef.current = layout
+  })
+  const reveal = useCallback(() => {
+    const id = revealRef.current
+    const api = apiRef.current
+    if (id === null || api === null || api.isDestroyed()) return
+    if (layoutRef.current === "normal") {
+      const node = api.getRowNode(id)
+      if (node !== undefined) api.ensureNodeVisible(node)
+      return
+    }
+    containerRef.current
+      ?.querySelector(`[role=row][row-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView?.({ block: "nearest" })
+  }, [])
+  useEffect(reveal, [revealRowId, reveal])
+
   const labelGrid = useCallback(() => {
     containerRef.current
       ?.querySelector("[role=grid]")
       ?.setAttribute("aria-label", labelRef.current)
   }, [])
   useEffect(labelGrid, [label, labelGrid])
+  const onGridReady = useCallback(
+    (event: GridReadyEvent<T>) => {
+      apiRef.current = event.api
+      labelGrid()
+    },
+    [labelGrid]
+  )
 
   if (rows.length === 0 && empty !== undefined) return <>{empty}</>
 
@@ -285,7 +320,8 @@ export function DataGrid<T>({
           getRowHeight={narrow ? estimateNarrowRow : undefined}
           rowClassRules={rowClassRules}
           onCellMouseOver={onCellMouseOver}
-          onGridReady={labelGrid}
+          onGridReady={onGridReady}
+          onFirstDataRendered={reveal}
         />
       </NarrowRowsContext>
     </div>
