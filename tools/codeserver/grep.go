@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 const maxWalkDepth = 40
@@ -85,9 +85,10 @@ func (c *Code) Grep(ctx context.Context, pattern, rel, globPattern string) (stri
 	if err != nil {
 		return "", err
 	}
-	run := &grepRun{root: c.root, re: re, glob: g}
+	run := &grepRun{root: c.root, re: re, glob: g, visited: map[dirID]bool{}}
 	if start.IsDir() {
-		err = run.walk(ctx, path.Clean(rel), start, nil)
+		run.visit(start)
+		err = run.walk(ctx, path.Clean(rel), 1)
 	} else {
 		err = run.file(ctx, path.Clean(rel))
 	}
@@ -105,9 +106,32 @@ type grepRun struct {
 	matches int
 	skipped int
 	cut     bool
+	visited map[dirID]bool
 }
 
-func (g *grepRun) walk(ctx context.Context, rel string, info fs.FileInfo, ancestors []fs.FileInfo) error {
+type dirID struct{ dev, ino any }
+
+func idOf(info fs.FileInfo) (dirID, bool) {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return dirID{}, false
+	}
+	return dirID{st.Dev, st.Ino}, true
+}
+
+func (g *grepRun) visit(info fs.FileInfo) bool {
+	id, ok := idOf(info)
+	if !ok {
+		return true
+	}
+	if g.visited[id] {
+		return false
+	}
+	g.visited[id] = true
+	return true
+}
+
+func (g *grepRun) walk(ctx context.Context, rel string, depth int) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -115,7 +139,6 @@ func (g *grepRun) walk(ctx context.Context, rel string, info fs.FileInfo, ancest
 	if err != nil {
 		return nil
 	}
-	ancestors = append(ancestors, info)
 	for _, e := range entries {
 		if e.Name() == ".git" {
 			continue
@@ -132,10 +155,10 @@ func (g *grepRun) walk(ctx context.Context, rel string, info fs.FileInfo, ancest
 		}
 		switch {
 		case childInfo.IsDir():
-			if len(ancestors) >= maxWalkDepth || isAncestor(ancestors, childInfo) {
+			if depth >= maxWalkDepth || !g.visit(childInfo) {
 				continue
 			}
-			err = g.walk(ctx, child, childInfo, ancestors)
+			err = g.walk(ctx, child, depth+1)
 		case childInfo.Mode().IsRegular():
 			err = g.file(ctx, child)
 		}
@@ -144,15 +167,6 @@ func (g *grepRun) walk(ctx context.Context, rel string, info fs.FileInfo, ancest
 		}
 	}
 	return nil
-}
-
-func isAncestor(ancestors []fs.FileInfo, info fs.FileInfo) bool {
-	for _, a := range ancestors {
-		if os.SameFile(a, info) {
-			return true
-		}
-	}
-	return false
 }
 
 func (g *grepRun) file(ctx context.Context, rel string) error {
