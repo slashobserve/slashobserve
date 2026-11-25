@@ -23,7 +23,7 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { handleCellKey } from "./cell-keys"
+import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
 import { gridLayout } from "./layout"
 import {
   NarrowRow,
@@ -215,6 +215,7 @@ export function DataGrid<T>({
         colId: column.id,
         headerName: column.header,
         sortable: false,
+        suppressKeyboardEvent: keepKeysOnFocusedControl,
         cellRenderer: GridCell,
         cellRendererParams: { column },
         headerComponent: SortHeader,
