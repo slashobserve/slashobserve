@@ -358,7 +358,7 @@ function ToolBar({
   ) : null
   if (pageFooter) {
     return (
-      <PageFooter docked={docked} bar={bar}>
+      <PageFooter docked={docked} bar={bar} leave={leave}>
         {hint}
       </PageFooter>
     )
@@ -384,26 +384,38 @@ function ToolBar({
   )
 }
 
+const floatingBottomInset = 16
+
 function PageFooter({
   docked,
   bar,
+  leave,
   children,
 }: {
   docked: boolean
   bar: ReactNode
+  leave: (to: Leaving) => void
   children: ReactNode
 }) {
   const [slot, setSlot] = useState<HTMLDivElement | null>(null)
-  const box = useSlotBox(slot)
+  const [strip, setStrip] = useState<HTMLDivElement | null>(null)
+  const { left, width, bottom, hidden } = useSlotBox(
+    slot,
+    strip,
+    docked ? 0 : floatingBottomInset
+  )
+  useEffect(() => {
+    if (hidden && docked) leave("select")
+  }, [hidden, docked, leave])
   return (
     <div ref={setSlot} data-page-footer="" className="-mt-8 h-24 narrow:hidden">
       <div
-        style={box}
+        ref={setStrip}
+        style={{ left, width, bottom }}
         className={cn(
           "fixed z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1",
-          docked
-            ? "bottom-0 border-t bg-background px-4 py-2"
-            : "pointer-events-none bottom-4"
+          docked ? "border-t bg-background px-4 py-2" : "pointer-events-none",
+          hidden && "invisible"
         )}
       >
         {bar}
