@@ -57,7 +57,7 @@ export type DataGridColumn<T> = {
   sortable?: boolean
   autoHeight?: boolean
   action?: boolean
-  headerCell?: ReactNode
+  headerCell?: () => ReactNode
 }
 
 export type DataGridSort = {
@@ -82,7 +82,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
 }
 
 type HeaderParams = IHeaderParams & {
-  headerCell?: ReactNode
+  headerCell?: () => ReactNode
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
@@ -119,7 +119,7 @@ function SortHeader({
       <span
         className={cn("w-full truncate", align === "right" && "text-right")}
       >
-        {headerCell ?? displayName}
+        {headerCell?.() ?? displayName}
       </span>
     )
   }
@@ -135,7 +135,7 @@ function SortHeader({
         direction !== null && "text-foreground"
       )}
     >
-      {headerCell ?? displayName}
+      {headerCell?.() ?? displayName}
       {direction !== null ? (
         <Arrow className="size-3" aria-hidden="true" />
       ) : null}

@@ -298,7 +298,7 @@ function repairColumns({
     {
       id: "actions",
       header: "Actions",
-      headerCell: <span className="sr-only">Actions</span>,
+      headerCell: () => <span className="sr-only">Actions</span>,
       width: 190,
       action: true,
       cell: (item) => (

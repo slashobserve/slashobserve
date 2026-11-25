@@ -270,24 +270,25 @@ describe("DataGrid", () => {
     expect(ref.current).toHaveFocus()
   })
 
-  it("draws a column's header content in place of its name", async () => {
+  it("draws a column's header content in place of its name, and redraws it when the content changes", async () => {
     const onChange = vi.fn()
-    render(
+    const withHeader = (label: string) => [
+      {
+        ...columns[0],
+        headerCell: () => (
+          <label>
+            <input type="checkbox" onChange={onChange} />
+            {label}
+          </label>
+        ),
+      },
+      ...columns.slice(1),
+    ]
+    const { rerender } = render(
       <DataGrid
         label="Services"
         rows={rows}
-        columns={[
-          {
-            ...columns[0],
-            headerCell: (
-              <label>
-                <input type="checkbox" onChange={onChange} />
-                Select all
-              </label>
-            ),
-          },
-          ...columns.slice(1),
-        ]}
+        columns={withHeader("Select all")}
         rowId={(row) => row.id}
       />
     )
@@ -296,6 +297,18 @@ describe("DataGrid", () => {
     })
     fireEvent.click(within(header).getByRole("checkbox"))
     expect(onChange).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={withHeader("Select none")}
+        rowId={(row) => row.id}
+      />
+    )
+    expect(
+      await screen.findByRole("columnheader", { name: "Select none" })
+    ).toBeInTheDocument()
   })
 
   it("draws the rows its predicate picks across the full width, in the wide layout too", async () => {
