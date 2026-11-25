@@ -477,3 +477,21 @@ func TestObservationErrorsPrintTheServersMessage(t *testing.T) {
 		t.Fatalf("exit %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())
 	}
 }
+
+func TestPrintObservationShowsTheFindingFieldsAheadOfTheBlocks(t *testing.T) {
+	var stdout bytes.Buffer
+	printObservation(&output{out: &stdout, err: io.Discard}, observationRow{
+		Title: "Checkout 5xx", State: "open", URL: testObservedURL,
+		Findings: []findingSummary{
+			{RootCause: &findingRootCause{Component: "checkout", Kind: "deploy", Summary: "Version 42 added a retry."}, Confidence: "high"},
+			{Markdown: "ignored"},
+		},
+	})
+	got := stdout.String()
+	if !strings.Contains(got, "\nRoot cause: checkout (deploy) - Version 42 added a retry.\nConfidence: high\n") {
+		t.Errorf("printed %q", got)
+	}
+	if strings.Count(got, "Root cause") != 1 {
+		t.Errorf("a finding without fields printed a header: %q", got)
+	}
+}

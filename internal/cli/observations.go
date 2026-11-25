@@ -22,6 +22,7 @@ type observationRow struct {
 	URL       string                `json:"url"`
 	UpdatedAt string                `json:"updated_at"`
 	Blocks    []observationBlockRow `json:"blocks"`
+	Findings  []findingSummary      `json:"findings"`
 }
 
 type observationBlockRow struct {
@@ -183,6 +184,14 @@ func printObservation(out *output, o observationRow) {
 		}
 	}
 	out.fields([][2]string{{"Title", text(o.Title)}, {"State", text(o.State)}, {summaryLabel, summary}, {"URL", text(o.URL)}})
+	for _, f := range o.Findings {
+		if header := f.header(); len(header) > 0 {
+			out.line("")
+			for _, line := range header {
+				out.line("%s", line)
+			}
+		}
+	}
 	rows := make([][]string, 0, len(o.Blocks))
 	for _, b := range o.Blocks {
 		rows = append(rows, []string{strconv.Itoa(b.Position), text(b.ID), text(b.Kind), text(b.State), strconv.Itoa(b.Version), text(b.Width), heightColumn(b.Height), blockRange(b), blockContent(b)})

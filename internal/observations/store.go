@@ -14,6 +14,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
@@ -71,6 +72,18 @@ func (s *store) thread(ctx context.Context, observationID pgtype.UUID) (pgtype.U
 		return pgtype.UUID{}, fmt.Errorf("get observation thread: %w", err)
 	}
 	return id, nil
+}
+
+func (s *store) findingFields(ctx context.Context, observationID pgtype.UUID) ([]RunFields, error) {
+	rows, err := s.db.Queries().ListObservationFindingFields(ctx, observationID)
+	if err != nil {
+		return nil, fmt.Errorf("list finding fields of observation: %w", err)
+	}
+	out := make([]RunFields, len(rows))
+	for i, r := range rows {
+		out[i] = RunFields{RunID: r.AgentRequestID.String(), Fields: findings.StructuredOf(r)}
+	}
+	return out, nil
 }
 
 func (s *store) threads(ctx context.Context, observationIDs []pgtype.UUID) (map[pgtype.UUID]pgtype.UUID, error) {

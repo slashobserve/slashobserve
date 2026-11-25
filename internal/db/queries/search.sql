@@ -33,6 +33,14 @@ observation_matches AS NOT MATERIALIZED (
   WHERE 'observation' = ANY(@kinds::text[])
     AND b.kind = 'text' AND b.state = 'live'
     AND observation_block_search_vector(b.body) @@ search_query(@words::text, sqlc.narg('prefix')::text)
+  UNION ALL
+  SELECT f.observation_id,
+    ts_rank_cd(search_vector(f.root_cause_component, '', '', ''), search_query(@words::text, sqlc.narg('prefix')::text), 1) AS rank
+  FROM findings f
+  JOIN visible_observations vo ON vo.id = f.observation_id
+  WHERE 'observation' = ANY(@kinds::text[])
+    AND f.root_cause_component IS NOT NULL
+    AND search_vector(f.root_cause_component, '', '', '') @@ search_query(@words::text, sqlc.narg('prefix')::text)
 ),
 hits AS (
   (SELECT 'dashboard'::text AS kind, v.dashboard_id AS id, d.updated_at AS changed_at, d.folder_id AS folder_id,

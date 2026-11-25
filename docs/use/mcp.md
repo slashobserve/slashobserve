@@ -1368,6 +1368,8 @@ Returns the observation with `allowed_actions` and its blocks in order.
   A snapshot never carries query text, so none is shown.
   When the snapshot cannot be read, the block has `data_error` instead of the summary.
 - `blocks_truncated` says the rest did not fit.
+- `findings` holds the structured fields of each saved investigation answer, as in [Investigate](investigate.md#structured-fields), with the `run_id` that wrote it.
+  It is left out when no answer set a field.
 - A block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 - The built-in agent also has this tool, and only reads with it.
 
@@ -1533,6 +1535,7 @@ Reads one run of the built-in agent by the id of a `run.*` event from `list_acti
   It stays set after the answer is saved into another observation.
   It is null when the run is `redacted` or when you cannot open that observation.
 - The run's `investigation` field says whether it is an investigation.
+- The run's `finding` also carries the structured fields `root_cause`, `onset`, `impact`, `confidence`, `ruled_out`, `next_steps` and `no_incident`, which the agent's `save_finding` sets; see [Investigate](investigate.md#structured-fields).
 - `anchor` and `block_id` are the spot a run points at, shaped as `start_run` takes it.
   They are filled only for the person who asked the run, and are `null` for anyone else and for a run that points at nothing.
   The turns of `get_chat` carry the same two fields under the same rule.
