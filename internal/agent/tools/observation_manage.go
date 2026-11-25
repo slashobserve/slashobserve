@@ -56,14 +56,14 @@ func (r *Registry) observationManaged(o observations.Observation) observationMan
 	return observationManagedOut{ObservationID: o.ID, Title: o.Title, State: string(o.State), FolderID: o.FolderID, URL: r.deps.Observations.URL(o.ID), ChatRename: o.ChatRename}
 }
 
-func (r *Registry) observationManageFailure(step string, err error) (Result, error) {
+func (r *Registry) observationManageFailure(ctx context.Context, step string, err error) (Result, error) {
 	switch {
 	case errors.Is(err, observations.ErrNothingToUpdate):
 		return invalid("%s", messageNoObservationChange), nil
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
 		return toolError(codePersonalFolder, err.Error()), nil
 	}
-	return r.observationFailure(step, err)
+	return r.observationFailure(ctx, step, err)
 }
 
 func (r *Registry) updateObservation(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -100,7 +100,7 @@ func (r *Registry) updateObservation(ctx context.Context, input json.RawMessage)
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Update(ctx, principal, id, change)
 	if err != nil {
-		return r.observationManageFailure("Updated an observation", err)
+		return r.observationManageFailure(ctx, "Updated an observation", err)
 	}
 	return success("Updated observation "+o.ID+chatRenameNote[o.ChatRename], r.observationManaged(o)), nil
 }
@@ -132,7 +132,7 @@ func (r *Registry) moveObservation(ctx context.Context, input json.RawMessage) (
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Move(ctx, principal, id, folderID)
 	if err != nil {
-		return r.observationManageFailure("Moved an observation", err)
+		return r.observationManageFailure(ctx, "Moved an observation", err)
 	}
 	return success("Moved observation "+o.ID, r.observationManaged(o)), nil
 }
@@ -154,7 +154,7 @@ func (r *Registry) reopenObservation(ctx context.Context, input json.RawMessage)
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Reopen(ctx, principal, id)
 	if err != nil {
-		return r.observationManageFailure("Reopened an observation", err)
+		return r.observationManageFailure(ctx, "Reopened an observation", err)
 	}
 	return success("Reopened observation "+o.ID, r.observationManaged(o)), nil
 }

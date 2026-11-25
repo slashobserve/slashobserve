@@ -35,6 +35,7 @@ describe("McpClient", () => {
         name: "lint_query",
         description: "Checks a query.",
         inputSchema: { type: "object", properties: {} },
+        readOnly: true,
       },
     ])
   })

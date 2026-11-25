@@ -186,7 +186,8 @@ describe("useCanvasTool", () => {
 async function renderTools(
   permissions: { comment: boolean; edit: boolean },
   agentAvailable: boolean,
-  idle = true
+  idle = true,
+  reserve = false
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -198,7 +199,7 @@ async function renderTools(
   renderWithProviders(
     <>
       <p>page</p>
-      <CanvasTools permissions={permissions} idle={idle} />
+      <CanvasTools permissions={permissions} idle={idle} reserve={reserve} />
     </>,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -339,6 +340,27 @@ describe("CanvasTools", () => {
     await user.click(screen.getByRole("button", { name: "Select" }))
     expect(screen.getByRole("toolbar")).toHaveAttribute("data-tool", "select")
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
+  })
+
+  it("reserves room in the page flow for the floating toolbar only when asked", async () => {
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    const box = screen.getByRole("toolbar").parentElement?.parentElement
+    expect(box).toHaveClass("sticky", "h-18")
+    expect(box).not.toHaveClass("h-0")
+  })
+
+  it("keeps a zero-height box by default so a scrolling sibling owns the room", async () => {
+    await renderTools({ comment: true, edit: false }, false)
+    const box = screen.getByRole("toolbar").parentElement?.parentElement
+    expect(box).toHaveClass("sticky", "h-0")
+    expect(box).not.toHaveClass("h-18")
+  })
+
+  it("lets clicks through the floating strip and keeps the toolbar clickable", async () => {
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    const bar = screen.getByRole("toolbar")
+    expect(bar.parentElement?.parentElement).toHaveClass("pointer-events-none")
+    expect(bar).toHaveClass("pointer-events-auto")
   })
 
   it("keeps the tool button and its focus when the hint docks beside the toolbar", async () => {

@@ -2,6 +2,7 @@ package runsession
 
 import (
 	"encoding/json"
+	"slices"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
@@ -32,6 +33,8 @@ type State struct {
 	RejectedFinding   bool                 `json:"rejected_finding,omitempty"`
 	RejectedTransient bool                 `json:"rejected_transient,omitempty"`
 	Settled           Settled              `json:"settled"`
+	Created           []string             `json:"created,omitempty"`
+	Committed         string               `json:"committed,omitempty"`
 	Usage             revisions.Usage      `json:"usage"`
 	Turn              OpenTurn             `json:"turn"`
 }
@@ -52,6 +55,18 @@ type OpenTurn struct {
 
 func (s *State) rejection() revisions.Rejection {
 	return revisions.Rejection{Finding: s.RejectedFinding, Transient: s.RejectedTransient, Panels: s.Failing, Other: s.FailingOther, Codes: s.IssueCodes}
+}
+
+func (s *State) writeScope() tools.WriteScope {
+	return tools.WriteScope{Created: slices.Clone(s.Created), Committed: s.Committed}
+}
+
+func (s *State) noteCreated(ids []string) {
+	for _, id := range ids {
+		if id != "" && len(s.Created) < tools.MaxCreatedIDs && !slices.Contains(s.Created, id) {
+			s.Created = append(s.Created, id)
+		}
+	}
 }
 
 func (s *State) addDiscovery(found tools.Discovery) {

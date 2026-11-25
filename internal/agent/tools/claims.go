@@ -184,7 +184,7 @@ func (r *Registry) claimRun(ctx context.Context, input json.RawMessage) (Result,
 	return r.asClaimer(ctx, func(claimer claims.Claimer) (Result, error) {
 		offer, err := r.deps.Claims.Claim(ctx, claimer, time.Duration(wait)*time.Second)
 		if err != nil {
-			return claimFailure(err)
+			return claimFailure(ctx, err)
 		}
 		if offer.Run == nil {
 			return success("No run waiting", offer), nil
@@ -204,7 +204,7 @@ func (r *Registry) getRunBrief(ctx context.Context, input json.RawMessage) (Resu
 	return r.asClaimedRun(ctx, in.RunID, in.Attempt, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.deps.RunSessions.Brief(ctx, req, in.Reason)
 		if err != nil {
-			return claimFailure(err)
+			return claimFailure(ctx, err)
 		}
 		return success("Read a run's brief", answer), nil
 	})
@@ -227,7 +227,7 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	return r.asClaimedRun(ctx, in.RunID, in.Attempt, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
 		answer, err := r.report(ctx, claimer, req, in)
 		if err != nil {
-			return claimFailure(err)
+			return claimFailure(ctx, err)
 		}
 		return success("Reported on a run", answer), nil
 	})
@@ -294,7 +294,7 @@ func (r *Registry) finishRun(ctx context.Context, input json.RawMessage) (Result
 			Outcome: in.Outcome, FailureCode: in.FailureCode, Message: in.Message, Commit: in.Commit, Usage: in.Usage.reported(),
 		})
 		if err != nil {
-			return claimFailure(err)
+			return claimFailure(ctx, err)
 		}
 		return success("Ended a run", answer), nil
 	})
@@ -318,7 +318,7 @@ func (r *Registry) asClaimedRun(ctx context.Context, runID string, attempt int, 
 		}
 		req, err := r.deps.Claims.ClaimedRun(ctx, claimer, runID, attempt)
 		if err != nil {
-			return claimFailure(err)
+			return claimFailure(ctx, err)
 		}
 		return use(claimer, req)
 	})
@@ -341,11 +341,11 @@ func checkRunText(field, value string, maxRunes int) (Result, bool) {
 	return Result{}, true
 }
 
-func claimFailure(err error) (Result, error) {
+func claimFailure(ctx context.Context, err error) (Result, error) {
 	var proposalRequired *dashboards.ProposalRequiredError
 	switch {
 	case errors.As(err, &proposalRequired):
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	case errors.Is(err, claims.ErrNotAWorker):
 		return toolError(codeNotAWorker, "this service account does not take runs; an admin can turn on takes_runs"), nil
 	case errors.Is(err, claims.ErrNotYourRun):

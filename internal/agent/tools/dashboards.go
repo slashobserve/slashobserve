@@ -497,7 +497,7 @@ func (r *Registry) createDashboard(ctx context.Context, input json.RawMessage) (
 		return res, nil
 	}
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	return success("Saved version "+strconv.Itoa(ver.Number), withAdvice(ctx, r.savedOut(dash, ver, &replayed), ver.Spec)), nil
 }
@@ -780,12 +780,12 @@ type versionNotFoundOut struct {
 
 func (r *Registry) saveFailureOn(ctx context.Context, id pgtype.UUID, err error) (Result, error) {
 	if !errors.Is(err, dashboards.ErrNotFound) {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	if res, ok := r.versionNotFound(ctx, id); ok {
 		return res, nil
 	}
-	return saveFailure(err)
+	return saveFailure(ctx, err)
 }
 
 func (r *Registry) versionNotFound(ctx context.Context, id pgtype.UUID) (Result, bool) {
@@ -803,8 +803,8 @@ func (r *Registry) versionNotFound(ctx context.Context, id pgtype.UUID) (Result,
 	return failure("Version not found", versionNotFoundOut{Code: codeVersionNotFound, Message: message, LatestVersion: latest.Number}), true
 }
 
-func saveFailure(err error) (Result, error) {
-	if res, ok := restrictedRefusal(err); ok {
+func saveFailure(ctx context.Context, err error) (Result, error) {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	var invalidSpec *dashboards.InvalidSpecError

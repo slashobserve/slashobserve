@@ -98,6 +98,7 @@ The dashboard changes only when you choose **Revise the dashboard** on an answer
 Once the change is asked for, or was already applied from that answer, the button reads **Revision asked for**, in the chat and in any thread the answer is in.
 It stays off until you reload the page.
 Asking again while that run is waiting or running, or after it succeeded, starts nothing more.
+When the server refuses the revision, the reason shows in red under the button and the button stays available, for example when the answer read Admin-only data and the dashboard is in a folder everyone reads.
 While no model is connected, the button is off with "No model is connected to this server, so the agent cannot make this change."
 On a [starter dashboard](activity.md#audit-folder) the answer keeps its suggested change without the button and offers **Duplicate**.
 On an answer about a dashboard, the evidence chip and **Revise the dashboard** work as in a [comment thread](review.md#ask-the-agent-from-a-comment).

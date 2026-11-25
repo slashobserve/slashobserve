@@ -175,6 +175,13 @@ Details of what the parser accepts:
 When exactly one mapped field ends the same way as the unknown one, the lint message adds a suggestion.
 An example is `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch.
 The message then adds `did you mean "resource.service.name"?`, and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
+The suggestion ignores capitals, so `Body` offers `body` and `Service.Name` offers `resource.service.name`.
+
+A query whose text requires a field the mapping does not have, and which finds no lines, says so in `meta.hint`, such as `Field "Body" is not in the mapping; did you mean "body"?`.
+When no field is close, the hint lists up to five text fields to try instead, starting with the message field: `Field "Body" is not in the mapping; text fields to try: message, error.stack_trace.`
+The hint comes with an instant result, the first page of a paged read and a count over time whose counts are all zero.
+A field under `not` or in one branch of an `or` is not named, and neither is a field of an ad-hoc filter added outside the query text.
+The agent's `query_instant` and `query_range` show that sentence beside the result, so it names the real field instead of reading the empty result as an absence of data.
 
 KQL values are case sensitive, so a query such as `service.name:checkout and log.level:error` can find no lines when the data says `ERROR`.
 The server then checks the keyword fields its clauses name, three at most, against the values they hold in the range.
@@ -878,14 +885,19 @@ Each row shows these columns:
 
 - **Root service** and **Root span**.
 - **Duration**, with a bar scaled to the slowest trace shown and a tick at the same p95 as the scatter's line.
+  When that p95 is above the slowest trace shown, the bars have no tick.
+  Every duration takes the width of the longest one, up to 16 characters, so the bar starts after the number and never runs under it.
 - **Spans** and **Errors**.
   **Errors** reads OK, or Failed with the number of error spans.
   Both show only when every row carries the count.
 - **Started**, which opens the trace.
 
 **Columns** hides a column.
+The arrow keys move between the cells of the table, and Enter on a **Started** cell opens that trace.
 On Jaeger the search shows no duration tick and has no comparison, because Jaeger has no trace statistics.
-On a phone the table becomes a list.
+On a phone the table becomes a list of cards: the root service on top, then each other column with its name.
+The column headers are hidden there, but a screen reader still reads them and sorts by them.
+Above 100 traces the table scrolls in its own box, which fills the rest of the window and is at least 384 pixels tall, and draws only the rows in view.
 
 On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range.
 The sort is in the address as `sort`, such as `sort=-spans`.

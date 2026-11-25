@@ -187,7 +187,9 @@ A new dashboard has no id until the build commits, so the model saves and reads 
 
 A revision changes one panel per `update_panels` call, so a change to many existing panels takes one call each.
 Deletes, moves, variables and dashboard fields may go with the panel.
-Each save checks only the panel it adds or changes, so a build of 100 panels does not rerun the queries of the panels already built.
+An edit outside a panel, such as a variable's default or label, counts as no panel change, so it saves in one call however many panels use it.
+The server still reruns the query of every panel the edit reaches, and the save result lists them under `reverified`, apart from `changed_panels`, so a later `failing_panels` entry for one of them is no surprise.
+Each save checks the panel it adds or changes and the panels the save reaches through a variable, a datasource or a reused source panel, so a build of 100 panels does not rerun the queries of panels the save leaves alone.
 
 `planned_panels`, `finish` and `row` exist only for the built-in agent, and MCP clients keep one version per accepted save.
 The planned count is an estimate.
@@ -283,6 +285,8 @@ Details of a finding:
 - When a read was refused because the run reached its window of model calls, the finding the run then saves ends with a line saying reading stopped early and how many reads were refused, so its counts are not taken for complete.
 - A finding that says a metric is missing is sent back once when no `list_metrics` call of the run set `scope`.
 - A finding that says there was no deploy is sent back once when the run did not read `list_annotations`.
+- A finding that gives counts but no evidence panel is sent back once when the run read data with `query_range` or `query_instant`.
+- A finding whose title names a cause, such as "caused by" or "tied to", over a sentence about that cause that calls it likely or unconfirmed is sent back once to title the symptom instead.
 
 Details of the time zone:
 

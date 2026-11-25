@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Message, Thread } from "@/comments/thread-queries"
@@ -87,6 +87,7 @@ type Server = {
   messages: () => Message[]
   canComment?: boolean
   sent?: Partial<Message>
+  observe?: (method: string) => Record<string, unknown>
 }
 
 function mockServer({
@@ -94,10 +95,14 @@ function mockServer({
   messages,
   canComment = true,
   sent = {},
+  observe,
 }: Server) {
   const posts: { path: string; body: unknown }[] = []
   const fetch = vi.fn(async (request: Request) => {
     const { pathname } = new URL(request.url)
+    if (observe !== undefined && pathname.startsWith("/api/v1/observe/")) {
+      return json({ request: observe(request.method) })
+    }
     if (request.method === "POST") {
       posts.push({ path: pathname, body: await request.clone().json() })
       return json({ thread, message: { ...later, ...sent } }, 201)
@@ -156,6 +161,26 @@ describe("Discussion", () => {
     expect(rows[0]).toHaveTextContent("body of m1")
     expect(rows[1]).toHaveTextContent("Ada")
     expect(rows[1]).toHaveTextContent("body of m2")
+  })
+
+  it("marks the opening message of the focused thread and no other", async () => {
+    const opening = message("t1", grace, "2020-11-10T09:00:00Z")
+    mockServer({ threads: [thread], messages: () => [opening, later] })
+    renderDiscussion({ focusedThreadId: "t1" })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    const rows = within(list)
+      .getAllByRole("listitem")
+      .filter((row) => !row.hasAttribute("data-day"))
+    expect(rows[0]).toHaveAttribute("aria-current", "true")
+    expect(rows[1]).not.toHaveAttribute("aria-current")
+  })
+
+  it("marks nothing when no thread is focused", async () => {
+    const opening = message("t1", grace, "2020-11-10T09:00:00Z")
+    mockServer({ threads: [thread], messages: () => [opening, later] })
+    renderDiscussion()
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    expect(list.querySelector("[aria-current]")).toBeNull()
   })
 
   it("replies in the thread with the typed body", async () => {
@@ -468,6 +493,28 @@ describe("Discussion with a run", () => {
     expect(
       within(list).getByRole("link", { name: "View the run" })
     ).toHaveAttribute("href", `/c/${runId}`)
+  })
+
+  it("offers Stop under the working line and shows Stopped. after it", async () => {
+    let canceled = false
+    mockServer({
+      threads: [thread],
+      messages: () => [asked],
+      observe: (method) => {
+        if (method === "POST") canceled = true
+        return {
+          id: runId,
+          status: canceled ? "failed" : "running",
+          state: canceled ? "canceled" : "running",
+          can_cancel: !canceled,
+        }
+      },
+    })
+    renderDiscussion({ route: { path: "/", url: "/" } })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    fireEvent.click(await within(list).findByRole("button", { name: "Stop" }))
+    await waitFor(() => expect(within(list).getByText(/Stopped/)).toBeVisible())
+    expect(within(list).queryByRole("button", { name: "Stop" })).toBeNull()
   })
 
   it("shows one working line while the sent run is in flight", async () => {

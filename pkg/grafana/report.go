@@ -63,7 +63,7 @@ func (r *Result) Verify(issues []spec.Issue) {
 			continue
 		}
 		line.Status = statusUnverified
-		line.Reasons = append(line.Reasons, verifyReason(entry, strings.TrimPrefix(issue.Path, entry.Pointer), issue))
+		line.Reasons = append(line.Reasons, r.verifyReason(entry, strings.TrimPrefix(issue.Path, entry.Pointer), issue))
 	}
 	r.Report.recount()
 }
@@ -72,20 +72,33 @@ func (r *Result) dashboardNote(issue spec.Issue) {
 	r.Report.Notes = append(r.Report.Notes, Note{Subject: "dashboard", Status: statusUnverified, Reason: issue.Message, Paths: []string{}})
 }
 
-func verifyReason(entry spec.PanelEntry, suffix string, issue spec.Issue) string {
+func (r *Result) verifyReason(entry spec.PanelEntry, suffix string, issue spec.Issue) string {
 	panel := entry.Panel
 	if m := queryIssuePath.FindStringSubmatch(suffix); m != nil {
 		if j, err := strconv.Atoi(m[1]); err == nil && j < len(panel.Queries) {
-			return fmt.Sprintf("Query %s failed on %s: %s", panel.QueryRef(j), panel.QueryDatasource(j), issue.Message)
+			return fmt.Sprintf("Query %s failed on %s: %s", panel.QueryRef(j), r.mappedDatasource(panel.QueryDatasource(j)), issue.Message)
 		}
 	}
 	switch {
 	case suffix == "/queries" && issue.Code == codeQueryEmpty:
 		return "The queries returned no data for the dashboard's default time range."
 	case suffix == "/datasource":
-		return fmt.Sprintf("Datasource %s is not available.", panel.Datasource)
+		return fmt.Sprintf("Datasource %s is not available.", r.mappedDatasource(panel.Datasource))
 	}
 	return issue.Message
+}
+
+func (r *Result) mappedDatasource(ref string) string {
+	name, ok := spec.DatasourceVariableName(ref)
+	if !ok {
+		return ref
+	}
+	for _, v := range r.Spec.Variables {
+		if v.Name == name && v.Type == spec.DatasourceVariable && v.Default != nil && len(v.Default.Values) > 0 {
+			return v.Default.Values[0]
+		}
+	}
+	return ref
 }
 
 func (r *Result) verifyVariable(rest string, issue spec.Issue) {

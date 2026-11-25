@@ -67,6 +67,7 @@ Each finding about the dashboard appears there as "Agent found" with the same ca
 
 The page is the observation at `/o/<id>`, with the conclusion and the evidence panels as blocks, the discussion and who wrote what; see [Observations](observations.md#open-an-observation).
 The evidence panels always show the finding's own window, not the dashboard's current range.
+In an evidence table, a trace id in a `TraceId` cell opens that trace over the finding's window, and a Tempo, Jaeger or ClickHouse `Duration` column shows its time unit.
 
 ## Comment on a finding
 
@@ -203,6 +204,7 @@ It stays there when the dashboard moves.
 The web app sends the time zone you read times in.
 That is the dashboard's zone, or the one in its time zone box, on a dashboard, and your browser's elsewhere.
 The agent writes every time in the finding in that zone with its label, such as 19:52 IST.
+The agent is also told the current time, in that zone or in UTC when none is known, and asked to state the window it queried.
 A finding that labels its times UTC instead is sent back to the agent to convert.
 
 Over the CLI and MCP no zone is known, so times are written in UTC with the word UTC.

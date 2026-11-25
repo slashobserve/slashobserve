@@ -282,6 +282,29 @@ describe("InboxPanel", () => {
     )
   })
 
+  it("opens a reply on an observation on its thread and closes", async () => {
+    const observationId = "c4d5e6f7-0b5a-4c7d-9e11-2a6b8c4d5e73"
+    const reply = item({
+      seq: 14,
+      type: "thread.replied",
+      target: { kind: "thread", id: threadId },
+      data: withData({ object: { kind: "observation", id: observationId } }),
+      reason: "reply",
+      unread: true,
+    })
+    mockServer({ items: [reply] })
+    const { user } = renderPanel()
+    openPanel()
+    const row = await findRow(14)
+
+    expect(row.getAttribute("href")).toBe(
+      `/o/${observationId}?thread=${threadId}`
+    )
+    await user.click(row)
+
+    expect(useInboxPanelStore.getState().open).toBe(false)
+  })
+
   it("does not mark anything read when it opens", async () => {
     const server = mockServer()
     renderPanel()
