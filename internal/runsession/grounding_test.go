@@ -175,3 +175,29 @@ func TestOnlyAnInvestigateRunStartsWithAGroundingRecord(t *testing.T) {
 		}
 	}
 }
+
+func (s *script) readOf(name, content string, discovered *tools.Discovery) {
+	s.t.Helper()
+	s.run(name, `{"q":"`+name+`"}`, func() tools.Result {
+		return tools.Result{Content: json.RawMessage(content), Step: "Read " + name, Discovered: discovered}
+	}, &Turn{ID: name, Calls: 1})
+}
+
+func TestOnlyDatasourceReadsFeedTheRecord(t *testing.T) {
+	s := groundingScript(t, grounding.Report)
+	s.readOf("get_observation", `{"blocks":[{"text":"p99 reached 9.3 s for 2,950 orders"}],"value":4321}`, nil)
+	s.readOf("list_observations", `{"observations":[{"title":"Checkout at 7,700 ms"}]}`, nil)
+	s.readOf("get_trace", `{"duration_ms":812.4,"services":[{"name":"checkout","spans":40}]}`, nil)
+	s.readOf("list_metrics", `{"metrics":["pool_in_use"],"total":640}`, &tools.Discovery{Datasource: "prom", Of: "metrics", Names: []string{"pool_in_use"}})
+
+	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"Traces took 812 ms over 640 metrics, not 9.3 s, 2,950, 4,321 or 7,700 ms."}`))
+	want := []findings.Unverified{
+		{Kind: findings.UnverifiedFigure, Text: "9.3 s"},
+		{Kind: findings.UnverifiedFigure, Text: "2,950"},
+		{Kind: findings.UnverifiedFigure, Text: "4,321"},
+		{Kind: findings.UnverifiedFigure, Text: "7,700 ms"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("unverified = %+v\nwant %+v", got, want)
+	}
+}

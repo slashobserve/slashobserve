@@ -9,12 +9,8 @@ import (
 
 const toolSaveFinding = "save_finding"
 
-func groundsFindings(name string) bool {
-	switch tools.Phase(name) {
-	case tools.PhaseDiscover, tools.PhaseQuery:
-		return true
-	}
-	return false
+func groundsFindings(c guard.Call, res tools.Result) bool {
+	return guard.ReadsData(c.Name) || res.Discovered != nil
 }
 
 func (s *State) checkGrounding(c *guard.Call) []findings.Unverified {
@@ -29,7 +25,7 @@ func (s *State) checkGrounding(c *guard.Call) []findings.Unverified {
 }
 
 func (s *State) noteGrounding(c guard.Call, d dispatched) {
-	if s.Grounding == nil || d.res.IsError || !groundsFindings(c.Name) {
+	if s.Grounding == nil || d.res.IsError || !groundsFindings(c, d.res) {
 		return
 	}
 	var names []string

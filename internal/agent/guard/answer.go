@@ -38,8 +38,12 @@ const (
 	faultTitle      = "the title names a cause, but the text calls it likely or unconfirmed: title the symptom you saw instead, such as the service and what failed, or send it again unchanged when you did confirm the cause"
 )
 
+func ReadsData(name string) bool {
+	return tools.Phase(name) == tools.PhaseQuery || dataReads[name]
+}
+
 func (s *State) noteQueried(c Call, res tools.Result) {
-	if !res.IsError && (tools.Phase(c.Name) == tools.PhaseQuery || dataReads[c.Name]) {
+	if !res.IsError && ReadsData(c.Name) {
 		s.Answer.Queried = true
 	}
 }
