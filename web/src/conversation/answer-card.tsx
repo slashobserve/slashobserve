@@ -49,7 +49,7 @@ type AnswerMenu = {
   subjectObservationId: string | null
 }
 
-export type RevisionAsked = boolean
+export type RevisionAsked = boolean | string
 
 export const starterCardNote = `${starterNote} Duplicate it to get a copy you can change.`
 
@@ -371,12 +371,14 @@ export function AnswerCard({
 }: Props) {
   const panels = useMemo(() => evidencePanels(finding), [finding])
   const [unfolded, setUnfolded] = useState(false)
+  const [refusal, setRefusal] = useState<string | null>(null)
   const revisionAsked = useRevisionsAsked((state) =>
     state.findingIds.has(finding.id)
   )
   const markAsked = useRevisionsAsked((state) => state.markAsked)
   const evidenceId = useId()
   const blockedId = useId()
+  const refusalId = useId()
   const noteId = useId()
   const latest = useLatestChange(revise?.dashboardId ?? null)
   const refused = latest?.content === "none"
@@ -387,6 +389,7 @@ export function AnswerCard({
   const describedBy =
     [
       blocked === null ? null : blockedId,
+      refusal === null ? null : refusalId,
       reviseNote === undefined ? null : noteId,
     ]
       .filter((id) => id !== null)
@@ -434,11 +437,16 @@ export function AnswerCard({
             focusableWhenDisabled
             aria-busy={offered.pending}
             aria-describedby={describedBy}
-            onClick={() =>
+            onClick={() => {
+              setRefusal(null)
               void offered.onRevise().then((asked) => {
-                if (asked) markAsked(finding.id)
+                if (typeof asked === "string" && asked !== "") {
+                  setRefusal(asked)
+                } else if (asked) {
+                  markAsked(finding.id)
+                }
               })
-            }
+            }}
           >
             {revisionAsked ? "Revision asked for" : "Revise the dashboard"}
           </Button>
@@ -473,6 +481,11 @@ export function AnswerCard({
       {blocked === null || offered === undefined || change === null ? null : (
         <p id={blockedId} className="text-xs text-muted-foreground">
           {blocked}
+        </p>
+      )}
+      {refusal === null || offered === undefined || change === null ? null : (
+        <p id={refusalId} role="alert" className="text-xs text-destructive">
+          {refusal}
         </p>
       )}
       {reviseNote === undefined || change === null ? null : (

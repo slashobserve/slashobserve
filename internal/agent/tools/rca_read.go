@@ -41,11 +41,11 @@ type rcaReadOut struct {
 	Truncated bool `json:"truncated,omitempty"`
 }
 
-func (r *Registry) rcaReadFailure(step string, err error) (Result, error) {
+func (r *Registry) rcaReadFailure(ctx context.Context, step string, err error) (Result, error) {
 	if errors.Is(err, observations.ErrRevisionNotFound) {
 		return toolError(codeNotFound, "RCA revision not found"), nil
 	}
-	return r.observationFailure(step, err)
+	return r.observationFailure(ctx, step, err)
 }
 
 func (r *Registry) listRCAs(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -65,7 +65,7 @@ func (r *Registry) listRCAs(ctx context.Context, input json.RawMessage) (Result,
 	principal, _ := auth.FromContext(ctx)
 	list, err := r.deps.Observations.ListRCAs(ctx, principal, id)
 	if err != nil {
-		return r.rcaReadFailure("Listed RCAs", err)
+		return r.rcaReadFailure(ctx, "Listed RCAs", err)
 	}
 	items := make([]observations.RCASummaryJSON, len(list))
 	for i, s := range list {
@@ -96,7 +96,7 @@ func (r *Registry) getRCA(ctx context.Context, input json.RawMessage) (Result, e
 	principal, _ := auth.FromContext(ctx)
 	rca, err := r.deps.Observations.GetRCA(ctx, principal, id, *in.Revision)
 	if err != nil {
-		return r.rcaReadFailure("Read an RCA", err)
+		return r.rcaReadFailure(ctx, "Read an RCA", err)
 	}
 	out := rcaReadOut{RCAJSON: observations.RCAOf(rca)}
 	if jsonSize(out) > listBudget {

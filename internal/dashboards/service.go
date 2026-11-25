@@ -612,7 +612,7 @@ func (s *Service) moveOnce(ctx context.Context, by auth.Principal, id, folderID 
 	if !folders.MayMoveInto(target) {
 		return Dashboard{}, Version{}, folders.ErrMoveIntoPersonal
 	}
-	if err := s.store.move(ctx, id, source.Folder.ID, folderID, actor.Of(by, origin.From(ctx), "")); err != nil {
+	if err := s.store.move(ctx, id, source.Folder.ID, folderID, actor.In(ctx, by, "")); err != nil {
 		return Dashboard{}, Version{}, err
 	}
 	dash, ver, err := s.store.latest(ctx, id)
@@ -630,7 +630,7 @@ func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID)
 	if err != nil {
 		return err
 	}
-	if err := s.store.delete(ctx, id, actor.Of(by, origin.From(ctx), "")); err != nil {
+	if err := s.store.delete(ctx, id, actor.In(ctx, by, "")); err != nil {
 		return err
 	}
 	s.logger.InfoContext(ctx, "dashboard deleted",

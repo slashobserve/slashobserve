@@ -24,7 +24,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/pkg/grafana"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -339,7 +338,7 @@ func newRecord(ctx context.Context, req Request, by auth.Principal, result *graf
 		Report:          result.Report,
 		GrafanaUID:      inserted.GrafanaUid,
 		CreatedBy:       dashboards.Author{Kind: string(by.Kind), ID: by.ID, Name: by.Name, Email: by.Email},
-		Actor:           actor.Of(by, origin.From(ctx), req.RequestID.String()),
+		Actor:           actor.In(ctx, by, req.RequestID.String()),
 		CreatedAt:       inserted.CreatedAt.Time.UTC(),
 	}
 }

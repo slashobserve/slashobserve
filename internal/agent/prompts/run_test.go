@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 23717
-	fullSystemTextBudget = 28439
+	systemTextBudget     = 24616
+	fullSystemTextBudget = 29338
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -213,6 +213,121 @@ func TestHelpSaysAnExistingDashboardIsChangedFromItsOwnChat(t *testing.T) {
 	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
 		if strings.Count(system, want) != 1 {
 			t.Errorf("%s system text lacks the help sentence", name)
+		}
+	}
+}
+
+func TestInvestigateTreatsAnEmptyFilterAsMatchingNothing(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"A filter that returns nothing matched nothing",
+		"a ClickHouse span status, which is `Error`",
+		"look for the service's span-metrics series",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestTheClickHouseGuideNamesTheErrorStatus(t *testing.T) {
+	guide := GuideFor([]spec.DatasourceType{spec.ClickHouse})
+	if !strings.Contains(guide, "failed spans are `StatusCode = 'Error'`") {
+		t.Fatal("the ClickHouse guide does not name the error status value")
+	}
+}
+
+func TestInvestigateRanksAndGroupsErrorsBeforeItNamesACause(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"rank the services by their error counts before you read one trace",
+		"group the error spans by status message over time",
+		"Give the time of the last error span before you call a bucket partial",
+		"Make the first sentence match the numbers under it",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateNamesTheWindowItQueriedFromTheContextTime(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"Name the window you queried, from its start to its end",
+		"never add an offset to a time you wrote in UTC",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateAsksForEvidencePanelsWhenTheAnswerGivesCounts(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"When the answer gives counts, add 1 to 4 evidence panels",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateKeepsTheTitleWithinWhatTheTextConfirms(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"never claim a cause there that the markdown calls likely or unconfirmed",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildClosesWithTheSummaryOfItsLastSave(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"Your last save's `summary` is the closing line the person reads",
+		"how many panels are still unverified or empty",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildReadsGridPosBeforeAMove(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"read their `gridPos` with `get_panels` first",
+		"name in `summary` where it went",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildKeepsAPanelChangeSmall(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"changes only that: keep its title, queries and `format`",
+		"Say in `summary` when a change stops a panel using a dashboard variable",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateSuggestsTheOneOptionItRecommends(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"the one option the markdown recommends, the smallest that does what was asked",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
 		}
 	}
 }

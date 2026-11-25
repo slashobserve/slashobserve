@@ -1,12 +1,14 @@
 import { isPanelQuery, queryRef, type DataPanel } from "@/spec"
 
-import { uniqueKey } from "../frames"
+import { qualifyCollidingLabels, uniqueKey } from "../frames"
 import {
+  carriedProps,
   copyFrame,
   rowCount,
   type PreparedField,
   type PreparedFrame,
 } from "./names"
+import { legendSeriesName, type DatasourceTypeOf } from "./series-names"
 
 const nameKey = "__name__"
 
@@ -51,9 +53,11 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
     return named
   })
   const types = new Map<string, PreparedField["type"]>()
+  const sources = new Map<string, PreparedField[]>()
   for (const named of byName) {
     for (const [name, field] of named) {
       if (!types.has(name)) types.set(name, field.type)
+      sources.set(name, [...(sources.get(name) ?? []), field])
     }
   }
   const columnNames = new Map(
@@ -68,7 +72,12 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
         values.push(source ? (source.values[row] ?? null) : null)
       }
     })
-    valueFields.push({ name: columnNames.get(name) ?? name, type, values })
+    valueFields.push({
+      name: columnNames.get(name) ?? name,
+      type,
+      values,
+      ...carriedProps(sources.get(name) ?? []),
+    })
   }
 
   const keys = new Set(
@@ -92,18 +101,46 @@ export function flattenFrames(frames: PreparedFrame[]): PreparedFrame {
   return { ref: frames[0].ref, fields }
 }
 
-function renameValues(frame: PreparedFrame, ref: string): PreparedFrame {
+function legendName(
+  panel: DataPanel,
+  frames: PreparedFrame[],
+  datasourceTypeOf: DatasourceTypeOf | undefined
+): string | undefined {
+  const names = new Set(
+    frames.map((frame) => {
+      const field = frame.fields.find((candidate) => candidate.name === "Value")
+      return field && legendSeriesName(panel, frame, field, datasourceTypeOf)
+    })
+  )
+  const [only] = names
+  return names.size === 1 ? only : undefined
+}
+
+function nameValues(
+  frame: PreparedFrame,
+  name: string,
+  seriesName: string | undefined
+): PreparedFrame {
   return {
     ...frame,
     fields: frame.fields.map((field) =>
-      field.name === "Value" ? { ...field, name: `Value #${ref}` } : field
+      field.name === "Value"
+        ? {
+            ...field,
+            name,
+            ...(seriesName === undefined
+              ? {}
+              : { seriesName, headedBySeriesName: true as const }),
+          }
+        : field
     ),
   }
 }
 
 export function applyQueryFormats(
   panel: DataPanel,
-  frames: PreparedFrame[]
+  frames: PreparedFrame[],
+  datasourceTypeOf?: DatasourceTypeOf
 ): PreparedFrame[] {
   const tableRefs = new Set(
     panel.queries.flatMap((query, index) =>
@@ -123,6 +160,14 @@ export function applyQueryFormats(
   }
   const several = groups.size > 1
 
+  const legends = qualifyCollidingLabels(
+    [...groups].flatMap(([ref, group]) => {
+      const label = legendName(panel, group, datasourceTypeOf)
+      return label === undefined ? [] : [{ ref, label }]
+    })
+  )
+  const legendOf = new Map(legends.map(({ ref, label }) => [ref, label]))
+
   const emitted = new Set<string>()
   const out: PreparedFrame[] = []
   for (const frame of frames) {
@@ -134,7 +179,9 @@ export function applyQueryFormats(
     if (emitted.has(ref)) continue
     emitted.add(ref)
     const table = flattenFrames(groups.get(ref) ?? [])
-    out.push(several ? renameValues(table, ref) : table)
+    out.push(
+      nameValues(table, several ? `Value #${ref}` : "Value", legendOf.get(ref))
+    )
   }
   return out
 }

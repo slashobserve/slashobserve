@@ -78,7 +78,7 @@ func (r *Registry) moveDashboard(ctx context.Context, input json.RawMessage) (Re
 	case errors.Is(err, folders.ErrMoveIntoPersonal):
 		return toolError(codePersonalFolder, err.Error()), nil
 	case err != nil:
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	return success("Moved dashboard "+dash.ID, r.savedOut(dash, ver, nil)), nil
 }
@@ -106,7 +106,7 @@ func (r *Registry) duplicateDashboard(ctx context.Context, input json.RawMessage
 		if res, handled := createFolderFailure(err); handled {
 			return res, nil
 		}
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	return success("Duplicated as dashboard "+dash.ID, r.savedOut(dash, ver, nil)), nil
 }

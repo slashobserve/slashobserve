@@ -902,6 +902,7 @@ type ThreadMessage struct {
 	ReplyToID          pgtype.UUID
 	ObservationBlockID pgtype.UUID
 	ClientID           pgtype.UUID
+	RunFailed          bool
 }
 
 type ThreadRead struct {

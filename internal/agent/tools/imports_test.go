@@ -205,7 +205,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := r.importFailed(&imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
+			res, err := r.importFailed(t.Context(), &imports.AlreadyImportedError{Existing: imports.Existing{DashboardID: dashA, Title: "Shop", Version: 3, CanUpdate: tt.canUpdate}})
 			if err != nil || !res.IsError {
 				t.Fatalf("res = %#v, err = %v", res, err)
 			}
@@ -220,7 +220,7 @@ func TestImportFailedNamesTheDashboardAnEarlierImportMade(t *testing.T) {
 			}
 		})
 	}
-	res, err := r.importFailed(imports.ErrNotFound)
+	res, err := r.importFailed(t.Context(), imports.ErrNotFound)
 	if body, ok := res.Content.(importErrorOut); err != nil || !ok || body.Code != codeNotImported {
 		t.Fatalf("res = %#v, err = %v, want not_imported", res, err)
 	}
@@ -263,7 +263,7 @@ func TestAnImportRunDoesNotAskTheServerToRefuseAnImportedFile(t *testing.T) {
 
 func TestImportFailedNamesBothUIDsOfAMismatchedUpdate(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
-	res, err := r.importFailed(&imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"})
+	res, err := r.importFailed(t.Context(), &imports.UIDMismatchError{DashboardID: dashA, Held: "abc", Given: "zzz"})
 	body, ok := res.Content.(importErrorOut)
 	if err != nil || !ok || body.Code != codeGrafanaUIDMismatch || !strings.Contains(body.Message, `"abc"`) || !strings.Contains(body.Message, `"zzz"`) || !strings.Contains(body.Message, "new dashboard") {
 		t.Fatalf("res = %#v, err = %v", res.Content, err)

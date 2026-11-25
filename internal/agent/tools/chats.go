@@ -113,7 +113,7 @@ func (r *Registry) listChats(ctx context.Context, input json.RawMessage) (Result
 			return invalid("cursor is not valid"), nil
 		}
 		if err != nil {
-			return runFailure(err)
+			return runFailure(ctx, err)
 		}
 		var out chatListOut
 		if err := json.Unmarshal(raw, &out); err != nil {
@@ -164,7 +164,7 @@ func (r *Registry) getChat(ctx context.Context, input json.RawMessage) (Result, 
 	raw, err := r.deps.Runs.Chat(ctx, principal, id)
 	if err != nil {
 		r.recordRefusedRead(ctx, actionChatView, "chat", id.String(), err)
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	var out chatOut
 	if err := json.Unmarshal(raw, &out); err != nil {

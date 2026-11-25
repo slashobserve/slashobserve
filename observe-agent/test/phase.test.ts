@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { saveTools } from "../src/phase"
+import { offersWrite, saveTools } from "../src/phase"
 
 const toolsDir = resolve(
   import.meta.dir,
@@ -26,9 +26,13 @@ describe("save tools", () => {
   const phase = join(toolsDir, "phase.go")
   test.skipIf(!existsSync(phase))("match tools.Phase in the Go source", () => {
     const source = readFileSync(phase, "utf8")
-    const saveCase = source.match(/case ([^:]+):\s*return PhaseSave/)
+    const saveCase = source.match(
+      /var saveTools = map\[string\]bool\{([^}]+)\}/
+    )
     expect(saveCase).not.toBeNull()
-    const constants = (saveCase?.[1] ?? "").split(",").map((c) => c.trim())
+    const constants = [...(saveCase?.[1] ?? "").matchAll(/(name\w+):/g)].map(
+      (match) => match[1] as string
+    )
     const declared = new Map<string, string>()
     for (const file of ["schemas.go", "finding.go"]) {
       const text = readFileSync(join(toolsDir, file), "utf8")
@@ -39,5 +43,29 @@ describe("save tools", () => {
     const names = constants.map((c) => declared.get(c))
     expect(names.every((name) => name !== undefined)).toBe(true)
     expect([...names].sort()).toEqual([...saveTools].sort())
+  })
+})
+
+describe("offersWrite", () => {
+  const spec = (name: string, readOnly?: boolean) => ({
+    name,
+    description: "",
+    inputSchema: {},
+    ...(readOnly === undefined ? {} : { readOnly }),
+  })
+
+  test("is false for reads, saves and tools that do not say", () => {
+    expect(
+      offersWrite([
+        spec("list_datasources", true),
+        spec("create_dashboard", false),
+        spec("save_finding", false),
+        spec("unannotated"),
+      ])
+    ).toBe(false)
+  })
+
+  test("is true for a non-save tool marked as not read-only", () => {
+    expect(offersWrite([spec("pin_observation", false)])).toBe(true)
   })
 })

@@ -226,6 +226,23 @@ func TestClickHouseVariables(t *testing.T) {
 		{name: "unknown variable", d: macros.ClickHouse, query: `SELECT 1 WHERE a IN ($v)`, env: envWith(), err: true},
 		{name: "no value selected", d: macros.ClickHouse, query: `SELECT 1 WHERE a IN ($v)`, env: envWith(val("v")), err: true},
 		{name: "backslash before reference", d: macros.ClickHouse, query: `SELECT 1 WHERE a = '\$v'`, env: envWith(val("v", "x")), err: true},
+		{name: "database before a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "bare database before a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM $database.otel_traces`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "table after a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM otel.${table}`, env: envWith(val("table", "otel_traces")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "both parts of a name", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.${table}`, env: envWith(val("database", "otel"), val("table", "otel_traces")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "name part with a quote is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "o'tel")), err: true},
+		{name: "name part with a space is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "otel; DROP TABLE x")), err: true},
+		{name: "name part with several values is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "a", "b")), err: true},
+		{name: "name part selecting all is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(all("database", "a", "b")), err: true},
+		{name: "name part touching a word character is refused", d: macros.ClickHouse, query: `SELECT 1 FROM a${database}.otel_traces`, env: envWith(val("database", "otel")), err: true},
+		{name: "number before a dot is refused", d: macros.ClickHouse, query: `SELECT ${n}.5`, env: envWith(val("n", "1")), err: true},
+		{name: "explicit raw before a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM ${database:raw}.otel_traces`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "explicit raw before a dot refuses a number", d: macros.ClickHouse, query: `SELECT ${n:raw}.c`, env: envWith(val("n", "1")), err: true},
+		{name: "explicit raw before a dot refuses a decimal", d: macros.ClickHouse, query: `SELECT ${n:raw}.c`, env: envWith(val("n", "1.5")), err: true},
+		{name: "default before a dot refuses a decimal", d: macros.ClickHouse, query: `SELECT ${n}.c`, env: envWith(val("n", "1.5")), err: true},
+		{name: "explicit raw before a dot refuses a quote", d: macros.ClickHouse, query: `SELECT 1 FROM ${database:raw}.t`, env: envWith(val("database", "o'tel")), err: true},
+		{name: "raw number away from a dot is still allowed", d: macros.ClickHouse, query: `SELECT 1 LIMIT ${n:raw}`, env: envWith(val("n", "10")), want: `SELECT 1 LIMIT 10`},
+		{name: "explicit sqlstring before a dot keeps its quotes", d: macros.ClickHouse, query: `SELECT 1 FROM ${database:sqlstring}.t`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM 'otel'.t`},
 	})
 }
 
@@ -956,8 +973,9 @@ func TestLexerContextCorpus(t *testing.T) {
 		{name: "quoted value fuses with a following literal", d: macros.ClickHouse, query: "SELECT $v'abc', $w", env: envWith(val("v", "a"), val("w", "1 OR 1=1")), err: true},
 		{name: "quoted value fuses with a hex string prefix", d: macros.ClickHouse, query: "SELECT x$v, $w", env: envWith(val("v", "0F"), val("w", "1 OR 1=1")), err: true},
 		{name: "raw value after a word character", d: macros.ClickHouse, query: "SELECT a${v:raw} FROM t", env: envWith(val("v", "b")), err: true},
-		{name: "raw value after a dot", d: macros.ClickHouse, query: "SELECT db.${v:raw} FROM t", env: envWith(val("v", "b")), err: true},
-		{name: "raw value before a dot", d: macros.ClickHouse, query: "SELECT ${v:raw}.c FROM t", env: envWith(val("v", "b")), err: true},
+		{name: "raw value after a dot", d: macros.ClickHouse, query: "SELECT db.${v:raw} FROM t", env: envWith(val("v", "b")), want: "SELECT db.b FROM t"},
+		{name: "raw value before a dot", d: macros.ClickHouse, query: "SELECT ${v:raw}.c FROM t", env: envWith(val("v", "b")), want: "SELECT b.c FROM t"},
+		{name: "csv value before a dot", d: macros.ClickHouse, query: "SELECT ${v:csv}.c FROM t", env: envWith(val("v", "b")), err: true},
 		{name: "raw value before a dollar", d: macros.ClickHouse, query: "SELECT ${v:raw}$$ x $$", env: envWith(val("v", "b")), err: true},
 		{name: "macro before a word character", d: macros.ClickHouse, query: "SELECT $__timeGroup(ts)x FROM t", env: envWith(), err: true},
 		{name: "macro value after a word character", d: macros.ClickHouse, query: "SELECT a${__interval} FROM t", env: envWith(), err: true},
@@ -1304,5 +1322,12 @@ func TestExpandRegex(t *testing.T) {
 				t.Fatalf("ExpandRegex = %q, %v, want %q (error %v)", got, err, tt.want, tt.err)
 			}
 		})
+	}
+}
+
+func TestClickHouseVariableRefusalDoesNotForbidTheDot(t *testing.T) {
+	_, err := macros.Expand(macros.ClickHouse, "SELECT a${v}.c", envWith(val("v", "b")))
+	if err == nil || strings.Contains(err.Error(), `word character, "."`) || !strings.Contains(err.Error(), "default format or raw") {
+		t.Fatalf("err = %v, want a refusal that names the default format or raw next to a dot", err)
 	}
 }
