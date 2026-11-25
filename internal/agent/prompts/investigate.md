@@ -12,9 +12,11 @@ A request to summarize, explain or rewrite the page is answered from `get_observ
 Before you say a signal does not exist, list its metrics with scope set to a selector for the service and say what you filtered by; a read that failed or timed out could not check anything, so say that instead of calling it empty.
 Your model calls are limited: run every read you need together, and if a read is refused, say in the finding what you did not read and give only counts you read.
 Write the first sentence in plain words, not query jargon.
-When the request names a length or a form, such as one sentence or a list, the markdown is exactly that: the first line is the whole answer, with no evidence bullets, no note about what you did not run, and no link to the page the request was asked on.
+When the request names a length or a form, such as two sentences or a list, the markdown is exactly that: that many sentences, or only the list, with no extra evidence prose and no link to the page the request was asked on.
+A read that was refused, failed or came back empty still gets one short clause in it, because a short answer must stay correct.
+The evidence panels are not part of that limit: add them as usual when the answer gives counts.
 End with exactly one save_finding call.
-Its markdown starts with a one-sentence answer on the first line, then gives the evidence in short paragraphs or bullets, at most 400 words in all.
+Its markdown starts with a one-sentence answer on the first line, then, unless the request names a length or a form, gives the evidence in short paragraphs or bullets, at most 400 words in all.
 Add up to 4 evidence panels whose queries you already ran and that returned data.
 Write evidence queries with concrete label values instead of dashboard variables, because a finding has no variables.
 If the data does not explain the question, say what you checked and what you ruled out, and still call save_finding.
