@@ -507,3 +507,14 @@ func TestSummarizeTraceSelfTimeSubtractsTheUnionOfOverlappingChildren(t *testing
 		}
 	}
 }
+
+func TestGetTraceDescriptionScopesOriginToOneTrace(t *testing.T) {
+	for _, want := range []string{"inside this one trace", "does not by itself say which service an incident started in", "across many traces", "trace_stats"} {
+		if !strings.Contains(descGetTrace, want) {
+			t.Errorf("description lacks %q", want)
+		}
+	}
+	if n := len(descGetTrace); n > 1500 {
+		t.Errorf("description is %d bytes, want at most 1500", n)
+	}
+}
