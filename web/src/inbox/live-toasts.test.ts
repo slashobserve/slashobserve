@@ -7,7 +7,7 @@ function item(seq: number, reason: InboxItem["reason"] = "mention"): InboxItem {
   return { seq, reason } as InboxItem
 }
 
-const idle = { panelOpen: false, visible: true }
+const idle = { panelOpen: false, resync: false }
 
 describe("planLiveToasts", () => {
   it("records the newest seq on first load without a toast", () => {
@@ -68,8 +68,8 @@ describe("planLiveToasts", () => {
     expect(plan).toEqual({ seen: 12, items: [], overflow: 0 })
   })
 
-  it("advances past items that arrive while the document is hidden", () => {
-    const plan = planLiveToasts([item(12)], 9, { ...idle, visible: false })
+  it("advances past items when the tab has just come back from hidden", () => {
+    const plan = planLiveToasts([item(12)], 9, { ...idle, resync: true })
     expect(plan).toEqual({ seen: 12, items: [], overflow: 0 })
   })
 })

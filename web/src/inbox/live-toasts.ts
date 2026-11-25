@@ -10,7 +10,7 @@ export type LiveToastPlan = {
   overflow: number
 }
 
-type Context = { panelOpen: boolean; visible: boolean }
+type Context = { panelOpen: boolean; resync: boolean }
 
 function newest(items: readonly InboxItem[], floor: number): number {
   return items.reduce((top, item) => Math.max(top, item.seq), floor)
@@ -19,13 +19,13 @@ function newest(items: readonly InboxItem[], floor: number): number {
 export function planLiveToasts(
   items: readonly InboxItem[],
   seen: number | null,
-  { panelOpen, visible }: Context
+  { panelOpen, resync }: Context
 ): LiveToastPlan {
   if (seen === null) {
     return { seen: newest(items, 0), items: [], overflow: 0 }
   }
   const next = newest(items, seen)
-  if (panelOpen || !visible) return { seen: next, items: [], overflow: 0 }
+  if (panelOpen || resync) return { seen: next, items: [], overflow: 0 }
   const fresh = items
     .filter((item) => item.seq > seen && item.reason !== null)
     .sort((a, b) => a.seq - b.seq)

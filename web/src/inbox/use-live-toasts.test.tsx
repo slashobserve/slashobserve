@@ -9,10 +9,26 @@ import { renderWithProviders } from "@/test/render"
 import type { InboxItem } from "./inbox-item"
 import { useInboxPanelStore } from "./inbox-panel-store"
 import { liveToastDuration, liveToasterId } from "./live-toasts"
-import { resetLiveToastsSeen, useLiveInboxToasts } from "./use-live-toasts"
+import { resetLiveToasts, useLiveInboxToasts } from "./use-live-toasts"
 
 const toastMock = vi.hoisted(() => vi.fn())
 vi.mock("sonner", () => ({ toast: toastMock }))
+
+const signedIn = vi.hoisted(() => ({ id: "u1" }))
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useMatch: () => signedIn.id,
+}))
+
+function setHidden(hidden: boolean) {
+  Object.defineProperty(document, "hidden", {
+    value: hidden,
+    configurable: true,
+  })
+  act(() => {
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+}
 
 const dashboardId = "a1b2c3d4-0b5a-4c7d-9e11-2a6b8c4d5e71"
 
@@ -75,7 +91,9 @@ beforeEach(() => {
     vi.fn(() => new Promise(() => {}))
   )
   toastMock.mockReset()
-  resetLiveToastsSeen()
+  resetLiveToasts()
+  signedIn.id = "u1"
+  setHidden(false)
   useInboxPanelStore.setState({ open: false })
 })
 
@@ -126,5 +144,59 @@ describe("useLiveInboxToasts", () => {
     expect(title).toBe("5 new in Inbox")
     act(() => options.action.onClick())
     expect(useInboxPanelStore.getState().open).toBe(true)
+  })
+
+  it("does not toast items that arrived while the tab was hidden", async () => {
+    const { queryClient } = renderWithProviders(<Probe />, {
+      route: { path: "/", url: "/" },
+    })
+    const key = inboxKeys.list("for_you", "open")
+    await screen.findByText("mounted")
+    await setItems(queryClient, key, [mention(5)])
+    setHidden(true)
+    setHidden(false)
+    await setItems(queryClient, key, [mention(6), mention(5)])
+    expect(toastMock).not.toHaveBeenCalled()
+
+    await setItems(queryClient, key, [mention(7), mention(6), mention(5)])
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+  })
+
+  it("does not toast items fetched while the tab is hidden", async () => {
+    const { queryClient } = renderWithProviders(<Probe />, {
+      route: { path: "/", url: "/" },
+    })
+    const key = inboxKeys.list("for_you", "open")
+    await screen.findByText("mounted")
+    await setItems(queryClient, key, [mention(5)])
+    setHidden(true)
+    await setItems(queryClient, key, [mention(6), mention(5)])
+    setHidden(false)
+    await setItems(queryClient, key, [mention(7), mention(6), mention(5)])
+    expect(toastMock).not.toHaveBeenCalled()
+  })
+
+  it("starts from a first load after a reset", async () => {
+    const { queryClient } = renderWithProviders(<Probe />, {
+      route: { path: "/", url: "/" },
+    })
+    const key = inboxKeys.list("for_you", "open")
+    await screen.findByText("mounted")
+    await setItems(queryClient, key, [mention(5)])
+    resetLiveToasts()
+    await setItems(queryClient, key, [mention(6), mention(5)])
+    expect(toastMock).not.toHaveBeenCalled()
+  })
+
+  it("gives a second person in the same tab no toasts for earlier items", async () => {
+    const { queryClient } = renderWithProviders(<Probe />, {
+      route: { path: "/", url: "/" },
+    })
+    const key = inboxKeys.list("for_you", "open")
+    await screen.findByText("mounted")
+    await setItems(queryClient, key, [mention(5)])
+    signedIn.id = "u2"
+    await setItems(queryClient, key, [mention(8), mention(5)])
+    expect(toastMock).not.toHaveBeenCalled()
   })
 })
