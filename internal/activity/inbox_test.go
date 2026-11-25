@@ -768,15 +768,50 @@ func TestInboxShowsRunTextOnlyOnTheRequestersFailedRun(t *testing.T) {
 	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'my prompt' WHERE id = $1::uuid`, own.String())
 	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'private prompt' WHERE id = $1::uuid`, foreign.String())
 
-	excerpts := map[string]string{}
+	excerpts, questions := map[string]string{}, map[string]string{}
 	for _, item := range r.inbox(t, mia, ViewEverything).Items {
 		if item.Type == TypeRunFailed {
 			excerpts[item.TargetID] = item.Excerpt
+			questions[item.TargetID] = item.Question
 		}
 	}
 	if excerpts[own.String()] != "my prompt" || excerpts[foreign.String()] != "" {
 		t.Fatalf("run excerpts = %v, want only Mia's own run quoted", excerpts)
 	}
+	if questions[own.String()] != "my prompt" || questions[foreign.String()] != "" {
+		t.Fatalf("run questions = %v, want only Mia's own run named", questions)
+	}
+}
+
+func TestInboxNamesTheQuestionAndTheDashboardOfAFailedRun(t *testing.T) {
+	r := newRig(t)
+	r.endedPromptRun(t, miaActor, "why did checkout slow down after the deploy?", "failed", nil)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a failed run", page, ReasonRunFailed)
+	if item := page.Items[0]; item.Question != "why did checkout slow down after the deploy?" || item.TargetTitle != "Checkout" {
+		t.Fatalf("question %q, title %q, want the run's prompt and its dashboard", item.Question, item.TargetTitle)
+	}
+}
+
+func TestInboxShowsAFailedRunThatAnsweredInAThreadOnceAsTheFailedRun(t *testing.T) {
+	r := newRig(t)
+	o := r.observation(t, ola)
+	thread := r.thread(t, o)
+	asked := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, 'is the cache cold?', 'user', $2::uuid, $3) RETURNING id::text`, thread.String(), mia.ID, mia.Name))
+	run, _ := r.failedRun(t, miaActor)
+	r.db.Exec(t, `UPDATE agent_requests SET thread_message_id = $1::uuid, prompt = 'is the cache cold?' WHERE id = $2::uuid`, asked.String(), run.String())
+	answer := miaActor
+	answer.RunID = run.String()
+	reply := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind) VALUES ($1::uuid, 'The run failed: the run did not finish.', 'user', $2::uuid, $3, $4::uuid, 'builtin') RETURNING id::text`, thread.String(), mia.ID, mia.Name, run.String()))
+	r.append(t, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: OnObservation(o), Actor: answer, Data: map[string]any{"object": map[string]any{"kind": "observation", "id": o.String()}, "message_id": reply.String()}})
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a failed run and its failure reply", page, ReasonRunFailed)
+	if page.Items[0].Question != "is the cache cold?" || page.UnreadCount != 1 {
+		t.Fatalf("question %q, unread %d, want the asked question and one unread item", page.Items[0].Question, page.UnreadCount)
+	}
+	wantReasons(t, "the mentions view", r.inbox(t, mia, ViewMentions))
 }
 
 func TestInboxDropsMentionsAndRepliesWhoseCommentWasDeleted(t *testing.T) {
