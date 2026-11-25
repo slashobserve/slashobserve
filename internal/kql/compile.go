@@ -13,8 +13,10 @@ const queryStringSpecials = `+-=&|><!(){}[]^"~*?:\/ `
 type compiler struct {
 	fields     Fields
 	knownField func(string) bool
-	seen       map[string]bool
+	seen       map[string]int
 	warnings   []Diagnostic
+	unknown    []UnknownField
+	optional   int
 }
 
 func Compile(text string, fields Fields) (Compiled, error) {
@@ -29,8 +31,9 @@ func CompileKnowing(text string, fields Fields, knownField func(string) bool) (C
 	if root == nil {
 		return Compiled{}, nil
 	}
-	c := &compiler{fields: fields, knownField: knownField, seen: map[string]bool{}}
-	return Compiled{Query: c.clause(root), Diagnostics: c.warnings}, nil
+	c := &compiler{fields: fields, knownField: knownField, seen: map[string]int{}}
+	query := c.clause(root)
+	return Compiled{Query: query, Diagnostics: c.warnings, UnknownFields: c.unknown}, nil
 }
 
 func FieldsIn(text string) []string {
@@ -61,9 +64,9 @@ func (c *compiler) clause(n *Node) map[string]any {
 	case And:
 		return map[string]any{"bool": map[string]any{"filter": c.clauses(n.Children)}}
 	case Or:
-		return map[string]any{"bool": map[string]any{"should": c.clauses(n.Children), "minimum_should_match": 1}}
+		return map[string]any{"bool": map[string]any{"should": c.optionalClauses(n.Children), "minimum_should_match": 1}}
 	case Not:
-		return map[string]any{"bool": map[string]any{"must_not": c.clauses(n.Children)}}
+		return map[string]any{"bool": map[string]any{"must_not": c.optionalClauses(n.Children)}}
 	case Group:
 		return c.clause(n.Children[0])
 	case Match:
@@ -85,6 +88,12 @@ func (c *compiler) clauses(nodes []*Node) []any {
 		out = append(out, c.clause(n))
 	}
 	return out
+}
+
+func (c *compiler) optionalClauses(nodes []*Node) []any {
+	c.optional++
+	defer func() { c.optional-- }()
+	return c.clauses(nodes)
 }
 
 func (c *compiler) match(n *Node) map[string]any {
@@ -122,32 +131,42 @@ func matchType(n *Node) string {
 }
 
 func (c *compiler) noteField(n *Node) {
-	if c.fields == nil || c.seen[n.Field] {
+	if c.fields == nil {
 		return
 	}
-	c.seen[n.Field] = true
-	if !c.known(n.Field) {
-		message := "unknown field " + strconv.Quote(n.Field)
-		if near := c.sameEnding(n.Field); near != "" {
-			message += "; did you mean " + strconv.Quote(near) + "?"
+	required := c.optional == 0
+	if at, seen := c.seen[n.Field]; seen {
+		if at >= 0 && required {
+			c.unknown[at].Required = true
 		}
-		c.warnings = append(c.warnings, Diagnostic{Severity: SeverityWarning, Message: message, Start: n.fieldStart, End: n.fieldEnd})
+		return
 	}
+	c.seen[n.Field] = -1
+	if c.known(n.Field) {
+		return
+	}
+	near := c.sameEnding(n.Field)
+	message := "unknown field " + strconv.Quote(n.Field)
+	if near != "" {
+		message += "; did you mean " + strconv.Quote(near) + "?"
+	}
+	c.warnings = append(c.warnings, Diagnostic{Severity: SeverityWarning, Message: message, Start: n.fieldStart, End: n.fieldEnd})
+	c.seen[n.Field] = len(c.unknown)
+	c.unknown = append(c.unknown, UnknownField{Name: n.Field, Suggestion: near, Required: required})
 }
 
 func (c *compiler) sameEnding(field string) string {
 	if strings.Contains(field, "*") {
 		return ""
 	}
+	lower := strings.ToLower(field)
 	var found string
 	for name := range c.fields {
-		if strings.HasSuffix(name, ".keyword") {
+		other := strings.ToLower(name)
+		if name == field || strings.HasSuffix(name, ".keyword") {
 			continue
 		}
-		if name == field {
-			continue
-		}
-		if !strings.EqualFold(name, field) && !strings.HasSuffix(name, "."+field) && !strings.HasSuffix(field, "."+name) {
+		if other != lower && !strings.HasSuffix(other, "."+lower) && !strings.HasSuffix(lower, "."+other) {
 			continue
 		}
 		if found != "" {

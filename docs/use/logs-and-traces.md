@@ -174,9 +174,10 @@ Details of what the parser accepts:
 When exactly one mapped field ends the same way as the unknown one, the lint message adds a suggestion.
 An example is `resource.service.name` for `service.name` after you move a query from Elasticsearch to OpenSearch.
 The message then adds `did you mean "resource.service.name"?`, and the warning under the editor offers **Use resource.service.name**, which renames the field in the query.
-A field that differs only in capitals from a mapped one, such as `Body` for `body`, gets the same suggestion.
+The suggestion ignores capitals, so `Body` offers `body` and `Service.Name` offers `resource.service.name`.
 
-A query that names a field the mapping does not have and finds no lines says so in `meta.hint`, such as `Field "Body" is not in the mapping; did you mean "body"?`.
+A query whose text requires a field the mapping does not have, and which finds no lines, says so in `meta.hint`, such as `Field "Body" is not in the mapping; did you mean "body"?`.
+A field under `not` or in one branch of an `or` is not named, and neither is a field of an ad-hoc filter added outside the query text.
 The agent's `query_instant` shows that sentence beside "no data", so it names the real field instead of reading the empty result as an absence of data.
 
 KQL values are case sensitive, so a query such as `service.name:checkout and log.level:error` can find no lines when the data says `ERROR`.

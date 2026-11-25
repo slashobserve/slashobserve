@@ -1,10 +1,10 @@
 package elasticsearch
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -50,7 +50,11 @@ func (d *Datasource) withValueHint(ctx context.Context, prep prepared, r datasou
 	if prep.form != FormKQL || len(frames) != 1 || frames[0].Rows() != 0 || frames[0].Meta == nil || frames[0].Meta.Partial {
 		return frames
 	}
-	frames[0].Meta.Hint = cmp.Or(unknownFieldHint(prep), d.valueHint(ctx, prep, r))
+	hint := unknownFieldHint(prep)
+	if hint == "" {
+		hint = d.valueHint(ctx, prep, r)
+	}
+	frames[0].Meta.Hint = hint
 	return frames
 }
 
@@ -60,15 +64,13 @@ func unknownFieldHint(prep prepared) string {
 		return ""
 	}
 	var texts []string
-	for _, diag := range compiled.Diagnostics {
-		rest, ok := strings.CutPrefix(diag.Message, "unknown field ")
-		if !ok {
+	for _, f := range compiled.UnknownFields {
+		if !f.Required {
 			continue
 		}
-		field, suggestion, found := strings.Cut(rest, "; ")
-		text := fmt.Sprintf("Field %s is not in the mapping", field)
-		if found {
-			text += "; " + suggestion
+		text := fmt.Sprintf("Field %s is not in the mapping", strconv.Quote(f.Name))
+		if f.Suggestion != "" {
+			text += fmt.Sprintf("; did you mean %s?", strconv.Quote(f.Suggestion))
 		} else {
 			text += "."
 		}

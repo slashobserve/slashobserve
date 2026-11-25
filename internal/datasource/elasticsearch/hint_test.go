@@ -134,3 +134,29 @@ func TestAnEmptyPageNamesAFieldThatIsNotInTheMapping(t *testing.T) {
 		t.Fatalf("hint = %q, want %q", got, want)
 	}
 }
+
+func TestAnEmptyQueryOnlyNamesUnknownFieldsItMustMatch(t *testing.T) {
+	for _, text := range []string{"not nope:error", "log.level:fatal or nope:error"} {
+		_, ds := hintServer(t)
+		frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: text}, queryRange)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := datasource.MergeMeta(frames).Hint; strings.Contains(got, "not in the mapping") {
+			t.Fatalf("%q: hint = %q", text, got)
+		}
+	}
+}
+
+func TestAnUnknownFieldHintComesBeforeTheValueHintAndSkipsItsSearch(t *testing.T) {
+	f, ds := hintServer(t)
+
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "nope:error and log.level:error"}, queryRange)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := datasource.MergeMeta(frames).Hint; got != `Field "nope" is not in the mapping.` || f.count(searchPath) != 1 {
+		t.Fatalf("hint = %q after %d searches", got, f.count(searchPath))
+	}
+}
