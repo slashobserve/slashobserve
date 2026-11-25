@@ -14,6 +14,7 @@ const closed = {
   item: null,
   opener: null,
   pending: null,
+  personActed: false,
 }
 
 beforeEach(() => useInboxPanelStore.setState(closed))

@@ -9,8 +9,8 @@ import {
 
 import { useViewportWidth } from "@/activity/activity-store"
 import {
+  closeInboxForOpenedPanel,
   useInboxPanelOpen,
-  useInboxPanelStore,
 } from "@/inbox/inbox-panel-store"
 import { cn } from "@/lib/utils"
 
@@ -63,7 +63,7 @@ export function DockPanel({
   const yieldsToInbox = useInboxPanelOpen() && !isInbox
   const shown = !hidden && !isInbox
   useEffect(() => {
-    if (shown) useInboxPanelStore.getState().close()
+    if (shown) closeInboxForOpenedPanel()
   }, [shown])
   const narrow = isNarrow(useViewportWidth())
   const [peek, setPeek] = useState(false)
@@ -82,6 +82,7 @@ export function DockPanel({
       ref={ref}
       id={id}
       hidden={hidden || yieldsToInbox}
+      data-inbox-panel={isInbox ? "" : undefined}
       aria-labelledby={labelledBy}
       onKeyDown={onKeyDown}
       data-sheet={mode === "sheet" ? "" : undefined}

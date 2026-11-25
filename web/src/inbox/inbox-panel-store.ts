@@ -15,6 +15,7 @@ type InboxPanelState = {
   filter: InboxFilter
   item: number | null
   openings: number
+  personActed: boolean
   opener: HTMLElement | null
   pending: InboxChoice | null
   show: (choice?: InboxChoice, opener?: HTMLElement | null) => void
@@ -38,6 +39,7 @@ export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
   filter: "open",
   item: null,
   openings: 0,
+  personActed: false,
   opener: null,
   pending: null,
   show: (choice = {}, opener = focusedElement()) =>
@@ -47,11 +49,13 @@ export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
       filter: choice.filter ?? state.filter,
       item: choice.item ?? null,
       openings: state.openings + 1,
+      personActed: false,
       opener,
       pending: null,
     })),
   showAfterNavigation: (choice) => set({ pending: choice }),
-  close: () => set({ open: false, item: null, opener: null }),
+  close: () =>
+    set({ open: false, item: null, opener: null, personActed: false }),
   toggle: (opener) => {
     if (get().open) get().close()
     else get().show({}, opener)
@@ -59,6 +63,25 @@ export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
   setView: (view) => set({ view }),
   setFilter: (filter) => set({ filter }),
 }))
+
+export function closeInboxForOpenedPanel(): void {
+  const { open, personActed, close } = useInboxPanelStore.getState()
+  if (open && personActed) close()
+}
+
+function notePersonActed(event: Event) {
+  const { open, personActed } = useInboxPanelStore.getState()
+  if (!open || personActed) return
+  const target = event.target
+  if (target instanceof Element && target.closest("[data-inbox-panel]")) return
+  useInboxPanelStore.setState({ personActed: true })
+}
+
+if (typeof document !== "undefined") {
+  for (const type of ["pointerdown", "keydown"]) {
+    document.addEventListener(type, notePersonActed, true)
+  }
+}
 
 export function closeInboxIfOpen(): boolean {
   const { open, close } = useInboxPanelStore.getState()
