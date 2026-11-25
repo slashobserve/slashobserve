@@ -123,8 +123,7 @@ function InboxCard() {
   const sentinel = useRef<HTMLDivElement>(null)
   const layout = usePanelLayout()
   const setPanelWidth = useActivityStore((state) => state.setPanelWidth)
-  const { view, filter, opener, setView, setFilter, close } =
-    useInboxPanelStore()
+  const { view, filter, setView, setFilter, close } = useInboxPanelStore()
   const [target] = useState(() => useInboxPanelStore.getState().item)
   const queryClient = useQueryClient()
   const [opened] = useState({ view, filter })
@@ -196,7 +195,7 @@ function InboxCard() {
 
   function closeToOpener() {
     close()
-    returnFocusFromInbox(opener)
+    returnFocusFromInbox()
   }
 
   function toggleExpanded(item: InboxItem) {

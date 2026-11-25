@@ -483,25 +483,27 @@ describe("InboxPanel", () => {
     ).toBeTruthy()
   })
 
-  it("returns focus on close to what opened it, or to the bell when that is gone", async () => {
+  it("returns focus on close to the bell, whatever opened the panel", async () => {
     mockServer()
     const { user } = renderPanel()
-    const opener = await screen.findByRole("button", { name: "Open from Home" })
+    const other = await screen.findByRole("button", { name: "Open from Home" })
+    const bell = screen.getByRole("button", { name: /^Inbox/ })
 
-    await user.click(opener)
+    await user.click(other)
     await user.click(await screen.findByRole("button", { name: "Close Inbox" }))
-    expect(opener).toHaveFocus()
+    expect(bell).toHaveFocus()
 
-    const gone = document.createElement("button")
-    document.body.append(gone)
-    gone.focus()
-    act(() => useInboxPanelStore.getState().show())
+    other.focus()
+    await user.keyboard("gi")
     await screen.findByRole("complementary", { name: "Inbox" })
-    gone.remove()
     await user.keyboard("{Escape}")
-    expect(
-      screen.getByRole("button", { name: "Inbox, 1 unread" })
-    ).toHaveFocus()
+    expect(screen.queryByRole("complementary")).toBeNull()
+    expect(bell).toHaveFocus()
+
+    await user.click(bell)
+    await screen.findByRole("complementary", { name: "Inbox" })
+    await user.keyboard("{Escape}")
+    expect(bell).toHaveFocus()
   })
 
   it("opens on the first page only, however far the list was scrolled before", async () => {
