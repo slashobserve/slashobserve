@@ -1,6 +1,17 @@
+import type { SuppressKeyboardEventParams } from "ag-grid-community"
+
 const controlSelector =
   "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])"
 const keyStopSelector = ".ag-cell, .ag-full-width-row"
+const controlKeys = new Set([
+  "Tab",
+  "Enter",
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+])
 
 export type CellKeyAction = { kind: "click" | "focus"; stop: number } | null
 
@@ -20,6 +31,17 @@ export function cellKeyAction(
   return next >= 0 && next <= controlCount
     ? { kind: "focus", stop: next }
     : null
+}
+
+export function keepKeysOnFocusedControl({
+  event,
+}: Pick<SuppressKeyboardEventParams, "event">): boolean {
+  const target = event.target
+  if (!(target instanceof HTMLElement) || !controlKeys.has(event.key)) {
+    return false
+  }
+  const cell = target.closest(keyStopSelector)
+  return cell !== null && cell !== target
 }
 
 export function handleCellKey(event: KeyboardEvent, grid: HTMLElement): void {
