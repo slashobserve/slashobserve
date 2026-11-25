@@ -93,7 +93,7 @@ type handler struct {
 	types       func(context.Context) []spec.DatasourceType
 
 	runs           RunSessions
-	runTransports  map[tools.Mode]http.Handler
+	runTransports  map[runShape]http.Handler
 	claimTransport http.Handler
 }
 
@@ -126,20 +126,27 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		}
 	}
 	h.claimTransport = h.newTransport(claim)
-	h.runTransports = map[tools.Mode]http.Handler{}
+	h.runTransports = map[runShape]http.Handler{}
 	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate, tools.ModeSuggest} {
-		run := mcpserver.NewMCPServer(serverName, opts.Version,
-			mcpserver.WithToolCapabilities(false),
-			mcpserver.WithRecovery(),
-			mcpserver.WithToolFilter(listableRunTools(reg.List())))
-		for _, t := range reg.List() {
-			if t.OfferedIn(mode) {
-				run.AddTool(toolFor(t.ForRun(mode)), h.callRunTool(t.Name))
+		for _, investigation := range []bool{false, true} {
+			run := mcpserver.NewMCPServer(serverName, opts.Version,
+				mcpserver.WithToolCapabilities(false),
+				mcpserver.WithRecovery(),
+				mcpserver.WithToolFilter(listableRunTools(reg.List())))
+			for _, t := range reg.List() {
+				if t.OfferedIn(mode) {
+					run.AddTool(toolFor(t.ForRun(mode, investigation)), h.callRunTool(t.Name))
+				}
 			}
+			h.runTransports[runShape{mode, investigation}] = h.newTransport(run)
 		}
-		h.runTransports[mode] = h.newTransport(run)
 	}
 	return h
+}
+
+type runShape struct {
+	mode          tools.Mode
+	investigation bool
 }
 
 // The library also runs the filter on a one-tool list before each call; that call must still reach the tool, which answers a key with user_session_required.
