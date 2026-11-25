@@ -26,6 +26,16 @@ class RunEndedWithoutFinding(Exception):
     pass
 
 
+class ReportNotWritten(Exception):
+    pass
+
+
+def stdout_of(result, what: str) -> str:
+    if result.return_code != 0:
+        raise orca.UnsupportedTask(f"{what} failed with {result.return_code}: {(result.stderr or '').strip()}")
+    return (result.stdout or "").strip()
+
+
 def host_networks(container_id: str) -> list[str]:
     done = subprocess.run(
         ["docker", "inspect", container_id, "--format", "{{json .NetworkSettings.Networks}}"],
@@ -36,6 +46,27 @@ def host_networks(container_id: str) -> list[str]:
     if done.returncode != 0:
         raise orca.UnsupportedTask(f"docker inspect {container_id} failed: {done.stderr.strip()}")
     return list(json.loads(done.stdout))
+
+
+def container_by_project(project: str) -> str:
+    done = subprocess.run(
+        [
+            "docker",
+            "ps",
+            "-q",
+            "--filter",
+            f"label=com.docker.compose.project={project}",
+            "--filter",
+            "label=com.docker.compose.service=main",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    found = done.stdout.split()
+    if done.returncode != 0 or len(found) != 1:
+        raise orca.UnsupportedTask(f"expected one main container in compose project {project}: {done.stderr.strip() or found}")
+    return found[0]
 
 
 def copy_code_out(container_id: str, target: Path) -> Path:
@@ -105,9 +136,8 @@ class OrcaAgent(BaseAgent):
         ready = await environment.exec(
             f"until [ -f {orca.ENV_READY} ]; do sleep 2; done; cat {orca.ENV_PORTS}", timeout_sec=wait
         )
-        endpoints = orca.Endpoints.from_ports_file(ready.stdout or "")
-        container_id = ((await environment.exec("cat /etc/hostname")).stdout or "").strip()
-        network = orca.otel_network(await asyncio.to_thread(host_networks, container_id))
+        endpoints = orca.Endpoints.from_ports_file(stdout_of(ready, "waiting for the trial's services"))
+        container_id, network = await self._locate(environment)
         provider, model = self._provider_and_model()
         config = ServerConfig(
             image=options.server_image,
@@ -124,26 +154,40 @@ class OrcaAgent(BaseAgent):
             "traces: read through the OpenSearch datasource, because the trial's Jaeger is older than the 2.21 the Jaeger datasource needs",
             "scores: judged outside the published ORCA-bench judge, so not comparable with leaderboard numbers",
         ]
+        workdir = tempfile.TemporaryDirectory(prefix="orca-code-")
         try:
             await stack.start()
             client = Client(stack.base_url, stack.key)
-            notes.append(await self._code_context(client, network, container_id))
+            notes.append(await self._code_context(client, network, container_id, Path(workdir.name)))
             orca.write_notes(self.logs_dir, notes)
-            request = await self._investigate(client, orca.question(instruction, as_of), as_of, deadline)
+            request = await self._investigate(client, orca.question(instruction, as_of), as_of, deadline, instruction, context)
             await self._finish(request, instruction, context, environment)
         finally:
             await asyncio.to_thread(stack.stop)
+            workdir.cleanup()
 
-    async def _code_context(self, client: Client, network: str, container_id: str) -> str:
+    async def _locate(self, environment: BaseEnvironment) -> tuple[str, str]:
+        container_id = stdout_of(await environment.exec("cat /etc/hostname"), "reading the main container's hostname")
+        try:
+            if not container_id:
+                raise orca.UnsupportedTask("the main container reports no hostname")
+            return container_id, orca.otel_network(await asyncio.to_thread(host_networks, container_id))
+        except orca.UnsupportedTask:
+            project = orca.compose_project(environment.session_id)
+            container_id = await asyncio.to_thread(container_by_project, project)
+            return container_id, orca.otel_network(await asyncio.to_thread(host_networks, container_id))
+
+    async def _code_context(self, client: Client, network: str, container_id: str, workdir: Path) -> str:
         if not self.options.code_context:
             return "code context: skipped, no code source is configured (--ak code_context=<module>:<function>)"
         hook = orca.load_code_context(self.options.code_context)
-        with tempfile.TemporaryDirectory(prefix="orca-code-") as workdir:
-            code_dir = await asyncio.to_thread(copy_code_out, container_id, Path(workdir))
-            await asyncio.to_thread(hook, client, network, code_dir)
+        code_dir = await asyncio.to_thread(copy_code_out, container_id, workdir)
+        await asyncio.to_thread(hook, client, network, code_dir)
         return f"code context: registered through {self.options.code_context}"
 
-    async def _investigate(self, client: Client, question: str, as_of: str, deadline: float) -> dict:
+    async def _investigate(
+        self, client: Client, question: str, as_of: str, deadline: float, instruction: str, context: AgentContext
+    ) -> dict:
         run_id = await asyncio.to_thread(client.start_run, orca.start_body(question, as_of))
         seen: dict[str, dict] = {}
 
@@ -160,7 +204,7 @@ class OrcaAgent(BaseAgent):
                     request = await asyncio.to_thread(wait_for_terminal, poll, CANCEL_GRACE_SEC)
                 except RunTimeout:
                     request = seen["request"]
-                self._save(request, "", None)
+                self._save(request, instruction, context)
                 raise
         finally:
             self._record_spend(seen.get("request"))
@@ -178,11 +222,9 @@ class OrcaAgent(BaseAgent):
         except ApiError:
             pass
 
-    def _save(self, request: dict, instruction: str, context: AgentContext | None) -> None:
+    def _save(self, request: dict, instruction: str, context: AgentContext) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         (self.logs_dir / "run.json").write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
-        if context is None:
-            return
         trajectory = atif.build_trajectory(
             request, instruction, agent_name=AGENT_NAME, agent_version=AGENT_VERSION, model_name=self.model_name
         )
@@ -204,4 +246,7 @@ class OrcaAgent(BaseAgent):
         local = self.logs_dir / "report.md"
         local.write_text(report, encoding="utf-8")
         await environment.upload_file(local, REPORT_STAGING)
-        await environment.exec(f"cp {REPORT_STAGING} {orca.REPORT_PATH}")
+        check = "test -s" if report else "test -f"
+        written = await environment.exec(f"cp {REPORT_STAGING} {orca.REPORT_PATH} && {check} {orca.REPORT_PATH}")
+        if written.return_code != 0:
+            raise ReportNotWritten(f"writing {orca.REPORT_PATH} failed with {written.return_code}: {(written.stderr or '').strip()}")

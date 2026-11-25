@@ -190,3 +190,34 @@ def test_replay_fixture_command_writes_the_fixture_for_a_task_folder(tmp_path):
     fixture = json.loads((tmp_path / "out" / "abc.json").read_text())
     assert "2026-04-18T18:05:00Z" in fixture["prompt"]
     assert fixture["turns"] == []
+
+
+def test_naive_task_time_is_eastern_like_the_instruction_time():
+    assert orca.as_of('[metadata]\ncurrent = "2026-04-18T14:05:00"\n', "") == "2026-04-18T18:05:00Z"
+    assert orca.as_of("[metadata]\ncurrent = 2026-01-12T09:30:00\n", "") == "2026-01-12T14:30:00Z"
+
+
+def test_instruction_time_may_have_single_digit_day_and_hour():
+    assert orca.as_of("[metadata]\n", "The current time is Apr 8, 2026 at 9:05 ET.") == "2026-04-08T13:05:00Z"
+
+
+def test_headings_in_the_answer_stay_below_the_four_sections():
+    finding = {"markdown": "# Findings\n\nIntro.\n\n## Evidence\n\n```\n# not a heading\n```\n\n###### Deep\n", "no_incident": False}
+    report = orca.render_report(finding)
+    assert sections(report) == ["Summary", "Timeline", "5 Whys", "Remediation"]
+    assert "### Findings" in report
+    assert "#### Evidence" in report
+    assert "# not a heading" in report
+    assert "###### Deep" in report
+    assert "\n# Findings" not in report
+
+
+def test_a_heading_with_a_time_does_not_become_a_timeline_heading():
+    report = orca.render_report({"markdown": "## 09:44 UTC cart slowed\n\nText."})
+    assert "## Timeline\n\n09:44 UTC cart slowed\n" in report
+
+
+def test_compose_project_is_named_the_way_harbor_names_it():
+    assert orca.compose_project("Trial__ABC.1") == "trial__abc-1"
+    assert orca.compose_project("_x") == "0_x"
+    assert orca.compose_project("-x") == "0-x"

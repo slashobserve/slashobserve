@@ -19,7 +19,7 @@ CODE_DIR = "/app/opentelemetry-demo"
 ENV_READY = "/tmp/env-ready"
 ENV_PORTS = "/tmp/env-ports"
 NETWORK_PATTERN = re.compile(r"^otel-[0-9a-f]{12}_default$")
-INSTRUCTION_TIME = re.compile(r"The current time is (?P<stamp>[A-Z][a-z]{2} \d{2}, \d{4} at \d{2}:\d{2}) ET\b")
+INSTRUCTION_TIME = re.compile(r"The current time is (?P<stamp>[A-Z][a-z]{2} \d{1,2}, \d{4} at \d{1,2}:\d{2}) ET\b")
 TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:UTC|Z)\b")
 TIMELINE_LINES_MAX = 8
 LINE_RUNES_MAX = 240
@@ -142,16 +142,19 @@ def _utc_text(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _eastern(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.replace(tzinfo=ZoneInfo("America/New_York"))
+
+
 def current_from_task(task_toml: str) -> datetime | None:
     value = tomllib.loads(task_toml).get("metadata", {}).get("current")
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return _eastern(value)
     if isinstance(value, str):
         try:
-            parsed = datetime.fromisoformat(value)
+            return _eastern(datetime.fromisoformat(value))
         except ValueError:
             return None
-        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
     return None
 
 
@@ -159,8 +162,7 @@ def current_from_instruction(instruction: str) -> datetime | None:
     found = INSTRUCTION_TIME.search(instruction)
     if found is None:
         return None
-    local = datetime.strptime(found["stamp"], "%b %d, %Y at %H:%M")
-    return local.replace(tzinfo=ZoneInfo("America/New_York"))
+    return _eastern(datetime.strptime(found["stamp"], "%b %d, %Y at %H:%M"))
 
 
 def as_of(task_toml: str, instruction: str) -> str:
@@ -239,8 +241,19 @@ class Answer:
 
 
 def _clip(line: str) -> str:
-    line = line.strip().lstrip("-*> ").strip()
+    line = line.strip().lstrip("#-*> ").strip()
     return line if len(line) <= LINE_RUNES_MAX else line[: LINE_RUNES_MAX - 1] + "…"
+
+
+def demote_headings(markdown: str) -> str:
+    lines, fenced = [], False
+    for line in markdown.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and (found := re.match(r"(#{1,6})(\s)", line)):
+            line = "#" * min(len(found[1]) + 2, 6) + line[len(found[1]) :]
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _first_paragraph(markdown: str) -> str:
@@ -269,7 +282,7 @@ def _timeline(answer: Answer) -> str:
 def _whys(answer: Answer) -> str:
     parts = [f"Problem statement:\n{answer.impact or _first_paragraph(answer.markdown) or 'Not stated.'}"]
     if answer.markdown:
-        parts.append(f"Analysis:\n{answer.markdown}")
+        parts.append(f"Analysis:\n{demote_headings(answer.markdown)}")
     if answer.cause_line:
         parts.append(f"Root cause:\n{answer.cause_line}")
     if answer.ruled_out:
@@ -300,6 +313,13 @@ def render_report(finding: dict[str, Any]) -> str:
 def report_for(request: dict[str, Any]) -> str | None:
     finding = request.get("finding")
     return None if not finding else render_report(finding)
+
+
+def compose_project(session_id: str) -> str:
+    name = session_id.lower()
+    if not re.match(r"[a-z0-9]", name):
+        name = "0" + name
+    return re.sub(r"[^a-z0-9_-]", "-", name)
 
 
 def write_notes(logs_dir: Path, lines: Iterable[str]) -> None:
