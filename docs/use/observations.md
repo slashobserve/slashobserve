@@ -314,6 +314,8 @@ The agent can be `@observe`, one of your connected agents or a service account t
 The message needs Comment on the observation.
 On a message about the whole page, the agent is told which observation it was asked on, so "this" means that page, and it reads the page first.
 
+A request to summarize, explain or rewrite the page, such as "summarize this for my manager", is answered from the page and the discussion with no new queries.
+
 The run writes nothing on the page, for an Editor as for a Commenter.
 When it ends, the server posts one status reply in the discussion, whose text is "Answered." when the run saved an answer.
 The web page shows the answer card in its place, and everyone who can read the observation reads that answer in the discussion.
