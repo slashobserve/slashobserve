@@ -327,6 +327,20 @@ export function PatternsView() {
   }, [])
   const patterns = useLogPatterns(true, limit)
   const q = search.q
+  const source = patterns.data?.source ?? "server"
+  const datasourceType = datasource.type
+  const filterByPattern = useCallback(
+    (query: string) => {
+      setDraft(query)
+      update({ q: query, view: undefined })
+    },
+    [setDraft, update]
+  )
+  const rewrite = useCallback(
+    (pattern: string, mode: PatternMode) =>
+      withPatternFilter(datasourceType, q ?? "", pattern, mode, source),
+    [datasourceType, q, source]
+  )
 
   if (q === undefined) {
     return <EmptyState title="Write a query and press Run" />
@@ -373,11 +387,6 @@ export function PatternsView() {
   const visible = sortPatterns(showAll ? result.patterns : shown, order)
   const largest = Math.max(0, ...result.patterns.map((item) => item.count))
 
-  function filterByPattern(query: string) {
-    setDraft(query)
-    update({ q: query, view: undefined })
-  }
-
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -407,9 +416,7 @@ export function PatternsView() {
         largest={largest}
         expanded={expanded}
         onToggle={toggle}
-        rewrite={(pattern, mode) =>
-          withPatternFilter(datasource.type, q, pattern, mode, result.source)
-        }
+        rewrite={rewrite}
         onApply={filterByPattern}
       />
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
