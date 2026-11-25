@@ -888,6 +888,7 @@ Each row shows these columns:
 The arrow keys move between the cells of the table, and Enter on a **Started** cell opens that trace.
 On Jaeger the search shows no duration tick and has no comparison, because Jaeger has no trace statistics.
 On a phone the table becomes a list of cards: the root service on top, then each other column with its name.
+Above 100 traces the table scrolls in its own box, which fills the rest of the window and is at least 384 pixels tall, and draws only the rows in view.
 
 On ClickHouse the server sorts every trace the search matches before it pages them, so the first page holds the slowest traces of the range.
 The sort is in the address as `sort`, such as `sort=-spans`.

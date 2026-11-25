@@ -97,6 +97,39 @@ describe("TraceTable", () => {
     expect(screen.getByText(/Root service A to Z\./)).toBeInTheDocument()
   })
 
+  it("virtualises a long list and still sorts all of it", async () => {
+    const many: TraceRow[] = Array.from({ length: 300 }, (_, index) => ({
+      traceId: index.toString(16).padStart(32, "0"),
+      start: 1_700_000_000_000 + index * 1000,
+      service: `service-${String(index).padStart(3, "0")}`,
+      span: "GET /cart",
+      durationMs: index + 1,
+      spans: 3,
+      errors: 0,
+    }))
+    const { container } = renderWithProviders(
+      <TraceTable
+        rows={many}
+        datasourceUid="tempo"
+        range={{ from: "now-1h", to: "now" }}
+        selection={null}
+        onSelectionChange={() => undefined}
+      />,
+      { route: { path: "/", url: "/" } }
+    )
+    await waitFor(() => expect(serviceOrder()[0]).toBe("service-299"))
+    expect(container.querySelector("[data-dom-layout]")).toHaveAttribute(
+      "data-dom-layout",
+      "normal"
+    )
+    expect(serviceOrder().length).toBeLessThan(many.length)
+
+    const service = screen.getByRole("columnheader", { name: "Root service" })
+    fireEvent.click(within(service).getByRole("button"))
+    await waitFor(() => expect(serviceOrder()[0]).toBe("service-000"))
+    expect(service).toHaveAttribute("aria-sort", "ascending")
+  })
+
   it("hides a column from the Columns menu", async () => {
     const { user } = renderTable()
     await screen.findByRole("columnheader", { name: "Root span" })

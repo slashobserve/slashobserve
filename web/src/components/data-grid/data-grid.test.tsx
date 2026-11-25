@@ -202,6 +202,40 @@ describe("DataGrid", () => {
     expect(onHighlightRow).toHaveBeenLastCalledWith(null)
   })
 
+  it("virtualises above 100 rows in a box that fills the page, and grows with its rows again below", async () => {
+    const many = Array.from({ length: 150 }, (_, index) => ({
+      id: `r${index}`,
+      name: `Service ${index}`,
+      owner: "Payments",
+      note: "",
+    }))
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+    }
+    const { container, rerender } = render(<DataGrid {...props} rows={many} />)
+    const box = container.firstElementChild as HTMLElement
+    await screen.findByRole("gridcell", { name: "Service 0" })
+    expect(box).toHaveAttribute("data-dom-layout", "normal")
+    expect(box.style.height).toBe(`${window.innerHeight - 48}px`)
+    expect(container.querySelector(".ag-root-wrapper")).toHaveClass(
+      "ag-layout-normal"
+    )
+    expect(
+      container.querySelectorAll("[role=row][row-id]").length
+    ).toBeLessThan(many.length)
+
+    rerender(<DataGrid {...props} rows={many.slice(0, 100)} />)
+    await waitFor(() =>
+      expect(container.querySelector(".ag-root-wrapper")).toHaveClass(
+        "ag-layout-auto-height"
+      )
+    )
+    expect(box).toHaveAttribute("data-dom-layout", "autoHeight")
+    expect(box.style.height).toBe("")
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid

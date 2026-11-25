@@ -28,8 +28,10 @@ import {
 
 import { cn } from "@/lib/utils"
 
+import { gridLayout } from "./layout"
 import { NarrowRow, narrowRowEstimate } from "./narrow-row"
 import { gridTheme } from "./theme"
+import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
 
 const modules = [
@@ -208,6 +210,8 @@ export function DataGrid<T>({
     []
   )
   const narrowParams = useMemo(() => ({ columns }), [columns])
+  const layout = gridLayout(rows.length)
+  const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
   const headerHeight = compact ? 32 : 36
 
@@ -263,14 +267,16 @@ export function DataGrid<T>({
     <div
       ref={containerRef}
       data-layout={narrow ? "narrow" : "wide"}
+      data-dom-layout={layout}
       className={cn("w-full text-[13px]", className)}
+      style={layout === "normal" ? { height } : undefined}
       onPointerLeave={() => onHighlightRow?.(null)}
     >
       <AgGridReact<T>
         key={narrow ? "narrow" : "wide"}
         modules={modules}
         theme={gridTheme}
-        domLayout="autoHeight"
+        domLayout={layout}
         rowData={rows as T[]}
         columnDefs={columnDefs}
         getRowId={getRowId}
