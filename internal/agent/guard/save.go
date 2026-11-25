@@ -95,6 +95,7 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 func (s *State) settleRead(c Call, res tools.Result) Settled {
 	s.noteChecked(c, res)
 	s.noteAbsenceRead(c, res)
+	s.noteQueried(c, res)
 	key := Key(c.Name, c.Input)
 	entry, ok := s.Reads[key]
 	if !ok || res.IsError || tools.Phase(c.Name) == tools.PhaseQuery {
