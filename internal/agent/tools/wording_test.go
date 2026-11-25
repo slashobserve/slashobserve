@@ -478,3 +478,13 @@ func TestToolTextNamesTheEvidenceRuleAndTheClickHouseErrorStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveFindingTextSaysARefusedReadIsNamedAsNotRead(t *testing.T) {
+	tool, ok := toolsByName(t)[nameSaveFinding]
+	if !ok {
+		t.Fatalf("%s is not registered", nameSaveFinding)
+	}
+	if want := "name a refused read in the finding as not read"; !strings.Contains(tool.ForAgent().Description, want) {
+		t.Errorf("save_finding description lacks %q", want)
+	}
+}
