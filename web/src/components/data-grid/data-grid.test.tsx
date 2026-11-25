@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react"
+import { useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
@@ -165,6 +166,48 @@ describe("DataGrid", () => {
     expect(
       await screen.findByRole("gridcell", { name: "Checkout service" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps what a cell holds when its column or its row changes", async () => {
+    function Counter({ label }: { label: string }) {
+      const [count, setCount] = useState(0)
+      return (
+        <button type="button" onClick={() => setCount(count + 1)}>
+          {label}:{count}
+        </button>
+      )
+    }
+    const counted = (suffix: string): DataGridColumn<Row>[] => [
+      {
+        id: "name",
+        header: "Name",
+        cell: (row) => <Counter label={row.name} />,
+      },
+      { id: "suffix", header: "Suffix", cell: () => suffix },
+    ]
+    const props = { label: "Services", rowId: (row: Row) => row.id }
+    const { rerender } = render(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("a")} />
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Checkout:0" }))
+    await screen.findByRole("button", { name: "Checkout:1" })
+
+    rerender(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("b")} />
+    )
+    await screen.findByText("b")
+    expect(screen.getByRole("button", { name: "Checkout:1" })).toBeVisible()
+
+    rerender(
+      <DataGrid
+        {...props}
+        rows={[{ ...rows[0], name: "Basket" }]}
+        columns={counted("b")}
+      />
+    )
+    expect(
+      await screen.findByRole("button", { name: "Basket:1" })
+    ).toBeVisible()
   })
 
   it("follows the link of a cell on Enter", async () => {
