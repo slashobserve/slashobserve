@@ -130,7 +130,7 @@ contextSources:
   A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
   Removing the line makes the source public again, resets its check and refuses an `http` address.
 - `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`, which the server approves at every start.
-  After it makes the entries match, it runs a discovery for each source with a list and approves each listed tool that is `offered`.
+  After it makes the entries match, it runs a discovery for each source with a list in the background and approves each listed tool that is `offered`, so the tools can be a few seconds behind the start.
   A tool the server marks destructive, or does not mark read-only, stays `refused`, as it does for an Admin.
   A listed name the server does not offer, a tool that is `refused` and a tool that is `changed` are not approved, and the server logs a warning that names the tool and the reason.
   A tool that is `changed` needs an Admin, as it always does, so the file never approves a definition nobody read: the list approves the tools the server offers on first sight, and that is the only definition it pins.

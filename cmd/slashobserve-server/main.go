@@ -297,13 +297,13 @@ func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Se
 	return nil
 }
 
-func approveListedTools(ctx context.Context, database *db.DB, service *contextsources.Service, cfg config.Config) error {
-	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+func approveListedTools(ctx context.Context, database *db.DB, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
+	err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
 		return service.ApproveListed(ctx, cfg.ContextSources)
-	}); err != nil {
-		return contextSourcesExit(err)
+	})
+	if err != nil && ctx.Err() == nil {
+		logger.ErrorContext(ctx, "context source approvals from the provisioning file failed", slog.String("failure", err.Error()))
 	}
-	return nil
 }
 
 func fileAccounts(accounts []config.ServiceAccount) []auth.FileAccount {
@@ -615,9 +615,10 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
-	if err := approveListedTools(ctx, database, contextSourcesService, cfg); err != nil {
-		return err
-	}
+	stopApprovals := startBackground(ctx, "context source approvals", func(ctx context.Context) {
+		approveListedTools(ctx, database, contextSourcesService, cfg, logger)
+	}, logger)
+	defer stopApprovals()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
