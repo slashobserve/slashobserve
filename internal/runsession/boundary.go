@@ -185,13 +185,7 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	state.Usage.ToolMS += d.took.Milliseconds()
 	step := revisions.Step{At: d.start, Phase: a.adm.Phase, Tool: c.Name, Status: "ok", DurationMS: d.took.Milliseconds()}
 	if d.err != nil {
-		step.Status, step.Message = "error", internalStep
-		if tools.Phase(c.Name) == tools.PhaseWrite && a.adm.Verdict == guard.Dispatch {
-			state.Guard.ForgetWrite(c)
-		}
-		sess.record(step)
-		_, err := sess.complete(ctx, a.seq)
-		return Answer{}, err
+		return Answer{}, sess.settleFailed(ctx, c, a, step)
 	}
 	if d.res.IsError {
 		step.Status = "error"
@@ -231,6 +225,16 @@ func (sess *session) settle(ctx context.Context, c guard.Call, a admitted, d dis
 	}
 	answer.Meta = state.meta(restarted && !sess.ended)
 	return answer, nil
+}
+
+func (sess *session) settleFailed(ctx context.Context, c guard.Call, a admitted, step revisions.Step) error {
+	step.Status, step.Message = "error", internalStep
+	if tools.Phase(c.Name) == tools.PhaseWrite && a.adm.Verdict == guard.Dispatch {
+		sess.state.Guard.ForgetWrite(c)
+	}
+	sess.record(step)
+	_, err := sess.complete(ctx, a.seq)
+	return err
 }
 
 func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatched, answer *Answer) (restarted bool, err error) {
