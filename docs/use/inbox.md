@@ -29,7 +29,8 @@ Opening the panel marks nothing read.
 **Escape** or **Close Inbox** closes it and puts focus back where you opened it from, or on the bell when that is gone.
 The command palette's **Inbox** and Home's **Open Inbox** open it too.
 The old address `/inbox` opens Home with the panel open, keeping its `view` and `filter`.
-With `item=<seq>` the panel also scrolls to that item, focuses and highlights it, and opens it in place when it has no page of its own.
+With `item=<seq>` the panel also scrolls to that item, loading further pages until it finds it, focuses and highlights it, and opens it in place when it has no page of its own.
+When no page holds the item, the panel says so above the list.
 
 One right panel shows at a time, and the newest one wins.
 Opening the Inbox hides the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, and it comes back as it was when the Inbox closes.

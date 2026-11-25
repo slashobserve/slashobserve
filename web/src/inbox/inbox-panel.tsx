@@ -159,6 +159,22 @@ function InboxCard() {
     titleRef.current?.focus()
   }, [])
 
+  const seekingTarget =
+    target !== null &&
+    query.data !== undefined &&
+    !items.some((item) => item.seq === target)
+  useEffect(() => {
+    if (!seekingTarget || revealed.current) return
+    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) loadMore()
+  }, [
+    seekingTarget,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    loadMore,
+  ])
+  const targetMissing = seekingTarget && !hasNextPage && !revealed.current
+
   useEffect(() => {
     if (revealed.current || target === null) return
     const row = listRef.current?.querySelector<HTMLElement>(
@@ -405,6 +421,14 @@ function InboxCard() {
         </Select>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-auto px-2 pb-4">
+        {targetMissing ? (
+          <p
+            role="status"
+            className="px-3 pt-3 text-[13px] text-muted-foreground"
+          >
+            The item this link points to is not in this list any more.
+          </p>
+        ) : null}
         {body()}
       </div>
     </DockPanel>
