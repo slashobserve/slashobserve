@@ -62,7 +62,7 @@ describe("TeamsCard", () => {
     const { user } = renderCard()
 
     await user.click(
-      screen.getByRole("button", { name: "Delete team Platform" })
+      await screen.findByRole("button", { name: "Delete team Platform" })
     )
     await user.click(
       within(await screen.findByRole("alertdialog")).getByRole("button", {
@@ -81,7 +81,7 @@ describe("TeamsCard", () => {
     const { user } = renderCard()
 
     await user.click(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "Remove Ada Lovelace from Platform",
       })
     )

@@ -4,7 +4,7 @@ import { LoaderCircleIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { LoadProblem } from "@/components/load-problem"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -50,6 +50,10 @@ import {
   useTeamMember,
   type Team,
 } from "./teams"
+
+function teamId(team: Team): string {
+  return team.id
+}
 
 function personLabel(person: { name: string; email: string }): string {
   return person.name === "" ? person.email : person.name
@@ -328,6 +332,45 @@ function DeleteTeamButton({ team }: { team: Team }) {
   )
 }
 
+function teamColumns(people: readonly User[]): DataGridColumn<Team>[] {
+  return [
+    {
+      id: "team",
+      header: "Team",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (team) => (
+        <span className="py-2 font-medium wrap-anywhere">{team.name}</span>
+      ),
+    },
+    {
+      id: "members",
+      header: "Members",
+      minWidth: 240,
+      flex: 2,
+      autoHeight: true,
+      cell: (team) => (
+        <span className="py-2">
+          <Members team={team} />
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 260,
+      cell: (team) => (
+        <span className="inline-flex items-center justify-end gap-2">
+          <AddMember team={team} people={people} />
+          <DeleteTeamButton team={team} />
+        </span>
+      ),
+    },
+  ]
+}
+
 function TeamsBody() {
   const teams = useQuery(teamsQuery())
   const people = useQuery(usersQuery())
@@ -354,33 +397,13 @@ function TeamsBody() {
     )
   }
   return (
-    <TableCard label="Teams" minWidth={640} stackOnNarrow>
-      <thead>
-        <tr>
-          <HeaderCell>Team</HeaderCell>
-          <HeaderCell>Members</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
-      <tbody>
-        {teams.data.map((team) => (
-          <tr key={team.id} data-team-id={team.id}>
-            <Cell className="font-medium wrap-anywhere">{team.name}</Cell>
-            <Cell>
-              <Members team={team} />
-            </Cell>
-            <Cell data-cell="action" className="text-right">
-              <span className="inline-flex items-center justify-end gap-2">
-                <AddMember team={team} people={people.data ?? []} />
-                <DeleteTeamButton team={team} />
-              </span>
-            </Cell>
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
+    <DataGrid
+      label="Teams"
+      rows={teams.data}
+      columns={teamColumns(people.data ?? [])}
+      rowId={teamId}
+      rowAttributes={(team) => ({ "data-team-id": team.id })}
+    />
   )
 }
 

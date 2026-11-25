@@ -52,7 +52,7 @@ describe("InvitesTable", () => {
     )
 
     await user.click(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "Withdraw the invite for ada@example.com",
       })
     )

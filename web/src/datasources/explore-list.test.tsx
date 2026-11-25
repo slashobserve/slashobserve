@@ -86,7 +86,7 @@ describe("ExploreList services", () => {
     stubServices()
     const { user } = renderList()
     const row = (await screen.findByRole("link", { name: "Fast" })).closest(
-      "tr"
+      "[role=row]"
     )
     expect(row).not.toBeNull()
     const cell = within(row as HTMLElement)
@@ -135,7 +135,9 @@ describe("ExploreList services", () => {
     })
     await user.type(box, "slo")
     expect(screen.getByRole("link", { name: "Slow" })).toBeVisible()
-    expect(screen.queryByRole("link", { name: "Few" })).toBeNull()
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Few" })).toBeNull()
+    )
     await user.clear(box)
     await user.type(box, "nothing")
     expect(

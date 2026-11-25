@@ -5,7 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react"
-import { createRef } from "react"
+import { createRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
@@ -68,6 +68,24 @@ describe("DataGrid", () => {
     expect(
       screen.getByRole("link", { name: "Open Search" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps the name of an action column for a screen reader only", async () => {
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+      />
+    )
+    const open = await screen.findByRole("columnheader", { name: "Open" })
+    expect(within(open).getByText("Open")).toHaveClass("sr-only")
+    expect(
+      within(screen.getByRole("columnheader", { name: "Note" })).getByText(
+        "Note"
+      )
+    ).not.toHaveClass("sr-only")
   })
 
   it("marks the sorted column and asks for the next sort on a header click", async () => {
@@ -148,6 +166,48 @@ describe("DataGrid", () => {
     expect(
       await screen.findByRole("gridcell", { name: "Checkout service" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps what a cell holds when its column or its row changes", async () => {
+    function Counter({ label }: { label: string }) {
+      const [count, setCount] = useState(0)
+      return (
+        <button type="button" onClick={() => setCount(count + 1)}>
+          {label}:{count}
+        </button>
+      )
+    }
+    const counted = (suffix: string): DataGridColumn<Row>[] => [
+      {
+        id: "name",
+        header: "Name",
+        cell: (row) => <Counter label={row.name} />,
+      },
+      { id: "suffix", header: "Suffix", cell: () => suffix },
+    ]
+    const props = { label: "Services", rowId: (row: Row) => row.id }
+    const { rerender } = render(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("a")} />
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Checkout:0" }))
+    await screen.findByRole("button", { name: "Checkout:1" })
+
+    rerender(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("b")} />
+    )
+    await screen.findByText("b")
+    expect(screen.getByRole("button", { name: "Checkout:1" })).toBeVisible()
+
+    rerender(
+      <DataGrid
+        {...props}
+        rows={[{ ...rows[0], name: "Basket" }]}
+        columns={counted("b")}
+      />
+    )
+    expect(
+      await screen.findByRole("button", { name: "Basket:1" })
+    ).toBeVisible()
   })
 
   it("follows the link of a cell on Enter", async () => {
@@ -512,6 +572,59 @@ describe("DataGrid", () => {
     })
   })
 
+  it("sets the attributes a row asks for on the row itself, wide and narrow", async () => {
+    const rowAttributes = (row: Row) => ({ "data-row-key": row.id })
+    const { container, unmount } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(
+      container.querySelector('[role=row][data-row-key="b"]')
+    ).toHaveAttribute("row-id", "b")
+    unmount()
+
+    vi.mocked(useNarrow).mockReturnValue(true)
+    const narrow = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await waitFor(() =>
+      expect(
+        narrow.container.querySelector('[data-row-key="a"] [data-narrow-row]')
+      ).not.toBeNull()
+    )
+  })
+
+  it("drops the frame of its own when it sits inside a card", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        bare
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(container.firstElementChild).toHaveClass(
+      "[&_.ag-root-wrapper]:border-0!",
+      "[&_.ag-root-wrapper]:rounded-none!",
+      "[&_.ag-styled-root]:[--ag-background-color:transparent]!",
+      "[&_.ag-styled-root]:[--ag-header-background-color:transparent]!"
+    )
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid
@@ -559,6 +672,24 @@ describe("DataGrid", () => {
       )
     })
 
+    it("tags the row and not its detail row with the row's attributes", async () => {
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          rowAttributes={(row) => ({ "data-row-key": row.id })}
+          detail={detail(["b"])}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      expect(container.querySelectorAll("[data-row-key]")).toHaveLength(2)
+      expect(
+        container.querySelector('[row-id="b#detail"]')
+      ).not.toHaveAttribute("data-row-key")
+    })
+
     it("keeps the row highlighted over its detail row and clears it over the header", async () => {
       const onHighlightRow = vi.fn()
       const { container } = render(
@@ -597,6 +728,135 @@ describe("DataGrid", () => {
       await waitFor(() =>
         expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
       )
+    })
+  })
+
+  it("scrolls the revealed row into view when its id changes", async () => {
+    const scrolled: (string | null)[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.getAttribute("row-id"))
+    }
+    try {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(<DataGrid {...props} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="b"]')).not.toBeNull()
+      )
+      rerender(<DataGrid {...props} revealRowId="b" />)
+      await waitFor(() => expect(scrolled).toEqual(["b"]))
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+
+  describe("keepScrollOnPrepend", () => {
+    const many = Array.from({ length: 150 }, (_, index) => ({
+      id: `r${index}`,
+      name: `Service ${index}`,
+      owner: "Payments",
+      note: "",
+    }))
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+      keepScrollOnPrepend: true,
+    }
+    const added: Row[] = ["x", "y", "z"].map((id) => ({
+      id,
+      name: `New ${id}`,
+      owner: "Payments",
+      note: "",
+    }))
+
+    async function scrolled(container: HTMLElement, top: number) {
+      const viewport = container.querySelector(
+        ".ag-grid-viewport"
+      ) as HTMLElement
+      viewport.scrollTop = top
+      fireEvent.scroll(viewport)
+      await waitFor(() => expect(viewport.scrollTop).toBe(top))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return viewport
+    }
+
+    it("keeps the same row in place when rows are prepended while scrolled away from the top", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const rowTop = (id: string) =>
+        Number(
+          (
+            container.querySelector(`[role=row][row-id="${id}"]`) as HTMLElement
+          ).style.transform.match(/translateY\((\d+)px\)/)?.[1]
+        )
+      const before = viewport.scrollTop - rowTop("r10")
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() =>
+        expect(viewport.scrollTop - rowTop("r10")).toBe(before)
+      )
+      expect(viewport.scrollTop).toBeGreaterThan(400)
+    })
+
+    it("keeps the anchor through a refresh that changes nothing, so a later prepend still holds the reading position", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      rerender(<DataGrid {...props} rows={many.map((row) => ({ ...row }))} />)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+      rerender(
+        <DataGrid
+          {...props}
+          rows={[...added, ...many.map((row) => ({ ...row }))]}
+        />
+      )
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() => expect(viewport.scrollTop).toBeGreaterThan(400))
+    })
+
+    it("does not hold the viewport on an old row when the rows are replaced", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const filtered = many.slice(60)
+      rerender(<DataGrid {...props} rows={filtered} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="r60"]')).not.toBeNull()
+      )
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+    })
+
+    it("lets new rows show at the top when the list is not scrolled", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      expect(
+        (container.querySelector(".ag-grid-viewport") as HTMLElement).scrollTop
+      ).toBe(0)
     })
   })
 

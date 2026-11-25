@@ -92,27 +92,9 @@ const notTables = [
 ]
 
 const waitingForDataGrid = [
-  "src/agents/connected-table.tsx",
-  "src/agents/service-accounts-table.tsx",
-  "src/audit/audit-table.tsx",
   "src/components/table-card.test.tsx",
   "src/components/table-card.tsx",
   "src/components/ui/table.tsx",
-  "src/connected-agents/connected-agents-card.tsx",
-  "src/datasources/datasource-table.tsx",
-  "src/datasources/explore-list.tsx",
-  "src/import/datasources-card.tsx",
-  "src/inspect/data-tab.tsx",
-  "src/panels/legend/legend-table.tsx",
-  "src/panels/table/table-panel.tsx",
-  "src/people/invites-table.tsx",
-  "src/people/people-table.tsx",
-  "src/people/teams-card.tsx",
-  "src/service-accounts/accounts-table.tsx",
-  "src/service-accounts/keys-table.tsx",
-  "src/settings/grafana/connections-card.tsx",
-  "src/settings/grafana/import-launcher.tsx",
-  "src/settings/webhooks/webhooks-card.tsx",
 ]
 
 const tableExempt = [...notTables, ...waitingForDataGrid]

@@ -1,15 +1,20 @@
 import {
   ClientSideRowModelApiModule,
   ClientSideRowModelModule,
+  RowApiModule,
   RowAutoHeightModule,
   RowStyleModule,
+  ScrollApiModule,
   type CellMouseOverEvent,
+  type GridApi,
+  type GridReadyEvent,
   type ColDef,
   type RowHeightParams,
   type GetRowIdParams,
   type ICellRendererParams,
   type IsFullWidthRowParams,
   type IHeaderParams,
+  type ProcessRowParams,
   type RowClassRules,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
@@ -48,6 +53,8 @@ const modules = [
   RowAutoHeightModule,
   RowStyleModule,
   ClientSideRowModelApiModule,
+  RowApiModule,
+  ScrollApiModule,
 ]
 
 export type DataGridColumn<T> = {
@@ -98,6 +105,7 @@ type HeaderParams = IHeaderParams & {
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
+  hidden: boolean
 }
 
 function SortHeader({
@@ -107,6 +115,7 @@ function SortHeader({
   align,
   direction,
   onSort,
+  hidden,
 }: HeaderParams) {
   const sortRef = useRef(onSort)
   useLayoutEffect(() => {
@@ -129,7 +138,11 @@ function SortHeader({
   if (onSort === undefined) {
     return (
       <span
-        className={cn("w-full truncate", align === "right" && "text-right")}
+        className={cn(
+          "w-full truncate",
+          align === "right" && "text-right",
+          hidden && "sr-only"
+        )}
       >
         {headerCell?.() ?? displayName}
       </span>
@@ -183,8 +196,12 @@ export function DataGrid<T>({
   onSort,
   highlightedRowId = null,
   onHighlightRow,
+  revealRowId = null,
+  keepScrollOnPrepend = false,
   detail,
   compact = false,
+  rowAttributes,
+  bare = false,
   empty,
   fullWidthRow,
   busy = false,
@@ -200,8 +217,12 @@ export function DataGrid<T>({
   onSort?: (key: string) => void
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
+  revealRowId?: string | null
+  keepScrollOnPrepend?: boolean
   detail?: DataGridDetail<T>
   compact?: boolean
+  rowAttributes?: (row: T) => Readonly<Record<string, string>>
+  bare?: boolean
   empty?: ReactNode
   fullWidthRow?: FullWidthRows<T>
   busy?: boolean
@@ -223,6 +244,7 @@ export function DataGrid<T>({
           ),
     [allColumns, width]
   )
+  const rowAttributesRef = useRef(rowAttributes)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
   const nameRef = useRef({ label, labelledBy })
@@ -231,6 +253,7 @@ export function DataGrid<T>({
     nameRef.current = { label, labelledBy }
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
+    rowAttributesRef.current = rowAttributes
   })
   const sorts = onSort !== undefined
   const sortKey = sort?.key ?? null
@@ -248,6 +271,18 @@ export function DataGrid<T>({
         highlightedRowId !== null && node.id === highlightedRowId,
     }),
     [highlightedRowId]
+  )
+  const processRowPostCreate = useCallback(
+    ({ eRow, node }: ProcessRowParams<GridLine<T>>) => {
+      const attributes =
+        node.data === undefined || node.data.detail
+          ? undefined
+          : rowAttributesRef.current?.(node.data.row)
+      for (const [name, value] of Object.entries(attributes ?? {})) {
+        eRow.setAttribute(name, value)
+      }
+    },
+    []
   )
   const highlight = useCallback(
     (id: string | null) => highlightRef.current?.(id),
@@ -313,6 +348,7 @@ export function DataGrid<T>({
         headerComponentParams: {
           headerCell: column.headerCell,
           align: column.align ?? "left",
+          hidden: column.action === true,
           direction: sortKey === column.id ? sortDirection : null,
           onSort:
             column.sortable && sorts
@@ -331,6 +367,70 @@ export function DataGrid<T>({
     [columns, narrow, sorts, sortKey, sortDirection]
   )
 
+  const apiRef = useRef<GridApi<GridLine<T>> | null>(null)
+  const revealRef = useRef(revealRowId)
+  const layoutRef = useRef(layout)
+  useLayoutEffect(() => {
+    revealRef.current = revealRowId
+    layoutRef.current = layout
+  })
+  const reveal = useCallback(() => {
+    const id = revealRef.current
+    const api = apiRef.current
+    if (id === null || api === null || api.isDestroyed()) return
+    if (layoutRef.current === "normal") {
+      const node = api.getRowNode(id)
+      if (node !== undefined) api.ensureNodeVisible(node)
+      return
+    }
+    containerRef.current
+      ?.querySelector(`[role=row][row-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView?.({ block: "nearest" })
+  }, [])
+  useEffect(reveal, [revealRowId, reveal])
+
+  const anchorRef = useRef<{
+    id: string
+    offset: number
+    rowTop: number
+  } | null>(null)
+  const keepRef = useRef(keepScrollOnPrepend)
+  useLayoutEffect(() => {
+    keepRef.current = keepScrollOnPrepend
+  })
+  const bodyViewport = useCallback(
+    () => containerRef.current?.querySelector<HTMLElement>(".ag-grid-viewport"),
+    []
+  )
+  const anchorFirstRow = useCallback(() => {
+    const api = apiRef.current
+    anchorRef.current = null
+    if (!keepRef.current || layoutRef.current !== "normal") return
+    if (api === null || api.isDestroyed()) return
+    const top = api.getVerticalPixelRange().top
+    const node = api.getDisplayedRowAtIndex(api.getFirstDisplayedRowIndex())
+    if (top <= 0 || node?.id == null || node.rowTop === null) return
+    anchorRef.current = {
+      id: node.id,
+      offset: node.rowTop - top,
+      rowTop: node.rowTop,
+    }
+  }, [])
+  const restoreAnchor = useCallback(() => {
+    const api = apiRef.current
+    const anchor = anchorRef.current
+    if (anchor === null || api === null || api.isDestroyed()) return
+    const node = api.getRowNode(anchor.id)
+    const viewport = bodyViewport()
+    if (node?.rowTop == null || node.rowTop < anchor.rowTop) {
+      anchorRef.current = null
+      return
+    }
+    if (node.rowTop === anchor.rowTop || viewport == null) return
+    viewport.scrollTop = node.rowTop - anchor.offset
+    viewport.dispatchEvent(new Event("scroll"))
+  }, [bodyViewport])
+
   const labelGrid = useCallback(() => {
     const grid = containerRef.current?.querySelector("[role=grid]")
     if (grid === null || grid === undefined) return
@@ -344,6 +444,13 @@ export function DataGrid<T>({
     }
   }, [])
   useEffect(labelGrid, [label, labelledBy, labelGrid])
+  const onGridReady = useCallback(
+    (event: GridReadyEvent<GridLine<T>>) => {
+      apiRef.current = event.api
+      labelGrid()
+    },
+    [labelGrid]
+  )
 
   if (showsEmpty) return <>{empty}</>
 
@@ -354,7 +461,12 @@ export function DataGrid<T>({
       data-dom-layout={layout}
       tabIndex={-1}
       aria-busy={busy || undefined}
-      className={cn("w-full text-[13px] outline-none", className)}
+      className={cn(
+        "w-full text-[13px] outline-none",
+        bare &&
+          "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
+        className
+      )}
       style={layout === "normal" ? { height } : undefined}
       onPointerOver={(event) => {
         if (
@@ -385,8 +497,12 @@ export function DataGrid<T>({
             fullWidthCellRenderer={FullWidthRow}
             getRowHeight={getRowHeight}
             rowClassRules={rowClassRules}
+            processRowPostCreate={processRowPostCreate}
             onCellMouseOver={onCellMouseOver}
-            onGridReady={labelGrid}
+            onGridReady={onGridReady}
+            onFirstDataRendered={reveal}
+            onBodyScroll={anchorFirstRow}
+            onRowDataUpdated={restoreAnchor}
           />
         </NarrowRowsContext>
       </DetailRenderContext>

@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react"
+import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
@@ -7,6 +7,12 @@ import type { Webhook } from "./queries"
 import { WebhooksCard } from "./webhooks-card"
 
 const fetchMock = vi.hoisted(() => vi.fn())
+
+vi.mock("./deliveries-list", () => ({
+  DeliveriesList: ({ webhookId }: { webhookId: string }) => (
+    <p>Attempts of {webhookId}</p>
+  ),
+}))
 
 const stuck: Webhook = {
   id: "6c1f0f1e-6a53-4c8e-9c63-2f4d5f0b8a11",
@@ -34,11 +40,15 @@ const stuck: Webhook = {
   updated_at: "2026-11-11T09:00:00Z",
 }
 
-function renderCard(webhook: Webhook, meId = "u") {
+function renderCard(
+  webhook: Webhook,
+  meId = "u",
+  editingId: string | null = null
+) {
   return renderWithProviders(
     <WebhooksCard
       webhooks={[webhook]}
-      editingId={null}
+      editingId={editingId}
       meId={meId}
       onEdit={vi.fn()}
       onSecret={vi.fn()}
@@ -53,9 +63,11 @@ beforeEach(() => {
 })
 
 describe("WebhooksCard", () => {
-  it("says how many events wait behind a retrying webhook and when it tries next", () => {
+  it("says how many events wait behind a retrying webhook and when it tries next", async () => {
     renderCard(stuck)
-    expect(screen.getByText("21 attempts in a row failed")).toBeInTheDocument()
+    expect(
+      await screen.findByText("21 attempts in a row failed")
+    ).toBeInTheDocument()
     expect(screen.getByText(/3 events waiting/)).toHaveTextContent(
       /next attempt/
     )
@@ -83,7 +95,7 @@ describe("WebhooksCard", () => {
     )
     const { user } = renderCard(stuck)
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     await user.click(
       await screen.findByRole("menuitem", { name: "Skip stuck event" })
@@ -105,7 +117,7 @@ describe("WebhooksCard", () => {
       waiting_events: null,
     })
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
     expect(
@@ -121,7 +133,7 @@ describe("WebhooksCard", () => {
       disabled_reason: "failing",
     })
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     expect(
       await screen.findByRole("menuitem", { name: "Enable" })
@@ -143,7 +155,7 @@ describe("WebhooksCard", () => {
     )
     const { user } = renderCard(stuck, "me")
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     await user.click(
       await screen.findByRole("menuitem", { name: "Make me the owner" })
@@ -163,11 +175,67 @@ describe("WebhooksCard", () => {
   it("hides Make me the owner on a webhook the caller already owns", async () => {
     const { user } = renderCard(stuck, "u")
     await user.click(
-      screen.getByRole("button", { name: "More for Dashboard changes" })
+      await screen.findByRole("button", { name: "More for Dashboard changes" })
     )
     expect(await screen.findByRole("menuitem", { name: "Edit" })).toBeVisible()
     expect(
       screen.queryByRole("menuitem", { name: "Make me the owner" })
     ).toBeNull()
+  })
+
+  it("opens the webhook's attempts in a row below it and closes them again", async () => {
+    const { user, container } = renderCard(stuck)
+    const toggle = await screen.findByRole("button", {
+      name: "Attempts of Dashboard changes",
+    })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+
+    await user.click(toggle)
+    expect(
+      await screen.findByText(`Attempts of ${stuck.id}`)
+    ).toBeInTheDocument()
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(
+      container.querySelector(`[row-id="${stuck.id}#detail"]`)
+    ).not.toBeNull()
+
+    await user.click(toggle)
+    await waitFor(() =>
+      expect(screen.queryByText(`Attempts of ${stuck.id}`)).toBeNull()
+    )
+  })
+
+  it("tabs through Test, Attempts and More in the actions cell", async () => {
+    renderCard(stuck)
+    const test = await screen.findByRole("button", {
+      name: "Test Dashboard changes",
+    })
+    const attempts = screen.getByRole("button", {
+      name: "Attempts of Dashboard changes",
+    })
+    const more = screen.getByRole("button", {
+      name: "More for Dashboard changes",
+    })
+    const cell = test.closest<HTMLElement>("[role=gridcell]") as HTMLElement
+    cell.focus()
+
+    fireEvent.keyDown(cell, { key: "Tab" })
+    expect(test).toHaveFocus()
+    fireEvent.keyDown(test, { key: "Tab" })
+    expect(attempts).toHaveFocus()
+    fireEvent.keyDown(attempts, { key: "Tab" })
+    expect(more).toHaveFocus()
+    fireEvent.keyDown(more, { key: "Tab", shiftKey: true })
+    expect(attempts).toHaveFocus()
+  })
+
+  it("marks the row of the webhook being edited", async () => {
+    const { container } = renderCard(stuck, "u", stuck.id)
+    await screen.findByRole("button", { name: "More for Dashboard changes" })
+    await waitFor(() =>
+      expect(
+        container.querySelector(`[role=row][row-id="${stuck.id}"]`)
+      ).toHaveClass("bg-selection!")
+    )
   })
 })

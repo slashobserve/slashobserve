@@ -58,7 +58,7 @@ function panelSubmit(page: Page) {
 }
 
 function keyRow(page: Page, keyName: string) {
-  return page.locator("tr[data-key-id]").filter({ hasText: keyName })
+  return page.locator("[data-key-id]").filter({ hasText: keyName })
 }
 
 async function openKeysPage(page: Page) {
@@ -200,7 +200,7 @@ test("creates a key for a new service account and shows it once", async ({
   const row = keyRow(page, keyName)
   await expect(row).toContainText(accountName)
   await expect(row).toContainText(`${token.slice(0, 12)}…`)
-  await expect(row.getByRole("cell").nth(4)).toHaveText("Never")
+  await expect(row.getByRole("gridcell").nth(4)).toHaveText("Never")
   await expect(row.locator('[data-status="ok"]')).toHaveText("In 90 days")
   expect(await page.content()).not.toContain(token)
   await page.reload()
@@ -525,7 +525,9 @@ test("shows a dash for Created by when people fail to load", async ({
     })
   await page.route(isUsers, fail)
   await openKeysPage(page)
-  await expect(keyRow(page, keyName).getByRole("cell").nth(3)).toHaveText("-")
+  await expect(keyRow(page, keyName).getByRole("gridcell").nth(3)).toHaveText(
+    "-"
+  )
   failedResourceLogged(consoleErrors, "500")
 })
 
@@ -636,16 +638,16 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await noOverflow()).toBe(true)
       await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden()
 
-      const table = page.getByRole("region", { name: "API keys" })
+      const table = page
+        .locator("[data-layout]")
+        .filter({ has: page.getByRole("grid", { name: "API keys" }) })
       await expect(table).toBeVisible()
+      await expect(table).toHaveAttribute("data-layout", "narrow")
       expect(
         await table.evaluate(
           (element) => element.scrollWidth <= element.clientWidth
         )
       ).toBe(true)
-      expect(
-        await table.evaluate((element) => getComputedStyle(element).overflowX)
-      ).toBe("auto")
 
       await pageCreateKey(page).click()
       const aside = panel(page)
