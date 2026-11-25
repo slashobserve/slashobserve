@@ -66,9 +66,8 @@ describe("keepKeysOnFocusedControl", () => {
   const button = document.createElement("button")
   cell.append(button)
 
-  it("keeps navigation, Space and Enter from the grid while a control in the cell has focus", () => {
+  it("keeps arrows, Space and Enter from the grid while a control in the cell has focus", () => {
     for (const key of [
-      "Tab",
       "Enter",
       " ",
       "ArrowUp",
@@ -84,6 +83,10 @@ describe("keepKeysOnFocusedControl", () => {
     expect(keyOn(cell, "ArrowDown")).toBe(false)
     expect(keyOn(cell, "Tab")).toBe(false)
     expect(keyOn(button, "PageDown")).toBe(false)
+  })
+
+  it("lets the grid take a Tab the cell does not use, so its focused cell follows", () => {
+    expect(keyOn(button, "Tab")).toBe(false)
   })
 })
 
