@@ -247,7 +247,8 @@ The agent fills them when it saves an investigation, and they must agree with th
 
 A component is at most 120 characters, a sentence at most 300 and a list line at most 200, each on one line.
 A save that breaks a rule is refused with the reason, and the agent fixes it and saves again.
-A save outside an investigation that sets any of them is refused the same way.
+The agent is offered these fields only in an investigation.
+A save outside an investigation that sets any of them is still saved, without them, and its result says they were dropped.
 
 The observation shows the fields as a compact summary above the answer, and shows nothing extra when none is set.
 They are fields of the run's `finding` in `GET /observe/{id}`, `get_run`, `get_chat` and `observe status --json`.

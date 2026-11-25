@@ -46,7 +46,7 @@ func TestBuiltInToolsNeverMentionToolsTheyLack(t *testing.T) {
 					continue
 				}
 				checked++
-				offered := tool.ForRun(mode)
+				offered := tool.ForRun(mode, true)
 				text := offered.Description + string(offered.InputSchema)
 				for _, name := range absent {
 					if mentionsTool(text, name) {
@@ -479,10 +479,34 @@ func TestServerInstructionsNameOnlyRealToolsAndFields(t *testing.T) {
 	}
 }
 
+func TestSaveFindingOffersTheStructuredFieldsOnlyToAnInvestigation(t *testing.T) {
+	tool := toolsByName(t)[nameSaveFinding]
+	structured := []string{"root_cause", "onset", "impact", "confidence", "ruled_out", "next_steps", "no_incident"}
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
+		for _, investigation := range []bool{false, true} {
+			offered := tool.ForRun(mode, investigation)
+			var schema struct {
+				Properties map[string]json.RawMessage `json:"properties"`
+			}
+			if err := json.Unmarshal(offered.InputSchema, &schema); err != nil {
+				t.Fatalf("%s schema: %v", mode, err)
+			}
+			for _, name := range structured {
+				if _, has := schema.Properties[name]; has != investigation {
+					t.Errorf("%s run, investigation %t: %s in schema = %t", mode, investigation, name, has)
+				}
+			}
+			if mentions := strings.Contains(offered.Description, "root_cause"); mentions != investigation {
+				t.Errorf("%s run, investigation %t: description mentions root_cause = %t", mode, investigation, mentions)
+			}
+		}
+	}
+}
+
 func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
 	tool := toolsByName(t)[nameSaveFinding]
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeInvestigate} {
-		offered := tool.ForRun(mode)
+		offered := tool.ForRun(mode, true)
 		var schema struct {
 			Properties map[string]json.RawMessage `json:"properties"`
 		}
@@ -500,7 +524,7 @@ func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
 			}
 		}
 	}
-	if got, want := tool.ForRun(ModeCreate).Description, tool.ForAgent().Description; got != want {
+	if got, want := tool.ForRun(ModeCreate, true).Description, tool.ForAgent().Description; got != want {
 		t.Errorf("a Home run's description differs from the agent's: %s", got)
 	}
 }

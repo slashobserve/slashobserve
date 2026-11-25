@@ -58,6 +58,11 @@ type StructuredInput struct {
 	NoIncident bool            `json:"no_incident"`
 }
 
+func (in StructuredInput) Provided() bool {
+	return in.RootCause != nil || in.Onset != "" || in.Impact != "" || in.Confidence != "" ||
+		len(in.RuledOut) > 0 || len(in.NextSteps) > 0 || in.NoIncident
+}
+
 func (in StructuredInput) Check() (Structured, error) {
 	var out Structured
 	if in.RootCause != nil {

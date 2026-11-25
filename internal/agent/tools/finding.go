@@ -58,21 +58,35 @@ const (
 
 	maxSuggestedChangeRunes = 500
 
-	schemaFindingHead = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingTail = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc + `},"required":["markdown"],"additionalProperties":false}`
+	schemaFindingHead       = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
+	schemaFindingPlain      = propFindingSuggestedChange + `,` + propFindingObserveWorthy
+	schemaFindingStructured = `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc
+	schemaFindingEnd        = `},"required":["markdown"],"additionalProperties":false}`
 
-	schemaSaveFinding        = schemaFindingHead + propFindingAskOn + `,` + schemaFindingTail
-	schemaSaveFindingNoAskOn = schemaFindingHead + schemaFindingTail
+	schemaSaveFinding = schemaFindingHead + propFindingAskOn + `,` + schemaFindingPlain + schemaFindingStructured + schemaFindingEnd
+
+	noteStructuredDropped = "root_cause, onset, impact, confidence, ruled_out, next_steps and no_incident were dropped because this run is not an investigation; the finding is saved without them."
 )
 
 var errFindingsNotConfigured = errors.New("findings are not configured")
 
 func init() { registerEntries((*Registry).findingEntries) }
 
-func findingForRun(t Tool, mode Mode) Tool {
-	if mode != ModeCreate {
-		t.Description, t.InputSchema = descFindingBase+descFindingFields, json.RawMessage(schemaSaveFindingNoAskOn)
+func findingForRun(t Tool, mode Mode, investigation bool) Tool {
+	askOn := mode == ModeCreate
+	desc, schema := descFindingBase, schemaFindingHead
+	if askOn {
+		schema += propFindingAskOn + ","
 	}
+	schema += schemaFindingPlain
+	if investigation {
+		desc += descFindingFields
+		schema += schemaFindingStructured
+	}
+	if askOn {
+		desc += descFindingAskOn
+	}
+	t.Description, t.InputSchema = desc, json.RawMessage(schema+schemaFindingEnd)
 	return t
 }
 
@@ -101,6 +115,7 @@ type findingSavedOut struct {
 	URL       string `json:"url"`
 	Replayed  bool   `json:"replayed"`
 	Evidence  int    `json:"evidence"`
+	Note      string `json:"note,omitempty"`
 }
 
 func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -153,7 +168,11 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Saved finding "+f.ID, findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}), nil
+	out := findingSavedOut{FindingID: f.ID, URL: r.findingURL(f), Replayed: replayed, Evidence: len(f.Evidence)}
+	if extras.droppedStructured {
+		out.Note = noteStructuredDropped
+	}
+	return success("Saved finding "+f.ID, out), nil
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {
@@ -178,9 +197,10 @@ func askOnTarget(raw string, run Run) (pgtype.UUID, Result, bool) {
 }
 
 type findingExtras struct {
-	askOn      pgtype.UUID
-	suggested  string
-	structured findings.Structured
+	askOn             pgtype.UUID
+	suggested         string
+	structured        findings.Structured
+	droppedStructured bool
 }
 
 func checkedExtras(in findingInput, run Run) (findingExtras, Result, bool) {
@@ -193,21 +213,16 @@ func checkedExtras(in findingInput, run Run) (findingExtras, Result, bool) {
 	if out.suggested, res, ok = suggestedChange(in.SuggestedChange, run); !ok {
 		return findingExtras{}, res, false
 	}
-	if out.structured, res, ok = structuredFields(in.StructuredInput, run); !ok {
-		return findingExtras{}, res, false
+	if !run.Investigation {
+		out.droppedStructured = in.Provided()
+		return out, Result{}, true
 	}
-	return out, Result{}, true
-}
-
-func structuredFields(in findings.StructuredInput, run Run) (findings.Structured, Result, bool) {
 	structured, err := in.Check()
-	switch {
-	case err != nil:
-		return findings.Structured{}, invalid("%s", err), false
-	case !structured.Empty() && !run.Investigation:
-		return findings.Structured{}, invalid("root_cause, onset, impact, confidence, ruled_out, next_steps and no_incident apply only to an investigation; leave them out here"), false
+	if err != nil {
+		return findingExtras{}, invalid("%s", err), false
 	}
-	return structured, Result{}, true
+	out.structured = structured
+	return out, Result{}, true
 }
 
 func suggestedChange(raw string, run Run) (string, Result, bool) {
