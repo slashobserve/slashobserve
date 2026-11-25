@@ -285,6 +285,8 @@ type Usage struct {
 	OnePanelRefusals    int   `json:"one_panel_refusals"`
 
 	CostUSD *float64 `json:"cost_usd"`
+
+	Hypotheses []Hypothesis `json:"hypotheses,omitempty"`
 }
 
 type Step struct {

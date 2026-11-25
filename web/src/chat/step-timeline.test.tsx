@@ -52,6 +52,25 @@ describe("StepTimeline", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2)
   })
 
+  it("labels the hypothesis ledger steps on their own", () => {
+    render(
+      <StepTimeline
+        steps={[
+          step({}),
+          step({
+            phase: "ledger",
+            tool: "note_hypotheses",
+            message: "3 hypotheses: 1 supported, 1 ruled out, 1 open",
+          }),
+        ]}
+        working={false}
+        reconnecting={false}
+      />
+    )
+    expect(screen.getByText("Updating hypotheses")).toBeVisible()
+    expect(screen.getByText("note_hypotheses")).toBeVisible()
+  })
+
   it("shows the live text under the working row while working", () => {
     render(
       <StepTimeline

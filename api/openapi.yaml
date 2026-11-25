@@ -4457,7 +4457,7 @@ components:
             Clients detect a restarted list by each step's `at`, not by `attempt` alone.
         phase:
           type: string
-          enum: [discover, lint, query, save, write, repair]
+          enum: [discover, lint, query, save, write, repair, ledger]
         tool:
           type: string
         status:
@@ -4576,6 +4576,35 @@ components:
           nullable: true
           minimum: 0
           description: Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
+        hypotheses:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/AgentHypothesis"
+          description: The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`).
+    AgentHypothesis:
+      type: object
+      additionalProperties: false
+      required: [id, text, status]
+      properties:
+        id:
+          type: string
+          maxLength: 16
+        text:
+          type: string
+          description: One sentence saying what may have failed.
+        status:
+          type: string
+          enum: [open, supported, ruled_out]
+        evidence:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+          description: What the agent read and what it showed.
+        next:
+          type: string
+          description: For an open hypothesis, the read that would settle it.
     AgentBuildProgress:
       type: object
       additionalProperties: false

@@ -6472,7 +6472,7 @@ export interface components {
             /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
-            phase: "discover" | "lint" | "query" | "save" | "write" | "repair";
+            phase: "discover" | "lint" | "query" | "save" | "write" | "repair" | "ledger";
             tool: string;
             /** @enum {string} */
             status: "ok" | "error";
@@ -6520,6 +6520,19 @@ export interface components {
              * @description Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
              */
             cost_usd: number | null;
+            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`). */
+            hypotheses?: components["schemas"]["AgentHypothesis"][];
+        };
+        AgentHypothesis: {
+            id: string;
+            /** @description One sentence saying what may have failed. */
+            text: string;
+            /** @enum {string} */
+            status: "open" | "supported" | "ruled_out";
+            /** @description What the agent read and what it showed. */
+            evidence?: string[];
+            /** @description For an open hypothesis, the read that would settle it. */
+            next?: string;
         };
         /** @description How far a request's build has come, without its Spec; the build title is for the requester only. */
         AgentBuildProgress: {
