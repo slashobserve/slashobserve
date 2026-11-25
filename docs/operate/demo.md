@@ -141,6 +141,36 @@ A real cluster needs the API key or credentials described on its [datasource pag
 Without `make demo-search`, the `es` and `os` datasources do not answer.
 Running `make demo-build` or `make demo` again removes the two stores.
 
+## Let the agent read the shop's code
+
+```sh
+make demo-code
+```
+
+This builds the server from your checkout, as `make demo-build` does, and adds a small read-only code server over the shop's source.
+It registers the server as the [context source](context-sources.md) `shop-code`, with three tools approved: `list_dir`, `read_file` and `grep`.
+The code server sees only the source of the pinned release in `deploy/astronomy/.upstream/src`, which it gets as a read-only mount, and it has no tool that writes.
+`make demo-check` then also checks that `shop-code` is ready and has its three approved tools.
+
+To see the agent use it, with [the agent turned on](#turn-on-the-agent):
+
+1. Switch on a fault, for example `make demo-fault FLAG=paymentFailure VARIANT=50%`.
+2. Wait a minute for error spans to appear on `payment`, then ask the agent why payments fail, from a new investigation in the web app or with the `astronomy` key.
+3. The run shows its calls to `shop-code`.
+   It lists a service's directory, searches for the flag's name and reads the file that uses it, and its finding names that file.
+4. Switch the fault off with `make demo-fault FLAG=paymentFailure VARIANT=off`.
+
+The same source works for every other flag in [Faults](#faults).
+`make demo-build` or `make demo` removes the code server and the source again.
+
+The layer is a little different from a source you would add yourself:
+
+- The code server is on the Compose network as `codeserver.demo.internal` and speaks plain `http`.
+  `deploy/astronomy/context-sources.yaml` sets `allowPrivate: true` for it, the provisioning-file switch that [Context sources](context-sources.md#provision-sources-from-a-file) describes, so the server may call a private address.
+- The layer fixes `SLASHOBSERVE_OUTBOUND_DOMAINS` to `codeserver.demo.internal`, so the allowlist holds only that name while it runs.
+- Provisioning cannot approve tools.
+  `make demo-code` adds the service account `astronomy-admin`, with its own key in `deploy/astronomy/.state/keys/astronomy-admin.key`, and uses it once the stack is healthy to discover the tools and approve the read-only ones.
+
 ## Stop the demo or start over
 
 `make demo-down` stops the stack and keeps its data.
@@ -172,6 +202,7 @@ Two settings differ from upstream:
 
 The server reads `deploy/astronomy/datasources.yaml`, which declares `prom`, `ch`, `loki`, `tempo` and `jaeger`, plus `es` and `os`, which answer only after `make demo-search`.
 It also reads `deploy/astronomy/service-accounts.yaml`, which declares the `astronomy` service account.
+With `make demo-code` it reads `deploy/astronomy/service-accounts.code.yaml` instead, which adds `astronomy-admin`, and `deploy/astronomy/context-sources.yaml`.
 Its key is generated into `deploy/astronomy/.state/keys/astronomy.key` on the first start and never leaves your machine.
 
 ### The dashboard

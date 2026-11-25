@@ -122,3 +122,24 @@ func TestValidContextSourceNameRefusesControlAndFormatCharacters(t *testing.T) {
 		}
 	}
 }
+
+func TestTheDemoCodeLayerProvisionsOnePrivateSourceOnItsOwnHost(t *testing.T) {
+	sources, err := loadContextSources(filepath.Join("..", "..", "deploy", "astronomy", "context-sources.yaml"), func(string) (string, bool) { return "", false })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sources) != 1 {
+		t.Fatalf("got %d sources, want 1", len(sources))
+	}
+	got := sources[0]
+	if got.UID != "shop-code" || !got.AllowPrivate || got.URL != "http://codeserver.demo.internal:8080/mcp" || got.Description == "" {
+		t.Fatalf("got %+v", got)
+	}
+	compose, err := os.ReadFile(filepath.Join("..", "..", "deploy", "astronomy", "compose.code.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(compose), "- codeserver.demo.internal\n") || !strings.Contains(string(compose), "SLASHOBSERVE_OUTBOUND_DOMAINS: codeserver.demo.internal\n") {
+		t.Fatal("compose.code.yaml must give the code server the host the source names and allow only that host")
+	}
+}

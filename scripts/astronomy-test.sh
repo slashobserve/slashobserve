@@ -116,6 +116,16 @@ layered="$(ASTRONOMY_COMPOSE_FILES="/one.yaml:/two.yaml" compose ps | tr '\n' ' 
 [[ "$layered" == *"compose.build.yaml -f /one.yaml -f /two.yaml ps "* ]] || fail "extra compose files follow the stack's own, in order, then the arguments: $layered"
 plain="$(ASTRONOMY_COMPOSE_FILES="" compose ps | tr '\n' ' ')"
 [[ "$plain" != *"/one.yaml"* ]] || fail "no extra files without ASTRONOMY_COMPOSE_FILES: $plain"
+CODE=1
+with_code="$(compose ps | tr '\n' ' ')"
+[[ "$with_code" == *"compose.build.yaml -f $ASTRONOMY_DIR/compose.code.yaml ps "* ]] || fail "the code layer follows the build layer when --code is given: $with_code"
+CODE=0
+without_code="$(compose ps | tr '\n' ' ')"
+[[ "$without_code" != *"compose.code.yaml"* ]] || fail "no code layer without --code: $without_code"
+parse_options --code --search
+[[ "$CODE" == 1 && "$SEARCH" == 1 ]] || fail "--code is an option of its own and combines with --search"
+parse_options
+[[ "$CODE" == 0 ]] || fail "the code layer is off by default"
 unset -f docker
 [[ "$(ASTRONOMY_PROJECT=slashobserve-e2e bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-e2e ]] || fail "ASTRONOMY_PROJECT names the compose project"
 [[ "$(bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-astronomy ]] || fail "the compose project defaults to slashobserve-astronomy"
@@ -138,6 +148,41 @@ echo '{}' >"$tmp/down-state/flagd/demo.flagd.json"
 (UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" PROJECT=leftover-project cmd_down)
 [[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans" ]] || fail "down without --volumes keeps the volumes: $(cat "$recorded")"
 unset -f docker
+
+no_admin="$tmp/no-admin"
+UPSTREAM_DIR="$tmp/up" STATE_DIR="$no_admin" KEY_FILE="$no_admin/keys/astronomy.key" ADMIN_KEY_FILE="$no_admin/keys/astronomy-admin.key" FLAGS_FILE="$no_admin/flagd/demo.flagd.json"
+CODE=0
+prepare_state
+[[ ! -e "$ADMIN_KEY_FILE" ]] || fail "no admin key is created without --code"
+CODE=1
+prepare_state
+admin_key="$(cat "$ADMIN_KEY_FILE")"
+[[ "$admin_key" == sok_* && "$admin_key" != "$(cat "$KEY_FILE")" ]] || fail "the admin key has its own sok_ value"
+[[ "$(ls -l "$ADMIN_KEY_FILE" | cut -c1-10)" == -rw-r----- ]] || fail "the admin key is closed to others"
+prepare_state
+[[ "$(cat "$ADMIN_KEY_FILE")" == "$admin_key" ]] || fail "a second prepare keeps the admin key"
+
+CODE_SOURCE=shop-code
+CODE_TOOLS=3
+SERVER="http://localhost:1"
+CHECK_WAIT=0
+code_source() { echo "$SOURCE_JSON"; }
+SOURCE_JSON='{"state":"ready","private":true,"tools":{"approved":3}}'
+message="$(check_code)" || fail "a ready private source with the three tools passes"
+[[ "$message" == "ok   shop-code ready, 3 approved tools" ]] || fail "the pass line names the state and the count: $message"
+SOURCE_JSON='{"state":"ready","private":true,"tools":{"approved":2}}'
+if message="$(check_code)"; then fail "a source with fewer approved tools fails"; fi
+[[ "$message" == *"2 approved tools, want 3"* ]] || fail "the failure names the count: $message"
+SOURCE_JSON='{"state":"ready","private":false,"tools":{"approved":3}}'
+if message="$(check_code)"; then fail "a source that is not marked private fails"; fi
+SOURCE_JSON='{"state":"unreachable","private":true,"tools":{"approved":3}}'
+if message="$(check_code)"; then fail "a source that is not ready fails"; fi
+[[ "$message" == *"the source is not ready"* ]] || fail "the failure says the source is not ready: $message"
+code_source() { return 22; }
+if code_layer_on; then fail "the layer counts as off when the server does not know the source"; fi
+code_source() { echo "$SOURCE_JSON"; }
+rm -f "$ADMIN_KEY_FILE"
+if code_layer_on; then fail "the layer counts as off without an admin key"; fi
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1
