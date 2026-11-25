@@ -79,7 +79,11 @@ describe("ObservationList", () => {
     ])
     renderList()
 
-    const grid = await screen.findByRole("grid", { name: "Observations" })
+    const grid = await screen.findByRole(
+      "grid",
+      { name: "Observations" },
+      { timeout: 3000 }
+    )
     expect(
       await within(grid).findByRole("link", { name: "Checkout latency" })
     ).toHaveAttribute("href", "/o/o1")

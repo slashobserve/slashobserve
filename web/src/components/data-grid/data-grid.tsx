@@ -11,7 +11,6 @@ import {
   type IsFullWidthRowParams,
   type IHeaderParams,
   type RowClassRules,
-  type SuppressKeyboardEventParams,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
@@ -29,6 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
+import { handleCellKey } from "./cell-keys"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
 import {
@@ -153,17 +153,6 @@ function SortHeader({
       ) : null}
     </button>
   )
-}
-
-function activateCellControl({ event }: SuppressKeyboardEventParams): boolean {
-  if (event.type !== "keydown" || event.key !== "Enter") return false
-  const cell = event.target
-  if (!(cell instanceof HTMLElement)) return false
-  const control = cell.querySelector<HTMLElement>("a[href], button")
-  if (control === null) return false
-  event.preventDefault()
-  control.click()
-  return true
 }
 
 const highlightClass = "bg-selection!"
@@ -340,7 +329,6 @@ export function DataGrid<T>({
               flex: column.width === undefined ? (column.flex ?? 1) : undefined,
               autoHeight: column.autoHeight,
             }),
-        suppressKeyboardEvent: activateCellControl,
       })),
     [columns, narrow, sorts, sortKey, sortDirection]
   )
@@ -378,6 +366,9 @@ export function DataGrid<T>({
           highlight(null)
       }}
       onPointerLeave={() => onHighlightRow?.(null)}
+      onKeyDownCapture={(event) =>
+        handleCellKey(event.nativeEvent, event.currentTarget)
+      }
     >
       <DetailRenderContext value={renderDetail}>
         <NarrowRowsContext value={narrowRows}>
