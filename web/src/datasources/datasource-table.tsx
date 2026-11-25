@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { logsLink, metricsLink, tracesLink } from "@/lib/links"
@@ -28,26 +28,6 @@ import {
   useRecheckDatasource,
   type DatasourceStatus,
 } from "./queries"
-
-const columnCount = 6
-const tableMinWidth = 900
-
-function Header() {
-  return (
-    <thead>
-      <tr>
-        <HeaderCell>Name</HeaderCell>
-        <HeaderCell>Type</HeaderCell>
-        <HeaderCell>Status</HeaderCell>
-        <HeaderCell>Used by</HeaderCell>
-        <HeaderCell className="text-right">Checked</HeaderCell>
-        <HeaderCell>
-          <span className="sr-only">Actions</span>
-        </HeaderCell>
-      </tr>
-    </thead>
-  )
-}
 
 type Props = {
   onAdd: (trigger: HTMLElement) => void
@@ -76,18 +56,11 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
 
   if (datasources.status === "pending") {
     return (
-      <TableCard label="Datasources" minWidth={tableMinWidth} stackOnNarrow>
-        <Header />
-        <tbody aria-busy="true">
-          {[0, 1, 2].map((index) => (
-            <tr key={index}>
-              <Cell colSpan={columnCount}>
-                <Skeleton className="h-5 w-full" />
-              </Cell>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <div className="flex flex-col gap-3" aria-busy="true">
+        {[0, 1, 2].map((index) => (
+          <Skeleton key={index} className="h-5 w-full" />
+        ))}
+      </div>
     )
   }
 
@@ -119,77 +92,118 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
     )
   }
 
+  const columns: DataGridColumn<DatasourceStatus>[] = [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 170,
+      autoHeight: true,
+      cell: (datasource) => (
+        <div className="py-2">
+          <DatasourceName datasource={datasource} />
+        </div>
+      ),
+    },
+    {
+      id: "type",
+      header: "Type",
+      minWidth: 110,
+      autoHeight: true,
+      cell: (datasource) => (
+        <div className="flex flex-col py-2">
+          <span>{typeLabel(datasource.type)}</span>
+          <span className="text-xs text-muted-foreground">
+            {sourceLabel(datasource.source)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      minWidth: 180,
+      autoHeight: true,
+      cell: (datasource) => {
+        const { tone, text } = statusOf(datasource)
+        return (
+          <div className="flex flex-col gap-0.5 py-2">
+            <div className="flex">
+              <StatusLabel tone={tone} title={text}>
+                <span className="max-w-[360px] truncate">{text}</span>
+              </StatusLabel>
+            </div>
+            {datasource.detail ? (
+              <span className="pl-[19px] text-xs text-muted-foreground">
+                {datasource.detail}
+              </span>
+            ) : null}
+          </div>
+        )
+      },
+    },
+    {
+      id: "usedBy",
+      header: "Used by",
+      minWidth: 90,
+      cell: (datasource) => (
+        <span className="text-muted-foreground">
+          {usageLabel(datasource.dashboard_count)}
+        </span>
+      ),
+    },
+    {
+      id: "checked",
+      header: "Checked",
+      align: "right",
+      minWidth: 90,
+      cell: (datasource) => (
+        <span className="text-muted-foreground">
+          <RelativeTime iso={datasource.checked_at} />
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      minWidth: 260,
+      flex: 2,
+      autoHeight: true,
+      cell: (datasource) => (
+        <div className="flex flex-wrap justify-end gap-1.5 py-1.5">
+          <RecheckButton
+            datasource={datasource}
+            pending={recheck.isPending && recheck.variables === datasource.uid}
+            onRecheck={() => runRecheck(datasource)}
+          />
+          <ExploreLinks datasource={datasource} />
+          {datasource.source === "app" ? (
+            <>
+              <Button
+                variant="outline"
+                size="xs"
+                aria-label={`Edit ${datasource.uid}`}
+                onClick={(event) => onEdit(datasource.uid, event.currentTarget)}
+              >
+                Edit
+              </Button>
+              <RemoveDatasourceButton datasource={datasource} />
+            </>
+          ) : null}
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <TableCard label="Datasources" minWidth={tableMinWidth} stackOnNarrow>
-      <Header />
-      <tbody>
-        {datasources.data.map((datasource) => {
-          const { tone, text } = statusOf(datasource)
-          return (
-            <tr key={datasource.uid} data-uid={datasource.uid}>
-              <Cell>
-                <DatasourceName datasource={datasource} />
-              </Cell>
-              <Cell>
-                <div className="flex flex-col">
-                  <span>{typeLabel(datasource.type)}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {sourceLabel(datasource.source)}
-                  </span>
-                </div>
-              </Cell>
-              <Cell>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex">
-                    <StatusLabel tone={tone} title={text}>
-                      <span className="max-w-[360px] truncate">{text}</span>
-                    </StatusLabel>
-                  </div>
-                  {datasource.detail ? (
-                    <span className="pl-[19px] text-xs text-muted-foreground">
-                      {datasource.detail}
-                    </span>
-                  ) : null}
-                </div>
-              </Cell>
-              <Cell className="text-muted-foreground">
-                {usageLabel(datasource.dashboard_count)}
-              </Cell>
-              <Cell className="text-right text-muted-foreground">
-                <RelativeTime iso={datasource.checked_at} />
-              </Cell>
-              <Cell data-cell="action">
-                <div className="flex justify-end gap-1.5">
-                  <RecheckButton
-                    datasource={datasource}
-                    pending={
-                      recheck.isPending && recheck.variables === datasource.uid
-                    }
-                    onRecheck={() => runRecheck(datasource)}
-                  />
-                  <ExploreLinks datasource={datasource} />
-                  {datasource.source === "app" ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        aria-label={`Edit ${datasource.uid}`}
-                        onClick={(event) =>
-                          onEdit(datasource.uid, event.currentTarget)
-                        }
-                      >
-                        Edit
-                      </Button>
-                      <RemoveDatasourceButton datasource={datasource} />
-                    </>
-                  ) : null}
-                </div>
-              </Cell>
-            </tr>
-          )
-        })}
-      </tbody>
-    </TableCard>
+    <DataGrid
+      label="Datasources"
+      rows={datasources.data}
+      columns={columns}
+      rowId={(datasource) => datasource.uid}
+      rowAttributes={(datasource) => ({ "data-uid": datasource.uid })}
+    />
   )
 }
 

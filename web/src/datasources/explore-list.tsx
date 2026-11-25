@@ -2,11 +2,11 @@ import { useId, useState } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { SearchIcon } from "lucide-react"
 
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { EmptyState } from "@/components/empty-state"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +17,7 @@ import { SavedSearchTable } from "@/saved-searches/saved-search-table"
 import { loadProblemText } from "@/service-accounts/queries"
 
 import { statusOf } from "./format"
+import type { DatasourceStatus } from "./queries"
 import { useSourceServices } from "./service-queries"
 import { filterSources, serviceSignal } from "./services"
 import { SourceServices } from "./source-services"
@@ -42,44 +43,82 @@ const emptyText = {
     "No metrics datasource is configured. An Admin adds a Prometheus datasource on the Datasources page.",
 } as const
 
-const tableWidth = 480
-const servicesTableWidth = 720
 const skeletonRows = 2
 
-function SourceColumns({ withServices }: { withServices: boolean }) {
+function SourceSkeleton() {
   return (
-    <thead>
-      <tr>
-        <HeaderCell>Name</HeaderCell>
-        <HeaderCell>Language</HeaderCell>
-        <HeaderCell>Status</HeaderCell>
-        {withServices ? <HeaderCell>Services</HeaderCell> : null}
-      </tr>
-    </thead>
+    <div className="flex flex-col gap-3" aria-busy="true">
+      {Array.from({ length: skeletonRows }, (_, index) => (
+        <Skeleton key={index} className="h-4 w-full motion-safe:animate-none" />
+      ))}
+    </div>
   )
 }
 
-function SourceSkeleton({ headingId }: { headingId: string }) {
-  return (
-    <TableCard labelledBy={headingId} minWidth={tableWidth} stackOnNarrow>
-      <SourceColumns withServices={false} />
-      <tbody aria-busy="true">
-        {Array.from({ length: skeletonRows }, (_, index) => (
-          <tr key={index}>
-            <Cell>
-              <Skeleton className="h-4 w-40 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-16 motion-safe:animate-none" />
-            </Cell>
-            <Cell>
-              <Skeleton className="h-4 w-20 motion-safe:animate-none" />
-            </Cell>
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
-  )
+function sourceColumns(
+  kind: ExploreKind,
+  signal: ReturnType<typeof serviceSignal>,
+  services: ReturnType<typeof useSourceServices>
+): DataGridColumn<DatasourceStatus>[] {
+  return [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (source) => (
+        <Link
+          {...exploreLink(kind, source.uid, {})}
+          className="rounded-sm py-2 font-medium wrap-anywhere underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {source.name}
+        </Link>
+      ),
+    },
+    {
+      id: "language",
+      header: "Language",
+      minWidth: 100,
+      cell: (source) => (
+        <span className="text-muted-foreground">
+          {sourceLanguage(kind, source.type)}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      minWidth: 140,
+      cell: (source) => {
+        const { tone, text } = statusOf(source)
+        return (
+          <StatusLabel tone={tone} title={text}>
+            <span className="max-w-[360px] truncate">{text}</span>
+          </StatusLabel>
+        )
+      },
+    },
+    ...(signal === null
+      ? []
+      : [
+          {
+            id: "services",
+            header: "Services",
+            minWidth: 240,
+            flex: 2,
+            autoHeight: true,
+            cell: (source: DatasourceStatus) => (
+              <div className="max-w-[420px] py-2">
+                <SourceServices
+                  kind={signal}
+                  uid={source.uid}
+                  state={services.get(source.uid)}
+                />
+              </div>
+            ),
+          },
+        ]),
+  ]
 }
 
 export function ExploreList({ kind }: { kind: ExploreKind }) {
@@ -131,7 +170,7 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
           ) : null}
         </div>
         {isPending ? (
-          <SourceSkeleton headingId={sourcesId} />
+          <SourceSkeleton />
         ) : isError ? (
           <LoadProblem
             title="Could not load the datasources"
@@ -146,56 +185,17 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
             </EmptyState>
           </div>
         ) : (
-          <TableCard
-            labelledBy={sourcesId}
-            minWidth={signal === null ? tableWidth : servicesTableWidth}
-            stackOnNarrow
-          >
-            <SourceColumns withServices={signal !== null} />
-            <tbody>
-              {shown.length === 0 ? (
-                <tr>
-                  <Cell colSpan={4} className="text-muted-foreground">
-                    No source or service matches the filter.
-                  </Cell>
-                </tr>
-              ) : null}
-              {shown.map((source) => {
-                const { tone, text } = statusOf(source)
-                return (
-                  <tr key={source.uid}>
-                    <Cell className="wrap-anywhere">
-                      <Link
-                        {...exploreLink(kind, source.uid, {})}
-                        className="rounded-sm font-medium underline-offset-3 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {source.name}
-                      </Link>
-                    </Cell>
-                    <Cell className="text-muted-foreground">
-                      {sourceLanguage(kind, source.type)}
-                    </Cell>
-                    <Cell>
-                      <div className="flex">
-                        <StatusLabel tone={tone} title={text}>
-                          <span className="max-w-[360px] truncate">{text}</span>
-                        </StatusLabel>
-                      </div>
-                    </Cell>
-                    {signal !== null ? (
-                      <Cell data-label="Services" className="max-w-[420px]">
-                        <SourceServices
-                          kind={signal}
-                          uid={source.uid}
-                          state={services.get(source.uid)}
-                        />
-                      </Cell>
-                    ) : null}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </TableCard>
+          <DataGrid
+            label="Sources"
+            rows={shown}
+            columns={sourceColumns(kind, signal, services)}
+            rowId={(source) => source.uid}
+            empty={
+              <p className="rounded-card border px-3.5 py-3 text-[13px] text-muted-foreground">
+                No source or service matches the filter.
+              </p>
+            }
+          />
         )}
       </section>
       <SavedSearchTable kind={kind} sources={sources} />
