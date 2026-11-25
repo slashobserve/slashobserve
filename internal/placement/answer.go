@@ -12,6 +12,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
+	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
 func Answer(ctx context.Context, q *dbsqlc.Queries, runID, folderID pgtype.UUID) error {
@@ -88,7 +89,7 @@ func refuseRestrictedAnswerMove(ctx context.Context, q *dbsqlc.Queries, kind fol
 	case held.Restricted:
 		answer, err := restrictedAnswer()
 		if err != nil {
-			slog.Default().WarnContext(ctx, "could not name the answer that stops a move", slog.String("kind", string(kind)), slog.String("reason", err.Error()))
+			slog.Default().WarnContext(ctx, "could not name the answer that stops a move", logattrs.Failure("restricted_answer_unnamed", err, slog.String("kind", string(kind)))...)
 			answer = folders.AnswerRef{}
 		}
 		return folders.RestrictedAnswerMove(kind, answer)

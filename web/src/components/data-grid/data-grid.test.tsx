@@ -259,6 +259,21 @@ describe("DataGrid", () => {
     ).toBeInTheDocument()
   })
 
+  it("follows a new rowId on the same rows", async () => {
+    const props = { label: "Services", rows, columns }
+    const { container, rerender } = render(
+      <DataGrid {...props} rowId={(row) => row.id} />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    const ids = () =>
+      [...container.querySelectorAll("[role=row][row-id]")].map((row) =>
+        row.getAttribute("row-id")
+      )
+    expect(ids()).toEqual(["a", "b"])
+    rerender(<DataGrid {...props} rowId={(row) => `service-${row.id}`} />)
+    await waitFor(() => expect(ids()).toEqual(["service-a", "service-b"]))
+  })
+
   it("reports the hovered row and paints the highlighted one", async () => {
     const onHighlightRow = vi.fn()
     const { rerender, container } = render(
@@ -350,6 +365,209 @@ describe("DataGrid", () => {
     )
     expect(screen.getByText("No services yet.")).toBeInTheDocument()
     expect(screen.queryByRole("grid")).not.toBeInTheDocument()
+  })
+
+  describe("detail rows", () => {
+    const detail = (open: string[]) => ({
+      open: new Set(open),
+      render: (row: Row) => <p>Detail of {row.name}</p>,
+    })
+
+    it("inserts a full-width row below each opened row and removes it when closed", async () => {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(
+        <DataGrid {...props} detail={detail([])} />
+      )
+      await screen.findByRole("gridcell", { name: "Checkout" })
+      expect(screen.queryByText("Detail of Search")).not.toBeInTheDocument()
+      rerender(<DataGrid {...props} detail={detail(["b"])} />)
+      expect(await screen.findByText("Detail of Search")).toBeInTheDocument()
+      const ids = [...container.querySelectorAll("[role=row][row-id]")].map(
+        (row) => row.getAttribute("row-id")
+      )
+      expect(ids).toEqual(["a", "b", "b#detail"])
+      expect(
+        container.querySelector('[row-id="b#detail"] [data-detail-row]')
+      ).not.toBeNull()
+      rerender(<DataGrid {...props} detail={detail([])} />)
+      await waitFor(() =>
+        expect(screen.queryByText("Detail of Search")).not.toBeInTheDocument()
+      )
+    })
+
+    it("keeps the row highlighted over its detail row and clears it over the header", async () => {
+      const onHighlightRow = vi.fn()
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          detail={detail(["b"])}
+          onHighlightRow={onHighlightRow}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      fireEvent.pointerEnter(
+        container.querySelector(
+          '[row-id="b#detail"] [data-detail-row]'
+        ) as Element
+      )
+      expect(onHighlightRow).toHaveBeenLastCalledWith("b")
+      fireEvent.pointerOver(screen.getByRole("columnheader", { name: "Owner" }))
+      expect(onHighlightRow).toHaveBeenLastCalledWith(null)
+    })
+
+    it("keeps the cards of the other rows when narrow", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          detail={detail(["a"])}
+        />
+      )
+      expect(await screen.findByText("Detail of Checkout")).toBeInTheDocument()
+      await waitFor(() =>
+        expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
+      )
+    })
+  })
+
+  it("scrolls the revealed row into view when its id changes", async () => {
+    const scrolled: (string | null)[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this.getAttribute("row-id"))
+    }
+    try {
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(<DataGrid {...props} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="b"]')).not.toBeNull()
+      )
+      rerender(<DataGrid {...props} revealRowId="b" />)
+      await waitFor(() => expect(scrolled).toEqual(["b"]))
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+
+  describe("keepScrollOnPrepend", () => {
+    const many = Array.from({ length: 150 }, (_, index) => ({
+      id: `r${index}`,
+      name: `Service ${index}`,
+      owner: "Payments",
+      note: "",
+    }))
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+      keepScrollOnPrepend: true,
+    }
+    const added: Row[] = ["x", "y", "z"].map((id) => ({
+      id,
+      name: `New ${id}`,
+      owner: "Payments",
+      note: "",
+    }))
+
+    async function scrolled(container: HTMLElement, top: number) {
+      const viewport = container.querySelector(
+        ".ag-grid-viewport"
+      ) as HTMLElement
+      viewport.scrollTop = top
+      fireEvent.scroll(viewport)
+      await waitFor(() => expect(viewport.scrollTop).toBe(top))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return viewport
+    }
+
+    it("keeps the same row in place when rows are prepended while scrolled away from the top", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const rowTop = (id: string) =>
+        Number(
+          (
+            container.querySelector(`[role=row][row-id="${id}"]`) as HTMLElement
+          ).style.transform.match(/translateY\((\d+)px\)/)?.[1]
+        )
+      const before = viewport.scrollTop - rowTop("r10")
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() =>
+        expect(viewport.scrollTop - rowTop("r10")).toBe(before)
+      )
+      expect(viewport.scrollTop).toBeGreaterThan(400)
+    })
+
+    it("keeps the anchor through a refresh that changes nothing, so a later prepend still holds the reading position", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      rerender(<DataGrid {...props} rows={many.map((row) => ({ ...row }))} />)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+      rerender(
+        <DataGrid
+          {...props}
+          rows={[...added, ...many.map((row) => ({ ...row }))]}
+        />
+      )
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() => expect(viewport.scrollTop).toBeGreaterThan(400))
+    })
+
+    it("does not hold the viewport on an old row when the rows are replaced", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      const filtered = many.slice(60)
+      rerender(<DataGrid {...props} rows={filtered} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="r60"]')).not.toBeNull()
+      )
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+    })
+
+    it("lets new rows show at the top when the list is not scrolled", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      rerender(<DataGrid {...props} rows={[...added, ...many]} />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      expect(
+        (container.querySelector(".ag-grid-viewport") as HTMLElement).scrollTop
+      ).toBe(0)
+    })
   })
 
   describe("narrow", () => {

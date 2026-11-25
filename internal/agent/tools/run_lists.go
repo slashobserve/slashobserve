@@ -163,6 +163,9 @@ func (r *Registry) listRuns(ctx context.Context, input json.RawMessage) (Result,
 	if !ok {
 		return res, nil
 	}
+	if res, refused := guardPrivateRead(ctx, ""); refused {
+		return res, nil
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		raw, err := r.deps.Runs.List(ctx, principal, filter, limit, in.Cursor)
