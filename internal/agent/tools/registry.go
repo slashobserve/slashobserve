@@ -135,6 +135,7 @@ type Result struct {
 	Edits      Edits
 	Unchecked  string
 	Created    []string
+	App        json.RawMessage
 }
 
 type Edits struct {

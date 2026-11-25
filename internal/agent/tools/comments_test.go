@@ -81,7 +81,7 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 			t.Errorf("%s: MCPOnly %v, left out of runs for %q", tool.Name, tool.MCPOnly, leftOutOfRuns[tool.Name])
 		}
 	}
-	if strings.Join(got, ",") != "apply_suggested_change,cancel_run,claim_run,create_comment,draft_query,duplicate_dashboard,edit_comment,finish_run,get_run_brief,make_dashboard,merge_proposal,reopen_comment,reply_to_comment,report_run,resolve_comment,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,share_answer,start_run" {
+	if strings.Join(got, ",") != "apply_suggested_change,cancel_run,claim_run,create_comment,draft_query,duplicate_dashboard,edit_comment,finish_run,get_run_brief,make_dashboard,merge_proposal,reopen_comment,reply_to_comment,report_run,resolve_comment,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,share_answer,show_panel,start_run" {
 		t.Fatalf("tools left out of runs = %v", got)
 	}
 	for name, reason := range leftOutOfRuns {

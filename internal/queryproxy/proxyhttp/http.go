@@ -415,11 +415,16 @@ func (h *Handler) execute(ctx context.Context, key cacheKey, d *spec.Dashboard, 
 	return entry, nil
 }
 
-func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dataEntry, err error) {
+func (h *Handler) render(ctx context.Context, req queryproxy.Request) (dataEntry, error) {
+	entry, _, err := h.renderRun(ctx, req)
+	return entry, err
+}
+
+func (h *Handler) renderRun(ctx context.Context, req queryproxy.Request) (entry dataEntry, res queryproxy.Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			h.logPanic(ctx, req.PanelID, p)
-			entry, err = dataEntry{}, errInternal
+			entry, res, err = dataEntry{}, queryproxy.Result{}, errInternal
 		}
 	}()
 	found, _ := req.Dashboard.FindDataPanel(req.PanelID)
@@ -459,9 +464,9 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 		return nil
 	}
 	started := time.Now()
-	res, err := h.runner.RunPanel(ctx, req)
+	res, err = h.runner.RunPanel(ctx, req)
 	if err != nil {
-		return dataEntry{}, err
+		return dataEntry{}, queryproxy.Result{}, err
 	}
 	elapsed := time.Since(started)
 	queries := make([]queryMeta, len(res.Queries))
@@ -478,7 +483,7 @@ func (h *Handler) render(ctx context.Context, req queryproxy.Request) (entry dat
 	if seriesTotal > seriesShown {
 		meta.seriesShown, meta.seriesTotal = seriesShown, seriesTotal
 	}
-	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: meta, executedAt: time.Now()}, nil
+	return dataEntry{frames: joinFrames(parts), exemplars: exemplars, queries: queries, kind: res.Kind, from: res.Range.From, to: res.Range.To, step: res.Step, meta: meta, executedAt: time.Now()}, res, nil
 }
 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {

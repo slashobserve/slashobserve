@@ -511,7 +511,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
+The server has 111 tools: MCP clients get 110, every one except `save_finding`, which only a run offers.
 A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
@@ -535,7 +535,7 @@ Anything else is refused with `out_of_scope` and a message that names where the 
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
 Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 21 tools are left out of every run, each for a reason:
+The other 22 tools are left out of every run, each for a reason:
 
 - `claim_run`, `report_run`, `finish_run` and `get_run_brief`: a run token works a run and never claims one.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
@@ -547,6 +547,7 @@ The other 21 tools are left out of every run, each for a reason:
 - `apply_suggested_change`: it posts in a thread and starts a run.
 - `save_run_answer`: a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer.
 - `run_dashboard_health`: it checks every dashboard of the workspace, far outside what one run is about.
+- `show_panel`: it draws a chart in an MCP Apps host, which a run does not have.
 
 [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open.

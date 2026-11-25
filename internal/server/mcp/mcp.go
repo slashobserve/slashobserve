@@ -67,6 +67,7 @@ type Options struct {
 	Version             string
 	Logger              *slog.Logger
 	Runs                RunSessions
+	PanelApp            []byte
 }
 
 type registeredClientKey struct{}
@@ -103,12 +104,22 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 		logger = slog.Default()
 	}
 	h := &handler{call: reg.Call, callClaim: reg.CallClaim, claimTools: claimToolNames(reg.List()), authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, runs: opts.Runs}
-	srv := mcpserver.NewMCPServer(serverName, opts.Version,
+	panel := opts.PanelApp
+	serverOptions := []mcpserver.ServerOption{
 		mcpserver.WithToolCapabilities(false),
 		mcpserver.WithPromptCapabilities(false),
 		mcpserver.WithRecovery(),
 		mcpserver.WithToolFilter(listablePersonTools(reg.List())),
-		mcpserver.WithInstructions(tools.ServerInstructions))
+		mcpserver.WithToolFilter(withPanelUI(panel)),
+		mcpserver.WithInstructions(tools.ServerInstructions),
+	}
+	if len(panel) > 0 {
+		serverOptions = append(serverOptions, mcpserver.WithResourceCapabilities(false, false))
+	}
+	srv := mcpserver.NewMCPServer(serverName, opts.Version, serverOptions...)
+	if len(panel) > 0 {
+		srv.AddResource(panelResourceFor(panel))
+	}
 	for _, t := range reg.List() {
 		if t.AgentOnly {
 			continue
@@ -189,6 +200,9 @@ func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 			ctx = grantmode.With(ctx, grantmode.From(r.Context()))
 			if hasRegisteredClient(r.Context()) {
 				ctx = withRegisteredClient(ctx)
+			}
+			if hasAppsClient(r.Context()) {
+				ctx = withAppsClient(ctx)
 			}
 			if c, ok := claims.ClaimerFrom(r.Context()); ok {
 				ctx = claims.WithClaimer(ctx, c)
@@ -287,7 +301,11 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 		if answer.IsError {
 			answer.Content = uniformRefusal(answer.Content)
 		}
-		out := mcplib.NewToolResultStructured(json.RawMessage(answer.Content), answer.Text())
+		structured := json.RawMessage(answer.Content)
+		if len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
+			structured = answer.App
+		}
+		out := mcplib.NewToolResultStructured(structured, answer.Text())
 		out.IsError = answer.IsError
 		if inRun {
 			out.Meta = mcplib.NewMetaFromMap(map[string]any{runMetaKey: answer.Meta})
@@ -335,7 +353,7 @@ func (h *handler) callOutsideRun(ctx context.Context, dispatch func(context.Cont
 	if err != nil {
 		return runsession.Answer{}, fmt.Errorf("%w: %w", errResultNotEncodable, err)
 	}
-	return runsession.Answer{Content: body, IsError: res.IsError}, nil
+	return runsession.Answer{Content: body, IsError: res.IsError, App: res.App}, nil
 }
 
 // Error text can echo tool input, query text or credentials, so a failure is logged by its code and type only.
@@ -413,6 +431,9 @@ func (h *handler) servePrincipal(w http.ResponseWriter, r *http.Request, cred Cr
 			if cred.OAuth {
 				ctx = withRegisteredClient(ctx)
 			}
+			if parseLabel(r.Header.Get(mcpserver.HeaderKeySessionID)).apps {
+				ctx = withAppsClient(ctx)
+			}
 			if cred.Mode != "" {
 				ctx = grantmode.With(ctx, cred.Mode)
 			}
@@ -426,6 +447,7 @@ func (h *handler) servePrincipal(w http.ResponseWriter, r *http.Request, cred Cr
 			return ctx, h.transport, nil
 		},
 		labelsClient: !cred.OAuth,
+		labelsApps:   true,
 	})
 }
 
@@ -433,6 +455,7 @@ type serving struct {
 	key          string
 	prepare      func(ctx context.Context) (context.Context, http.Handler, error)
 	labelsClient bool
+	labelsApps   bool
 }
 
 func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
@@ -482,8 +505,17 @@ func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
 		}
 		defer h.slots.releaseGlobal()
 	}
-	if client := initializeClient(body); client != "" && s.labelsClient {
-		w = &labelWriter{ResponseWriter: w, label: clientLabel(client)}
+	announced := announcedApps(body)
+	if announced.appsPerRequest {
+		r = r.WithContext(withAppsClient(r.Context()))
+	}
+	client := ""
+	if s.labelsClient {
+		client = initializeClient(body)
+	}
+	apps := s.labelsApps && announced.appsOnInitialize
+	if client != "" || apps {
+		w = &labelWriter{ResponseWriter: w, label: clientLabel(client, apps)}
 	}
 	transport.ServeHTTP(w, r)
 }

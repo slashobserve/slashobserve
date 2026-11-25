@@ -35,7 +35,7 @@ func TestLabelClient(t *testing.T) {
 		want   string
 	}{
 		{"plain name", labelFor("claude-code"), "claude-code"},
-		{"round trip of clientLabel", clientLabel("cursor"), "cursor"},
+		{"round trip of clientLabel", clientLabel("cursor", false), "cursor"},
 		{"empty header", "", ""},
 		{"name over 64 runes is cut", labelFor(strings.Repeat(eAcute, 80)), strings.Repeat(eAcute, 64)},
 		{"zero-width characters are removed", labelFor("cl" + zeroWidthSpace + "aude" + zeroWidthJoin + "-code"), "claude-code"},
