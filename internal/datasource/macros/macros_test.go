@@ -226,6 +226,17 @@ func TestClickHouseVariables(t *testing.T) {
 		{name: "unknown variable", d: macros.ClickHouse, query: `SELECT 1 WHERE a IN ($v)`, env: envWith(), err: true},
 		{name: "no value selected", d: macros.ClickHouse, query: `SELECT 1 WHERE a IN ($v)`, env: envWith(val("v")), err: true},
 		{name: "backslash before reference", d: macros.ClickHouse, query: `SELECT 1 WHERE a = '\$v'`, env: envWith(val("v", "x")), err: true},
+		{name: "database before a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "bare database before a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM $database.otel_traces`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "table after a dot is an identifier", d: macros.ClickHouse, query: `SELECT 1 FROM otel.${table}`, env: envWith(val("table", "otel_traces")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "both parts of a name", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.${table}`, env: envWith(val("database", "otel"), val("table", "otel_traces")), want: `SELECT 1 FROM otel.otel_traces`},
+		{name: "name part with a quote is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "o'tel")), err: true},
+		{name: "name part with a space is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "otel; DROP TABLE x")), err: true},
+		{name: "name part with several values is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(val("database", "a", "b")), err: true},
+		{name: "name part selecting all is refused", d: macros.ClickHouse, query: `SELECT 1 FROM ${database}.otel_traces`, env: envWith(all("database", "a", "b")), err: true},
+		{name: "name part touching a word character is refused", d: macros.ClickHouse, query: `SELECT 1 FROM a${database}.otel_traces`, env: envWith(val("database", "otel")), err: true},
+		{name: "number before a dot is refused", d: macros.ClickHouse, query: `SELECT ${n}.5`, env: envWith(val("n", "1")), err: true},
+		{name: "explicit sqlstring before a dot keeps its quotes", d: macros.ClickHouse, query: `SELECT 1 FROM ${database:sqlstring}.t`, env: envWith(val("database", "otel")), want: `SELECT 1 FROM 'otel'.t`},
 	})
 }
 

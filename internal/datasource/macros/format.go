@@ -65,10 +65,7 @@ func expandVariable(d Dialect, dsType spec.DatasourceType, query string, ref spe
 	if d == Elasticsearch && ref.Format == "" {
 		return searchDefault(ref, c, v)
 	}
-	format := ref.Format
-	if format == "" {
-		format = defaultFormat(d, c)
-	}
+	format := referenceFormat(d, query, ref, c)
 	regexMatcher := d == PromQL && c.kind == ctxString && c.matcher == matcherRegex
 	text, err := applyFormat(ref, format, v, regexMatcher, allRegex(dsType, query, ref))
 	if err != nil {

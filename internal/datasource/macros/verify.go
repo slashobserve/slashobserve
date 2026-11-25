@@ -127,26 +127,43 @@ func isQuotingFormat(format string) bool {
 }
 
 func fusesWithNeighbors(d Dialect, query string, ref spec.Reference) bool {
-	return (ref.Start > 0 && isFusingByte(d, query[ref.Start-1])) || (ref.End < len(query) && isFusingByte(d, query[ref.End]))
+	return (ref.Start > 0 && isFusingByte(d, ref, query[ref.Start-1])) || (ref.End < len(query) && isFusingByte(d, ref, query[ref.End]))
 }
 
-func isFusingByte(d Dialect, c byte) bool {
+func isFusingByte(d Dialect, ref spec.Reference, c byte) bool {
+	if c == '.' && qualifiesName(d, ref) {
+		return false
+	}
 	if isChWord(c) || c == '.' || c == '$' {
 		return true
 	}
 	return d == PromQL && c == ':'
 }
 
-func unquotedCode(d Dialect, ref spec.Reference, c ctx) bool {
+func unquotedCode(d Dialect, query string, ref spec.Reference, c ctx) bool {
 	if c.kind != ctxCode {
 		return false
 	}
 	if ref.Kind == spec.MacroRef {
 		return true
 	}
-	format := ref.Format
-	if format == "" {
-		format = defaultFormat(d, c)
+	return !isQuotingFormat(referenceFormat(d, query, ref, c))
+}
+
+func qualifiesName(d Dialect, ref spec.Reference) bool {
+	return d == ClickHouse && ref.Kind == spec.VariableRef && ref.Format == ""
+}
+
+func touchesDot(query string, ref spec.Reference) bool {
+	return (ref.Start > 0 && query[ref.Start-1] == '.') || (ref.End < len(query) && query[ref.End] == '.')
+}
+
+func referenceFormat(d Dialect, query string, ref spec.Reference, c ctx) string {
+	if ref.Format != "" {
+		return ref.Format
 	}
-	return !isQuotingFormat(format)
+	if c.kind == ctxCode && qualifiesName(d, ref) && touchesDot(query, ref) {
+		return "raw"
+	}
+	return defaultFormat(d, c)
 }
