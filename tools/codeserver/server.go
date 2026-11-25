@@ -30,12 +30,12 @@ func NewHandler(code *Code, version string) http.Handler {
 	srv.AddTool(mcp.NewTool("list_dir", append(readOnly,
 		mcp.WithDescription("List the entries of a directory in the source tree. Directories end with a slash. Paths are relative to the root; use \".\" for the root."),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Directory path relative to the root.")),
-	)...), call(func(_ context.Context, req mcp.CallToolRequest) (string, error) {
+	)...), call(func(ctx context.Context, req mcp.CallToolRequest) (string, error) {
 		path, err := req.RequireString("path")
 		if err != nil {
 			return "", refusal("path is required")
 		}
-		return code.ListDir(path)
+		return code.ListDir(ctx, path)
 	}))
 	srv.AddTool(mcp.NewTool("read_file", append(readOnly,
 		mcp.WithDescription("Read a text file from the source tree, with line numbers. Long files are cut; the result says where to continue."),
@@ -79,7 +79,7 @@ func call(fn func(context.Context, mcp.CallToolRequest) (string, error)) server.
 		}
 		var r refusal
 		if errors.As(err, &r) {
-			return mcp.NewToolResultError(r.Error()), nil
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 		slog.Error("tool call failed", "tool", req.Params.Name, "cause", err.Error())
 		return mcp.NewToolResultError("the server could not complete the call"), nil
