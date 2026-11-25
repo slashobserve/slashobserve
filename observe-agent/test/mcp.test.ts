@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { ClaimClient, McpClient, ProtocolError } from "../src/mcp"
+import {
+  ClaimClient,
+  McpClient,
+  ProtocolError,
+  maxTimeoutsInRow,
+} from "../src/mcp"
 import { ToolError } from "../src/protocol"
 import { type FakeServer, startMcpServer } from "./mcpServer"
 
@@ -142,6 +147,68 @@ describe("McpClient", () => {
     const reply = await client.callTool("lint_query", {}, undefined, 5000)
     expect(reply.content).toBe('{"back":true}')
     expect(second.calls).toHaveLength(1)
+  })
+
+  test("a call that timed out leaves the other calls on the connection running", async () => {
+    const server = serve(async (call) => {
+      if (call.name === "slow") {
+        return new Promise(() => undefined)
+      }
+      await Bun.sleep(300)
+      return { text: '{"done":true}' }
+    })
+    const client = connect(server)
+    await client.callTool("warm", {}, undefined, 5000)
+    const other = client.callTool("other", {}, undefined, 5000)
+    await expect(client.callTool("slow", {}, undefined, 100)).rejects.toThrow()
+    const reply = await other
+    expect(reply.content).toBe('{"done":true}')
+  })
+
+  describe("timeouts in a row", () => {
+    function slowServer(): FakeServer {
+      return serve(async (call) => {
+        if (call.name === "slow") {
+          return new Promise(() => undefined)
+        }
+        if (call.name === "other") {
+          await Bun.sleep(1_000)
+        }
+        return { text: '{"done":true}' }
+      })
+    }
+
+    async function timeOut(client: McpClient, times: number): Promise<void> {
+      for (let n = 0; n < times; n += 1) {
+        await expect(
+          client.callTool("slow", {}, undefined, 50)
+        ).rejects.toThrow()
+      }
+    }
+
+    test("drop the connection, cancel what is in flight and reconnect", async () => {
+      const client = connect(slowServer())
+      await client.callTool("warm", {}, undefined, 5000)
+      const other = client.callTool("other", {}, undefined, 5000)
+      const outcome = other.then(
+        () => "answered",
+        () => "cancelled"
+      )
+      await timeOut(client, maxTimeoutsInRow)
+      expect(await outcome).toBe("cancelled")
+      const reply = await client.callTool("warm", {}, undefined, 5000)
+      expect(reply.content).toBe('{"done":true}')
+    })
+
+    test("are counted from the last success", async () => {
+      const client = connect(slowServer())
+      await client.callTool("warm", {}, undefined, 5000)
+      const other = client.callTool("other", {}, undefined, 5000)
+      await timeOut(client, maxTimeoutsInRow - 1)
+      await client.callTool("warm", {}, undefined, 5000)
+      await timeOut(client, maxTimeoutsInRow - 1)
+      expect((await other).content).toBe('{"done":true}')
+    })
   })
 
   test("a wrong token fails to connect", async () => {

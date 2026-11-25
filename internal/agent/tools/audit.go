@@ -99,6 +99,9 @@ func auditFailure(err error) (Result, error) {
 }
 
 func (r *Registry) searchAuditEvents(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, refused := guardAuditRead(ctx, nameSearchAuditEvents); refused {
+		return res, nil
+	}
 	if r.deps.Audit == nil {
 		return Result{}, errAuditNotConfigured
 	}
@@ -144,6 +147,9 @@ func sizeCapNote(events int) string {
 }
 
 func (r *Registry) getAuditEvent(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, refused := guardAuditRead(ctx, nameGetAuditEvent); refused {
+		return res, nil
+	}
 	if r.deps.Audit == nil {
 		return Result{}, errAuditNotConfigured
 	}
@@ -168,6 +174,9 @@ func (r *Registry) getAuditEvent(ctx context.Context, input json.RawMessage) (Re
 }
 
 func (r *Registry) listAuditFacets(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, refused := guardAuditRead(ctx, nameListAuditFacets); refused {
+		return res, nil
+	}
 	if r.deps.Audit == nil {
 		return Result{}, errAuditNotConfigured
 	}
@@ -199,6 +208,9 @@ func (r *Registry) listAuditFacets(ctx context.Context, input json.RawMessage) (
 }
 
 func (r *Registry) getAuditHistogram(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, refused := guardAuditRead(ctx, nameGetAuditHistogram); refused {
+		return res, nil
+	}
 	if r.deps.Audit == nil {
 		return Result{}, errAuditNotConfigured
 	}
@@ -225,6 +237,9 @@ func (r *Registry) getAuditHistogram(ctx context.Context, input json.RawMessage)
 }
 
 func (r *Registry) aggregateAuditEvents(ctx context.Context, input json.RawMessage) (Result, error) {
+	if res, refused := guardAuditRead(ctx, nameAggregateAuditEvents); refused {
+		return res, nil
+	}
 	if r.deps.Audit == nil {
 		return Result{}, errAuditNotConfigured
 	}

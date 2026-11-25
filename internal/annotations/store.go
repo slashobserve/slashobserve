@@ -32,6 +32,9 @@ func (s *store) insert(ctx context.Context, in CreateInput, by actor.Actor) (Ann
 		if err := placement.AnswerOnDashboard(ctx, q, in.AnswerOf, in.DashboardID); err != nil {
 			return err
 		}
+		if err := placement.RunWriteOnDashboard(ctx, q, by, in.DashboardID); err != nil {
+			return err
+		}
 		copied, err := placement.CopyOnDashboard(ctx, q, in.CopyOf, in.DashboardID)
 		if err != nil {
 			return err
@@ -131,6 +134,9 @@ func (s *store) update(ctx context.Context, id pgtype.UUID, text string, tags []
 		}
 		row, err := q.GetAnnotation(ctx, id)
 		if err != nil {
+			return err
+		}
+		if err := placement.RunWriteOnDashboard(ctx, q, by, row.DashboardID); err != nil {
 			return err
 		}
 		_, err = activity.Append(ctx, q, activity.Entry{

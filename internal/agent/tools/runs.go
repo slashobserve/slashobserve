@@ -84,6 +84,9 @@ func (r *Registry) getRun(ctx context.Context, input json.RawMessage) (Result, e
 	if err != nil {
 		return invalid("id must be a UUID"), nil
 	}
+	if res, refused := guardPrivateRead(ctx, id.String()); refused {
+		return res, nil
+	}
 	principal, _ := auth.FromContext(ctx)
 	raw, err := r.deps.Runs.Run(ctx, id, principal, runStepLimit)
 	if err != nil {
@@ -255,6 +258,9 @@ func (r *Registry) getRunBuild(ctx context.Context, input json.RawMessage) (Resu
 	}
 	id, res, ok := r.runTarget(input)
 	if !ok {
+		return res, nil
+	}
+	if res, refused := guardPrivateRead(ctx, id.String()); refused {
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)

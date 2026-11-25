@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/origin"
+	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -297,7 +298,7 @@ func (s *Service) AddBlock(ctx context.Context, by auth.Principal, observationID
 	var held folders.Abilities
 	var who actor.Actor
 	var readerAt int
-	err = s.write(ctx, by, observationID, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, by actor.Actor) error {
+	err = s.writeContent(ctx, by, observationID, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, by actor.Actor) error {
 		state, ok := addedState(abilities)
 		if !ok {
 			return folders.ErrForbidden
@@ -445,6 +446,15 @@ func (s *Service) changeBlock(ctx context.Context, by auth.Principal, blockID, r
 	})
 }
 
+func (s *Service) changeContentBlock(ctx context.Context, by auth.Principal, blockID, runID pgtype.UUID, fn blockFunc) error {
+	return s.changeBlock(ctx, by, blockID, runID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, current dbsqlc.ObservationBlock, abilities folders.Abilities, who actor.Actor) error {
+		if err := placement.RunWrite(ctx, q, who, parent.FolderID); err != nil {
+			return err
+		}
+		return fn(q, parent, current, abilities, who)
+	})
+}
+
 func authored(row dbsqlc.ObservationBlock, who actor.Actor) bool {
 	return row.CreatedByKind == string(who.Kind) && row.CreatedByID.String() == who.ID
 }
@@ -474,7 +484,7 @@ func (s *Service) UpdateBlock(ctx context.Context, by auth.Principal, blockID pg
 	var updated dbsqlc.ObservationBlock
 	var held folders.Abilities
 	var who actor.Actor
-	err := s.changeBlock(ctx, by, blockID, in.RunID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, current dbsqlc.ObservationBlock, abilities folders.Abilities, by actor.Actor) error {
+	err := s.changeContentBlock(ctx, by, blockID, in.RunID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, current dbsqlc.ObservationBlock, abilities folders.Abilities, by actor.Actor) error {
 		if err := blockPermit(current, BlockUpdate, abilities, by); err != nil {
 			return err
 		}
@@ -605,7 +615,7 @@ func (s *Service) KeepBlock(ctx context.Context, by auth.Principal, blockID pgty
 	var kept dbsqlc.ObservationBlock
 	var held folders.Abilities
 	var who actor.Actor
-	err := s.changeBlock(ctx, by, blockID, runID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, current dbsqlc.ObservationBlock, abilities folders.Abilities, by actor.Actor) error {
+	err := s.changeContentBlock(ctx, by, blockID, runID, func(q *dbsqlc.Queries, parent dbsqlc.Observation, current dbsqlc.ObservationBlock, abilities folders.Abilities, by actor.Actor) error {
 		if err := blockPermit(current, BlockKeep, abilities, by); err != nil {
 			return err
 		}
