@@ -32,12 +32,16 @@ type script struct {
 
 func newScript(t *testing.T, loop bool) *script {
 	t.Helper()
+	state := State{Guard: guard.New(tools.ModeInvestigate), Loop: loop}
+	if loop {
+		state.Guard.WatchLedger()
+	}
 	return &script{
 		t: t, reg: tools.New(tools.Deps{LedgerTool: true}),
 		sess: &session{
 			s:     &Service{},
 			req:   revisions.Request{ID: "run", Attempt: 1, Prompt: "why is checkout slow", Investigation: true},
-			state: State{Guard: guard.New(tools.ModeInvestigate), Loop: loop},
+			state: state,
 		},
 	}
 }
@@ -220,5 +224,39 @@ func TestAPlainAskGetsTheBriefARunWithNoLedgerGets(t *testing.T) {
 	got := plain.brief(brief.NoFinding)
 	if got.System != prompts.Investigate() || strings.Contains(got.Message, "<hypotheses>") {
 		t.Fatal("the ledger reached a plain ask")
+	}
+}
+
+func (s *script) save(input string, turn *Turn) Answer {
+	s.t.Helper()
+	ctx := context.Background()
+	call := guard.Call{Name: "save_finding", Input: json.RawMessage(input)}
+	admitted, err := s.sess.admit(ctx, call, turn)
+	if err != nil {
+		s.t.Fatalf("admit save_finding: %v", err)
+	}
+	if admitted.answer == nil {
+		s.t.Fatalf("the save was admitted: %+v", admitted.adm)
+	}
+	return *admitted.answer
+}
+
+func TestAFindingSavedOverAnUntouchedLedgerIsSentBackToUpdateIt(t *testing.T) {
+	s := newScript(t, true)
+	s.note(firstLedger, &Turn{ID: "t1", Calls: 2})
+	s.read(1, &Turn{ID: "t1", Calls: 2})
+
+	answer := s.save(`{"markdown":"Pool exhausted.","ruled_out":["deploy"]}`, &Turn{ID: "t2", Calls: 1})
+	if !answer.IsError || !strings.Contains(string(answer.Content), "note_hypotheses") {
+		t.Fatalf("answer = %+v %s", answer, answer.Content)
+	}
+	if got := s.sess.state.Guard.Counts.Nudges; got != 1 {
+		t.Errorf("nudges = %d", got)
+	}
+
+	s.note(secondLedger, &Turn{ID: "t3", Calls: 2})
+	s.read(2, &Turn{ID: "t3", Calls: 2})
+	if !s.sess.state.Guard.Ledger.Resolved {
+		t.Fatal("the guard did not see the updated ledger")
 	}
 }

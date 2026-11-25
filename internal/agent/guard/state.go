@@ -26,7 +26,8 @@ type State struct {
 	Turn               Turn            `json:"turn"`
 	Counts             Counts          `json:"counts"`
 
-	InvestigationCalls int `json:"investigation_calls,omitempty"`
+	InvestigationCalls int          `json:"investigation_calls,omitempty"`
+	Ledger             *LedgerWatch `json:"ledger,omitempty"`
 }
 
 type Window struct {
