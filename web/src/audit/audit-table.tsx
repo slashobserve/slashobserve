@@ -1,10 +1,9 @@
-import { useEffect, useRef } from "react"
+import { useMemo, useRef } from "react"
 
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
 import { formatDateTime } from "@/lib/time"
-import { cn } from "@/lib/utils"
 
 import {
   actorText,
@@ -14,8 +13,93 @@ import {
   targetText,
 } from "./event-text"
 import type { AuditEvent } from "./stream"
+import { useBesideDetail } from "./use-beside-detail"
 
-export const hiddenBesideDetail = "@min-[1001px]:hidden"
+function wrapped(text: string) {
+  return text === "" ? null : <span className="py-2 wrap-anywhere">{text}</span>
+}
+
+export function auditColumns(
+  selected: string | null,
+  beside: boolean
+): DataGridColumn<AuditEvent>[] {
+  const columns: DataGridColumn<AuditEvent>[] = [
+    {
+      id: "action",
+      header: "Action",
+      minWidth: 160,
+      flex: 1.4,
+      cell: (event) => (
+        <button
+          type="button"
+          aria-current={event.id === selected ? "true" : undefined}
+          data-event-id={event.id}
+          className="min-w-0 truncate rounded-control text-left font-mono text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {event.action}
+        </button>
+      ),
+    },
+    {
+      id: "time",
+      header: "Time",
+      minWidth: 110,
+      flex: 0.8,
+      cell: (event) => (
+        <time
+          dateTime={event.occurred_at}
+          title={formatDateTime(event.occurred_at)}
+          className="whitespace-nowrap text-muted-foreground"
+        >
+          <RelativeTime iso={event.occurred_at} />
+        </time>
+      ),
+    },
+    {
+      id: "actor",
+      header: "Actor",
+      minWidth: 110,
+      flex: 1,
+      autoHeight: true,
+      cell: (event) => wrapped(actorText(event)),
+    },
+    {
+      id: "outcome",
+      header: "Outcome",
+      minWidth: 100,
+      flex: 0.7,
+      cell: (event) => (
+        <StatusLabel
+          tone={outcomeTones[event.outcome]}
+          title={event.reason ?? undefined}
+        >
+          {outcomeLabels[event.outcome]}
+        </StatusLabel>
+      ),
+    },
+  ]
+  if (beside) return columns
+  columns.push(
+    {
+      id: "target",
+      header: "Target",
+      minWidth: 130,
+      flex: 1.2,
+      autoHeight: true,
+      cell: (event) => wrapped(targetText(event)),
+    },
+    {
+      id: "origin",
+      header: "Origin",
+      minWidth: 100,
+      flex: 0.8,
+      cell: (event) => originText(event),
+    }
+  )
+  return columns
+}
+
+const eventId = (event: AuditEvent) => event.id
 
 export function AuditTable({
   events,
@@ -28,83 +112,30 @@ export function AuditTable({
   panelOpen: boolean
   onSelect: (id: string) => void
 }) {
-  const besideDetail = panelOpen ? hiddenBesideDetail : undefined
-  const body = useRef<HTMLTableSectionElement>(null)
-  useEffect(() => {
-    body.current
-      ?.querySelector('[aria-current="true"]')
-      ?.scrollIntoView?.({ block: "nearest" })
-  }, [selected])
+  const container = useRef<HTMLDivElement>(null)
+  const detailBeside = useBesideDetail(container)
+  const columns = useMemo(
+    () => auditColumns(selected, panelOpen && detailBeside),
+    [selected, panelOpen, detailBeside]
+  )
   return (
-    <TableCard
-      label="Audit events"
-      minWidth="var(--audit-table-min)"
-      className={cn(
-        "[--audit-table-min:720px]",
-        panelOpen && "@min-[1001px]:[--audit-table-min:460px]"
-      )}
-      stackOnNarrow
+    <div
+      ref={container}
+      onClick={(click) => {
+        const id = (click.target as Element)
+          .closest("[data-event-id]")
+          ?.getAttribute("data-event-id")
+        if (id != null) onSelect(id)
+      }}
     >
-      <thead>
-        <tr>
-          <HeaderCell>Action</HeaderCell>
-          <HeaderCell>Time</HeaderCell>
-          <HeaderCell>Actor</HeaderCell>
-          <HeaderCell>Outcome</HeaderCell>
-          <HeaderCell className={besideDetail}>Target</HeaderCell>
-          <HeaderCell className={besideDetail}>Origin</HeaderCell>
-        </tr>
-      </thead>
-      <tbody ref={body}>
-        {events.map((event) => (
-          <tr
-            key={event.id}
-            className={cn(event.id === selected && "bg-selection")}
-          >
-            <Cell>
-              <button
-                type="button"
-                aria-current={event.id === selected ? "true" : undefined}
-                onClick={() => onSelect(event.id)}
-                className="rounded-control text-left font-mono text-xs outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {event.action}
-              </button>
-            </Cell>
-            <Cell
-              data-label="Time"
-              className="whitespace-nowrap text-muted-foreground"
-            >
-              <time
-                dateTime={event.occurred_at}
-                title={formatDateTime(event.occurred_at)}
-              >
-                <RelativeTime iso={event.occurred_at} />
-              </time>
-            </Cell>
-            <Cell data-label="Actor" className="wrap-anywhere">
-              {actorText(event)}
-            </Cell>
-            <Cell data-label="Outcome">
-              <StatusLabel
-                tone={outcomeTones[event.outcome]}
-                title={event.reason ?? undefined}
-              >
-                {outcomeLabels[event.outcome]}
-              </StatusLabel>
-            </Cell>
-            <Cell
-              data-label="Target"
-              className={cn("wrap-anywhere", besideDetail)}
-            >
-              {targetText(event)}
-            </Cell>
-            <Cell data-label="Origin" className={besideDetail}>
-              {originText(event)}
-            </Cell>
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
+      <DataGrid
+        label="Audit events"
+        rows={events}
+        columns={columns}
+        rowId={eventId}
+        highlightedRowId={selected}
+        revealRowId={selected}
+      />
+    </div>
   )
 }
