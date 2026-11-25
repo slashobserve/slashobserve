@@ -255,13 +255,13 @@ describe("a text block on the canvas", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("gives the floating toolbar its own room after the last block", async () => {
+  it("gives the floating toolbar its own room after the blocks and pins it last in the page column", async () => {
     show()
     const list = await screen.findByRole("list", { name: "Blocks" })
     const box = screen.getByRole("toolbar", { name: "Canvas tools" })
       .parentElement?.parentElement
-    expect(box).toHaveClass("sticky", "h-18")
-    expect(list.nextElementSibling).toBe(box)
+    expect(box).toHaveClass("sticky", "h-18", "order-last", "mt-auto")
+    expect(box?.parentElement).toBe(list.parentElement)
   })
 
   it("offers nothing to someone who cannot comment", async () => {

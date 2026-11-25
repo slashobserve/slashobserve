@@ -187,7 +187,7 @@ async function renderTools(
   permissions: { comment: boolean; edit: boolean },
   agentAvailable: boolean,
   idle = true,
-  reserve = false
+  pageFooter = false
 ) {
   const queryClient = testQueryClient()
   queryClient.setQueryData(observeKeys.agent(), {
@@ -199,7 +199,11 @@ async function renderTools(
   renderWithProviders(
     <>
       <p>page</p>
-      <CanvasTools permissions={permissions} idle={idle} reserve={reserve} />
+      <CanvasTools
+        permissions={permissions}
+        idle={idle}
+        pageFooter={pageFooter}
+      />
     </>,
     { queryClient, route: { path: "/", url: "/" } }
   )
@@ -342,10 +346,10 @@ describe("CanvasTools", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 
-  it("reserves room in the page flow for the floating toolbar only when asked", async () => {
+  it("makes the toolbar the last item at the bottom of a page column only when asked", async () => {
     await renderTools({ comment: true, edit: false }, false, true, true)
     const box = screen.getByRole("toolbar").parentElement?.parentElement
-    expect(box).toHaveClass("sticky", "h-18")
+    expect(box).toHaveClass("sticky", "h-18", "order-last", "mt-auto")
     expect(box).not.toHaveClass("h-0")
   })
 
@@ -353,7 +357,21 @@ describe("CanvasTools", () => {
     await renderTools({ comment: true, edit: false }, false)
     const box = screen.getByRole("toolbar").parentElement?.parentElement
     expect(box).toHaveClass("sticky", "h-0")
-    expect(box).not.toHaveClass("h-18")
+    expect(box).not.toHaveClass("h-18", "order-last", "mt-auto")
+  })
+
+  it("docks the hint as a full-width strip at the page bottom in a page column", async () => {
+    const user = userEvent.setup()
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    await user.click(screen.getByRole("button", { name: "Comment" }))
+    const strip = screen.getByRole("status").parentElement
+    expect(strip).toHaveClass(
+      "sticky",
+      "order-last",
+      "mt-auto",
+      "-mx-6",
+      "border-t"
+    )
   })
 
   it("lets clicks through the floating strip and keeps the toolbar clickable", async () => {

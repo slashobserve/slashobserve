@@ -378,7 +378,7 @@ export function BlockList({
 
   return (
     <CanvasHostProvider value={canvasHost}>
-      <div>
+      <>
         <ol
           id={blocksListId}
           ref={listRef}
@@ -410,9 +410,9 @@ export function BlockList({
           permissions={{ comment: canComment, edit: false }}
           idle={!arranging.arranging}
           modeTexts={observationModeTexts}
-          reserve
+          pageFooter
         />
-      </div>
+      </>
     </CanvasHostProvider>
   )
 }

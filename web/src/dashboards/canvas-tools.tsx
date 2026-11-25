@@ -216,8 +216,10 @@ type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
   modeTexts?: ModeTexts
-  reserve?: boolean
+  pageFooter?: boolean
 }
+
+export const pageFooterClass = "order-last mt-auto -mx-6 -mb-7"
 
 const toolClass =
   "gap-1.5 text-[13px] aria-pressed:bg-selection aria-pressed:text-foreground"
@@ -271,7 +273,7 @@ export function CanvasTools({
   permissions,
   idle,
   modeTexts = dashboardModeTexts,
-  reserve = false,
+  pageFooter = false,
 }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
@@ -295,7 +297,7 @@ export function CanvasTools({
           idle={idle}
           mayAsk={mayAsk}
           modeTexts={modeTexts}
-          reserve={reserve}
+          pageFooter={pageFooter}
           leave={leave}
         />
       ) : null}
@@ -308,14 +310,14 @@ function ToolBar({
   idle,
   mayAsk,
   modeTexts,
-  reserve,
+  pageFooter,
   leave,
 }: {
   active: CanvasTool
   idle: boolean
   mayAsk: boolean
   modeTexts: ModeTexts
-  reserve: boolean
+  pageFooter: boolean
   leave: (to: Leaving) => void
 }) {
   const bar = (
@@ -354,9 +356,10 @@ function ToolBar({
     <div
       className={cn(
         "sticky bottom-0 z-30 narrow:hidden",
+        pageFooter && pageFooterClass,
         docked
           ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
-          : cn("pointer-events-none", reserve ? "h-18" : "h-0")
+          : cn("pointer-events-none", pageFooter ? "h-18" : "h-0")
       )}
     >
       <div

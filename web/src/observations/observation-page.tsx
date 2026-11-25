@@ -191,7 +191,7 @@ function LoadedObservation({
 
   return (
     <>
-      <div className={columnClass}>
+      <div className={cn(columnClass, "min-h-full")}>
         <ObservationHeader
           envelope={envelope}
           discussion={{
