@@ -31,7 +31,12 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import {
+  focusEntryCell,
+  handleCellKey,
+  keepKeysOnFocusedControl,
+  leaveGridOnTab,
+} from "./cell-keys"
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { tabStaysInHeader } from "./header-keys"
 import { gridLines, type GridLine } from "./lines"
@@ -241,6 +246,7 @@ export function PanelGrid<T>({
     [columns, sizeToContent]
   )
 
+  const entryCell = useMemo(() => focusEntryCell(columns[0]?.id), [columns])
   const getRowId = useCallback(
     ({ data }: GetRowIdParams<Item<T>>) => data.id,
     []
@@ -329,6 +335,8 @@ export function PanelGrid<T>({
           isFullWidthRow={isDetail}
           fullWidthCellRenderer={DetailRow}
           suppressMovableColumns
+          tabToNextCell={leaveGridOnTab}
+          focusGridInnerElement={entryCell}
           suppressColumnVirtualisation
           ensureDomOrder
           suppressDragLeaveHidesColumns

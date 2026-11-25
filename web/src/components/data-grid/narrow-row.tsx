@@ -53,7 +53,10 @@ export function NarrowRow<T>({
       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-3 text-[13px] leading-normal"
       onPointerEnter={() => onHighlight(node.id ?? null)}
     >
-      <div data-cell={title.id} className="min-w-0 basis-full font-medium">
+      <div
+        data-cell={title.id}
+        className="min-w-0 basis-full font-medium wrap-anywhere"
+      >
         {title.cell(data.row)}
       </div>
       {fields.map((column) => (
@@ -61,7 +64,7 @@ export function NarrowRow<T>({
           key={column.id}
           data-cell={column.id}
           data-label={column.header}
-          className='flex min-w-0 items-center gap-1 text-xs text-muted-foreground before:content-[attr(data-label)_":"] empty:hidden'
+          className='flex min-w-0 items-center gap-1 text-xs wrap-anywhere text-muted-foreground before:content-[attr(data-label)_":"] empty:hidden'
         >
           {column.cell(data.row)}
         </div>

@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+import type { FocusGridInnerElementParams } from "ag-grid-community"
 
 import {
   cellKeyAction,
+  focusEntryCell,
   handleCellKey,
   keepKeysOnFocusedControl,
+  leaveGridOnTab,
 } from "./cell-keys"
 
 describe("cellKeyAction", () => {
@@ -35,17 +39,20 @@ describe("cellKeyAction", () => {
       kind: "focus",
       stop: 2,
     })
-    expect(cellKeyAction("Tab", false, 2, 2)).toBeNull()
+    expect(cellKeyAction("Tab", false, 2, 2)).toEqual({ kind: "leave" })
   })
 
-  it("tabs back through the controls to the cell, and stops acting there", () => {
+  it("tabs back through the controls to the cell, and leaves the grid from there", () => {
     expect(cellKeyAction("Tab", true, 2, 2)).toEqual({ kind: "focus", stop: 1 })
     expect(cellKeyAction("Tab", true, 1, 2)).toEqual({ kind: "focus", stop: 0 })
-    expect(cellKeyAction("Tab", true, 0, 2)).toBeNull()
+    expect(cellKeyAction("Tab", true, 0, 2)).toEqual({ kind: "leave" })
   })
 
-  it("leaves Tab to the grid on a cell with one control", () => {
-    expect(cellKeyAction("Tab", false, 0, 1)).toBeNull()
+  it("leaves the grid on Tab from a cell with no control or one", () => {
+    expect(cellKeyAction("Tab", false, 0, 0)).toEqual({ kind: "leave" })
+    expect(cellKeyAction("Tab", false, 0, 1)).toEqual({ kind: "leave" })
+    expect(cellKeyAction("Tab", true, 1, 1)).toEqual({ kind: "leave" })
+    expect(cellKeyAction("Tab", false, -1, 2)).toEqual({ kind: "leave" })
   })
 
   it("ignores other keys and targets outside the cell's stops", () => {
@@ -154,5 +161,110 @@ describe("fields inside a cell", () => {
     expect(keepKeysOnFocusedControl({ event: keydown(button, "Home") })).toBe(
       false
     )
+  })
+})
+
+describe("leaving the grid on Tab", () => {
+  function page() {
+    const before = document.createElement("button")
+    const after = document.createElement("button")
+    const grid = document.createElement("div")
+    const header = document.createElement("div")
+    header.setAttribute("role", "columnheader")
+    const rows = [0, 1].map(() => {
+      const cell = document.createElement("div")
+      cell.className = "ag-cell"
+      cell.tabIndex = -1
+      const link = document.createElement("a")
+      link.href = "#row"
+      cell.append(link)
+      return { cell, link }
+    })
+    grid.append(header, ...rows.map((row) => row.cell))
+    document.body.append(before, grid, after)
+    return { before, after, grid, header, rows }
+  }
+
+  function tab(target: HTMLElement, grid: HTMLElement, shiftKey = false) {
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey,
+      cancelable: true,
+    })
+    Object.defineProperty(event, "target", { value: target })
+    handleCellKey(event, grid)
+    return event
+  }
+
+  afterEach(() => {
+    document.body.replaceChildren()
+  })
+
+  it("moves focus to the next control after the grid, past every row's own controls", () => {
+    const { after, grid, rows } = page()
+    const event = tab(rows[0]!.cell, grid)
+    expect(event.defaultPrevented).toBe(true)
+    expect(after).toHaveFocus()
+  })
+
+  it("moves focus to the control before the grid on Shift+Tab", () => {
+    const { before, grid, rows } = page()
+    const event = tab(rows[1]!.cell, grid, true)
+    expect(event.defaultPrevented).toBe(true)
+    expect(before).toHaveFocus()
+  })
+
+  it("leaves from a header cell too", () => {
+    const { after, grid, header } = page()
+    expect(tab(header, grid).defaultPrevented).toBe(true)
+    expect(after).toHaveFocus()
+  })
+
+  it("leaves the event alone when nothing follows the grid", () => {
+    const { after, grid, rows } = page()
+    after.remove()
+    expect(tab(rows[0]!.cell, grid).defaultPrevented).toBe(false)
+  })
+
+  it("never lets the grid's own tab navigation pick the next cell", () => {
+    expect(leaveGridOnTab()).toBe(false)
+  })
+})
+
+describe("focusEntryCell", () => {
+  function api(
+    focused: { rowIndex: number; column: string } | null,
+    rowCount: number
+  ) {
+    const setFocusedCell = vi.fn()
+    return {
+      setFocusedCell,
+      params: {
+        api: {
+          getDisplayedRowCount: () => rowCount,
+          getFocusedCell: () => focused,
+          setFocusedCell,
+        },
+      } as unknown as FocusGridInnerElementParams,
+    }
+  }
+
+  it("returns to the last focused cell", () => {
+    const { params, setFocusedCell } = api({ rowIndex: 4, column: "owner" }, 9)
+    expect(focusEntryCell("name")(params)).toBe(true)
+    expect(setFocusedCell).toHaveBeenCalledWith(4, "owner", undefined)
+  })
+
+  it("starts at the first cell when none was focused or its row is gone", () => {
+    for (const focused of [null, { rowIndex: 9, column: "owner" }]) {
+      const { params, setFocusedCell } = api(focused, 3)
+      expect(focusEntryCell("name")(params)).toBe(true)
+      expect(setFocusedCell).toHaveBeenCalledWith(0, "name")
+    }
+  })
+
+  it("leaves the entry to the grid without rows or columns", () => {
+    expect(focusEntryCell("name")(api(null, 0).params)).toBe(false)
+    expect(focusEntryCell(undefined)(api(null, 3).params)).toBe(false)
   })
 })

@@ -32,7 +32,12 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import {
+  focusEntryCell,
+  handleCellKey,
+  keepKeysOnFocusedControl,
+  leaveGridOnTab,
+} from "./cell-keys"
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
@@ -88,6 +93,10 @@ type CellParams<T> = ICellRendererParams<GridLine<T>> & {
 
 function GridCell<T>({ data, column }: CellParams<T>) {
   if (data === undefined) return null
+  const content = column.cell(data.row)
+  const plainText =
+    column.autoHeight !== true &&
+    (typeof content === "string" || typeof content === "number")
   return (
     <div
       className={cn(
@@ -96,7 +105,13 @@ function GridCell<T>({ data, column }: CellParams<T>) {
         column.align === "right" && "justify-end text-right"
       )}
     >
-      {column.cell(data.row)}
+      {plainText ? (
+        <span className="truncate" title={String(content)}>
+          {content}
+        </span>
+      ) : (
+        content
+      )}
     </div>
   )
 }
@@ -170,6 +185,7 @@ function SortHeader({
 }
 
 const highlightClass = "bg-selection!"
+const selectedClass = "ag-row-selected"
 
 function FullWidthRow<T>(params: ICellRendererParams<GridLine<T>>) {
   return params.data?.detail === true ? (
@@ -197,6 +213,7 @@ export function DataGrid<T>({
   onSort,
   highlightedRowId = null,
   onHighlightRow,
+  selectedRowIds,
   revealRowId = null,
   keepScrollOnPrepend = false,
   detail,
@@ -218,6 +235,7 @@ export function DataGrid<T>({
   onSort?: (key: string) => void
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
+  selectedRowIds?: ReadonlySet<string>
   revealRowId?: string | null
   keepScrollOnPrepend?: boolean
   detail?: DataGridDetail<T>
@@ -270,8 +288,10 @@ export function DataGrid<T>({
     () => ({
       [highlightClass]: ({ node }) =>
         highlightedRowId !== null && node.id === highlightedRowId,
+      [selectedClass]: ({ node }) =>
+        node.id !== undefined && selectedRowIds?.has(node.id) === true,
     }),
-    [highlightedRowId]
+    [highlightedRowId, selectedRowIds]
   )
   const processRowPostCreate = useCallback(
     ({ eRow, node }: ProcessRowParams<GridLine<T>>) => {
@@ -331,6 +351,7 @@ export function DataGrid<T>({
   )
   const renderDetail = detail?.render as
     ((row: unknown) => ReactNode) | undefined
+  const entryCell = useMemo(() => focusEntryCell(columns[0]?.id), [columns])
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
@@ -494,6 +515,8 @@ export function DataGrid<T>({
             rowHeight={rowHeight}
             headerHeight={narrow ? 0 : headerHeight}
             suppressMovableColumns
+            tabToNextCell={leaveGridOnTab}
+            focusGridInnerElement={entryCell}
             isFullWidthRow={isFullWidthRow}
             fullWidthCellRenderer={FullWidthRow}
             getRowHeight={getRowHeight}

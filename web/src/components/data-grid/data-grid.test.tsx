@@ -253,12 +253,16 @@ describe("DataGrid", () => {
       },
     ]
     render(
-      <DataGrid
-        label="Services"
-        rows={rows}
-        columns={withActions}
-        rowId={(row) => row.id}
-      />
+      <>
+        <button type="button">Before</button>
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={withActions}
+          rowId={(row) => row.id}
+        />
+        <button type="button">After</button>
+      </>
     )
     const edit = await screen.findByRole("button", { name: "Edit Checkout" })
     const copy = screen.getByRole("button", { name: "Copy Checkout" })
@@ -282,13 +286,13 @@ describe("DataGrid", () => {
     expect(copy).toHaveFocus()
     fireEvent.keyDown(copy, { key: "Tab" })
     fireEvent.keyDown(remove, { key: "Tab" })
-    await waitFor(() =>
-      expect(document.activeElement).toHaveAttribute("col-id", "name")
-    )
-    expect(document.activeElement?.closest("[row-id]")).toHaveAttribute(
-      "row-id",
-      "b"
-    )
+    expect(screen.getByRole("button", { name: "After" })).toHaveFocus()
+    remove.focus()
+    fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
+    fireEvent.keyDown(copy, { key: "Tab", shiftKey: true })
+    fireEvent.keyDown(edit, { key: "Tab", shiftKey: true })
+    fireEvent.keyDown(cell, { key: "Tab", shiftKey: true })
+    expect(screen.getByRole("button", { name: "Before" })).toHaveFocus()
     cell.focus()
     fireEvent.keyDown(cell, { key: "ArrowDown" })
     await waitFor(() =>
@@ -378,6 +382,74 @@ describe("DataGrid", () => {
     expect(cell).toBeInTheDocument()
     fireEvent.pointerLeave(container.firstElementChild as HTMLElement)
     expect(onHighlightRow).toHaveBeenLastCalledWith(null)
+  })
+
+  it("leaves the grid in one Tab from a cell instead of walking the other cells", async () => {
+    render(
+      <>
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns.slice(0, 3)}
+          rowId={(row) => row.id}
+        />
+        <button type="button">After</button>
+      </>
+    )
+    const cell = (await screen.findByText("Checkout")).closest<HTMLElement>(
+      "[role=gridcell]"
+    ) as HTMLElement
+    cell.focus()
+    fireEvent.keyDown(cell, { key: "Tab" })
+    expect(screen.getByRole("button", { name: "After" })).toHaveFocus()
+  })
+
+  it("marks the rows it is told are selected, and only those", async () => {
+    const props = {
+      label: "Services",
+      rows,
+      columns,
+      rowId: (row: Row) => row.id,
+    }
+    const { container, rerender } = render(
+      <DataGrid {...props} selectedRowIds={new Set(["b"])} />
+    )
+    const row = (id: string) =>
+      container.querySelector<HTMLElement>(`[role=row][row-id="${id}"]`)
+    await waitFor(() => expect(row("b")).toHaveClass("ag-row-selected"))
+    expect(row("a")).not.toHaveClass("ag-row-selected")
+    rerender(<DataGrid {...props} selectedRowIds={new Set(["a", "b"])} />)
+    await waitFor(() => expect(row("a")).toHaveClass("ag-row-selected"))
+    rerender(<DataGrid {...props} selectedRowIds={new Set()} />)
+    await waitFor(() => expect(row("b")).not.toHaveClass("ag-row-selected"))
+    expect(row("a")).not.toHaveClass("ag-row-selected")
+  })
+
+  it("truncates a plain text cell with an ellipsis and the full text in a title, but not one that wraps", async () => {
+    const long = "Observe Agent for adr-0042-long-service-name"
+    const wrapping: DataGridColumn<Row>[] = [
+      { id: "name", header: "Name", cell: (row) => row.name },
+      {
+        id: "owner",
+        header: "Owner",
+        autoHeight: true,
+        cell: (row) => row.owner,
+      },
+    ]
+    render(
+      <DataGrid
+        label="Services"
+        rows={[{ id: "a", name: long, owner: long, note: "" }]}
+        columns={wrapping}
+        rowId={(row) => row.id}
+      />
+    )
+    const cells = await screen.findAllByText(long)
+    const [name, owner] = cells as [HTMLElement, HTMLElement]
+    expect(name).toHaveClass("truncate")
+    expect(name).toHaveAttribute("title", long)
+    expect(owner).not.toHaveClass("truncate")
+    expect(owner).not.toHaveAttribute("title")
   })
 
   it("virtualises above 100 rows in a box that fills the page, and grows with its rows again below", async () => {
@@ -894,6 +966,11 @@ describe("DataGrid", () => {
         { id: "open", label: null, text: "Open Search" },
       ])
       expect(card?.firstElementChild).toHaveClass("basis-full", "font-medium")
+      for (const cell of card?.children ?? []) {
+        if (cell.hasAttribute("data-label")) {
+          expect(cell).toHaveClass("wrap-anywhere")
+        }
+      }
       expect(card?.lastElementChild).toHaveClass("ml-auto")
     })
 
