@@ -630,14 +630,6 @@ describe("itemLink", () => {
       link: { to: `/proposals/${id}`, search: { thread: other } },
     },
     {
-      name: "a thread on a finding opens the finding on that thread",
-      over: {
-        target: { kind: "thread", id: other },
-        data: withData({ object: { kind: "finding", id } }),
-      },
-      link: { to: `/findings/${id}`, search: { thread: other } },
-    },
-    {
       name: "a thread on an annotation opens its dashboard",
       over: {
         target: { kind: "thread", id: other },

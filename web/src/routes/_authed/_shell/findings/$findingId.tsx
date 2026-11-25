@@ -9,7 +9,6 @@ import {
 import { ApiError } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { buttonVariants } from "@/components/ui/button"
-import { threadParam } from "@/discussion/thread-param"
 import { findingQuery } from "@/findings/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import { observationsLink } from "@/lib/links"
@@ -17,10 +16,7 @@ import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
 
 export const Route = createFileRoute("/_authed/_shell/findings/$findingId")({
-  validateSearch: (search: Record<string, unknown>): { thread?: string } => ({
-    thread: threadParam(search.thread),
-  }),
-  beforeLoad: async ({ params, search, context }) => {
+  beforeLoad: async ({ params, context }) => {
     const { finding } = await context.queryClient.fetchQuery(
       findingQuery(params.findingId)
     )
@@ -28,7 +24,6 @@ export const Route = createFileRoute("/_authed/_shell/findings/$findingId")({
       throw redirect({
         to: "/o/$observationId",
         params: { observationId: finding.observation_id },
-        search: { thread: search.thread },
         replace: true,
       })
     }

@@ -260,8 +260,6 @@ function threadLink(item: InboxItem): ItemLink | null {
       return onThread(observationPath(ref.id))
     case "proposal":
       return onThread(proposalPath(ref.id))
-    case "finding":
-      return onThread(findingPath(ref.id))
     case "annotation":
       return item.dashboard_id === null
         ? null
