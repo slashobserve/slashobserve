@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon, PuzzleIcon } from "lucide-react"
 
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -278,6 +278,44 @@ function Match({
   )
 }
 
+function datasourceColumns(
+  picks: Picks,
+  onPick: (uid: string, pick: string) => void
+): DataGridColumn<GrafanaDatasource>[] {
+  return [
+    {
+      id: "name",
+      header: "In Grafana",
+      minWidth: 160,
+      autoHeight: true,
+      cell: (datasource) => (
+        <span className="py-2 wrap-anywhere">{datasource.name}</span>
+      ),
+    },
+    {
+      id: "type",
+      header: "Type",
+      width: 140,
+      cell: (datasource) => (
+        <span className="font-mono text-xs">{datasource.type}</span>
+      ),
+    },
+    {
+      id: "use",
+      header: "Use in SlashObserve",
+      minWidth: 220,
+      flex: 1.5,
+      cell: (datasource) => (
+        <Match
+          datasource={datasource}
+          value={picks[datasource.uid] ?? null}
+          onPick={onPick}
+        />
+      ),
+    },
+  ]
+}
+
 function DatasourceChoice({
   datasources,
   picks,
@@ -287,39 +325,18 @@ function DatasourceChoice({
   picks: Picks
   onPick: (uid: string, pick: string) => void
 }) {
-  const headingId = useId()
   const matchable = supported(datasources)
   const others = unsupported(datasources).length
   return (
     <div className="flex flex-col gap-2 border-b px-4 py-3">
-      <h3 id={headingId} className="text-[13px] font-medium">
-        Datasources
-      </h3>
+      <h3 className="text-[13px] font-medium">Datasources</h3>
       {matchable.length > 0 ? (
-        <TableCard labelledBy={headingId} minWidth={520}>
-          <thead>
-            <tr>
-              <HeaderCell>In Grafana</HeaderCell>
-              <HeaderCell>Type</HeaderCell>
-              <HeaderCell>Use in SlashObserve</HeaderCell>
-            </tr>
-          </thead>
-          <tbody>
-            {matchable.map((datasource) => (
-              <tr key={datasource.uid}>
-                <Cell className="wrap-anywhere">{datasource.name}</Cell>
-                <Cell className="font-mono text-xs">{datasource.type}</Cell>
-                <Cell>
-                  <Match
-                    datasource={datasource}
-                    value={picks[datasource.uid] ?? null}
-                    onPick={onPick}
-                  />
-                </Cell>
-              </tr>
-            ))}
-          </tbody>
-        </TableCard>
+        <DataGrid
+          label="Datasources"
+          rows={matchable}
+          columns={datasourceColumns(picks, onPick)}
+          rowId={(datasource) => datasource.uid}
+        />
       ) : (
         <p className="text-[13px] text-muted-foreground">
           This Grafana has no datasource of a type SlashObserve queries.

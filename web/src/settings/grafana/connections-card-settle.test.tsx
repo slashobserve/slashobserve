@@ -52,7 +52,7 @@ describe("ConnectionsCard", () => {
     )
 
     await user.click(
-      screen.getByRole("button", { name: "More for Prod Grafana" })
+      await screen.findByRole("button", { name: "More for Prod Grafana" })
     )
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
     await user.click(

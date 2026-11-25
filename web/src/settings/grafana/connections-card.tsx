@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -104,119 +104,142 @@ export function ConnectionsCard({ connections, onImport, onEdit }: Props) {
     )
   }
 
+  const columns: DataGridColumn<GrafanaConnection>[] = [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (connection) => (
+        <span className="py-2 font-medium wrap-anywhere">
+          {connection.name}
+        </span>
+      ),
+    },
+    {
+      id: "url",
+      header: "URL",
+      minWidth: 200,
+      flex: 1.5,
+      autoHeight: true,
+      cell: (connection) => (
+        <span className="py-2 font-mono text-xs wrap-anywhere">
+          {connection.url}
+        </span>
+      ),
+    },
+    {
+      id: "lastTest",
+      header: "Last test",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (connection) => (
+        <div className="py-2">
+          <LastTest connection={connection} />
+        </div>
+      ),
+    },
+    {
+      id: "lastImport",
+      header: "Last import",
+      minWidth: 140,
+      autoHeight: true,
+      cell: (connection) => (
+        <div className="py-2">
+          <LastImport connection={connection} />
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 250,
+      cell: (connection) => {
+        const testing = test.isPending && test.variables === connection.id
+        return (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="narrow:h-11"
+              disabled={testing}
+              focusableWhenDisabled
+              aria-busy={testing}
+              aria-label={`Test ${connection.name}`}
+              onClick={() => runTest(connection)}
+            >
+              {testing ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="motion-safe:animate-spin"
+                />
+              ) : null}
+              Test
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="narrow:h-11"
+              aria-label={`Import from ${connection.name}`}
+              onClick={() => onImport(connection)}
+            >
+              Import
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    ref={(button) => {
+                      if (button === null)
+                        deleteButtons.current.delete(connection.id)
+                      else deleteButtons.current.set(connection.id, button)
+                    }}
+                    variant="outline"
+                    size="icon-sm"
+                    className="narrow:size-11"
+                    aria-label={`More for ${connection.name}`}
+                  />
+                }
+              >
+                <EllipsisIcon aria-hidden="true" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() =>
+                    onEdit(connection, deleteButtons.current.get(connection.id))
+                  }
+                >
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    deleteTarget.current = connection.id
+                    setDeleting(connection)
+                  }}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <>
-      <TableCard
+      <DataGrid
         label="Grafana connections"
-        minWidth={760}
-        stackOnNarrow
-        className="rounded-none border-0 border-t bg-transparent"
-      >
-        <thead>
-          <tr>
-            <HeaderCell>Name</HeaderCell>
-            <HeaderCell>URL</HeaderCell>
-            <HeaderCell>Last test</HeaderCell>
-            <HeaderCell>Last import</HeaderCell>
-            <HeaderCell>
-              <span className="sr-only">Actions</span>
-            </HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {connections.map((connection) => {
-            const testing = test.isPending && test.variables === connection.id
-            return (
-              <tr key={connection.id}>
-                <Cell className="font-medium wrap-anywhere">
-                  {connection.name}
-                </Cell>
-                <Cell className="font-mono text-xs wrap-anywhere">
-                  {connection.url}
-                </Cell>
-                <Cell>
-                  <LastTest connection={connection} />
-                </Cell>
-                <Cell>
-                  <LastImport connection={connection} />
-                </Cell>
-                <Cell data-cell="action">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="narrow:h-11"
-                      disabled={testing}
-                      focusableWhenDisabled
-                      aria-busy={testing}
-                      aria-label={`Test ${connection.name}`}
-                      onClick={() => runTest(connection)}
-                    >
-                      {testing ? (
-                        <LoaderCircleIcon
-                          aria-hidden="true"
-                          className="motion-safe:animate-spin"
-                        />
-                      ) : null}
-                      Test
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="narrow:h-11"
-                      aria-label={`Import from ${connection.name}`}
-                      onClick={() => onImport(connection)}
-                    >
-                      Import
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            ref={(button) => {
-                              if (button === null)
-                                deleteButtons.current.delete(connection.id)
-                              else
-                                deleteButtons.current.set(connection.id, button)
-                            }}
-                            variant="outline"
-                            size="icon-sm"
-                            className="narrow:size-11"
-                            aria-label={`More for ${connection.name}`}
-                          />
-                        }
-                      >
-                        <EllipsisIcon aria-hidden="true" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            onEdit(
-                              connection,
-                              deleteButtons.current.get(connection.id)
-                            )
-                          }
-                        >
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => {
-                            deleteTarget.current = connection.id
-                            setDeleting(connection)
-                          }}
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </Cell>
-              </tr>
-            )
-          })}
-        </tbody>
-      </TableCard>
+        rows={connections}
+        columns={columns}
+        rowId={(connection) => connection.id}
+        bare
+        className="border-t"
+      />
       <AlertDialog open={deleting !== null} onOpenChange={changeDeleteOpen}>
         <AlertDialogContent
           finalFocus={() =>
