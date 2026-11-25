@@ -108,6 +108,17 @@ describe("which block carries a header", () => {
     expect([...headers.keys()]).toEqual(["b"])
   })
 
+  it("prefers a live block over an earlier requested one of the same run", () => {
+    const requested = { ...block("a", 0, "r1"), state: "requested" } as Block
+    const headers = headerBlocks([requested, block("b", 1, "r1")], [full])
+    expect([...headers.keys()]).toEqual(["b"])
+  })
+
+  it("falls back to the requested block when the run has no live one", () => {
+    const requested = { ...block("a", 0, "r1"), state: "requested" } as Block
+    expect([...headerBlocks([requested], [full]).keys()]).toEqual(["a"])
+  })
+
   it("makes none when the observation has no findings", () => {
     expect(headerBlocks([block("a", 0, "r1")], undefined).size).toBe(0)
   })

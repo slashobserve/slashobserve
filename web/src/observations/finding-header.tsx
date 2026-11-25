@@ -36,9 +36,10 @@ export function headerBlocks(
   const headers = new Map<string, RunFinding>()
   for (const finding of findings ?? []) {
     if (!hasFindingHeader(finding)) continue
-    const answer = blocks
+    const answers = blocks
       .filter((b) => b.kind === "text" && b.run_id === finding.run_id)
-      .toSorted((a, b) => a.position - b.position)[0]
+      .toSorted((a, b) => a.position - b.position)
+    const answer = answers.find((b) => b.state === "live") ?? answers[0]
     if (answer !== undefined) headers.set(answer.id, finding)
   }
   return headers
