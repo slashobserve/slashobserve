@@ -1,0 +1,2575 @@
+{
+  "schema": 1,
+  "benchmark": "o11y-bench",
+  "benchmark_version": null,
+  "harbor_version": "0.24.0",
+  "server": {
+    "version": "dev",
+    "commit": "unknown"
+  },
+  "model": "anthropic/claude-sonnet-5-5",
+  "judge": "claude-haiku-5-5@high",
+  "settings": {
+    "investigation_calls": null,
+    "llm_effort": null,
+    "run_max_cost_usd": 0.5,
+    "wall_timeout_sec": null
+  },
+  "started_at": "2026-11-25T13:51:31.582422Z",
+  "finished_at": "2026-11-25T17:04:56.304751Z",
+  "notes": [
+    "Sonnet 5.5, core f8c7753c0, full 51-task run, 3 attempts, spend $13.84",
+    "The server image reports version dev, so the core commit is in the file name."
+  ],
+  "summary": {
+    "tasks": 51,
+    "attempts_per_task": 3,
+    "trials": 153,
+    "skipped_trials": 0,
+    "mean_reward": 0.9136,
+    "trials_passed": 125,
+    "tasks_passed_every_attempt": 35,
+    "pass_all_attempts": 0.6863,
+    "cost_usd": 13.83641,
+    "failures_by_cause": {
+      "adapter_fault": 1,
+      "missing_capability": 3,
+      "agent_mistake": 24
+    }
+  },
+  "skipped": [],
+  "tasks": [
+    {
+      "task": "cache-incident-blast-radius",
+      "digest": "c7cfaa7b604d31dc8a54e51b3c59a1cd0aa08196e9e8e2314d6de44fe3cc8ceb",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "cache-incident-blast-radius__iAQ56Cc",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 229918,
+          "cache_tokens": 179138,
+          "output_tokens": 2944,
+          "cost_usd": 0.192212,
+          "agent_seconds": 62.5,
+          "trial_seconds": 325.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-incident-blast-radius__ZTi5UY2",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 228077,
+          "cache_tokens": 220471,
+          "output_tokens": 2489,
+          "cost_usd": 0.087993,
+          "agent_seconds": 97.5,
+          "trial_seconds": 185.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-incident-blast-radius__GZmeffB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 232060,
+          "cache_tokens": 221852,
+          "output_tokens": 3319,
+          "cost_usd": 0.103074,
+          "agent_seconds": 79.1,
+          "trial_seconds": 223.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "cache-refresh-lag-handoff",
+      "digest": "4b1df2dc213cec20665dec6cc6750390300182f37a04150b9be8bda478a33af4",
+      "mean_reward": 0.8833,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "cache-refresh-lag-handoff__CYYtgQn",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 419097,
+          "cache_tokens": 356610,
+          "output_tokens": 6720,
+          "cost_usd": 0.294731,
+          "agent_seconds": 115.9,
+          "trial_seconds": 340.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-refresh-lag-handoff__mbU59W9",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 326669,
+          "cache_tokens": 314482,
+          "output_tokens": 4302,
+          "cost_usd": 0.136376,
+          "agent_seconds": 97.5,
+          "trial_seconds": 185.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-refresh-lag-handoff__qwU6wyU",
+          "reward": 0.65,
+          "passed": false,
+          "input_tokens": 240139,
+          "cache_tokens": 227156,
+          "output_tokens": 3427,
+          "cost_usd": 0.112153,
+          "agent_seconds": 78.8,
+          "trial_seconds": 223.0,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent read the 24 hour peak from a coarse range query, then added a finer read, so it stated two conflicting peaks."
+          }
+        }
+      ]
+    },
+    {
+      "task": "cache-rollout-trigger-check",
+      "digest": "1f2b1792fb01c9cdeda2053cb0ab8b654eaa695f07dd9823e79ca8617ab64f67",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "cache-rollout-trigger-check__kLKJdZb",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 383107,
+          "cache_tokens": 328301,
+          "output_tokens": 4931,
+          "cost_usd": 0.251976,
+          "agent_seconds": 91.6,
+          "trial_seconds": 339.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-rollout-trigger-check__RS5jkQo",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 271703,
+          "cache_tokens": 265417,
+          "output_tokens": 2866,
+          "cost_usd": 0.097451,
+          "agent_seconds": 156.9,
+          "trial_seconds": 297.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "cache-rollout-trigger-check__kYSVdii",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 229834,
+          "cache_tokens": 220987,
+          "output_tokens": 3186,
+          "cost_usd": 0.098169,
+          "agent_seconds": 78.8,
+          "trial_seconds": 222.9,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "check-service-health",
+      "digest": "9c0430590a8b8d603880b8c12e87786c3a6d5e2be1f38ac6161bd83136b191f9",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "check-service-health__4XSZxmf",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129566,
+          "cache_tokens": 127194,
+          "output_tokens": 1386,
+          "cost_usd": 0.045225,
+          "agent_seconds": 54.7,
+          "trial_seconds": 213.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "check-service-health__E8zijJC",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129348,
+          "cache_tokens": 127097,
+          "output_tokens": 1418,
+          "cost_usd": 0.045223,
+          "agent_seconds": 83.1,
+          "trial_seconds": 220.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "check-service-health__gY9ZGQB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129348,
+          "cache_tokens": 127097,
+          "output_tokens": 1381,
+          "cost_usd": 0.044853,
+          "agent_seconds": 64.3,
+          "trial_seconds": 244.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "dependency-outage-false-lead",
+      "digest": "e50d1b43888e8ffd35f2211ca5e7918ce25046510440526ad28ebf2373b5c638",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "dependency-outage-false-lead__FrXzGbS",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 190099,
+          "cache_tokens": 179059,
+          "output_tokens": 2127,
+          "cost_usd": 0.084677,
+          "agent_seconds": 92.3,
+          "trial_seconds": 202.9,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "dependency-outage-false-lead__FjYecCp",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 240457,
+          "cache_tokens": 228487,
+          "output_tokens": 3492,
+          "cost_usd": 0.110536,
+          "agent_seconds": 83.2,
+          "trial_seconds": 219.6,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "dependency-outage-false-lead__haSZphV",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 358878,
+          "cache_tokens": 343760,
+          "output_tokens": 3862,
+          "cost_usd": 0.145159,
+          "agent_seconds": 64.3,
+          "trial_seconds": 244.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "deployment-blast-radius-check",
+      "digest": "ded0565adb35a04db81a06dbdeac9fccc875d17f0d47e7e16481af93e231c5a6",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "deployment-blast-radius-check__NyRHbVs",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 271713,
+          "cache_tokens": 265972,
+          "output_tokens": 2716,
+          "cost_usd": 0.0947,
+          "agent_seconds": 92.3,
+          "trial_seconds": 202.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "deployment-blast-radius-check__WkYVjFL",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 176179,
+          "cache_tokens": 172484,
+          "output_tokens": 1683,
+          "cost_usd": 0.060559,
+          "agent_seconds": 66.0,
+          "trial_seconds": 153.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "deployment-blast-radius-check__fx8eAtk",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 273321,
+          "cache_tokens": 267126,
+          "output_tokens": 2816,
+          "cost_usd": 0.097066,
+          "agent_seconds": 63.6,
+          "trial_seconds": 244.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "find-slow-requests",
+      "digest": "713487bcb72c85d6707fe4a74dad0c1e89d4e77cf6bf1f4e7aba84b8c3567dc6",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "find-slow-requests__XQW7EnU",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 188010,
+          "cache_tokens": 176092,
+          "output_tokens": 2488,
+          "cost_usd": 0.089888,
+          "agent_seconds": 67.3,
+          "trial_seconds": 179.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "find-slow-requests__vAvFnpX",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 182745,
+          "cache_tokens": 174961,
+          "output_tokens": 2302,
+          "cost_usd": 0.077467,
+          "agent_seconds": 107.8,
+          "trial_seconds": 270.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "find-slow-requests__9m9gExS",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 234351,
+          "cache_tokens": 224788,
+          "output_tokens": 3673,
+          "cost_usd": 0.105589,
+          "agent_seconds": 79.3,
+          "trial_seconds": 234.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "find-slow-traces",
+      "digest": "81c5971e2ef7e66a0b517cdecef38d27f2b5e66b0f4b7135f3747152c3565329",
+      "mean_reward": 0.8718,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "find-slow-traces__HLmTy26",
+          "reward": 0.6153846153846154,
+          "passed": false,
+          "input_tokens": 264075,
+          "cache_tokens": 246987,
+          "output_tokens": 4539,
+          "cost_usd": 0.137501,
+          "agent_seconds": 57.2,
+          "trial_seconds": 167.8,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent compared only the ten newest slow traces, all on one route, and never read a slow trace for the second route the question named."
+          }
+        },
+        {
+          "trial": "find-slow-traces__rgHcuwv",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 210996,
+          "cache_tokens": 190873,
+          "output_tokens": 2893,
+          "cost_usd": 0.117407,
+          "agent_seconds": 109.1,
+          "trial_seconds": 270.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "find-slow-traces__u3JiCDL",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 259954,
+          "cache_tokens": 240063,
+          "output_tokens": 4181,
+          "cost_usd": 0.139544,
+          "agent_seconds": 93.9,
+          "trial_seconds": 234.2,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "incident-triage",
+      "digest": "283c34d96a4ce3f128826ff92420d09d93e9e51014b3982cb1b7e0ce8fb8fe41",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "incident-triage__9boSQcP",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 321921,
+          "cache_tokens": 313522,
+          "output_tokens": 4739,
+          "cost_usd": 0.131084,
+          "agent_seconds": 57.2,
+          "trial_seconds": 167.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "incident-triage__hf8UyRt",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 391416,
+          "cache_tokens": 377535,
+          "output_tokens": 8398,
+          "cost_usd": 0.194181,
+          "agent_seconds": 172.8,
+          "trial_seconds": 315.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "incident-triage__zuViNiF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 328136,
+          "cache_tokens": 317361,
+          "output_tokens": 5711,
+          "cost_usd": 0.147512,
+          "agent_seconds": 174.5,
+          "trial_seconds": 263.5,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "list-services-traces",
+      "digest": "947e9b83651536d60f7f44129fe104bb450094bcb276ac1fb1a128f25908232a",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "list-services-traces__8CfLSSH",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 181277,
+          "cache_tokens": 172061,
+          "output_tokens": 2926,
+          "cost_usd": 0.086707,
+          "agent_seconds": 58.9,
+          "trial_seconds": 167.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "list-services-traces__j7Miq2z",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 289382,
+          "cache_tokens": 277714,
+          "output_tokens": 4130,
+          "cost_usd": 0.126006,
+          "agent_seconds": 81.5,
+          "trial_seconds": 183.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "list-services-traces__UxoSD2X",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 188549,
+          "cache_tokens": 168840,
+          "output_tokens": 3975,
+          "cost_usd": 0.122786,
+          "agent_seconds": 135.1,
+          "trial_seconds": 311.9,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-cache-refresh-peak-lag",
+      "digest": "d2eedc5b24852e038a20cca2403a43f78938977cffd5bb5a12fc838ab6130a7c",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-cache-refresh-peak-lag__yKjkdeS",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 174623,
+          "cache_tokens": 170572,
+          "output_tokens": 2043,
+          "cost_usd": 0.064667,
+          "agent_seconds": 58.8,
+          "trial_seconds": 167.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-cache-refresh-peak-lag__nTNJs2V",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 235680,
+          "cache_tokens": 224432,
+          "output_tokens": 2666,
+          "cost_usd": 0.09966,
+          "agent_seconds": 81.6,
+          "trial_seconds": 183.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-cache-refresh-peak-lag__Dzc3UVm",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 231370,
+          "cache_tokens": 221600,
+          "output_tokens": 2220,
+          "cost_usd": 0.090939,
+          "agent_seconds": 133.4,
+          "trial_seconds": 311.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-deployment-rollout-events",
+      "digest": "6001ab0f8806bc2e695cf4a03a6a32a2685bfc14428bb7d276eafb79dc4c2196",
+      "mean_reward": 0.8421,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "logql-deployment-rollout-events__jH79tNw",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 130698,
+          "cache_tokens": 127797,
+          "output_tokens": 1090,
+          "cost_usd": 0.043708,
+          "agent_seconds": 50.5,
+          "trial_seconds": 167.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-deployment-rollout-events__ssCS6JD",
+          "reward": 0.5263157894736842,
+          "passed": false,
+          "input_tokens": 130676,
+          "cache_tokens": 127773,
+          "output_tokens": 1174,
+          "cost_usd": 0.044548,
+          "agent_seconds": 40.8,
+          "trial_seconds": 117.3,
+          "error": null,
+          "failure": {
+            "cause": "adapter_fault",
+            "summary": "The answer matches the passing attempts in substance, and the judge failed a line-count criterion that the same opening sentence satisfied in another attempt."
+          }
+        },
+        {
+          "trial": "logql-deployment-rollout-events__V4RS3ff",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 176243,
+          "cache_tokens": 172577,
+          "output_tokens": 1910,
+          "cost_usd": 0.062775,
+          "agent_seconds": 76.0,
+          "trial_seconds": 268.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-multi-stage-pipeline",
+      "digest": "cf23445b7d566d4791af503308aa532228a6255eb193e46090f2ab22a7a338a0",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-multi-stage-pipeline__mFdbsKh",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 183153,
+          "cache_tokens": 175288,
+          "output_tokens": 2669,
+          "cost_usd": 0.081405,
+          "agent_seconds": 66.7,
+          "trial_seconds": 173.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-multi-stage-pipeline__XAfuz3f",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 242576,
+          "cache_tokens": 229296,
+          "output_tokens": 3587,
+          "cost_usd": 0.114923,
+          "agent_seconds": 107.9,
+          "trial_seconds": 203.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-multi-stage-pipeline__rSvEMtL",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 185323,
+          "cache_tokens": 174788,
+          "output_tokens": 2553,
+          "cost_usd": 0.08682,
+          "agent_seconds": 76.8,
+          "trial_seconds": 206.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-parse-json-logs",
+      "digest": "d825dd136c7f133e36d41f946988b856a1df066ba016491bf82f6f056ceca718",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-parse-json-logs__8nbch7E",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 276406,
+          "cache_tokens": 267542,
+          "output_tokens": 2330,
+          "cost_usd": 0.098961,
+          "agent_seconds": 66.8,
+          "trial_seconds": 173.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-parse-json-logs__4M3Kqnb",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 229787,
+          "cache_tokens": 220819,
+          "output_tokens": 2038,
+          "cost_usd": 0.086958,
+          "agent_seconds": 99.3,
+          "trial_seconds": 203.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-parse-json-logs__ZWWre8W",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 180004,
+          "cache_tokens": 174443,
+          "output_tokens": 1941,
+          "cost_usd": 0.068196,
+          "agent_seconds": 121.0,
+          "trial_seconds": 345.7,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-payment-warning-volume",
+      "digest": "481d3c37c1b73a86dc751c119b0c2f3fcd8332c8fe1142015d1d5034ab788c2a",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-payment-warning-volume__eDqrb5P",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 176491,
+          "cache_tokens": 172217,
+          "output_tokens": 1778,
+          "cost_usd": 0.062903,
+          "agent_seconds": 43.3,
+          "trial_seconds": 173.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-payment-warning-volume__dR54UQX",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 130028,
+          "cache_tokens": 126663,
+          "output_tokens": 1914,
+          "cost_usd": 0.052881,
+          "agent_seconds": 73.6,
+          "trial_seconds": 167.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-payment-warning-volume__xuCRQet",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 176400,
+          "cache_tokens": 172169,
+          "output_tokens": 1734,
+          "cost_usd": 0.062346,
+          "agent_seconds": 122.2,
+          "trial_seconds": 345.7,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-retry-backlog-warnings",
+      "digest": "6bdc363dbcb6bf27801cbb708d25876939ba078ace3870e06a2f0d6badee7170",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-retry-backlog-warnings__VBEnVxD",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 173452,
+          "cache_tokens": 171035,
+          "output_tokens": 1517,
+          "cost_usd": 0.055414,
+          "agent_seconds": 39.1,
+          "trial_seconds": 189.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-retry-backlog-warnings__nNw4vsp",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171644,
+          "cache_tokens": 169935,
+          "output_tokens": 1145,
+          "cost_usd": 0.049704,
+          "agent_seconds": 20.4,
+          "trial_seconds": 191.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-retry-backlog-warnings__U5mvMex",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 262043,
+          "cache_tokens": 258862,
+          "output_tokens": 1734,
+          "cost_usd": 0.077058,
+          "agent_seconds": 189.6,
+          "trial_seconds": 324.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-retry-vs-real-errors",
+      "digest": "891c94df1df4520288615a516ce89ee7801ebd5378cf602584dac9f4042da39a",
+      "mean_reward": 0.9649,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "logql-retry-vs-real-errors__VbhEsvv",
+          "reward": 0.894736842105263,
+          "passed": false,
+          "input_tokens": 176639,
+          "cache_tokens": 168450,
+          "output_tokens": 2827,
+          "cost_usd": 0.082428,
+          "agent_seconds": 105.7,
+          "trial_seconds": 254.3,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent had the exact counts for both narratives but wrote that both stories were true instead of saying which one dominates."
+          }
+        },
+        {
+          "trial": "logql-retry-vs-real-errors__mmcxBzT",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 181336,
+          "cache_tokens": 173795,
+          "output_tokens": 3914,
+          "cost_usd": 0.092746,
+          "agent_seconds": 55.0,
+          "trial_seconds": 191.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-retry-vs-real-errors__3qvNzhb",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 132327,
+          "cache_tokens": 126863,
+          "output_tokens": 2042,
+          "cost_usd": 0.059449,
+          "agent_seconds": 199.5,
+          "trial_seconds": 362.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-top-5xx-endpoint",
+      "digest": "9649c2718274a16eb094a61c48cc93eb58b9f0747159cd13e2f2aa7f7912e203",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-top-5xx-endpoint__rzqaTYF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 133336,
+          "cache_tokens": 128533,
+          "output_tokens": 1380,
+          "cost_usd": 0.05151,
+          "agent_seconds": 37.9,
+          "trial_seconds": 189.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-top-5xx-endpoint__YdbRmKM",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 133741,
+          "cache_tokens": 128711,
+          "output_tokens": 1520,
+          "cost_usd": 0.053513,
+          "agent_seconds": 40.5,
+          "trial_seconds": 123.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-top-5xx-endpoint__PgE8EJG",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 133519,
+          "cache_tokens": 128581,
+          "output_tokens": 1475,
+          "cost_usd": 0.052807,
+          "agent_seconds": 139.7,
+          "trial_seconds": 331.5,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "logql-unwrap-orders-p95-latency",
+      "digest": "0b101f1a7f50c71502ea2dc2bf77ba7f9dae6f7f73837408b9ae43414497afe3",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "logql-unwrap-orders-p95-latency__3sYreLo",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 174568,
+          "cache_tokens": 171465,
+          "output_tokens": 1758,
+          "cost_usd": 0.059625,
+          "agent_seconds": 56.3,
+          "trial_seconds": 176.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-unwrap-orders-p95-latency__Vauhm6V",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 174368,
+          "cache_tokens": 171401,
+          "output_tokens": 1587,
+          "cost_usd": 0.057563,
+          "agent_seconds": 51.8,
+          "trial_seconds": 203.9,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "logql-unwrap-orders-p95-latency__3ysUYbV",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 174598,
+          "cache_tokens": 171545,
+          "output_tokens": 1746,
+          "cost_usd": 0.059396,
+          "agent_seconds": 144.9,
+          "trial_seconds": 294.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "payment-error-blast-radius",
+      "digest": "ee03c7604400b3091d99f83941fb3d319e4361897e61b3dae1f5eab56e5282ad",
+      "mean_reward": 0.9444,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "payment-error-blast-radius__EsTS3hq",
+          "reward": 0.8333333333333334,
+          "passed": false,
+          "input_tokens": 217390,
+          "cache_tokens": 214313,
+          "output_tokens": 2027,
+          "cost_usd": 0.070819,
+          "agent_seconds": 54.2,
+          "trial_seconds": 176.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The figures were right, but the agent called spillover plausible and unproven instead of classifying the second service's errors."
+          }
+        },
+        {
+          "trial": "payment-error-blast-radius__NszPjde",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 217342,
+          "cache_tokens": 214302,
+          "output_tokens": 1926,
+          "cost_usd": 0.069714,
+          "agent_seconds": 100.8,
+          "trial_seconds": 217.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "payment-error-blast-radius__7kdwwW2",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 218630,
+          "cache_tokens": 214989,
+          "output_tokens": 2346,
+          "cost_usd": 0.075554,
+          "agent_seconds": 132.3,
+          "trial_seconds": 267.6,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "payments-path-root-cause",
+      "digest": "6e50b2ff260aed12816c3a02f8d894c0e0a751a34caf946057ad4814ff0be11e",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "payments-path-root-cause__FryPpqY",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 231179,
+          "cache_tokens": 223973,
+          "output_tokens": 1976,
+          "cost_usd": 0.082564,
+          "agent_seconds": 74.5,
+          "trial_seconds": 159.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "payments-path-root-cause__ajVnEwc",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 244164,
+          "cache_tokens": 231219,
+          "output_tokens": 2326,
+          "cost_usd": 0.10186,
+          "agent_seconds": 100.7,
+          "trial_seconds": 217.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "payments-path-root-cause__LnBxqky",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 237365,
+          "cache_tokens": 227454,
+          "output_tokens": 2246,
+          "cost_usd": 0.092722,
+          "agent_seconds": 134.3,
+          "trial_seconds": 303.3,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-burn-rate-assessment",
+      "digest": "737ce434c3bbe76b3230c67f2f85a6f39ad90912fa87551f78c5cebba26d2b56",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-burn-rate-assessment__cDm98ob",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 261417,
+          "cache_tokens": 257892,
+          "output_tokens": 2269,
+          "cost_usd": 0.083074,
+          "agent_seconds": 75.6,
+          "trial_seconds": 250.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-burn-rate-assessment__5dfKufn",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 217276,
+          "cache_tokens": 214258,
+          "output_tokens": 2010,
+          "cost_usd": 0.070491,
+          "agent_seconds": 78.0,
+          "trial_seconds": 190.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-burn-rate-assessment__WvxKYb6",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 304609,
+          "cache_tokens": 300834,
+          "output_tokens": 2653,
+          "cost_usd": 0.096126,
+          "agent_seconds": 182.8,
+          "trial_seconds": 290.6,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-cache-lag-vs-user-latency",
+      "digest": "96cfd38e9486cae3551dc725fc33aa5ddebec66568e38e82b7d70d02a7580b1d",
+      "mean_reward": 0.7778,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "promql-cache-lag-vs-user-latency__fZ9FxLh",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 219938,
+          "cache_tokens": 216070,
+          "output_tokens": 2549,
+          "cost_usd": 0.078368,
+          "agent_seconds": 75.3,
+          "trial_seconds": 242.6,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-cache-lag-vs-user-latency__pTQEEsH",
+          "reward": 0.6666666666666666,
+          "passed": false,
+          "input_tokens": 218120,
+          "cache_tokens": 214705,
+          "output_tokens": 2375,
+          "cost_usd": 0.075222,
+          "agent_seconds": 59.2,
+          "trial_seconds": 189.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent stated the peak from a coarsely sampled range query and missed the true maximum between samples."
+          }
+        },
+        {
+          "trial": "promql-cache-lag-vs-user-latency__zgL2oKk",
+          "reward": 0.6666666666666666,
+          "passed": false,
+          "input_tokens": 312243,
+          "cache_tokens": 306325,
+          "output_tokens": 3996,
+          "cost_usd": 0.116012,
+          "agent_seconds": 126.6,
+          "trial_seconds": 237.5,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent stated a peak read from range-query samples and never asked for the maximum over the window."
+          }
+        }
+      ]
+    },
+    {
+      "task": "promql-cache-refresh-lag-peak",
+      "digest": "5287033964c3f4ce235110236559c8e9c97fb91c0aae5f00ff59f027e50c4946",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-cache-refresh-lag-peak__Kek4SE2",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 215365,
+          "cache_tokens": 213011,
+          "output_tokens": 1772,
+          "cost_usd": 0.066201,
+          "agent_seconds": 24.7,
+          "trial_seconds": 202.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-cache-refresh-lag-peak__TCC4V8A",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171491,
+          "cache_tokens": 169722,
+          "output_tokens": 1268,
+          "cost_usd": 0.051042,
+          "agent_seconds": 58.9,
+          "trial_seconds": 188.9,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-cache-refresh-lag-peak__YCpigUq",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171447,
+          "cache_tokens": 169697,
+          "output_tokens": 1251,
+          "cost_usd": 0.050819,
+          "agent_seconds": 106.8,
+          "trial_seconds": 209.2,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-capacity-analysis",
+      "digest": "67f22c506ed68f5d4fd05344e55f5691334864c78f9b000fe46241c68f92fd70",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-capacity-analysis__9mtuwJG",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129615,
+          "cache_tokens": 126675,
+          "output_tokens": 1592,
+          "cost_usd": 0.048601,
+          "agent_seconds": 92.3,
+          "trial_seconds": 284.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-capacity-analysis__MMWCubF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129615,
+          "cache_tokens": 126675,
+          "output_tokens": 1498,
+          "cost_usd": 0.047661,
+          "agent_seconds": 24.0,
+          "trial_seconds": 88.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-capacity-analysis__mYoMUbK",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129615,
+          "cache_tokens": 126675,
+          "output_tokens": 1484,
+          "cost_usd": 0.047521,
+          "agent_seconds": 75.2,
+          "trial_seconds": 228.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-discover-http-metric",
+      "digest": "d923adf2cc7266bc22abb7e38e0e771b98ea052dd437981ee4d17269ec3c1063",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-discover-http-metric__63aBnUP",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171148,
+          "cache_tokens": 169404,
+          "output_tokens": 1281,
+          "cost_usd": 0.051046,
+          "agent_seconds": 120.6,
+          "trial_seconds": 302.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-discover-http-metric__gD5dTAB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171559,
+          "cache_tokens": 169678,
+          "output_tokens": 1401,
+          "cost_usd": 0.052643,
+          "agent_seconds": 98.9,
+          "trial_seconds": 308.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-discover-http-metric__FrMWKE7",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171148,
+          "cache_tokens": 169404,
+          "output_tokens": 1255,
+          "cost_usd": 0.050786,
+          "agent_seconds": 74.6,
+          "trial_seconds": 249.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-error-rate",
+      "digest": "c3b1a69ab8fa638f10c4fca6058d3226ab79de93318b28c57e3c43d1ea66a5b6",
+      "mean_reward": 0.7292,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "promql-error-rate__wBFF3Ak",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 128889,
+          "cache_tokens": 126562,
+          "output_tokens": 1458,
+          "cost_usd": 0.045706,
+          "agent_seconds": 121.2,
+          "trial_seconds": 301.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-error-rate__x2y45Ah",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129609,
+          "cache_tokens": 126846,
+          "output_tokens": 1490,
+          "cost_usd": 0.047173,
+          "agent_seconds": 98.6,
+          "trial_seconds": 313.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-error-rate__NLCL29k",
+          "reward": 0.1875,
+          "passed": false,
+          "input_tokens": 128841,
+          "cache_tokens": 126562,
+          "output_tokens": 1477,
+          "cost_usd": 0.045776,
+          "agent_seconds": 116.5,
+          "trial_seconds": 232.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent computed the correct error share and then added a second, guessed figure that conflicted with it."
+          }
+        }
+      ]
+    },
+    {
+      "task": "promql-highest-backend-error-ratio",
+      "digest": "ef9c2b89ea9fac91fba7e903e66849a786c44bf03d32522ee70008aa223e30c2",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-highest-backend-error-rat__ccg3NW5",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171944,
+          "cache_tokens": 169541,
+          "output_tokens": 1295,
+          "cost_usd": 0.052861,
+          "agent_seconds": 71.8,
+          "trial_seconds": 207.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-highest-backend-error-rat__iPevWcB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171850,
+          "cache_tokens": 169658,
+          "output_tokens": 1343,
+          "cost_usd": 0.052837,
+          "agent_seconds": 95.9,
+          "trial_seconds": 278.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-highest-backend-error-rat__9PnxyzJ",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 172167,
+          "cache_tokens": 169712,
+          "output_tokens": 1544,
+          "cost_usd": 0.055515,
+          "agent_seconds": 76.9,
+          "trial_seconds": 242.6,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-label-matchers-service-errors",
+      "digest": "5f88f86803bb774f910c4de67f27267bb6f87c5da9e837472d525204d0d42528",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-label-matchers-service-er__AmBS28x",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 170422,
+          "cache_tokens": 169130,
+          "output_tokens": 935,
+          "cost_usd": 0.046401,
+          "agent_seconds": 50.4,
+          "trial_seconds": 182.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-label-matchers-service-er__A7KuQCL",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 170422,
+          "cache_tokens": 127294,
+          "output_tokens": 915,
+          "cost_usd": 0.142424,
+          "agent_seconds": 160.6,
+          "trial_seconds": 422.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-label-matchers-service-er__ZbphH46",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 170422,
+          "cache_tokens": 169130,
+          "output_tokens": 876,
+          "cost_usd": 0.045811,
+          "agent_seconds": 120.3,
+          "trial_seconds": 264.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-offset-traffic-compare",
+      "digest": "4d702cd21a97085f2083159e22db736eb12c1a72950ea31c7bfa16c48712bde6",
+      "mean_reward": 0.5333,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "promql-offset-traffic-compare__fkxegsB",
+          "reward": 0.30000000000000004,
+          "passed": false,
+          "input_tokens": 274089,
+          "cache_tokens": 266367,
+          "output_tokens": 3059,
+          "cost_usd": 0.103161,
+          "agent_seconds": 94.2,
+          "trial_seconds": 207.0,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent scoped metric discovery to a label key the metric store does not use, concluded there were no series, and used trace span counts as the rate."
+          }
+        },
+        {
+          "trial": "promql-offset-traffic-compare__77qUU4M",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 257570,
+          "cache_tokens": 213830,
+          "output_tokens": 1467,
+          "cost_usd": 0.166779,
+          "agent_seconds": 160.6,
+          "trial_seconds": 416.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-offset-traffic-compare__uhMWLtg",
+          "reward": 0.30000000000000004,
+          "passed": false,
+          "input_tokens": 173132,
+          "cache_tokens": 169662,
+          "output_tokens": 1841,
+          "cost_usd": 0.061012,
+          "agent_seconds": 109.2,
+          "trial_seconds": 278.6,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent scoped metric discovery to a label key the metric store does not use, concluded there were no series, and used trace span counts as the rate."
+          }
+        }
+      ]
+    },
+    {
+      "task": "promql-order-latency-vs-traffic",
+      "digest": "6b61f5de9799de61daf8486bfce29f6bd02694806d0805d044d7cb88722653ac",
+      "mean_reward": 0.7273,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "promql-order-latency-vs-traffic__wvTcUHY",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 322457,
+          "cache_tokens": 313919,
+          "output_tokens": 2827,
+          "cost_usd": 0.112391,
+          "agent_seconds": 64.3,
+          "trial_seconds": 188.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-order-latency-vs-traffic__6WVxoAc",
+          "reward": 0.7272727272727273,
+          "passed": false,
+          "input_tokens": 177852,
+          "cache_tokens": 128169,
+          "output_tokens": 2958,
+          "cost_usd": 0.179416,
+          "agent_seconds": 160.6,
+          "trial_seconds": 375.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent found no metrics after guessing the service label and took the latency from coarse trace buckets instead of the metric histogram."
+          }
+        },
+        {
+          "trial": "promql-order-latency-vs-traffic__CMm87pW",
+          "reward": 0.4545454545454546,
+          "passed": false,
+          "input_tokens": 132099,
+          "cache_tokens": 126694,
+          "output_tokens": 2787,
+          "cost_usd": 0.066717,
+          "agent_seconds": 134.1,
+          "trial_seconds": 306.3,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent stopped after empty metric lookups and gave a rate and latency taken from trace counts and coarse buckets."
+          }
+        }
+      ]
+    },
+    {
+      "task": "promql-retry-backlog-triage",
+      "digest": "383d9521d48b6b7bf448cf3c7cf7fbe4c7487eed7d528af3a6683d34a4999f3b",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-retry-backlog-triage__czwGzYQ",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 260083,
+          "cache_tokens": 257464,
+          "output_tokens": 1974,
+          "cost_usd": 0.077773,
+          "agent_seconds": 33.4,
+          "trial_seconds": 131.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-retry-backlog-triage__YiFx7yF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 128582,
+          "cache_tokens": 126913,
+          "output_tokens": 1447,
+          "cost_usd": 0.044021,
+          "agent_seconds": 46.6,
+          "trial_seconds": 233.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-retry-backlog-triage__dJGikMG",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 216086,
+          "cache_tokens": 213421,
+          "output_tokens": 1702,
+          "cost_usd": 0.066361,
+          "agent_seconds": 37.1,
+          "trial_seconds": 182.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-retry-drain-rate",
+      "digest": "c801b0e2721c1e68fb118e0bfd4ed54b0a0ceab97e04c2c271ee66cdae3eaf46",
+      "mean_reward": 0.6333,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "promql-retry-drain-rate__VkkHjXt",
+          "reward": 0.7,
+          "passed": false,
+          "input_tokens": 500700,
+          "cache_tokens": 492426,
+          "output_tokens": 5046,
+          "cost_usd": 0.169618,
+          "agent_seconds": 99.0,
+          "trial_seconds": 179.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent timed the drain to the last non-zero sample it happened to read, not to the first zero, and got 20 minutes instead of 21."
+          }
+        },
+        {
+          "trial": "promql-retry-drain-rate__op2LjRB",
+          "reward": 0.2,
+          "passed": false,
+          "input_tokens": 556346,
+          "cache_tokens": 546455,
+          "output_tokens": 7118,
+          "cost_usd": 0.205185,
+          "agent_seconds": 115.0,
+          "trial_seconds": 246.5,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent built a rate range and a drain time from hand-read spot values across many calls, and none matched the measured figures."
+          }
+        },
+        {
+          "trial": "promql-retry-drain-rate__3KkWNqy",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 354119,
+          "cache_tokens": 348605,
+          "output_tokens": 3932,
+          "cost_usd": 0.122817,
+          "agent_seconds": 159.2,
+          "trial_seconds": 233.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-subquery-peak-error-rate",
+      "digest": "c4e3f5395b8346c1fc75bf026491a5efeb0831dd5c856d836a12765b2fff2b84",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-subquery-peak-error-rate__5QY5BN4",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 303897,
+          "cache_tokens": 300488,
+          "output_tokens": 2543,
+          "cost_usd": 0.094042,
+          "agent_seconds": 67.5,
+          "trial_seconds": 214.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-subquery-peak-error-rate__KpmhqNv",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 348566,
+          "cache_tokens": 344802,
+          "output_tokens": 2997,
+          "cost_usd": 0.108331,
+          "agent_seconds": 115.2,
+          "trial_seconds": 246.8,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-subquery-peak-error-rate__6JxbytF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 348344,
+          "cache_tokens": 344724,
+          "output_tokens": 2711,
+          "cost_usd": 0.105096,
+          "agent_seconds": 124.0,
+          "trial_seconds": 248.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "promql-topk-5xx-share",
+      "digest": "6aec97fef8a057e2a05c92b2a3a118e585dbed73c6cd674c67c4149b6d0cc7e2",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "promql-topk-5xx-share__JpwfsYM",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 172118,
+          "cache_tokens": 169772,
+          "output_tokens": 1314,
+          "cost_usd": 0.052954,
+          "agent_seconds": 62.1,
+          "trial_seconds": 168.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-topk-5xx-share__QJEJnY2",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171738,
+          "cache_tokens": 169879,
+          "output_tokens": 1307,
+          "cost_usd": 0.051688,
+          "agent_seconds": 67.6,
+          "trial_seconds": 171.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "promql-topk-5xx-share__2eZWubJ",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 171600,
+          "cache_tokens": 169785,
+          "output_tokens": 1163,
+          "cost_usd": 0.050119,
+          "agent_seconds": 76.2,
+          "trial_seconds": 190.0,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "query-cpu-metrics",
+      "digest": "45e1809174d21f222c9c0dca62d0ede1ff9b3c8039f5ea7e7cc1661420b0b138",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "query-cpu-metrics__wnBtxdS",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 128540,
+          "cache_tokens": 126522,
+          "output_tokens": 1225,
+          "cost_usd": 0.042595,
+          "agent_seconds": 61.2,
+          "trial_seconds": 152.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "query-cpu-metrics__Zb9W7Cw",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 128540,
+          "cache_tokens": 126522,
+          "output_tokens": 1157,
+          "cost_usd": 0.041915,
+          "agent_seconds": 70.2,
+          "trial_seconds": 214.4,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "query-cpu-metrics__e8KV8DV",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 128540,
+          "cache_tokens": 126522,
+          "output_tokens": 1331,
+          "cost_usd": 0.043655,
+          "agent_seconds": 86.2,
+          "trial_seconds": 175.5,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "query-memory-usage",
+      "digest": "471b0fd2e213c5f7a15e8aeb1cc6d93c52b05e315a8fc877affecd546fb9c3bf",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "query-memory-usage__wWuWkSC",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129349,
+          "cache_tokens": 126828,
+          "output_tokens": 1736,
+          "cost_usd": 0.049024,
+          "agent_seconds": 29.7,
+          "trial_seconds": 112.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "query-memory-usage__BQDUfoo",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129715,
+          "cache_tokens": 126988,
+          "output_tokens": 1501,
+          "cost_usd": 0.047221,
+          "agent_seconds": 141.8,
+          "trial_seconds": 224.9,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "query-memory-usage__AaW7mHt",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 129817,
+          "cache_tokens": 127114,
+          "output_tokens": 1501,
+          "cost_usd": 0.047186,
+          "agent_seconds": 44.9,
+          "trial_seconds": 182.2,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "retry-backlog-incident",
+      "digest": "642f7a659a62ed61d7ff8919bde9b639468e4d9f0be3f2ac7ed9e433b6613351",
+      "mean_reward": 0.7667,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "retry-backlog-incident__b2yZ5ab",
+          "reward": 0.65,
+          "passed": false,
+          "input_tokens": 272194,
+          "cache_tokens": 265535,
+          "output_tokens": 3478,
+          "cost_usd": 0.104527,
+          "agent_seconds": 108.2,
+          "trial_seconds": 217.3,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent gave the backlog peak from a six hour range query and missed the true maximum between samples."
+          }
+        },
+        {
+          "trial": "retry-backlog-incident__rv339K4",
+          "reward": 0.65,
+          "passed": false,
+          "input_tokens": 178379,
+          "cache_tokens": 172815,
+          "output_tokens": 2355,
+          "cost_usd": 0.072018,
+          "agent_seconds": 92.3,
+          "trial_seconds": 198.8,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent stated two peaks from two resolutions and rounded to a figure that matched neither."
+          }
+        },
+        {
+          "trial": "retry-backlog-incident__EE3MXTt",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 225822,
+          "cache_tokens": 218794,
+          "output_tokens": 2427,
+          "cost_usd": 0.085593,
+          "agent_seconds": 31.4,
+          "trial_seconds": 124.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "service-degradation-rca",
+      "digest": "1bbbd3763e6189ac106be14cc2e0fd8661ebb3233436695509dd55d2d7ea7c86",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "service-degradation-rca__adfQWAF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 300054,
+          "cache_tokens": 284263,
+          "output_tokens": 3870,
+          "cost_usd": 0.135023,
+          "agent_seconds": 111.6,
+          "trial_seconds": 217.3,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "service-degradation-rca__2eHbPYC",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 351448,
+          "cache_tokens": 334922,
+          "output_tokens": 4701,
+          "cost_usd": 0.155301,
+          "agent_seconds": 81.7,
+          "trial_seconds": 165.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "service-degradation-rca__FS4MfF2",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 416252,
+          "cache_tokens": 397642,
+          "output_tokens": 6248,
+          "cost_usd": 0.188524,
+          "agent_seconds": 101.6,
+          "trial_seconds": 254.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "slow-path-hotspot-correlation",
+      "digest": "2d79466c25f0590ccdb5bae92c59b8287380e98e157fc08d2c35f2967b0ec95d",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "slow-path-hotspot-correlation__XN5rDNo",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 279860,
+          "cache_tokens": 271660,
+          "output_tokens": 2800,
+          "cost_usd": 0.102825,
+          "agent_seconds": 94.0,
+          "trial_seconds": 194.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "slow-path-hotspot-correlation__dhYGZLB",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 284508,
+          "cache_tokens": 266269,
+          "output_tokens": 4657,
+          "cost_usd": 0.145414,
+          "agent_seconds": 129.6,
+          "trial_seconds": 260.9,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "slow-path-hotspot-correlation__cf9HYDq",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 231705,
+          "cache_tokens": 223261,
+          "output_tokens": 2712,
+          "cost_usd": 0.092876,
+          "agent_seconds": 47.6,
+          "trial_seconds": 143.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "trace-error-analysis",
+      "digest": "aab388f97129805f259ed80e51561631ec26c3d3e547fd224e7d95da1eaacba4",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "trace-error-analysis__Vs9hE4h",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 144528,
+          "cache_tokens": 132063,
+          "output_tokens": 2558,
+          "cost_usd": 0.083151,
+          "agent_seconds": 42.2,
+          "trial_seconds": 177.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "trace-error-analysis__eR8UtHu",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 237403,
+          "cache_tokens": 225947,
+          "output_tokens": 2474,
+          "cost_usd": 0.098563,
+          "agent_seconds": 92.9,
+          "trial_seconds": 168.1,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "trace-error-analysis__HvVSuHP",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 245057,
+          "cache_tokens": 232629,
+          "output_tokens": 2614,
+          "cost_usd": 0.10373,
+          "agent_seconds": 47.9,
+          "trial_seconds": 143.1,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-cache-refresh-hotspot",
+      "digest": "3a5ee7fe155b9099cf8888e76eee599a1a4c36e0689c1da17e828afd482c504f",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "traceql-cache-refresh-hotspot__wdocpDY",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 240393,
+          "cache_tokens": 223216,
+          "output_tokens": 3878,
+          "cost_usd": 0.12636,
+          "agent_seconds": 41.5,
+          "trial_seconds": 177.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-cache-refresh-hotspot__uShZKni",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 188625,
+          "cache_tokens": 176578,
+          "output_tokens": 3668,
+          "cost_usd": 0.102108,
+          "agent_seconds": 127.4,
+          "trial_seconds": 238.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-cache-refresh-hotspot__KTfHMfz",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 294856,
+          "cache_tokens": 276132,
+          "output_tokens": 4462,
+          "cost_usd": 0.146649,
+          "agent_seconds": 127.6,
+          "trial_seconds": 241.3,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-checkout-p99-by-service",
+      "digest": "8600612c88eaa384e31221ccd3389009e3b68d0f28c740d04e627b41a1edfbd4",
+      "mean_reward": 0.3529,
+      "attempts_passed": 0,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-checkout-p99-by-service__E8ZUG9s",
+          "reward": 0.35294117647058826,
+          "passed": false,
+          "input_tokens": 225178,
+          "cache_tokens": 216794,
+          "output_tokens": 3365,
+          "cost_usd": 0.097963,
+          "agent_seconds": 111.6,
+          "trial_seconds": 178.9,
+          "error": null,
+          "failure": {
+            "cause": "missing_capability",
+            "summary": "The ranking was right, but the tool gave no whole-window or per-service quantile, so the p99 was a histogram bucket bound."
+          }
+        },
+        {
+          "trial": "traceql-checkout-p99-by-service__CkzFD2r",
+          "reward": 0.35294117647058826,
+          "passed": false,
+          "input_tokens": 324227,
+          "cache_tokens": 314713,
+          "output_tokens": 3466,
+          "cost_usd": 0.12138,
+          "agent_seconds": 125.5,
+          "trial_seconds": 283.3,
+          "error": null,
+          "failure": {
+            "cause": "missing_capability",
+            "summary": "The ranking was right, but the tool gave no whole-window or per-service quantile, so the p99 was a histogram bucket bound."
+          }
+        },
+        {
+          "trial": "traceql-checkout-p99-by-service__ujJcTqZ",
+          "reward": 0.35294117647058826,
+          "passed": false,
+          "input_tokens": 273564,
+          "cache_tokens": 264582,
+          "output_tokens": 3193,
+          "cost_usd": 0.107294,
+          "agent_seconds": 127.7,
+          "trial_seconds": 241.0,
+          "error": null,
+          "failure": {
+            "cause": "missing_capability",
+            "summary": "The ranking was right, but the tool gave no whole-window or per-service quantile, so the p99 was a histogram bucket bound."
+          }
+        }
+      ]
+    },
+    {
+      "task": "traceql-cross-service-analysis",
+      "digest": "f5752f86878f58d4850e445fbea72f9338a8e9a93745724bc304f01df85a5fbf",
+      "mean_reward": 0.8333,
+      "attempts_passed": 0,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-cross-service-analysis__UaVNMTw",
+          "reward": 0.8333333333333333,
+          "passed": false,
+          "input_tokens": 269467,
+          "cache_tokens": 262315,
+          "output_tokens": 2293,
+          "cost_usd": 0.093266,
+          "agent_seconds": 76.7,
+          "trial_seconds": 228.7,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent saw only one slow example in the default hour and did not widen the window to say whether the hotspot repeats."
+          }
+        },
+        {
+          "trial": "traceql-cross-service-analysis__vgen9Jj",
+          "reward": 0.8333333333333333,
+          "passed": false,
+          "input_tokens": 219999,
+          "cache_tokens": 215401,
+          "output_tokens": 2306,
+          "cost_usd": 0.077629,
+          "agent_seconds": 68.3,
+          "trial_seconds": 244.3,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent saw only one slow example in the default hour and did not widen the window to say whether the hotspot repeats."
+          }
+        },
+        {
+          "trial": "traceql-cross-service-analysis__M7AeKRH",
+          "reward": 0.8333333333333333,
+          "passed": false,
+          "input_tokens": 173544,
+          "cache_tokens": 169828,
+          "output_tokens": 2224,
+          "cost_usd": 0.065491,
+          "agent_seconds": 81.6,
+          "trial_seconds": 209.9,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent found one slow request in the default hour and named widening the window as a next step instead of doing it."
+          }
+        }
+      ]
+    },
+    {
+      "task": "traceql-discover-orders-error-attributes",
+      "digest": "1d885b9743166fe1d895e91901e1e035d0da0916bc944283b2297820acfe0c30",
+      "mean_reward": 0.3333,
+      "attempts_passed": 1,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-discover-orders-error-at__A7XNef8",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 283460,
+          "cache_tokens": 272616,
+          "output_tokens": 4714,
+          "cost_usd": 0.128766,
+          "agent_seconds": 123.1,
+          "trial_seconds": 228.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-discover-orders-error-at__7fF3auy",
+          "reward": 0.0,
+          "passed": false,
+          "input_tokens": 223114,
+          "cache_tokens": 217895,
+          "output_tokens": 3149,
+          "cost_usd": 0.08811,
+          "agent_seconds": 168.0,
+          "trial_seconds": 239.5,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent searched only the default hour, found no failed request, and cited traces from other routes."
+          }
+        },
+        {
+          "trial": "traceql-discover-orders-error-at__eoEYK2K",
+          "reward": 0.0,
+          "passed": false,
+          "input_tokens": 220935,
+          "cache_tokens": 216565,
+          "output_tokens": 2550,
+          "cost_usd": 0.079732,
+          "agent_seconds": 78.3,
+          "trial_seconds": 184.9,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent searched only the default hour, found no failed request, and did not open the traces it found for other routes."
+          }
+        }
+      ]
+    },
+    {
+      "task": "traceql-error-chain-orders",
+      "digest": "6ebf3f96db9b5c6d10882b6d189a89b008567af9875252a201517e94212b0ad2",
+      "mean_reward": 0.5385,
+      "attempts_passed": 0,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-error-chain-orders__L7PCjMY",
+          "reward": 0.5384615384615385,
+          "passed": false,
+          "input_tokens": 219983,
+          "cache_tokens": 215706,
+          "output_tokens": 2453,
+          "cost_usd": 0.078358,
+          "agent_seconds": 88.0,
+          "trial_seconds": 294.8,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent named the outermost erroring span as where the request first failed, not the deepest one."
+          }
+        },
+        {
+          "trial": "traceql-error-chain-orders__4JXnzsS",
+          "reward": 0.5384615384615385,
+          "passed": false,
+          "input_tokens": 222878,
+          "cache_tokens": 217730,
+          "output_tokens": 2173,
+          "cost_usd": 0.07814,
+          "agent_seconds": 95.8,
+          "trial_seconds": 216.5,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent named the outermost erroring span as where the request first failed, not the deepest one."
+          }
+        },
+        {
+          "trial": "traceql-error-chain-orders__3xXLz3y",
+          "reward": 0.5384615384615385,
+          "passed": false,
+          "input_tokens": 223059,
+          "cache_tokens": 217727,
+          "output_tokens": 2490,
+          "cost_usd": 0.081769,
+          "agent_seconds": 65.8,
+          "trial_seconds": 196.2,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent named the outermost erroring span as the origin and also blamed its dependency, so it stated two origins."
+          }
+        }
+      ]
+    },
+    {
+      "task": "traceql-error-span-analysis",
+      "digest": "95a0b89fcdde975bcd0a4f486f526955ea0789afc1de89f9fa7d3294508595ee",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "traceql-error-span-analysis__TAV2eu9",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 190329,
+          "cache_tokens": 177303,
+          "output_tokens": 4159,
+          "cost_usd": 0.109611,
+          "agent_seconds": 133.6,
+          "trial_seconds": 230.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-error-span-analysis__DLmnNVX",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 204480,
+          "cache_tokens": 188437,
+          "output_tokens": 3150,
+          "cost_usd": 0.10929,
+          "agent_seconds": 97.5,
+          "trial_seconds": 216.6,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-error-span-analysis__sgvmhTk",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 286522,
+          "cache_tokens": 274151,
+          "output_tokens": 3320,
+          "cost_usd": 0.118951,
+          "agent_seconds": 130.9,
+          "trial_seconds": 249.4,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-find-service-traces",
+      "digest": "9e1fe4571cbaccec607eec957e47bf5db90fe4797816ea10a001dd43189b645d",
+      "mean_reward": 0.8611,
+      "attempts_passed": 2,
+      "passed_every_attempt": false,
+      "attempts": [
+        {
+          "trial": "traceql-find-service-traces__43qxfYo",
+          "reward": 0.5833333333333334,
+          "passed": false,
+          "input_tokens": 186822,
+          "cache_tokens": 179769,
+          "output_tokens": 1792,
+          "cost_usd": 0.071501,
+          "agent_seconds": 81.2,
+          "trial_seconds": 193.1,
+          "error": null,
+          "failure": {
+            "cause": "agent_mistake",
+            "summary": "The agent gave the example trace two durations, one exact and one from a histogram bucket bound."
+          }
+        },
+        {
+          "trial": "traceql-find-service-traces__BU33fn5",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 186908,
+          "cache_tokens": 179809,
+          "output_tokens": 1888,
+          "cost_usd": 0.072584,
+          "agent_seconds": 82.1,
+          "trial_seconds": 209.2,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-find-service-traces__sKSAohm",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 229776,
+          "cache_tokens": 222566,
+          "output_tokens": 1833,
+          "cost_usd": 0.080862,
+          "agent_seconds": 57.3,
+          "trial_seconds": 192.9,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-metrics-error-rate-by-service",
+      "digest": "b5a4182657e8328f286e37324573c735975b888f5d417e46969153963b9e0b9c",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "traceql-metrics-error-rate-by-se__f6E9Weo",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 299714,
+          "cache_tokens": 285378,
+          "output_tokens": 3306,
+          "cost_usd": 0.125969,
+          "agent_seconds": 71.1,
+          "trial_seconds": 198.6,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-metrics-error-rate-by-se__6vc2QS7",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 292234,
+          "cache_tokens": 269833,
+          "output_tokens": 3491,
+          "cost_usd": 0.144872,
+          "agent_seconds": 115.0,
+          "trial_seconds": 265.6,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-metrics-error-rate-by-se__gphoUMF",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 186228,
+          "cache_tokens": 175369,
+          "output_tokens": 2390,
+          "cost_usd": 0.086116,
+          "agent_seconds": 134.2,
+          "trial_seconds": 258.2,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-structural-query",
+      "digest": "aa4fa9c694efe20bb1e2222de3989071d714211f5d9681bcfbccccab6ba37b7b",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "traceql-structural-query__JqpReiu",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 177607,
+          "cache_tokens": 170527,
+          "output_tokens": 1824,
+          "cost_usd": 0.07004,
+          "agent_seconds": 50.4,
+          "trial_seconds": 150.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-structural-query__xjp4TXv",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 271919,
+          "cache_tokens": 259024,
+          "output_tokens": 3277,
+          "cost_usd": 0.116805,
+          "agent_seconds": 114.9,
+          "trial_seconds": 265.5,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-structural-query__XJR6wVJ",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 272225,
+          "cache_tokens": 259075,
+          "output_tokens": 3391,
+          "cost_usd": 0.118593,
+          "agent_seconds": 101.5,
+          "trial_seconds": 204.7,
+          "error": null,
+          "failure": null
+        }
+      ]
+    },
+    {
+      "task": "traceql-tail-latency-bottleneck",
+      "digest": "c30089714ed2288ccecd99e2ef3eacf1f794c7ac63e5e9db7ff69aa4f55491e1",
+      "mean_reward": 1.0,
+      "attempts_passed": 3,
+      "passed_every_attempt": true,
+      "attempts": [
+        {
+          "trial": "traceql-tail-latency-bottleneck__aqn6t5y",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 175571,
+          "cache_tokens": 169758,
+          "output_tokens": 1518,
+          "cost_usd": 0.063659,
+          "agent_seconds": 97.3,
+          "trial_seconds": 193.0,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-tail-latency-bottleneck__XsYcnX4",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 175569,
+          "cache_tokens": 169757,
+          "output_tokens": 1567,
+          "cost_usd": 0.064146,
+          "agent_seconds": 56.4,
+          "trial_seconds": 184.7,
+          "error": null,
+          "failure": null
+        },
+        {
+          "trial": "traceql-tail-latency-bottleneck__v3hVLPf",
+          "reward": 1.0,
+          "passed": true,
+          "input_tokens": 175561,
+          "cache_tokens": 169753,
+          "output_tokens": 2125,
+          "cost_usd": 0.069716,
+          "agent_seconds": 33.7,
+          "trial_seconds": 238.8,
+          "error": null,
+          "failure": null
+        }
+      ]
+    }
+  ]
+}
