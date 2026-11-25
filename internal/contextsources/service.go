@@ -171,7 +171,7 @@ func putParams(sourceID pgtype.UUID, t Tool) dbsqlc.PutContextSourceToolParams {
 		Hash:        t.Pinned.Hash,
 	}
 	if t.Seen != nil {
-		p.SeenDescription = text(t.Seen.Description)
+		p.SeenDescription = pgtype.Text{String: t.Seen.Description, Valid: true}
 		p.SeenInputSchema = t.Seen.InputSchema
 		p.SeenHash = text(t.Seen.Hash)
 	}

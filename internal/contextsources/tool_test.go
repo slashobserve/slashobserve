@@ -293,3 +293,24 @@ func TestReconcileOrdersChangesByName(t *testing.T) {
 		t.Errorf("names = %v", names)
 	}
 }
+
+func TestAChangedToolWithAnEmptyDescriptionStoresTheSeenDescriptionAsText(t *testing.T) {
+	pinned := storedFrom(t, ToolApproved, readOnly("search", "finds things"))
+	l, _ := listingOf([]Found{readOnly("search", "")})
+	changed := pinned
+	changed.State = ToolChanged
+	changed.Seen = &l[0].def
+
+	p := putParams(newID(), changed)
+	if !p.SeenDescription.Valid || p.SeenDescription.String != "" {
+		t.Fatalf("seen description = %+v, want valid empty text", p.SeenDescription)
+	}
+	if !p.SeenHash.Valid {
+		t.Fatal("seen hash is not set")
+	}
+
+	plain := putParams(newID(), pinned)
+	if plain.SeenDescription.Valid || plain.SeenHash.Valid {
+		t.Fatalf("a tool without a seen definition stored one: %+v", plain)
+	}
+}
