@@ -138,10 +138,10 @@ func (t Tool) ForAgent() Tool {
 	return t
 }
 
-func (t Tool) ForRun(mode Mode) Tool {
+func (t Tool) ForRun(mode Mode, investigation bool) Tool {
 	t = t.ForAgent()
 	if t.Name == nameSaveFinding {
-		return findingForRun(t, mode)
+		return findingForRun(t, mode, investigation)
 	}
 	return t
 }

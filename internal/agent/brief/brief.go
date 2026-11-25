@@ -31,6 +31,8 @@ type Task struct {
 	AsOf          *time.Time
 	Withheld      bool
 	Pointer       Pointer
+	Loop          bool
+	Hypotheses    string
 }
 
 type View struct {
@@ -49,6 +51,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	var m Message
 	if t.Mode == tools.ModeInvestigate {
 		m.System = prompts.Investigate()
+		if t.Loop {
+			m.System = prompts.InvestigateWithLedger()
+		}
 		m.Context = investigateContext(statuses, t, v.Current, sd)
 	} else {
 		view := v.Current
@@ -78,6 +83,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	}
 	if digest != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + digest
+	}
+	if t.Hypotheses != "" && t.Mode != tools.ModeSuggest {
+		m.Context += "\n\n" + t.Hypotheses
 	}
 	m.User = userMessage(m.Context, t.Prompt)
 	return m, nil

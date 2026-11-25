@@ -660,6 +660,7 @@ type spanSchemaOut struct {
 	Rows       [][]any  `json:"rows"`
 	Attributes []string `json:"attributes"`
 	Truncated  bool     `json:"truncated,omitempty"`
+	Notes      []string `json:"notes,omitempty"`
 }
 
 func (r *Registry) spanSchema(ctx context.Context, in schemaInput, dsType spec.DatasourceType, offset int) (Result, error) {
@@ -678,6 +679,7 @@ func (r *Registry) spanSchema(ctx context.Context, in schemaInput, dsType spec.D
 		Rows:       rows.Rows,
 		Attributes: attributes,
 		Truncated:  rows.Truncated || cut || cat.Truncated,
+		Notes:      cat.Notes,
 	}
 	services, spanNames := distinctColumns(rows.Rows)
 	names := slices.Concat(services, spanNames, attributes)

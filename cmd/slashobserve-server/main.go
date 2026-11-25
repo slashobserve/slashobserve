@@ -499,7 +499,7 @@ func run() error {
 	runSessions := runsession.New(runsession.Config{
 		DB: database, Runs: revisionsService, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
 		Imports: importsService, Statuses: registry, Steps: claimsService,
-		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, Logger: logger,
+		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, InvestigationLoop: cfg.Agent.InvestigationLoop, InvestigationCallsMax: cfg.Agent.InvestigationCallsMax, Logger: logger,
 	})
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
@@ -539,6 +539,7 @@ func run() error {
 		PublicURL:      cfg.PublicURL,
 		ContextSources: contextSourcesService,
 		Logger:         logger,
+		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
 
 	broker := events.NewBroker(database.Listen, logger)

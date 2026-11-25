@@ -251,3 +251,31 @@ func TestInvestigateSendsAsOfOnlyWhenGiven(t *testing.T) {
 		t.Errorf("payload = %s\nwant %s", raw, want)
 	}
 }
+
+func TestPrintFindingShowsTheStructuredFieldsAboveTheAnswerOnlyWhenSet(t *testing.T) {
+	var stdout bytes.Buffer
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{
+		Title:      "Checkout errors",
+		Markdown:   "Errors rose.",
+		URL:        "https://o.example/o/1",
+		RootCause:  &findingRootCause{Component: "checkout", Kind: "deploy", Summary: "Version 42 added a retry."},
+		Onset:      "2026-11-20T10:00:00Z",
+		Impact:     "12% of orders failed.",
+		Confidence: "high",
+		RuledOut:   []string{"the database", "the cache"},
+		NextSteps:  []string{"Roll back checkout."},
+	}, investigationID)
+	want := "Checkout errors\n\n" +
+		"Root cause: checkout (deploy) - Version 42 added a retry.\n" +
+		"Onset: 2026-11-20T10:00:00Z\nImpact: 12% of orders failed.\nConfidence: high\n" +
+		"Ruled out: the database; the cache\nNext steps: Roll back checkout.\n\n" +
+		"Errors rose.\n\nhttps://o.example/o/1\n"
+	if stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+	stdout.Reset()
+	printFinding(&output{out: &stdout, err: io.Discard}, findingSummary{Title: "Quiet", Markdown: "Nothing.", URL: "https://o.example/o/2", NoIncident: true}, investigationID)
+	if want := "Quiet\n\nNo incident found.\n\nNothing.\n\nhttps://o.example/o/2\n"; stdout.String() != want {
+		t.Errorf("printed %q\nwant %q", stdout.String(), want)
+	}
+}

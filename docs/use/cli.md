@@ -461,6 +461,10 @@ Without `--observation`, each investigation opens a new observation that shows i
 With `--observation` the run and the conclusion go into that observation.
 It must be one you can see, or the server answers `not_found`, and one you may comment on, or it answers `forbidden_role`.
 
+When the agent filled the structured fields, the command prints them between the title and the answer, such as `Root cause: <component> (<kind>) - <summary>`, `Onset`, `Impact`, `Confidence`, `Ruled out` and `Next steps`, or `No incident found.`.
+`observe observations show` prints the same lines for each answer in the observation, each group starting with `Answer of run <run-id>`.
+When no field is set, nothing extra is printed.
+
 When the answer has no saved address, the command prints `This answer is kept in the chat only. Save it as an observation: observe save-answer <id>`.
 When the answer suggests a change, it prints `Suggested change: ...` and an `observe --revise --dashboard <id> '<change>'` line.
 When that change belongs on another dashboard, it first prints `This change is made on the dashboard <title>. Ask there:`.

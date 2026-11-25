@@ -141,7 +141,7 @@ The agent can do these on Tempo:
 
 - List tags, scoped as TraceQL writes them (`resource.service.name`, `span.http.method`, or an intrinsic such as `name` or `status`).
 - List the values of one tag, optionally narrowed by a TraceQL query.
-- Run `get_schema`, which lists every service with its span names and the attributes TraceQL can filter on.
+- Run `get_schema`, which lists the services seen in the last hour with their span names and the attributes TraceQL can filter on.
 
 The services list reads the values of `resource.service.name` over a recent window.
 The query editor's lint accepts a trace id and checks that a TraceQL query has a spanset and that its brackets and quotes balance.
