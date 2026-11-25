@@ -89,10 +89,30 @@ export type AgentGate =
   | { kind: "allowed" }
   | { kind: "no-model" }
   | { kind: "blocked"; reason: string }
+  | { kind: "hold" }
+  | { kind: "unreachable" }
+
+export type AgentLoad = "loading" | "ready" | "failed"
+
+export type AgentQueryState = {
+  data: { available: boolean } | undefined
+  status: "pending" | "error" | "success"
+  fetchStatus: "fetching" | "paused" | "idle"
+}
+
+export function agentLoadOf(state: AgentQueryState): AgentLoad {
+  if (state.data !== undefined) return "ready"
+  if (state.fetchStatus === "paused") return "failed"
+  if (state.status === "pending" || state.fetchStatus === "fetching") {
+    return "loading"
+  }
+  return "failed"
+}
 
 export type GateInput = {
   canComment: boolean
   agentAvailable: boolean | undefined
+  agentLoad?: AgentLoad
   pinned: boolean
   layoutEditing: boolean
 }
@@ -115,6 +135,8 @@ export function deliveryGate(input: GateInput, delivery: Delivery): AgentGate {
   if (input.agentAvailable === false) return { kind: "no-model" }
   if (input.pinned) return { kind: "blocked", reason: pinnedText }
   if (input.layoutEditing) return { kind: "blocked", reason: layoutEditingText }
+  if (input.agentLoad === "loading") return { kind: "hold" }
+  if (input.agentLoad === "failed") return { kind: "unreachable" }
   return { kind: "allowed" }
 }
 
