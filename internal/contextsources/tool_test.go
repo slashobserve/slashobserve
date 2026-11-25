@@ -92,7 +92,7 @@ func TestToolNamesMustBeUsableAndUnique(t *testing.T) {
 			t.Errorf("%q should be usable", name)
 		}
 	}
-	for _, name := range []string{"", "has space", "slash/name", "new\nline", "ünï", strings.Repeat("a", maxToolNameBytes+1)} {
+	for _, name := range []string{"", "has space", "slash/name", "new\nline", "ünï", ".", "..", "-", "_.-", strings.Repeat("a", maxToolNameBytes+1)} {
 		if usableName(name) {
 			t.Errorf("%q should not be usable", name)
 		}
