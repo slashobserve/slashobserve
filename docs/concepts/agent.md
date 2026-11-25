@@ -93,7 +93,7 @@ What each tool finds depends on the datasource:
 | ClickHouse | `get_schema` and `sample_rows` list the tables and columns and read a few rows. |
 | Loki | `list_labels` and `list_label_values` find stream labels and values. `sample_rows` reads lines. `list_metrics` lists stream label keys. |
 | Jaeger | `list_label_values` finds services and the operations of one service. `get_schema` lists every service with its span names. Tags are free-form. |
-| Tempo | `list_labels` and `list_label_values` find TraceQL attributes and values. `get_schema` lists every service with its span names, plus the attributes. |
+| Tempo | `list_labels` and `list_label_values` find TraceQL attributes and values. `get_schema` lists the services seen in the last hour with their span names, plus the attributes. |
 | Elasticsearch and OpenSearch | `list_labels` and `list_label_values` find fields and a field's top values. `get_schema` lists indices or the fields of one. `sample_rows` reads documents. |
 
 Details of the Loki tools:

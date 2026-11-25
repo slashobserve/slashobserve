@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { useNavigate } from "@tanstack/react-router"
 import { MoreHorizontalIcon } from "lucide-react"
@@ -41,6 +41,7 @@ import {
   type BlockWidth,
 } from "./block-rows"
 import { blockWriteProblem } from "./errors"
+import { FindingHeader, headerBlocks } from "./finding-header"
 import {
   useMakeDashboard,
   useRemoveBlock,
@@ -240,16 +241,25 @@ function BlockMenu({
 function BlockBody({
   block,
   blocks,
+  headers,
   onCanvas,
 }: {
   block: Block
   blocks: readonly Block[]
+  headers: ReturnType<typeof headerBlocks>
   onCanvas: boolean
 }): ReactNode {
   const height = blockHeight(block)
   switch (block.kind) {
-    case "text":
-      return <TextBlock block={block} onCanvas={onCanvas} />
+    case "text": {
+      const header = headers.get(block.id)
+      return (
+        <>
+          {header === undefined ? null : <FindingHeader finding={header} />}
+          <TextBlock block={block} onCanvas={onCanvas} />
+        </>
+      )
+    }
     case "panel":
       return <PanelBlock block={block} height={height} onCanvas={onCanvas} />
     case "snapshot":
@@ -275,6 +285,7 @@ function BlockSection({
   observation,
   block,
   blocks,
+  headers,
   arrange,
   canAdd,
   onCanvas,
@@ -283,13 +294,21 @@ function BlockSection({
   observation: Observation
   block: Block
   blocks: readonly Block[]
+  headers: ReturnType<typeof headerBlocks>
   arrange: Arrange | null
   canAdd: boolean
   onCanvas: boolean
   onAdded: (blockId: string) => void
 }) {
   const nextId = nextBlockId(blocks, block.id)
-  const body = <BlockBody block={block} blocks={blocks} onCanvas={onCanvas} />
+  const body = (
+    <BlockBody
+      block={block}
+      blocks={blocks}
+      headers={headers}
+      onCanvas={onCanvas}
+    />
+  )
   const dragged = arrange?.dragging?.id === block.id
   return (
     <section
@@ -346,6 +365,10 @@ export function BlockList({
     blocks,
     listRef,
   })
+  const headers = useMemo(
+    () => headerBlocks(blocks, observation.findings),
+    [blocks, observation.findings]
+  )
   const canArrange = observation.allowed_actions.includes("update")
   const arrange = canArrange ? arranging : null
   const shown = arrange === null ? blocks : arrange.blocks
@@ -398,6 +421,7 @@ export function BlockList({
                     observation={observation}
                     block={block}
                     blocks={shown}
+                    headers={headers}
                     arrange={arrange}
                     canAdd={canAdd}
                     onCanvas={takesBlockComments(block, canComment)}
