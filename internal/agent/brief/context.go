@@ -115,6 +115,17 @@ func writeSuggestRequest(b *strings.Builder, panelID string, current *Revision) 
 		title = panelID
 	}
 	fmt.Fprintf(b, "\nPropose a change to panel %s titled %q for the request. Call update_panels with only that panel, with id %s, in upsert; everything else stays as in version %d, and nothing is saved.", panelID, title, panelID, current.Number)
+	if names := variableNames(current.Spec); len(names) > 0 {
+		fmt.Fprintf(b, " The dashboard has the variables %s; when your change stops the panel using one, say so in summary.", strings.Join(names, ", "))
+	}
+}
+
+func variableNames(d *spec.Dashboard) []string {
+	names := make([]string, len(d.Variables))
+	for i, v := range d.Variables {
+		names[i] = v.Name
+	}
+	return names
 }
 
 func writePanelRequest(b *strings.Builder, source revisions.Source, panelID string, current *Revision) {

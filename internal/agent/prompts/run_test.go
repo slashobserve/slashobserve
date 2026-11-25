@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 24307
-	fullSystemTextBudget = 29029
+	systemTextBudget     = 24616
+	fullSystemTextBudget = 29338
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -300,6 +300,29 @@ func TestBuildReadsGridPosBeforeAMove(t *testing.T) {
 	for _, want := range []string{
 		"read their `gridPos` with `get_panels` first",
 		"name in `summary` where it went",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildKeepsAPanelChangeSmall(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"changes only that: keep its title, queries and `format`",
+		"Say in `summary` when a change stops a panel using a dashboard variable",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestInvestigateSuggestsTheOneOptionItRecommends(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"the one option the markdown recommends, the smallest that does what was asked",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
