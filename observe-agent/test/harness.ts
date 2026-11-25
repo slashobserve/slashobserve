@@ -69,7 +69,15 @@ export class FakeTools implements RunTools {
     { name: "create_dashboard", description: "", inputSchema: {} },
   ]
 
+  listFailures: Error[] = []
+  listCalls = 0
+
   async listTools(): Promise<ToolSpec[]> {
+    this.listCalls += 1
+    const failure = this.listFailures.shift()
+    if (failure !== undefined) {
+      throw failure
+    }
     return this.specs
   }
 
