@@ -23,7 +23,7 @@ const (
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
 
-	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, their parent and depth with the deepest error of a chain marked origin, and slowest spans with their self time (duration less the children's). Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
@@ -182,7 +182,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 		root = &spans[0]
 	}
 	out.Root = &spanRefOut{SpanID: root.id, Name: root.name, Service: root.service}
-	out.Errors = errorRefs(failed, byID)
+	out.Errors = errorRefs(failed, byID, !out.Truncated)
 	out.DurationMS = millisOf(float64(end.Sub(start)))
 	for _, svc := range services {
 		out.Services = append(out.Services, *svc)
@@ -199,8 +199,8 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	return out
 }
 
-func errorRefs(failed []*traceSpan, byID map[string]*traceSpan) []spanRefOut {
-	below := map[string][]string{}
+func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
+	hasErrorBelow := map[string]bool{}
 	for _, s := range failed {
 		seen := map[string]bool{s.id: true}
 		for parent := s.parent; parent != "" && !seen[parent]; {
@@ -209,33 +209,31 @@ func errorRefs(failed []*traceSpan, byID map[string]*traceSpan) []spanRefOut {
 			if !ok {
 				break
 			}
-			if datasource.IsErrorStatus(p.status) {
-				below[p.id] = append(below[p.id], s.statusMessage)
-			}
+			hasErrorBelow[p.id] = true
 			parent = p.parent
 		}
 	}
-	refs := make([]spanRefOut, 0, min(len(failed), traceListLimit))
-	for _, s := range failed[:min(len(failed), traceListLimit)] {
-		refs = append(refs, spanRefOut{
-			SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID),
-			Origin: isOrigin(*s, below[s.id]), StatusMessage: s.statusMessage,
-		})
+	origin := func(s *traceSpan) bool { return complete && !hasErrorBelow[s.id] }
+	listed := make([]*traceSpan, 0, min(len(failed), traceListLimit))
+	for _, wantOrigin := range []bool{true, false} {
+		for _, s := range failed {
+			if len(listed) < traceListLimit && origin(s) == wantOrigin {
+				listed = append(listed, s)
+			}
+		}
+	}
+	slices.SortStableFunc(listed, func(a, b *traceSpan) int { return slices.Index(failed, a) - slices.Index(failed, b) })
+	refs := make([]spanRefOut, 0, len(listed))
+	for _, s := range listed {
+		refs = append(refs, spanRefOut{SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID), Origin: origin(s), StatusMessage: s.statusMessage})
 	}
 	return refs
-}
-
-func isOrigin(s traceSpan, belowMessages []string) bool {
-	if len(belowMessages) == 0 {
-		return true
-	}
-	return s.statusMessage != "" && !slices.Contains(belowMessages, s.statusMessage)
 }
 
 func childrenOf(spans []traceSpan) map[string][]traceSpan {
 	children := map[string][]traceSpan{}
 	for _, s := range spans {
-		if s.parent != "" {
+		if s.parent != "" && s.parent != s.id {
 			children[s.parent] = append(children[s.parent], s)
 		}
 	}

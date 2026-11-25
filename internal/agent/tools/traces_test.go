@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -406,24 +407,69 @@ func TestSummarizeTraceFlagsTheDeepestErrorOfAChainAsTheOrigin(t *testing.T) {
 	}
 }
 
-func TestSummarizeTraceKeepsAParentWithItsOwnErrorMessageAsAnOrigin(t *testing.T) {
+func TestSummarizeTraceFlagsOnlyTheDeepestSpanOfAWrappingChain(t *testing.T) {
 	const ms = time.Millisecond
 	out := summarizeTrace(fixtureTraceID, shapedTrace(
 		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
-		shapedSpan{id: "own", parent: "a", status: "Error", message: "card declined", offset: ms, duration: 90 * ms},
-		shapedSpan{id: "relay", parent: "own", status: "Error", message: "timeout", offset: 2 * ms, duration: 80 * ms},
-		shapedSpan{id: "echo", parent: "relay", status: "Error", message: "timeout", offset: 3 * ms, duration: 70 * ms},
+		shapedSpan{id: "outer", parent: "a", status: "Error", message: "upstream returned 500", offset: ms, duration: 90 * ms},
+		shapedSpan{id: "mid", parent: "outer", status: "Error", message: "card service: timeout", offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "leaf", parent: "mid", status: "Error", message: "timeout", offset: 3 * ms, duration: 70 * ms},
 	))
-	if got := originsOf(out.Errors); !slices.Equal(got, []string{"own", "echo"}) {
-		t.Fatalf("origins = %v, want the parent with a distinct message and the deepest span", got)
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"leaf"}) {
+		t.Fatalf("origins = %v, want only the span with no error below it", got)
 	}
-	relayed := shapedTrace(
+}
+
+func TestSummarizeTraceKeepsOriginsWhenTheErrorListIsCapped(t *testing.T) {
+	const ms = time.Millisecond
+	spans := []shapedSpan{{id: "root", status: "Unset", duration: 1000 * ms}}
+	for i := range traceListLimit + 5 {
+		spans = append(spans, shapedSpan{id: fmt.Sprintf("e%02d", i), parent: "root", status: "Error", offset: time.Duration(i+1) * ms, duration: ms})
+	}
+	spans = append(spans, shapedSpan{id: "late-child", parent: "e00", status: "Error", offset: 100 * ms, duration: ms})
+	out := summarizeTrace(fixtureTraceID, shapedTrace(spans...))
+	if len(out.Errors) != traceListLimit {
+		t.Fatalf("errors = %d, want %d", len(out.Errors), traceListLimit)
+	}
+	for _, e := range out.Errors {
+		if e.SpanID == "e00" {
+			t.Fatalf("e00 has an error below it and should be dropped before any origin: %+v", out.Errors)
+		}
+		if !e.Origin {
+			t.Fatalf("%s is not an origin but the list holds origins that were cut", e.SpanID)
+		}
+	}
+	if !slices.IsSortedFunc(out.Errors, func(a, b spanRefOut) int { return cmp.Compare(a.SpanID, b.SpanID) }) {
+		t.Fatalf("errors lost their start order: %+v", out.Errors)
+	}
+}
+
+func TestSummarizeTraceSetsNoOriginOnATruncatedTrace(t *testing.T) {
+	const ms = time.Millisecond
+	f := shapedTrace(
 		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
-		shapedSpan{id: "p", parent: "a", status: "Error", message: "timeout", offset: ms, duration: 90 * ms},
-		shapedSpan{id: "q", parent: "p", status: "Error", message: "timeout", offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "b", parent: "a", status: "Error", offset: ms, duration: 90 * ms},
 	)
-	if got := originsOf(summarizeTrace(fixtureTraceID, relayed).Errors); !slices.Equal(got, []string{"q"}) {
-		t.Fatalf("origins = %v, want a parent that repeats its child's message to relay it", got)
+	f.Meta = &datasource.FrameMeta{Truncated: true, RowsTotal: 50}
+	out := summarizeTrace(fixtureTraceID, f)
+	if len(out.Errors) != 1 || out.Errors[0].Origin || len(originsOf(out.Errors)) != 0 {
+		t.Fatalf("errors = %+v, want no origin when children may be missing", out.Errors)
+	}
+}
+
+func TestSummarizeTraceIgnoresASpanThatIsItsOwnParent(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", duration: 100 * ms},
+		shapedSpan{id: "loop", parent: "loop", status: "Error", offset: ms, duration: 50 * ms},
+	))
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"loop"}) {
+		t.Fatalf("origins = %v", got)
+	}
+	for _, s := range out.Slowest {
+		if s.SpanID == "loop" && s.SelfTimeMS != 50 {
+			t.Fatalf("self time = %v, want the whole duration", s.SelfTimeMS)
+		}
 	}
 }
 
