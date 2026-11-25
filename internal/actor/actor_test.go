@@ -172,3 +172,17 @@ func TestActorInLabelsAnAgentWrite(t *testing.T) {
 		t.Fatalf("Label() without a run = %q", got)
 	}
 }
+
+func TestActorInKeepsTheMCPLabelOfAConnectedAgentRun(t *testing.T) {
+	person := auth.Principal{Kind: auth.KindUser, ID: userID, Name: "Ada"}
+	mcp := origin.With(context.Background(), origin.Origin{Kind: origin.MCP, Client: "claude-code"})
+	connected := AsConnectedAgent(WithRun(mcp, runID))
+	got := In(connected, person, "")
+	if got.RunID != "" || got.Label() != "Ada (via Claude Code)" {
+		t.Fatalf("connected agent actor = %+v, label %q", got, got.Label())
+	}
+	builtIn := In(WithRun(mcp, runID), person, "")
+	if builtIn.RunID != runID || builtIn.Label() != "Observe Agent for Ada" {
+		t.Fatalf("built-in agent actor = %+v, label %q", builtIn, builtIn.Label())
+	}
+}

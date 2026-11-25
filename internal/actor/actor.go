@@ -24,7 +24,14 @@ func Of(p auth.Principal, o origin.Origin, runID string) Actor {
 	return Actor{Kind: p.Kind, ID: p.ID, Name: cmp.Or(p.Name, p.Email), Origin: o, RunID: runID}
 }
 
-type runKey struct{}
+type (
+	runKey       struct{}
+	connectedKey struct{}
+)
+
+func AsConnectedAgent(ctx context.Context) context.Context {
+	return context.WithValue(ctx, connectedKey{}, true)
+}
 
 func WithRun(ctx context.Context, runID string) context.Context {
 	return context.WithValue(ctx, runKey{}, runID)
@@ -32,6 +39,9 @@ func WithRun(ctx context.Context, runID string) context.Context {
 
 func In(ctx context.Context, p auth.Principal, runID string) Actor {
 	inRun, _ := ctx.Value(runKey{}).(string)
+	if connected, _ := ctx.Value(connectedKey{}).(bool); connected {
+		inRun = ""
+	}
 	return Of(p, origin.From(ctx), cmp.Or(inRun, runID))
 }
 
