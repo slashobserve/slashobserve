@@ -82,8 +82,8 @@ func init() { registerEntries((*Registry).contextSourceEntries) }
 
 func (r *Registry) contextSourceEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListContextSources, Description: descListContextSources, InputSchema: json.RawMessage(schemaListContextSources), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.listContextSources},
-		{Tool{Name: nameCallContextTool, Description: descCallContextTool, InputSchema: json.RawMessage(schemaCallContextTool), ReadOnly: true, InvestigateOnly: true, MinRole: auth.RoleViewer}, r.callContextTool},
+		{Tool{Name: nameListContextSources, Description: descListContextSources, InputSchema: json.RawMessage(schemaListContextSources), ReadOnly: true, MinRole: auth.RoleViewer}, r.listContextSources},
+		{Tool{Name: nameCallContextTool, Description: descCallContextTool, InputSchema: json.RawMessage(schemaCallContextTool), ReadOnly: true, MinRole: auth.RoleViewer}, r.callContextTool},
 	}
 }
 
