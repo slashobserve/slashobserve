@@ -164,11 +164,71 @@ describe("blockTitle", () => {
       body: { panel: { type: "stat" } },
     })
     expect(blockTitle(untitled)).toBe("Panel")
-    expect(blockTitle(block("t", 0))).toBe("Text")
     expect(blockTitle(block("s", 0, "full", { kind: "snapshot" }))).toBe(
       "Snapshot"
     )
     expect(blockTitle(block("r", 0, "full", { kind: "run" }))).toBe("Run")
+  })
+})
+
+describe("blockTitle of a text block", () => {
+  const text = (markdown: unknown) =>
+    blockTitle(block("t", 0, "full", { body: { markdown } }))
+
+  it("names the block by the first words of its text", () => {
+    expect(text("Checkout slowed after the deploy.")).toBe(
+      "Checkout slowed after the deploy."
+    )
+    expect(
+      text("The payment service started timing out at 10:42 after the deploy")
+    ).toBe("The payment service started timing out…")
+  })
+
+  it("skips Markdown markers and blank lines", () => {
+    expect(text("\n\n## **Root** cause\nmore")).toBe("Root cause")
+    expect(text("- [the runbook](https://x.test/r) says restart")).toBe(
+      "the runbook says restart"
+    )
+  })
+
+  it("keeps snake_case words and strips paired emphasis", () => {
+    expect(text("payment_service is *slow* and _late_")).toBe(
+      "payment_service is slow and late"
+    )
+  })
+
+  it("strips stacked block markers", () => {
+    expect(text("> ## Root cause")).toBe("Root cause")
+    expect(text("- 1. first step")).toBe("first step")
+  })
+
+  it("skips marker-only lines and thematic breaks", () => {
+    expect(text("---\n***\n- - -\n##\n>\nReal text")).toBe("Real text")
+    expect(text("---\n##")).toBe("Text")
+  })
+
+  it("allows one level of parentheses in a link address", () => {
+    expect(text("[the page](https://x.test/a_(b)) is down")).toBe(
+      "the page is down"
+    )
+  })
+
+  it("clips by code points, not UTF-16 units", () => {
+    const clipped = text("\u{1F600}".repeat(60))
+    expect(Array.from(clipped)).toEqual([
+      ...Array.from("\u{1F600}".repeat(48)),
+      "\u2026",
+    ])
+  })
+
+  it("cuts a long unbroken word", () => {
+    expect(text("a".repeat(80))).toBe(`${"a".repeat(48)}…`)
+  })
+
+  it("falls back to Text when there is nothing to read", () => {
+    expect(text("")).toBe("Text")
+    expect(text("  \n ")).toBe("Text")
+    expect(text(undefined)).toBe("Text")
   })
 })
 
