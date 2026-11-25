@@ -839,7 +839,7 @@ function DashboardView({
     panelTitles(envelopeSpec).get(id) ?? id
   const controls = [
     <AnnotationControls key="annotations" />,
-    <div key="time" className="flex items-center gap-1.5">
+    <div key="time" className="flex flex-wrap items-center gap-1.5">
       <TimeRangePicker
         dashboardId={dashboardId}
         version={version}

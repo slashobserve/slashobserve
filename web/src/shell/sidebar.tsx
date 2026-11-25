@@ -44,6 +44,7 @@ import {
 } from "./open-observations"
 import { PaletteButton } from "./palette-button"
 import { navIcons, RailContent } from "./rail"
+import { ScrollWithMoreCue } from "./scroll-with-more-cue"
 import { sidebarChordKey, sidebarKeyShortcuts } from "./sidebar-shortcut"
 import { useSidebarStore } from "./sidebar-store"
 import { SourceList } from "./source-list"
@@ -381,13 +382,13 @@ export function SidebarContent({
       <div className="mb-3.5">
         <PaletteButton variant="sidebar" onNavigate={onNavigate} />
       </div>
-      <div className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]">
+      <ScrollWithMoreCue className="-m-[3px] flex min-h-0 flex-1 flex-col gap-0.5 p-[3px]">
         {renderItems(main)}
-      </div>
-      <div
+      </ScrollWithMoreCue>
+      <ScrollWithMoreCue
         role="group"
         aria-labelledby={workspaceId}
-        className="-m-[3px] flex min-h-0 shrink flex-col gap-0.5 overflow-y-auto p-[3px] pb-[7px]"
+        className="-m-[3px] flex min-h-0 shrink flex-col gap-0.5 p-[3px] pb-[7px]"
       >
         <div
           id={workspaceId}
@@ -396,7 +397,7 @@ export function SidebarContent({
           Workspace
         </div>
         {renderItems(workspace)}
-      </div>
+      </ScrollWithMoreCue>
       <div className="flex items-center gap-1">
         <AccountMenu collapsed={false} />
         {footerAction}
