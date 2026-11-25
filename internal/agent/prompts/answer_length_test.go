@@ -33,3 +33,17 @@ func TestInvestigateCitesObservationsAsTitledLinksNeverBarePaths(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildAnswersHomeQuestionsInTheLengthTheRequestNames(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"the markdown's first line answers in one sentence, then, unless the request names a length or a form, the names with their counts",
+		"When the request names a length or a form, such as one sentence or a list, the markdown is exactly that, with no Source, Not checked or other extra sections",
+		"a refused, failed or empty read still gets one short clause",
+		"Evidence panels are outside that limit",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
