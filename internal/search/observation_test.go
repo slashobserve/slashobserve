@@ -142,3 +142,16 @@ func TestSearchFollowsAnObservationMovedOrEditedAtOnce(t *testing.T) {
 		t.Fatalf("after a delete: %v", titles(got))
 	}
 }
+
+func TestSearchFindsASavedAnswerByItsTitleAndByTheWordsOfItsBody(t *testing.T) {
+	r := newRig(t)
+	id := r.observation(t, "Investigate checkout", "", pgtype.UUID{})
+	r.block(t, id, "text", "live", `{"markdown":"## Kafka consumer lag\n\nThe broker restarted at 14:02 and the partitions rebalanced."}`)
+
+	for _, q := range []string{"kafka", "rebalanced", `"consumer lag"`} {
+		got := r.search(t, admin, q, KindObservation)
+		if len(got) != 1 || got[0].ID != id {
+			t.Errorf("search %q found %v, want the observation holding the answer", q, titles(got))
+		}
+	}
+}
