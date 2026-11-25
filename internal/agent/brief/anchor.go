@@ -15,12 +15,13 @@ type Pointer struct {
 	Anchor        *anchor.Anchor
 	BlockID       string
 	ObservationID string
+	ThreadAsk     bool
 }
 
 func anchorNote(p Pointer) string {
 	if p.Anchor == nil {
 		if p.BlockID == "" {
-			if p.ObservationID == "" {
+			if p.ObservationID == "" || !p.ThreadAsk {
 				return ""
 			}
 			return fmt.Sprintf("The request was asked on observation %s; 'this' means that page.", p.ObservationID)

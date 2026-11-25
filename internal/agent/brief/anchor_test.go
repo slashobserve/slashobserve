@@ -95,7 +95,7 @@ func TestRenderNamesTheObservationAWholePageAskWasMadeOn(t *testing.T) {
 	const note = "The request was asked on observation o1; 'this' means that page."
 	for name, tc := range renderCases(t) {
 		task := tc.task
-		task.Pointer = Pointer{ObservationID: "o1"}
+		task.Pointer = Pointer{ObservationID: "o1", ThreadAsk: true}
 		got, err := Render(statuses, task, tc.views[0], Fresh, "")
 		if err != nil {
 			t.Fatal(err)
@@ -106,9 +106,18 @@ func TestRenderNamesTheObservationAWholePageAskWasMadeOn(t *testing.T) {
 	}
 }
 
-func TestAnchorNoteIsEmptyWithNoAnchorNoBlockAndNoObservation(t *testing.T) {
-	if note := anchorNote(Pointer{}); note != "" {
-		t.Fatalf("note %q", note)
+func TestAnchorNoteNamesThePageOnlyForAThreadAskOnAnObservation(t *testing.T) {
+	for name, p := range map[string]Pointer{
+		"nothing":                  {},
+		"a thread ask on no page":  {ThreadAsk: true},
+		"a chat turn on a subject": {ObservationID: "o1"},
+	} {
+		if note := anchorNote(p); note != "" {
+			t.Errorf("%s: note %q", name, note)
+		}
+	}
+	if note := anchorNote(Pointer{ObservationID: "o1", ThreadAsk: true}); note == "" {
+		t.Error("a thread ask on an observation has no note")
 	}
 }
 
