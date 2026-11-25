@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 24616
-	fullSystemTextBudget = 29338
+	systemTextBudget     = 25303
+	fullSystemTextBudget = 30025
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -329,5 +329,30 @@ func TestInvestigateSuggestsTheOneOptionItRecommends(t *testing.T) {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
 		}
+	}
+}
+
+func TestRunTextsSayWritesWaitForTheAskAndNameTheWebActionForWhatIsLeftOut(t *testing.T) {
+	for name, system := range map[string]string{"build": Build(demoTypes), "investigate": Investigate()} {
+		for _, want := range []string{
+			"Do one only when the person asks for it",
+			"Do that only when the request asks for it",
+			"Restore in the version history",
+			"Merge on the proposal",
+			"Comment on the thread",
+		} {
+			if name == "build" && want == "Do that only when the request asks for it" || name == "investigate" && want == "Do one only when the person asks for it" {
+				continue
+			}
+			if !strings.Contains(system, want) {
+				t.Errorf("%s text lacks %q", name, want)
+			}
+		}
+		if strings.Contains(system, "cannot change observations") || strings.Contains(system, "read-only") {
+			t.Errorf("%s text still says the run cannot write", name)
+		}
+	}
+	if !strings.Contains(Build(demoTypes), "a question never creates an observation nobody asked for") {
+		t.Error("build text lacks the rule that a question creates no observation")
 	}
 }
