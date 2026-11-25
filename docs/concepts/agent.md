@@ -640,7 +640,7 @@ The request's `usage` reports these:
 | `save_now_refusals` | Reads refused for lack of a save. |
 | `stalled_turns` | Turns in which every call was refused, and turns with only a hypothesis ledger call. |
 | `one_panel_refusals` | Saves refused for changing more than one panel. |
-| `hypotheses` | The last hypothesis ledger of an investigation, up to 6 entries, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`. |
+| `hypotheses` | The last hypothesis ledger of an investigation, up to 6 entries, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true` and only for the requester and Admins. |
 | `cost_usd` | The estimated cost in US dollars of the attempt that finished the request, from the server's price table. It is `null` when the model has no price. |
 
 A run that fails on its first model call has `usage` with `model_calls` 0 and `failed_calls` 1.

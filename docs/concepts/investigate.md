@@ -79,7 +79,7 @@ Details of the ledger:
 - A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
 - The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
 - When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
-- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`.
+- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
 - Without the setting, the tool, the prompt section and the block are absent.
 
 ## Where the answer goes

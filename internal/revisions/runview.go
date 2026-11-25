@@ -389,7 +389,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		}
 		out.Steps = []Step{}
 	}
-	out.Usage = r.service.decodeUsage(ctx, out.ID, row.RunUsage)
+	out.Usage = usageShownTo(r.service.decodeUsage(ctx, out.ID, row.RunUsage), row, caller)
 	out.LiveText = r.liveText(row)
 	return out
 }
@@ -471,6 +471,15 @@ func chatShownTo(row dbsqlc.AgentRequest, caller auth.Principal) *string {
 	}
 	chat := row.ChatID.String()
 	return &chat
+}
+
+func usageShownTo(usage *Usage, row dbsqlc.AgentRequest, caller auth.Principal) *Usage {
+	if usage == nil || len(usage.Hypotheses) == 0 || readsTheChat(row, caller) {
+		return usage
+	}
+	shown := *usage
+	shown.Hypotheses = nil
+	return &shown
 }
 
 func titleShownTo(row dbsqlc.AgentRequest, caller auth.Principal) string {

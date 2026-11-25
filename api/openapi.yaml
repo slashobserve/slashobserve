@@ -4581,7 +4581,7 @@ components:
           maxItems: 6
           items:
             $ref: "#/components/schemas/AgentHypothesis"
-          description: The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`).
+          description: The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`) and only for the requester and Admins, because it quotes data the run read.
     AgentHypothesis:
       type: object
       additionalProperties: false

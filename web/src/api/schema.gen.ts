@@ -6520,7 +6520,7 @@ export interface components {
              * @description Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
              */
             cost_usd: number | null;
-            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`). */
+            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`) and only for the requester and Admins, because it quotes data the run read. */
             hypotheses?: components["schemas"]["AgentHypothesis"][];
         };
         AgentHypothesis: {
