@@ -1,12 +1,4 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useEffect, useId, type KeyboardEvent, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
 
@@ -30,7 +22,7 @@ import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { liveRegionText } from "@/lib/live-region"
 import { isEditableTarget, isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
-import { agentInfoQuery, useAgentInfo } from "@/observe/queries"
+import { useAgentInfo } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
 import { PromptPicker } from "@/prompts/prompt-picker"
 import { usePromptPicker } from "@/prompts/use-prompt-picker"
@@ -81,9 +73,7 @@ type ComposerProps = {
 const keyboardHint =
   "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
 
-export const queuedText = "Sending when the agent is ready"
-export const agentFailedText =
-  "Could not reach the agent, so nothing was sent. Your text is still here. Try again."
+export const holdingText = "Sending when the agent is ready"
 
 const chipClass =
   "inline-flex h-6 max-w-full items-center rounded-chip border px-2 text-xs text-muted-foreground"
@@ -429,38 +419,18 @@ function PageComposer({
       })
     },
   })
-  const queryClient = useQueryClient()
-  const [phase, setPhase] = useState<"idle" | "queued" | "failed">("idle")
-  const mounted = useRef(true)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
-  const queued = phase === "queued"
   function send() {
-    if (disabled || queued) return
-    if (!agent.isPending || model.pending) {
-      setPhase("idle")
-      void model.submit()
-      return
-    }
-    setPhase("queued")
-    queryClient.ensureQueryData(agentInfoQuery()).then(
-      (info) => {
-        if (!mounted.current) return
-        setPhase("idle")
-        if (info.available !== false) void model.submit()
-      },
-      () => {
-        if (mounted.current) setPhase("failed")
-      }
-    )
+    if (disabled) return
+    void model.submit()
   }
-  const onKeyDown = useKeyDown(model, send, (event) =>
-    picker.handleKeyDown(event)
-  )
+  const onKeyDown = useKeyDown(model, send, (event) => {
+    if (event.key === "Escape" && model.holding) {
+      event.preventDefault()
+      model.cancelHold()
+      return true
+    }
+    return picker.handleKeyDown(event)
+  })
   const agentOff = agent.data?.available === false
   const modelName = agentLabel(agent.data)
   const healthy = (datasources.data ?? []).filter((d) => d.healthy)
@@ -497,7 +467,18 @@ function PageComposer({
     return () => window.removeEventListener("keydown", focusOnSlash)
   }, [field])
 
-  if (agentOff) return <NoAgentNote />
+  if (agentOff) {
+    return (
+      <div className="flex w-full flex-col gap-1.5">
+        {model.failure === null ? null : (
+          <p role="alert" className="text-xs text-status-critical">
+            {model.failure.text}
+          </p>
+        )}
+        <NoAgentNote />
+      </div>
+    )
+  }
 
   const allChips: ContextChip[] = [
     ...(model.command === null
@@ -523,7 +504,7 @@ function PageComposer({
     ]
       .filter((id) => id !== null)
       .join(" ") || undefined
-  const busy = model.pending || queued
+  const busy = model.pending || model.holding
 
   return (
     <div className="w-full">
@@ -553,7 +534,7 @@ function PageComposer({
             value={model.text}
             rows={rows}
             placeholder={placeholder}
-            readOnly={model.pending || queued}
+            readOnly={model.pending}
             disabled={disabled}
             aria-invalid={
               model.failure?.invalid === true || counter?.over === true
@@ -563,7 +544,6 @@ function PageComposer({
             enterKeyHint={coarse ? "enter" : "send"}
             className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
             onChange={(event) => {
-              setPhase("idle")
               model.setText(event.target.value, event.target.selectionStart)
               picker.onValueChange(event.target.value)
             }}
@@ -639,14 +619,9 @@ function PageComposer({
         </p>
       ) : null}
       <div className="flex flex-col gap-1 pt-1.5 text-[13px]">
-        {queued ? (
+        {model.holding ? (
           <p role="status" className="text-xs text-muted-foreground">
-            {queuedText}
-          </p>
-        ) : null}
-        {phase === "failed" ? (
-          <p role="alert" className="text-xs text-status-critical">
-            {agentFailedText}
+            {holdingText}
           </p>
         ) : null}
         <Feedback model={model} errorId={errorId} />
