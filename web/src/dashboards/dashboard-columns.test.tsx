@@ -93,10 +93,38 @@ describe("column widths", () => {
     }
   })
 
-  it("hides Datasources and Open comments when the grid is cramped, and no other column", () => {
+  it("hides the optional columns in the order the grid runs out of room", () => {
+    const hidable = all.filter((c) => c.hideBelow !== undefined)
     expect(
-      all.filter((c) => c.hideBelow !== undefined).map((c) => c.id)
-    ).toEqual(["datasources", "openComments"])
+      hidable
+        .toSorted((a, b) => (a.hideBelow ?? 0) - (b.hideBelow ?? 0))
+        .map((c) => c.id)
+    ).toEqual([
+      "health",
+      "madeBy",
+      "version",
+      "views",
+      "datasources",
+      "openComments",
+    ])
+  })
+
+  it("never asks for more width than the grid has when a column shows", () => {
+    const grouped = [...dashboardColumns, actionsColumn]
+    const title = grouped.find((c) => c.id === "title")
+    const fixed = grouped.filter(
+      (c) => c.id !== "title" && c.hideBelow === undefined
+    )
+    for (const column of grouped.filter((c) => c.hideBelow !== undefined)) {
+      const shown = grouped.filter(
+        (c) => c.hideBelow !== undefined && c.hideBelow <= column.hideBelow!
+      )
+      const needed = [title, ...fixed, ...shown].reduce(
+        (total, c) => total + (c?.width ?? c?.minWidth ?? 0),
+        0
+      )
+      expect(needed, column.id).toBeLessThanOrEqual(column.hideBelow!)
+    }
   })
 })
 
