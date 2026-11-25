@@ -18,7 +18,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/internal/usertext"
 )
@@ -70,7 +69,7 @@ func (s *Service) openForRun(ctx context.Context, q *dbsqlc.Queries, in RunOpen)
 	if !ok {
 		return pgtype.UUID{}, folders.ErrForbidden
 	}
-	who := actor.Of(in.By, origin.From(ctx), in.Run.ID.String())
+	who := actor.In(ctx, in.By, in.Run.ID.String())
 	parent, err := s.runParent(ctx, q, in, place, who)
 	if err != nil {
 		return pgtype.UUID{}, err

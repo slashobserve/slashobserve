@@ -23,7 +23,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/placement"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
@@ -107,7 +106,7 @@ func (s *Service) Save(ctx context.Context, by auth.Principal, in SaveInput) (Fi
 	if chatOnly {
 		conclude = func(*dbsqlc.Queries) (pgtype.UUID, bool, error) { return pgtype.UUID{}, false, nil }
 	}
-	return s.store.insert(ctx, actor.Of(by, origin.From(ctx), in.AgentRequestID.String()), in, inheritingRestricted(ctx, in.AgentRequestID, conclude))
+	return s.store.insert(ctx, actor.In(ctx, by, in.AgentRequestID.String()), in, inheritingRestricted(ctx, in.AgentRequestID, conclude))
 }
 
 func inheritingRestricted(ctx context.Context, runID pgtype.UUID, next conclude) conclude {
@@ -423,7 +422,7 @@ func (s *Service) Pin(ctx context.Context, by auth.Principal, id pgtype.UUID) (a
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}
-	won, err := s.store.setAnnotation(ctx, actor.Of(by, origin.From(ctx), ""), id, dashboardID, observationID, annotationID)
+	won, err := s.store.setAnnotation(ctx, actor.In(ctx, by, ""), id, dashboardID, observationID, annotationID)
 	if err != nil {
 		return annotations.Annotation{}, false, err
 	}

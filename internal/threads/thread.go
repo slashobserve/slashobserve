@@ -12,7 +12,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
-	"github.com/slashobserve/slashobserve/internal/origin"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -195,5 +194,5 @@ func builtinRunID(assignedKind pgtype.Text, runID pgtype.UUID) pgtype.UUID {
 }
 
 func actorOf(ctx context.Context, by auth.Principal) actor.Actor {
-	return actor.Of(by, origin.From(ctx), "")
+	return actor.In(ctx, by, "")
 }

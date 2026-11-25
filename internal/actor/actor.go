@@ -2,6 +2,7 @@ package actor
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,17 @@ type Actor struct {
 
 func Of(p auth.Principal, o origin.Origin, runID string) Actor {
 	return Actor{Kind: p.Kind, ID: p.ID, Name: cmp.Or(p.Name, p.Email), Origin: o, RunID: runID}
+}
+
+type runKey struct{}
+
+func WithRun(ctx context.Context, runID string) context.Context {
+	return context.WithValue(ctx, runKey{}, runID)
+}
+
+func In(ctx context.Context, p auth.Principal, runID string) Actor {
+	inRun, _ := ctx.Value(runKey{}).(string)
+	return Of(p, origin.From(ctx), cmp.Or(runID, inRun))
 }
 
 type Columns struct {

@@ -54,7 +54,7 @@ func (s *Service) beforeRelease(ctx context.Context, by auth.Principal, in Relea
 		}
 		kept = &newVersion{spec: parsed, canonical: canonical, summary: summary, author: authorOf(by), origin: origin.From(ctx), unverified: source.Unverified}
 	}
-	moved := actor.Of(by, origin.From(ctx), "")
+	moved := actor.In(ctx, by, "")
 	return func(ctx context.Context, q *dbsqlc.Queries) (bool, error) {
 		current, err := q.DashboardFolder(ctx, in.DashboardID)
 		if err != nil {
