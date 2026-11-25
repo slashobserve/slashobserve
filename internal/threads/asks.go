@@ -385,24 +385,28 @@ func askedIn(ctx context.Context, q *dbsqlc.Queries, answers map[pgtype.UUID]Ans
 	if err != nil {
 		return askContext{}, fmt.Errorf("read the thread transcript: %w", err)
 	}
-	point, err := pointOfThread(thread)
+	point, err := pointOfMessage(thread, message)
 	if err != nil {
 		return askContext{}, err
 	}
 	return askContext{thread: threadID, message: messageID, transcript: transcriptOf(earlier, answers), point: point}, nil
 }
 
-func pointOfThread(thread Thread) (revisions.Point, error) {
+func pointOfMessage(thread Thread, message Message) (revisions.Point, error) {
 	var point revisions.Point
-	if thread.Anchor != nil {
+	blockID := thread.BlockID
+	if message.BlockID != "" {
+		blockID = message.BlockID
+	}
+	if thread.Anchor != nil && blockID == thread.BlockID {
 		raw, err := json.Marshal(thread.Anchor)
 		if err != nil {
 			return point, fmt.Errorf("encode anchor: %w", err)
 		}
 		point.Anchor = raw
 	}
-	if thread.BlockID != "" {
-		id, err := db.ParseUUID(thread.BlockID)
+	if blockID != "" {
+		id, err := db.ParseUUID(blockID)
 		if err != nil {
 			return point, fmt.Errorf("block id: %w", err)
 		}
