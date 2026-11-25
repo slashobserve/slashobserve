@@ -94,7 +94,6 @@ const notTables = [
 const waitingForDataGrid = [
   "src/agents/connected-table.tsx",
   "src/agents/service-accounts-table.tsx",
-  "src/audit/audit-table.tsx",
   "src/chat/chats-page.tsx",
   "src/components/table-card.test.tsx",
   "src/components/table-card.tsx",
