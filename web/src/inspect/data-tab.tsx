@@ -1,15 +1,16 @@
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { DownloadIcon, ImageIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import { useWidth } from "@/components/data-grid/use-width"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { createFieldResolver } from "@/panels/field-config"
 
 import { downloadCsv, formattedCell, framesToTable } from "./csv"
-import { dataColumnWidth } from "./data-columns"
+import { dataColumnWidth, fitColumnWidths } from "./data-columns"
 import type { InspectTarget } from "./inspect-pane"
 import { savePanelPng } from "./png"
 
@@ -59,16 +60,23 @@ export function DataTab({
         .map((values, index): DataRow => ({ id: String(index), values })),
     [table]
   )
-  const columns = useMemo(
-    () =>
-      (table?.columns ?? []).map((header, index): DataGridColumn<DataRow> => ({
-        id: String(index),
-        header,
-        minWidth: dataColumnWidth(header, table?.rows ?? [], index),
-        cell: (row) => row.values[index],
-      })),
-    [table]
-  )
+  const gridRef = useRef<HTMLDivElement>(null)
+  const available = useWidth(gridRef, (table?.columns.length ?? 0) > 0)
+  const columns = useMemo(() => {
+    const headers = table?.columns ?? []
+    const widths = fitColumnWidths(
+      headers.map((header, index) =>
+        dataColumnWidth(header, table?.rows ?? [], index)
+      ),
+      available
+    )
+    return headers.map((header, index): DataGridColumn<DataRow> => ({
+      id: String(index),
+      header,
+      minWidth: widths[index],
+      cell: (row) => row.values[index],
+    }))
+  }, [table, available])
   const [saving, setSaving] = useState(false)
   if (!target || !frames || !table) return <WaitingForData />
   const body = target.body
@@ -113,14 +121,16 @@ export function DataTab({
           : `${table.rows.length === 1 ? "1 row" : `${table.rows.length} rows`}, after the panel's transforms.`}
       </p>
       {table.columns.length > 0 ? (
-        <DataGrid
-          label={`${title} data`}
-          rows={rows}
-          columns={columns}
-          rowId={dataRowId}
-          compact
-          className="tabular-nums"
-        />
+        <div ref={gridRef}>
+          <DataGrid
+            label={`${title} data`}
+            rows={rows}
+            columns={columns}
+            rowId={dataRowId}
+            compact
+            className="tabular-nums [&_.ag-styled-root]:[--ag-scrollbar-thumb-color:var(--muted-foreground)]!"
+          />
+        </div>
       ) : null}
     </div>
   )

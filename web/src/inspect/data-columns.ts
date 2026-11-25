@@ -20,3 +20,20 @@ export function dataColumnWidth(
     Math.max(minPx, Math.ceil(longest * charPx) + cellPadPx)
   )
 }
+
+const squeezedPx = 96
+
+export function fitColumnWidths(
+  natural: readonly number[],
+  available: number
+): number[] {
+  const total = natural.reduce((sum, width) => sum + width, 0)
+  if (available <= 0 || total <= available) return [...natural]
+  const floors = natural.map((width) => Math.min(width, squeezedPx))
+  const floorTotal = floors.reduce((sum, width) => sum + width, 0)
+  if (floorTotal >= available) return [...natural]
+  const share = (available - floorTotal) / (total - floorTotal)
+  return natural.map((width, index) =>
+    Math.floor(floors[index] + (width - floors[index]) * share)
+  )
+}
