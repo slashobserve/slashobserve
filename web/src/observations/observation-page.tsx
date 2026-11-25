@@ -78,10 +78,12 @@ function LoadedObservation({
   envelope,
   rca,
   focusedThreadId,
+  onClearThread,
 }: {
   envelope: ObservationEnvelope
   rca: RcaControl
   focusedThreadId?: string
+  onClearThread: () => void
 }) {
   const { observation, permissions } = envelope
   const blocks = observation.blocks ?? []
@@ -174,6 +176,7 @@ function LoadedObservation({
   function onToggle() {
     if (discussionShown) {
       setDiscussionShown(false)
+      if (focusedThreadId !== undefined) onClearThread()
       return
     }
     focusAfterToggle.current = "heading"
@@ -183,6 +186,7 @@ function LoadedObservation({
   function onClosePane() {
     focusAfterToggle.current = "toggle"
     setDiscussionShown(false)
+    if (focusedThreadId !== undefined) onClearThread()
   }
 
   return (
@@ -320,10 +324,12 @@ export function ObservationPage({
   observationId,
   rca,
   focusedThreadId,
+  onClearThread,
 }: {
   observationId: string
   rca: RcaControl
   focusedThreadId?: string
+  onClearThread: () => void
 }) {
   const query = useObservation(observationId)
   const title =
@@ -341,6 +347,7 @@ export function ObservationPage({
         envelope={query.data}
         rca={rca}
         focusedThreadId={focusedThreadId}
+        onClearThread={onClearThread}
       />
     )
   if (observationIsMissing(query.error)) {

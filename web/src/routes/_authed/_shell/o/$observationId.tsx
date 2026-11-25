@@ -32,6 +32,12 @@ function ObservationRoute() {
       key={observationId}
       observationId={observationId}
       focusedThreadId={search.thread}
+      onClearThread={() =>
+        void navigate({
+          search: (prev) => ({ ...prev, thread: undefined }),
+          replace: true,
+        })
+      }
       rca={{
         open: search.rca === "1",
         onOpenChange: (open) =>
