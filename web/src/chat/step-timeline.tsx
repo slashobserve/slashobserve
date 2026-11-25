@@ -18,6 +18,7 @@ export const phaseLabels: Record<Step["phase"], string> = {
   save: "Saving",
   write: "Changing",
   repair: "Repairing",
+  ledger: "Updating hypotheses",
 }
 
 const noneExpanded: ReadonlySet<string> = new Set()

@@ -151,6 +151,7 @@ const (
 	envAgentSessionRenewKiB    = "SLASHOBSERVE_AGENT_SESSION_RENEW_KIB"
 	envAgentWorkers            = "SLASHOBSERVE_AGENT_WORKERS"
 	envAgentInvestigationCalls = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS"
+	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -165,7 +166,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -194,6 +195,7 @@ type Agent struct {
 	SessionRenewBytes  int
 	Workers            int
 	InvestigationCalls int
+	InvestigationLoop  bool
 	MaxRunCostUSD      float64
 }
 
@@ -310,6 +312,10 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		errs = append(errs, err)
 	}
 	errs = append(errs, loadAgent(lookup, &cfg)...)
+	cfg.Agent.InvestigationLoop, err = loadBool(lookup, envAgentInvestigationLoop, false)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	errs = append(errs, loadOutboundDomains(lookup, &cfg)...)
 	errs = append(errs, loadTrustedProxies(lookup, &cfg)...)
 	errs = append(errs, loadSecretKey(lookup, &cfg)...)

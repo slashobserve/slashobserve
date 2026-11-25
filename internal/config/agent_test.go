@@ -123,3 +123,33 @@ func TestAgentInvestigationCallsSetting(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentInvestigationLoopIsOffUnlessSet(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		set     map[string]string
+		want    bool
+		wantErr bool
+	}{
+		{name: "unset", want: false},
+		{name: "on", set: map[string]string{envAgentInvestigationLoop: "true"}, want: true},
+		{name: "off", set: map[string]string{envAgentInvestigationLoop: "false"}, want: false},
+		{name: "not a boolean", set: map[string]string{envAgentInvestigationLoop: "yes"}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), envAgentInvestigationLoop+": must be true or false") {
+					t.Fatalf("Load error = %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.InvestigationLoop != tt.want {
+				t.Fatalf("InvestigationLoop = %v, want %v", cfg.Agent.InvestigationLoop, tt.want)
+			}
+		})
+	}
+}

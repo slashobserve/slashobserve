@@ -48,3 +48,35 @@ func TestViewOfHidesTheWordsOfAPrivateChatFromEveryoneButItsRequesterAndAdmins(t
 		}
 	}
 }
+
+func TestUsageKeepsTheHypothesisLedgerOnlyForItsRequesterAndAdmins(t *testing.T) {
+	asker := auth.Principal{Kind: auth.KindUser, ID: "11111111-1111-4111-8111-111111111111", Role: auth.RoleEditor}
+	other := auth.Principal{Kind: auth.KindUser, ID: "22222222-2222-4222-8222-222222222222", Role: auth.RoleEditor}
+	admin := auth.Principal{Kind: auth.KindUser, ID: "33333333-3333-4333-8333-333333333333", Role: auth.RoleAdmin}
+	var requester pgtype.UUID
+	if err := requester.Scan(asker.ID); err != nil {
+		t.Fatal(err)
+	}
+	row := dbsqlc.AgentRequest{RequestedByKind: string(auth.KindUser), RequestedByID: requester}
+	stored := &Usage{ToolCalls: 4, Hypotheses: []Hypothesis{{ID: "pool", Text: "The pool is exhausted", Status: HypothesisSupport}}}
+	for _, c := range []struct {
+		name   string
+		caller auth.Principal
+		want   int
+	}{
+		{"the requester", asker, 1},
+		{"an admin", admin, 1},
+		{"another editor", other, 0},
+	} {
+		got := usageShownTo(stored, row, c.caller)
+		if len(got.Hypotheses) != c.want || got.ToolCalls != 4 {
+			t.Errorf("%s: usage = %+v", c.name, got)
+		}
+	}
+	if len(stored.Hypotheses) != 1 {
+		t.Error("hiding the ledger changed the stored usage")
+	}
+	if usageShownTo(nil, row, other) != nil {
+		t.Error("no usage became some")
+	}
+}

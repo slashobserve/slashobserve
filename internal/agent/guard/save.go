@@ -82,6 +82,9 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 			s.ForgetWrite(c)
 		}
 		return Settled{}, nil
+	case tools.PhaseLedger:
+		s.noteLedgerResult(res)
+		return Settled{}, nil
 	case tools.PhaseSave:
 	default:
 		return s.settleRead(c, res), nil

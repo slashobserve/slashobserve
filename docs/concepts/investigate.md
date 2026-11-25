@@ -63,6 +63,25 @@ The agent investigates with the same read tools it uses to build dashboards, and
 It does not get the dashboard save tools in an investigation, because an investigation never changes a dashboard.
 Investigations therefore do not wait for other requests on the same dashboard.
 
+### The hypothesis ledger
+
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
+A plain question gets the tool but no prompt section and no `<hypotheses>` block.
+It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
+Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
+A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
+
+Details of the ledger:
+
+- It holds at most 6 hypotheses and 4 KiB of text; a longer one is refused with the reason, and the agent shortens it.
+- The tool changes nothing in the workspace and is not a read, so the call limit never refuses it.
+- A turn with only a ledger call and no read counts as a stalled turn, like a turn in which every call was refused, and two in a row end the run as `no_progress` with the step `Stopped: 2 turns in a row only updated the hypotheses`.
+- A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
+- The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
+- When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
+- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
+- Without the setting, the tool, the prompt section and the block are absent.
+
 ## Where the answer goes
 
 The answer lives in an observation: a text block that starts with `## <title>`, and one panel block for each evidence panel.
