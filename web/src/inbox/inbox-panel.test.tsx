@@ -510,4 +510,27 @@ describe("InboxPanel", () => {
       )?.pages
     ).toHaveLength(1)
   })
+
+  it.each(["{Control>}", "{Meta>}", "{Shift>}"])(
+    "stays open when an item opens in another tab or window (%s)",
+    async (hold) => {
+      const server = mockServer()
+      const { user } = renderPanel()
+      openPanel()
+      const needs = await screen.findByRole("heading", { name: "Needs you" })
+      const row = within(needs.nextElementSibling as HTMLElement).getByRole(
+        "link"
+      )
+
+      await user.keyboard(hold)
+      await user.click(row)
+
+      expect(useInboxPanelStore.getState().open).toBe(true)
+      await waitFor(() =>
+        expect(server.states).toEqual([
+          { path: "/api/v1/inbox/items/12", body: { unread: false } },
+        ])
+      )
+    }
+  )
 })

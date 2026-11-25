@@ -19,6 +19,7 @@ A service-account key gets 403 `user_session_required`, and the `observe` comman
    Each item there is marked with its reason: "Proposal", "Suggested block", "Mention", "Reply", "Run failed", "Repaired", "Proposal closed" or "Access request".
 3. Select an item to open it.
    Opening it marks it read, takes you to its dashboard, observation, proposal or chat, and closes the panel.
+   Opening it in a new tab or window, with Ctrl, Cmd or Shift held, marks it read and leaves the panel open.
    An item with no page of its own, such as a note on a dashboard that was deleted, opens in place instead: the row grows to show its whole text and is marked read, and selecting it again folds it back.
 4. Act on it there: merge a proposal, reply to a mention, or open a failed run's chat to ask again.
 5. Mark the item done, with **Mark done**.
