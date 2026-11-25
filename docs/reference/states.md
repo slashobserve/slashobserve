@@ -197,6 +197,41 @@ A Grafana import is one run of `POST /grafana/{id}/imports`, answered by `GET /g
 | `exhaust` | `running` | `failed` | `grafana sync lease expired twice` | server |
 | `cancel` | `running` | `canceled` | `grafana sync canceled` | admin |
 
+## Context source tool
+
+A context source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/context-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `offered` | The server marks the tool read-only and an Admin has not approved it; the agent cannot call it. | `approve` |
+| `approved` | An Admin approved the tool as pinned (its name, description and input schema, by hash); the agent may call it. | `revoke` |
+| `changed` | The server now describes an approved tool differently from what was pinned; it is not served until an Admin approves the new description. | `approve`, `revoke` |
+| `gone` | The server no longer lists an approved tool; it is not served, and it returns to approved if the server lists it again unchanged. | - |
+| `refused` | The server marks the tool destructive, or does not mark it read-only, or its description or schema is too large; refusal says why and nobody can approve it. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `list` | - | `offered` | `context_source.discover` | server |
+| `reject` | - | `refused` | `context_source.discover` | server |
+| `offer` | `refused` | `offered` | `context_source.discover` | server |
+| `refuse` | `offered`, `approved`, `changed`, `gone` | `refused` | `context_source.discover` | server |
+| `approve` | `offered`, `changed` | `approved` | `context_source.approve` | admin |
+| `revoke` | `approved`, `changed` | `offered` | `context_source.revoke` | admin |
+| `change` | `approved`, `gone` | `changed` | `context_source.discover` | server |
+| `drop` | `approved`, `changed` | `gone` | `context_source.discover` | server |
+| `restore` | `changed`, `gone` | `approved` | `context_source.discover` | server |
+
+## Context source
+
+`GET /api/v1/context-sources` returns the `state` of each context source.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unchecked` | No discovery has run since the source was added or its address changed. |
+| `unreachable` | The last discovery failed; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
+| `ready` | None of the above: the last discovery listed the server's tools. |
+
 ## Agent presence
 
 Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds.

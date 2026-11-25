@@ -152,6 +152,20 @@ paths:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-panels-panel-id-data"
   /dashboards/{id}/versions/{version}/variables/{name}/values:
     $ref: "./paths/queryproxy.yaml#/dashboards-id-versions-version-variables-name-values"
+  /context-sources:
+    $ref: "./paths/context-sources.yaml#/context-sources"
+  /context-sources/{uid}:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid"
+  /context-sources/{uid}/discover:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid-discover"
+  /context-sources/{uid}/tools:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools"
+  /context-sources/{uid}/tools/approve-read-only:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-approve-read-only"
+  /context-sources/{uid}/tools/{name}/approve:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-name-approve"
+  /context-sources/{uid}/tools/{name}/revoke:
+    $ref: "./paths/context-sources.yaml#/context-sources-uid-tools-name-revoke"
   /datasources/test:
     $ref: "./paths/datasources.yaml#/datasources-test"
   /datasources/{uid}:
@@ -1290,10 +1304,10 @@ components:
           description: A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII.
         from_connection:
           type: boolean
-          description: True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host.
+          description: True when saving a Grafana connection, a datasource or a context source added the entry; it is removed with the last webhook, connection, datasource or context source that uses that host.
         used_by:
           type: array
-          description: The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
+          description: The webhooks, Grafana connections, datasources and context sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only.
           items:
             type: object
             additionalProperties: false
@@ -1301,7 +1315,7 @@ components:
             properties:
               kind:
                 type: string
-                enum: [webhook, grafana_connection, datasource]
+                enum: [webhook, grafana_connection, datasource, context_source]
               name:
                 type: string
         added_at:
@@ -1877,6 +1891,276 @@ components:
                 type: string
               message:
                 type: string
+    ContextSourceToolCounts:
+      type: object
+      additionalProperties: false
+      required: [offered, approved, changed, gone, refused]
+      description: How many of the source's tools are in each state; see `docs/reference/states.md`.
+      properties:
+        offered:
+          type: integer
+        approved:
+          type: integer
+        changed:
+          type: integer
+        gone:
+          type: integer
+        refused:
+          type: integer
+    ContextSource:
+      type: object
+      additionalProperties: false
+      required: [uid, name, url, audience, secret_header, secret_set, provisioned, state, failure, checked_at, tools, created_at, updated_at]
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+          description: The MCP endpoint, https, as stored.
+        audience:
+          type: string
+          enum: [everyone, admins]
+          description: Who may use the approved tools of this source; Admins manage every source whatever the audience.
+        secret_header:
+          type: string
+          nullable: true
+          description: The header that carries the secret, when there is one.
+        secret_set:
+          type: boolean
+          description: True when a secret is stored; the secret itself is never returned.
+        provisioned:
+          type: boolean
+          description: True when the source comes from the context sources file and cannot be changed or deleted here.
+        state:
+          type: string
+          enum: [unchecked, unreachable, ready]
+          description: "`unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise."
+        failure:
+          type: string
+          nullable: true
+          description: Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+        tools:
+          $ref: "#/components/schemas/ContextSourceToolCounts"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ContextSourceList:
+      type: object
+      additionalProperties: false
+      required: [context_sources]
+      properties:
+        context_sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContextSource"
+    CreateContextSourceRequest:
+      type: object
+      additionalProperties: false
+      required: [uid, url]
+      properties:
+        uid:
+          type: string
+          pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+        name:
+          type: string
+          maxLength: 100
+          description: The display name; the uid when empty.
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: An https URL with a domain name and no login, query or fragment.
+        audience:
+          type: string
+          enum: [everyone, admins]
+        secret_header:
+          type: string
+          maxLength: 100
+          description: The header that carries the secret; required with `secret`.
+        secret:
+          type: string
+          minLength: 1
+          maxLength: 4096
+    UpdateContextSourceRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: A URL with a new host needs `secret` or `clear_secret` in the same request when a secret is stored.
+        audience:
+          type: string
+          enum: [everyone, admins]
+        secret_header:
+          type: string
+          maxLength: 100
+        secret:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        clear_secret:
+          type: boolean
+          description: Delete the stored secret; cannot be combined with `secret`.
+    InvalidContextSourceError:
+      type: object
+      additionalProperties: false
+      required: [error, code, fields]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [invalid_context_source]
+        fields:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    ToolRefusedError:
+      type: object
+      additionalProperties: false
+      required: [error, code, refusal]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [tool_refused]
+        refusal:
+          type: string
+          description: Why the tool cannot be approved.
+    ContextSourceDefinition:
+      type: object
+      additionalProperties: false
+      required: [description, input_schema, hash]
+      properties:
+        description:
+          type: string
+        input_schema:
+          type: object
+          additionalProperties: true
+        hash:
+          type: string
+          description: SHA-256 over the tool's name, description and input schema, as 64 hex characters.
+    ContextSourceTool:
+      type: object
+      additionalProperties: false
+      required: [name, state, refusal, description, input_schema, hash, seen, approved_by, approved_at, updated_at, allowed_actions]
+      properties:
+        name:
+          type: string
+        state:
+          type: string
+          enum: [offered, approved, changed, gone, refused]
+        refusal:
+          type: string
+          nullable: true
+          description: Why a `refused` tool cannot be approved.
+        description:
+          type: string
+          description: The pinned description; for an `offered` tool, the one the server gave last.
+        input_schema:
+          type: object
+          additionalProperties: true
+        hash:
+          type: string
+          description: SHA-256 over the pinned name, description and input schema, as 64 hex characters.
+        seen:
+          nullable: true
+          description: What the server describes now, for a `changed` tool; null otherwise.
+          allOf:
+            - $ref: "#/components/schemas/ContextSourceDefinition"
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: The person who approved the tool; null for a tool not approved, or approved by a key.
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+        allowed_actions:
+          type: array
+          items:
+            type: string
+            enum: [approve, revoke]
+    ContextSourceToolList:
+      type: object
+      additionalProperties: false
+      required: [tools]
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContextSourceTool"
+    ContextSourceApproved:
+      type: object
+      additionalProperties: false
+      required: [approved]
+      properties:
+        approved:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContextSourceTool"
+    ContextSourceDiscovery:
+      type: object
+      additionalProperties: false
+      required: [source, tally]
+      properties:
+        source:
+          $ref: "#/components/schemas/ContextSource"
+        tally:
+          type: object
+          additionalProperties: false
+          required: [found, new, changed, gone, ignored]
+          description: What this discovery found; all zero when it failed.
+          properties:
+            found:
+              type: integer
+              description: Tools the server listed that can be kept.
+            new:
+              type: integer
+              description: Tools seen for the first time, offered or refused.
+            changed:
+              type: integer
+              description: Approved tools the server now describes differently.
+            gone:
+              type: integer
+              description: Approved tools the server no longer lists.
+            ignored:
+              type: integer
+              description: Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated.
+    ApproveContextSourceToolRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        hash:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: The hash of the definition that was read; the approval is refused when the tool no longer has it.
     RestrictedContentError:
       type: object
       additionalProperties: false

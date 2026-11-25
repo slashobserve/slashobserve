@@ -36,6 +36,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/contextsources"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
@@ -233,6 +234,15 @@ func serviceAccountsExit(err error) error {
 		exit.detail = refused.Error()
 	}
 	return exit
+}
+
+func contextSourcesExit(err error) error {
+	var invalid *contextsources.InvalidError
+	switch {
+	case errors.As(err, &invalid), errors.Is(err, contextsources.ErrUIDTaken), errors.Is(err, contextsources.ErrNoSecretKey), errors.Is(err, contextsources.ErrTooMany):
+		return described("context_sources_failed", err)
+	}
+	return withheld("context_sources_failed", err)
 }
 
 func migrationExit(err error) error {
@@ -586,6 +596,16 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
+	contextSourcesService := contextsources.New(contextsources.Deps{
+		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+	})
+	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+		return contextSourcesService.Provision(ctx, cfg.ContextSources)
+	}); err != nil {
+		return contextSourcesExit(err)
+	}
+
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
@@ -646,6 +666,7 @@ func run() error {
 			drafthttp.NewHandler(toolRegistry, logger),
 			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
+			contextsources.NewHandler(contextSourcesService, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},
