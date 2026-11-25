@@ -1,18 +1,28 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { PlusIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/page-header"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { McpSourcesSection } from "./context-sources/sources-table"
 import { DatasourcePanel } from "./datasource-panel"
 import { DatasourceTable } from "./datasource-table"
 
 type Target = { mode: "create" } | { mode: "edit"; uid: string }
 
-export function DatasourcesPage() {
+type Props = { focusMcpSources?: boolean }
+
+export function DatasourcesPage({ focusMcpSources = false }: Props) {
   const [target, setTarget] = useState<Target | null>(null)
   const trigger = useRef<HTMLElement | null>(null)
+  const mcpHeading = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    if (!focusMcpSources) return
+    mcpHeading.current?.scrollIntoView({ block: "start" })
+    mcpHeading.current?.focus({ preventScroll: true })
+  }, [focusMcpSources])
 
   function open(next: Target, from: HTMLElement) {
     trigger.current = from
@@ -47,14 +57,22 @@ export function DatasourcesPage() {
           </div>
         }
       />
-      <DatasourceTable
-        onAdd={(from) => open({ mode: "create" }, from)}
-        onEdit={(uid, from) => open({ mode: "edit", uid }, from)}
-      />
-      <p className="mt-3 text-xs text-muted-foreground">
-        Addresses and users are shown only to Admins, and passwords, tokens and
-        header values never leave the server.
-      </p>
+      <section aria-labelledby="datasources-heading">
+        <h2 id="datasources-heading" className="mb-3 text-base font-semibold">
+          Datasources
+        </h2>
+        <DatasourceTable
+          onAdd={(from) => open({ mode: "create" }, from)}
+          onEdit={(uid, from) => open({ mode: "edit", uid }, from)}
+        />
+        <p className="mt-3 text-xs text-muted-foreground">
+          Addresses and users are shown only to Admins, and passwords, tokens
+          and header values never leave the server.
+        </p>
+      </section>
+      <div className="mt-10">
+        <McpSourcesSection headingRef={mcpHeading} />
+      </div>
       {target === null ? null : (
         <DatasourcePanel
           key={target.mode === "edit" ? target.uid : "create"}

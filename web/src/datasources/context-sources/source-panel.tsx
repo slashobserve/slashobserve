@@ -12,9 +12,6 @@ import {
 } from "./queries"
 import { SourceForm } from "./source-form"
 
-export const contextSourcesHint =
-  "An MCP server the agent may read from. Registering one asks the server nothing: discover its tools, then approve the ones the agent may call."
-
 export type SourcePanelMode =
   { kind: "add" } | { kind: "edit"; source: ContextSource }
 
