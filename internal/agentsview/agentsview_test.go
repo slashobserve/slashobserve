@@ -257,8 +257,13 @@ func TestACostSumsThePricedRunsAndCountsTheFinishedRunsWithoutOne(t *testing.T) 
 		t.Fatalf("stats with a priced and a queued run = %+v, want 0.25 USD and no unpriced run", s)
 	}
 
+	r.run(t, run{kind: "builtin", by: ada, state: "canceled"})
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 3 || s.UnpricedRuns != 0 {
+		t.Fatalf("stats with a canceled run = %+v, want no unpriced run", s)
+	}
+
 	r.run(t, run{kind: "builtin", by: ada, state: "failed"})
-	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 3 || s.Failed != 1 || s.CostUSD == nil || *s.CostUSD != 0.25 || s.UnpricedRuns != 1 {
+	if s := r.overview(t, ada).ObserveAgent.Last7Days; s.Runs != 4 || s.Failed != 1 || s.CostUSD == nil || *s.CostUSD != 0.25 || s.UnpricedRuns != 1 {
 		t.Fatalf("stats with an unpriced finished run = %+v, want 0.25 USD and one unpriced run", s)
 	}
 }

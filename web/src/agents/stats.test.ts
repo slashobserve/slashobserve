@@ -20,6 +20,15 @@ describe("statCells", () => {
     ])
   })
 
+  test("reads a partial sum as at least that cost", () => {
+    expect(statCells({ ...stats, unpriced_runs: 2 })[2]?.value).toBe(
+      "at least $1.23"
+    )
+    expect(
+      statCells({ ...stats, cost_usd: null, unpriced_runs: 2 })[2]?.value
+    ).toBe("Not priced")
+  })
+
   test("notes how many runs had no usage under the cost", () => {
     expect(statCells({ ...stats, unpriced_runs: 1 })[2]?.note).toBe(
       "1 run without usage"

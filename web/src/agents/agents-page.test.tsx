@@ -203,7 +203,7 @@ describe("AgentsPage", () => {
     renderPage()
 
     const card = await screen.findByRole("region", { name: "Observe Agent" })
-    expect(within(card).getByText("$0.42")).toBeTruthy()
+    expect(within(card).getByText("at least $0.42")).toBeTruthy()
     expect(within(card).getByText("2 runs without usage")).toBeTruthy()
   })
 
