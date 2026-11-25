@@ -24,7 +24,7 @@ const (
 	draftTablesLimit  = 100
 	draftMetricsLimit = 150
 	draftKeywordLimit = 40
-	draftKeywords     = 4
+	draftKeywords     = 10
 	minKeywordRunes   = 3
 	draftFieldsShown  = 60
 	draftValueBytes   = 200
@@ -169,24 +169,38 @@ func (b *factsBuilder) metrics(question string) error {
 }
 
 func (b *factsBuilder) metricsMatching(question string) ([]datasource.Metric, error) {
-	var found []datasource.Metric
-	seen := map[string]bool{}
+	var perWord [][]datasource.Metric
 	for _, word := range questionKeywords(question) {
 		cat, err := b.read("metrics matching "+word, datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics, Search: word, Limit: draftKeywordLimit})
 		if err != nil {
 			return nil, err
 		}
-		if cat == nil {
-			continue
+		if cat != nil {
+			perWord = append(perWord, cat.Metrics)
 		}
-		for _, m := range cat.Metrics {
-			if !seen[m.Name] {
+	}
+	return interleaveMetrics(perWord), nil
+}
+
+func interleaveMetrics(lists [][]datasource.Metric) []datasource.Metric {
+	var found []datasource.Metric
+	seen := map[string]bool{}
+	for rank := 0; ; rank++ {
+		more := false
+		for _, list := range lists {
+			if rank >= len(list) {
+				continue
+			}
+			more = true
+			if m := list[rank]; !seen[m.Name] {
 				seen[m.Name] = true
 				found = append(found, m)
 			}
 		}
+		if !more {
+			return found
+		}
 	}
-	return found, nil
 }
 
 func questionKeywords(question string) []string {
