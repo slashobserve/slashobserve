@@ -82,10 +82,15 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 			s.ForgetWrite(c)
 		}
 		return Settled{}, nil
+	case tools.PhaseLedger:
+		s.noteLedgerResult(res)
+		return Settled{}, nil
 	case tools.PhaseSave:
 	default:
+		s.noteRead(res)
 		return s.settleRead(c, res), nil
 	}
+	stage := s.Stage()
 	if res.Refusal == tools.RefusalOnePanel {
 		s.Counts.OnePanelRefusals++
 	}
@@ -94,6 +99,9 @@ func (s *State) Settle(c Call, res tools.Result, content []byte) (Settled, error
 		return Settled{}, err
 	}
 	out := settled.Outcome
+	if out.Finding != "" && s.Loop != nil {
+		s.Loop.SavedStage = stage
+	}
 	s.Turn.Progress = out.Built || out.Saved != nil || out.Suggestion != nil || out.Finding != "" || out.Proposal != ""
 	s.Turn.Rejected = out.Rejected
 	return settled, nil

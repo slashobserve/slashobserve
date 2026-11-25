@@ -8,11 +8,12 @@ const (
 	PhaseQuery    = "query"
 	PhaseSave     = "save"
 	PhaseWrite    = "write"
+	PhaseLedger   = "ledger"
 )
 
 var phases = sync.OnceValue(func() map[string]string {
 	table := map[string]string{}
-	for _, t := range New(Deps{}).List() {
+	for _, t := range New(Deps{LedgerTool: true}).List() {
 		table[t.Name] = phaseOf(t)
 	}
 	return table
@@ -22,6 +23,8 @@ func phaseOf(t Tool) string {
 	switch {
 	case saveTools[t.Name] || t.Answers:
 		return PhaseSave
+	case t.Name == nameNoteHypotheses:
+		return PhaseLedger
 	case t.Name == nameLintQuery:
 		return PhaseLint
 	case t.Name == nameQueryRange || t.Name == nameQueryInstant:

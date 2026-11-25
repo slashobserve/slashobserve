@@ -13,7 +13,7 @@ from pydantic import Field, model_validator
 from slashobserve_bench import atif, o11y
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
-from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, ensure_image
+from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, datasources_yaml, ensure_image
 
 AGENT_NAME = "slashobserve"
 AGENT_VERSION = "0.1.0"
@@ -123,7 +123,7 @@ class SlashObserveAgent(BaseAgent):
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
         )
-        stack = Stack(config, stores, self.logs_dir, self._llm_key(provider))
+        stack = Stack(config, datasources_yaml(stores), self.logs_dir, self._llm_key(provider))
         try:
             await stack.start()
             await self._answer(stack, instruction, as_of, environment.environment_name, context, deadline)

@@ -20,6 +20,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/clientgone"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/forbidden"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
@@ -42,28 +43,35 @@ const (
 )
 
 type ObservationJSON struct {
-	ID             string       `json:"id"`
-	FolderID       string       `json:"folder_id"`
-	Title          string       `json:"title"`
-	State          string       `json:"state"`
-	Summary        *string      `json:"summary"`
-	From           *string      `json:"from"`
-	To             *string      `json:"to"`
-	ThreadID       *string      `json:"thread_id"`
-	RunID          *string      `json:"run_id"`
-	DashboardID    *string      `json:"dashboard_id"`
-	Pinned         bool         `json:"pinned"`
-	CanPin         bool         `json:"can_pin"`
-	MessageCount   int          `json:"message_count"`
-	URL            string       `json:"url"`
-	CreatedBy      actor.JSON   `json:"created_by"`
-	CreatedAt      string       `json:"created_at"`
-	UpdatedAt      string       `json:"updated_at"`
-	ResolvedAt     *string      `json:"resolved_at"`
-	AllowedActions []string     `json:"allowed_actions"`
-	Blocks         *[]BlockJSON `json:"blocks,omitempty"`
+	ID             string           `json:"id"`
+	FolderID       string           `json:"folder_id"`
+	Title          string           `json:"title"`
+	State          string           `json:"state"`
+	Summary        *string          `json:"summary"`
+	From           *string          `json:"from"`
+	To             *string          `json:"to"`
+	ThreadID       *string          `json:"thread_id"`
+	RunID          *string          `json:"run_id"`
+	DashboardID    *string          `json:"dashboard_id"`
+	Pinned         bool             `json:"pinned"`
+	CanPin         bool             `json:"can_pin"`
+	MessageCount   int              `json:"message_count"`
+	URL            string           `json:"url"`
+	CreatedBy      actor.JSON       `json:"created_by"`
+	CreatedAt      string           `json:"created_at"`
+	UpdatedAt      string           `json:"updated_at"`
+	ResolvedAt     *string          `json:"resolved_at"`
+	AllowedActions []string         `json:"allowed_actions"`
+	Blocks         *[]BlockJSON     `json:"blocks,omitempty"`
+	Findings       []RunFindingJSON `json:"findings,omitempty"`
 
 	ChatRename revisions.SharedTitle `json:"chat_rename,omitempty"`
+}
+
+type RunFindingJSON struct {
+	RunID string `json:"run_id"`
+	findings.StructuredJSON
+	Unverified []findings.Unverified `json:"unverified"`
 }
 
 type BlockJSON struct {
@@ -163,6 +171,9 @@ func ObservationOf(o Observation, url string) ObservationJSON {
 		ResolvedAt:     timeString(o.ResolvedAt),
 		AllowedActions: actions(o.AllowedActions),
 		ChatRename:     o.ChatRename,
+	}
+	for _, f := range o.Findings {
+		body.Findings = append(body.Findings, RunFindingJSON{RunID: f.RunID, StructuredJSON: findings.StructuredJSONOf(f.Fields), Unverified: append([]findings.Unverified{}, f.Unverified...)})
 	}
 	if o.Blocks != nil {
 		blocks := make([]BlockJSON, len(o.Blocks))

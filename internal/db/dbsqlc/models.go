@@ -372,27 +372,37 @@ type DraftQuerySpend struct {
 }
 
 type Finding struct {
-	ID              pgtype.UUID
-	AgentRequestID  pgtype.UUID
-	DashboardID     pgtype.UUID
-	Title           string
-	Markdown        string
-	Evidence        []byte
-	TimeFrom        pgtype.Timestamptz
-	TimeTo          pgtype.Timestamptz
-	CreatedByKind   string
-	CreatedByID     pgtype.UUID
-	CreatedByName   string
-	AnnotationID    pgtype.UUID
-	CreatedAt       pgtype.Timestamptz
-	Origin          pgtype.Text
-	OriginClient    pgtype.Text
-	FolderID        pgtype.UUID
-	ObservationID   pgtype.UUID
-	AskDashboardID  pgtype.UUID
-	SuggestedChange pgtype.Text
-	ObserveWorthy   bool
-	AsOf            pgtype.Timestamptz
+	ID                 pgtype.UUID
+	AgentRequestID     pgtype.UUID
+	DashboardID        pgtype.UUID
+	Title              string
+	Markdown           string
+	Evidence           []byte
+	TimeFrom           pgtype.Timestamptz
+	TimeTo             pgtype.Timestamptz
+	CreatedByKind      string
+	CreatedByID        pgtype.UUID
+	CreatedByName      string
+	AnnotationID       pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	Origin             pgtype.Text
+	OriginClient       pgtype.Text
+	FolderID           pgtype.UUID
+	ObservationID      pgtype.UUID
+	AskDashboardID     pgtype.UUID
+	SuggestedChange    pgtype.Text
+	ObserveWorthy      bool
+	AsOf               pgtype.Timestamptz
+	RootCauseComponent pgtype.Text
+	RootCauseKind      pgtype.Text
+	RootCauseSummary   pgtype.Text
+	Onset              pgtype.Timestamptz
+	Impact             pgtype.Text
+	Confidence         pgtype.Text
+	RuledOut           []string
+	NextSteps          []string
+	NoIncident         pgtype.Bool
+	Unverified         []byte
 }
 
 type Folder struct {

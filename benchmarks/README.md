@@ -2,10 +2,10 @@
 
 This folder holds the Harbor adapter that runs the SlashObserve Observe Agent on benchmark tasks.
 It is not part of the server image and CI never calls a model from it.
-`make test-benchmarks` runs its unit tests, which need no Docker, no network and no key.
+`make test-benchmarks` runs its unit tests, which need no Docker, no network and no key, once in this folder's environment and once in `orca/`.
 
 The first benchmark is o11y-bench.
-Each benchmark gets one module under `slashobserve_bench/`; `o11y.py` is the o11y-bench one.
+Each benchmark gets one module under `slashobserve_bench/`; `o11y.py` is the o11y-bench one and `orca.py` the ORCA-bench one, which has its own section below.
 
 ## What one trial does
 
@@ -158,6 +158,113 @@ After a crash of Harbor itself, remove what is left:
 docker ps -aq --filter label=slashobserve-bench | xargs -r docker rm -f
 ```
 
+## ORCA-bench
+
+[ORCA-bench](https://github.com/ORCA-bench/ORCA-bench) asks an agent for a root cause report on recorded OpenTelemetry Astronomy Shop telemetry.
+Its code is Apache-2.0; no licence was found for its dataset, so this repository holds only the hashed names of ten tasks, never their text or answers.
+
+It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins Harbor 0.24.0, so it has its own environment in `benchmarks/orca/` (`pyproject.toml` and `uv.lock`, Harbor 0.20.0 pinned).
+`orca.py` holds the logic that needs no Harbor (the report writer, the time handling, the datasources, the subset) and `orca_agent.py` is the Harbor agent; it imports from this folder through `PYTHONPATH`, which `orca/run-orca.sh` sets.
+`orca/patch-harbor.sh` applies ORCA-bench's one-line patch to the installed Harbor and is safe to run twice.
+
+### What one trial does
+
+1. Harbor starts the task's main container, whose entrypoint starts the OpenTelemetry Demo 2.2.0 (Prometheus, Jaeger and OpenSearch) on a per-trial Docker network `otel-<hash>_default` through the host's Docker socket and restores the telemetry.
+2. `setup` pulls the server and Postgres images.
+3. `run` waits for `/tmp/env-ready`, reads the store URLs from `/tmp/env-ports`, and finds the trial's network by inspecting the main container from the host.
+4. It starts a throwaway Postgres and the server image on that network, beside the main container and not inside it.
+   The datasources are `prometheus`, `logs` (OpenSearch `otel-logs-*`) and `traces` (OpenSearch `jaeger-main-jaeger-span-*`).
+   The trial's Jaeger is 2.12.0, and the Jaeger datasource needs 2.21 or later, so spans are read through OpenSearch.
+5. It starts an `investigate` run with the task text and a short note as the question, and `as_of` set from `metadata.current` in the task's `task.toml`, or from "The current time is ... ET" in the task text when the metadata lacks it.
+   The data is from April 2026 and the clocks are real, so the note gives the current time in UTC and says the task's times are US Eastern.
+6. It writes `/app/report.md` from the run's finding, in the four sections the benchmark asks for: Summary, Timeline, 5 Whys and Remediation.
+   The structured fields of the finding (`root_cause`, `onset`, `impact`, `ruled_out`, `next_steps`) fill the sections when the server returns them, with every time written in UTC; otherwise the Markdown fills them.
+   The full Markdown stays under 5 Whys, because it holds the evidence the judge looks for.
+   A finding with `no_incident` writes an empty file, which is how the benchmark spells "no incident".
+7. A run that ends without a finding raises, so Harbor records an exception and skips the verifier; an empty report would pass a quiet control by default.
+
+The code context source is a hook: `--ak code_context=<module>:<function>` names a function that is called with the API client, the trial's Docker network and a local copy of `/app/opentelemetry-demo`, and registers the source.
+Without it the trial runs without code and `agent/notes.txt` says so.
+
+| File in `agent/` | Content |
+| --- | --- |
+| `report.md` | The report that was written to `/app/report.md`. |
+| `trajectory.json`, `run.json`, `server.log` | As for o11y-bench. |
+| `notes.txt` | How traces were read, whether a code source was registered, and the judge caveat. |
+
+The options are those of o11y-bench without `network`, plus `code_context`, and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
+Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
+
+### Disk and memory
+
+The snapshot image is about 50 GB.
+`stage_snapshot_cache.sh` pulls it and then extracts `/app` from it into a cache that every trial hardlinks from, so plan for about 100 GB free on the one filesystem that holds the cache and the jobs folder, plus the OpenSearch data each trial restores.
+This is an estimate from the scripts, not a measurement.
+Each trial runs the whole demo with OpenSearch capped at 2 GB, so run one trial at a time.
+The staging script uses `flock`, so run it on Linux.
+CI never pulls the snapshot: it runs the unit tests only.
+
+### Run the subset
+
+The subset is ten tasks chosen once from ORCA-bench's own 50-task verified sample, one per question style (exact time, time range, part of a day, a whole day) for each of medium and hard, plus two quiet controls.
+Four are medium, four are hard and two are controls.
+`--subset` expands to their `--include-task-name` flags.
+Confirm that Harbor reports ten trials: a task from the private split has only a `-hidden` variant, which this pattern does not match and which has no answers to judge against.
+
+```sh
+export SLASHOBSERVE_BENCH_LLM_KEY_FILE=/path/to/anthropic.key
+benchmarks/orca/run-orca.sh /path/to/ORCA-bench --yes \
+  -d orca-bench/orca-bench --subset \
+  --model anthropic/claude-sonnet-5-5 \
+  --ak server_image=slashobserve-server:local \
+  --ak investigation_calls=30 --ak run_max_cost_usd=0.5 \
+  --ak spend_cap_usd=10 --ak ledger_path=benchmarks/jobs/orca-spend.jsonl \
+  --disable-verification --n-concurrent 1 --jobs-dir benchmarks/jobs
+```
+
+`SNAPSHOT_IMAGE` and `SNAPSHOT_CACHE_ROOT` override the snapshot image and the cache folder.
+The run needs a server built from a checkout that has the structured finding; an older one still gets a report from the Markdown.
+Measure one task's cost before the subset.
+
+### Prove the plumbing with the replay model
+
+```sh
+benchmarks/run-orca-replay.sh /path/to/ORCA-bench
+```
+
+The script downloads one task's package, writes a replay fixture for its question from `fixtures/orca-answer.json`, runs it with `--model replay/replay` and verification off, and prints the path of `agent/report.md`.
+No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
+Run it by hand on a machine that has the snapshot; it is not part of any test.
+The fixture saves a finding with the structured fields, so it needs a server that has them.
+
+### Judge
+
+The leaderboard judge is a GPT model that needs an OpenAI key.
+`tests/test.sh` calls `check_prediction.py` with no arguments, and the judge model is chosen only from the host of `OPENAI_BASE_URL`, so the in-trial verifier cannot be pointed at another model by an environment variable.
+Run with `--disable-verification` and judge the saved reports afterwards, with a different Claude model than the one under test, through Anthropic's OpenAI-compatible endpoint:
+The download runs from the repository root in the `orca/` project, which pins the Harbor that can read the package; the scoring runs from the ORCA-bench checkout.
+
+```sh
+uv run --locked --project benchmarks/orca harbor download orca-bench/<task package> -o /path/to/task
+export OPENAI_BASE_URL=https://api.anthropic.com/v1/
+export OPENAI_API_KEY=$(cat /path/to/anthropic.key)
+cd /path/to/ORCA-bench
+uv run python harbor-template/tests/check_prediction.py \
+  --expected /path/to/task/tests/expected.json --rubrics-dir /path/to/task/tests/rubrics \
+  --predictions /path/to/jobs/<job>/<trial>/agent/report.md --model claude-opus-5-5 \
+  --reward /tmp/reward.json --details /tmp/details.json
+```
+
+The judge calls the Responses API and falls back to Chat Completions on a 404, with a strict JSON schema and high reasoning effort.
+Whether Anthropic's endpoint honours those settings was not checked, so score one saved report first and read its details file before trusting a number.
+A judge call costs money on the same Anthropic credits as the run.
+Scores from a Claude judge on a ten-task subset are our own tracking and are not comparable with published ORCA-bench scores.
+
+### Leaderboard
+
+Do not submit before the maintainers answer whether an agent that runs beside the task's main container, and not inside it, is allowed.
+The leaderboard also rejects any run that is not the full dataset with default timeouts.
+
 ## License
 
 o11y-bench is AGPL-3.0 and SlashObserve core is Apache-2.0.
@@ -170,6 +277,7 @@ The adapter uses o11y-bench as an external dataset: it reads a task's `instructi
 | `harbor==0.24.0` | The base class, capabilities and the ATIF models the adapter and its tests use, pinned to the version o11y-bench pins. |
 | `hatchling==1.28.0` | The build backend that makes `slashobserve_bench` importable by Harbor. |
 | `pytest==9.0.2` | The unit tests, in the `dev` group. |
+| `harbor==0.20.0` | In `orca/` only: the version ORCA-bench runs on. |
 
 `uv.lock` is resolved with `exclude-newer` set so that no package is less than 14 days old; move that date when you update the pins.
 HTTP uses `urllib`, Docker uses `subprocess`, and the ledger lock uses `fcntl`, all from the standard library.

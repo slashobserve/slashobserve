@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -38,6 +39,11 @@ type State struct {
 	Committed         string               `json:"committed,omitempty"`
 	Usage             revisions.Usage      `json:"usage"`
 	Turn              OpenTurn             `json:"turn"`
+
+	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
+	Loop   bool                   `json:"loop,omitempty"`
+
+	Grounding *grounding.Record `json:"grounding,omitempty"`
 }
 
 type Settled struct {
@@ -85,6 +91,13 @@ func (s *State) addDiscovery(found tools.Discovery) {
 		kept++
 	}
 	s.Digest.Entries = s.Digest.Entries[len(s.Digest.Entries)-kept:]
+}
+
+func (s *State) noteLedger(ledger []revisions.Hypothesis) (changed bool) {
+	changed = !guard.SameLedger(s.Ledger, ledger)
+	s.Guard.NoteLedger(s.Ledger, ledger)
+	s.Ledger = ledger
+	return changed
 }
 
 func (s *State) meta(restarted bool) RunMeta {

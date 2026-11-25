@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -62,18 +63,21 @@ type Statuses interface {
 }
 
 type Config struct {
-	DB                 *db.DB
-	Runs               *revisions.Service
-	Claims             *claims.Service
-	Builds             Builds
-	Dashboards         Dashboards
-	Imports            brief.ImportReader
-	Statuses           Statuses
-	Steps              revisions.StepRecorder
-	Prices             pricing.Table
-	MaxRunCostUSD      float64
-	InvestigationCalls int
-	Logger             *slog.Logger
+	DB                    *db.DB
+	Runs                  *revisions.Service
+	Claims                *claims.Service
+	Builds                Builds
+	Dashboards            Dashboards
+	Imports               brief.ImportReader
+	Statuses              Statuses
+	Steps                 revisions.StepRecorder
+	Prices                pricing.Table
+	MaxRunCostUSD         float64
+	InvestigationCalls    int
+	InvestigationLoop     bool
+	InvestigationCallsMax int
+	FindingGrounding      grounding.Mode
+	Logger                *slog.Logger
 }
 
 type Service struct {
@@ -88,6 +92,9 @@ type Service struct {
 	prices             pricing.Table
 	maxRunCost         float64
 	investigationCalls int
+	investigationLoop  bool
+	investigationMax   int
+	findingGrounding   grounding.Mode
 	logger             *slog.Logger
 	inFlight           slots
 	runLocks           runLocks
@@ -103,7 +110,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, logger: c.Logger,
+		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -219,7 +226,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := State{Guard: guard.New(run.Mode)}
+	state := s.watched(run, req)
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:
@@ -245,6 +252,24 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	}
 	state.Guard.BeginSession(building, parent)
 	return state, nil
+}
+
+func (s *Service) watched(run tools.Run, req revisions.Request) State {
+	state := State{Guard: guard.New(run.Mode), Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+	if state.Loop {
+		state.Guard.WatchLedger()
+	}
+	if run.Mode == tools.ModeInvestigate {
+		state.Grounding = grounding.NewRecord(s.findingGrounding)
+	}
+	if state.Grounding.Enforced() {
+		state.Guard.WatchGrounding()
+	}
+	if state.Loop && req.Assignee == revisions.AssignBuiltin {
+		state.Guard.InvestigationCalls = s.investigationCalls
+		state.Guard.StartLoop(s.investigationMax)
+	}
+	return state
 }
 
 func buildProgress(b dashboards.Build) *tools.BuildProgress {

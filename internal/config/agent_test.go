@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 )
 
 func TestSessionRenewSetting(t *testing.T) {
@@ -119,6 +121,103 @@ func TestAgentInvestigationCallsSetting(t *testing.T) {
 			}
 			if cfg.Agent.InvestigationCalls != tt.want {
 				t.Fatalf("InvestigationCalls = %d, want %d", cfg.Agent.InvestigationCalls, tt.want)
+			}
+		})
+	}
+}
+
+func TestAgentInvestigationLoopIsOffUnlessSet(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		set     map[string]string
+		want    bool
+		wantErr bool
+	}{
+		{name: "unset", want: false},
+		{name: "on", set: map[string]string{envAgentInvestigationLoop: "true"}, want: true},
+		{name: "off", set: map[string]string{envAgentInvestigationLoop: "false"}, want: false},
+		{name: "not a boolean", set: map[string]string{envAgentInvestigationLoop: "yes"}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), envAgentInvestigationLoop+": must be true or false") {
+					t.Fatalf("Load error = %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.InvestigationLoop != tt.want {
+				t.Fatalf("InvestigationLoop = %v, want %v", cfg.Agent.InvestigationLoop, tt.want)
+			}
+		})
+	}
+}
+
+func TestFindingGroundingIsOffUnlessSet(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		set     map[string]string
+		want    grounding.Mode
+		wantErr bool
+	}{
+		{name: "unset", want: grounding.Off},
+		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: grounding.Off},
+		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, want: grounding.Report},
+		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: grounding.Enforce},
+		{name: "a boolean", set: map[string]string{envAgentFindingGrounding: "true"}, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), envAgentFindingGrounding+": must be off, report or enforce") {
+					t.Fatalf("Load error = %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.FindingGrounding != tt.want {
+				t.Fatalf("FindingGrounding = %q, want %q", cfg.Agent.FindingGrounding, tt.want)
+			}
+		})
+	}
+}
+
+func TestAgentInvestigationCallsMaxSetting(t *testing.T) {
+	const message = envAgentInvestigationMax + ": must be a whole number from the value of " + envAgentInvestigationCalls
+	tests := []struct {
+		name    string
+		set     map[string]string
+		want    int
+		wantErr string
+	}{
+		{name: "unset equals the default calls", want: 12},
+		{name: "unset equals the configured calls", set: map[string]string{envAgentInvestigationCalls: "20"}, want: 20},
+		{name: "raised", set: map[string]string{envAgentInvestigationMax: "30"}, want: 30},
+		{name: "equal to the calls", set: map[string]string{envAgentInvestigationCalls: "20", envAgentInvestigationMax: "20"}, want: 20},
+		{name: "highest", set: map[string]string{envAgentInvestigationMax: "60"}, want: 60},
+		{name: "below the calls", set: map[string]string{envAgentInvestigationCalls: "20", envAgentInvestigationMax: "19"}, wantErr: message + " (20) to 60"},
+		{name: "above the highest", set: map[string]string{envAgentInvestigationMax: "61"}, wantErr: message},
+		{name: "not a number", set: map[string]string{envAgentInvestigationMax: "abc"}, wantErr: message},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := Load(envOf(llmEnv(tt.set)))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load error = %v, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Agent.InvestigationCallsMax != tt.want {
+				t.Fatalf("InvestigationCallsMax = %d, want %d", cfg.Agent.InvestigationCallsMax, tt.want)
 			}
 		})
 	}

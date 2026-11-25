@@ -138,9 +138,10 @@ func (s *State) investigationCalls() int {
 }
 
 type Call struct {
-	Name  string
-	Label string
-	Input json.RawMessage
+	Name       string
+	Label      string
+	Input      json.RawMessage
+	Ungrounded string
 }
 
 func (c Call) label() string {
@@ -197,6 +198,9 @@ func (s *State) windowLimit() int {
 	case tools.ModeSuggest:
 		return maxCallsBeforeProposal
 	case tools.ModeInvestigate:
+		if s.Loop != nil {
+			return s.Loop.Limit
+		}
 		return s.investigationCalls()
 	}
 	if s.answering() {
@@ -242,17 +246,23 @@ func (s *State) Admit(position int, c Call) Admission {
 		return s.admitSave(c, adm)
 	case tools.PhaseWrite:
 		return s.admitWrite(c, adm)
+	case tools.PhaseLedger:
+		s.Turn.Noted = true
+		return adm
 	}
 	adm = s.admitRead(position, c, adm)
 	if adm.Verdict != Refuse {
 		s.Turn.ReadsInFlight++
+		if s.Loop != nil {
+			s.Turn.Reads++
+		}
 	}
 	return adm
 }
 
 func (s *State) EndRead(c Call) {
 	switch tools.Phase(c.Name) {
-	case tools.PhaseSave, tools.PhaseWrite:
+	case tools.PhaseSave, tools.PhaseWrite, tools.PhaseLedger:
 		return
 	}
 	if s.Turn.ReadsInFlight > 0 {
@@ -343,7 +353,7 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 		s.Turn.SaveSeen = true
 		return s.reject(c, adm, "this run already saved panels; finish the dashboard instead of saving a finding")
 	case c.Name == toolSaveFinding:
-		if reason := s.unbackedFinding(c.Input); reason != "" {
+		if reason := s.unbackedFinding(c); reason != "" {
 			s.Turn.SaveSeen = true
 			s.Turn.Answered++
 			return s.reject(c, adm, reason)
@@ -397,9 +407,12 @@ func (s *State) refuse(c Call, adm Admission, name string) Admission {
 func (s *State) EndTurn() (nudge string, stop *Stop) {
 	s.Window.Diagnose = s.Turn.Rejected
 	if s.Turn.Answered > 0 {
-		s.Window.Stalled = 0
+		s.Window.Stalled, s.Window.Noted = 0, 0
 	} else {
 		s.Counts.StalledTurns++
+		if s.Turn.onlyNoted() {
+			s.Window.Noted++
+		}
 		if s.Window.Stalled++; s.Window.Stalled >= maxStalledTurns {
 			return "", &Stop{Failure: revisions.FailureNoProgress, Step: s.stalledReason()}
 		}
@@ -409,6 +422,7 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 			s.Counts.Nudges++
 		}
 	}
+	nudge = s.loopNudge(nudge)
 	if s.Turn.Rejected && s.RestrictedRefusals >= MaxRejectionsInRow {
 		return nudge, &Stop{
 			Failure: revisions.FailureRestrictedAnswer,
@@ -425,6 +439,9 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 }
 
 func (s *State) stalledReason() string {
+	if s.Window.Noted > 0 && s.Window.Noted == s.Window.Stalled {
+		return fmt.Sprintf("Stopped: %d turns in a row only updated the hypotheses", maxStalledTurns)
+	}
 	if reason := s.ruleAt(s.LastGuard, s.LastLimit).stopped; reason != "" {
 		return reason
 	}

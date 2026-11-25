@@ -35,6 +35,11 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 	if err != nil {
 		return Finding{}, false, fmt.Errorf("encode evidence: %w", err)
 	}
+	cause := rootCauseColumns(in.Structured.RootCause)
+	unverified, err := encodeUnverified(in.Unverified)
+	if err != nil {
+		return Finding{}, false, err
+	}
 	var row dbsqlc.Finding
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		observationID, created, err := conclude(q)
@@ -65,6 +70,17 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 			SuggestedChange: pgtype.Text{String: in.SuggestedChange, Valid: in.SuggestedChange != ""},
 			ObserveWorthy:   in.ObserveWorthy,
 			AsOf:            optionalTimestamp(in.AsOf),
+
+			RootCauseComponent: cause.component,
+			RootCauseKind:      cause.kind,
+			RootCauseSummary:   cause.summary,
+			Onset:              optionalTimestamp(in.Structured.Onset),
+			Impact:             optionalText(in.Structured.Impact),
+			Confidence:         optionalText(in.Structured.Confidence),
+			RuledOut:           in.Structured.RuledOut,
+			NextSteps:          in.Structured.NextSteps,
+			NoIncident:         pgtype.Bool{Bool: true, Valid: in.Structured.NoIncident},
+			Unverified:         unverified,
 		})
 		if err != nil {
 			return err
@@ -330,6 +346,8 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 
 		SuggestedChange: r.SuggestedChange.String,
 		ObserveWorthy:   r.ObserveWorthy,
+		Structured:      StructuredOf(r),
+		Unverified:      UnverifiedOf(r.Unverified),
 		Actor: actor.FromColumns(actor.Columns{
 			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
 			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,
@@ -394,4 +412,32 @@ func timeOf(t pgtype.Timestamptz) *time.Time {
 	}
 	at := t.Time.UTC()
 	return &at
+}
+
+func optionalText(s string) pgtype.Text {
+	return pgtype.Text{String: s, Valid: s != ""}
+}
+
+type causeColumns struct{ component, kind, summary pgtype.Text }
+
+func rootCauseColumns(c *RootCause) causeColumns {
+	if c == nil {
+		return causeColumns{}
+	}
+	return causeColumns{component: optionalText(c.Component), kind: optionalText(c.Kind), summary: optionalText(c.Summary)}
+}
+
+func StructuredOf(r dbsqlc.Finding) Structured {
+	s := Structured{
+		Onset:      timeOf(r.Onset),
+		Impact:     r.Impact.String,
+		Confidence: r.Confidence.String,
+		RuledOut:   r.RuledOut,
+		NextSteps:  r.NextSteps,
+		NoIncident: r.NoIncident.Bool,
+	}
+	if r.RootCauseKind.Valid {
+		s.RootCause = &RootCause{Component: r.RootCauseComponent.String, Kind: r.RootCauseKind.String, Summary: r.RootCauseSummary.String}
+	}
+	return s
 }

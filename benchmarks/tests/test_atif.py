@@ -64,3 +64,36 @@ def test_run_with_no_usage_and_no_steps(finished_request):
     assert trajectory["final_metrics"]["total_prompt_tokens"] == 0
     assert trajectory["final_metrics"]["total_cost_usd"] is None
     assert "model_name" not in trajectory["agent"]
+
+
+def test_answer_leads_with_the_structured_fields_when_the_finding_has_them(finished_request):
+    finding = {
+        **finished_request["finding"],
+        "root_cause": {"component": "checkout", "kind": "deploy", "summary": "Version 42 added a retry."},
+        "onset": "2026-11-20T10:00:00Z",
+        "impact": "12% of orders failed.",
+        "confidence": "high",
+        "ruled_out": ["the database", "the cache"],
+        "next_steps": ["Roll back checkout."],
+        "no_incident": False,
+    }
+    answer = atif.answer_text({**finished_request, "finding": finding})
+    assert answer.splitlines()[:6] == [
+        "Root cause: checkout (deploy) - Version 42 added a retry.",
+        "Onset: 2026-11-20T10:00:00Z",
+        "Impact: 12% of orders failed.",
+        "Confidence: high",
+        "Ruled out: the database; the cache",
+        "Next steps: Roll back checkout.",
+    ]
+    assert answer.endswith(finding["markdown"])
+
+
+def test_answer_is_the_markdown_alone_when_no_field_is_set(finished_request):
+    finding = {**finished_request["finding"], "root_cause": None, "onset": None, "ruled_out": [], "next_steps": [], "no_incident": False}
+    assert atif.answer_text({**finished_request, "finding": finding}) == finding["markdown"]
+
+
+def test_a_finding_with_no_incident_says_so_before_the_markdown(finished_request):
+    finding = {**finished_request["finding"], "no_incident": True}
+    assert atif.answer_text({**finished_request, "finding": finding}).startswith("No incident found.\n\n")

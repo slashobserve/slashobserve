@@ -93,7 +93,7 @@ What each tool finds depends on the datasource:
 | ClickHouse | `get_schema` and `sample_rows` list the tables and columns and read a few rows. |
 | Loki | `list_labels` and `list_label_values` find stream labels and values. `sample_rows` reads lines. `list_metrics` lists stream label keys. |
 | Jaeger | `list_label_values` finds services and the operations of one service. `get_schema` lists every service with its span names. Tags are free-form. |
-| Tempo | `list_labels` and `list_label_values` find TraceQL attributes and values. `get_schema` lists every service with its span names, plus the attributes. |
+| Tempo | `list_labels` and `list_label_values` find TraceQL attributes and values. `get_schema` lists the services seen in the last hour with their span names, plus the attributes. |
 | Elasticsearch and OpenSearch | `list_labels` and `list_label_values` find fields and a field's top values. `get_schema` lists indices or the fields of one. `sample_rows` reads documents. |
 
 Details of the Loki tools:
@@ -262,6 +262,7 @@ Details of shortening:
 - It keeps the last 4 turns of the conversation, up to 32 KiB, and cuts their older tool results to 2 KiB.
 - It puts the build, the reason and a list of up to 4 KiB of the metric, label and table names the agent found in front of them, so the agent does not discover them again.
 - The names are sent to the model and never written to the server's logs.
+- With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigation's hypothesis ledger goes in front of them as well, in a `<hypotheses>` block whose ledger text is at most 4 KiB.
 - Older read results are also left out of what is sent once they add up to 64 KiB, while the last 4 turns stay in full.
 - Only the model's view is shortened: the run keeps everything it read.
 - A shortened conversation is not a fresh session, and neither has a count of its own that ends the run.
@@ -513,6 +514,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
 A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 111 tools, MCP clients outside a run still get 109 and an investigation offers 86.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
@@ -636,8 +638,11 @@ The request's `usage` reports these:
 | `renewals` | Compactions after the history passed the renewal size. |
 | `nudges` | Steering messages before reads are refused. |
 | `save_now_refusals` | Reads refused for lack of a save. |
-| `stalled_turns` | Turns in which every call was refused. |
+| `stalled_turns` | Turns in which every call was refused, and turns with only a hypothesis ledger call. |
 | `one_panel_refusals` | Saves refused for changing more than one panel. |
+| `hypotheses` | The last hypothesis ledger of an investigation, up to 6 entries, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true` and only for the requester and Admins. |
+| `call_limit` | The model-call limit of an investigation when it ended, after any growth; present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`. |
+| `stage_at_save` | The stage (`orient`, `hypothesize`, `test` or `conclude`) of an investigation when it saved its finding; present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`. |
 | `cost_usd` | The estimated cost in US dollars of the attempt that finished the request, from the server's price table. It is `null` when the model has no price. |
 
 A run that fails on its first model call has `usage` with `model_calls` 0 and `failed_calls` 1.
@@ -652,6 +657,9 @@ See [Run cost](../connect/llm-providers.md#run-cost) for the price table.
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | none | Cost limit of one attempt. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | 256 | Conversation size after which it is shortened, from 32 to 4096. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | 12 | Model calls an investigation gets before only a save runs, from 6 to 60. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | false | Gives an investigation a hypothesis ledger that the server writes back into the brief when the conversation is shortened, stages, and a call limit that grows with progress. |
+| `SLASHOBSERVE_AGENT_FINDING_GROUNDING` | off | Checks an investigation's finding against what the run read; `report` stores what did not pass and `enforce` also sends the finding back once. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the investigation calls | Ceiling of the growing call limit, up to 60. |
 | `SLASHOBSERVE_LLM_IDLE_TIMEOUT` | 180 s | Time without output after which a call is retried, `0` for none. |
 | `SLASHOBSERVE_LLM_REQUEST_TIMEOUT` | 10 minutes | Time limit of one model call, retries included, `0` for none. |
 | `SLASHOBSERVE_LLM_EFFORT` | `medium` on Anthropic, nothing sent on OpenAI | Reasoning effort. |
