@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
-import { cellKeyAction, keepKeysOnFocusedControl } from "./cell-keys"
+import {
+  cellKeyAction,
+  handleCellKey,
+  keepKeysOnFocusedControl,
+} from "./cell-keys"
 
 describe("cellKeyAction", () => {
   it("presses the only control of a focused cell on Enter", () => {
@@ -80,5 +84,59 @@ describe("keepKeysOnFocusedControl", () => {
     expect(keyOn(cell, "ArrowDown")).toBe(false)
     expect(keyOn(cell, "Tab")).toBe(false)
     expect(keyOn(button, "PageDown")).toBe(false)
+  })
+})
+
+describe("fields inside a cell", () => {
+  function fieldInCell(tag: "input" | "textarea" | "select" | "div") {
+    const grid = document.createElement("div")
+    const cell = document.createElement("div")
+    cell.className = "ag-cell"
+    const field = document.createElement(tag)
+    if (tag === "div") field.setAttribute("contenteditable", "true")
+    cell.append(field)
+    grid.append(cell)
+    return { grid, field }
+  }
+
+  function keydown(target: HTMLElement, key: string) {
+    const event = new KeyboardEvent("keydown", { key, cancelable: true })
+    Object.defineProperty(event, "target", { value: target })
+    return event
+  }
+
+  it("leaves Enter in a field to the field, so its form submits", () => {
+    for (const tag of ["input", "textarea", "select", "div"] as const) {
+      const { grid, field } = fieldInCell(tag)
+      const clicked = vi.fn()
+      field.addEventListener("click", clicked)
+      const event = keydown(field, "Enter")
+      handleCellKey(event, grid)
+      expect(event.defaultPrevented).toBe(false)
+      expect(clicked).not.toHaveBeenCalled()
+    }
+  })
+
+  it("keeps Home, End, PageUp and PageDown from the grid while a field has focus", () => {
+    const { field } = fieldInCell("input")
+    const { field: editable } = fieldInCell("div")
+    for (const key of ["Home", "End", "PageUp", "PageDown"]) {
+      expect(keepKeysOnFocusedControl({ event: keydown(field, key) })).toBe(
+        true
+      )
+      expect(keepKeysOnFocusedControl({ event: keydown(editable, key) })).toBe(
+        true
+      )
+    }
+  })
+
+  it("leaves Home and End to the grid on a button", () => {
+    const cell = document.createElement("div")
+    cell.className = "ag-cell"
+    const button = document.createElement("button")
+    cell.append(button)
+    expect(keepKeysOnFocusedControl({ event: keydown(button, "Home") })).toBe(
+      false
+    )
   })
 })
