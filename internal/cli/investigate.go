@@ -46,6 +46,13 @@ type findingSummary struct {
 	RuledOut   []string          `json:"ruled_out"`
 	NextSteps  []string          `json:"next_steps"`
 	NoIncident bool              `json:"no_incident"`
+
+	Unverified []findingUnverified `json:"unverified"`
+}
+
+type findingUnverified struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }
 
 type findingRootCause struct {
@@ -79,6 +86,13 @@ func (f findingSummary) header() []string {
 			cleaned[i] = text(item)
 		}
 		lines = append(lines, list.label+": "+strings.Join(cleaned, "; "))
+	}
+	if len(f.Unverified) > 0 {
+		items := make([]string, len(f.Unverified))
+		for i, item := range f.Unverified {
+			items[i] = text(item.Text)
+		}
+		lines = append(lines, "Not found in what the agent read: "+strings.Join(items, "; "))
 	}
 	return lines
 }

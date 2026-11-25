@@ -38,13 +38,18 @@ const (
 	faultTitle      = "the title names a cause, but the text calls it likely or unconfirmed: title the symptom you saw instead, such as the service and what failed, or send it again unchanged when you did confirm the cause"
 )
 
+func ReadsData(name string) bool {
+	return tools.Phase(name) == tools.PhaseQuery || dataReads[name]
+}
+
 func (s *State) noteQueried(c Call, res tools.Result) {
-	if !res.IsError && (tools.Phase(c.Name) == tools.PhaseQuery || dataReads[c.Name]) {
+	if !res.IsError && ReadsData(c.Name) {
 		s.Answer.Queried = true
 	}
 }
 
-func (s *State) unbackedFinding(input json.RawMessage) string {
+func (s *State) unbackedFinding(c Call) string {
+	input := c.Input
 	var reasons []string
 	if reason := s.unbackedAbsence(input); reason != "" {
 		s.Absence.Asked = true
@@ -54,6 +59,9 @@ func (s *State) unbackedFinding(input json.RawMessage) string {
 		reasons = append(reasons, reason)
 	}
 	if reason := s.ledgerBehind(input); reason != "" {
+		reasons = append(reasons, reason)
+	}
+	if reason := s.groundingBehind(c); reason != "" {
 		reasons = append(reasons, reason)
 	}
 	return strings.Join(reasons, "; and ")

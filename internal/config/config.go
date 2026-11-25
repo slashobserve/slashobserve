@@ -19,6 +19,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/egress/domains"
@@ -153,6 +154,7 @@ const (
 	envAgentInvestigationCalls = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS"
 	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
 	envAgentInvestigationMax   = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"
+	envAgentFindingGrounding   = "SLASHOBSERVE_AGENT_FINDING_GROUNDING"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -167,7 +169,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax, envAgentFindingGrounding,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -199,6 +201,7 @@ type Agent struct {
 	InvestigationLoop  bool
 
 	InvestigationCallsMax int
+	FindingGrounding      grounding.Mode
 	MaxRunCostUSD         float64
 }
 
@@ -721,6 +724,11 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		}
 	}
 	errs = append(errs, loadInvestigationCalls(lookup, cfg)...)
+	mode, err := grounding.ParseMode(get(lookup, envAgentFindingGrounding))
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%s: %w", envAgentFindingGrounding, err))
+	}
+	cfg.Agent.FindingGrounding = mode
 	if err := loadRunMaxCost(lookup, cfg); err != nil {
 		errs = append(errs, err)
 	}
