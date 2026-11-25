@@ -29,7 +29,7 @@ func TestSearchFindsAnObservationByItsTitleSummaryAndLiveTextBlocksOnce(t *testi
 	byTitle := r.observation(t, "Heron outage", "", pgtype.UUID{})
 	bySummary := r.observation(t, "Checkout slow", "Heron pool exhausted", pgtype.UUID{})
 	byBlock := r.observation(t, "Latency", "", pgtype.UUID{})
-	r.block(t, byBlock, "text", "live", `{"markdown":"the heron cache was cold"}`)
+	r.block(t, byBlock, "text", "live", `{"markdown":"## Cache\n\nthe heron cache was cold"}`)
 	r.block(t, byBlock, "text", "live", `{"markdown":"a second heron remark"}`)
 	byAsk := r.observation(t, "Errors", "", pgtype.UUID{})
 	r.block(t, byAsk, "text", "requested", `{"markdown":"was it a heron deploy"}`)
@@ -53,6 +53,9 @@ func TestSearchFindsAnObservationByItsTitleSummaryAndLiveTextBlocksOnce(t *testi
 	}
 	if all := r.search(t, admin, "heron"); len(all) != 3 {
 		t.Errorf("an unfiltered search finds %v", titles(all))
+	}
+	if phrase := r.search(t, admin, `"heron cache"`, KindObservation); len(phrase) != 1 || phrase[0].ID != byBlock {
+		t.Errorf("a phrase in a live text block found %v", titles(phrase))
 	}
 }
 
@@ -140,18 +143,5 @@ func TestSearchFollowsAnObservationMovedOrEditedAtOnce(t *testing.T) {
 	r.db.Exec(t, `DELETE FROM observations WHERE id = $1::uuid`, id)
 	if got := r.search(t, payroll, "heron"); len(got) != 0 {
 		t.Fatalf("after a delete: %v", titles(got))
-	}
-}
-
-func TestSearchFindsASavedAnswerByItsTitleAndByTheWordsOfItsBody(t *testing.T) {
-	r := newRig(t)
-	id := r.observation(t, "Investigate checkout", "", pgtype.UUID{})
-	r.block(t, id, "text", "live", `{"markdown":"## Kafka consumer lag\n\nThe broker restarted at 14:02 and the partitions rebalanced."}`)
-
-	for _, q := range []string{"kafka", "rebalanced", `"consumer lag"`} {
-		got := r.search(t, admin, q, KindObservation)
-		if len(got) != 1 || got[0].ID != id {
-			t.Errorf("search %q found %v, want the observation holding the answer", q, titles(got))
-		}
 	}
 }

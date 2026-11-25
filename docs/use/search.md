@@ -108,7 +108,10 @@ Details of what is and is not searched:
 - Only the latest version of a dashboard is searched, so a word that was removed in a later save finds nothing.
 - A comment is one message, not a whole thread, and a result for it names the object it is on.
 - Folders, text panel content and prompts are not searched.
-- A finding's answer lives in its observation, so it is found as that observation, by its title and by the words of its text.
+- A finding's answer lives in its observation, so it is found as that observation, by the words of its text.
+  Only the first 8000 characters of a long answer are searched, because that is all the observation keeps.
+  The answer's title is searched as part of that text, unless the save created the observation and gave it the title, which then counts as the observation's title.
+  The answer is found once its text block is live: a save by someone who can only comment adds a requested block, which search skips until an editor keeps it.
 - An answer that is kept in the chat only is private to whoever asked, so search does not find it.
   Save it as an observation, with **Create observation** on the answer or `observe save-answer`, and search then finds it as that observation.
 - Query text is searched as plain words, so `http_requests_total` is found by `http_requests_total` and by `requests`.
