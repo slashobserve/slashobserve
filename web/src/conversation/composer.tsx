@@ -1,7 +1,6 @@
 import { useEffect, useId, type KeyboardEvent, type ReactNode } from "react"
 import { useRouteContext } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { agentLabel } from "@/chat/agent-label"
 import { ContextChips, type ContextChip } from "@/chat/context-chips"
@@ -73,6 +72,9 @@ type ComposerProps = {
 
 const keyboardHint =
   "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
+
+export const connectingText =
+  "Still connecting to the agent. Sending works in a moment."
 
 const chipClass =
   "inline-flex h-6 max-w-full items-center rounded-chip border px-2 text-xs text-muted-foreground"
@@ -418,12 +420,9 @@ function PageComposer({
       })
     },
   })
+  const connecting = agent.isPending && !model.pending
   function send() {
-    if (agent.isPending && !model.pending) {
-      toast.message("Still connecting to the agent. Send again in a moment.")
-      return
-    }
-    if (disabled) return
+    if (connecting || disabled) return
     void model.submit()
   }
   const onKeyDown = useKeyDown(model, send, (event) =>
@@ -491,7 +490,7 @@ function PageComposer({
     ]
       .filter((id) => id !== null)
       .join(" ") || undefined
-  const busy = model.pending || agent.isPending
+  const busy = model.pending || connecting
 
   return (
     <div className="w-full">
@@ -606,6 +605,9 @@ function PageComposer({
         </p>
       ) : null}
       <div className="flex flex-col gap-1 pt-1.5 text-[13px]">
+        {connecting ? (
+          <p className="text-xs text-muted-foreground">{connectingText}</p>
+        ) : null}
         <Feedback model={model} errorId={errorId} />
       </div>
     </div>

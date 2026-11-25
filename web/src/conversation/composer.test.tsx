@@ -5,7 +5,7 @@ import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { Composer } from "./composer"
+import { Composer, connectingText } from "./composer"
 import { ungated } from "./delivery"
 import type { Subject } from "./send-plan"
 import { useComposer, type SentResult } from "./use-composer"
@@ -282,17 +282,27 @@ describe("Composer in a chat", () => {
     ).toBeInTheDocument()
   })
 
-  it("says so when Enter is pressed before the agent is known", async () => {
-    const fetch = vi.fn(() => new Promise<Response>(() => undefined))
+  it("says in the page, not in a toast, why nothing sends before the agent is known", async () => {
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(
+      () => new Promise<Response>(() => undefined)
+    )
     vi.stubGlobal("fetch", fetch)
     const { user, onSent } = renderComposer(
       { initialText: "Why is it slow?" },
       false
     )
-    await user.type(await box(), "{Enter}")
-    expect(toasts.message).toHaveBeenCalledWith(
-      "Still connecting to the agent. Send again in a moment."
+    const field = await box()
+    const reason = await screen.findByText(connectingText)
+    expect(screen.getByRole("button", { name: "Send" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
     )
+    await user.type(field, "{Enter}")
+    expect(reason).toBeVisible()
+    expect(toasts.message).not.toHaveBeenCalled()
+    expect(
+      fetch.mock.calls.filter(([request]) => request.method === "POST")
+    ).toEqual([])
     expect(onSent).not.toHaveBeenCalled()
   })
 })
