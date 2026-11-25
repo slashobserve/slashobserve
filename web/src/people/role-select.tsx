@@ -25,7 +25,7 @@ import { refreshSession } from "@/lib/auth"
 import { roleDescriptions, roleLabels, roles, type Role } from "@/lib/roles"
 
 import { setRoleProblemText, useSetRole, type User } from "./queries"
-import { roleSourceHint } from "./role-source"
+import { RoleSourceLine } from "./role-source-line"
 
 const roleItems = roles.map((role) => ({
   value: role,
@@ -140,7 +140,7 @@ export function PersonRole({ person }: { person: User }) {
   }
 
   return (
-    <span className="flex flex-col items-start gap-0.5">
+    <span className="flex min-w-0 flex-col items-start gap-0.5">
       {person.role_locked ? (
         <span className="inline-flex min-h-7 items-center gap-1.5">
           <LockIcon aria-hidden="true" className="size-3 flex-none" />
@@ -157,9 +157,7 @@ export function PersonRole({ person }: { person: User }) {
           onValueChange={choose}
         />
       )}
-      <span className="text-xs text-muted-foreground">
-        {roleSourceHint(person)}
-      </span>
+      <RoleSourceLine person={person} />
       <AlertDialog open={confirming !== null} onOpenChange={changeOpen}>
         <AlertDialogContent finalFocus={trigger}>
           <AlertDialogHeader>
