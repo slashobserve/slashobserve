@@ -103,6 +103,8 @@ func TestCompileWarnsOnceForEachUnknownField(t *testing.T) {
 			}},
 		{"a field that only ends the same way is offered", "service.name:a", kql.Fields{"resource.service.name": kql.Keyword, "resource.service.name.keyword": kql.Keyword},
 			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "service.name"; did you mean "resource.service.name"?`, Start: 0, End: 12}}},
+		{"a field that differs only by case is offered", "Body:a", kql.Fields{"body": kql.Text, "message": kql.Text},
+			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "Body"; did you mean "body"?`, Start: 0, End: 4}}},
 		{"two fields that end the same way offer nothing", "name:a", kql.Fields{"host.name": kql.Keyword, "user.name": kql.Keyword},
 			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "name"`, Start: 0, End: 4}}},
 		{"nil fields report nothing", "nope:1", nil, nil},

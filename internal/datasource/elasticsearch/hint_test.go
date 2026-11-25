@@ -106,3 +106,31 @@ func TestAnEmptyQueryOnlyHintsAboutValuesItMustMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestAnEmptyInstantQueryNamesTheFieldThatDiffersOnlyByCase(t *testing.T) {
+	_, ds := hintServer(t)
+
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "Message:error"}, queryRange)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `Field "Message" is not in the mapping; did you mean "message"?`
+	if got := datasource.MergeMeta(frames).Hint; got != want {
+		t.Fatalf("hint = %q, want %q", got, want)
+	}
+}
+
+func TestAnEmptyPageNamesAFieldThatIsNotInTheMapping(t *testing.T) {
+	_, ds := hintServer(t)
+
+	frames, _, err := ds.QueryPage(context.Background(), datasource.PageRequest{Query: datasource.Query{Text: "nope:error"}, Range: queryRange, PageSize: 50, Page: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `Field "nope" is not in the mapping.`
+	if got := datasource.MergeMeta(frames).Hint; got != want {
+		t.Fatalf("hint = %q, want %q", got, want)
+	}
+}

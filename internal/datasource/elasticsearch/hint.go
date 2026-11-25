@@ -1,6 +1,7 @@
 package elasticsearch
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
@@ -49,8 +50,31 @@ func (d *Datasource) withValueHint(ctx context.Context, prep prepared, r datasou
 	if prep.form != FormKQL || len(frames) != 1 || frames[0].Rows() != 0 || frames[0].Meta == nil || frames[0].Meta.Partial {
 		return frames
 	}
-	frames[0].Meta.Hint = d.valueHint(ctx, prep, r)
+	frames[0].Meta.Hint = cmp.Or(unknownFieldHint(prep), d.valueHint(ctx, prep, r))
 	return frames
+}
+
+func unknownFieldHint(prep prepared) string {
+	compiled, err := kql.CompileKnowing(prep.body, kqlFields(prep.mapping), prep.mapping.KnownField)
+	if err != nil {
+		return ""
+	}
+	var texts []string
+	for _, diag := range compiled.Diagnostics {
+		rest, ok := strings.CutPrefix(diag.Message, "unknown field ")
+		if !ok {
+			continue
+		}
+		field, suggestion, found := strings.Cut(rest, "; ")
+		text := fmt.Sprintf("Field %s is not in the mapping", field)
+		if found {
+			text += "; " + suggestion
+		} else {
+			text += "."
+		}
+		texts = append(texts, text)
+	}
+	return strings.Join(texts, " ")
 }
 
 func (d *Datasource) valueHint(ctx context.Context, prep prepared, r datasource.TimeRange) string {

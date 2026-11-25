@@ -144,7 +144,10 @@ func (c *compiler) sameEnding(field string) string {
 		if strings.HasSuffix(name, ".keyword") {
 			continue
 		}
-		if !strings.HasSuffix(name, "."+field) && !strings.HasSuffix(field, "."+name) {
+		if name == field {
+			continue
+		}
+		if !strings.EqualFold(name, field) && !strings.HasSuffix(name, "."+field) && !strings.HasSuffix(field, "."+name) {
 			continue
 		}
 		if found != "" {
