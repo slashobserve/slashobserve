@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { cn } from "@/lib/utils"
 import { Sparkline } from "@/panels/stat/sparkline"
 import { sparklinePoints } from "@/panels/stat/sparkline-points"
@@ -121,8 +121,9 @@ function FilterButton({
   )
 }
 
-function PatternRow({
-  item,
+type PatternRewrite = (pattern: string, mode: PatternMode) => string | null
+
+function patternColumns({
   total,
   largest,
   expanded,
@@ -130,19 +131,20 @@ function PatternRow({
   rewrite,
   onApply,
 }: {
-  item: LogPattern
   total: number
   largest: number
-  expanded: boolean
-  onToggle: () => void
-  rewrite: (mode: PatternMode) => string | null
+  expanded: ReadonlySet<string>
+  onToggle: (pattern: string) => void
+  rewrite: PatternRewrite
   onApply: (query: string) => void
-}) {
-  const change = trendChange(item.trend)
-  const hasSample = item.sample !== ""
-  return (
-    <tr>
-      <Cell className="max-w-0 min-w-0">
+}): DataGridColumn<LogPattern>[] {
+  return [
+    {
+      id: "pattern",
+      header: "Pattern",
+      minWidth: 240,
+      flex: 3,
+      cell: (item) => (
         <div className="flex min-w-0 items-center gap-2">
           <span
             aria-hidden="true"
@@ -156,14 +158,15 @@ function PatternRow({
           )}
           <PatternText pattern={item.pattern} />
         </div>
-        {expanded && hasSample ? (
-          <p className="mt-1.5 mb-0 font-mono text-xs break-all text-muted-foreground">
-            {item.sample}
-          </p>
-        ) : null}
-      </Cell>
-      <Cell className="text-right tabular-nums">
-        <div className="flex flex-col items-end gap-1">
+      ),
+    },
+    {
+      id: "documents",
+      header: "Documents",
+      align: "right",
+      width: 130,
+      cell: (item) => (
+        <div className="flex flex-col items-end gap-1 tabular-nums">
           {item.count.toLocaleString("en")}
           <span
             aria-hidden="true"
@@ -173,60 +176,129 @@ function PatternRow({
             }}
           />
         </div>
-      </Cell>
-      <Cell className="text-right tabular-nums">
-        {shareText(patternShare(item.count, total))}
-      </Cell>
-      <Cell>
-        <div className="flex items-center gap-2">
-          {item.trend.length === 0 ? null : (
-            <span className="block h-6 w-24">
-              <Sparkline
-                line={sparklinePoints(
-                  item.trend.map((bucket, index) => [index, bucket.count]),
-                  30
-                )}
-                stroke="var(--series-1)"
-                area={false}
-              />
-            </span>
-          )}
-          {change === null ? null : (
-            <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-              {change}
-            </span>
-          )}
-        </div>
-      </Cell>
-      <Cell data-cell="action">
+      ),
+    },
+    {
+      id: "share",
+      header: "Share",
+      align: "right",
+      width: 90,
+      cell: (item) => (
+        <span className="tabular-nums">
+          {shareText(patternShare(item.count, total))}
+        </span>
+      ),
+    },
+    {
+      id: "trend",
+      header: "Trend",
+      width: 200,
+      cell: (item) => {
+        const change = trendChange(item.trend)
+        return (
+          <div className="flex items-center gap-2">
+            {item.trend.length === 0 ? null : (
+              <span className="block h-6 w-24">
+                <Sparkline
+                  line={sparklinePoints(
+                    item.trend.map((bucket, index) => [index, bucket.count]),
+                    30
+                  )}
+                  stroke="var(--series-1)"
+                  area={false}
+                />
+              </span>
+            )}
+            {change === null ? null : (
+              <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+                {change}
+              </span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      align: "right",
+      action: true,
+      width: 250,
+      cell: (item) => (
         <div className="flex flex-wrap items-center justify-end gap-1">
           <FilterButton
             label="Filter"
             ariaLabel="Filter to this pattern"
-            query={rewrite("in")}
+            query={rewrite(item.pattern, "in")}
             onApply={onApply}
           />
           <FilterButton
             label="Filter out"
             ariaLabel="Filter out this pattern"
-            query={rewrite("out")}
+            query={rewrite(item.pattern, "out")}
             onApply={onApply}
           />
-          {hasSample ? (
+          {item.sample === "" ? null : (
             <Button
               type="button"
               variant="ghost"
               size="xs"
-              aria-expanded={expanded}
-              aria-label={`${expanded ? "Hide" : "Show"} a sample line of this pattern`}
-              onClick={onToggle}
+              aria-expanded={expanded.has(item.pattern)}
+              aria-label={`${expanded.has(item.pattern) ? "Hide" : "Show"} a sample line of this pattern`}
+              onClick={() => onToggle(item.pattern)}
             >
               Samples
             </Button>
-          ) : null}
+          )}
         </div>
-      </Cell>
-    </tr>
+      ),
+    },
+  ]
+}
+
+const patternRowId = (item: LogPattern) => item.pattern
+
+function PatternsTable({
+  items,
+  total,
+  largest,
+  expanded,
+  onToggle,
+  rewrite,
+  onApply,
+}: {
+  items: LogPattern[]
+  total: number
+  largest: number
+  expanded: ReadonlySet<string>
+  onToggle: (pattern: string) => void
+  rewrite: PatternRewrite
+  onApply: (query: string) => void
+}) {
+  const columns = useMemo(
+    () =>
+      patternColumns({ total, largest, expanded, onToggle, rewrite, onApply }),
+    [total, largest, expanded, onToggle, rewrite, onApply]
+  )
+  const detail = useMemo(
+    () => ({
+      open: expanded,
+      render: (item: LogPattern) => (
+        <p className="m-0 font-mono text-xs break-all text-muted-foreground">
+          {item.sample}
+        </p>
+      ),
+    }),
+    [expanded]
+  )
+  return (
+    <DataGrid
+      label="Patterns"
+      rows={items}
+      columns={columns}
+      rowId={patternRowId}
+      detail={detail}
+    />
   )
 }
 
@@ -246,6 +318,13 @@ export function PatternsView() {
   const [order, setOrder] = useState<PatternOrder>("count")
   const [showAll, setShowAll] = useState(false)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const toggle = useCallback((pattern: string) => {
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (!next.delete(pattern)) next.add(pattern)
+      return next
+    })
+  }, [])
   const patterns = useLogPatterns(true, limit)
   const q = search.q
 
@@ -299,14 +378,6 @@ export function PatternsView() {
     update({ q: query, view: undefined })
   }
 
-  function toggle(pattern: string) {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (!next.delete(pattern)) next.add(pattern)
-      return next
-    })
-  }
-
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -330,39 +401,17 @@ export function PatternsView() {
           </SelectContent>
         </Select>
       </div>
-      <TableCard label="Patterns" minWidth={760} stackOnNarrow>
-        <thead>
-          <tr>
-            <HeaderCell>Pattern</HeaderCell>
-            <HeaderCell className="text-right">Documents</HeaderCell>
-            <HeaderCell className="text-right">Share</HeaderCell>
-            <HeaderCell>Trend</HeaderCell>
-            <HeaderCell className="text-right">Actions</HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {visible.map((item) => (
-            <PatternRow
-              key={item.pattern}
-              item={item}
-              total={result.lines_matched}
-              largest={largest}
-              expanded={expanded.has(item.pattern)}
-              onToggle={() => toggle(item.pattern)}
-              rewrite={(mode) =>
-                withPatternFilter(
-                  datasource.type,
-                  q,
-                  item.pattern,
-                  mode,
-                  result.source
-                )
-              }
-              onApply={filterByPattern}
-            />
-          ))}
-        </tbody>
-      </TableCard>
+      <PatternsTable
+        items={visible}
+        total={result.lines_matched}
+        largest={largest}
+        expanded={expanded}
+        onToggle={toggle}
+        rewrite={(pattern, mode) =>
+          withPatternFilter(datasource.type, q, pattern, mode, result.source)
+        }
+        onApply={filterByPattern}
+      />
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         {folded.length > 0 && !showAll ? (
           <>

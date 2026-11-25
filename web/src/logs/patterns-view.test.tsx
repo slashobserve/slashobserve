@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { exploreKeys } from "@/api/keys"
@@ -64,7 +64,7 @@ function setup(patterns: LogPattern[], matched: number) {
 }
 
 describe("PatternsView", () => {
-  it("lists each pattern with its count and share under a heading", () => {
+  it("lists each pattern with its count and share under a heading", async () => {
     setup(
       [
         pattern({ pattern: "paid order <*>", count: 90, level: "info" }),
@@ -77,8 +77,9 @@ describe("PatternsView", () => {
         "2 patterns cover 100% of 100 documents. Numbers and ids become <*>."
       )
     ).toBeTruthy()
-    const table = screen.getByRole("region", { name: "Patterns" })
-    const rows = within(table).getAllByRole("row")
+    const grid = await screen.findByRole("grid")
+    await waitFor(() => expect(grid).toHaveAttribute("aria-label", "Patterns"))
+    const rows = within(grid).getAllByRole("row")
     expect(within(rows[1]).getByText("90")).toBeTruthy()
     expect(within(rows[1]).getByText("90%")).toBeTruthy()
     expect(within(rows[2]).getByText("10%")).toBeTruthy()
@@ -90,7 +91,7 @@ describe("PatternsView", () => {
       5
     )
     await user.click(
-      screen.getByRole("button", { name: "Filter to this pattern" })
+      await screen.findByRole("button", { name: "Filter to this pattern" })
     )
     const next = `${query} |~ "paid order .*?"`
     expect(setDraft).toHaveBeenCalledWith(next)
@@ -103,7 +104,7 @@ describe("PatternsView", () => {
       5
     )
     await user.click(
-      screen.getByRole("button", { name: "Filter out this pattern" })
+      await screen.findByRole("button", { name: "Filter out this pattern" })
     )
     expect(update).toHaveBeenCalledWith({
       q: `${query} !~ "paid order .*?"`,
@@ -122,11 +123,16 @@ describe("PatternsView", () => {
       ],
       5
     )
+    const show = await screen.findByRole("button", {
+      name: "Show a sample line of this pattern",
+    })
     expect(screen.queryByText("paid order 7")).toBeNull()
+    await user.click(show)
+    expect(await screen.findByText("paid order 7")).toBeTruthy()
     await user.click(
-      screen.getByRole("button", { name: "Show a sample line of this pattern" })
+      screen.getByRole("button", { name: "Hide a sample line of this pattern" })
     )
-    expect(screen.getByText("paid order 7")).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText("paid order 7")).toBeNull())
   })
 
   it("folds the patterns under 1% until Show all", async () => {
@@ -135,11 +141,12 @@ describe("PatternsView", () => {
     )
     const minor = [pattern({ pattern: "rare one", count: 1 })]
     const { user } = setup([...major, ...minor], 9001)
+    await screen.findByText("major 0")
     expect(screen.queryByText("rare one")).toBeNull()
     expect(
       screen.getByText("9 of 10 patterns shown, 1 cover under 1% each")
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Show all" }))
-    expect(screen.getByText("rare one")).toBeTruthy()
+    expect(await screen.findByText("rare one")).toBeTruthy()
   })
 })
