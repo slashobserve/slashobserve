@@ -10,7 +10,9 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/prometheus"
@@ -76,7 +78,7 @@ func TestDraftContextPrometheusSearchesTheQuestionsKeywordsWhenTheCatalogIsCut(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(facts.Text, "metrics: process_cpu_seconds_total counter"+moreNotShown+"\n") || strings.Contains(facts.Text, "http_requests_total") {
+	if !strings.Contains(facts.Text, "metrics: process_cpu_seconds_total counter\n") || strings.Contains(facts.Text, "http_requests_total") {
 		t.Fatalf("facts:\n%s", facts.Text)
 	}
 }
@@ -127,6 +129,68 @@ func TestDraftContextPrometheusSearchesAKeywordThatComesLateInTheQuestion(t *tes
 		t.Fatal(err)
 	}
 	if !strings.Contains(facts.Text, "traces_span_metrics_duration_milliseconds_bucket histogram") {
+		t.Fatalf("facts:\n%s", facts.Text)
+	}
+}
+
+func TestDraftContextPrometheusMarksTheListCutOnlyWhenAKeywordSearchWasCut(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		searchCut    bool
+		wantMoreNote bool
+	}{{"every keyword search complete", false, false}, {"a keyword search hit its limit", true, true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &fakeDS{typ: "prometheus", instantFn: oneRow, discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+				if req.Kind != datasource.DiscoverMetrics {
+					return &datasource.Catalog{}, nil
+				}
+				if req.Search == "" {
+					return &datasource.Catalog{Metrics: promMetrics[:1], Truncated: true}, nil
+				}
+				return &datasource.Catalog{Metrics: promMetrics[2:], Truncated: tc.searchCut}, nil
+			}}
+			r := draftRegistry(t, nil, map[string]*fakeDS{"ds": ds})
+			inst, _ := registered(t, r.deps.Datasources, "ds")
+			facts, err := r.draftContext(reading(context.Background()), inst, signalMetrics, draftRange, "cpu usage")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Contains(facts.Text, "process_cpu_seconds_total counter"+moreNotShown+"\n"); got != tc.wantMoreNote {
+				t.Fatalf("marker %v, want %v:\n%s", got, tc.wantMoreNote, facts.Text)
+			}
+		})
+	}
+}
+
+func TestDraftContextPrometheusSearchesKeywordsConcurrentlyUpToTheCap(t *testing.T) {
+	var mu sync.Mutex
+	inFlight, peak := 0, 0
+	ds := &fakeDS{typ: "prometheus", instantFn: oneRow, discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		if req.Kind != datasource.DiscoverMetrics || req.Search == "" {
+			return &datasource.Catalog{Metrics: promMetrics[:1], Truncated: req.Kind == datasource.DiscoverMetrics}, nil
+		}
+		mu.Lock()
+		inFlight++
+		peak = max(peak, inFlight)
+		mu.Unlock()
+		time.Sleep(20 * time.Millisecond)
+		mu.Lock()
+		inFlight--
+		mu.Unlock()
+		return &datasource.Catalog{Metrics: []datasource.Metric{{Name: "m_" + req.Search}}}, nil
+	}}
+	r := draftRegistry(t, nil, map[string]*fakeDS{"ds": ds})
+	inst, _ := registered(t, r.deps.Datasources, "ds")
+	facts, err := r.draftContext(reading(context.Background()), inst, signalMetrics, draftRange, "alpha bravo charlie delta echo foxtrot golf hotel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if peak < 2 || peak > draftKeywordReads {
+		t.Fatalf("peak %d searches at once, want 2 to %d", peak, draftKeywordReads)
+	}
+	if !strings.Contains(facts.Text, "metrics: m_alpha, m_bravo, m_charlie") {
 		t.Fatalf("facts:\n%s", facts.Text)
 	}
 }
@@ -253,7 +317,7 @@ func TestDraftContextOnARealPrometheusSearchesALargeCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(facts.Text, "metrics: checkout_latency_seconds_bucket"+moreNotShown+"\n") || strings.Contains(facts.Text, "go_metric_000") {
+	if !strings.Contains(facts.Text, "metrics: checkout_latency_seconds_bucket\n") || strings.Contains(facts.Text, "go_metric_000") {
 		t.Fatalf("facts:\n%s", facts.Text)
 	}
 }
