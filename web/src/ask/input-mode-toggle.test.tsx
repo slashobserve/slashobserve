@@ -2,11 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
-import type { InputMode } from "./input-mode"
+import { askModeLabel, type InputMode } from "./input-mode"
 import { InputModeToggle } from "./input-mode-toggle"
 
 const labels: Record<InputMode, string> = {
-  ask: "Ask",
+  ask: askModeLabel,
   builder: "Builder",
   code: "Query",
 }
@@ -26,7 +26,7 @@ describe("InputModeToggle", () => {
     )
     expect(screen.getByRole("radiogroup", { name: "Input mode" })).toBeTruthy()
     expect(screen.getAllByRole("radio")).toHaveLength(2)
-    expect(screen.getByRole("radio", { name: "Ask" })).toHaveAttribute(
+    expect(screen.getByRole("radio", { name: askModeLabel })).toHaveAttribute(
       "aria-checked",
       "true"
     )
@@ -48,7 +48,7 @@ describe("InputModeToggle", () => {
     )
     expect(
       screen.getAllByRole("radio").map((radio) => radio.textContent)
-    ).toEqual(["Builder", "Query", "Ask"])
+    ).toEqual(["Builder", "Query", askModeLabel])
   })
 
   it("calls onChange with code when Query is clicked", async () => {
@@ -77,7 +77,7 @@ describe("InputModeToggle", () => {
         onChange={onChange}
       />
     )
-    const ask = screen.getByRole("radio", { name: "Ask" })
+    const ask = screen.getByRole("radio", { name: askModeLabel })
     expect(ask).toHaveAttribute("aria-disabled", "true")
     expect(ask).toHaveAccessibleDescription(
       "Add a model key to ask in plain language"

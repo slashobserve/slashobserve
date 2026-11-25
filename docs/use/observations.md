@@ -312,11 +312,16 @@ Deleting the first message deletes the whole discussion only while nobody else h
 A message that mentions one agent asks that agent a read-only question about this observation.
 The agent can be `@observe`, one of your connected agents or a service account that takes runs.
 The message needs Comment on the observation.
+On a message about the whole page, the agent is told which observation it was asked on, so "this" means that page, and it reads the page first.
+
+A request to summarize, explain or rewrite the page, such as "summarize this for my manager", is answered from the page and the discussion with no new queries.
 
 The run writes nothing on the page, for an Editor as for a Commenter.
 When it ends, the server posts one status reply in the discussion, whose text is "Answered." when the run saved an answer.
 The web page shows the answer card in its place, and everyone who can read the observation reads that answer in the discussion.
 The reply is not the model's text, and it never resolves the discussion.
+The web app sends your browser's time zone with each message, so the agent writes the times in its answer in that zone with its label, such as 19:52 IST.
+Over the API a message can name a zone with `time_zone`, and a zone the server does not know is ignored and never stops the message; the CLI and MCP name none, so times are written in UTC.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Messages over the API
@@ -327,6 +332,7 @@ Both are null when the message is about the whole page and quotes nothing.
 `reply_to` holds the quoted message's `id`, its `actor` and an `excerpt` of its first 200 characters.
 The MCP comment tools return `reply_to` with the author as `author`, the label the web app shows.
 
+When a message that asks an agent names a block, the agent is pointed at that block, even when the thread was started on another one.
 Deleting a block keeps the messages written about it, which are then about the whole observation.
 Deleting a quoted message leaves the reply with no quote.
 A block that belongs to another observation answers 422 `invalid_block`, and a quoted message that is not in the discussion answers 422 `invalid_reply_to`.

@@ -20,6 +20,7 @@ import { useLogsShortcuts } from "@/logs/use-logs-shortcuts"
 import { roleAtLeast } from "@/lib/roles"
 import { metricsDraft } from "@/saved-searches/draft"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
+import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -165,6 +166,7 @@ function MetricsWorkspaceView({
     hasQuery: q !== undefined,
     hasAsk: search.ask !== undefined,
   })
+  useLeaveAskOnSavedOpen(inputMode, setInputMode)
   const saveTrigger = useRef<HTMLButtonElement>(null)
   const moreTrigger = useRef<HTMLButtonElement>(null)
   const [saveOpen, setSaveOpen] = useState(false)

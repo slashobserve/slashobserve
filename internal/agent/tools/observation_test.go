@@ -398,6 +398,9 @@ func TestObservationSnapshotsFreezeAPanelBlock(t *testing.T) {
 	if len(page.Blocks) != 3 || page.Blocks[1].Kind != "snapshot" || page.Blocks[1].SnapshotID == "" {
 		t.Errorf("blocks = %#v", page.Blocks)
 	}
+	if frozen := page.Blocks[1]; frozen.Title != "Errors" || frozen.From == "" || frozen.Data == nil {
+		t.Errorf("the snapshot block shows %#v, want its panel title, range and data summary", frozen)
+	}
 	res := r.call(t, editorCaller, nameAddBlock, fmt.Sprintf(`{"observation_id":%q,"kind":"snapshot","from_block_id":%q}`, id, note.BlockID))
 	if body, _ := res.Content.(errorBody); errorCode(t, res) != observations.CodeInvalidBlock || !strings.Contains(body.Message, "panel block") {
 		t.Errorf("a snapshot of a text block: %#v", res.Content)

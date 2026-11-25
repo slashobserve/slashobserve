@@ -131,10 +131,10 @@ describe("QueryBar", () => {
   })
 
   it.each([
-    ["elasticsearch", ["Builder", "KQL", "Ask"]],
-    ["opensearch", ["Builder", "KQL", "Ask"]],
-    ["loki", ["Builder", "LogQL", "Ask"]],
-    ["clickhouse", ["SQL", "Ask"]],
+    ["elasticsearch", ["Builder", "KQL", "Write a query"]],
+    ["opensearch", ["Builder", "KQL", "Write a query"]],
+    ["loki", ["Builder", "LogQL", "Write a query"]],
+    ["clickhouse", ["SQL", "Write a query"]],
   ])("offers the segments of %s", async (type, words) => {
     setup({ type })
     await screen.findByRole("radiogroup", { name: "Query mode" })
@@ -187,7 +187,7 @@ describe("QueryBar", () => {
 
   it("keeps Ask unavailable without a model", async () => {
     const { setMode, user } = setup({ agentAvailable: false })
-    const ask = await screen.findByRole("radio", { name: "Ask" })
+    const ask = await screen.findByRole("radio", { name: "Write a query" })
     expect(ask).toHaveAttribute("aria-disabled", "true")
     await user.click(ask)
     expect(setMode).not.toHaveBeenCalled()
@@ -535,7 +535,7 @@ describe("QueryBar", () => {
       const { run, setMode, user } = setup({ mode: "ask" })
       const field = await screen.findByLabelText("Question")
       fireEvent.change(field, { target: { value: link } })
-      await user.click(screen.getByRole("button", { name: "Ask" }))
+      await user.click(screen.getByRole("button", { name: "Write query" }))
       expect(ask).not.toHaveBeenCalled()
       expect(setMode).toHaveBeenCalledWith("code", false)
       expect(run).toHaveBeenCalledWith(

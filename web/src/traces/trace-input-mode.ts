@@ -1,18 +1,23 @@
 import { useState } from "react"
 
-import { nextMode, useInputMode, type InputMode } from "@/ask/input-mode"
+import {
+  askModeLabel,
+  nextMode,
+  useInputMode,
+  type InputMode,
+} from "@/ask/input-mode"
 
 import type { TraceSearch } from "./search"
 
 const tempoModes: readonly InputMode[] = ["ask", "code"]
 const tempoLabels: Record<InputMode, string> = {
-  ask: "Ask",
+  ask: askModeLabel,
   builder: "Builder",
   code: "Query",
 }
 const clickhouseModes: readonly InputMode[] = ["ask", "builder", "code"]
 const clickhouseLabels: Record<InputMode, string> = {
-  ask: "Ask",
+  ask: askModeLabel,
   builder: "Search",
   code: "SQL",
 }

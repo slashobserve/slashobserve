@@ -37,17 +37,17 @@ observe metrics query 'sum by (service) (rate(http_requests_total[5m]))' --datas
 
 Use Ask when you know what you want to see but not the PromQL.
 
-1. Switch the mode at the top of the query card from **PromQL** to **Ask**.
+1. Switch the mode at the top of the query card from **PromQL** to **Write a query**.
    Ctrl+I or Cmd+I switches from anywhere on the page, and the page remembers the mode you last chose.
 2. Write a question such as "requests per second by service over the last hour".
-3. Press Enter or **Ask**.
+3. Press Enter or **Write query**.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 4. The page runs the answer at once and shows its explanation and any warnings, such as "No series in the last 15 minutes."
 
-Editing the query switches to the PromQL segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+Editing the query switches to the PromQL segment, with a "From: <question>" line and **Write again**, which brings the question back.
 **Edit as PromQL** switches without changing the query.
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the PromQL segment.
-Without a model the Ask segment is disabled and says "Add a model key to ask in plain language"; [LLM providers](../connect/llm-providers.md) describes how to configure one.
+Without a model the Write a query segment is disabled and says "Add a model key to ask in plain language"; [LLM providers](../connect/llm-providers.md) describes how to configure one.
 
 ### How Ask writes the query
 
@@ -149,7 +149,7 @@ See [Metrics](cli.md#metrics) and [Discovering what a datasource holds](cli.md#d
 | --- | --- |
 | `/` | Focus the query. |
 | Cmd+Enter or Ctrl+Enter | Run the query. |
-| Cmd+I or Ctrl+I | Switch between Ask and PromQL, from anywhere on the page. |
+| Cmd+I or Ctrl+I | Switch between Write a query and PromQL, from anywhere on the page. |
 
 [Keyboard shortcuts](keyboard-shortcuts.md#metrics-page-keys) lists the keys of every page.
 

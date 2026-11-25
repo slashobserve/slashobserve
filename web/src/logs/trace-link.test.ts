@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest"
 import type { DatasourceStatus } from "@/datasources/queries"
 import type { LogEntry } from "@/panels/logs/logs-model"
 
-import { traceDatasourceFor, traceIdOf, traceRangeAround } from "./trace-link"
+import {
+  spanIdOf,
+  traceDatasourceFor,
+  traceIdOf,
+  traceRangeAround,
+} from "./trace-link"
 
 const id32 = "4BF92F3577B34DA6A3CE929D0E0E4736"
 
@@ -126,5 +131,37 @@ describe("traceRangeAround", () => {
       from: "1759996400000",
       to: "1760003600000",
     })
+  })
+})
+
+describe("spanIdOf", () => {
+  it.each(["SpanId", "spanID", "span_id"])("reads the %s label", (name) => {
+    expect(spanIdOf(entryWithLabel(name, "00f067aa0ba902b7"))).toBe(
+      "00f067aa0ba902b7"
+    )
+  })
+
+  it("reads a field value", () => {
+    expect(spanIdOf(entryWithField("SpanId", "00f067aa0ba902b7"))).toBe(
+      "00f067aa0ba902b7"
+    )
+  })
+
+  it("lowercases the id", () => {
+    expect(spanIdOf(entryWithLabel("span_id", "00F067AA0BA902B7"))).toBe(
+      "00f067aa0ba902b7"
+    )
+  })
+
+  it.each([
+    "",
+    "null",
+    "-",
+    "0000000000000000",
+    "00f067aa0ba902b",
+    "00f067aa0ba902b7a",
+    "ZZZZZZZZZZZZZZZZ",
+  ])("gives undefined for %j", (text) => {
+    expect(spanIdOf(entryWithLabel("span_id", text))).toBeUndefined()
   })
 })
