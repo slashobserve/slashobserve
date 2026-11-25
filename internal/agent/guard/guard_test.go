@@ -1057,3 +1057,196 @@ func TestTheStoppedReasonNamesTheLimitThatWasHit(t *testing.T) {
 		t.Fatalf("stop = %+v, want %q", stop, want)
 	}
 }
+
+func TestAFindingWithCountsAndNoEvidenceIsSentBackOnce(t *testing.T) {
+	counts := `{"markdown": "Checkout had 46 error spans in the last hour."}`
+	withPanel := `{"markdown": "Checkout had 46 error spans in the last hour.", "evidence": [{"id": "p1"}]}`
+	words := `{"markdown": "Checkout is healthy."}`
+	tests := []struct {
+		name  string
+		query bool
+		body  string
+		want  string
+	}{
+		{"counts after a query and no panel", true, counts, "no evidence panel"},
+		{"counts after a query and a panel", true, withPanel, ""},
+		{"counts with no query read", false, counts, ""},
+		{"an answer with no numbers", true, words, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tools.ModeInvestigate)
+			if tt.query {
+				settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+			}
+			s.BeginTurn(false)
+			adm := s.Admit(0, jsonCall("save_finding", tt.body))
+			if tt.want == "" {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), tt.want) {
+				t.Fatalf("admission = %+v, want refused with %q", adm, tt.want)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", tt.body)); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}
+
+func TestAQueryThatFailedDoesNotAskForEvidence(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true})
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "Checkout had 46 error spans."}`)); adm.Verdict != Dispatch {
+		t.Fatalf("admission = %+v, want the finding saved", adm)
+	}
+}
+
+func TestATitleThatClaimsACauseTheTextCallsUnconfirmedIsSentBackOnce(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		text  string
+		want  bool
+	}{
+		{"a cause in the title and a hedge in the text", "Checkout errors tied to paymentUnreachable flag", "The flag most likely matches; its variant was not read.", true},
+		{"a cause in the title and a confirmed text", "Checkout errors caused by a bad deploy", "The deploy at 14:02 UTC introduced the error.", false},
+		{"a symptom title over a hedged text", "Checkout 5xx errors by pod", "This probably started with the deploy.", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tools.ModeInvestigate)
+			s.BeginTurn(false)
+			body, err := json.Marshal(map[string]string{"title": tt.title, "markdown": tt.text})
+			if err != nil {
+				t.Fatal(err)
+			}
+			adm := s.Admit(0, jsonCall("save_finding", string(body)))
+			if !tt.want {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), "title names a cause") {
+				t.Fatalf("admission = %+v, want the title sent back", adm)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", string(body))); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}
+
+func TestEvidenceAndTitleFaultsAreNamedTogether(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_instant", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"title": "Errors caused by shipping", "markdown": "46 error spans, most likely shipping."}`))
+	text := string(adm.Content)
+	if adm.Verdict != Refuse || !strings.Contains(text, "no evidence panel") || !strings.Contains(text, "title names a cause") {
+		t.Fatalf("admission = %+v, want both faults named", adm)
+	}
+}
+
+func TestARestartForgetsWhatWasAskedOfTheAnswer(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("save_finding", `{"markdown": "46 error spans."}`))
+	s.Restart()
+	if s.Answer != (Answer{}) {
+		t.Fatalf("answer state = %+v after a restart", s.Answer)
+	}
+}
+
+func TestASentBackFindingIsProgressAndBlocksASecondSaveInTheTurn(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "46 error spans."}`))
+	if adm.Verdict != Refuse || s.Turn.Answered != 1 {
+		t.Fatalf("admission = %+v, answered = %d, want a refusal that counts as answered", adm, s.Turn.Answered)
+	}
+	if _, stop := s.EndTurn(); stop != nil || s.Counts.StalledTurns != 0 {
+		t.Fatalf("a finding sent back stalled the run: stop = %+v, stalled turns = %d", stop, s.Counts.StalledTurns)
+	}
+
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("save_finding", `{"markdown": "46 error spans.", "evidence": []}`))
+	again := s.Admit(1, jsonCall("save_finding", `{"markdown": "47 error spans."}`))
+	if again.Verdict != Refuse || !strings.Contains(string(again.Content), "only one save per turn") {
+		t.Fatalf("second save in a turn = %+v, want only one save per turn", again)
+	}
+}
+
+func TestAbsenceAndAnswerFaultsAreSentBackTogether(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "There was no deploy today, and checkout had 46 error spans."}`))
+	text := string(adm.Content)
+	if adm.Verdict != Refuse || !strings.Contains(text, "read it with tag deploy") || !strings.Contains(text, "no evidence panel") {
+		t.Fatalf("admission = %+v, want the absence and the evidence faults together", adm)
+	}
+}
+
+func TestATitleCauseNeedsTheDoubtInASentenceAboutIt(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		text  string
+		want  bool
+	}{
+		{"the doubt is about the title's cause", "Checkout errors tied to paymentUnreachable flag", "The flag most likely matches.", true},
+		{"the doubt is about something else", "Checkout errors tied to paymentUnreachable flag", "The paymentUnreachable flag was on from 10:45. Shipping is probably unrelated.", false},
+		{"causes in the title", "Slow DNS causes checkout timeouts", "DNS lookups cannot confirm the timeouts began there.", true},
+		{"a bare cause is not a claim", "Cause of checkout errors unknown", "It was probably the cache.", false},
+	}
+	for _, tt := range tests {
+		if got := doubtsTitleCause(tt.title, tt.text); got != tt.want {
+			t.Errorf("%s: doubtsTitleCause = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestDataReadsOtherThanQueriesCountAsHavingQueried(t *testing.T) {
+	for _, name := range []string{"trace_stats", "sample_rows", "get_trace", "compare_traces", "log_context", "log_patterns", "log_facets", "logs_for_trace"} {
+		s := New(tools.ModeInvestigate)
+		settleRead(&s, name, `{"datasource":"ch"}`, tools.Result{})
+		if !s.Answer.Queried {
+			t.Errorf("%s did not count as a data read", name)
+		}
+		failed := New(tools.ModeInvestigate)
+		settleRead(&failed, name, `{"datasource":"ch"}`, tools.Result{IsError: true})
+		if failed.Answer.Queried {
+			t.Errorf("a failed %s counted as a data read", name)
+		}
+	}
+	listing := New(tools.ModeInvestigate)
+	settleRead(&listing, "list_metrics", `{"datasource":"prom"}`, tools.Result{})
+	if listing.Answer.Queried {
+		t.Error("a discovery listing counted as a data read")
+	}
+}
+
+func TestACountClaimIsANumberWithAUnitOrASuffix(t *testing.T) {
+	for _, text := range []string{
+		"46 error spans", "p99 was 2.4 s", "p99 was 2.4s", "took 3 seconds", "800 ms", "150 rps", "40 req/s", "12k requests", "1.2M rows", "3x the normal rate", "12% of calls", "1,204 traces",
+	} {
+		if !countClaim.MatchString(text) {
+			t.Errorf("%q is not a count claim", text)
+		}
+	}
+	for _, text := range []string{"last 15 minutes", "version 2 of the dashboard", "at 14:05 UTC", "5 m window", "Checkout is healthy"} {
+		if countClaim.MatchString(text) {
+			t.Errorf("%q is a count claim", text)
+		}
+	}
+}
