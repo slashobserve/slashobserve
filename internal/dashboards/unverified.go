@@ -411,10 +411,33 @@ func acceptEmpty(ctx context.Context, d *spec.Dashboard, issues []spec.Issue) ([
 }
 
 func (u Unverified) with(more Unverified) Unverified {
+	panels := slices.Clone(u.Panels)
 	for _, p := range more.Panels {
-		if _, found := u.Panel(p.PanelID); !found {
-			u.Panels = append(u.Panels, p)
+		i := slices.IndexFunc(panels, func(q UnverifiedPanel) bool { return q.PanelID == p.PanelID })
+		if i < 0 {
+			panels = append(panels, p)
+			continue
+		}
+		panels[i].Issues = mergedIssues(panels[i].Issues, p.Issues)
+	}
+	variables := slices.Clone(u.Variables)
+	for _, v := range more.Variables {
+		i := slices.IndexFunc(variables, func(q UnverifiedVariable) bool { return q.Name == v.Name })
+		if i < 0 {
+			variables = append(variables, v)
+			continue
+		}
+		variables[i].Issues = mergedIssues(variables[i].Issues, v.Issues)
+	}
+	return Unverified{Panels: panels, Variables: variables}
+}
+
+func mergedIssues(have, more []spec.Issue) []spec.Issue {
+	out := slices.Clone(have)
+	for _, is := range more {
+		if !slices.Contains(out, is) {
+			out = append(out, is)
 		}
 	}
-	return u
+	return out
 }
