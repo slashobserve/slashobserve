@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent,
@@ -8,18 +9,17 @@ import {
 } from "react"
 
 import { useViewportWidth } from "@/activity/activity-store"
-import {
-  closeInboxForOpenedPanel,
-  useInboxPanelOpen,
-} from "@/inbox/inbox-panel-store"
+import { closeInboxIfOpen, useInboxPanelOpen } from "@/inbox/inbox-panel-store"
 import { cn } from "@/lib/utils"
 
 import { isNarrow, type WidthBounds } from "./card-width"
+import { panelLeft, panelShown } from "./open-panels"
 import { ResizeHandle } from "./resize-handle"
 
 type DockStacking = boolean | "container" | "sheet"
 
 type Props = {
+  panelKey: string
   labelledBy: string
   id?: string
   width: number
@@ -48,6 +48,7 @@ const modeClass = {
 }
 
 export function DockPanel({
+  panelKey,
   labelledBy,
   id,
   width,
@@ -62,9 +63,18 @@ export function DockPanel({
 }: Props) {
   const yieldsToInbox = useInboxPanelOpen() && !isInbox
   const shown = !hidden && !isInbox
+  const unmounting = useRef(false)
   useEffect(() => {
-    if (shown) closeInboxForOpenedPanel()
-  }, [shown])
+    unmounting.current = false
+    return () => {
+      unmounting.current = true
+    }
+  }, [])
+  useEffect(() => {
+    if (!shown) return
+    if (panelShown(panelKey)) closeInboxIfOpen()
+    return () => panelLeft(panelKey, unmounting.current)
+  }, [shown, panelKey])
   const narrow = isNarrow(useViewportWidth())
   const [peek, setPeek] = useState(false)
   const mode =
@@ -82,7 +92,6 @@ export function DockPanel({
       ref={ref}
       id={id}
       hidden={hidden || yieldsToInbox}
-      data-inbox-panel={isInbox ? "" : undefined}
       aria-labelledby={labelledBy}
       onKeyDown={onKeyDown}
       data-sheet={mode === "sheet" ? "" : undefined}

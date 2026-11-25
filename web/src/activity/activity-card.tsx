@@ -177,6 +177,7 @@ export function ActivityCard({
 
   return (
     <DockPanel
+      panelKey="activity"
       id={activityCardId}
       ref={card}
       labelledBy={headingId}

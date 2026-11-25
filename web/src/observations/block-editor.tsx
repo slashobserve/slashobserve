@@ -440,6 +440,7 @@ function BlockEditorPane({
 
   return (
     <DockPanel
+      panelKey="block-editor"
       hidden={hidden}
       labelledBy={headingId}
       width={layout.width}

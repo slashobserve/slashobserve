@@ -37,6 +37,7 @@ export function ChatPane({
     request === undefined ? undefined : latestTurn(request, revisions.data)
   return (
     <DockPanel
+      panelKey="chat"
       ref={pane}
       labelledBy={headingId}
       width={width}

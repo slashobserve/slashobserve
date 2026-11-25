@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -7,6 +7,7 @@ import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
 import { panelWidth } from "./card-width"
 import { DockHeader } from "./dock-header"
 import { DockPanel } from "./dock-panel"
+import { resetOpenPanels } from "./open-panels"
 
 const initialViewport = window.innerWidth
 
@@ -26,6 +27,7 @@ function Panel({
 }) {
   return (
     <DockPanel
+      panelKey="activity"
       labelledBy="dock-title"
       width={420}
       bounds={panelWidth}
@@ -47,8 +49,9 @@ function Panel({
 }
 
 afterEach(() => {
+  resetOpenPanels()
   setViewport(initialViewport)
-  useInboxPanelStore.setState({ open: false, personActed: false })
+  useInboxPanelStore.setState({ open: false })
 })
 
 describe("DockPanel", () => {
@@ -90,6 +93,7 @@ describe("DockPanel", () => {
     setViewport(1440)
     render(
       <DockPanel
+        panelKey="activity"
         labelledBy="chat-title"
         width={400}
         bounds={panelWidth}
@@ -112,6 +116,7 @@ describe("DockPanel", () => {
     setViewport(1440)
     render(
       <DockPanel
+        panelKey="activity"
         labelledBy="t"
         width={400}
         bounds={panelWidth}
@@ -149,6 +154,7 @@ describe("DockPanel", () => {
     setViewport(1024)
     render(
       <DockPanel
+        panelKey="activity"
         labelledBy="t"
         width={760}
         bounds={panelWidth}
@@ -178,6 +184,7 @@ describe("DockPanel", () => {
       <>
         <Panel />
         <DockPanel
+          panelKey="activity"
           isInbox
           labelledBy="inbox-title"
           width={384}
@@ -207,6 +214,7 @@ describe("DockPanel", () => {
     setViewport(1440)
     const { container } = render(
       <DockPanel
+        panelKey="activity"
         hidden
         labelledBy="t"
         width={400}
@@ -225,9 +233,9 @@ describe("DockPanel", () => {
   it("closes the Inbox when another panel opens after it", () => {
     setViewport(1440)
     act(() => useInboxPanelStore.getState().show())
-    fireEvent.pointerDown(document.body)
     const { rerender } = render(
       <DockPanel
+        panelKey="activity"
         hidden
         labelledBy="t"
         width={400}
@@ -241,6 +249,7 @@ describe("DockPanel", () => {
     expect(useInboxPanelStore.getState().open).toBe(true)
     rerender(
       <DockPanel
+        panelKey="activity"
         labelledBy="t"
         width={400}
         bounds={panelWidth}
@@ -256,15 +265,14 @@ describe("DockPanel", () => {
     ).toBeVisible()
   })
 
-  it("closes the Inbox when a person opens a panel that mounts open", () => {
+  it("closes the Inbox when a panel never shown before mounts open", () => {
     setViewport(1440)
     act(() => useInboxPanelStore.getState().show())
-    fireEvent.keyDown(document.body, { key: "Enter" })
     render(<Panel />)
     expect(useInboxPanelStore.getState().open).toBe(false)
   })
 
-  it("keeps the Inbox open when a shown panel remounts with no one acting", () => {
+  it("keeps the Inbox open when a panel that is still open remounts", () => {
     setViewport(1440)
     const { unmount } = render(<Panel />)
     act(() => useInboxPanelStore.getState().show())
@@ -273,10 +281,28 @@ describe("DockPanel", () => {
     expect(useInboxPanelStore.getState().open).toBe(true)
   })
 
-  it("keeps the Inbox open when a shown panel turns from hidden to shown with no one acting", () => {
+  it("keeps the Inbox open when the remount is a new instance under the same key in one render", () => {
+    setViewport(1440)
+    const { rerender } = render(<Panel key="a" />)
+    act(() => useInboxPanelStore.getState().show())
+    rerender(<Panel key="b" />)
+    expect(useInboxPanelStore.getState().open).toBe(true)
+  })
+
+  it("closes the Inbox when a panel closed with the Inbox shut opens again", () => {
+    setViewport(1440)
+    const { unmount } = render(<Panel />)
+    unmount()
+    act(() => useInboxPanelStore.getState().show())
+    render(<Panel />)
+    expect(useInboxPanelStore.getState().open).toBe(false)
+  })
+
+  it("closes the Inbox when a panel turns from hidden to shown with no pointer or key event", () => {
     setViewport(1440)
     const frame = (hidden: boolean) => (
       <DockPanel
+        panelKey="inspect"
         hidden={hidden}
         labelledBy="t"
         width={400}
@@ -284,32 +310,46 @@ describe("DockPanel", () => {
         onWidthChange={() => undefined}
         stacked={false}
       >
-        <h2 id="t">Activity</h2>
+        <h2 id="t">Inspect</h2>
       </DockPanel>
     )
     const { rerender } = render(frame(true))
     act(() => useInboxPanelStore.getState().show())
     rerender(frame(false))
-    expect(useInboxPanelStore.getState().open).toBe(true)
+    expect(useInboxPanelStore.getState().open).toBe(false)
   })
 
-  it("ignores what a person does inside the Inbox itself", () => {
+  it("treats a panel that was hidden while the Inbox was open as closed", () => {
     setViewport(1440)
-    render(
+    const frame = (hidden: boolean) => (
       <DockPanel
-        isInbox
-        labelledBy="inbox-title"
-        width={384}
+        panelKey="inspect"
+        hidden={hidden}
+        labelledBy="t"
+        width={400}
         bounds={panelWidth}
         onWidthChange={() => undefined}
-        stacked="container"
+        stacked={false}
       >
-        <button>Mark read</button>
+        <h2 id="t">Inspect</h2>
       </DockPanel>
     )
+    const { rerender } = render(frame(false))
     act(() => useInboxPanelStore.getState().show())
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Mark read" }))
+    rerender(frame(true))
+    act(() => useInboxPanelStore.getState().show())
+    rerender(frame(false))
+    expect(useInboxPanelStore.getState().open).toBe(false)
+  })
+
+  it("forgets a panel that left while the Inbox was open once the Inbox closes", () => {
+    setViewport(1440)
+    const { unmount } = render(<Panel />)
+    act(() => useInboxPanelStore.getState().show())
+    unmount()
+    act(() => useInboxPanelStore.getState().close())
+    act(() => useInboxPanelStore.getState().show())
     render(<Panel />)
-    expect(useInboxPanelStore.getState().open).toBe(true)
+    expect(useInboxPanelStore.getState().open).toBe(false)
   })
 })

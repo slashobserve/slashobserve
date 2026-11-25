@@ -65,6 +65,7 @@ export function SpecJsonPane({
 
   return (
     <DockPanel
+      panelKey="spec-json"
       ref={pane}
       labelledBy={headingId}
       width={layout.width}
