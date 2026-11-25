@@ -104,7 +104,6 @@ function section(overrides: SectionOverrides = {}) {
   const props = {
     adding: false,
     addTrigger: createRef<HTMLElement>(),
-    onAddMcp: noop,
     onAddClose: noop,
     onPickNative: noop,
     ...overrides,
@@ -219,14 +218,14 @@ describe("McpSourcesSection", () => {
     expect(screen.queryByRole("button", { name: "Add source" })).toBeNull()
   })
 
-  it("offers Add an MCP server from the empty table", async () => {
+  it("points the empty table at the page's Add source button", async () => {
     calls.sources = []
-    const onAddMcp = vi.fn()
-    const { user } = section({ onAddMcp })
-    await user.click(
-      await screen.findByRole("button", { name: "Add an MCP server" })
-    )
-    expect(onAddMcp).toHaveBeenCalledOnce()
+    section()
+    expect(await screen.findByText("No MCP sources yet")).toBeVisible()
+    expect(
+      screen.getByText(/Choose Add source at the top of the page/)
+    ).toBeVisible()
+    expect(screen.queryByRole("button", { name: /Add/ })).toBeNull()
   })
 
   it("shows the MCP form with MCP server preselected when adding", async () => {

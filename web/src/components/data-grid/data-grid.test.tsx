@@ -1009,7 +1009,11 @@ describe("DataGrid", () => {
       expect(card?.firstElementChild).toHaveClass("basis-full", "font-medium")
       for (const cell of card?.children ?? []) {
         if (cell.hasAttribute("data-label")) {
-          expect(cell).toHaveClass("wrap-anywhere")
+          expect(cell).toHaveClass(
+            "wrap-anywhere",
+            "before:shrink-0",
+            "before:wrap-normal"
+          )
         }
       }
       expect(card?.lastElementChild).toHaveClass("ml-auto")
