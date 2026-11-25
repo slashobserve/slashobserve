@@ -711,9 +711,6 @@ func (s *Service) checkSave(ctx context.Context, by auth.Principal, id pgtype.UU
 	if err != nil {
 		return Unverified{}, err
 	}
-	if prevUnverified.Empty() {
-		return s.verify(ctx, by, nil, prevUnverified, parsed, false)
-	}
 	prev, err := s.VersionSpec(ctx, id, parent)
 	if err != nil {
 		return Unverified{}, err
@@ -751,6 +748,8 @@ func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dash
 		return Unverified{}, err
 	}
 	blocking, accepted := acceptEmpty(ctx, next, issues)
+	blocking, timedOut := acceptTimeouts(prev, next, blocking)
+	accepted = accepted.with(timedOut)
 	if prev == nil || prevUnverified.Empty() {
 		if len(blocking) > 0 {
 			return Unverified{}, &InvalidSpecError{Issues: blocking}
