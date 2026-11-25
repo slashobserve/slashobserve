@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
@@ -14,6 +15,9 @@ const (
 	emptyHits     = `{"timed_out":false,"_shards":{"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`
 	levelValues   = `{"timed_out":false,"_shards":{"failed":0},"hits":{"total":{"value":9,"relation":"eq"},"hits":[]},"aggregations":{"log.level":{"doc_count_error_upper_bound":0,"sum_other_doc_count":0,"buckets":[{"key":"INFO","doc_count":5},{"key":"ERROR","doc_count":3},{"key":"WARN","doc_count":1}]},"log.level__card":{"value":3},"service.name":{"doc_count_error_upper_bound":0,"sum_other_doc_count":0,"buckets":[{"key":"checkout","doc_count":9}]},"service.name__card":{"value":1}}}`
 	hintedCase    = "No document has log.level = error in this range, but it has ERROR; values are case sensitive, so seen: INFO, ERROR, WARN."
+	unknownNope   = `Field "nope" is not in the mapping; text fields to try: message, error.stack_trace.`
+	zeroCounts    = `{"timed_out":false,"_shards":{"failed":0},"hits":{"hits":[]},"aggregations":{"count":{"buckets":[{"key":1793962800000,"doc_count":0},{"key":1793962860000,"doc_count":0}]}}}`
+	someCounts    = `{"timed_out":false,"_shards":{"failed":0},"hits":{"hits":[]},"aggregations":{"count":{"buckets":[{"key":1793962800000,"doc_count":0},{"key":1793962860000,"doc_count":4}]}}}`
 	hintedMissing = "No document has log.level = fatal in this range; values seen: INFO, ERROR, WARN."
 )
 
@@ -129,7 +133,7 @@ func TestAnEmptyPageNamesAFieldThatIsNotInTheMapping(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := `Field "nope" is not in the mapping.`
+	want := unknownNope
 	if got := datasource.MergeMeta(frames).Hint; got != want {
 		t.Fatalf("hint = %q, want %q", got, want)
 	}
@@ -156,7 +160,67 @@ func TestAnUnknownFieldHintComesBeforeTheValueHintAndSkipsItsSearch(t *testing.T
 		t.Fatal(err)
 	}
 
-	if got := datasource.MergeMeta(frames).Hint; got != `Field "nope" is not in the mapping.` || f.count(searchPath) != 1 {
+	if got := datasource.MergeMeta(frames).Hint; got != unknownNope || f.count(searchPath) != 1 {
 		t.Fatalf("hint = %q after %d searches", got, f.count(searchPath))
+	}
+}
+
+func TestAnEmptyInstantQueryOnAnUnknownFieldListsTheTextFieldsToTry(t *testing.T) {
+	_, ds := hintServer(t)
+
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: "Body:error"}, queryRange)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `Field "Body" is not in the mapping; text fields to try: message, error.stack_trace.`
+	if got := datasource.MergeMeta(frames).Hint; got != want {
+		t.Fatalf("hint = %q, want %q", got, want)
+	}
+}
+
+func TestAnEmptyCountOverTimeNamesAFieldThatIsNotInTheMapping(t *testing.T) {
+	f, ds := searchServer(t, zeroCounts)
+
+	frames, err := ds.QueryRange(context.Background(), datasource.Query{Text: "Body:error"}, queryRange, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `Field "Body" is not in the mapping; text fields to try: message, error.stack_trace.`
+	if got := datasource.MergeMeta(frames).Hint; got != want || f.count(searchPath) != 1 {
+		t.Fatalf("hint = %q after %d searches", got, f.count(searchPath))
+	}
+}
+
+func TestAnEmptyCountOverTimeOffersTheFieldThatDiffersOnlyByCase(t *testing.T) {
+	_, ds := searchServer(t, zeroCounts)
+
+	frames, err := ds.QueryRange(context.Background(), datasource.Query{Text: "Message:error"}, queryRange, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `Field "Message" is not in the mapping; did you mean "message"?`
+	if got := datasource.MergeMeta(frames).Hint; got != want {
+		t.Fatalf("hint = %q, want %q", got, want)
+	}
+}
+
+func TestACountOverTimeWithLinesOrKnownFieldsGivesNoHint(t *testing.T) {
+	for _, tc := range []struct{ name, text, reply string }{
+		{"lines found", "Body:error", someCounts},
+		{"known field", "message:error", zeroCounts},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ds := searchServer(t, tc.reply)
+			frames, err := ds.QueryRange(context.Background(), datasource.Query{Text: tc.text}, queryRange, time.Minute)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := datasource.MergeMeta(frames).Hint; got != "" {
+				t.Fatalf("hint = %q", got)
+			}
+		})
 	}
 }

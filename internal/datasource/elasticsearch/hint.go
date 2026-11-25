@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	hintFields  = 3
-	hintValues  = 10
-	shownValues = 5
+	hintFields     = 3
+	hintValues     = 10
+	hintTextFields = 5
+	shownValues    = 5
 )
 
 type valueClause struct {
@@ -46,19 +47,34 @@ func valueClauses(body string, m *Mapping) []valueClause {
 	return clauses
 }
 
-func (d *Datasource) withValueHint(ctx context.Context, prep prepared, r datasource.TimeRange, frames []datasource.Frame) []datasource.Frame {
-	if prep.form != FormKQL || len(frames) != 1 || frames[0].Rows() != 0 || frames[0].Meta == nil || frames[0].Meta.Partial {
+func (d *Datasource) withHint(ctx context.Context, prep prepared, r datasource.TimeRange, frames []datasource.Frame, counted bool) []datasource.Frame {
+	if prep.form != FormKQL || len(frames) != 1 || !hasNoHits(frames[0]) || (frames[0].Meta != nil && frames[0].Meta.Partial) {
 		return frames
 	}
-	hint := unknownFieldHint(prep)
-	if hint == "" {
+	hint := d.unknownFieldHint(prep)
+	if hint == "" && !counted {
 		hint = d.valueHint(ctx, prep, r)
+	}
+	if hint == "" {
+		return frames
+	}
+	if frames[0].Meta == nil {
+		frames[0].Meta = &datasource.FrameMeta{}
 	}
 	frames[0].Meta.Hint = hint
 	return frames
 }
 
-func unknownFieldHint(prep prepared) string {
+func hasNoHits(f datasource.Frame) bool {
+	for _, field := range f.Fields {
+		if field.Type != datasource.FieldTime && slices.ContainsFunc(field.Values, func(v any) bool { return v != nil && v != float64(0) }) {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *Datasource) unknownFieldHint(prep prepared) string {
 	compiled, err := kql.CompileKnowing(prep.body, kqlFields(prep.mapping), prep.mapping.KnownField)
 	if err != nil {
 		return ""
@@ -69,14 +85,30 @@ func unknownFieldHint(prep prepared) string {
 			continue
 		}
 		text := fmt.Sprintf("Field %s is not in the mapping", strconv.Quote(f.Name))
-		if f.Suggestion != "" {
+		switch tryFields := d.textFieldsToTry(prep.mapping); {
+		case f.Suggestion != "":
 			text += fmt.Sprintf("; did you mean %s?", strconv.Quote(f.Suggestion))
-		} else {
+		case len(tryFields) > 0:
+			text += "; text fields to try: " + strings.Join(tryFields, ", ") + "."
+		default:
 			text += "."
 		}
 		texts = append(texts, text)
 	}
 	return strings.Join(texts, " ")
+}
+
+func (d *Datasource) textFieldsToTry(m *Mapping) []string {
+	var names []string
+	if roles, err := m.roles(d.opts.Fields); err == nil && m.Fields[roles.Message].Kind == KindText {
+		names = append(names, roles.Message)
+	}
+	for _, name := range m.Names() {
+		if m.Fields[name].Kind == KindText && !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	return names[:min(len(names), hintTextFields)]
 }
 
 func (d *Datasource) valueHint(ctx context.Context, prep prepared, r datasource.TimeRange) string {

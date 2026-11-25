@@ -274,6 +274,23 @@ func TestQueryInstantExplainsAnEmptyResultWithTheDatasourceHint(t *testing.T) {
 	}
 }
 
+func TestQueryRangeNamesTheHintBesideAnAllZeroSeries(t *testing.T) {
+	hint := `Field "Body" is not in the mapping; text fields to try: message.`
+	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		f := timeNumberFrame(nil, 0, 0)
+		f.Meta = &datasource.FrameMeta{Hint: hint}
+		return []datasource.Frame{f}, nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameQueryRange, `{"datasource":"fake","query":"Body:error"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if want := "Ran a query on fake: 1 series (" + hint + ")"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
+	}
+}
+
 func TestQueryRangeThroughCall(t *testing.T) {
 	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		return []datasource.Frame{timeNumberFrame(map[string]string{"route": "/a"}, 1, 2)}, nil

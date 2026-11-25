@@ -178,8 +178,10 @@ The message then adds `did you mean "resource.service.name"?`, and the warning u
 The suggestion ignores capitals, so `Body` offers `body` and `Service.Name` offers `resource.service.name`.
 
 A query whose text requires a field the mapping does not have, and which finds no lines, says so in `meta.hint`, such as `Field "Body" is not in the mapping; did you mean "body"?`.
+When no field is close, the hint lists up to five text fields to try instead, starting with the message field: `Field "Body" is not in the mapping; text fields to try: message, error.stack_trace.`
+The hint comes with an instant result, the first page of a paged read and a count over time whose counts are all zero.
 A field under `not` or in one branch of an `or` is not named, and neither is a field of an ad-hoc filter added outside the query text.
-The agent's `query_instant` shows that sentence beside "no data", so it names the real field instead of reading the empty result as an absence of data.
+The agent's `query_instant` and `query_range` show that sentence beside the result, so it names the real field instead of reading the empty result as an absence of data.
 
 KQL values are case sensitive, so a query such as `service.name:checkout and log.level:error` can find no lines when the data says `ERROR`.
 The server then checks the keyword fields its clauses name, three at most, against the values they hold in the range.
