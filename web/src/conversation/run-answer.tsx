@@ -95,7 +95,7 @@ export function RunAnswer({
       findingId,
       crypto.randomUUID()
     )
-    if ("error" in plan) return plan.error
+    if ("error" in plan) return plan.error || reviseFailureText(null)
     try {
       await deliver(plan)
       return true

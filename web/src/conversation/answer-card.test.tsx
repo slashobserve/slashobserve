@@ -301,6 +301,25 @@ describe("AnswerCard", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
   })
 
+  it("treats an empty refusal as no refusal", async () => {
+    const { user } = renderCard({
+      finding: finding({ suggested_change: "Add a p99 latency panel" }),
+      revise: {
+        onRevise: vi.fn(async () => ""),
+        pending: false,
+        blocked: null,
+        dashboardId: "d1",
+      },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    )
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Revise the dashboard" })
+    ).toBeInTheDocument()
+  })
+
   it("keeps focus on the button and announces it once the revision is asked for", async () => {
     const { user } = renderCard({
       finding: finding({ suggested_change: "Add a p99 latency panel" }),

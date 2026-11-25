@@ -440,8 +440,11 @@ export function AnswerCard({
             onClick={() => {
               setRefusal(null)
               void offered.onRevise().then((asked) => {
-                if (typeof asked === "string") setRefusal(asked)
-                else if (asked) markAsked(finding.id)
+                if (typeof asked === "string" && asked !== "") {
+                  setRefusal(asked)
+                } else if (asked) {
+                  markAsked(finding.id)
+                }
               })
             }}
           >
