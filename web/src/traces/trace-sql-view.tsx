@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent, type Ref } from "react"
+import { useCallback, useState, type KeyboardEvent, type Ref } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -6,6 +6,7 @@ import { PageBar } from "@/components/page-bar"
 import { StatusLabel } from "@/components/status-label"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { WireFrame } from "@/dashboards/queries"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { languageReference } from "@/datasources/sources"
 import { defaultPageSize, pageStateOf, type PageSize } from "@/lib/paging"
@@ -114,6 +115,56 @@ export function TraceSqlEditor({
   )
 }
 
+function TraceSqlTable({
+  frame,
+  idField,
+  datasourceUid,
+  from,
+  to,
+  observation,
+}: {
+  frame: WireFrame
+  idField: string | undefined
+  datasourceUid: string
+  from: string
+  to: string
+  observation: TraceSearch["observation"]
+}) {
+  const renderCell = useCallback(
+    (field: string, value: unknown, type: string) => {
+      const readable = readableCell(field, type, value)
+      if (readable !== null) {
+        return <span title={readable.raw}>{readable.text}</span>
+      }
+      if (field !== idField) return null
+      const traceId = traceIdOf(value)
+      if (traceId === null) return null
+      return (
+        <Link
+          {...traceLink(
+            traceId,
+            datasourceUid,
+            { from, to },
+            undefined,
+            observation
+          )}
+          className="underline underline-offset-3"
+        >
+          {traceId}
+        </Link>
+      )
+    },
+    [idField, datasourceUid, from, to, observation]
+  )
+  return (
+    <PlainTable
+      frame={frame}
+      note={idField === undefined ? unlinkedNote : linkedNote}
+      renderCell={renderCell}
+    />
+  )
+}
+
 export function TraceSqlResults({
   datasource,
   query,
@@ -217,32 +268,13 @@ export function TraceSqlResults({
           <AddToDashboardAction panel={panel} />
           <AddToObservationAction range={range} panel={panel} />
         </div>
-        <PlainTable
+        <TraceSqlTable
           frame={frame}
-          note={idField === undefined ? unlinkedNote : linkedNote}
-          renderCell={(field, value, type) => {
-            const readable = readableCell(field, type, value)
-            if (readable !== null) {
-              return <span title={readable.raw}>{readable.text}</span>
-            }
-            if (field !== idField) return null
-            const traceId = traceIdOf(value)
-            if (traceId === null) return null
-            return (
-              <Link
-                {...traceLink(
-                  traceId,
-                  datasource.uid,
-                  range,
-                  undefined,
-                  search.observation
-                )}
-                className="underline underline-offset-3"
-              >
-                {traceId}
-              </Link>
-            )
-          }}
+          idField={idField}
+          datasourceUid={datasource.uid}
+          from={range.from}
+          to={range.to}
+          observation={search.observation}
         />
       </div>
       {pageBar}
