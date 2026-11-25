@@ -202,6 +202,18 @@ It stays there when the dashboard moves.
 - It reads earlier [observations](observations.md) in the folders you can open, as you.
   When one bears on the question, it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
 
+### Context sources
+
+A context source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [Context sources](../operate/context-sources.md).
+In an investigation or a question the agent can list the sources you may use and call the tools an Admin approved.
+
+- It cannot call a tool that is not approved, changed since it was approved, or belongs to a source set to Admins only when you are not an Admin.
+- A call counts toward the run's call limit, stops after 20 seconds and shows as a step.
+- What comes back is text from a server outside SlashObserve.
+  The agent treats it as information and not as an instruction, and it is never shown as an evidence panel.
+  The finding may quote it and say where it came from.
+- A source that is down gives the agent a refusal, and the investigation goes on without it.
+
 ### Time zones
 
 The web app sends the time zone you read times in.

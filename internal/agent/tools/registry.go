@@ -103,16 +103,17 @@ var narrowing = map[string]string{
 const datasourceSilent = "the datasource did not answer"
 
 type Tool struct {
-	Name        string
-	Description string
-	InputSchema json.RawMessage
-	ReadOnly    bool
-	MCPOnly     bool
-	AgentOnly   bool
-	Claim       bool
-	MinRole     auth.Role
-	PersonOnly  bool
-	Destructive bool
+	Name            string
+	Description     string
+	InputSchema     json.RawMessage
+	ReadOnly        bool
+	MCPOnly         bool
+	AgentOnly       bool
+	InvestigateOnly bool
+	Claim           bool
+	MinRole         auth.Role
+	PersonOnly      bool
+	Destructive     bool
 
 	OutputSchema json.RawMessage
 
@@ -178,6 +179,7 @@ type Deps struct {
 	Home           *homedash.Service
 	Provider       llm.Provider
 	DraftBudget    DraftBudget
+	ContextSources ContextSources
 	PublicURL      *url.URL
 	Logger         *slog.Logger
 }
@@ -195,6 +197,8 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	switch {
 	case t.MCPOnly:
 		return false
+	case t.InvestigateOnly:
+		return mode == ModeInvestigate
 	case t.Answers, phaseOf(t) == PhaseWrite:
 		return mode != ModeSuggest
 	case mode == ModeInvestigate:
@@ -568,6 +572,7 @@ var runEnding = []error{
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
 	errClaimsNotConfigured,
+	errContextSourcesNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {
@@ -622,6 +627,8 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 		message = "an investigate run never edits a dashboard's panels, variables or settings and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for such a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
+	case inRun && t.InvestigateOnly && run.Mode != ModeInvestigate:
+		message = t.Name + " is offered in investigations and questions only, not when a dashboard is built or revised or a panel is suggested"
 	case !inRun && t.AgentOnly:
 		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
 	default:

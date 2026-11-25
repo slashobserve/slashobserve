@@ -511,13 +511,14 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
-A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
+The server has 112 tools: MCP clients get 111, every one except `save_finding`, which only a run offers.
+A run offers 89 of them in a new-dashboard or revision request, 87 in an investigation and 58 in a suggestion.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
+- `list_context_sources` and `call_context_tool` are offered in an investigation or a question only, never when a dashboard is built or revised or a panel is suggested.
 
 The tools fall in five groups:
 

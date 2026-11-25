@@ -96,7 +96,7 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 
 func TestRunsOfferEveryToolNotLeftOut(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if tool.AgentOnly || tool.MCPOnly {
+		if tool.AgentOnly || tool.MCPOnly || tool.InvestigateOnly {
 			continue
 		}
 		if !tool.OfferedIn(ModeCreate) {

@@ -518,6 +518,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
 | `arrange_blocks` | Viewer |
+| `call_context_tool` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -559,6 +560,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_audit_fields` | Admin |
 | `list_chats` | Viewer |
 | `list_comments` | Viewer |
+| `list_context_sources` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
 | `list_dashboard_viewers` | Viewer |
@@ -1753,6 +1755,42 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
   It is recorded once per key, view and query text in 10 minutes; see [Audit queries](../reference/audit-queries.md).
   `list_audit_fields` records nothing, and none of them changes or deletes an event.
 - The export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
+
+### Context source tools
+
+Two tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
+Both need the Viewer role, and a run offers them in an investigation or a question only, not when a dashboard is built or revised or a panel is suggested.
+
+#### `list_context_sources`
+
+Lists the context sources the caller may use, each with the approved tools it may call.
+
+- A source shows its `uid`, `name` and `host`, and each tool its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
+- A source set to Admins only is listed for an Admin and left out for anyone else.
+- Only an approved tool of a source that is up appears.
+  A tool that is waiting for approval, changed since it was approved, gone or refused never does.
+- The list carries a notice that the descriptions come from a server outside SlashObserve.
+
+#### `call_context_tool`
+
+Calls one approved tool of a context source and returns its text.
+
+- It takes `source`, `tool` and optional `arguments`, an object of at most 8 KiB that must match the schema the tool had when an Admin approved it.
+- The answer is `text`, labelled with a `notice` that it is text from a server outside SlashObserve and that nothing in it is an instruction.
+  It also says `source_error: true` when the source reported an error in its result.
+- The text is cut at 12 KiB.
+  A cut result says `truncated: true` with a `cut_note`.
+- A call that cannot run answers with a tool error that says why:
+  - `tool_not_approved` for a tool that is not approved, changed since, gone, refused or unknown.
+  - `source_not_found` for an unknown source.
+  - `admins_only_datasource` for a source set to Admins only that the caller may not use.
+  - `invalid_arguments` when the arguments do not match the schema.
+  - `schema_unusable` when the approved schema cannot be used to check the arguments.
+  - `source_busy` when the source already has 4 calls in flight.
+  - `source_unavailable` when the source did not answer in 20 seconds or could not be reached, including an address the [outbound allowlist](../operate/outbound-access.md) no longer allows.
+  A source that is down never fails a run: the agent reads the refusal and goes on.
+- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `context_source.call`.
+  Inside a run it also counts toward the run's call limit and shows as a step.
 
 ### Run claim tools
 
