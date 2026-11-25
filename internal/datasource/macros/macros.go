@@ -208,7 +208,7 @@ func expandRef(d Dialect, dsType spec.DatasourceType, query string, ref spec.Ref
 		return "", refErrorf(ref, "reference %s is not allowed in a heredoc or unicode quoted literal", refLabel(ref))
 	}
 	if unquotedCode(d, query, ref, c) && fusesWithNeighbors(d, query, ref) {
-		return "", refErrorf(ref, "reference %s must not touch a word character, \".\" or \"$\"", refLabel(ref))
+		return "", refErrorf(ref, fuseMessage(d, ref), refLabel(ref))
 	}
 	if ref.Kind == spec.MacroRef {
 		return expandMacro(d, dsType, query, ref, c, env)

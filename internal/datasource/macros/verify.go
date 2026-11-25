@@ -151,7 +151,14 @@ func unquotedCode(d Dialect, query string, ref spec.Reference, c ctx) bool {
 }
 
 func qualifiesName(d Dialect, ref spec.Reference) bool {
-	return d == ClickHouse && ref.Kind == spec.VariableRef && ref.Format == ""
+	return d == ClickHouse && ref.Kind == spec.VariableRef && (ref.Format == "" || ref.Format == "raw")
+}
+
+func fuseMessage(d Dialect, ref spec.Reference) string {
+	if d == ClickHouse && ref.Kind == spec.VariableRef {
+		return "reference %s must not touch a word character or \"$\"; next to a \".\" it takes the default format or raw"
+	}
+	return "reference %s must not touch a word character, \".\" or \"$\""
 }
 
 func touchesDot(query string, ref spec.Reference) bool {
