@@ -94,7 +94,7 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 	}
 }
 
-func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
+func TestToolsOfferedInInvestigationsAndChatQuestionsOnly(t *testing.T) {
 	var got []string
 	registered := map[string]bool{}
 	for _, tool := range New(Deps{}).List() {
@@ -103,16 +103,16 @@ func TestToolsOfferedInInvestigationsOnly(t *testing.T) {
 		if pinned {
 			got = append(got, tool.Name)
 		}
-		if pinned != (investigateOnly[tool.Name] != "") {
-			t.Errorf("%s: offered in investigations only %v, reason %q", tool.Name, pinned, investigateOnly[tool.Name])
+		if pinned != (contextReads[tool.Name] != "") || pinned != tool.AlsoInChats {
+			t.Errorf("%s: offered in investigations and chat questions only %v, in chats %v, reason %q", tool.Name, pinned, tool.AlsoInChats, contextReads[tool.Name])
 		}
 	}
 	if strings.Join(got, ",") != "call_context_tool,list_context_sources" {
-		t.Fatalf("tools offered in investigations only = %v", got)
+		t.Fatalf("tools offered in investigations and chat questions only = %v", got)
 	}
-	for name := range investigateOnly {
+	for name := range contextReads {
 		if !registered[name] {
-			t.Errorf("investigateOnly names %s, which is not a registered tool", name)
+			t.Errorf("contextReads names %s, which is not a registered tool", name)
 		}
 	}
 }

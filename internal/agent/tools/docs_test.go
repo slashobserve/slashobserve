@@ -66,6 +66,7 @@ const agentDocsPath = "../../../docs/concepts/agent.md"
 var (
 	agentDocsServerTools = regexp.MustCompile(`The server has (\d+) tools: MCP clients get (\d+),`)
 	agentDocsRunTools    = regexp.MustCompile(`A run offers (\d+) of them in a new-dashboard or revision request, (\d+) in an investigation and (\d+) in a suggestion`)
+	agentDocsChatTools   = regexp.MustCompile(`a new-dashboard run, so it offers (\d+) tools`)
 	agentDocsLeftOut     = regexp.MustCompile(`The other (\d+) tools are left out of every run`)
 )
 
@@ -74,7 +75,7 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var total, mcp, create, investigate, suggest, leftOut int
+	var total, mcp, create, investigate, suggest, leftOut, homeQuestion int
 	for _, tool := range New(Deps{}).List() {
 		total++
 		if !tool.AgentOnly {
@@ -82,6 +83,9 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 		}
 		if tool.OfferedIn(ModeCreate) {
 			create++
+		}
+		if tool.OfferedInRun(Run{Mode: ModeCreate, ChatID: "chat"}) {
+			homeQuestion++
 		}
 		if tool.OfferedIn(ModeInvestigate) {
 			investigate++
@@ -100,6 +104,7 @@ func TestAgentDocsStateTheToolCountsOfTheRegistry(t *testing.T) {
 	}{
 		{"the server and MCP counts", agentDocsServerTools, []string{strconv.Itoa(total), strconv.Itoa(mcp)}},
 		{"the run counts", agentDocsRunTools, []string{strconv.Itoa(create), strconv.Itoa(investigate), strconv.Itoa(suggest)}},
+		{"the home question count", agentDocsChatTools, []string{strconv.Itoa(homeQuestion)}},
 		{"the left-out count", agentDocsLeftOut, []string{strconv.Itoa(leftOut)}},
 	}
 	for _, c := range cases {
