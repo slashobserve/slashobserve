@@ -4565,7 +4565,7 @@ components:
         stalled_turns:
           type: integer
           minimum: 0
-          description: Turns in which the agent answered no call because every call was refused.
+          description: Turns in which the agent answered no call because every call was refused, or made only hypothesis ledger calls.
         one_panel_refusals:
           type: integer
           minimum: 0

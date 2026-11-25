@@ -34,6 +34,7 @@ type Window struct {
 	Stalled  int  `json:"stalled"`
 	Diagnose bool `json:"diagnose,omitempty"`
 	Refused  int  `json:"refused,omitempty"`
+	Noted    int  `json:"noted,omitempty"`
 }
 
 type Unchecked struct {
@@ -53,6 +54,7 @@ type Turn struct {
 	Answered  int    `json:"answered"`
 	Progress  bool   `json:"progress,omitempty"`
 	Rejected  bool   `json:"rejected,omitempty"`
+	Noted     bool   `json:"noted,omitempty"`
 
 	ReadsInFlight int                `json:"reads_in_flight,omitempty"`
 	Keys          map[string]TurnKey `json:"keys,omitempty"`
@@ -91,6 +93,18 @@ func (s *State) Restart() {
 	s.Reads, s.Saves = nil, nil
 	s.Absence = Absence{}
 	s.Answer = Answer{}
+}
+
+func (t Turn) onlyNoted() bool {
+	if !t.Noted || t.Rejected {
+		return false
+	}
+	for _, key := range t.Keys {
+		if key.Refused {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *State) BeginTurn(hasSave bool) {
