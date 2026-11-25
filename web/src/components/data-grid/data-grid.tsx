@@ -28,7 +28,6 @@ import {
   useImperativeHandle,
   useRef,
   type ReactNode,
-  type PointerEvent,
   type Ref,
 } from "react"
 
@@ -51,6 +50,7 @@ import {
   type NarrowRows,
 } from "./narrow-row"
 import { gridTheme } from "./theme"
+import { TruncatedText } from "./truncated-text"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
 import { useWidth } from "./use-width"
@@ -94,15 +94,6 @@ type CellParams<T> = ICellRendererParams<GridLine<T>> & {
   column: DataGridColumn<T>
 }
 
-function titleWhenCut(event: PointerEvent<HTMLElement>) {
-  const element = event.currentTarget
-  if (element.scrollWidth > element.clientWidth) {
-    element.title = element.textContent ?? ""
-  } else {
-    element.removeAttribute("title")
-  }
-}
-
 function GridCell<T>({ data, column }: CellParams<T>) {
   if (data === undefined) return null
   const content = column.cell(data.row)
@@ -117,13 +108,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
         column.align === "right" && "justify-end text-right"
       )}
     >
-      {plainText ? (
-        <span className="truncate" onPointerEnter={titleWhenCut}>
-          {content}
-        </span>
-      ) : (
-        content
-      )}
+      {plainText ? <TruncatedText>{content}</TruncatedText> : content}
     </div>
   )
 }

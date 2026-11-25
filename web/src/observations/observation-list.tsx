@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import { TruncatedText } from "@/components/data-grid/truncated-text"
 import {
   dataCell,
   skeletonRows,
@@ -609,9 +610,7 @@ function observationColumns({
         ({ item }) => (
           <span className="inline-flex max-w-full items-center gap-2">
             <AuthorMark mark={markOf(item.created_by)} size={20} />
-            <span className="truncate" title={item.created_by.label}>
-              {item.created_by.label}
-            </span>
+            <TruncatedText>{item.created_by.label}</TruncatedText>
           </span>
         )
       ),
