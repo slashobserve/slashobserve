@@ -114,6 +114,60 @@ describe("run loop success", () => {
     expect(claim.finishes[0]?.outcome).toBe("succeeded")
   })
 
+  test("a saved version ends the run when only reads and saves are offered", async () => {
+    const claim = new FakeClaim()
+    claim.tools.specs = [
+      {
+        name: "list_datasources",
+        description: "",
+        inputSchema: {},
+        readOnly: true,
+      },
+      {
+        name: "create_dashboard",
+        description: "",
+        inputSchema: {},
+        readOnly: false,
+      },
+    ]
+    claim.tools.handler = async (call) =>
+      call.name === "create_dashboard"
+        ? reply({ meta: meta("saved", progress(1)) })
+        : reply()
+    await drive(claim, claimed("create then write"))
+    expect(claim.tools.calls.map((c) => c.name)).toEqual(["create_dashboard"])
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
+  })
+
+  test("a saved version keeps the run going while a write is offered, then finishes without a commit", async () => {
+    const claim = new FakeClaim()
+    claim.tools.specs = [
+      {
+        name: "create_dashboard",
+        description: "",
+        inputSchema: {},
+        readOnly: false,
+      },
+      {
+        name: "pin_observation",
+        description: "",
+        inputSchema: {},
+        readOnly: false,
+      },
+    ]
+    claim.tools.handler = async () =>
+      reply({ meta: meta("saved", progress(1)) })
+    await drive(claim, claimed("create then write"))
+    expect(claim.tools.calls.map((c) => c.name)).toEqual([
+      "create_dashboard",
+      "pin_observation",
+    ])
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
+    expect(claim.finishes[0]).not.toHaveProperty("commit")
+  })
+
   test("the first brief has no reason and starts the session from it", async () => {
     const claim = new FakeClaim()
     claim.tools.handler = savedWith()

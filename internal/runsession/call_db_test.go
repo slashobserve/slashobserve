@@ -454,3 +454,26 @@ func TestDiscoveriesFeedTheBriefDigest(t *testing.T) {
 		t.Fatalf("the brief lacks the digest:\n%s", brief.Message)
 	}
 }
+
+func TestAWriteIsDispatchedWithTheObjectsAnEarlierWriteCreated(t *testing.T) {
+	r := newRig(t)
+	req := r.revise()
+	created := r.call(req, "create_folder", `{"title":"t"}`, nil, func(context.Context) (tools.Result, error) {
+		return tools.Result{Content: map[string]string{"id": "f1"}, Created: []string{"f1"}}, nil
+	})
+	if created.IsError {
+		t.Fatalf("create_folder = %s", created.Content)
+	}
+	var seen tools.WriteScope
+	r.call(req, "rename_folder", `{"folder_id":"f1","title":"u"}`, nil, func(ctx context.Context) (tools.Result, error) {
+		seen = tools.WriteScopeFrom(ctx)
+		return tools.Result{Content: map[string]string{"id": "f1"}}, nil
+	})
+	if !slices.Equal(seen.Created, []string{"f1"}) {
+		t.Fatalf("scope seen by the second write = %+v", seen)
+	}
+	last := r.steps.all()[len(r.steps.all())-1]
+	if last.Phase != tools.PhaseWrite || last.Tool != "rename_folder" {
+		t.Fatalf("step = %+v", last)
+	}
+}

@@ -460,3 +460,31 @@ func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
 		t.Errorf("a Home run's description differs from the agent's: %s", got)
 	}
 }
+
+func TestToolTextNamesTheEvidenceRuleAndTheClickHouseErrorStatus(t *testing.T) {
+	byName := toolsByName(t)
+	for name, want := range map[string]string{
+		nameSaveFinding: "with counts, 1 to 4 evidence panels",
+		nameTraceStats:  "StatusCode = 'Error' (StatusCode is Unset, Ok or Error)",
+	} {
+		tool, ok := byName[name]
+		if !ok {
+			t.Fatalf("%s is not registered", name)
+		}
+		for surface, offered := range map[string]Tool{"mcp": tool, "agent": tool.ForAgent()} {
+			if !strings.Contains(offered.Description, want) {
+				t.Errorf("%s %s description lacks %q", surface, name, want)
+			}
+		}
+	}
+}
+
+func TestSaveFindingTextSaysARefusedReadIsNamedAsNotRead(t *testing.T) {
+	tool, ok := toolsByName(t)[nameSaveFinding]
+	if !ok {
+		t.Fatalf("%s is not registered", nameSaveFinding)
+	}
+	if want := "name a refused read in the finding as not read"; !strings.Contains(tool.ForAgent().Description, want) {
+		t.Errorf("save_finding description lacks %q", want)
+	}
+}

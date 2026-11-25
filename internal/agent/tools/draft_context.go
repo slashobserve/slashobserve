@@ -8,6 +8,8 @@ import (
 	"time"
 	"unicode"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
 	"github.com/slashobserve/slashobserve/internal/datasource/elasticsearch"
@@ -24,7 +26,8 @@ const (
 	draftTablesLimit  = 100
 	draftMetricsLimit = 150
 	draftKeywordLimit = 40
-	draftKeywords     = 4
+	draftKeywordReads = 4
+	draftKeywords     = 10
 	minKeywordRunes   = 3
 	draftFieldsShown  = 60
 	draftValueBytes   = 200
@@ -156,37 +159,64 @@ func (b *factsBuilder) metrics(question string) error {
 	}
 	shown, more := all.Metrics, all.Truncated
 	if all.Truncated {
-		found, err := b.metricsMatching(question)
+		found, cut, err := b.metricsMatching(question)
 		if err != nil {
 			return err
 		}
 		if len(found) > 0 {
-			shown = found
+			shown, more = found, cut
 		}
 	}
 	b.list("metrics", metricItems(shown), more)
 	return nil
 }
 
-func (b *factsBuilder) metricsMatching(question string) ([]datasource.Metric, error) {
+func (b *factsBuilder) metricsMatching(question string) ([]datasource.Metric, bool, error) {
+	words := questionKeywords(question)
+	reads := make([]fetched, len(words))
+	var group errgroup.Group
+	group.SetLimit(draftKeywordReads)
+	for i, word := range words {
+		group.Go(func() error {
+			reads[i] = b.fetch("metrics matching "+word, datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics, Search: word, Limit: draftKeywordLimit})
+			return nil
+		})
+	}
+	_ = group.Wait()
+	var perWord [][]datasource.Metric
+	cut := false
+	for i, read := range reads {
+		cat, err := b.take("metrics matching "+words[i], read)
+		if err != nil {
+			return nil, false, err
+		}
+		if cat != nil {
+			perWord = append(perWord, cat.Metrics)
+			cut = cut || cat.Truncated
+		}
+	}
+	return interleaveMetrics(perWord), cut, nil
+}
+
+func interleaveMetrics(lists [][]datasource.Metric) []datasource.Metric {
 	var found []datasource.Metric
 	seen := map[string]bool{}
-	for _, word := range questionKeywords(question) {
-		cat, err := b.read("metrics matching "+word, datasource.DiscoverRequest{Kind: datasource.DiscoverMetrics, Search: word, Limit: draftKeywordLimit})
-		if err != nil {
-			return nil, err
-		}
-		if cat == nil {
-			continue
-		}
-		for _, m := range cat.Metrics {
-			if !seen[m.Name] {
+	for rank := 0; ; rank++ {
+		more := false
+		for _, list := range lists {
+			if rank >= len(list) {
+				continue
+			}
+			more = true
+			if m := list[rank]; !seen[m.Name] {
 				seen[m.Name] = true
 				found = append(found, m)
 			}
 		}
+		if !more {
+			return found
+		}
 	}
-	return found, nil
 }
 
 func questionKeywords(question string) []string {
@@ -310,14 +340,29 @@ func fieldKind(columns []datasource.Column, name string) string {
 	return ""
 }
 
+type fetched struct {
+	cat *datasource.Catalog
+	res Result
+	ok  bool
+	err error
+}
+
 func (b *factsBuilder) read(what string, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
-	b.facts.Reads++
+	return b.take(what, b.fetch(what, req))
+}
+
+func (b *factsBuilder) fetch(what string, req datasource.DiscoverRequest) fetched {
 	cat, res, ok, err := b.r.discover(b.ctx, b.uid, req, "Could not read the "+what)
-	if err != nil {
-		return nil, err
+	return fetched{cat: cat, res: res, ok: ok, err: err}
+}
+
+func (b *factsBuilder) take(what string, f fetched) (*datasource.Catalog, error) {
+	b.facts.Reads++
+	if f.err != nil {
+		return nil, f.err
 	}
-	if !ok {
-		body, _ := res.Content.(errorBody)
+	if !f.ok {
+		body, _ := f.res.Content.(errorBody)
 		if b.first == nil {
 			b.first = &DatasourceError{Code: body.Code, Message: body.Message}
 		}
@@ -325,7 +370,7 @@ func (b *factsBuilder) read(what string, req datasource.DiscoverRequest) (*datas
 		return nil, nil
 	}
 	b.succeeded = true
-	return cat, nil
+	return f.cat, nil
 }
 
 func (b *factsBuilder) values(what string, req datasource.DiscoverRequest) error {

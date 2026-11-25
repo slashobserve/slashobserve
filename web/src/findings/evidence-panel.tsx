@@ -7,14 +7,17 @@ import {
   type PanelState,
 } from "@/dashboards/panel-chrome"
 import { maxDataPointsFor } from "@/dashboards/use-panel-data"
+import { useDatasources } from "@/datasources/queries"
 import { isRenderable, isStaticPanel } from "@/panels"
-import { createFieldResolver } from "@/panels/field-config"
+import { createFieldResolver, type FieldResolver } from "@/panels/field-config"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import { createSharedCursor } from "@/panels/shared-cursor"
+import type { PreparedFrame } from "@/panels/transforms"
 import { isDataPanel, isRowPanel, type Panel } from "@/spec"
 
 import { useFindingPanelData } from "./queries"
+import { traceColumnOverrides } from "./trace-columns"
 
 const noVars = {}
 
@@ -45,6 +48,15 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
   const fields = useMemo(
     () => (dataPanel ? createFieldResolver(dataPanel, noVars) : undefined),
     [dataPanel]
+  )
+  const datasources = useDatasources().data
+  const columnOverrides = useMemo(
+    () =>
+      dataPanel && datasources
+        ? (frames: readonly PreparedFrame[], resolver: FieldResolver) =>
+            traceColumnOverrides(dataPanel, frames, datasources, resolver)
+        : undefined,
+    [dataPanel, datasources]
   )
   const populated = useMemo(
     () =>
@@ -86,6 +98,7 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
               timezone={undefined}
               from={from}
               to={to}
+              columnOverrides={columnOverrides}
             />
           ) : null}
           {isStaticPanel(panel) && supported ? (

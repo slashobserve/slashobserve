@@ -64,6 +64,40 @@ func (q *Queries) DashboardKeptWithAdmins(ctx context.Context, id pgtype.UUID) (
 	return i, err
 }
 
+const dashboardRestrictedRun = `-- name: DashboardRestrictedRun :one
+SELECT r.id, r.prompt, r.requested_by_kind, r.requested_by_id FROM agent_requests r
+WHERE r.id IN (
+    SELECT v.agent_request_id FROM dashboard_versions v WHERE v.dashboard_id = $1::uuid
+    UNION SELECT d.created_run_id FROM dashboards d WHERE d.id = $1::uuid
+    UNION SELECT f.agent_request_id FROM findings f WHERE f.dashboard_id = $1::uuid AND f.annotation_id IS NOT NULL
+    UNION SELECT p.run_id FROM proposals p WHERE p.dashboard_id = $1::uuid
+    UNION SELECT m.run_id FROM threads t JOIN thread_messages m ON m.thread_id = t.id WHERE t.dashboard_id = $1::uuid
+    UNION SELECT m.run_id FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id WHERE n.dashboard_id = $1::uuid
+    UNION SELECT m.run_id FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id WHERE p.dashboard_id = $1::uuid
+    UNION SELECT a.id FROM agent_requests a WHERE a.dashboard_id = $1::uuid)
+  AND run_answer_kept_with_admins(r.id, ARRAY[$1::uuid])
+ORDER BY r.created_at, r.id LIMIT 1
+`
+
+type DashboardRestrictedRunRow struct {
+	ID              pgtype.UUID
+	Prompt          string
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+}
+
+func (q *Queries) DashboardRestrictedRun(ctx context.Context, id pgtype.UUID) (DashboardRestrictedRunRow, error) {
+	row := q.db.QueryRow(ctx, dashboardRestrictedRun, id)
+	var i DashboardRestrictedRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.Prompt,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+	)
+	return i, err
+}
+
 const findingRun = `-- name: FindingRun :one
 SELECT agent_request_id FROM findings WHERE id = $1
 `
@@ -121,6 +155,36 @@ func (q *Queries) ObservationKeptWithAdmins(ctx context.Context, id pgtype.UUID)
 	row := q.db.QueryRow(ctx, observationKeptWithAdmins, id)
 	var i ObservationKeptWithAdminsRow
 	err := row.Scan(&i.Restricted, &i.InFlight)
+	return i, err
+}
+
+const observationRestrictedRun = `-- name: ObservationRestrictedRun :one
+SELECT r.id, r.prompt, r.requested_by_kind, r.requested_by_id FROM agent_requests r
+WHERE r.id IN (
+    SELECT b.run_id FROM observation_blocks b WHERE b.observation_id = $1::uuid
+    UNION SELECT f.agent_request_id FROM findings f WHERE f.observation_id = $1::uuid
+    UNION SELECT m.run_id FROM threads t JOIN thread_messages m ON m.thread_id = t.id WHERE t.observation_id = $1::uuid
+    UNION SELECT a.id FROM agent_requests a WHERE a.observation_id = $1::uuid OR a.subject_observation_id = $1::uuid)
+  AND run_answer_kept_with_admins(r.id, ARRAY[$1::uuid])
+ORDER BY r.created_at, r.id LIMIT 1
+`
+
+type ObservationRestrictedRunRow struct {
+	ID              pgtype.UUID
+	Prompt          string
+	RequestedByKind string
+	RequestedByID   pgtype.UUID
+}
+
+func (q *Queries) ObservationRestrictedRun(ctx context.Context, id pgtype.UUID) (ObservationRestrictedRunRow, error) {
+	row := q.db.QueryRow(ctx, observationRestrictedRun, id)
+	var i ObservationRestrictedRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.Prompt,
+		&i.RequestedByKind,
+		&i.RequestedByID,
+	)
 	return i, err
 }
 

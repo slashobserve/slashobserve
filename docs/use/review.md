@@ -72,7 +72,8 @@ A comment written through an MCP client reads "Ishan (via Claude Code)", and a t
 
 An agent request sent from a comment shows inside its thread, as one status line per run under the message that asked.
 
-- "Observe Agent is working on it · View the run" while it works.
+- "Observe Agent is working on it · View the run" while it works, with a Stop button beside it that only the person who asked sees.
+  Stop cancels the run, and the line reads "Stopping." and then "Stopped.", or finishes normally if the run completed first.
 - "`<name>` was asked" for a connected agent.
 - The agent's reply once it ends.
 
@@ -267,7 +268,8 @@ A message someone sent to everyone, by turning the "To:" chip or through the API
 
 ### What you see while it runs
 
-Under the form the card says "Observe Agent is working on it" with a link to the run, "`<name>` was asked" for a connected agent, or why no run started.
+Under the form the card says "Observe Agent is working on it" with a link to the run and, for the person who asked, a Stop button, "`<name>` was asked" for a connected agent, or why no run started.
+After Stop the line reads "Stopping." and then "Stopped.", or finishes normally if the run completed first.
 One reason is that the dashboard already has 5 runs waiting.
 The comment is saved in every case, and a refusal never loses it.
 

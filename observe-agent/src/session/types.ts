@@ -4,6 +4,7 @@ export type ToolSpec = {
   name: string
   description: string
   inputSchema: Record<string, unknown>
+  readOnly?: boolean
 }
 
 export type ToolCall = { id: string; name: string; input: string }

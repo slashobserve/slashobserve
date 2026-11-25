@@ -131,7 +131,7 @@ func (r *Registry) startRun(ctx context.Context, input json.RawMessage) (Result,
 	raw, err := r.deps.Runs.Start(ctx, principal, revisions.StartRequest{Prompt: in.Prompt, DashboardID: in.DashboardID, BaseVersion: in.BaseVersion, ChatID: in.ChatID, NewChat: in.NewChat, ClientID: in.ClientID, Anchor: in.Anchor, BlockID: in.BlockID, Kind: in.Kind, ObservationID: in.ObservationID, AppliesFindingID: in.AppliesFindingID, AsOf: in.AsOf})
 	if err != nil {
 		r.recordRefusedStart(ctx, err)
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	var started struct {
 		Replayed bool `json:"replayed"`
@@ -155,12 +155,12 @@ func (r *Registry) cancelRun(ctx context.Context, input json.RawMessage) (Result
 	if errors.Is(err, revisions.ErrRequestFinished) {
 		current, readErr := r.deps.Runs.Run(ctx, id, principal, 0)
 		if readErr != nil {
-			return runFailure(readErr)
+			return runFailure(ctx, readErr)
 		}
 		return success("Run "+id.String()+" had already finished", current), nil
 	}
 	if err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	return success("Canceled run "+id.String(), raw), nil
 }
@@ -176,7 +176,7 @@ func (r *Registry) retryRun(ctx context.Context, input json.RawMessage) (Result,
 	principal, _ := auth.FromContext(ctx)
 	current, err := r.deps.Runs.Run(ctx, id, principal, 0)
 	if err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	var shape struct {
 		Investigation bool `json:"investigation"`
@@ -186,7 +186,7 @@ func (r *Registry) retryRun(ctx context.Context, input json.RawMessage) (Result,
 	}
 	raw, err := r.deps.Runs.Retry(ctx, id, principal)
 	if err != nil {
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	return success("Retried run "+id.String(), raw), nil
 }
@@ -203,7 +203,7 @@ func (r *Registry) runTarget(input json.RawMessage) (pgtype.UUID, Result, bool) 
 	return id, Result{}, true
 }
 
-func runFailure(err error) (Result, error) {
+func runFailure(ctx context.Context, err error) (Result, error) {
 	var invalidStart *revisions.StartError
 	var refusal *lifecycle.Refusal
 	switch {
@@ -237,7 +237,7 @@ func runFailure(err error) (Result, error) {
 	case errors.Is(err, folders.ErrProvisioned):
 		return toolError(codeProvisioned, err.Error()+provisionedHint), nil
 	}
-	if res, ok := restrictedRefusal(err); ok {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if reply, ok := revisions.ReplyFor(err); ok {
@@ -263,7 +263,7 @@ func (r *Registry) getRunBuild(ctx context.Context, input json.RawMessage) (Resu
 		if !errors.Is(err, revisions.ErrNoBuild) {
 			r.recordRefusedRead(ctx, actionRunView, "run", id.String(), err)
 		}
-		return runFailure(err)
+		return runFailure(ctx, err)
 	}
 	return success("Read the build of run "+id.String(), raw), nil
 }

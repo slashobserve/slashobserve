@@ -65,9 +65,9 @@ func expandVariable(d Dialect, dsType spec.DatasourceType, query string, ref spe
 	if d == Elasticsearch && ref.Format == "" {
 		return searchDefault(ref, c, v)
 	}
-	format := ref.Format
-	if format == "" {
-		format = defaultFormat(d, c)
+	format := referenceFormat(d, query, ref, c)
+	if err := checkNamePart(d, query, ref, c, format, v); err != nil {
+		return "", err
 	}
 	regexMatcher := d == PromQL && c.kind == ctxString && c.matcher == matcherRegex
 	text, err := applyFormat(ref, format, v, regexMatcher, allRegex(dsType, query, ref))
@@ -75,6 +75,18 @@ func expandVariable(d Dialect, dsType spec.DatasourceType, query string, ref spe
 		return "", err
 	}
 	return escapeForContext(d, ref, c, format, text, v.Values)
+}
+
+func checkNamePart(d Dialect, query string, ref spec.Reference, c ctx, format string, v datasource.Variable) error {
+	if format != "raw" || c.kind != ctxCode || !qualifiesName(d, ref) || !touchesDot(query, ref) {
+		return nil
+	}
+	for _, value := range v.Values {
+		if !clickHouseSafeTokens[0].MatchString(value) {
+			return refErrorf(ref, "a value of %s is not a plain identifier, which a name next to a \".\" needs", refLabel(ref))
+		}
+	}
+	return nil
 }
 
 func checkValues(ref spec.Reference, v datasource.Variable) error {

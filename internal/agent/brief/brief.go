@@ -15,6 +15,8 @@ const threadLead = "The request was asked in this thread (earlier messages, olde
 
 const withheldAdvice = "When the request needs them, say so in your answer and do not guess their contents."
 
+var clock = time.Now
+
 type Task struct {
 	Mode          tools.Mode
 	Source        revisions.Source
@@ -59,6 +61,9 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 		}
 		m.System, m.Context = systemFor(statuses), body
 	}
+	if t.Mode != tools.ModeSuggest {
+		m.Context += "\n\n" + clockNote(t.TimeZone, t.now())
+	}
 	if note := anchorNote(t.Pointer); note != "" {
 		m.Context += "\n\n" + note
 	}
@@ -70,9 +75,6 @@ func Render(statuses []datasource.Status, t Task, v View, r Reason, digest strin
 	}
 	if t.AsOf != nil {
 		m.Context += "\n\n" + asOfNote(*t.AsOf)
-	}
-	if note := zoneNote(t.TimeZone, t.now()); note != "" && t.Mode != tools.ModeSuggest {
-		m.Context += "\n\n" + note
 	}
 	if digest != "" && t.Mode != tools.ModeSuggest {
 		m.Context += "\n\n" + digest
@@ -92,7 +94,7 @@ func (t Task) now() time.Time {
 	if t.AsOf != nil {
 		return *t.AsOf
 	}
-	return time.Now()
+	return clock()
 }
 
 func asOfNote(at time.Time) string {

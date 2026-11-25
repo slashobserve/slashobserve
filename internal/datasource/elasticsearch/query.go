@@ -107,10 +107,10 @@ func (d *Datasource) query(ctx context.Context, q datasource.Query, r datasource
 		return nil, err
 	}
 	frames, err := d.resultFrames(raw, body, prep, p)
-	if err != nil || !instant {
+	if err != nil {
 		return frames, err
 	}
-	return d.withValueHint(ctx, prep, r, frames), nil
+	return d.withHint(ctx, prep, r, frames, !instant), nil
 }
 
 func (d *Datasource) prepare(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration, lim datasource.Limits) (prepared, error) {

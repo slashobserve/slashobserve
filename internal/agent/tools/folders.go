@@ -112,7 +112,9 @@ func (r *Registry) createFolder(ctx context.Context, input json.RawMessage) (Res
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Created folder "+clip(folder.Title, maxStepNameBytes), folderItemOut{ID: folder.ID.String(), Title: folder.Title, General: folder.General, CanCreate: abilities.Create}), nil
+	res := success("Created folder "+clip(folder.Title, maxStepNameBytes), folderItemOut{ID: folder.ID.String(), Title: folder.Title, General: folder.General, CanCreate: abilities.Create})
+	res.Created = []string{folder.ID.String()}
+	return res, nil
 }
 
 func (r *Registry) renameFolder(ctx context.Context, input json.RawMessage) (Result, error) {
