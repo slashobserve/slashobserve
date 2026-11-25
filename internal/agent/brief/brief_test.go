@@ -193,3 +193,14 @@ func TestRenderGivesTheCurrentTimeInUTCWhenNoZoneIsKnownOrTheZoneIsUTC(t *testin
 		t.Fatalf("context for a UTC zone:\n%s", got.Context)
 	}
 }
+
+func TestRenderCallsTheDefaultInvestigationWindowADefault(t *testing.T) {
+	task := Task{Mode: tools.ModeInvestigate, Prompt: "why is a slow"}
+	got, err := Render(statuses, task, View{}, Fresh, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "Window: the last hour (a default the question may need to exceed)"; !strings.Contains(got.Context, want) {
+		t.Fatalf("context lacks %q:\n%s", want, got.Context)
+	}
+}
