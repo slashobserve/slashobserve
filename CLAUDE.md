@@ -122,6 +122,7 @@ Claude Code loads a subdirectory `CLAUDE.md` only when it reads a file there.
 ## Product rules
 
 - The agent only ever outputs ObserveSpec JSON, and its text is never stored and never leaves a run as a result: only tool-saved Specs, or in suggest mode one tool-validated panel, leave a run.
+  The one exception is the hypothesis ledger, which is stored with the run only when `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` is on and is shown only to the requester and Admins.
   While a run runs, the end of its text is shown as plain text (`live_text`, server memory only, never rendered as Markdown or HTML).
   No code path takes LLM-written HTML or JS into the UI.
   The agent outputs ObserveSpec JSON or, in an investigate run or a chat request that only asks a question, a tool-saved finding; a run's other writes go through the registry's tools and `runsession`, inside the write scope, and are recorded as steps.
