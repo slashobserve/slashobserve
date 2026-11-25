@@ -312,6 +312,7 @@ Deleting the first message deletes the whole discussion only while nobody else h
 A message that mentions one agent asks that agent a read-only question about this observation.
 The agent can be `@observe`, one of your connected agents or a service account that takes runs.
 The message needs Comment on the observation.
+On a message about the whole page, the agent is told which observation it was asked on, so "this" means that page, and it reads the page first.
 
 The run writes nothing on the page, for an Editor as for a Commenter.
 When it ends, the server posts one status reply in the discussion, whose text is "Answered." when the run saved an answer.

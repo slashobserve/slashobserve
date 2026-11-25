@@ -125,6 +125,7 @@ func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 		"write every time in the time zone the context names, with its label, or with the word UTC when it names none",
 		"When several pods or services tie, lead with the one with the most errors, then the first by name",
 		"Call `list_annotations`",
+		"read that observation first with `get_observation`, because \"this\" means that page",
 		"read it with `get_observation`, and cite it by its title and `/o/<id>`",
 		"Before you say a signal does not exist, list its metrics with scope set to a selector for the service",
 		"a read that failed or timed out could not check anything",

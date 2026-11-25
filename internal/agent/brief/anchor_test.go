@@ -91,6 +91,27 @@ func TestRenderNamesTheWholeBlockARequestIsAbout(t *testing.T) {
 	}
 }
 
+func TestRenderNamesTheObservationAWholePageAskWasMadeOn(t *testing.T) {
+	const note = "The request was asked on observation o1; 'this' means that page."
+	for name, tc := range renderCases(t) {
+		task := tc.task
+		task.Pointer = Pointer{ObservationID: "o1"}
+		got, err := Render(statuses, task, tc.views[0], Fresh, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got.Context, "\n\n"+note) || strings.Contains(got.Context, "points at") || strings.Contains(got.Context, "whole of block") {
+			t.Fatalf("%s: the page is not named in\n%s", name, got.Context)
+		}
+	}
+}
+
+func TestAnchorNoteIsEmptyWithNoAnchorNoBlockAndNoObservation(t *testing.T) {
+	if note := anchorNote(Pointer{}); note != "" {
+		t.Fatalf("note %q", note)
+	}
+}
+
 func TestRenderPutsTheAnchorBeforeTheThreadAndNamesTheBlock(t *testing.T) {
 	const thread = "Ada: why did errors rise?"
 	task := Task{Mode: tools.ModeInvestigate, Prompt: "why", ThreadContext: thread}

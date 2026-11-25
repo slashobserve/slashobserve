@@ -20,7 +20,10 @@ type Pointer struct {
 func anchorNote(p Pointer) string {
 	if p.Anchor == nil {
 		if p.BlockID == "" {
-			return ""
+			if p.ObservationID == "" {
+				return ""
+			}
+			return fmt.Sprintf("The request was asked on observation %s; 'this' means that page.", p.ObservationID)
 		}
 		return fmt.Sprintf("The request is about the whole of block %s%s.", p.BlockID, ofObservation(p))
 	}
