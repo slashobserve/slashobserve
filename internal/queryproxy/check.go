@@ -385,7 +385,7 @@ func (r *Runner) checkVariables(ctx context.Context, d *spec.Dashboard, rng data
 
 func variableIssue(path string, err error) spec.Issue {
 	_, code, message := Classify(err)
-	if !errors.Is(err, ErrVariableEmpty) {
+	if !errors.Is(err, ErrVariableEmpty) && code != string(CodeQueryTimeout) {
 		code = string(CodeVariableFailed)
 	}
 	return issue(path, spec.IssueCode(code), "%s", message)

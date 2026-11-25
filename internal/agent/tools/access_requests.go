@@ -87,6 +87,11 @@ func (r *Registry) requestCommentAccess(ctx context.Context, input json.RawMessa
 	return success("Asked for comment access to "+string(kind)+" "+id.String(), accessrequests.JSONOf(request)), nil
 }
 
+type accessRequestListOut struct {
+	accessrequests.ListJSON
+	leftOutOut
+}
+
 func (r *Registry) listAccessRequests(ctx context.Context, input json.RawMessage) (Result, error) {
 	if r.deps.AccessRequests == nil {
 		return Result{}, errAccessRequestsNotConfigured
@@ -94,6 +99,10 @@ func (r *Registry) listAccessRequests(ctx context.Context, input json.RawMessage
 	var in struct{}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
+	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
 	}
 	principal, _ := auth.FromContext(ctx)
 	items, err := r.deps.AccessRequests.List(ctx, principal)
@@ -103,5 +112,7 @@ func (r *Registry) listAccessRequests(ctx context.Context, input json.RawMessage
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Listed "+strconv.Itoa(len(items))+" open access requests", accessrequests.ListJSONOf(items)), nil
+	items = keepReadable(titles, items, func(a accessrequests.Request) (string, string) { return a.Folder.ID, a.Object.ID.String() })
+	titles.done(ctx)
+	return success("Listed "+strconv.Itoa(len(items))+" open access requests", accessRequestListOut{ListJSON: accessrequests.ListJSONOf(items), leftOutOut: titles.report("access request", "access requests")}), nil
 }

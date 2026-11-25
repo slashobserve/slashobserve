@@ -117,6 +117,17 @@ function serve(routes: Routes = {}) {
   )
 }
 
+function eventRows(grid: HTMLElement) {
+  return within(grid)
+    .getAllByRole("row")
+    .filter((row) => row.hasAttribute("row-id"))
+    .sort(
+      (a, b) =>
+        Number(a.getAttribute("row-index")) -
+        Number(b.getAttribute("row-index"))
+    )
+}
+
 const defaults: AuditView = { q: "", from: "now-24h", to: "now", event: null }
 
 const outside: { setView: (view: AuditView) => void } = { setView: () => {} }
@@ -211,8 +222,8 @@ describe("AuditLog", () => {
             }),
     })
     const { user } = renderPage()
-    const table = await screen.findByRole("region", { name: "Audit events" })
-    const rows = within(table).getAllByRole("row").slice(1)
+    const table = await screen.findByRole("grid", { name: "Audit events" })
+    const rows = eventRows(table)
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("dashboard.delete"),
       expect.stringContaining("Zoë"),
@@ -246,7 +257,7 @@ describe("AuditLog", () => {
       ")"
     )
     expect(
-      screen.queryByRole("region", { name: "Audit events" })
+      screen.queryByRole("grid", { name: "Audit events" })
     ).not.toBeInTheDocument()
   })
 
@@ -304,10 +315,8 @@ describe("AuditLog", () => {
       await within(outcomes).findByRole("button", { name: "denied 2" })
     )
     await screen.findByText("cannot read this query")
-    const dimmed = () =>
-      screen
-        .getByRole("region", { name: "Audit events" })
-        .closest(".opacity-60")
+    const grid = await screen.findByRole("grid", { name: "Audit events" })
+    const dimmed = () => grid.closest(".opacity-60")
     expect(dimmed()).not.toBeNull()
     act(() => outside.setView({ ...defaults, q: "origin:cli" }))
     await waitFor(() => expect(dimmed()).toBeNull())
@@ -339,7 +348,7 @@ describe("AuditLog", () => {
       await screen.findByText("cannot read this query")
     ).toBeInTheDocument()
     expect(
-      screen.getByRole("region", { name: "Audit events" })
+      await screen.findByRole("grid", { name: "Audit events" })
     ).toHaveTextContent("dashboard.delete")
     expect(screen.getByText(/42 events/)).toBeInTheDocument()
     expect(onView).not.toHaveBeenCalled()
@@ -394,7 +403,7 @@ describe("AuditLog", () => {
         }),
     })
     const { user } = renderPage({ q: "origin:mcp" })
-    const table = await screen.findByRole("region", { name: "Audit events" })
+    const table = await screen.findByRole("grid", { name: "Audit events" })
     await user.click(screen.getByRole("switch"))
     await waitFor(() => expect(liveStream).not.toBe(null))
     const stream = liveStream as unknown as FakeStream
@@ -416,7 +425,7 @@ describe("AuditLog", () => {
         { name: "success 41" }
       )
     ).toBeInTheDocument()
-    const rows = within(table).getAllByRole("row").slice(1)
+    const rows = eventRows(table)
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("auth.login"),
       expect.stringContaining("dashboard.delete"),
@@ -487,10 +496,8 @@ describe("AuditLog", () => {
       }
     })
     await waitFor(() => expect(lists).toBe(3))
-    const table = await screen.findByRole("region", { name: "Audit events" })
-    await waitFor(() =>
-      expect(within(table).getAllByRole("row").slice(1)).toHaveLength(1)
-    )
+    const table = await screen.findByRole("grid", { name: "Audit events" })
+    await waitFor(() => expect(eventRows(table)).toHaveLength(1))
   })
 
   it.each([

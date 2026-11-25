@@ -30,9 +30,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { sentence } from "@/observe/queries"
 import { loadProblemText } from "@/service-accounts/queries"
+import { useDashboardShortcuts } from "@/shortcuts/use-dashboard-shortcuts"
 
 import { groupItems, itemLink, type InboxItem } from "./inbox-item"
-import { returnFocusFromInbox, useInboxPanelStore } from "./inbox-panel-store"
+import {
+  returnFocusFromInbox,
+  toggleInboxFromKeys,
+  useInboxPanelStore,
+} from "./inbox-panel-store"
 import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
 import { useLiveInboxToasts } from "./use-live-toasts"
@@ -90,6 +95,7 @@ export function InboxPanel() {
   const open = useInboxPanelStore((state) => state.open)
   const openings = useInboxPanelStore((state) => state.openings)
   useLiveInboxToasts()
+  useDashboardShortcuts({ inbox: toggleInboxFromKeys })
   return open ? <InboxCard key={openings} /> : null
 }
 

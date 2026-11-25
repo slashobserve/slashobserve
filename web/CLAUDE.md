@@ -171,6 +171,7 @@ The rules below are how the code applies it.
 - Use `FilterToolbar` for the filter row under a page header.
 - Every workspace table is a `DataGrid`, the only place that imports AG Grid Community; ESLint rejects `<table>`, `TableCard`, the shadcn `Table`, TanStack Table and AG Grid imports anywhere else, and any `ag-grid-enterprise` import.
   Below 899 px each row becomes a full-width card (the first column as the title, each other non-empty value with its header as a label, the action column last), so nothing scrolls sideways on a phone; the headers stay for screen readers at zero height.
+  A row that expands passes `detail` (the open row ids and a renderer): `DataGrid` inserts a full-width row below each open row, at every width.
   The files still on `TableCard`, the shadcn `Table` or TanStack Table are listed by path in `waitingForDataGrid` in `web/eslint.config.js`; a file leaves the list when it moves, and none joins it.
 - Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
   Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.

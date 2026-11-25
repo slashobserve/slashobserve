@@ -40,8 +40,14 @@ describe("feedKey", () => {
     [["d", "k"], "tvMode"],
     [["f"], "fullscreen"],
     [["F"], "fullscreen"],
+    [["g", "i"], "inbox"],
   ] as const)("maps %j to %s", (keys, action) => {
     expect(typeKeys(keys).at(-1)).toBe(action)
+  })
+
+  it("opens the Inbox on g then i instead of inspecting the panel", () => {
+    expect(typeKeys(["g", "i"])).toEqual([null, "inbox"])
+    expect(typeKeys(["g", ["i", chordWindowMs + 1]])).toEqual([null, "inspect"])
   })
 
   it("waits after the first key of a chord", () => {

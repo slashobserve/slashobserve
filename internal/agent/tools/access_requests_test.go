@@ -58,12 +58,12 @@ func TestRequestCommentAccessToolAsksOnceAndTheAdminListsIt(t *testing.T) {
 	}
 
 	res = callAs(t, r, adminCaller, nameListAccessRequests, `{}`)
-	list, ok := res.Content.(accessrequests.ListJSON)
+	list, ok := res.Content.(accessRequestListOut)
 	if res.IsError || !ok || len(list.Items) != 1 || list.Items[0].ID != created.ID || list.Items[0].Folder != created.Folder {
 		t.Fatalf("Admin's list = %#v", res.Content)
 	}
 	res = callAs(t, r, viewerCaller, nameListAccessRequests, `{}`)
-	if list, ok := res.Content.(accessrequests.ListJSON); res.IsError || !ok || len(list.Items) != 0 {
+	if list, ok := res.Content.(accessRequestListOut); res.IsError || !ok || len(list.Items) != 0 {
 		t.Fatalf("Viewer's list = %#v, want empty", res.Content)
 	}
 }

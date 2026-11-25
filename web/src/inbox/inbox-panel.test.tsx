@@ -305,6 +305,20 @@ describe("InboxPanel", () => {
     expect(useInboxPanelStore.getState().open).toBe(false)
   })
 
+  it("opens on g then i and closes on it again, returning focus to the bell", async () => {
+    mockServer()
+    const { user } = renderPanel()
+    const bell = await screen.findByRole("button", { name: /^Inbox/ })
+
+    await user.keyboard("gi")
+    await findRow(12)
+    expect(useInboxPanelStore.getState().open).toBe(true)
+
+    await user.keyboard("gi")
+    expect(useInboxPanelStore.getState().open).toBe(false)
+    expect(document.activeElement).toBe(bell)
+  })
+
   it("does not mark anything read when it opens", async () => {
     const server = mockServer()
     renderPanel()

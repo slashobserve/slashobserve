@@ -66,6 +66,16 @@ export function closeInboxIfOpen(): boolean {
   return open
 }
 
+export function toggleInboxFromKeys(): void {
+  const { open, opener, close, show } = useInboxPanelStore.getState()
+  if (!open) {
+    show()
+    return
+  }
+  close()
+  returnFocusFromInbox(opener)
+}
+
 export function useInboxPanelOpen(): boolean {
   return useInboxPanelStore((state) => state.open)
 }

@@ -4,14 +4,12 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
-  type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { inboxKeys, type InboxFilter, type InboxView } from "@/api/keys"
-import type { components } from "@/api/schema.gen"
 import { throttle } from "@/lib/throttle"
 import {
   useActivitySubscription,
@@ -19,12 +17,13 @@ import {
 } from "@/live/activity-stream"
 import { useDocumentVisible } from "@/live/use-activity-stream"
 
+import {
+  applyInboxChange,
+  unreadAfter,
+  type InboxChange,
+  type InboxPages,
+} from "./inbox-cache"
 import { useInboxPanelStore } from "./inbox-panel-store"
-
-type InboxPages = InfiniteData<
-  components["schemas"]["InboxList"],
-  string | undefined
->
 
 const pageSize = 50
 const countStaleTime = 30_000
@@ -101,44 +100,72 @@ export function useInboxCount(): number | null {
   return first === undefined ? null : first.unread_count
 }
 
-export function useMarkInboxRead() {
+function useInboxMutation<Input>(
+  send: (input: Input) => Promise<unknown>,
+  changeOf: (input: Input) => InboxChange
+) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: (seq: number) =>
-      api.POST("/inbox/read", { body: { seq } }).then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+    mutationFn: send,
+    onMutate: async (input: Input) => {
+      await queryClient.cancelQueries({ queryKey: inboxKeys.all })
+      const before = queryClient.getQueriesData<InboxPages>({
+        queryKey: inboxKeys.all,
+      })
+      const lists = before.flatMap(([, data]) => (data ? [data] : []))
+      const forYou = queryClient.getQueryData<InboxPages>(
+        inboxKeys.list("for_you", "open")
+      )
+      const count = forYou?.pages[0]?.unread_count
+      if (count === undefined) return { before }
+      const change = changeOf(input)
+      const unread = unreadAfter(count, lists, change)
+      queryClient.setQueriesData<InboxPages>(
+        { queryKey: inboxKeys.all },
+        (data) => (data ? applyInboxChange(data, change, unread) : data)
+      )
+      return { before }
+    },
+    onError: (_error, _input, context) => {
+      for (const [key, data] of context?.before ?? [])
+        queryClient.setQueryData(key, data)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
   })
 }
 
+export function useMarkInboxRead() {
+  return useInboxMutation(
+    (seq: number) => api.POST("/inbox/read", { body: { seq } }).then(unwrap),
+    (seq): InboxChange => ({ kind: "readThrough", seq })
+  )
+}
+
 export function useSetInboxItemUnread() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    networkMode: "always",
-    mutationFn: (input: { seq: number; unread: boolean }) =>
+  return useInboxMutation(
+    (input: { seq: number; unread: boolean }) =>
       api
         .PUT("/inbox/items/{seq}", {
           params: { path: { seq: input.seq } },
           body: { unread: input.unread },
         })
         .then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
-  })
+    (input): InboxChange => ({ kind: "unread", ...input })
+  )
 }
 
 export function useSetInboxItemDone() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    networkMode: "always",
-    mutationFn: (input: { seq: number; done: boolean }) =>
+  return useInboxMutation(
+    (input: { seq: number; done: boolean }) =>
       api
         .PUT("/inbox/items/{seq}", {
           params: { path: { seq: input.seq } },
           body: { done: input.done },
         })
         .then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
-  })
+    (input): InboxChange => ({ kind: "done", ...input })
+  )
 }
 
 export function useInboxLive() {
