@@ -92,7 +92,7 @@ func TestToolNamesMustBeUsableAndUnique(t *testing.T) {
 			t.Errorf("%q should be usable", name)
 		}
 	}
-	for _, name := range []string{"", "has space", "slash/name", "new\nline", "ünï", strings.Repeat("a", maxToolNameBytes+1)} {
+	for _, name := range []string{"", "has space", "slash/name", "new\nline", "ünï", ".", "..", "-", "_.-", strings.Repeat("a", maxToolNameBytes+1)} {
 		if usableName(name) {
 			t.Errorf("%q should not be usable", name)
 		}
@@ -291,5 +291,26 @@ func TestReconcileOrdersChangesByName(t *testing.T) {
 	}
 	if strings.Join(names, ",") != "a,b,c" {
 		t.Errorf("names = %v", names)
+	}
+}
+
+func TestAChangedToolWithAnEmptyDescriptionStoresTheSeenDescriptionAsText(t *testing.T) {
+	pinned := storedFrom(t, ToolApproved, readOnly("search", "finds things"))
+	l, _ := listingOf([]Found{readOnly("search", "")})
+	changed := pinned
+	changed.State = ToolChanged
+	changed.Seen = &l[0].def
+
+	p := putParams(newID(), changed)
+	if !p.SeenDescription.Valid || p.SeenDescription.String != "" {
+		t.Fatalf("seen description = %+v, want valid empty text", p.SeenDescription)
+	}
+	if !p.SeenHash.Valid {
+		t.Fatal("seen hash is not set")
+	}
+
+	plain := putParams(newID(), pinned)
+	if plain.SeenDescription.Valid || plain.SeenHash.Valid {
+		t.Fatalf("a tool without a seen definition stored one: %+v", plain)
 	}
 }

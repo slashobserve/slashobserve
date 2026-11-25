@@ -3,6 +3,7 @@ CREATE TABLE context_sources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   uid TEXT NOT NULL CONSTRAINT context_sources_uid_key UNIQUE CONSTRAINT context_sources_uid_check CHECK (uid ~ '^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$'),
   name TEXT NOT NULL CONSTRAINT context_sources_name_check CHECK (length(name) BETWEEN 1 AND 100),
+  description TEXT CONSTRAINT context_sources_description_check CHECK (description IS NULL OR length(description) BETWEEN 1 AND 300),
   url TEXT NOT NULL CONSTRAINT context_sources_url_check CHECK (length(url) BETWEEN 1 AND 2048),
   audience TEXT NOT NULL DEFAULT 'everyone' CONSTRAINT context_sources_audience_check CHECK (audience IN ('everyone', 'admins')),
   secret_header TEXT CONSTRAINT context_sources_secret_header_check CHECK (secret_header IS NULL OR length(secret_header) BETWEEN 1 AND 100),

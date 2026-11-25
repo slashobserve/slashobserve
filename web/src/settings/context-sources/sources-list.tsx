@@ -84,6 +84,11 @@ function SourceRow({
               {source.uid}
             </span>
           </div>
+          {source.description === null ? null : (
+            <p className="mt-0.5 text-[13px] wrap-anywhere">
+              {source.description}
+            </p>
+          )}
           <p className="mt-0.5 font-mono text-xs wrap-anywhere">{source.url}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {audienceLabels[source.audience]}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -77,5 +78,35 @@ func TestCallTripperRefusesAnAddressWithoutADomainName(t *testing.T) {
 		if _, err := client.Post(address, "application/json", strings.NewReader(`{}`)); !errors.Is(err, ErrInvalidURL) {
 			t.Errorf("%s: error = %v, want an invalid url", address, err)
 		}
+	}
+}
+
+func TestCallTripperNeverDialsAnAddressThatIsNotPublic(t *testing.T) {
+	up, _ := newUpstream(t, newAllow(t, "feed.test"), mcpLikeMux())
+	loopback := up.server.Listener.Addr().String()
+	c := newClient(newAllow(t, "feed.test"), Options{}, dialer(true, loopback), dialer(false, loopback), dialer(true, loopback), nil)
+	client := &http.Client{Transport: c.CallTripper()}
+	_, err := client.Post("https://feed.test/mcp", "application/json", strings.NewReader(`{}`))
+	if !errors.Is(err, ErrBlockedAddress) {
+		t.Fatalf("error = %v, want a blocked address", err)
+	}
+	if up.hits.Load() != 0 {
+		t.Errorf("the loopback server saw %d requests", up.hits.Load())
+	}
+}
+
+func TestANewClientGuardsTheDialerBehindCallTripper(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	c := New(newAllow(t, "feed.test"), Options{})
+	conn, err := c.calls.DialContext(t.Context(), "tcp", listener.Addr().String())
+	if err == nil {
+		_ = conn.Close()
+	}
+	if !errors.Is(err, ErrBlockedAddress) {
+		t.Fatalf("dial = %v, want a blocked address", err)
 	}
 }

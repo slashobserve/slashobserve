@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/config"
 	"github.com/slashobserve/slashobserve/internal/datasource"
@@ -14,7 +13,6 @@ import (
 )
 
 const (
-	maxNameRunes   = 100
 	maxURLBytes    = 2048
 	maxSecretBytes = 4096
 )
@@ -54,8 +52,15 @@ func checkUID(uid string) error {
 }
 
 func checkName(name string) error {
-	if name == "" || utf8.RuneCountInString(name) > maxNameRunes || strings.ContainsFunc(name, unicode.IsControl) {
-		return invalid("name", "must be 1 to 100 characters without control characters")
+	if !config.ValidContextSourceName(name) {
+		return invalid("name", "must be 1 to 100 characters without control or format characters")
+	}
+	return nil
+}
+
+func checkDescription(description string) error {
+	if !config.ValidContextSourceDescription(description) {
+		return invalid("description", "must be at most 300 characters on one line, without control or format characters")
 	}
 	return nil
 }

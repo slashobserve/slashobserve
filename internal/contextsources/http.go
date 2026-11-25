@@ -54,6 +54,7 @@ type toolCountsJSON struct {
 type sourceJSON struct {
 	UID          string         `json:"uid"`
 	Name         string         `json:"name"`
+	Description  *string        `json:"description"`
 	URL          string         `json:"url"`
 	Audience     string         `json:"audience"`
 	SecretHeader *string        `json:"secret_header"`
@@ -69,7 +70,7 @@ type sourceJSON struct {
 
 func newSourceJSON(s Source) sourceJSON {
 	return sourceJSON{
-		UID: s.UID, Name: s.Name, URL: s.URL, Audience: string(s.Audience),
+		UID: s.UID, Name: s.Name, Description: httpapi.OptionalString(s.Description), URL: s.URL, Audience: string(s.Audience),
 		SecretHeader: httpapi.OptionalString(s.SecretHeader), SecretSet: s.SecretSet, Provisioned: s.Provisioned,
 		State: s.State, Failure: httpapi.OptionalString(s.Failure), CheckedAt: httpapi.FormatOptionalTime(s.CheckedAt),
 		Tools:     toolCountsJSON(s.Tools),
@@ -129,6 +130,7 @@ func toolsJSON(tools []Tool) []toolJSON {
 type createBody struct {
 	UID          string `json:"uid"`
 	Name         string `json:"name"`
+	Description  string `json:"description"`
 	URL          string `json:"url"`
 	Audience     string `json:"audience"`
 	SecretHeader string `json:"secret_header"`
@@ -137,6 +139,7 @@ type createBody struct {
 
 type updateBody struct {
 	Name         *string `json:"name"`
+	Description  *string `json:"description"`
 	URL          *string `json:"url"`
 	Audience     *string `json:"audience"`
 	SecretHeader *string `json:"secret_header"`
@@ -176,7 +179,7 @@ func (h *Handler) create(c *gin.Context) {
 		return
 	}
 	source, err := h.svc.Create(c.Request.Context(), httpapi.Caller(c), Input{
-		UID: body.UID, Name: body.Name, URL: body.URL, Audience: datasource.Audience(body.Audience),
+		UID: body.UID, Name: body.Name, Description: body.Description, URL: body.URL, Audience: datasource.Audience(body.Audience),
 		SecretHeader: body.SecretHeader, Secret: body.Secret,
 	})
 	if err != nil {
@@ -192,7 +195,7 @@ func (h *Handler) update(c *gin.Context) {
 	if !httpapi.DecodeBody(c, &body, maxBodyBytes) {
 		return
 	}
-	patch := Patch{Name: body.Name, URL: body.URL, SecretHeader: body.SecretHeader, Secret: body.Secret, ClearSecret: body.ClearSecret}
+	patch := Patch{Name: body.Name, Description: body.Description, URL: body.URL, SecretHeader: body.SecretHeader, Secret: body.Secret, ClearSecret: body.ClearSecret}
 	if body.Audience != nil {
 		audience := datasource.Audience(*body.Audience)
 		patch.Audience = &audience

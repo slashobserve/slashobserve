@@ -2,10 +2,13 @@ package contextsources
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -24,6 +27,7 @@ var allActions = []audit.Action{actionCreate, actionUpdate, actionDelete, action
 
 type sourceView struct {
 	UID         string  `json:"uid"`
+	Description *string `json:"description"`
 	State       string  `json:"state"`
 	Failure     *string `json:"failure"`
 	SecretSet   bool    `json:"secret_set"`
@@ -396,5 +400,98 @@ func TestProvisioningRefusesAUIDAnAdminAlreadyUses(t *testing.T) {
 	err := r.service.Provision(t.Context(), []config.ContextSource{{UID: "docs", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone}})
 	if err == nil || !strings.Contains(err.Error(), ErrUIDTaken.Error()) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func filedSources(prefix string, n int) []config.ContextSource {
+	out := make([]config.ContextSource, n)
+	for i := range out {
+		out[i] = config.ContextSource{UID: fmt.Sprintf("%s%d", prefix, i), URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone}
+	}
+	return out
+}
+
+func TestProvisioningCountsRowsItDeletesAndRowsItAdds(t *testing.T) {
+	r := newRig(t)
+	if err := r.service.Provision(t.Context(), filedSources("old", MaxSources)); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.Provision(t.Context(), filedSources("new", MaxSources)); err != nil {
+		t.Fatalf("replacing every filed source must fit under the cap: %v", err)
+	}
+
+	err := r.service.Provision(t.Context(), filedSources("more", MaxSources+1))
+	if !errors.Is(err, ErrTooMany) {
+		t.Fatalf("a file with more than %d sources: err = %v, want ErrTooMany", MaxSources, err)
+	}
+	listed, err := r.service.List(t.Context())
+	if err != nil || len(listed) != MaxSources {
+		t.Fatalf("a refused file must change nothing, got %d sources, err %v", len(listed), err)
+	}
+}
+
+func TestConcurrentCreatesCannotPassTheCap(t *testing.T) {
+	r := newRig(t)
+	r.allow(t, fakeHost)
+	if err := r.service.Provision(t.Context(), filedSources("filed", MaxSources-1)); err != nil {
+		t.Fatal(err)
+	}
+	const attempts = 6
+	errs := make([]error, attempts)
+	var wg sync.WaitGroup
+	for i := range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = r.service.Create(t.Context(), r.admin, Input{UID: fmt.Sprintf("race%d", i), URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone})
+		}()
+	}
+	wg.Wait()
+	created, refused := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			created++
+		case errors.Is(err, ErrTooMany):
+			refused++
+		default:
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if created != 1 || refused != attempts-1 {
+		t.Fatalf("created %d, refused %d; want 1 and %d", created, refused, attempts-1)
+	}
+	if listed, err := r.service.List(t.Context()); err != nil || len(listed) != MaxSources {
+		t.Fatalf("sources = %d, err %v; want %d", len(listed), err, MaxSources)
+	}
+}
+
+func TestASourceDescriptionIsOptionalAndEditable(t *testing.T) {
+	r := newRig(t)
+	plain := decodeJSON[sourceView](t, r.call(t, http.MethodPost, base, registration("docs", "s3cret-value")), http.StatusCreated)
+	if plain.Description != nil {
+		t.Fatalf("description = %q, want null", *plain.Description)
+	}
+
+	described := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"  Runbooks and design notes  "}`), http.StatusOK)
+	if described.Description == nil || *described.Description != "Runbooks and design notes" {
+		t.Fatalf("description = %v", described.Description)
+	}
+	renamed := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"name":"Renamed"}`), http.StatusOK)
+	if renamed.Description == nil || *renamed.Description != "Runbooks and design notes" {
+		t.Fatalf("a change that leaves the description out must keep it, got %v", renamed.Description)
+	}
+	cleared := decodeJSON[sourceView](t, r.call(t, http.MethodPatch, base+"/docs", `{"description":""}`), http.StatusOK)
+	if cleared.Description != nil {
+		t.Fatalf("description = %q, want null after clearing", *cleared.Description)
+	}
+
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"two\nlines"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+	expectCode(t, r.call(t, http.MethodPatch, base+"/docs", `{"description":"`+strings.Repeat("a", 301)+`"}`), http.StatusUnprocessableEntity, "invalid_context_source")
+
+	withDescription := `{"uid":"wiki","url":"https://` + fakeHost + `/mcp","description":"Team wiki"}`
+	wiki := decodeJSON[sourceView](t, r.call(t, http.MethodPost, base, withDescription), http.StatusCreated)
+	if wiki.Description == nil || *wiki.Description != "Team wiki" {
+		t.Fatalf("created description = %v", wiki.Description)
 	}
 }

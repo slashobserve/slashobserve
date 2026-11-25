@@ -11,6 +11,7 @@ import { SourceForm } from "./source-form"
 const stored: ContextSource = {
   uid: "docs",
   name: "Docs",
+  description: "Runbooks and design notes",
   url: "https://mcp.example.com/mcp",
   audience: "admins",
   secret_header: "X-Api-Key",
@@ -57,6 +58,7 @@ describe("SourceForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       uid: "docs",
       name: "",
+      description: "",
       url: "https://mcp.example.com/mcp",
       audience: "everyone",
       secretHeader: "X-Api-Key",
@@ -89,6 +91,9 @@ describe("SourceForm", () => {
     const { user } = renderForm({ mode: "edit", source: stored })
     expect(screen.queryByLabelText("Id")).toBeNull()
     expect(screen.getByLabelText("Name")).toHaveValue("Docs")
+    expect(screen.getByLabelText("Description")).toHaveValue(
+      "Runbooks and design notes"
+    )
     expect(screen.getByLabelText("Secret")).toHaveValue("")
     expect(screen.getByText(/never shown again/)).toBeVisible()
     await user.click(

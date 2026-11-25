@@ -108,6 +108,7 @@ func (c *ToolCounts) add(state ToolState, n int) {
 type Source struct {
 	UID          string
 	Name         string
+	Description  string
 	URL          string
 	Audience     datasource.Audience
 	SecretHeader string
@@ -125,6 +126,7 @@ func sourceOf(row dbsqlc.ContextSource, counts ToolCounts) Source {
 	s := Source{
 		UID:          row.Uid,
 		Name:         row.Name,
+		Description:  row.Description.String,
 		URL:          row.Url,
 		Audience:     datasource.Audience(row.Audience),
 		SecretHeader: row.SecretHeader.String,
@@ -174,7 +176,7 @@ func putParams(sourceID pgtype.UUID, t Tool) dbsqlc.PutContextSourceToolParams {
 		Hash:        t.Pinned.Hash,
 	}
 	if t.Seen != nil {
-		p.SeenDescription = text(t.Seen.Description)
+		p.SeenDescription = pgtype.Text{String: t.Seen.Description, Valid: true}
 		p.SeenInputSchema = t.Seen.InputSchema
 		p.SeenHash = text(t.Seen.Hash)
 	}
@@ -328,6 +330,7 @@ func hostOfURL(raw string) string {
 type Input struct {
 	UID          string
 	Name         string
+	Description  string
 	URL          string
 	Audience     datasource.Audience
 	SecretHeader string
@@ -337,6 +340,7 @@ type Input struct {
 func (in Input) normalized() Input {
 	in.UID = strings.TrimSpace(in.UID)
 	in.Name = strings.TrimSpace(in.Name)
+	in.Description = strings.TrimSpace(in.Description)
 	in.URL = strings.TrimSpace(in.URL)
 	in.SecretHeader = strings.TrimSpace(in.SecretHeader)
 	if in.Name == "" {
@@ -353,6 +357,9 @@ func (in Input) check() (string, error) {
 		return "", err
 	}
 	if err := checkName(in.Name); err != nil {
+		return "", err
+	}
+	if err := checkDescription(in.Description); err != nil {
 		return "", err
 	}
 	if err := checkAudience(in.Audience); err != nil {
@@ -388,15 +395,8 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 	if err != nil {
 		return Source{}, err
 	}
-	count, err := s.db.Queries().CountContextSources(ctx)
-	if err != nil {
-		return Source{}, err
-	}
-	if count >= MaxSources {
-		return Source{}, ErrTooMany
-	}
 	id := newID()
-	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: provisioned}
+	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: provisioned}
 	if in.Secret != "" {
 		if params.Secret, err = s.seal(id, in.Secret); err != nil {
 			return Source{}, err
@@ -407,10 +407,19 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 	}
 	var row dbsqlc.ContextSource
 	err = s.saveOnAllowedHost(ctx, by, host, func(q *dbsqlc.Queries) error {
+		if err := q.LockContextSourceCount(ctx); err != nil {
+			return err
+		}
+		count, err := q.CountContextSources(ctx)
+		if err != nil {
+			return err
+		}
+		if count >= MaxSources {
+			return ErrTooMany
+		}
 		if err := q.LockContextSourceUID(ctx, in.UID); err != nil {
 			return err
 		}
-		var err error
 		if row, err = q.InsertContextSource(ctx, params); err != nil {
 			return err
 		}
@@ -429,6 +438,7 @@ func (s *Service) create(ctx context.Context, by auth.Principal, in Input, provi
 
 type Patch struct {
 	Name         *string
+	Description  *string
 	URL          *string
 	Audience     *datasource.Audience
 	SecretHeader *string
@@ -458,9 +468,12 @@ type revision struct {
 }
 
 func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
-	in := Input{UID: row.Uid, Name: row.Name, URL: row.Url, Audience: datasource.Audience(row.Audience), SecretHeader: row.SecretHeader.String}
+	in := Input{UID: row.Uid, Name: row.Name, Description: row.Description.String, URL: row.Url, Audience: datasource.Audience(row.Audience), SecretHeader: row.SecretHeader.String}
 	if p.Name != nil {
 		in.Name = *p.Name
+	}
+	if p.Description != nil {
+		in.Description = *p.Description
 	}
 	if p.URL != nil {
 		in.URL = *p.URL
@@ -478,16 +491,22 @@ func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
 	if p.ClearSecret && p.Secret != nil {
 		return revision{}, invalid("secret", "cannot be set and cleared in one change")
 	}
+	if p.Secret != nil && *p.Secret == "" {
+		return revision{}, invalid("secret", "cannot be empty; clear the secret to remove it")
+	}
 	host, err := in.check()
 	if err != nil {
 		return revision{}, err
 	}
 	stored := len(row.Secret) > 0
+	if stored && !p.ClearSecret && in.SecretHeader == "" {
+		return revision{}, invalid("secret_header", "cannot be empty while a secret is stored; clear the secret to remove both")
+	}
 	if hostOfURL(row.Url) != host && stored && p.Secret == nil && !p.ClearSecret {
 		return revision{}, invalid("secret", "a new host needs the secret again; send it, or clear it")
 	}
 	out := revision{host: host, params: dbsqlc.UpdateContextSourceParams{
-		Uid: row.Uid, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret,
+		Uid: row.Uid, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret,
 	}}
 	switch {
 	case p.Secret != nil:

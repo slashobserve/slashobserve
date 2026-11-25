@@ -48,7 +48,7 @@ func TestCheckUIDAndName(t *testing.T) {
 			t.Errorf("uid %q should be refused", uid)
 		}
 	}
-	if checkName("Docs") != nil || checkName("") == nil || checkName("a\nb") == nil || checkName(strings.Repeat("é", 101)) == nil || checkName(strings.Repeat("é", 100)) != nil {
+	if checkName("Docs") != nil || checkName("") == nil || checkName("a\nb") == nil || checkName("a\u200bb") == nil || checkName(strings.Repeat("é", 101)) == nil || checkName(strings.Repeat("é", 100)) != nil {
 		t.Error("name checks")
 	}
 }
@@ -92,5 +92,18 @@ func TestInvalidErrorNamesTheField(t *testing.T) {
 	err := invalid("url", "must start with https://")
 	if !strings.Contains(err.Error(), "url") || !strings.Contains(err.Error(), "https://") {
 		t.Errorf("error = %q", err)
+	}
+}
+
+func TestCheckDescription(t *testing.T) {
+	for _, ok := range []string{"", "Runbooks and design notes", strings.Repeat("é", 300)} {
+		if err := checkDescription(ok); err != nil {
+			t.Errorf("description %q: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"two\nlines", "tab\there", "zero\u200bwidth", strings.Repeat("é", 301)} {
+		if checkDescription(bad) == nil {
+			t.Errorf("description %q should be refused", bad)
+		}
 	}
 }
