@@ -13,7 +13,17 @@ import (
 //go:embed investigate.md
 var investigate string
 
-var investigateSystem = strings.TrimRight(investigate, "\n") + "\n\n" + strings.TrimRight(Scope(), "\n") + "\n\n# Authoring guide\n" + strings.TrimRight(SpecGuide(), "\n") + "\n"
+const ledgerHeading = "\n## Hypothesis ledger\n"
+
+func investigateWith(body string) string {
+	return strings.TrimRight(body, "\n") + "\n\n" + strings.TrimRight(Scope(), "\n") + "\n\n# Authoring guide\n" + strings.TrimRight(SpecGuide(), "\n") + "\n"
+}
+
+var (
+	investigateBase, _, _ = strings.Cut(investigate, ledgerHeading)
+	investigateSystem     = investigateWith(investigateBase)
+	investigateLedger     = investigateWith(investigate)
+)
 
 func Build(types []spec.DatasourceType) string {
 	var b strings.Builder
@@ -28,6 +38,8 @@ func Build(types []spec.DatasourceType) string {
 }
 
 func Investigate() string { return investigateSystem }
+
+func InvestigateWithLedger() string { return investigateLedger }
 
 func compactJSON(body []byte) []byte {
 	var compact bytes.Buffer

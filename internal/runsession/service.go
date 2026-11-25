@@ -73,6 +73,7 @@ type Config struct {
 	Prices             pricing.Table
 	MaxRunCostUSD      float64
 	InvestigationCalls int
+	InvestigationLoop  bool
 	Logger             *slog.Logger
 }
 
@@ -88,6 +89,7 @@ type Service struct {
 	prices             pricing.Table
 	maxRunCost         float64
 	investigationCalls int
+	investigationLoop  bool
 	logger             *slog.Logger
 	inFlight           slots
 	runLocks           runLocks
@@ -103,7 +105,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, logger: c.Logger,
+		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }

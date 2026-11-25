@@ -242,6 +242,8 @@ func (s *State) Admit(position int, c Call) Admission {
 		return s.admitSave(c, adm)
 	case tools.PhaseWrite:
 		return s.admitWrite(c, adm)
+	case tools.PhaseLedger:
+		return adm
 	}
 	adm = s.admitRead(position, c, adm)
 	if adm.Verdict != Refuse {
@@ -252,7 +254,7 @@ func (s *State) Admit(position int, c Call) Admission {
 
 func (s *State) EndRead(c Call) {
 	switch tools.Phase(c.Name) {
-	case tools.PhaseSave, tools.PhaseWrite:
+	case tools.PhaseSave, tools.PhaseWrite, tools.PhaseLedger:
 		return
 	}
 	if s.Turn.ReadsInFlight > 0 {

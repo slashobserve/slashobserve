@@ -38,6 +38,8 @@ type State struct {
 	Committed         string               `json:"committed,omitempty"`
 	Usage             revisions.Usage      `json:"usage"`
 	Turn              OpenTurn             `json:"turn"`
+
+	Ledger []revisions.Hypothesis `json:"ledger,omitempty"`
 }
 
 type Settled struct {
@@ -85,6 +87,14 @@ func (s *State) addDiscovery(found tools.Discovery) {
 		kept++
 	}
 	s.Digest.Entries = s.Digest.Entries[len(s.Digest.Entries)-kept:]
+}
+
+func (s *State) noteLedger(ledger []revisions.Hypothesis) (changed bool) {
+	changed = !slices.EqualFunc(s.Ledger, ledger, func(a, b revisions.Hypothesis) bool {
+		return a.ID == b.ID && a.Text == b.Text && a.Status == b.Status && a.Next == b.Next && slices.Equal(a.Evidence, b.Evidence)
+	})
+	s.Ledger = ledger
+	return changed
 }
 
 func (s *State) meta(restarted bool) RunMeta {

@@ -73,6 +73,7 @@ func (s *State) usage() revisions.Usage {
 	u.SaveNowRefusals = counts.SaveNowRefusals
 	u.StalledTurns = counts.StalledTurns
 	u.OnePanelRefusals = counts.OnePanelRefusals
+	u.Hypotheses = s.Ledger
 	return u
 }
 

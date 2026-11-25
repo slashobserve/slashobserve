@@ -261,6 +261,7 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | Cost cap of a run in US dollars. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_WORKERS` | `8` | Agent requests this server runs at once, `1` to `64`. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
 | `SLASHOBSERVE_LLM_REPLAY_DIR` | unset | Folder of recorded model scripts. Required for `replay`. |
@@ -334,6 +335,14 @@ It covers every agent that runs an investigation, the built-in one and connected
 Suggest runs keep 12 and dashboard runs keep 6.
 Raise it for questions that need many reads.
 A longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` is the cap on spend.
+
+### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`
+
+With `true`, the built-in agent gets the tool `note_hypotheses` in investigations and in questions asked on a dashboard or an observation, and its prompt gains a short section that tells it to keep a ledger of candidate causes.
+The server keeps the latest ledger and writes it back into the agent's brief as a `<hypotheses>` block whenever the conversation is shortened.
+The finished run returns the last ledger as `usage.hypotheses`.
+With `false`, the tool is not offered, the prompt has no section and the brief has no block, so a run is the same as it was before the setting existed.
+Connected agents never get the tool, and changing the setting needs a server restart.
 
 ### Details of `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB`
 
