@@ -83,7 +83,7 @@ func (c *Code) Grep(ctx context.Context, pattern, rel, globPattern string) (stri
 	}
 	start, err := c.root.Stat(rel)
 	if err != nil {
-		return "", c.explain(rel, err)
+		return "", c.explain(ctx, rel, err)
 	}
 	run := &grepRun{root: c.root, re: re, glob: g}
 	if start.IsDir() {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -19,6 +20,7 @@ const (
 	maxReadBytes   = 64 << 10
 	maxReadFile    = 8 << 20
 	maxHintNames   = 40
+	maxHintScan    = 1000
 	maxHintPath    = 120
 	maxLineBytes   = 4096
 	maxGrepMatches = 100
@@ -33,10 +35,10 @@ type Code struct {
 	root *Root
 }
 
-func (c *Code) ListDir(rel string) (string, error) {
+func (c *Code) ListDir(ctx context.Context, rel string) (string, error) {
 	entries, err := c.root.ReadDir(rel)
 	if err != nil {
-		return "", c.explain(rel, err)
+		return "", c.explain(ctx, rel, err)
 	}
 	if len(entries) == 0 {
 		return "(empty directory)", nil
@@ -56,9 +58,18 @@ func (c *Code) ListDir(rel string) (string, error) {
 	return out.String(), nil
 }
 
-func (c *Code) explain(rel string, err error) error {
+type missingPath struct{ text string }
+
+func (m *missingPath) Error() string { return m.text }
+
+func (m *missingPath) Unwrap() error { return errNotFound }
+
+func (c *Code) explain(ctx context.Context, rel string, err error) error {
 	if !errors.Is(err, errNotFound) {
 		return err
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
 	}
 	name, cleanErr := c.root.clean(rel)
 	if cleanErr != nil {
@@ -71,14 +82,42 @@ func (c *Code) explain(rel string, err error) error {
 		}
 		dir = path.Dir(dir)
 	}
-	entries, readErr := c.root.ReadDir(dir)
-	if readErr != nil {
-		return err
-	}
 	where := "the root"
 	if dir != "." {
 		where = clip(dir, maxHintPath)
 	}
+	missing := firstBelow(dir, name)
+	head := fmt.Sprintf("not found: %q; ", clip(name, maxHintPath))
+	if info, lstatErr := c.root.Lstat(path.Join(dir, missing)); lstatErr == nil && info.Mode()&fs.ModeSymlink != 0 {
+		return &missingPath{fmt.Sprintf("%s%q in %s is a symlink whose target does not exist", head, clip(missing, maxHintPath), where)}
+	}
+	listing, listErr := c.neighbours(ctx, dir, missing)
+	switch {
+	case listErr != nil:
+		return listErr
+	case listing == "":
+		return &missingPath{head + where + " is empty"}
+	}
+	return &missingPath{head + where + " has: " + listing}
+}
+
+func (c *Code) neighbours(ctx context.Context, dir, missing string) (string, error) {
+	entries, err := c.root.ReadDirN(dir, maxHintScan)
+	if err != nil {
+		return "", errNotFound
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", ctxErr
+	}
+	scanCut := len(entries) == maxHintScan
+	entries = slices.DeleteFunc(entries, func(e fs.DirEntry) bool { return e.Name() == ".git" })
+	slices.SortStableFunc(entries, func(a, b fs.DirEntry) int {
+		pa, pb := sharedPrefix(a.Name(), missing), sharedPrefix(b.Name(), missing)
+		if pa != pb {
+			return pb - pa
+		}
+		return strings.Compare(a.Name(), b.Name())
+	})
 	shown := entries[:min(len(entries), maxHintNames)]
 	names := make([]string, len(shown))
 	for i, e := range shown {
@@ -88,10 +127,31 @@ func (c *Code) explain(rel string, err error) error {
 		}
 	}
 	more := ""
-	if len(entries) > len(shown) {
+	switch {
+	case scanCut:
+		more = ", and more"
+	case len(entries) > len(shown):
 		more = fmt.Sprintf(", and %d more", len(entries)-len(shown))
 	}
-	return refusal(fmt.Sprintf("not found: %q; %s has: %s%s", clip(name, maxHintPath), where, strings.Join(names, ", "), more))
+	return strings.Join(names, ", ") + more, nil
+}
+
+func firstBelow(dir, name string) string {
+	rest := name
+	if dir != "." {
+		rest = strings.TrimPrefix(name, dir+"/")
+	}
+	first, _, _ := strings.Cut(rest, "/")
+	return first
+}
+
+func sharedPrefix(a, b string) int {
+	a, b = strings.ToLower(a), strings.ToLower(b)
+	n := 0
+	for n < len(a) && n < len(b) && a[n] == b[n] {
+		n++
+	}
+	return n
 }
 
 func (c *Code) isDir(rel string, e fs.DirEntry) bool {
@@ -105,7 +165,7 @@ func (c *Code) isDir(rel string, e fs.DirEntry) bool {
 func (c *Code) ReadFile(ctx context.Context, rel string, offset, limit int) (string, error) {
 	f, info, err := c.root.OpenRegular(rel)
 	if err != nil {
-		return "", c.explain(rel, err)
+		return "", c.explain(ctx, rel, err)
 	}
 	defer func() { _ = f.Close() }()
 	if info.Size() > maxReadFile {
