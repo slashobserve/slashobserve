@@ -91,7 +91,6 @@ const notTables = [
   "src/panels/text/html.test.ts",
 ]
 
-
 export default defineConfig([
   globalIgnores([
     "dist",
