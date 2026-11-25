@@ -2,6 +2,8 @@ package contextsources
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -396,5 +398,32 @@ func TestProvisioningRefusesAUIDAnAdminAlreadyUses(t *testing.T) {
 	err := r.service.Provision(t.Context(), []config.ContextSource{{UID: "docs", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone}})
 	if err == nil || !strings.Contains(err.Error(), ErrUIDTaken.Error()) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func filedSources(prefix string, n int) []config.ContextSource {
+	out := make([]config.ContextSource, n)
+	for i := range out {
+		out[i] = config.ContextSource{UID: fmt.Sprintf("%s%d", prefix, i), URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone}
+	}
+	return out
+}
+
+func TestProvisioningCountsRowsItDeletesAndRowsItAdds(t *testing.T) {
+	r := newRig(t)
+	if err := r.service.Provision(t.Context(), filedSources("old", MaxSources)); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.service.Provision(t.Context(), filedSources("new", MaxSources)); err != nil {
+		t.Fatalf("replacing every filed source must fit under the cap: %v", err)
+	}
+
+	err := r.service.Provision(t.Context(), filedSources("more", MaxSources+1))
+	if !errors.Is(err, ErrTooMany) {
+		t.Fatalf("a file with more than %d sources: err = %v, want ErrTooMany", MaxSources, err)
+	}
+	listed, err := r.service.List(t.Context())
+	if err != nil || len(listed) != MaxSources {
+		t.Fatalf("a refused file must change nothing, got %d sources, err %v", len(listed), err)
 	}
 }
