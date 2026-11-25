@@ -86,7 +86,7 @@ describe("needsYouAction", () => {
     expect(action).toMatchObject({ kind: "link", label: "Review" })
   })
 
-  test("Reply opens the discussion of a mention and of a reply", () => {
+  test("Reply opens the thread of a mention and of a reply", () => {
     const data = { object: { kind: "observation", id: observationId } }
     for (const reason of ["mention", "reply"] as const) {
       expect(
@@ -94,7 +94,7 @@ describe("needsYouAction", () => {
       ).toEqual({
         kind: "link",
         label: "Reply",
-        to: { to: `/o/${observationId}` },
+        to: { to: `/o/${observationId}`, search: { thread: "t1" } },
       })
     }
   })
