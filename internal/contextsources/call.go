@@ -108,7 +108,7 @@ func (s *Service) Offers(ctx context.Context) ([]tools.ContextOffer, error) {
 }
 
 func offerOf(source Source, stored []Tool) tools.ContextOffer {
-	offer := tools.ContextOffer{UID: source.UID, Name: source.Name, Host: hostOfURL(source.URL), Unreachable: source.State == StateUnreachable, Failure: source.Failure}
+	offer := tools.ContextOffer{UID: source.UID, Name: source.Name, Host: hostOfURL(source.URL), Description: source.Description, Unreachable: source.State == StateUnreachable, Failure: source.Failure}
 	for _, tool := range stored {
 		if tool.State == ToolApproved {
 			offer.Tools = append(offer.Tools, tools.ContextOfferedTool{Name: tool.Name, Description: firstLine(tool.Pinned.Description), Arguments: argumentsOf(tool.Pinned.InputSchema)})

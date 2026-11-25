@@ -242,6 +242,7 @@ type ContextSource struct {
 	ID           pgtype.UUID
 	Uid          string
 	Name         string
+	Description  pgtype.Text
 	Url          string
 	Audience     string
 	SecretHeader pgtype.Text

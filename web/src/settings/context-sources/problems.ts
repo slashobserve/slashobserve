@@ -9,6 +9,7 @@ export type Audience = "everyone" | "admins"
 export type SourceInput = {
   uid: string
   name: string
+  description: string
   url: string
   audience: Audience
   secretHeader: string
@@ -21,12 +22,17 @@ export type SourceProblems = Partial<Record<keyof SourceInput, string>>
 const uidPattern = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
 const headerPattern = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,100}$/
 const maxNameCharacters = 100
+const maxDescriptionCharacters = 300
 const maxURLBytes = 2048
 const maxSecretBytes = 4096
 
 export const audienceLabels: Record<Audience, string> = {
   everyone: "Everyone",
   admins: "Admins only",
+}
+
+function hasControlOrFormatCharacter(text: string): boolean {
+  return hasControlCharacter(text) || /\p{Cf}/u.test(text)
 }
 
 function hasControlCharacter(text: string): boolean {
@@ -41,6 +47,7 @@ export function trimSource(input: SourceInput): SourceInput {
     ...input,
     uid: input.uid.trim(),
     name: input.name.trim(),
+    description: input.description.trim(),
     url: input.url.trim(),
     secretHeader: input.secretHeader.trim(),
   }
@@ -90,6 +97,11 @@ export function sourceProblems(
   if ([...input.name].length > maxNameCharacters) {
     problems.name = `The name can be at most ${maxNameCharacters} characters.`
   }
+  if ([...input.description].length > maxDescriptionCharacters) {
+    problems.description = `The description can be at most ${maxDescriptionCharacters} characters.`
+  } else if (hasControlOrFormatCharacter(input.description)) {
+    problems.description = "The description must be on one line."
+  }
   const url = urlProblem(input.url)
   if (url !== undefined) problems.url = url
   if (input.secret !== "") {
@@ -114,12 +126,14 @@ export function createBody(input: SourceInput) {
   const body: {
     uid: string
     name?: string
+    description?: string
     url: string
     audience: Audience
     secret_header?: string
     secret?: string
   } = { uid: trimmed.uid, url: trimmed.url, audience: trimmed.audience }
   if (trimmed.name !== "") body.name = trimmed.name
+  if (trimmed.description !== "") body.description = trimmed.description
   if (trimmed.secret !== "") {
     body.secret = trimmed.secret
     body.secret_header = trimmed.secretHeader
@@ -131,6 +145,7 @@ export function updateBody(initial: ContextSource, input: SourceInput) {
   const trimmed = trimSource(input)
   const body: {
     name?: string
+    description?: string
     url?: string
     audience?: Audience
     secret_header?: string
@@ -139,6 +154,9 @@ export function updateBody(initial: ContextSource, input: SourceInput) {
   } = {}
   if (trimmed.name !== "" && trimmed.name !== initial.name) {
     body.name = trimmed.name
+  }
+  if (trimmed.description !== (initial.description ?? "")) {
+    body.description = trimmed.description
   }
   if (trimmed.url !== initial.url) body.url = trimmed.url
   if (trimmed.audience !== initial.audience) body.audience = trimmed.audience

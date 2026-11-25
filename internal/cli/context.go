@@ -11,8 +11,8 @@ import (
 )
 
 type contextWriteOptions struct {
-	name, address, audience, secretHeader string
-	secretStdin, clearSecret              bool
+	name, description, address, audience, secretHeader string
+	secretStdin, clearSecret                           bool
 }
 
 type contextApproveOptions struct {
@@ -22,6 +22,7 @@ type contextApproveOptions struct {
 type contextSource struct {
 	UID          string  `json:"uid"`
 	Name         string  `json:"name"`
+	Description  *string `json:"description"`
 	URL          string  `json:"url"`
 	Audience     string  `json:"audience"`
 	SecretHeader *string `json:"secret_header"`
@@ -75,6 +76,7 @@ func (a *app) contextCommand() *cobra.Command {
 func (o *contextWriteOptions) register(cmd *cobra.Command) {
 	flags := cmd.Flags()
 	flags.StringVar(&o.name, "name", "", "the display name; the uid when empty")
+	flags.StringVar(&o.description, "description", "", "what the source is for, on one line; an empty value removes it on edit")
 	flags.StringVar(&o.address, "url", "", "the https address of the MCP server")
 	flags.StringVar(&o.audience, "audience", "", "who can use its tools: everyone, the default, or admins")
 	flags.StringVar(&o.secretHeader, "secret-header", "", "the header that carries the secret, such as Authorization")
@@ -235,10 +237,14 @@ func contextFields(s contextSource) [][2]string {
 			secret += " in " + text(*s.SecretHeader)
 		}
 	}
-	pairs := [][2]string{
-		{"UID", text(s.UID)}, {"Name", text(s.Name)}, {"URL", text(s.URL)}, {"Audience", text(s.Audience)},
-		{"State", text(s.State)}, {"Tools", contextToolSummary(s)}, {"Secret", secret},
+	pairs := [][2]string{{"UID", text(s.UID)}, {"Name", text(s.Name)}}
+	if s.Description != nil {
+		pairs = append(pairs, [2]string{"Description", text(*s.Description)})
 	}
+	pairs = append(pairs,
+		[2]string{"URL", text(s.URL)}, [2]string{"Audience", text(s.Audience)},
+		[2]string{"State", text(s.State)}, [2]string{"Tools", contextToolSummary(s)}, [2]string{"Secret", secret},
+	)
 	if s.Failure != nil {
 		pairs = append(pairs, [2]string{"Failure", text(*s.Failure)})
 	}
@@ -258,7 +264,7 @@ func (a *app) contextBody(cmd *cobra.Command, opts contextWriteOptions) (map[str
 		key   string
 		value string
 	}{
-		"name": {"name", opts.name}, "url": {"url", opts.address}, "audience": {"audience", opts.audience}, "secret-header": {"secret_header", opts.secretHeader},
+		"name": {"name", opts.name}, "description": {"description", opts.description}, "url": {"url", opts.address}, "audience": {"audience", opts.audience}, "secret-header": {"secret_header", opts.secretHeader},
 	} {
 		if flags.Changed(flag) {
 			body[entry.key] = entry.value

@@ -117,14 +117,15 @@ type job struct {
 }
 
 func New(allow Allowlist, opts Options) *Client {
-	return newClient(allow, opts, dialer(true, ""), dialer(false, ""), nil)
+	guarded := dialer(true, "")
+	return newClient(allow, opts, guarded, dialer(false, ""), guarded, nil)
 }
 
 func NewDialingTo(allow Allowlist, opts Options, address string, roots *x509.CertPool) *Client {
-	return newClient(allow, opts, dialer(true, address), dialer(false, address), roots)
+	return newClient(allow, opts, dialer(true, address), dialer(false, address), dialer(false, address), roots)
 }
 
-func newClient(allow Allowlist, opts Options, guarded, open dialFunc, roots *x509.CertPool) *Client {
+func newClient(allow Allowlist, opts Options, guarded, open, calls dialFunc, roots *x509.CertPool) *Client {
 	if opts.UserAgent == "" {
 		opts.UserAgent = defaultAgent
 	}
@@ -134,14 +135,14 @@ func newClient(allow Allowlist, opts Options, guarded, open dialFunc, roots *x50
 	if opts.CacheBytes <= 0 {
 		opts.CacheBytes = cacheBytes
 	}
-	calls := newTransport(open, roots)
-	calls.ResponseHeaderTimeout = callHeaderTimeout
+	callTransport := newTransport(calls, roots)
+	callTransport.ResponseHeaderTimeout = callHeaderTimeout
 	return &Client{
 		allow:     allow,
 		userAgent: opts.UserAgent,
 		transport: newTransport(guarded, roots),
 		private:   newTransport(open, roots),
-		calls:     calls,
+		calls:     callTransport,
 		hits:      ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
 		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
 		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),

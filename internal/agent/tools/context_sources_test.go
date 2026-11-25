@@ -307,3 +307,18 @@ func TestContextToolDescriptionsStayUnderTheAgentWordingCap(t *testing.T) {
 		}
 	}
 }
+
+func TestASourceLineIsItsDescriptionWhenItHasOne(t *testing.T) {
+	offers := []ContextOffer{
+		{UID: "docs", Name: "Docs", Host: "docs.example.com", Description: "Runbooks and design notes"},
+		{UID: "code", Name: "Code", Host: "mcp.example.com"},
+	}
+	res, err := contextRegistry(t, &fakeContextSources{offers: offers}).Call(contextViewer(), nameListContextSources, []byte(`{}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextSourcesOut)
+	if out.Sources[0].About != "Runbooks and design notes" || out.Sources[1].About != "Code, an MCP server at mcp.example.com" {
+		t.Errorf("about = %q, %q", out.Sources[0].About, out.Sources[1].About)
+	}
+}

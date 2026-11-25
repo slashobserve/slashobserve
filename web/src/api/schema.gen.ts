@@ -5201,6 +5201,8 @@ export interface components {
             type?: "prometheus" | "clickhouse" | "loki" | "tempo" | "jaeger" | "elasticsearch" | "opensearch";
             /** @description The display name; the uid when empty. */
             name?: string;
+            /** @description What the source is for, on one line without control or format characters; none when empty. */
+            description?: string;
             /**
              * @description Who can query the datasource, `everyone` by default. With `admins`, every other role, key and public link gets the same answer for it as for a datasource that does not exist.
              * @enum {string}
@@ -5289,6 +5291,8 @@ export interface components {
         ContextSource: {
             uid: string;
             name: string;
+            /** @description What the source is for, on one line; null when none was set. */
+            description: string | null;
             /** @description The MCP endpoint, https, as stored. */
             url: string;
             /**
@@ -5334,6 +5338,8 @@ export interface components {
         };
         UpdateContextSourceRequest: {
             name?: string;
+            /** @description What the source is for; an empty string removes it. */
+            description?: string;
             /** @description A URL with a new host needs `secret` or `clear_secret` in the same request when a secret is stored. */
             url?: string;
             /** @enum {string} */
