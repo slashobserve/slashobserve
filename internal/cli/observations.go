@@ -187,6 +187,7 @@ func printObservation(out *output, o observationRow) {
 	for _, f := range o.Findings {
 		if header := f.header(); len(header) > 0 {
 			out.line("")
+			out.line("Answer of run %s", text(f.RunID))
 			for _, line := range header {
 				out.line("%s", line)
 			}

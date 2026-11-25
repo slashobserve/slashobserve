@@ -30,6 +30,7 @@ type investigateOptions struct {
 
 type findingSummary struct {
 	ID       string        `json:"id"`
+	RunID    string        `json:"run_id"`
 	Title    string        `json:"title"`
 	Markdown string        `json:"markdown"`
 	URL      string        `json:"url"`

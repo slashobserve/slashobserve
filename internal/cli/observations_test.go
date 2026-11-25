@@ -483,12 +483,12 @@ func TestPrintObservationShowsTheFindingFieldsAheadOfTheBlocks(t *testing.T) {
 	printObservation(&output{out: &stdout, err: io.Discard}, observationRow{
 		Title: "Checkout 5xx", State: "open", URL: testObservedURL,
 		Findings: []findingSummary{
-			{RootCause: &findingRootCause{Component: "checkout", Kind: "deploy", Summary: "Version 42 added a retry."}, Confidence: "high"},
+			{RunID: "run-1", RootCause: &findingRootCause{Component: "checkout", Kind: "deploy", Summary: "Version 42 added a retry."}, Confidence: "high"},
 			{Markdown: "ignored"},
 		},
 	})
 	got := stdout.String()
-	if !strings.Contains(got, "\nRoot cause: checkout (deploy) - Version 42 added a retry.\nConfidence: high\n") {
+	if !strings.Contains(got, "\nAnswer of run run-1\nRoot cause: checkout (deploy) - Version 42 added a retry.\nConfidence: high\n") {
 		t.Errorf("printed %q", got)
 	}
 	if strings.Count(got, "Root cause") != 1 {
