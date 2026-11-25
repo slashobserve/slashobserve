@@ -343,7 +343,10 @@ func noMetricNamed(search string) string {
 	return fmt.Sprintf("no metric name contains %q, which does not mean no metric has it: a service, job or pod is usually a label value, so read list_labels for the label that names it, then list metrics with scope set to a selector on that label, before saying it has no metrics", search)
 }
 
-func (r *Registry) emptyScopeNote(ctx context.Context, uid, scope string) string {
+func (r *Registry) emptyScopeNote(ctx context.Context, uid, scope string, runtimeFamilies int) string {
+	if runtimeFamilies > 0 {
+		return fmt.Sprintf("only %s match %s, and runtime families are left out of the list; the selector's labels exist, and naming __name__ in the scope lists them", plural(runtimeFamilies, "runtime family", "runtime families"), clip(scope, maxStepNameBytes))
+	}
 	note := fmt.Sprintf("no metric family matches %s", clip(scope, maxStepNameBytes))
 	inst, err := r.deps.Datasources.Describe(ctx, uid)
 	if err != nil || (typeOf(inst) != spec.Prometheus && typeOf(inst) != spec.Loki) {
@@ -461,7 +464,7 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
 	if len(names.Families) == 0 {
-		out.Note = r.emptyScopeNote(ctx, names.Datasource, in.Scope)
+		out.Note = r.emptyScopeNote(ctx, names.Datasource, in.Scope, names.RuntimeFamilies)
 	}
 	listed := make([]string, len(out.Families))
 	for i, f := range out.Families {

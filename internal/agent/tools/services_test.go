@@ -266,3 +266,27 @@ func TestListServicesIncludesAMetricStoreAndNamesTheLabelItUses(t *testing.T) {
 		t.Fatalf("res = %#v, want an error for logs on Prometheus", res.Content)
 	}
 }
+
+func TestListServicesRefusesMetricsOnASourceThatHoldsOtherSignals(t *testing.T) {
+	loki, tempo := twoSources()
+	r := newServicesRegistry(t,
+		datasource.Instance{UID: "loki", Datasource: loki},
+		datasource.Instance{UID: "tempo", Datasource: tempo},
+	)
+	for _, uid := range []string{"loki", "tempo"} {
+		res, err := call(t, r, nameListServices, `{"datasource":"`+uid+`","signal":"metrics"}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.IsError {
+			t.Fatalf("%s: res = %#v, want an error for metrics", uid, res.Content)
+		}
+	}
+	res, err := call(t, r, nameListServices, `{"signal":"metrics"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 0 {
+		t.Fatalf("out = %+v, want no source for metrics", out)
+	}
+}

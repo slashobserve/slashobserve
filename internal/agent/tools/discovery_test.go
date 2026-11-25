@@ -900,3 +900,21 @@ func TestANonEmptyScopeHasNoNote(t *testing.T) {
 		t.Fatalf("res = %#v err = %v", res.Content, err)
 	}
 }
+
+func TestAnEmptyScopeWithOnlyRuntimeFamiliesDoesNotBlameTheSelector(t *testing.T) {
+	ds := &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		if req.Kind != datasource.DiscoverInventory {
+			return nil, fmt.Errorf("discover kind %q, want inventory", req.Kind)
+		}
+		return &datasource.Catalog{RuntimeFamilies: 3}, nil
+	}}
+	note := scopeNote(t, ds, `{job="shop"}`)
+	for _, want := range []string{"only 3 runtime families match", "__name__"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("note = %q, want %q", note, want)
+		}
+	}
+	if strings.Contains(note, "no metric family") || strings.Contains(note, "not among them") {
+		t.Fatalf("note = %q", note)
+	}
+}

@@ -1009,6 +1009,7 @@ It takes `datasource`, `search`, `limit` (1 to 500, 100 by default), `offset` an
 - Label keys that every family has are listed once in `common_labels`.
 - A scope too large for one result pages with `next_offset` like the other lists.
 - A scope that matches no family comes back with a `note` that lists up to 100 label keys the datasource has, on Prometheus and Loki.
+  When only runtime families match, the note says so instead.
   When the scope names a label key that is not among them, the note says so, so a guessed key such as `service_name` on a store that uses `job` shows up at once.
 - Runtime families, `up` and the names that start with `go_`, `process_`, `promhttp_` or `scrape_`, are left out of the list and counted in `runtime_families`.
   They stay in when the scope names `__name__`, as `{__name__=~"go_.+"}` or `go_goroutines{job="checkout"}` do.
@@ -1051,6 +1052,7 @@ Lists the services a log, trace or metric datasource has seen over a recent wind
 - A Prometheus source lists the values of the first of `service_name`, `service`, `app` and `job` that its series carry in the window, and names that label as `field`, the same rule Loki follows.
   `service_name` comes first because OpenTelemetry names the service that way, `service` and `app` follow as the usual hand-written labels, and `job` comes last because every scraped series has it but it names a scrape job, which is often but not always a service.
   A Prometheus source with none of them answers an empty `field` and no services.
+  Metric services come from Prometheus datasources only, not from ClickHouse metric tables.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.
 - `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
