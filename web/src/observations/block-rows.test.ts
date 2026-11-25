@@ -164,11 +164,41 @@ describe("blockTitle", () => {
       body: { panel: { type: "stat" } },
     })
     expect(blockTitle(untitled)).toBe("Panel")
-    expect(blockTitle(block("t", 0))).toBe("Text")
     expect(blockTitle(block("s", 0, "full", { kind: "snapshot" }))).toBe(
       "Snapshot"
     )
     expect(blockTitle(block("r", 0, "full", { kind: "run" }))).toBe("Run")
+  })
+})
+
+describe("blockTitle of a text block", () => {
+  const text = (markdown: unknown) =>
+    blockTitle(block("t", 0, "full", { body: { markdown } }))
+
+  it("names the block by the first words of its text", () => {
+    expect(text("Checkout slowed after the deploy.")).toBe(
+      "Checkout slowed after the deploy."
+    )
+    expect(
+      text("The payment service started timing out at 10:42 after the deploy")
+    ).toBe("The payment service started timing out...")
+  })
+
+  it("skips Markdown markers and blank lines", () => {
+    expect(text("\n\n## **Root** cause\nmore")).toBe("Root cause")
+    expect(text("- [the runbook](https://x.test/r) says restart")).toBe(
+      "the runbook says restart"
+    )
+  })
+
+  it("cuts a long unbroken word", () => {
+    expect(text("a".repeat(80))).toBe(`${"a".repeat(48)}...`)
+  })
+
+  it("falls back to Text when there is nothing to read", () => {
+    expect(text("")).toBe("Text")
+    expect(text("  \n ")).toBe("Text")
+    expect(text(undefined)).toBe("Text")
   })
 })
 

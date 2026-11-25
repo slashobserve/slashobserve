@@ -214,10 +214,34 @@ export function arrangeBody(draft: Draft): {
   }
 }
 
+const textTitleWords = 6
+const textTitleLength = 48
+
+function textBlockTitle(markdown: unknown): string {
+  if (typeof markdown !== "string") return "Text"
+  const line = markdown
+    .split("\n")
+    .map((entry) =>
+      entry
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/^\s*(?:#{1,6}|>|[-*+]|\d+[.)])\s+/, "")
+        .replace(/[*_`~]/g, "")
+        .trim()
+    )
+    .find((entry) => entry !== "")
+  if (line === undefined) return "Text"
+  const words = line.split(/\s+/)
+  const clipped = words.slice(0, textTitleWords).join(" ")
+  if (clipped.length > textTitleLength) {
+    return `${clipped.slice(0, textTitleLength).trimEnd()}...`
+  }
+  return words.length > textTitleWords ? `${clipped}...` : clipped
+}
+
 export function blockTitle(block: Block): string {
   switch (block.kind) {
     case "text":
-      return "Text"
+      return textBlockTitle(block.body.markdown)
     case "snapshot":
       return "Snapshot"
     case "run":
