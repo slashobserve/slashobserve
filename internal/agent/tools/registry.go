@@ -38,6 +38,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/observations"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 	"github.com/slashobserve/slashobserve/internal/savedsearches"
 	"github.com/slashobserve/slashobserve/internal/search"
 	"github.com/slashobserve/slashobserve/internal/stars"
@@ -109,6 +110,7 @@ type Tool struct {
 	ReadOnly    bool
 	MCPOnly     bool
 	AgentOnly   bool
+	OnlyIn      Mode
 	Claim       bool
 	MinRole     auth.Role
 	PersonOnly  bool
@@ -136,6 +138,7 @@ type Result struct {
 	Unchecked  string
 	Created    []string
 	App        json.RawMessage
+	Ledger     []revisions.Hypothesis
 }
 
 type Edits struct {
@@ -181,6 +184,8 @@ type Deps struct {
 	DraftBudget    DraftBudget
 	PublicURL      *url.URL
 	Logger         *slog.Logger
+
+	LedgerTool bool
 }
 
 type Mode string
@@ -196,6 +201,8 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	switch {
 	case t.MCPOnly:
 		return false
+	case t.OnlyIn != "":
+		return mode == t.OnlyIn
 	case t.Answers, phaseOf(t) == PhaseWrite:
 		return mode != ModeSuggest
 	case mode == ModeInvestigate:
@@ -623,14 +630,26 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 		message = "an investigate run never edits a dashboard's panels, variables or settings and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for such a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
 	case inRun && t.Answers && !t.OfferedIn(run.Mode):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
+	case inRun && !t.OfferedIn(run.Mode) && t.OnlyIn != "":
+		message = t.Name + " works only in an " + string(t.OnlyIn) + " run"
 	case !inRun && t.AgentOnly:
-		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
+		message = t.Name + " runs inside the agent; " + agentOnlyHint(t.Name)
 	default:
 		return Result{}, true
 	}
 	res := toolError(codeNotInThisRun, message)
 	res.Step = "Refused " + t.Name + ": " + codeNotInThisRun
 	return res, false
+}
+
+func agentOnlyHint(name string) string {
+	switch name {
+	case nameSaveFinding:
+		return "MCP clients use " + nameCreateObservation
+	case nameNoteHypotheses:
+		return "outside an investigate run, keep the hypotheses in your own notes"
+	}
+	return "MCP clients cannot call it"
 }
 
 func allowed(p auth.Principal, inRun bool, t Tool) bool {

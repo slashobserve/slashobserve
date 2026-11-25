@@ -8,6 +8,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -33,7 +34,13 @@ type Observation struct {
 	Abilities      folders.Abilities
 	AllowedActions []Action
 	Blocks         []Block
+	Findings       []RunFields
 	ChatRename     revisions.SharedTitle
+}
+
+type RunFields struct {
+	RunID  string
+	Fields findings.Structured
 }
 
 type Block struct {

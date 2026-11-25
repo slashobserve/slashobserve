@@ -180,10 +180,10 @@ def _ready(url: str) -> bool:
 
 
 class Stack:
-    def __init__(self, config: ServerConfig, stores: Stores, logs_dir: Path, llm_key: str | None):
+    def __init__(self, config: ServerConfig, datasources: str, logs_dir: Path, llm_key: str | None):
         suffix = secrets.token_hex(4)
         self.config = config
-        self.stores = stores
+        self.datasources = datasources
         self.logs_dir = logs_dir
         self.llm_key = llm_key
         self.postgres_name = f"slashobserve-bench-pg-{suffix}"
@@ -221,7 +221,7 @@ class Stack:
         config_dir.chmod(0o755)
         files = {
             "service-accounts.yaml": service_accounts_yaml(f"{CONFIG_DIR}/benchmark.key"),
-            "datasources.yaml": datasources_yaml(self.stores),
+            "datasources.yaml": self.datasources,
             "benchmark.key": self.key + "\n",
         }
         for name, content in files.items():

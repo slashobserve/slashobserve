@@ -53,6 +53,9 @@ func (s *State) unbackedFinding(input json.RawMessage) string {
 	if reason := s.takeAnswerFaults(input); reason != "" {
 		reasons = append(reasons, reason)
 	}
+	if reason := s.ledgerBehind(input); reason != "" {
+		reasons = append(reasons, reason)
+	}
 	return strings.Join(reasons, "; and ")
 }
 

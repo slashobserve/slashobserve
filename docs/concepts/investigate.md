@@ -63,6 +63,54 @@ The agent investigates with the same read tools it uses to build dashboards, and
 It does not get the dashboard save tools in an investigation, because an investigation never changes a dashboard.
 Investigations therefore do not wait for other requests on the same dashboard.
 
+### The hypothesis ledger
+
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.
+A plain question gets the tool but no prompt section and no `<hypotheses>` block.
+It writes down 2 to 4 candidate causes after its first look and sends the whole list again with each batch of reads.
+Each hypothesis has a short id, one sentence, a status of `open`, `supported` or `ruled_out`, up to 3 evidence lines and, for an open one, the next check.
+A hypothesis is ruled out or supported only with an evidence line that says what was read and what it showed.
+
+Details of the ledger:
+
+- It holds at most 6 hypotheses and 4 KiB of text; a longer one is refused with the reason, and the agent shortens it.
+- The tool changes nothing in the workspace and is not a read, so the call limit never refuses it.
+- A turn with only a ledger call and no read counts as a stalled turn, like a turn in which every call was refused, and two in a row end the run as `no_progress` with the step `Stopped: 2 turns in a row only updated the hypotheses`.
+- A turn spent only on the ledger still uses a model call, and that call counts toward the model-call limit.
+- The run's steps show one line for each change, such as `3 hypotheses: 1 supported, 1 ruled out, 1 open`, under the label `ledger`.
+- When the conversation is shortened, the server puts the ledger in front of the agent again in a `<hypotheses>` block.
+- The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`, for the requester and Admins only, because the ledger quotes data the run read.
+- Without the setting, the tool, the prompt section and the block are absent.
+
+### Stages and the call budget
+
+Stages belong to the built-in agent only.
+A connected agent that gets the ledger tool in an investigate run sees no stage line, no stage step and no early save message, and keeps the fixed limit.
+
+With the same setting on, the server also works out which stage the investigation is in and lets the call limit follow progress.
+The agent never declares a stage; the server derives it from the ledger and the call count after each turn.
+
+| Stage | When |
+| --- | --- |
+| `orient` | No ledger yet. |
+| `hypothesize` | A ledger exists and no hypothesis has an evidence line. |
+| `test` | At least one evidence line exists and the ledger is not ready to conclude. |
+| `conclude` | One hypothesis is supported and none is open, or the call before the limit has come. |
+
+Details of the stages:
+
+- The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
+- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`.
+  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out`, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+  The move counts when the hypothesis carried evidence already or gains an evidence line that no hypothesis of the earlier ledger had, so renaming a hypothesis earns nothing.
+  A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
+- When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.
+- After a ledger exists, two turns in a row with reads and no ledger change get one reminder to update the ledger or save; it is a message, never a refusal, and a later change followed by two more quiet turns earns another.
+  Send the ledger in the same call as reads: a turn with only ledger calls still counts as stalled.
+- Repeated reads, stalled turns, rejected findings, the cost limit and the run timeout are unchanged and end a run in any stage.
+- The finished run's `usage.call_limit` is the limit when it ended and `usage.stage_at_save` is the stage when it saved its finding.
+- Without the setting, none of this exists and the limit is the fixed one.
+
 ## Where the answer goes
 
 The answer lives in an observation: a text block that starts with `## <title>`, and one panel block for each evidence panel.
