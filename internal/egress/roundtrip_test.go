@@ -15,9 +15,17 @@ func mcpLikeMux() *http.ServeMux {
 	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(r.Method + " " + string(body)))
+		_, _ = w.Write([]byte(r.Method + " " + string(body))) //nolint:gosec // a test server echoing its request
 	})
 	return mux
+}
+
+func postEmpty(client *http.Client, address string) error {
+	resp, err := client.Post(address, "application/json", strings.NewReader(`{}`))
+	if err == nil {
+		_ = resp.Body.Close()
+	}
+	return err
 }
 
 func TestCallTripperPostsToAnAllowedHostWithTheClientsUserAgent(t *testing.T) {
@@ -40,7 +48,7 @@ func TestCallTripperPostsToAnAllowedHostWithTheClientsUserAgent(t *testing.T) {
 func TestCallTripperRefusesAHostOffTheListBeforeAnyRequest(t *testing.T) {
 	up, c := newUpstream(t, newAllow(t, "feed.test"), mcpLikeMux())
 	client := &http.Client{Transport: c.CallTripper()}
-	_, err := client.Post("https://other.test/mcp", "application/json", strings.NewReader(`{}`))
+	err := postEmpty(client, "https://other.test/mcp")
 	var hostErr *HostError
 	if !errors.As(err, &hostErr) || !errors.Is(err, ErrNotAllowed) || hostErr.Host != "other.test" {
 		t.Fatalf("error = %v, want other.test not allowed", err)
@@ -75,7 +83,7 @@ func TestCallTripperRefusesAnAddressWithoutADomainName(t *testing.T) {
 	_, c := newUpstream(t, newAllow(t, "feed.test"), mcpLikeMux())
 	client := &http.Client{Transport: c.CallTripper()}
 	for _, address := range []string{"https://127.0.0.1/mcp", "https://localhost/mcp", "https://user:pw@feed.test/mcp", "ftp://feed.test/mcp"} {
-		if _, err := client.Post(address, "application/json", strings.NewReader(`{}`)); !errors.Is(err, ErrInvalidURL) {
+		if err := postEmpty(client, address); !errors.Is(err, ErrInvalidURL) {
 			t.Errorf("%s: error = %v, want an invalid url", address, err)
 		}
 	}
@@ -86,7 +94,7 @@ func TestCallTripperNeverDialsAnAddressThatIsNotPublic(t *testing.T) {
 	loopback := up.server.Listener.Addr().String()
 	c := newClient(newAllow(t, "feed.test"), Options{}, dialer(true, loopback), dialer(false, loopback), dialer(true, loopback), nil)
 	client := &http.Client{Transport: c.CallTripper()}
-	_, err := client.Post("https://feed.test/mcp", "application/json", strings.NewReader(`{}`))
+	err := postEmpty(client, "https://feed.test/mcp")
 	if !errors.Is(err, ErrBlockedAddress) {
 		t.Fatalf("error = %v, want a blocked address", err)
 	}
