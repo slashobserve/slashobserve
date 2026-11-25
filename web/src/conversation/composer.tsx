@@ -1,4 +1,12 @@
-import { useEffect, useId, type KeyboardEvent, type ReactNode } from "react"
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useRouteContext } from "@tanstack/react-router"
 import { ArrowUpIcon } from "lucide-react"
 
@@ -22,7 +30,7 @@ import { useCoarsePointer } from "@/lib/coarse-pointer"
 import { liveRegionText } from "@/lib/live-region"
 import { isEditableTarget, isModEnter, sendsOnEnter } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
-import { useAgentInfo } from "@/observe/queries"
+import { agentInfoQuery, useAgentInfo } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
 import { PromptPicker } from "@/prompts/prompt-picker"
 import { usePromptPicker } from "@/prompts/use-prompt-picker"
@@ -73,8 +81,9 @@ type ComposerProps = {
 const keyboardHint =
   "Enter sends. Shift+Enter adds a new line. Up arrow recalls an earlier prompt. Type a slash for commands."
 
-export const connectingText =
-  "Still connecting to the agent. Sending works in a moment."
+export const queuedText = "Sending when the agent is ready"
+export const agentFailedText =
+  "Could not reach the agent, so nothing was sent. Your text is still here. Try again."
 
 const chipClass =
   "inline-flex h-6 max-w-full items-center rounded-chip border px-2 text-xs text-muted-foreground"
@@ -420,10 +429,34 @@ function PageComposer({
       })
     },
   })
-  const connecting = agent.isPending && !model.pending
+  const queryClient = useQueryClient()
+  const [phase, setPhase] = useState<"idle" | "queued" | "failed">("idle")
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  const queued = phase === "queued"
   function send() {
-    if (connecting || disabled) return
-    void model.submit()
+    if (disabled || queued) return
+    if (!agent.isPending || model.pending) {
+      setPhase("idle")
+      void model.submit()
+      return
+    }
+    setPhase("queued")
+    queryClient.ensureQueryData(agentInfoQuery()).then(
+      (info) => {
+        if (!mounted.current) return
+        setPhase("idle")
+        if (info.available !== false) void model.submit()
+      },
+      () => {
+        if (mounted.current) setPhase("failed")
+      }
+    )
   }
   const onKeyDown = useKeyDown(model, send, (event) =>
     picker.handleKeyDown(event)
@@ -490,7 +523,7 @@ function PageComposer({
     ]
       .filter((id) => id !== null)
       .join(" ") || undefined
-  const busy = model.pending || connecting
+  const busy = model.pending || queued
 
   return (
     <div className="w-full">
@@ -520,7 +553,7 @@ function PageComposer({
             value={model.text}
             rows={rows}
             placeholder={placeholder}
-            readOnly={model.pending}
+            readOnly={model.pending || queued}
             disabled={disabled}
             aria-invalid={
               model.failure?.invalid === true || counter?.over === true
@@ -530,6 +563,7 @@ function PageComposer({
             enterKeyHint={coarse ? "enter" : "send"}
             className="max-h-60 resize-none border-0 bg-transparent px-4 pt-3.5 pb-1.5 text-[15px] leading-[1.5] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 narrow:text-base"
             onChange={(event) => {
+              setPhase("idle")
               model.setText(event.target.value, event.target.selectionStart)
               picker.onValueChange(event.target.value)
             }}
@@ -605,8 +639,15 @@ function PageComposer({
         </p>
       ) : null}
       <div className="flex flex-col gap-1 pt-1.5 text-[13px]">
-        {connecting ? (
-          <p className="text-xs text-muted-foreground">{connectingText}</p>
+        {queued ? (
+          <p role="status" className="text-xs text-muted-foreground">
+            {queuedText}
+          </p>
+        ) : null}
+        {phase === "failed" ? (
+          <p role="alert" className="text-xs text-status-critical">
+            {agentFailedText}
+          </p>
         ) : null}
         <Feedback model={model} errorId={errorId} />
       </div>

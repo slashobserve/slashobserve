@@ -5,7 +5,7 @@ import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { Composer, connectingText } from "./composer"
+import { Composer, agentFailedText, queuedText } from "./composer"
 import { ungated } from "./delivery"
 import type { Subject } from "./send-plan"
 import { useComposer, type SentResult } from "./use-composer"
@@ -282,27 +282,79 @@ describe("Composer in a chat", () => {
     ).toBeInTheDocument()
   })
 
-  it("says in the page, not in a toast, why nothing sends before the agent is known", async () => {
-    const fetch = vi.fn<(request: Request) => Promise<Response>>(
-      () => new Promise<Response>(() => undefined)
-    )
-    vi.stubGlobal("fetch", fetch)
-    const { user, onSent } = renderComposer(
-      { initialText: "Why is it slow?" },
-      false
-    )
-    const field = await box()
-    const reason = await screen.findByText(connectingText)
-    expect(screen.getByRole("button", { name: "Send" })).toHaveAttribute(
-      "aria-disabled",
-      "true"
-    )
-    await user.type(field, "{Enter}")
-    expect(reason).toBeVisible()
-    expect(toasts.message).not.toHaveBeenCalled()
-    expect(
-      fetch.mock.calls.filter(([request]) => request.method === "POST")
-    ).toEqual([])
-    expect(onSent).not.toHaveBeenCalled()
+  describe("before the agent is known", () => {
+    function renderLoading() {
+      const posts: string[] = []
+      let resolveAgent: (response: Response) => void = () => undefined
+      const fetch = vi.fn<(request: Request) => Promise<Response>>(
+        async (request) => {
+          if (request.method === "POST") {
+            const body = (await request.clone().json()) as { prompt: string }
+            posts.push(body.prompt)
+            return new Response(
+              JSON.stringify({ request: { id: "r1", prompt: body.prompt } }),
+              { status: 202, headers: { "Content-Type": "application/json" } }
+            )
+          }
+          return new Promise<Response>((resolve) => {
+            resolveAgent = resolve
+          })
+        }
+      )
+      vi.stubGlobal("fetch", fetch)
+      const view = renderComposer({ initialText: "Why is it slow?" }, false)
+      return {
+        ...view,
+        posts,
+        resolveAgent: (response: Response) => resolveAgent(response),
+      }
+    }
+
+    const agentOk = () =>
+      new Response(
+        JSON.stringify({
+          available: true,
+          provider: "anthropic",
+          model: "claude-haiku-5-5",
+          effort: "medium",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+
+    it("holds Enter and sends once when the agent is ready", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      expect(await screen.findByText(queuedText)).toBeVisible()
+      expect(field).toHaveAttribute("readonly")
+      expect(posts).toEqual([])
+      await user.type(field, "{Enter}")
+      resolveAgent(agentOk())
+      await waitFor(() => expect(posts).toEqual(["Why is it slow?"]))
+      await waitFor(() => expect(screen.queryByText(queuedText)).toBeNull())
+      expect(posts).toHaveLength(1)
+      expect(toasts.message).not.toHaveBeenCalled()
+    })
+
+    it("holds a click on Send the same way", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      await box()
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      expect(await screen.findByText(queuedText)).toBeVisible()
+      resolveAgent(agentOk())
+      await waitFor(() => expect(posts).toEqual(["Why is it slow?"]))
+    })
+
+    it("sends nothing and keeps the text when the agent cannot be reached", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      await screen.findByText(queuedText)
+      resolveAgent(new Response("{}", { status: 500 }))
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(posts).toEqual([])
+      expect(field).toHaveValue("Why is it slow?")
+      expect(field).not.toHaveAttribute("readonly")
+    })
   })
 })
