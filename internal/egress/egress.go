@@ -95,6 +95,7 @@ type Client struct {
 	userAgent string
 	transport *http.Transport
 	private   *http.Transport
+	calls     *http.Transport
 	hits      *ttlcache.Cache[string, visited]
 	failures  *ttlcache.Cache[string, error]
 	group     *ttlcache.Group[visited]
@@ -133,11 +134,14 @@ func newClient(allow Allowlist, opts Options, guarded, open dialFunc, roots *x50
 	if opts.CacheBytes <= 0 {
 		opts.CacheBytes = cacheBytes
 	}
+	calls := newTransport(open, roots)
+	calls.ResponseHeaderTimeout = callHeaderTimeout
 	return &Client{
 		allow:     allow,
 		userAgent: opts.UserAgent,
 		transport: newTransport(guarded, roots),
 		private:   newTransport(open, roots),
+		calls:     calls,
 		hits:      ttlcache.New[string, visited](opts.CacheTTL, opts.CacheBytes),
 		failures:  ttlcache.New[string, error](failureTTL, failureBytes),
 		group:     ttlcache.NewGroup[visited](fetchTimeout, opts.Logger),
