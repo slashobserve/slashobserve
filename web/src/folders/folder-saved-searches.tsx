@@ -68,6 +68,7 @@ const columns: DataGridColumn<SavedSearch>[] = [
   {
     id: "actions",
     header: "Actions",
+    headerCell: () => <span className="sr-only">Actions</span>,
     width: 56,
     action: true,
     cell: (saved) => <SavedSearchRowMenu saved={saved} />,

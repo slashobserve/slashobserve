@@ -1,13 +1,13 @@
 import { screen, within } from "@testing-library/react"
-import { useTable } from "@tanstack/react-table"
 import { describe, expect, it } from "vitest"
 
 import { renderWithProviders } from "@/test/render"
 
 import {
+  actionsColumn,
   dashboardColumns,
   folderColumn,
-  listFeatures,
+  type DashboardRow,
   type DashboardSummary,
 } from "./dashboard-columns"
 
@@ -63,70 +63,67 @@ function summary(extra: Partial<DashboardSummary> = {}): DashboardSummary {
   } as DashboardSummary
 }
 
-function Row({ dashboard }: { dashboard: DashboardSummary }) {
-  const table = useTable({
-    features: listFeatures,
-    columns: dashboardColumns,
-    data: [dashboard],
-  })
-  return (
-    <table>
-      <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr key={row.id}>
-            {row.getAllCells().map((cell) => (
-              <td key={cell.id}>
-                <table.FlexRender cell={cell} />
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
+function rowOf(dashboard: DashboardSummary): DashboardRow {
+  return { kind: "dashboard", id: dashboard.id, dashboard }
 }
 
-async function cellsOf(dashboard: DashboardSummary) {
-  const view = renderWithProviders(<Row dashboard={dashboard} />, {
-    route: { path: "/", url: "/" },
-  })
-  const cells = await screen.findAllByRole("cell")
-  return { cells, unmount: view.unmount }
+const all = [...dashboardColumns, folderColumn, actionsColumn]
+
+async function cellOf(id: string, dashboard: DashboardSummary) {
+  const column = all.find((candidate) => candidate.id === id)
+  if (column === undefined) throw new Error(`no column ${id}`)
+  const view = renderWithProviders(
+    <div data-testid="cell">{column.cell(rowOf(dashboard))}</div>,
+    { route: { path: "/", url: "/" } }
+  )
+  const cell = await screen.findByTestId("cell")
+  return { cell, unmount: view.unmount }
 }
 
 describe("column widths", () => {
-  const all = [...dashboardColumns, folderColumn]
-
   it("gives Title a minimum width and no fixed width", () => {
     const title = all.find((c) => c.id === "title")
-    expect(title?.meta?.cellClassName).toMatch(/(^| )min-w-60( |$)/)
-    expect(title?.meta?.cellClassName).not.toMatch(/(^| )w-\d/)
+    expect(title?.minWidth).toBeGreaterThan(0)
+    expect(title?.width).toBeUndefined()
   })
 
-  it("fixes the width of every other data column in header and cell alike", () => {
-    for (const c of all.filter((c) => c.id !== "title" && c.id !== "actions")) {
-      expect(c.meta?.headerClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
-      expect(c.meta?.cellClassName, c.id).toMatch(/(^| )w-\d+( |$)/)
+  it("fixes the width of every other column", () => {
+    for (const c of all.filter((c) => c.id !== "title")) {
+      expect(c.width, c.id).toBeGreaterThan(0)
     }
+  })
+
+  it("hides Datasources and Open comments when the grid is cramped, and no other column", () => {
+    expect(
+      all.filter((c) => c.hideBelow !== undefined).map((c) => c.id)
+    ).toEqual(["datasources", "openComments"])
   })
 })
 
 describe("the open in a new tab link", () => {
   it("is out of the tab order and a target of at least 24 by 24 pixels", async () => {
-    const { cells } = await cellsOf(summary())
-    const link = within(cells[0]).getByRole("link", {
+    await cellOf("title", summary())
+    const link = await screen.findByRole("link", {
       name: "Open Checkout service health in a new tab",
     })
     expect(link).toHaveAttribute("tabindex", "-1")
     expect(link).toHaveClass("size-6")
   })
+
+  it("shows on the grid's row hover and stays visible on touch screens", async () => {
+    await cellOf("title", summary())
+    const link = await screen.findByRole("link", {
+      name: "Open Checkout service health in a new tab",
+    })
+    expect(link).toHaveClass("opacity-0", "[.ag-row-hover_&]:opacity-100")
+    expect(link.className).toContain("[@media(hover:none)]:opacity-100")
+  })
 })
 
 describe("dashboardColumns", () => {
   it("lists the canvas columns in order", () => {
-    const [title, ...others] = dashboardColumns
-    expect(typeof title.header).toBe("function")
-    expect(others.map((c) => c.header)).toEqual([
+    expect(dashboardColumns.map((c) => c.header)).toEqual([
+      "Title",
       "Health",
       "Made by",
       "Datasources",
@@ -153,11 +150,9 @@ describe("dashboardColumns", () => {
   })
 
   it("right-aligns only Updated", () => {
-    const right = dashboardColumns.filter((c) =>
-      c.meta?.headerClassName?.includes("text-right")
-    )
-    expect(right.map((c) => c.id)).toEqual(["updated"])
-    expect(right[0].meta?.cellClassName).toContain("text-right")
+    expect(all.filter((c) => c.align === "right").map((c) => c.id)).toEqual([
+      "updated",
+    ])
   })
 })
 
@@ -230,36 +225,41 @@ describe("dashboard list cells", () => {
       },
     ]
     for (const { creator, text, hover } of cases) {
-      const { cells, unmount } = await cellsOf(summary({ creator }))
-      expect(cells[2].textContent).toBe(text)
-      expect(cells[2].firstElementChild).toHaveAttribute("title", hover)
-      expect(cells[2].querySelectorAll("div")).toHaveLength(1)
+      const { cell, unmount } = await cellOf("madeBy", summary({ creator }))
+      expect(cell.textContent).toBe(text)
+      expect(cell.firstElementChild).toHaveAttribute("title", hover)
+      expect(cell.querySelectorAll("div")).toHaveLength(1)
       unmount()
     }
   })
 
   it("leaves Datasources and Open comments empty when there are none", async () => {
-    const { cells, unmount } = await cellsOf(summary())
-    expect(cells[3].textContent).toBe("")
-    expect(cells[4].textContent).toBe("")
-    unmount()
+    const empty = summary()
+    for (const id of ["datasources", "openComments"]) {
+      const { cell, unmount } = await cellOf(id, empty)
+      expect(cell.textContent, id).toBe("")
+      unmount()
+    }
 
-    const filled = await cellsOf(
-      summary({ datasource_uids: ["prom", "ch"], open_comment_count: 3 })
-    )
-    expect(filled.cells[3].textContent).toBe("prom, ch")
-    expect(filled.cells[4].textContent).toBe("3")
+    const filled = summary({
+      datasource_uids: ["prom", "ch"],
+      open_comment_count: 3,
+    })
+    const datasources = await cellOf("datasources", filled)
+    expect(datasources.cell.textContent).toBe("prom, ch")
+    datasources.unmount()
+    expect((await cellOf("openComments", filled)).cell.textContent).toBe("3")
   })
 
   it("shows how many people opened the dashboard in the window", async () => {
-    const { cells } = await cellsOf(summary({ view_count: 12 }))
-    expect(cells[6].textContent).toBe("12")
+    const { cell } = await cellOf("views", summary({ view_count: 12 }))
+    expect(cell.textContent).toBe("12")
   })
 
   it("clamps the description to one line and keeps the full text on hover", async () => {
     const description = "Requests, latency and errors by pod"
-    const { cells } = await cellsOf(summary({ description }))
-    const line = within(cells[0]).getByText(description)
+    const { cell } = await cellOf("title", summary({ description }))
+    const line = within(cell).getByText(description)
     expect(line).toHaveClass("line-clamp-1")
     expect(line).toHaveAttribute("title", description)
   })

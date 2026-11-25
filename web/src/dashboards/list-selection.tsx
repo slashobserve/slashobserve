@@ -28,7 +28,7 @@ export function ListSelectionProvider({
 }
 
 const gutterPlacement =
-  "absolute top-[13px] left-3.5 narrow:static narrow:mr-2.5 narrow:inline-flex narrow:align-middle"
+  "absolute top-3 left-0 narrow:static narrow:mr-2.5 narrow:inline-flex narrow:align-middle"
 
 export function RowSelectBox({ dashboard }: { dashboard: DashboardSummary }) {
   const selection = useContext(ListSelectionContext)

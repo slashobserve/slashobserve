@@ -1,25 +1,17 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
-import { useTable } from "@tanstack/react-table"
 import { SearchIcon } from "lucide-react"
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
+import { DataGrid } from "@/components/data-grid/data-grid"
+import { skeletonRows } from "@/components/data-grid/skeleton-cell"
 import { LoadProblem } from "@/components/load-problem"
 import { RoleGate } from "@/components/role-gate"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { FolderHeaderRow } from "@/folders/folder-header-row"
 import { moveChoices } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
@@ -36,7 +28,7 @@ import {
   actionsColumn,
   dashboardColumns,
   folderColumn,
-  listFeatures,
+  type DashboardRow,
   type DashboardSummary,
 } from "./dashboard-columns"
 import {
@@ -77,7 +69,7 @@ import {
 } from "./list-pages"
 import { SortMenu } from "./sort-menu"
 
-const skeletonRows = 5
+const skeletonCount = 5
 const searchDelayMs = 250
 const emptyList: DashboardSummary[] = []
 const groupedColumns = [...dashboardColumns, actionsColumn]
@@ -87,7 +79,8 @@ const flatColumns = [
   ...dashboardColumns.slice(1),
   actionsColumn,
 ]
-const dashboardRowId = (dashboard: DashboardSummary) => dashboard.id
+const dashboardRowId = (row: DashboardRow) => row.id
+const skeleton = skeletonRows(skeletonCount)
 
 function useDashboardList(
   search: ListSearch,
@@ -123,29 +116,6 @@ function useDashboardList(
     staleTime: 15_000,
     placeholderData: (previous) => previous,
   })
-}
-
-function useListTable(data: DashboardSummary[], flat: boolean) {
-  return useTable({
-    features: listFeatures,
-    columns: flat ? flatColumns : groupedColumns,
-    data,
-    getRowId: dashboardRowId,
-  })
-}
-
-type ListTable = ReturnType<typeof useListTable>
-
-function SkeletonRows({ table }: { table: ListTable }) {
-  return Array.from({ length: skeletonRows }, (_, index) => (
-    <tr key={index}>
-      {table.getAllLeafColumns().map((column) => (
-        <Cell key={column.id}>
-          <Skeleton className={column.columnDef.meta?.skeletonClassName} />
-        </Cell>
-      ))}
-    </tr>
-  ))
 }
 
 type FilterRowProps = {
@@ -255,83 +225,61 @@ function FilterRow({
   )
 }
 
-function flatRows(table: ListTable): ReactNode[] {
-  return table.getRowModel().rows.map((row) => (
-    <tr key={row.id} data-dashboard-id={row.id} className="group/row">
-      {row.getAllCells().map((cell) => (
-        <Cell
-          key={cell.id}
-          data-cell={cell.column.id === actionsColumn.id ? "action" : undefined}
-          data-label={cell.column.columnDef.meta?.stackedLabel}
-          className={cell.column.columnDef.meta?.cellClassName}
-        >
-          <table.FlexRender cell={cell} />
-        </Cell>
-      ))}
-    </tr>
-  ))
+const emptyFolderRow = (
+  <div className="px-3.5 py-3 pl-11 text-[13px] text-muted-foreground">
+    No dashboards yet
+  </div>
+)
+
+function folderRowOf(toggle: (folderId: string) => void) {
+  return {
+    is: (row: DashboardRow) => row.kind === "folder" || row.kind === "empty",
+    render: (row: DashboardRow) =>
+      row.kind === "folder" ? (
+        <FolderHeaderRow
+          folder={row.section.folder}
+          collapsed={row.collapsed}
+          continued={row.section.continued}
+          countText={row.countText}
+          onToggle={() => toggle(row.section.folder.id)}
+        />
+      ) : (
+        emptyFolderRow
+      ),
+  }
 }
 
-function sectionRows(
-  sections: FolderSection[],
+function listRows(
+  sections: FolderSection[] | null,
+  dashboards: DashboardSummary[],
   collapsed: ReadonlySet<string>,
-  toggle: (folderId: string) => void,
-  table: ListTable,
   folderLocked: boolean
-): ReactNode[] {
-  const columnCount = table.getAllLeafColumns().length
-  const tableRows = new Map(
-    table.getRowModel().rows.map((row) => [row.id, row])
-  )
-  return sections.flatMap((section) => {
+): DashboardRow[] {
+  const dashboardRow = (dashboard: DashboardSummary): DashboardRow => ({
+    kind: "dashboard",
+    id: dashboard.id,
+    dashboard,
+  })
+  if (sections === null) return dashboards.map(dashboardRow)
+  return sections.flatMap((section): DashboardRow[] => {
     const isCollapsed = !folderLocked && collapsed.has(section.folder.id)
-    const header = folderLocked ? null : (
-      <FolderHeaderRow
-        key={`folder:${section.folder.id}`}
-        folder={section.folder}
-        collapsed={isCollapsed}
-        continued={section.continued}
-        countText={
-          section.count === null ? null : dashboardCountText(section.count)
-        }
-        columnCount={columnCount}
-        onToggle={() => toggle(section.folder.id)}
-      />
-    )
-    if (isCollapsed) return [header]
-    if (section.empty) {
-      return [
-        header,
-        <tr key={`empty:${section.folder.id}`}>
-          <Cell colSpan={columnCount} className="pl-11 text-muted-foreground">
-            No dashboards yet
-          </Cell>
-        </tr>,
-      ]
-    }
-    return [
-      header,
-      ...section.rows.flatMap((item) => {
-        const row = tableRows.get(item.id)
-        if (row === undefined) return []
-        return [
-          <tr key={row.id} data-dashboard-id={row.id} className="group/row">
-            {row.getAllCells().map((cell) => (
-              <Cell
-                key={cell.id}
-                data-cell={
-                  cell.column.id === actionsColumn.id ? "action" : undefined
-                }
-                data-label={cell.column.columnDef.meta?.stackedLabel}
-                className={cell.column.columnDef.meta?.cellClassName}
-              >
-                <table.FlexRender cell={cell} />
-              </Cell>
-            ))}
-          </tr>,
+    const header: DashboardRow[] = folderLocked
+      ? []
+      : [
+          {
+            kind: "folder",
+            id: `folder:${section.folder.id}`,
+            section,
+            collapsed: isCollapsed,
+            countText:
+              section.count === null ? null : dashboardCountText(section.count),
+          },
         ]
-      }),
-    ]
+    if (isCollapsed) return header
+    if (section.empty) {
+      return [...header, { kind: "empty", id: `empty:${section.folder.id}` }]
+    }
+    return [...header, ...section.rows.map(dashboardRow)]
   })
 }
 
@@ -367,7 +315,7 @@ export function DashboardList({
   const total = query.data?.total_count ?? 0
   const dataOffset = query.data?.offset ?? 0
   const flat = search.sort !== undefined
-  const table = useListTable(dashboards, flat)
+  const columns = flat ? flatColumns : groupedColumns
   const allFolders = folderResult.data
   const folders = useMemo(
     () =>
@@ -415,6 +363,23 @@ export function DashboardList({
     : sections !== null
   const rowCount = flat ? dashboards.length : (sections?.length ?? 0)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const toggleFolder = useCallback(
+    (folderId: string) =>
+      setCollapsed((current) => {
+        const next = new Set(current)
+        if (!next.delete(folderId)) next.add(folderId)
+        return next
+      }),
+    []
+  )
+  const rows = useMemo(
+    () =>
+      ready
+        ? listRows(sections, dashboards, collapsed, folderLocked)
+        : skeleton,
+    [ready, sections, dashboards, collapsed, folderLocked]
+  )
+  const folderRow = useMemo(() => folderRowOf(toggleFolder), [toggleFolder])
   const selectionScope = JSON.stringify([search, page, folderId])
   const [chosen, setChosen] = useState<{
     scope: string
@@ -514,13 +479,6 @@ export function DashboardList({
     (next: ListSearch) => onSearchChange(withoutPage(next)),
     [onSearchChange]
   )
-
-  const toggleFolder = (folderId: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (!next.delete(folderId)) next.add(folderId)
-      return next
-    })
 
   const pageCount = pageCountOf(total)
   const range = pageRange(page, total)
@@ -662,48 +620,15 @@ export function DashboardList({
         ) : null}
         {showTable ? (
           <ListSelectionProvider value={selection}>
-            <TableCard
-              minWidth={700}
+            <DataGrid
               labelledBy={labelledBy}
               ref={regionRef}
-              stackOnNarrow
-            >
-              <thead>
-                {table.getHeaderGroups().map((group) => (
-                  <tr key={group.id}>
-                    {group.headers.map((header) => (
-                      <HeaderCell
-                        key={header.id}
-                        className={
-                          header.column.columnDef.meta?.headerClassName
-                        }
-                      >
-                        <table.FlexRender header={header} />
-                      </HeaderCell>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody
-                aria-busy={
-                  pending || query.isPlaceholderData || clampTo !== null
-                }
-              >
-                {!ready ? (
-                  <SkeletonRows table={table} />
-                ) : sections === null ? (
-                  flatRows(table)
-                ) : (
-                  sectionRows(
-                    sections,
-                    collapsed,
-                    toggleFolder,
-                    table,
-                    folderLocked
-                  )
-                )}
-              </tbody>
-            </TableCard>
+              busy={pending || query.isPlaceholderData || clampTo !== null}
+              rows={rows}
+              columns={columns}
+              rowId={dashboardRowId}
+              fullWidthRow={folderRow}
+            />
             {loaded && pageCount > 1 && clampTo === null ? (
               <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                 <p className="text-xs text-muted-foreground tabular-nums">

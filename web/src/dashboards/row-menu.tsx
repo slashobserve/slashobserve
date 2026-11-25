@@ -34,9 +34,15 @@ type Target = { id: string; title: string }
 
 function listedDashboardIds(): string[] {
   return Array.from(
-    document.querySelectorAll<HTMLTableRowElement>("tr[data-dashboard-id]"),
-    (row) => row.dataset.dashboardId ?? ""
+    document.querySelectorAll<HTMLElement>('[role="row"][row-id]')
   )
+    .filter((row) => !row.getAttribute("row-id")?.includes(":"))
+    .sort(
+      (a, b) =>
+        Number(a.getAttribute("row-index")) -
+        Number(b.getAttribute("row-index"))
+    )
+    .map((row) => row.getAttribute("row-id") ?? "")
 }
 
 function focusNeighbour(neighbour: string | null) {
@@ -44,7 +50,7 @@ function focusNeighbour(neighbour: string | null) {
     neighbour === null
       ? document.querySelector<HTMLElement>("main h1")
       : document.querySelector<HTMLElement>(
-          `tr[data-dashboard-id="${neighbour}"] a`
+          `[role="row"][row-id="${neighbour}"] a`
         )
   if (target === null) return
   if (neighbour === null && !target.hasAttribute("tabindex")) {

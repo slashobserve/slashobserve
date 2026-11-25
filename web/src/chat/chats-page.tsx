@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { MessageSquareIcon, PinIcon, SearchIcon } from "lucide-react"
 
@@ -284,85 +284,6 @@ function ChatTitle({
   )
 }
 
-function chatColumns({
-  everyone,
-  afterDelete,
-  renamingId,
-  onRename,
-}: {
-  everyone: boolean
-  afterDelete: RefObject<HTMLElement | null>
-  renamingId: string | null
-  onRename: (chatId: string | null) => void
-}): DataGridColumn<Chat>[] {
-  return [
-    {
-      id: "chat",
-      header: "Chat",
-      minWidth: 240,
-      flex: 3,
-      autoHeight: true,
-      cell: (chat) => (
-        <ChatTitle
-          chat={chat}
-          everyone={everyone}
-          renaming={renamingId === chat.id}
-          onRenamed={() => onRename(null)}
-        />
-      ),
-    },
-    {
-      id: "dashboard",
-      header: "Dashboard",
-      minWidth: 160,
-      flex: 2,
-      cell: (chat) => (
-        <span className="block max-w-[240px] truncate text-muted-foreground">
-          {dashboardLabel(chat) ?? noDashboardLabel}
-        </span>
-      ),
-    },
-    {
-      id: "turns",
-      header: "Turns",
-      width: 80,
-      cell: (chat) => (
-        <span className="text-muted-foreground">
-          {chat.turns.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      id: "lastMessage",
-      header: "Last message",
-      width: 140,
-      cell: (chat) => (
-        <span className="whitespace-nowrap text-muted-foreground">
-          <RelativeTime iso={chat.last_turn_at} />
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: "Actions",
-      headerCell: () => <span className="sr-only">Actions</span>,
-      width: 56,
-      action: true,
-      cell: (chat) =>
-        chat.read_only || renamingId === chat.id ? null : (
-          <ChatRowMenu
-            request={chat}
-            wholeChat
-            current={false}
-            onRename={() => onRename(chat.id)}
-            afterDelete={afterDelete}
-            className={rowActionClass}
-          />
-        ),
-    },
-  ]
-}
-
 const chatId = (chat: Chat) => chat.id
 
 function ChatTable({
@@ -374,14 +295,73 @@ function ChatTable({
 }) {
   const table = useRef<HTMLDivElement>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
-  const columns = useMemo(
-    () =>
-      chatColumns({
-        everyone,
-        afterDelete: table,
-        renamingId,
-        onRename: setRenamingId,
-      }),
+  const columns = useMemo<DataGridColumn<Chat>[]>(
+    () => [
+      {
+        id: "chat",
+        header: "Chat",
+        minWidth: 240,
+        flex: 3,
+        autoHeight: true,
+        cell: (chat) => (
+          <ChatTitle
+            chat={chat}
+            everyone={everyone}
+            renaming={renamingId === chat.id}
+            onRenamed={() => setRenamingId(null)}
+          />
+        ),
+      },
+      {
+        id: "dashboard",
+        header: "Dashboard",
+        minWidth: 160,
+        flex: 2,
+        cell: (chat) => (
+          <span className="block max-w-[240px] truncate text-muted-foreground">
+            {dashboardLabel(chat) ?? noDashboardLabel}
+          </span>
+        ),
+      },
+      {
+        id: "turns",
+        header: "Turns",
+        width: 80,
+        cell: (chat) => (
+          <span className="text-muted-foreground">
+            {chat.turns.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        id: "lastMessage",
+        header: "Last message",
+        width: 140,
+        cell: (chat) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            <RelativeTime iso={chat.last_turn_at} />
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        headerCell: () => <span className="sr-only">Actions</span>,
+        width: 56,
+        action: true,
+        cell: (chat) =>
+          chat.read_only || renamingId === chat.id ? null : (
+            <ChatRowMenu
+              request={chat}
+              wholeChat
+              current={false}
+              onRename={() => setRenamingId(chat.id)}
+              afterDelete={table}
+              className={rowActionClass}
+            />
+          ),
+      },
+    ],
     [everyone, renamingId]
   )
   return (
