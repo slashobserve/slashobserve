@@ -15,6 +15,10 @@ import { PersonRole } from "./role-select"
 import { isOnline } from "./sign-in-policy"
 import { SignOutEverywhereButton } from "./sign-out-everywhere-button"
 
+function personId(user: User): string {
+  return user.id
+}
+
 function peopleColumns(now: number): DataGridColumn<User>[] {
   return [
     {
@@ -135,7 +139,7 @@ export function PeopleTable() {
       label="People"
       rows={query.data}
       columns={peopleColumns(now)}
-      rowId={(user) => user.id}
+      rowId={personId}
       rowAttributes={(user) => ({ "data-user-id": user.id })}
     />
   )

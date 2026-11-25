@@ -38,6 +38,10 @@ import {
 } from "./queries"
 import { SettingsCard, SettingsProblem } from "@/settings/settings-card"
 
+function datasourceId(datasource: GrafanaDatasource): string {
+  return datasource.uid
+}
+
 type Props = {
   connection: GrafanaConnection
   onCancel: () => void
@@ -335,7 +339,7 @@ function DatasourceChoice({
           label="Datasources"
           rows={matchable}
           columns={datasourceColumns(picks, onPick)}
-          rowId={(datasource) => datasource.uid}
+          rowId={datasourceId}
         />
       ) : (
         <p className="text-[13px] text-muted-foreground">

@@ -9,6 +9,10 @@ import { PresenceStatus } from "./connected-table"
 import { agentLink } from "./agent-ref"
 import type { ServiceAccountRow } from "./queries"
 
+function accountRowId(row: ServiceAccountRow): string {
+  return row.id
+}
+
 export function accountMark(row: ServiceAccountRow) {
   return markOf({
     kind: "service_account",
@@ -109,7 +113,7 @@ export function ServiceAccountsTable({
           label="Service accounts that take runs"
           rows={rows}
           columns={accountColumns(showStats)}
-          rowId={(row) => row.id}
+          rowId={accountRowId}
         />
       )}
     </div>

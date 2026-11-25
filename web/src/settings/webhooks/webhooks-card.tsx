@@ -43,6 +43,10 @@ import {
 import { deliverySummary, webhookStatus } from "./status"
 import { formatLabels, webhookProblemText } from "./webhook-problems"
 
+function webhookId(webhook: Webhook): string {
+  return webhook.id
+}
+
 type Props = {
   webhooks: Webhook[]
   editingId: string | null
@@ -370,7 +374,7 @@ export function WebhooksCard({
         label="Webhooks"
         rows={webhooks}
         columns={columns}
-        rowId={(webhook) => webhook.id}
+        rowId={webhookId}
         highlightedRowId={editingId}
         detail={{
           open: openDetail,

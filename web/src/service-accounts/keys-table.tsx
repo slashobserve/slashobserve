@@ -19,6 +19,10 @@ import {
 import { RevokeKeyButton } from "./revoke-key-button"
 import { useAllKeys } from "./use-all-keys"
 
+function keyRowId(row: KeyRow): string {
+  return row.key.id
+}
+
 type Props = {
   onCreate: () => void
   revokeFocus: RefObject<HTMLElement | null>
@@ -202,7 +206,7 @@ export function KeysTable({ onCreate, revokeFocus }: Props) {
           createdBy,
           revokeFocus,
         })}
-        rowId={({ key }) => key.id}
+        rowId={keyRowId}
         rowAttributes={({ key }) => ({ "data-key-id": key.id })}
       />
       {keys.loadingMore ? (

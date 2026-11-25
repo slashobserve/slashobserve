@@ -29,6 +29,10 @@ import {
 } from "./sources"
 import { useBrowsableSources } from "./use-sources"
 
+function sourceId(source: DatasourceStatus): string {
+  return source.uid
+}
+
 const emptyTitles = {
   logs: "No log sources",
   traces: "No trace sources",
@@ -189,7 +193,7 @@ export function ExploreList({ kind }: { kind: ExploreKind }) {
             label="Sources"
             rows={shown}
             columns={sourceColumns(kind, signal, services)}
-            rowId={(source) => source.uid}
+            rowId={sourceId}
             empty={
               <p className="rounded-card border px-3.5 py-3 text-[13px] text-muted-foreground">
                 No source or service matches the filter.

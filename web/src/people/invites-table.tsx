@@ -21,6 +21,10 @@ import {
 } from "./invites"
 import { RoleSelect } from "./role-select"
 
+function inviteId(invite: Invite): string {
+  return invite.id
+}
+
 function InviteRole({ invite }: { invite: Invite }) {
   const save = useSaveInvite()
   const shown = save.isPending ? save.variables.role : invite.role
@@ -168,7 +172,7 @@ export function InvitesTable() {
         label="Pending invites"
         rows={query.data}
         columns={inviteColumns}
-        rowId={(invite) => invite.id}
+        rowId={inviteId}
         rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
       />
     </section>

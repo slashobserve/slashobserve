@@ -10,6 +10,10 @@ import { agentLink } from "./agent-ref"
 import type { ConnectedRow } from "./queries"
 import { presenceLabel, type Presence } from "./stats"
 
+function grantRowId(row: ConnectedRow): string {
+  return row.grant_id
+}
+
 type Props = {
   rows: readonly ConnectedRow[]
   onConnect: () => void
@@ -116,7 +120,7 @@ export function ConnectedTable({ rows, onConnect }: Props) {
           label="Connected agents"
           rows={rows}
           columns={connectedColumns}
-          rowId={(row) => row.grant_id}
+          rowId={grantRowId}
         />
       )}
     </div>

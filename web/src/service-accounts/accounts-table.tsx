@@ -26,6 +26,10 @@ import {
 import type { ServiceAccount } from "./queries"
 import { useAllKeys } from "./use-all-keys"
 
+function accountId(account: ServiceAccount): string {
+  return account.id
+}
+
 type DeleteProps = {
   account: ServiceAccount
   liveKeys: number
@@ -198,7 +202,7 @@ export function AccountsTable({
         label="Service accounts"
         rows={keys.accounts}
         columns={accountColumns(live, deleteFocus)}
-        rowId={(account) => account.id}
+        rowId={accountId}
         rowAttributes={(account) => ({ "data-account-id": account.id })}
       />
     </section>

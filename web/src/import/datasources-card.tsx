@@ -13,6 +13,10 @@ import type { ImportSourceDatasource } from "./errors"
 import type { Mapping } from "./queries"
 import { datasourceKindLabel, visibleDatasources } from "./report"
 
+function importDatasourceId(datasource: ImportSourceDatasource): string {
+  return datasource.key
+}
+
 type Props = {
   datasources: ImportSourceDatasource[]
   mapping: Mapping
@@ -136,7 +140,7 @@ export function DatasourcesCard({
         label="Datasources"
         rows={visibleDatasources(datasources)}
         columns={columns}
-        rowId={(datasource) => datasource.key}
+        rowId={importDatasourceId}
         bare
       />
     </div>

@@ -29,6 +29,10 @@ import {
   type DatasourceStatus,
 } from "./queries"
 
+function datasourceId(datasource: DatasourceStatus): string {
+  return datasource.uid
+}
+
 type Props = {
   onAdd: (trigger: HTMLElement) => void
   onEdit: (uid: string, trigger: HTMLElement) => void
@@ -201,7 +205,7 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
       label="Datasources"
       rows={datasources.data}
       columns={columns}
-      rowId={(datasource) => datasource.uid}
+      rowId={datasourceId}
       rowAttributes={(datasource) => ({ "data-uid": datasource.uid })}
     />
   )

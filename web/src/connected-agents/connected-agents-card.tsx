@@ -28,6 +28,10 @@ import {
 } from "./rows"
 import { claudeOAuthSnippet } from "./snippets"
 
+function grantId(grant: ConnectedAgent): string {
+  return grant.id
+}
+
 const myHint = "MCP clients you approved. Each acts as you."
 const ownHint =
   "Change how an agent saves, or disconnect it. Disconnecting ends it at once."
@@ -276,7 +280,7 @@ function GrantsTable({
       label={label}
       rows={grants}
       columns={grantColumns(scope)}
-      rowId={(grant) => grant.id}
+      rowId={grantId}
       bare
       className="border-t"
     />

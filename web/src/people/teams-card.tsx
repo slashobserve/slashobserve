@@ -51,6 +51,10 @@ import {
   type Team,
 } from "./teams"
 
+function teamId(team: Team): string {
+  return team.id
+}
+
 function personLabel(person: { name: string; email: string }): string {
   return person.name === "" ? person.email : person.name
 }
@@ -397,7 +401,7 @@ function TeamsBody() {
       label="Teams"
       rows={teams.data}
       columns={teamColumns(people.data ?? [])}
-      rowId={(team) => team.id}
+      rowId={teamId}
       rowAttributes={(team) => ({ "data-team-id": team.id })}
     />
   )

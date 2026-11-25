@@ -32,6 +32,10 @@ import {
 } from "./queries"
 import { summaryText } from "./results"
 
+function connectionId(connection: GrafanaConnection): string {
+  return connection.id
+}
+
 type Props = {
   connections: GrafanaConnection[]
   onImport: (connection: GrafanaConnection) => void
@@ -236,7 +240,7 @@ export function ConnectionsCard({ connections, onImport, onEdit }: Props) {
         label="Grafana connections"
         rows={connections}
         columns={columns}
-        rowId={(connection) => connection.id}
+        rowId={connectionId}
         bare
         className="border-t"
       />
