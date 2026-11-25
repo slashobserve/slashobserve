@@ -1,4 +1,5 @@
 import { ApiError } from "@/api/errors"
+import { plainText } from "@/search/plain-text"
 import type { DataPanel, Variable } from "@/spec"
 
 import { blockWriteProblem } from "./errors"
@@ -216,26 +217,26 @@ export function arrangeBody(draft: Draft): {
 
 const textTitleWords = 6
 const textTitleLength = 48
+const ellipsis = "\u2026"
+const thematicBreak = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/
+const markersOnly = /^(?:(?:#{1,6}|>|[-*+]|\d+[.)])\s*)+$/
 
 function textBlockTitle(markdown: unknown): string {
   if (typeof markdown !== "string") return "Text"
   const line = markdown
     .split("\n")
-    .map((entry) =>
-      entry
-        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-        .replace(/^\s*(?:#{1,6}|>|[-*+]|\d+[.)])\s+/, "")
-        .replace(/[*_`~]/g, "")
-        .trim()
-    )
-    .find((entry) => entry !== "")
+    .filter((entry) => !thematicBreak.test(entry))
+    .map((entry) => plainText(entry).trim())
+    .find((entry) => entry !== "" && !markersOnly.test(entry))
   if (line === undefined) return "Text"
   const words = line.split(/\s+/)
-  const clipped = words.slice(0, textTitleWords).join(" ")
+  const clipped = Array.from(words.slice(0, textTitleWords).join(" "))
   if (clipped.length > textTitleLength) {
-    return `${clipped.slice(0, textTitleLength).trimEnd()}...`
+    return clipped.slice(0, textTitleLength).join("").trimEnd() + ellipsis
   }
-  return words.length > textTitleWords ? `${clipped}...` : clipped
+  return words.length > textTitleWords
+    ? clipped.join("") + ellipsis
+    : clipped.join("")
 }
 
 export function blockTitle(block: Block): string {

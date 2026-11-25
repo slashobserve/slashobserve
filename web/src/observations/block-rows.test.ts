@@ -181,7 +181,7 @@ describe("blockTitle of a text block", () => {
     )
     expect(
       text("The payment service started timing out at 10:42 after the deploy")
-    ).toBe("The payment service started timing out...")
+    ).toBe("The payment service started timing out…")
   })
 
   it("skips Markdown markers and blank lines", () => {
@@ -191,8 +191,38 @@ describe("blockTitle of a text block", () => {
     )
   })
 
+  it("keeps snake_case words and strips paired emphasis", () => {
+    expect(text("payment_service is *slow* and _late_")).toBe(
+      "payment_service is slow and late"
+    )
+  })
+
+  it("strips stacked block markers", () => {
+    expect(text("> ## Root cause")).toBe("Root cause")
+    expect(text("- 1. first step")).toBe("first step")
+  })
+
+  it("skips marker-only lines and thematic breaks", () => {
+    expect(text("---\n***\n- - -\n##\n>\nReal text")).toBe("Real text")
+    expect(text("---\n##")).toBe("Text")
+  })
+
+  it("allows one level of parentheses in a link address", () => {
+    expect(text("[the page](https://x.test/a_(b)) is down")).toBe(
+      "the page is down"
+    )
+  })
+
+  it("clips by code points, not UTF-16 units", () => {
+    const clipped = text("\u{1F600}".repeat(60))
+    expect(Array.from(clipped)).toEqual([
+      ...Array.from("\u{1F600}".repeat(48)),
+      "\u2026",
+    ])
+  })
+
   it("cuts a long unbroken word", () => {
-    expect(text("a".repeat(80))).toBe(`${"a".repeat(48)}...`)
+    expect(text("a".repeat(80))).toBe(`${"a".repeat(48)}…`)
   })
 
   it("falls back to Text when there is nothing to read", () => {
