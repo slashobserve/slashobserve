@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import type { PanelDataResponse, WireFrame } from "@/dashboards/queries"
 import { cellText, isPlainResult, PlainTable } from "./plain-table"
@@ -54,15 +54,23 @@ describe("cellText", () => {
 })
 
 describe("PlainTable", () => {
-  it("shows one row per value with the field names as headers", () => {
+  it("shows one row per value with the field names as headers", async () => {
     render(<PlainTable frame={untimed} />)
-    expect(screen.getByText("service")).toBeTruthy()
-    expect(screen.getByText("errors")).toBeTruthy()
-    expect(screen.getByText("api")).toBeTruthy()
-    expect(screen.getByText("9")).toBeTruthy()
+    const grid = await screen.findByRole("grid")
+    await waitFor(() =>
+      expect(grid).toHaveAttribute("aria-label", "Query results")
+    )
+    expect(
+      screen
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent?.trim())
+    ).toEqual(["service", "errors"])
+    expect(await screen.findByRole("gridcell", { name: "api" })).toBeTruthy()
+    expect(screen.getByRole("gridcell", { name: "9" })).toBeTruthy()
+    expect(screen.getByRole("gridcell", { name: "web" })).toBeTruthy()
   })
 
-  it("takes another note and renders the cells it is given", () => {
+  it("takes another note and renders the cells it is given", async () => {
     render(
       <PlainTable
         frame={untimed}
@@ -73,7 +81,22 @@ describe("PlainTable", () => {
       />
     )
     expect(screen.getByText("Each row is a service.")).toBeTruthy()
-    expect(screen.getByText("service api")).toBeTruthy()
-    expect(screen.getByText("9")).toBeTruthy()
+    expect(await screen.findByText("service api")).toBeTruthy()
+    expect(screen.getByRole("gridcell", { name: "9" })).toBeTruthy()
+  })
+
+  it("leaves a missing value empty", async () => {
+    const ragged: WireFrame = {
+      ...untimed,
+      fields: [
+        { name: "service", type: "string", values: ["api", "web"] },
+        { name: "errors", type: "number", values: [4] },
+      ],
+    }
+    const { container } = render(<PlainTable frame={ragged} />)
+    await screen.findByRole("gridcell", { name: "web" })
+    const cell = container.querySelector('[row-id="1"] [col-id="errors"]')
+    expect(cell).not.toBeNull()
+    expect(cell?.textContent).toBe("")
   })
 })

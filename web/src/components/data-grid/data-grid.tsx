@@ -5,8 +5,10 @@ import {
   RowStyleModule,
   type CellMouseOverEvent,
   type ColDef,
+  type RowHeightParams,
   type GetRowIdParams,
   type ICellRendererParams,
+  type IsFullWidthRowParams,
   type IHeaderParams,
   type RowClassRules,
 } from "ag-grid-community"
@@ -24,7 +26,9 @@ import {
 import { cn } from "@/lib/utils"
 
 import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { gridLayout } from "./layout"
+import { gridLines, type GridLine } from "./lines"
 import {
   NarrowRow,
   NarrowRowsContext,
@@ -60,7 +64,14 @@ export type DataGridSort = {
   direction: "ascending" | "descending"
 }
 
-type CellParams<T> = ICellRendererParams<T> & { column: DataGridColumn<T> }
+type DataGridDetail<T> = {
+  open: ReadonlySet<string>
+  render: (row: T) => ReactNode
+}
+
+type CellParams<T> = ICellRendererParams<GridLine<T>> & {
+  column: DataGridColumn<T>
+}
 
 function GridCell<T>({ data, column }: CellParams<T>) {
   if (data === undefined) return null
@@ -71,7 +82,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
         column.align === "right" && "justify-end text-right"
       )}
     >
-      {column.cell(data)}
+      {column.cell(data.row)}
     </div>
   )
 }
@@ -138,8 +149,29 @@ function SortHeader({
 
 const highlightClass = "bg-selection!"
 
-const everyRowFullWidth = () => true
-const estimateNarrowRow = () => narrowRowEstimate
+function FullWidthRow<T>(params: ICellRendererParams<GridLine<T>>) {
+  return params.data?.detail === true ? (
+    <DetailRow {...params} />
+  ) : (
+    <NarrowRow {...params} />
+  )
+}
+
+function detailHeight<T>({ data }: RowHeightParams<GridLine<T>>) {
+  return data?.detail === true ? detailRowEstimate : undefined
+}
+
+function narrowHeight<T>({ data }: RowHeightParams<GridLine<T>>) {
+  return data?.detail === true ? detailRowEstimate : narrowRowEstimate
+}
+
+function everyRowFullWidth() {
+  return true
+}
+
+function detailRowFullWidth<T>({ rowNode }: IsFullWidthRowParams<GridLine<T>>) {
+  return rowNode.data?.detail === true
+}
 
 export function DataGrid<T>({
   label,
@@ -150,6 +182,7 @@ export function DataGrid<T>({
   onSort,
   highlightedRowId = null,
   onHighlightRow,
+  detail,
   compact = false,
   empty,
   className,
@@ -162,30 +195,31 @@ export function DataGrid<T>({
   onSort?: (key: string) => void
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
+  detail?: DataGridDetail<T>
   compact?: boolean
   empty?: ReactNode
   className?: string
 }) {
   const narrow = useNarrow()
   const containerRef = useRef<HTMLDivElement>(null)
-  const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
   const labelRef = useRef(label)
   useLayoutEffect(() => {
     labelRef.current = label
-    rowIdRef.current = rowId
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
   })
   const sorts = onSort !== undefined
   const sortKey = sort?.key ?? null
   const sortDirection = sort?.direction ?? null
+  const open = detail?.open
+  const lines = useMemo(() => gridLines(rows, rowId, open), [rows, rowId, open])
   const getRowId = useCallback(
-    ({ data }: GetRowIdParams<T>) => rowIdRef.current(data),
+    ({ data }: GetRowIdParams<GridLine<T>>) => data.id,
     []
   )
-  const rowClassRules = useMemo<RowClassRules<T>>(
+  const rowClassRules = useMemo<RowClassRules<GridLine<T>>>(
     () => ({
       [highlightClass]: ({ node }) =>
         highlightedRowId !== null && node.id === highlightedRowId,
@@ -197,19 +231,23 @@ export function DataGrid<T>({
     []
   )
   const onCellMouseOver = useCallback(
-    (event: CellMouseOverEvent<T>) => highlight(event.node.id ?? null),
+    (event: CellMouseOverEvent<GridLine<T>>) =>
+      highlight(event.node.id ?? null),
     [highlight]
   )
   const narrowRows = useMemo(
     () => ({ columns, onHighlight: highlight }) as NarrowRows<unknown>,
     [columns, highlight]
   )
+  const renderDetail = detail?.render as
+    ((row: unknown) => ReactNode) | undefined
+  const hasDetail = detail !== undefined
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
   const headerHeight = compact ? 32 : 36
 
-  const columnDefs = useMemo<ColDef<T>[]>(
+  const columnDefs = useMemo<ColDef<GridLine<T>>[]>(
     () =>
       columns.map((column) => ({
         colId: column.id,
@@ -255,31 +293,48 @@ export function DataGrid<T>({
       data-dom-layout={layout}
       className={cn("w-full text-[13px]", className)}
       style={layout === "normal" ? { height } : undefined}
+      onPointerOver={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest(".ag-header") !== null
+        )
+          highlight(null)
+      }}
       onPointerLeave={() => onHighlightRow?.(null)}
       onKeyDownCapture={(event) =>
         handleCellKey(event.nativeEvent, event.currentTarget)
       }
     >
-      <NarrowRowsContext value={narrowRows}>
-        <AgGridReact<T>
-          key={narrow ? "narrow" : "wide"}
-          modules={modules}
-          theme={gridTheme}
-          domLayout={layout}
-          rowData={rows as T[]}
-          columnDefs={columnDefs}
-          getRowId={getRowId}
-          rowHeight={rowHeight}
-          headerHeight={narrow ? 0 : headerHeight}
-          suppressMovableColumns
-          isFullWidthRow={narrow ? everyRowFullWidth : undefined}
-          fullWidthCellRenderer={NarrowRow}
-          getRowHeight={narrow ? estimateNarrowRow : undefined}
-          rowClassRules={rowClassRules}
-          onCellMouseOver={onCellMouseOver}
-          onGridReady={labelGrid}
-        />
-      </NarrowRowsContext>
+      <DetailRenderContext value={renderDetail}>
+        <NarrowRowsContext value={narrowRows}>
+          <AgGridReact<GridLine<T>>
+            key={narrow ? "narrow" : "wide"}
+            modules={modules}
+            theme={gridTheme}
+            domLayout={layout}
+            rowData={lines}
+            columnDefs={columnDefs}
+            getRowId={getRowId}
+            rowHeight={rowHeight}
+            headerHeight={narrow ? 0 : headerHeight}
+            suppressMovableColumns
+            isFullWidthRow={
+              narrow
+                ? everyRowFullWidth
+                : hasDetail
+                  ? detailRowFullWidth
+                  : undefined
+            }
+            fullWidthCellRenderer={FullWidthRow}
+            getRowHeight={
+              narrow ? narrowHeight : hasDetail ? detailHeight : undefined
+            }
+            rowClassRules={rowClassRules}
+            onCellMouseOver={onCellMouseOver}
+            onGridReady={labelGrid}
+          />
+        </NarrowRowsContext>
+      </DetailRenderContext>
     </div>
   )
 }

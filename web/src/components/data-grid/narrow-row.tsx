@@ -1,7 +1,9 @@
 import type { ICellRendererParams } from "ag-grid-community"
-import { createContext, useContext, useLayoutEffect, useRef } from "react"
+import { createContext, useContext, useRef } from "react"
 
 import type { DataGridColumn } from "./data-grid"
+import { useFitRowHeight } from "./use-fit-row-height"
+import type { GridLine } from "./lines"
 
 export const narrowRowEstimate = 72
 
@@ -15,27 +17,16 @@ export const NarrowRowsContext = createContext<NarrowRows<unknown>>({
   onHighlight: () => {},
 })
 
-export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
+export function NarrowRow<T>({
+  data,
+  node,
+  api,
+}: ICellRendererParams<GridLine<T>>) {
   const { columns, onHighlight } = useContext(
     NarrowRowsContext
   ) as NarrowRows<T>
   const ref = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (element === null) return
-    function fit() {
-      const height = element?.offsetHeight ?? 0
-      if (height <= 0 || height === node.rowHeight || api.isDestroyed()) return
-      node.setRowHeight(height)
-      api.onRowHeightChanged()
-    }
-    fit()
-    if (typeof ResizeObserver === "undefined") return
-    const observer = new ResizeObserver(fit)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [api, node])
+  useFitRowHeight(ref, node, api)
 
   if (data === undefined) return null
   const [title, ...rest] = columns
@@ -50,7 +41,7 @@ export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
       onPointerEnter={() => onHighlight(node.id ?? null)}
     >
       <div data-cell={title.id} className="min-w-0 basis-full font-medium">
-        {title.cell(data)}
+        {title.cell(data.row)}
       </div>
       {fields.map((column) => (
         <div
@@ -59,12 +50,12 @@ export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
           data-label={column.header}
           className='flex min-w-0 items-center gap-1 text-xs text-muted-foreground before:content-[attr(data-label)_":"] empty:hidden'
         >
-          {column.cell(data)}
+          {column.cell(data.row)}
         </div>
       ))}
       {actions.map((column) => (
         <div key={column.id} data-cell={column.id} className="ml-auto">
-          {column.cell(data)}
+          {column.cell(data.row)}
         </div>
       ))}
     </div>
