@@ -57,10 +57,7 @@ function fetchInboxPage(
     .then(unwrap)
 }
 
-export function inboxInfiniteQuery(
-  view: InboxView,
-  filter: InboxFilter = "open"
-) {
+function inboxInfiniteQuery(view: InboxView, filter: InboxFilter = "open") {
   return infiniteQueryOptions({
     queryKey: inboxKeys.list(view, filter),
     queryFn: ({ pageParam, signal }) =>
@@ -68,20 +65,6 @@ export function inboxInfiniteQuery(
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor ?? undefined,
   })
-}
-
-export function withHead(pages: InboxPages, head: InboxList): InboxPages {
-  const fresh = new Set(head.items.map((item) => item.seq))
-  return {
-    pages: [
-      head,
-      ...pages.pages.slice(1).map((page) => ({
-        ...page,
-        items: page.items.filter((item) => !fresh.has(item.seq)),
-      })),
-    ],
-    pageParams: pages.pageParams,
-  }
 }
 
 export function keepInboxHead(
@@ -101,34 +84,11 @@ export function keepInboxHead(
   )
 }
 
-export async function refreshInboxHead(
-  queryClient: QueryClient,
-  view: InboxView,
-  filter: InboxFilter
-): Promise<void> {
-  const queryKey = inboxKeys.list(view, filter)
-  const cached = queryClient.getQueryData<InboxPages>(queryKey)
-  if (cached === undefined || cached.pages.length <= 1) {
-    await queryClient.invalidateQueries({ queryKey, exact: true })
-    return
-  }
-  const head = await fetchInboxPage(view, filter, undefined, pageSize)
-  queryClient.setQueryData<InboxPages>(queryKey, (current) =>
-    current === undefined ? current : withHead(current, head)
-  )
-}
-
-export function useInboxHeadPolling(view: InboxView, filter: InboxFilter) {
-  const queryClient = useQueryClient()
-  const interval = useInboxPollInterval()
-  useEffect(() => {
-    if (interval === false) return
-    const timer = setInterval(
-      () => void refreshInboxHead(queryClient, view, filter),
-      interval
-    )
-    return () => clearInterval(timer)
-  }, [queryClient, view, filter, interval])
+export function usePanelInboxList(view: InboxView, filter: InboxFilter) {
+  return useInfiniteQuery({
+    ...inboxInfiniteQuery(view, filter),
+    refetchInterval: useInboxPollInterval(),
+  })
 }
 
 export function useInboxForYou() {
@@ -202,9 +162,11 @@ export function useInboxLive() {
         queryKey: inboxKeys.badge(),
         exact: true,
       })
-      void refreshInboxHead(queryClient, "for_you", "open")
-      if (open && (view !== "for_you" || filter !== "open")) {
-        void refreshInboxHead(queryClient, view, filter)
+      if (open) {
+        void queryClient.invalidateQueries({
+          queryKey: inboxKeys.list(view, filter),
+          exact: true,
+        })
       }
     }, liveWindowMs)
   )

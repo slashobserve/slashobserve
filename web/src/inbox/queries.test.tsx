@@ -3,7 +3,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
-import { inboxKeys, type InboxView } from "@/api/keys"
+import { inboxKeys } from "@/api/keys"
 import { ActivityStreamProvider } from "@/live/activity-stream"
 import { FakeEventSource } from "@/test/fake-event-source"
 import { testQueryClient } from "@/test/render"
@@ -13,11 +13,9 @@ import { useInboxPanelStore } from "./inbox-panel-store"
 import {
   inboxPollInterval,
   keepInboxHead,
-  refreshInboxHead,
   useInboxCount,
-  useInboxHeadPolling,
   useInboxLive,
-  withHead,
+  usePanelInboxList,
 } from "./queries"
 
 function item(seq: number): InboxItem {
@@ -42,8 +40,8 @@ function wrapperFor(client: QueryClient, streamed: boolean) {
   )
 }
 
-function seedTwoPages(client: QueryClient, view: InboxView = "for_you") {
-  client.setQueryData(inboxKeys.list(view, "open"), {
+function seedTwoPages(client: QueryClient) {
+  client.setQueryData(inboxKeys.list("for_you", "open"), {
     pages: [page([9, 8], "c2"), page([7, 6])],
     pageParams: [undefined, "c2"],
   })
@@ -112,23 +110,6 @@ describe("useInboxCount", () => {
   })
 })
 
-describe("withHead", () => {
-  test("replaces the first page and drops its items from the later pages", () => {
-    const next = withHead(
-      {
-        pages: [page([9, 8], "c2"), page([7, 6])],
-        pageParams: [undefined, "c2"],
-      },
-      page([10, 9, 7], "c3")
-    )
-    expect(next.pages.map((p) => p.items.map((i) => i.seq))).toEqual([
-      [10, 9, 7],
-      [6],
-    ])
-    expect(next.pageParams).toEqual([undefined, "c2"])
-  })
-})
-
 describe("keepInboxHead", () => {
   test("drops every page after the first", () => {
     const client = testQueryClient()
@@ -143,70 +124,21 @@ describe("keepInboxHead", () => {
   })
 })
 
-describe("refreshInboxHead", () => {
-  test("fetches only the first page when more pages are loaded", async () => {
+describe("usePanelInboxList", () => {
+  function intervalWhen(streamed: boolean) {
     const client = testQueryClient()
-    seedTwoPages(client)
-
-    await refreshInboxHead(client, "for_you", "open")
-
-    expect(requests).toHaveLength(1)
-    expect(requests[0].searchParams.get("cursor")).toBeNull()
-    expect(
-      client
-        .getQueryData<{ pages: { items: InboxItem[] }[] }>(
-          inboxKeys.list("for_you", "open")
-        )
-        ?.pages.map((p) => p.items.map((i) => i.seq))
-    ).toEqual([
-      [10, 9],
-      [7, 6],
-    ])
-  })
-
-  test("invalidates a list with one page so it refetches as usual", async () => {
-    const client = testQueryClient()
-    client.setQueryData(inboxKeys.list("mentions", "open"), {
-      pages: [page([3])],
-      pageParams: [undefined],
+    renderHook(() => usePanelInboxList("mentions", "open"), {
+      wrapper: wrapperFor(client, streamed),
     })
+    return client
+      .getQueryCache()
+      .find({ queryKey: inboxKeys.list("mentions", "open") })?.observers[0]
+      ?.options.refetchInterval
+  }
 
-    await refreshInboxHead(client, "mentions", "open")
-
-    expect(
-      client.getQueryState(inboxKeys.list("mentions", "open"))?.isInvalidated
-    ).toBe(true)
-  })
-})
-
-describe("useInboxHeadPolling", () => {
-  test("refreshes only the first page every 15 s outside the shell", async () => {
-    vi.useFakeTimers()
-    const client = testQueryClient()
-    seedTwoPages(client, "mentions")
-    renderHook(() => useInboxHeadPolling("mentions", "open"), {
-      wrapper: wrapperFor(client, false),
-    })
-
-    await act(() => vi.advanceTimersByTimeAsync(15_000))
-
-    expect(requests.map((url) => url.searchParams.get("cursor"))).toEqual([
-      null,
-    ])
-    expect(requests[0].searchParams.get("view")).toBe("mentions")
-  })
-
-  test("does not poll inside the shell", async () => {
-    vi.useFakeTimers()
-    const client = testQueryClient()
-    seedTwoPages(client, "mentions")
-    renderHook(() => useInboxHeadPolling("mentions", "open"), {
-      wrapper: wrapperFor(client, true),
-    })
-
-    await act(() => vi.advanceTimersByTimeAsync(45_000))
-
-    expect(requests).toEqual([])
+  test("polls the open panel's list on a page outside the shell and not inside it", () => {
+    expect(intervalWhen(false)).toBe(15_000)
+    expect(intervalWhen(true)).toBe(false)
   })
 })
 
@@ -252,21 +184,17 @@ describe("useInboxLive", () => {
     act(() => FakeEventSource.instances[0].emit("activity", event))
   }
 
-  test("refreshes the badge and For you at once on the first event", () => {
+  test("refreshes only the badge at once on the first event while the panel is closed", () => {
     const { invalidated } = mount()
     emit()
-    expect(invalidated()).toEqual(["inbox/badge", "inbox/list/for_you/open"])
+    expect(invalidated()).toEqual(["inbox/badge"])
   })
 
   test("also refreshes the list the open panel shows, and nothing else", () => {
     useInboxPanelStore.setState({ open: true, view: "mentions" })
     const { invalidated } = mount()
     emit()
-    expect(invalidated()).toEqual([
-      "inbox/badge",
-      "inbox/list/for_you/open",
-      "inbox/list/mentions/open",
-    ])
+    expect(invalidated()).toEqual(["inbox/badge", "inbox/list/mentions/open"])
   })
 
   test("keeps refreshing once a second under events that never stop", async () => {

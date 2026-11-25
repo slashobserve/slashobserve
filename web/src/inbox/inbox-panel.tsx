@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react"
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { useActivityStore, usePanelLayout } from "@/activity/activity-store"
@@ -35,9 +35,8 @@ import { returnFocusFromInbox, useInboxPanelStore } from "./inbox-panel-store"
 import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
 import {
-  inboxInfiniteQuery,
   keepInboxHead,
-  useInboxHeadPolling,
+  usePanelInboxList,
   useMarkInboxRead,
   useSetInboxItemDone,
   useSetInboxItemUnread,
@@ -114,8 +113,7 @@ function InboxCard() {
     () => keepInboxHead(queryClient, opened.view, opened.filter),
     [queryClient, opened]
   )
-  const query = useInfiniteQuery(inboxInfiniteQuery(view, filter))
-  useInboxHeadPolling(view, filter)
+  const query = usePanelInboxList(view, filter)
   const markRead = useMarkInboxRead()
   const setUnread = useSetInboxItemUnread()
   const setDone = useSetInboxItemDone()
