@@ -516,7 +516,7 @@ func TestAPrivateSourceComesOnlyFromTheFileAndShowsAsPrivate(t *testing.T) {
 		t.Errorf("an API source is private: %+v", docs)
 	}
 
-	entry := config.ContextSource{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true}
+	entry := config.ContextSource{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value")}
 	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
 		t.Fatal(err)
 	}
@@ -548,7 +548,7 @@ func TestAPrivateSourceComesOnlyFromTheFileAndShowsAsPrivate(t *testing.T) {
 
 func TestProvisioningTurnsAPrivateSourceOffAndChecksItAgain(t *testing.T) {
 	r := newRig(t, readOnlyTool("search", "Search"))
-	entry := config.ContextSource{UID: "code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true}
+	entry := config.ContextSource{UID: "code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value")}
 	if err := r.service.Provision(t.Context(), []config.ContextSource{entry}); err != nil {
 		t.Fatal(err)
 	}

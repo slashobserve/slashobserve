@@ -11,7 +11,7 @@ import (
 )
 
 func filedCode(approve ...string) []config.ContextSource {
-	return []config.ContextSource{{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, Approve: approve}}
+	return []config.ContextSource{{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value"), Approve: approve}}
 }
 
 func TestListedApprovalsPicksOnlyOfferedToolsAndSaysWhyItSkippedTheRest(t *testing.T) {
