@@ -121,7 +121,7 @@ export const dashboardColumns: DataGridColumn<DashboardRow>[] = [
         {dashboard.description ? (
           <div
             title={dashboard.description}
-            className="line-clamp-1 text-xs wrap-anywhere text-muted-foreground"
+            className="line-clamp-1 text-xs wrap-anywhere text-muted-foreground narrow:line-clamp-2"
           >
             {dashboard.description}
           </div>

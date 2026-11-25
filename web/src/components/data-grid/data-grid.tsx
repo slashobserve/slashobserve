@@ -1,5 +1,6 @@
 import {
   ClientSideRowModelApiModule,
+  ColumnApiModule,
   ClientSideRowModelModule,
   RowApiModule,
   RowAutoHeightModule,
@@ -32,7 +33,12 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import {
+  focusEntryCell,
+  handleCellKey,
+  keepKeysOnFocusedControl,
+  leaveGridOnTab,
+} from "./cell-keys"
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
@@ -44,12 +50,14 @@ import {
   type NarrowRows,
 } from "./narrow-row"
 import { gridTheme } from "./theme"
+import { TruncatedText } from "./truncated-text"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
 import { useWidth } from "./use-width"
 
 const modules = [
   ClientSideRowModelModule,
+  ColumnApiModule,
   RowAutoHeightModule,
   RowStyleModule,
   ClientSideRowModelApiModule,
@@ -88,6 +96,10 @@ type CellParams<T> = ICellRendererParams<GridLine<T>> & {
 
 function GridCell<T>({ data, column }: CellParams<T>) {
   if (data === undefined) return null
+  const content = column.cell(data.row)
+  const plainText =
+    column.autoHeight !== true &&
+    (typeof content === "string" || typeof content === "number")
   return (
     <div
       className={cn(
@@ -96,7 +108,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
         column.align === "right" && "justify-end text-right"
       )}
     >
-      {column.cell(data.row)}
+      {plainText ? <TruncatedText>{content}</TruncatedText> : content}
     </div>
   )
 }
@@ -170,6 +182,7 @@ function SortHeader({
 }
 
 const highlightClass = "bg-selection!"
+const selectedClass = "row-selected"
 
 function FullWidthRow<T>(params: ICellRendererParams<GridLine<T>>) {
   return params.data?.detail === true ? (
@@ -197,6 +210,7 @@ export function DataGrid<T>({
   onSort,
   highlightedRowId = null,
   onHighlightRow,
+  selectedRowIds,
   revealRowId = null,
   keepScrollOnPrepend = false,
   detail,
@@ -218,6 +232,7 @@ export function DataGrid<T>({
   onSort?: (key: string) => void
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
+  selectedRowIds?: ReadonlySet<string>
   revealRowId?: string | null
   keepScrollOnPrepend?: boolean
   detail?: DataGridDetail<T>
@@ -270,8 +285,10 @@ export function DataGrid<T>({
     () => ({
       [highlightClass]: ({ node }) =>
         highlightedRowId !== null && node.id === highlightedRowId,
+      [selectedClass]: ({ node }) =>
+        node.id !== undefined && selectedRowIds?.has(node.id) === true,
     }),
-    [highlightedRowId]
+    [highlightedRowId, selectedRowIds]
   )
   const processRowPostCreate = useCallback(
     ({ eRow, node }: ProcessRowParams<GridLine<T>>) => {
@@ -463,7 +480,7 @@ export function DataGrid<T>({
       tabIndex={-1}
       aria-busy={busy || undefined}
       className={cn(
-        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full",
+        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full [&_.row-selected]:bg-selection!",
         bare &&
           "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
         className
@@ -494,6 +511,8 @@ export function DataGrid<T>({
             rowHeight={rowHeight}
             headerHeight={narrow ? 0 : headerHeight}
             suppressMovableColumns
+            tabToNextCell={leaveGridOnTab}
+            focusGridInnerElement={focusEntryCell}
             isFullWidthRow={isFullWidthRow}
             fullWidthCellRenderer={FullWidthRow}
             getRowHeight={getRowHeight}

@@ -6,6 +6,7 @@ import { toast } from "sonner"
 
 import { AuthorMark } from "@/components/author-mark"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import { TruncatedText } from "@/components/data-grid/truncated-text"
 import {
   dataCell,
   skeletonRows,
@@ -433,6 +434,7 @@ export function ObservationList({ view, creating, onChange }: Props) {
             rows={rows}
             columns={columns}
             rowId={rowId}
+            selectedRowIds={selected}
           />
           {pageCount > 1 || total > pageSizes[0] ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -606,9 +608,9 @@ function observationColumns({
         "observation",
         `h-4 w-28 ${quiet}`,
         ({ item }) => (
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex max-w-full items-center gap-2">
             <AuthorMark mark={markOf(item.created_by)} size={20} />
-            {item.created_by.label}
+            <TruncatedText>{item.created_by.label}</TruncatedText>
           </span>
         )
       ),

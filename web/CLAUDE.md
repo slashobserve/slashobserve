@@ -171,6 +171,9 @@ The rules below are how the code applies it.
   ESLint rejects `<table>`, `TableCard`, the shadcn `Table`, TanStack Table and AG Grid imports anywhere else, and any `ag-grid-enterprise` import.
   Below 899 px each row becomes a full-width card (the first column as the title, each other non-empty value with its header as a label, the action column last), so nothing scrolls sideways on a phone; the headers stay for screen readers at zero height.
   A row that expands passes `detail` (the open row ids and a renderer): `DataGrid` inserts a full-width row below each open row, at every width.
+  A grid is one Tab stop: Tab and Shift+Tab leave it (`handleCellKey` and `tabToNextCell`), arrows move inside, Enter on a cell with several controls moves into them (Tab steps between them, Escape returns to the cell), and focus comes back to the last focused cell, or the first displayed column (`focusEntryCell`).
+  When nothing tabbable follows the grid, the Tab goes to AG Grid's own end guard.
+  A plain-text cell truncates with an ellipsis and shows a `title` only while cut (`TruncatedText`, also for a label inside a mixed cell), a card value wraps (`wrap-anywhere`, with `whitespace-normal` on the card because AG Grid sets `white-space: nowrap` on every row), and `selectedRowIds` tints the rows a page selects itself with `row-selected`.
 - Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
   Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.
   The one exception is arranging the dashboard grid: the panel being dragged or resized, its placeholder and the neighbours settling around it slide with `transform` over `--duration-panel`, and stay still under reduced motion.
