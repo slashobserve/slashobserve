@@ -148,39 +148,39 @@ describe("PanelGrid", () => {
     )
   })
 
-  it("pages the rows, reports the page and goes to the page of a revealed row", async () => {
-    const many = Array.from({ length: 7 }, (_, index) => ({
-      id: `r${index}`,
-      name: `row ${index}`,
-      count: index,
-    }))
-    const onPageChange = vi.fn()
+  it("reveals a drawn row at once and a missing row once it arrives", async () => {
+    const rowsUpTo = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        id: `r${index}`,
+        name: `row ${index}`,
+        count: index,
+      }))
     const handle = createRef<PanelGridHandle>()
-    render(
+    const { rerender } = render(
       <PanelGrid
         {...base}
         ref={handle}
-        rows={many}
+        rows={rowsUpTo(200)}
         columns={columns}
-        pageSize={3}
-        onPageChange={onPageChange}
       />
     )
     await screen.findByRole("gridcell", { name: "row 0" })
-    await waitFor(() =>
-      expect(onPageChange).toHaveBeenLastCalledWith({ page: 0, pageCount: 3 })
-    )
-    expect(screen.queryByRole("gridcell", { name: "row 3" })).toBeNull()
-    handle.current?.reveal("r4")
-    await waitFor(() =>
-      expect(onPageChange).toHaveBeenLastCalledWith({ page: 1, pageCount: 3 })
-    )
+    expect(screen.queryByRole("gridcell", { name: "row 150" })).toBeNull()
+    handle.current?.reveal("r150")
     expect(
-      await screen.findByRole("gridcell", { name: "row 4" })
+      await screen.findByRole("gridcell", { name: "row 150" })
     ).toBeInTheDocument()
-    handle.current?.goToPage(2)
+    handle.current?.reveal("r250")
+    rerender(
+      <PanelGrid
+        {...base}
+        ref={handle}
+        rows={rowsUpTo(300)}
+        columns={columns}
+      />
+    )
     expect(
-      await screen.findByRole("gridcell", { name: "row 6" })
+      await screen.findByRole("gridcell", { name: "row 250" })
     ).toBeInTheDocument()
   })
 

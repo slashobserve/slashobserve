@@ -4,7 +4,6 @@ import {
   ClientSideRowModelModule,
   ColumnApiModule,
   ColumnAutoSizeModule,
-  PaginationModule,
   PinnedRowModule,
   RowApiModule,
   RowAutoHeightModule,
@@ -44,7 +43,6 @@ const modules = [
   ClientSideRowModelApiModule,
   ColumnApiModule,
   ColumnAutoSizeModule,
-  PaginationModule,
   PinnedRowModule,
   RowApiModule,
   RowAutoHeightModule,
@@ -73,11 +71,8 @@ export type PanelGridColumn<T> = {
   wrapHeader?: boolean
 }
 
-export type PanelGridPage = { page: number; pageCount: number }
-
 export type PanelGridHandle = {
   reveal: (rowId: string) => void
-  goToPage: (page: number) => void
 }
 
 export type PanelGridDetails<T> = {
@@ -172,8 +167,6 @@ export function PanelGrid<T>({
   headerHeight,
   footerRows = 0,
   footerHeight = rowHeight,
-  pageSize = null,
-  onPageChange,
   details,
   sizeToContent = false,
   height = "fill",
@@ -190,8 +183,6 @@ export function PanelGrid<T>({
   headerHeight: number
   footerRows?: number
   footerHeight?: number
-  pageSize?: number | null
-  onPageChange?: (page: PanelGridPage) => void
   details?: PanelGridDetails<T>
   sizeToContent?: boolean
   height?: "fill" | "rows"
@@ -204,11 +195,10 @@ export function PanelGrid<T>({
   const widthRef = useRef(0)
   const labelRef = useRef(label)
   const layoutRef = useRef(onLayout)
-  const pageRef = useRef(onPageChange)
+  const pendingRevealRef = useRef<string | null>(null)
   useLayoutEffect(() => {
     labelRef.current = label
     layoutRef.current = onLayout
-    pageRef.current = onPageChange
   })
 
   const open = details?.open
@@ -269,14 +259,19 @@ export function PanelGrid<T>({
     if (run === undefined) return
     requestAnimationFrame(() => run())
   }, [])
-  const reportPage = useCallback(() => {
+  const revealNow = useCallback((id: string): boolean => {
     const api = apiRef.current
-    if (api === null || api.isDestroyed()) return
-    pageRef.current?.({
-      page: api.paginationGetCurrentPage(),
-      pageCount: Math.max(1, api.paginationGetTotalPages()),
-    })
+    if (api === null || api.isDestroyed()) return false
+    const node = api.getRowNode(id)
+    if (node === undefined) return false
+    api.ensureNodeVisible(node)
+    return true
   }, [])
+  const revealPending = useCallback(() => {
+    const id = pendingRevealRef.current
+    pendingRevealRef.current = null
+    if (id !== null) revealNow(id)
+  }, [revealNow])
   const fit = useCallback(() => {
     const api = apiRef.current
     if (api !== null && sizeToContent) {
@@ -291,22 +286,10 @@ export function PanelGrid<T>({
     ref,
     () => ({
       reveal(id) {
-        const api = apiRef.current
-        if (api === null || api.isDestroyed()) return
-        const node = api.getRowNode(id)
-        if (node === undefined || node.rowIndex === null) return
-        if (pageSize !== null) {
-          api.paginationGoToPage(
-            Math.floor(node.rowIndex / api.paginationGetPageSize())
-          )
-        }
-        api.ensureNodeVisible(node)
-      },
-      goToPage(page) {
-        apiRef.current?.paginationGoToPage(page)
+        pendingRevealRef.current = revealNow(id) ? null : id
       },
     }),
-    [pageSize]
+    [revealNow]
   )
 
   const labelGrid = useCallback(() => {
@@ -345,10 +328,6 @@ export function PanelGrid<T>({
           getRowHeight={getRowHeight}
           isFullWidthRow={isDetail}
           fullWidthCellRenderer={DetailRow}
-          pagination={pageSize !== null}
-          paginationPageSize={pageSize ?? undefined}
-          suppressPaginationPanel
-          paginationPageSizeSelector={false}
           suppressMovableColumns
           suppressColumnVirtualisation
           ensureDomOrder
@@ -357,7 +336,6 @@ export function PanelGrid<T>({
           onGridReady={(event) => {
             apiRef.current = event.api
             labelGrid()
-            reportPage()
           }}
           onGridSizeChanged={(event: GridSizeChangedEvent) => {
             widthRef.current = event.clientWidth
@@ -368,14 +346,13 @@ export function PanelGrid<T>({
             fit()
             layout()
           }}
-          onPaginationChanged={() => {
-            reportPage()
-            layout()
-          }}
           onBodyScroll={layout}
           onViewportChanged={layout}
           onModelUpdated={layout}
-          onRowDataUpdated={layout}
+          onRowDataUpdated={() => {
+            revealPending()
+            layout()
+          }}
         />
       </DetailRenderContext>
     </div>

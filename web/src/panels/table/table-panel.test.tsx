@@ -349,6 +349,36 @@ describe("table panel", () => {
     )
   })
 
+  it("keeps an opened row's detail on its page and the page count", async () => {
+    const inner = (): PreparedFrame => ({
+      ref: "A",
+      name: "rows",
+      fields: [number("lat", [1, 2])],
+    })
+    const hosts = Array.from({ length: 10 }, (_, index) => `h${index}`)
+    const grouped = frameOf(text("host", hosts), {
+      name: "Nested frames",
+      type: "other",
+      values: hosts.map(inner),
+      nested: { headers: false },
+    })
+    show(tableOf({ pagination: true }), grouped, { height: 200 })
+    const status = await screen.findByRole("status")
+    await waitFor(() => expect(status).toHaveTextContent(/^Page 1 of \d+$/))
+    const before = status.textContent
+    expect(before).toBe("Page 1 of 2")
+    await waitFor(() => expect(cellsOf("host").length).toBeGreaterThan(1))
+    const shown = cellsOf("host")
+    const last = shown[shown.length - 1]
+    const user = userEvent.setup()
+    await user.click(screen.getByRole("button", { name: `Expand ${last}` }))
+    expect(
+      await screen.findByRole("grid", { name: `${last} rows` })
+    ).toBeInTheDocument()
+    expect(status.textContent).toBe(before)
+    expect(cellsOf("host")).toEqual(shown)
+  })
+
   it("keeps the header for screen readers when it is hidden", async () => {
     show(tableOf({ header: false, sortBy: "requests" }))
     await waitFor(() => expect(cellsOf("route")).toHaveLength(3))

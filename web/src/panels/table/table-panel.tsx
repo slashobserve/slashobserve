@@ -26,7 +26,6 @@ import {
   footerRowId,
   type PanelGridColumn,
   type PanelGridHandle,
-  type PanelGridPage,
 } from "@/components/data-grid/panel-grid"
 import { Button } from "@/components/ui/button"
 import {
@@ -77,6 +76,7 @@ import {
   frozenCount,
   headerPx,
   initialSort,
+  pageRows,
   pageSizeFor,
   rowHeightOf,
   rowHeightPx,
@@ -640,7 +640,7 @@ const TablePanel: PanelRenderer = ({
   )
   const [filters, setFilters] = useState<ColumnFilters>(new Map())
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
-  const [paging, setPaging] = useState<PanelGridPage | null>(null)
+  const [requestedPage, setPage] = useState(0)
   const gridRef = useRef<PanelGridHandle>(null)
   const regionRef = useRef<HTMLDivElement>(null)
   const { runner, dialog } = useStableActionRunner(panel.id, meta)
@@ -714,13 +714,22 @@ const TablePanel: PanelRenderer = ({
     [model.columns, filtered, display]
   )
 
-  const pageSize = pageSizeFor(height, rowHeight, {
-    header: showHeader,
-    footerRows: footer.length,
-  })
+  const footerCount = footer.length
+  const pageSize = useMemo(
+    () =>
+      pageSizeFor(height, rowHeight, {
+        header: showHeader,
+        footerRows: footerCount,
+      }),
+    [height, rowHeight, showHeader, footerCount]
+  )
+  const page = useMemo(
+    () => pageRows(sorted, requestedPage, pageSize),
+    [sorted, requestedPage, pageSize]
+  )
   const rows = useMemo(
-    () => (paginate ? sorted : sorted.slice(0, maxRows)),
-    [paginate, sorted]
+    () => (paginate ? page.rows : sorted.slice(0, maxRows)),
+    [paginate, page, sorted]
   )
 
   const toggleSort = useCallback(
@@ -731,7 +740,7 @@ const TablePanel: PanelRenderer = ({
         next = { key, direction: "descending" }
       }
       setPick({ from: initialId, sort: next })
-      gridRef.current?.goToPage(0)
+      setPage(0)
     },
     [sort, initialId]
   )
@@ -746,7 +755,7 @@ const TablePanel: PanelRenderer = ({
 
   const changeFilters = useCallback((next: ColumnFilters) => {
     setFilters(next)
-    gridRef.current?.goToPage(0)
+    setPage(0)
   }, [])
 
   const samples = useMemo(() => oneRowPerSource(model.rows), [model.rows])
@@ -879,14 +888,21 @@ const TablePanel: PanelRenderer = ({
   const rowCells = useMemo(
     () =>
       new Map(
-        rows.map((row) => [
+        (paginate ? sorted : rows).map((row) => [
           row.key,
           views.map(({ column }) => cellOf(fields, column, row).text),
         ])
       ),
-    [rows, views, fields]
+    [paginate, sorted, rows, views, fields]
   )
-  const reveal = useCallback((key: string) => gridRef.current?.reveal(key), [])
+  const reveal = useCallback(
+    (key: string) => {
+      const at = sorted.findIndex((row) => row.key === key)
+      if (paginate && at >= 0) setPage(Math.floor(at / pageSize))
+      gridRef.current?.reveal(key)
+    },
+    [sorted, paginate, pageSize]
+  )
   const publish = useAnchorPublisher("table")
   const measure = useCallback(() => {
     const region = regionRef.current
@@ -902,11 +918,6 @@ const TablePanel: PanelRenderer = ({
     )
   }, [publish, width, height, views, showHeader, rowCells, reveal])
   useLayoutEffect(measure, [measure])
-
-  const page = paging ?? {
-    page: 0,
-    pageCount: Math.max(1, Math.ceil(rows.length / pageSize)),
-  }
 
   return (
     <div className="flex flex-col text-xs" style={{ width, height }}>
@@ -926,8 +937,6 @@ const TablePanel: PanelRenderer = ({
           headerHeight={showHeader ? headerPx : 0}
           footerRows={footer.length}
           footerHeight={footerRowPx}
-          pageSize={paginate ? pageSize : null}
-          onPageChange={setPaging}
           details={expandable ? details : undefined}
           sizeToContent={layout === null}
           onLayout={measure}
@@ -949,7 +958,7 @@ const TablePanel: PanelRenderer = ({
             size="icon-xs"
             aria-label="Previous page"
             disabled={page.page === 0}
-            onClick={() => gridRef.current?.goToPage(page.page - 1)}
+            onClick={() => setPage(page.page - 1)}
           >
             <ChevronLeftIcon aria-hidden="true" />
           </Button>
@@ -958,7 +967,7 @@ const TablePanel: PanelRenderer = ({
             size="icon-xs"
             aria-label="Next page"
             disabled={page.page >= page.pageCount - 1}
-            onClick={() => gridRef.current?.goToPage(page.page + 1)}
+            onClick={() => setPage(page.page + 1)}
           >
             <ChevronRightIcon aria-hidden="true" />
           </Button>

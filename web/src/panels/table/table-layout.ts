@@ -101,6 +101,22 @@ export function pageSizeFor(
   return Math.max(minPageSize, Math.floor((height - used) / rowPx[rowHeight]))
 }
 
+type Page<T> = {
+  rows: T[]
+  page: number
+  pageCount: number
+}
+
+export function pageRows<T>(rows: T[], page: number, size: number): Page<T> {
+  const pageCount = Math.max(1, Math.ceil(rows.length / size))
+  const clamped = Math.min(Math.max(0, page), pageCount - 1)
+  return {
+    rows: rows.slice(clamped * size, (clamped + 1) * size),
+    page: clamped,
+    pageCount,
+  }
+}
+
 export function initialSort(
   columns: TableColumn[],
   display: Record<string, unknown>
