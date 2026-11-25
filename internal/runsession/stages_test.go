@@ -158,7 +158,7 @@ func TestTheStageIsInEachTurnsFeedbackAndOnTheStepsWhenItChanges(t *testing.T) {
 
 	s.noted(hypothesesJSON(1, "h1"), &Turn{ID: "t3", Calls: 2})
 	s.readCall(3, &Turn{ID: "t3", Calls: 2})
-	a = s.readCall(4, &Turn{ID: "t4", Calls: 1})
+	s.readCall(4, &Turn{ID: "t4", Calls: 1})
 	s.readCall(5, &Turn{ID: "t5", Calls: 1})
 
 	want := []string{"Stage: orient", "Stage: hypothesize", "Stage: test"}

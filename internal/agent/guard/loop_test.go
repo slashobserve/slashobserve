@@ -121,14 +121,11 @@ func TestWithTheLoopOffAProvingLedgerChangesNothing(t *testing.T) {
 		{ruledOut("a", "e1"), open("b")},
 		{ruledOut("a", "e1"), supported("b", "e2")},
 	}
-	for i := 1; i <= 13; i++ {
-		var ledger []revisions.Hypothesis
-		if i <= len(script) {
-			ledger = script[i-1]
-		}
+	script = append(script, make([][]revisions.Hypothesis, 13-len(script))...)
+	for i, ledger := range script {
 		got, want := noted.turn(ledger, 1), plain.turn(nil, 1)
 		if got.nudge != want.nudge || got.refused != want.refused || got.limit != 12 || got.stageNow != "" {
-			t.Fatalf("turn %d: with a ledger %+v, without %+v", i, got, want)
+			t.Fatalf("turn %d: with a ledger %+v, without %+v", i+1, got, want)
 		}
 	}
 	if noted.s.Stage() != "" || noted.s.StageLine() != "" || noted.s.Loop != nil {

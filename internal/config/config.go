@@ -720,6 +720,15 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.Agent.Workers = n
 		}
 	}
+	errs = append(errs, loadInvestigationCalls(lookup, cfg)...)
+	if err := loadRunMaxCost(lookup, cfg); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
 	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
 		n, err := strconv.Atoi(v)
@@ -737,9 +746,6 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 		} else {
 			cfg.Agent.InvestigationCallsMax = n
 		}
-	}
-	if err := loadRunMaxCost(lookup, cfg); err != nil {
-		errs = append(errs, err)
 	}
 	return errs
 }
