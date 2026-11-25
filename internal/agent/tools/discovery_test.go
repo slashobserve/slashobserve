@@ -648,6 +648,31 @@ func spanCatalog(truncated bool) *datasource.Catalog {
 	}
 }
 
+func TestGetSchemaOnTempoReportsServicesWithoutSpanNames(t *testing.T) {
+	note := "span names were not read for 1 of 2 services because Tempo did not answer in time"
+	ds := &fakeDS{typ: "tempo", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		return &datasource.Catalog{
+			Sample: &datasource.Frame{Fields: []datasource.Field{
+				{Name: "service", Type: datasource.FieldString, Values: []any{"checkout", "payments"}},
+				{Name: "span_name", Type: datasource.FieldString, Values: []any{"charge", nil}},
+			}},
+			Notes: []string{note},
+		}, nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameGetSchema, `{"datasource":"fake"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+	out := res.Content.(spanSchemaOut)
+	if want := [][]any{{"checkout", "charge"}, {"payments", nil}}; !reflect.DeepEqual(out.Rows, want) {
+		t.Fatalf("rows = %v, want %v", out.Rows, want)
+	}
+	if !slices.Equal(out.Notes, []string{note}) {
+		t.Fatalf("notes = %v", out.Notes)
+	}
+}
+
 func TestGetSchemaOnTempoListsServicesAndSpanNames(t *testing.T) {
 	ds := &fakeDS{typ: "tempo", discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
 		return spanCatalog(false), nil

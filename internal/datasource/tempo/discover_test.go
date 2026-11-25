@@ -126,14 +126,98 @@ func TestDiscoverSpansCapsServicesAndSpanNames(t *testing.T) {
 	}
 }
 
-func TestDiscoverSpansFailsOnAnUpstreamError(t *testing.T) {
+func TestDiscoverSpansKeepsAServiceWhoseSpanNamesFailed(t *testing.T) {
 	ds, _ := serve(t, map[string]reply{
 		tagsPath:     {0, tagsBody},
 		servicesPath: {0, tagValuesBody("checkout")},
 		spanNamePath: {500, "boom"},
 	})
-	if _, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverTables}); !errors.Is(err, datasource.ErrUnavailable) {
-		t.Fatalf("err = %v, want unavailable", err)
+	got, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverTables})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := got.Sample.Fields
+	if !reflect.DeepEqual(fields[0].Values, []any{"checkout"}) || !reflect.DeepEqual(fields[1].Values, []any{nil}) {
+		t.Fatalf("services = %v, span names = %v", fields[0].Values, fields[1].Values)
+	}
+	if want := []string{"span names were not read for 1 of 1 services because Tempo did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
+		t.Fatalf("notes = %v, want %v", got.Notes, want)
+	}
+}
+
+func TestDiscoverSpansListsEveryServiceWhenTheDeadlineCutsSpanNameLookups(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == tagsPath:
+			_, _ = w.Write([]byte(tagsBody))
+		case r.URL.Path == servicesPath:
+			_, _ = w.Write([]byte(tagValuesBody("alpha", "slow", "omega")))
+		case strings.Contains(r.URL.Query().Get("q"), `"slow"`):
+			<-r.Context().Done()
+		default:
+			_, _ = w.Write([]byte(tagValuesBody("handle " + r.URL.Query().Get("q"))))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := tempo.New(tempo.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	got, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverTables})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := got.Sample.Fields
+	wantServices := []any{"alpha", "omega", "slow"}
+	if !reflect.DeepEqual(fields[0].Values, wantServices) {
+		t.Fatalf("services = %v, want %v", fields[0].Values, wantServices)
+	}
+	if fields[1].Values[2] != nil || fields[1].Values[0] == nil || fields[1].Values[1] == nil {
+		t.Fatalf("span names = %v, want only the slow service without one", fields[1].Values)
+	}
+	if want := []string{"span names were not read for 1 of 3 services because Tempo did not answer in time"}; !reflect.DeepEqual(got.Notes, want) {
+		t.Fatalf("notes = %v, want %v", got.Notes, want)
+	}
+}
+
+func TestDiscoverSpansFailsWhenTheCallerCancels(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case tagsPath:
+			_, _ = w.Write([]byte(tagsBody))
+		case servicesPath:
+			_, _ = w.Write([]byte(tagValuesBody("checkout")))
+		default:
+			cancel()
+			<-r.Context().Done()
+		}
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := tempo.New(tempo.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	if _, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverTables}); err == nil {
+		t.Fatal("a canceled call returned a catalog")
+	}
+}
+
+func TestDiscoverRejectsAHalfSetRange(t *testing.T) {
+	ds, fake := serve(t, map[string]reply{tagsPath: {0, tagsBody}})
+	at := time.Date(2026, 11, 6, 6, 0, 0, 0, time.UTC)
+	for _, rng := range []datasource.TimeRange{{From: at}, {To: at}, {From: at, To: at.Add(-time.Hour)}} {
+		_, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverLabels, Range: rng})
+		if !errors.Is(err, datasource.ErrInvalidQuery) {
+			t.Fatalf("range %+v: err = %v, want invalid query", rng, err)
+		}
+	}
+	if len(fake.requests) != 0 {
+		t.Fatalf("%d requests reached Tempo for an invalid range", len(fake.requests))
 	}
 }
 
@@ -232,10 +316,17 @@ func TestDiscoverKeepsTheUnsupportedKinds(t *testing.T) {
 	}
 }
 
-func recentOnlyTempo(t *testing.T) *tempo.Datasource {
-	t.Helper()
+func TestDiscoverSpansWithoutARangeReadsTheLastHourOnEveryCall(t *testing.T) {
+	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	ctx := datasource.WithNow(context.Background(), now)
+	var mu sync.Mutex
+	seen := map[string][2]string{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !r.URL.Query().Has("start") || !r.URL.Query().Has("end") {
+		q := r.URL.Query()
+		mu.Lock()
+		seen[r.URL.Path] = [2]string{q.Get("start"), q.Get("end")}
+		mu.Unlock()
+		if !q.Has("start") || !q.Has("end") {
 			_, _ = w.Write([]byte(`{"tagValues":[],"scopes":[]}`))
 			return
 		}
@@ -256,30 +347,21 @@ func recentOnlyTempo(t *testing.T) *tempo.Datasource {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = ds.Close() })
-	return ds
-}
-
-func TestDiscoverWithoutARangeReadsTheLastHour(t *testing.T) {
-	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
-	ctx := datasource.WithNow(context.Background(), now)
-	ds, fake := serve(t, map[string]reply{tagsPath: {0, tagsBody}, servicesPath: {0, tagValuesBody("checkout")}})
-	for _, kind := range []datasource.DiscoverKind{datasource.DiscoverLabels, datasource.DiscoverLabelValues} {
-		if _, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: kind, Label: "resource.service.name"}); err != nil {
-			t.Fatal(err)
-		}
-		if got := fake.last(t).params; got.Get("start") != "1793962800" || got.Get("end") != "1793966400" {
-			t.Fatalf("%s: sent start %q end %q, want the hour before now", kind, got.Get("start"), got.Get("end"))
-		}
-	}
-}
-
-func TestDiscoverSpansWithoutARangeFindsServicesThatHaveLeftTheIngesters(t *testing.T) {
-	ds := recentOnlyTempo(t)
-	got, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverTables})
+	got, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: datasource.DiscoverTables})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []any{"checkout", "frontend"}; !reflect.DeepEqual(got.Sample.Fields[0].Values, want) {
-		t.Fatalf("services = %v, want %v", got.Sample.Fields[0].Values, want)
+	fields := got.Sample.Fields
+	if want := []any{"checkout", "frontend"}; !reflect.DeepEqual(fields[0].Values, want) {
+		t.Fatalf("services = %v, want %v", fields[0].Values, want)
+	}
+	if want := []any{"charge", "charge"}; !reflect.DeepEqual(fields[1].Values, want) {
+		t.Fatalf("span names = %v, want %v", fields[1].Values, want)
+	}
+	hour := [2]string{"1793962800", "1793966400"}
+	for _, path := range []string{tagsPath, servicesPath, spanNamePath} {
+		if seen[path] != hour {
+			t.Fatalf("%s: sent start and end %v, want %v", path, seen[path], hour)
+		}
 	}
 }

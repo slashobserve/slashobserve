@@ -2,6 +2,8 @@ package tempo
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"slices"
@@ -48,10 +50,9 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	ctx, cancel := bound(ctx, discoverTimeout)
 	defer cancel()
 	limit := req.EffectiveLimit()
-	rng := req.Range
-	if rng.From.IsZero() {
-		now := datasource.Now(ctx)
-		rng = datasource.TimeRange{From: now.Add(-defaultDiscoverWindow), To: now}
+	rng, err := discoverRange(ctx, req.Range)
+	if err != nil {
+		return nil, err
 	}
 	switch req.Kind {
 	case datasource.DiscoverTables:
@@ -68,6 +69,14 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return nil, err
 	}
 	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+}
+
+func discoverRange(ctx context.Context, r datasource.TimeRange) (datasource.TimeRange, error) {
+	if !r.From.IsZero() || !r.To.IsZero() {
+		return r, r.Validate()
+	}
+	now := datasource.Now(ctx)
+	return datasource.TimeRange{From: now.Add(-defaultDiscoverWindow), To: now}, nil
 }
 
 func tagParams(q string, r datasource.TimeRange) url.Values {
@@ -130,13 +139,17 @@ func (d *Datasource) discoverSpans(ctx context.Context, r datasource.TimeRange) 
 	truncated := len(services) > maxSchemaServices
 	services = services[:min(len(services), maxSchemaServices)]
 	spanNames := make([][]string, len(services))
+	unread := make([]bool, len(services))
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(schemaConcurrency)
 	for i, service := range services {
 		g.Go(func() error {
 			names, err := d.tagValues(gctx, "name", "{ "+serviceTag+` = "`+traceQLString(service)+`" }`, r)
-			spanNames[i] = sortedUnique(names)
-			return err
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return err
+			}
+			spanNames[i], unread[i] = sortedUnique(names), err != nil
+			return nil
 		})
 	}
 	if err := g.Wait(); err != nil {
@@ -144,8 +157,14 @@ func (d *Datasource) discoverSpans(ctx context.Context, r datasource.TimeRange) 
 	}
 	serviceColumn := datasource.Field{Name: "service", Type: datasource.FieldString, Values: []any{}}
 	spanColumn := datasource.Field{Name: "span_name", Type: datasource.FieldString, Values: []any{}}
+	unreadCount := 0
 	for i, service := range services {
 		names := spanNames[i]
+		if unread[i] {
+			unreadCount++
+			serviceColumn.Values = append(serviceColumn.Values, service)
+			spanColumn.Values = append(spanColumn.Values, nil)
+		}
 		if len(names) > maxSpanNamesPerService {
 			names, truncated = names[:maxSpanNamesPerService], true
 		}
@@ -154,11 +173,15 @@ func (d *Datasource) discoverSpans(ctx context.Context, r datasource.TimeRange) 
 			spanColumn.Values = append(spanColumn.Values, name)
 		}
 	}
-	return &datasource.Catalog{
+	catalog := &datasource.Catalog{
 		Sample:    &datasource.Frame{Fields: []datasource.Field{serviceColumn, spanColumn}},
 		Labels:    sortedUnique(attributes),
 		Truncated: truncated,
-	}, nil
+	}
+	if unreadCount > 0 {
+		catalog.Notes = []string{fmt.Sprintf("span names were not read for %d of %d services because Tempo did not answer in time", unreadCount, len(services))}
+	}
+	return catalog, nil
 }
 
 func traceQLString(s string) string {
