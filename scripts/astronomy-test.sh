@@ -126,6 +126,8 @@ parse_options --code --search
 [[ "$CODE" == 1 && "$SEARCH" == 1 ]] || fail "--code is an option of its own and combines with --search"
 parse_options
 [[ "$CODE" == 0 ]] || fail "the code layer is off by default"
+if message="$(parse_options --code --published 2>&1)"; then fail "--code with --published is refused"; fi
+[[ "$message" == *"--code cannot be combined with --published"* ]] || fail "the refusal says why: $message"
 unset -f docker
 [[ "$(ASTRONOMY_PROJECT=slashobserve-e2e bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-e2e ]] || fail "ASTRONOMY_PROJECT names the compose project"
 [[ "$(bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-astronomy ]] || fail "the compose project defaults to slashobserve-astronomy"
@@ -161,17 +163,22 @@ CODE=0
 mark_code_layer
 [[ ! -e "$CODE_MARKER" ]] || fail "starting without --code removes the marker"
 
-offers_code_tools "ok shop-code {\"name\": \"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep\"}" || fail "an answer that lists the source and its three tools passes"
-offers_code_tools "$(printf 'shop-code\nlist_dir\nread_file\ngrep')" || fail "an answer that lists the tools as plain values passes"
-if offers_code_tools "{\"name\":\"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep\"}"; then fail "an answer without the source fails"; fi
-if offers_code_tools "shop-code {\"name\":\"list_dir\"}{\"name\":\"read_file\"}"; then fail "an answer missing a tool fails"; fi
-if offers_code_tools "shop-code {\"name\":\"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep_all\"}"; then fail "a tool whose name only starts like a wanted one does not count"; fi
+offers_code_tools "grep list_dir read_file" || fail "a source offering exactly its three tools passes"
+if offers_code_tools ""; then fail "no answer for the source fails"; fi
+if offers_code_tools "list_dir read_file"; then fail "an answer missing a tool fails"; fi
+if offers_code_tools "grep list_dir read_file write_file"; then fail "an answer with a tool more fails"; fi
+if offers_code_tools "grep_all list_dir read_file"; then fail "a tool whose name only starts like a wanted one does not count"; fi
+
+selected="$(jq -r --arg source shop-code '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")' <<<'{"result":{"structuredContent":{"sources":[{"source":"other","tools":[{"name":"x"}]},{"source":"shop-code","tools":[{"name":"read_file"},{"name":"grep"},{"name":"list_dir"}]}]}}}')"
+[[ "$selected" == "grep list_dir read_file" ]] || fail "the source is picked by its id and its tool names are sorted: $selected"
+selected="$(jq -r --arg source shop-code '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")' <<<'{"result":{"content":[{"type":"text","text":"{\"sources\":[{\"source\":\"shop-code\",\"tools\":[{\"name\":\"grep\"}]}]}"}]}}')"
+[[ "$selected" == "grep" ]] || fail "the source is read from the text when there is no structured content: $selected"
 
 code_offers() { echo "$OFFERS"; }
-OFFERS="$(printf 'shop-code\nlist_dir\nread_file\ngrep')"
+OFFERS="grep list_dir read_file"
 message="$(check_code)" || fail "a source offering its three tools passes"
 [[ "$message" == "ok   shop-code offers list_dir read_file grep" ]] || fail "the pass line names the tools: $message"
-OFFERS="$(printf 'shop-code\nlist_dir')"
+OFFERS="list_dir"
 if message="$(check_code)"; then fail "a source offering fewer tools fails"; fi
 [[ "$message" == *"FAIL"*"does not offer list_dir read_file grep"* ]] || fail "the failure names the tools: $message"
 

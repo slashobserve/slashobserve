@@ -42,7 +42,9 @@ Usage: scripts/astronomy.sh <command>
                       shop and the SlashObserve stack and wait until everything is healthy;
                       --search adds Elasticsearch and OpenSearch and feeds them the shop's logs;
                       --code adds a read-only code server over the shop's source and registers it as
-                      the context source shop-code, whose read-only tools the provisioning file approves
+                      the context source shop-code, whose read-only tools the server approves at
+                      start; it needs the server built from this checkout, so it cannot be combined
+                      with --published
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
   check [--search] [--code]
@@ -165,6 +167,9 @@ parse_options() {
       *) die "unknown option $arg" ;;
     esac
   done
+  if [[ "$CODE" == 1 && "$PUBLISHED" == 1 ]]; then
+    die "--code cannot be combined with --published: a released server does not read allowPrivate or approve in the context sources file; build the server from this checkout instead"
+  fi
 }
 
 search_command_matches() {
@@ -216,7 +221,7 @@ SlashObserve is running at ${SERVER}
 Sign in as admin@example.com / password (Dex, development only)
 The service-account key is in ${KEY_FILE}
 EOF
-  if [[ "$CODE" == 1 ]]; then printf 'The shop source is the context source %s, with %s read-only tools approved\n' "$CODE_SOURCE" "${#CODE_TOOLS[@]}"; fi
+  if [[ "$CODE" == 1 ]]; then printf 'The shop source is the context source %s; the server approves its %s read-only tools at start, and make demo-check confirms it\n' "$CODE_SOURCE" "${#CODE_TOOLS[@]}"; fi
 }
 
 cmd_down() {
@@ -257,15 +262,12 @@ mark_code_layer() {
 code_offers() {
   api -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_context_sources","arguments":{}}}' \
-    "$SERVER/mcp" | jq -r '[.. | strings] | join("\n")'
+    "$SERVER/mcp" | jq -r --arg source "$CODE_SOURCE" \
+    '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")'
 }
 
 offers_code_tools() {
-  local offers="$1" tool
-  grep -Fq "$CODE_SOURCE" <<<"$offers" || return 1
-  for tool in "${CODE_TOOLS[@]}"; do
-    grep -Eq "(\"name\": *\"$tool\"|^$tool\$)" <<<"$offers" || return 1
-  done
+  [[ "$1" == "$(printf '%s\n' "${CODE_TOOLS[@]}" | sort | tr '\n' ' ' | sed 's/ $//')" ]]
 }
 
 check_code() {
