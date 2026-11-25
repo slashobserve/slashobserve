@@ -10,8 +10,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
+func fakeKey() datasource.Secret {
+	return datasource.NewSecret("s3cret-value")
+}
+
 func filedCode(approve ...string) []config.ContextSource {
-	return []config.ContextSource{{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, SecretHeader: "X-Api-Key", Secret: datasource.NewSecret("s3cret-value"), Approve: approve}}
+	return []config.ContextSource{{UID: "code", Name: "Code", URL: "https://" + fakeHost + "/mcp", Audience: datasource.AudienceEveryone, AllowPrivate: true, SecretHeader: "X-Api-Key", Secret: fakeKey(), Approve: approve}} //nolint:gosec // a test value
 }
 
 func TestListedApprovalsPicksOnlyOfferedToolsAndSaysWhyItSkippedTheRest(t *testing.T) {
