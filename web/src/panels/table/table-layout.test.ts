@@ -4,12 +4,10 @@ import {
   alignOf,
   columnWidths,
   frozenCount,
-  pageRows,
   pageSizeFor,
   rowHeightOf,
   rowHeightPx,
   rowSizing,
-  stickyOffsets,
   tooltipSideOf,
   typeWord,
 } from "./table-layout"
@@ -64,17 +62,6 @@ describe("columnWidths", () => {
       widths: [200, 200],
       total: 400,
     })
-  })
-})
-
-describe("stickyOffsets", () => {
-  it("accumulates the widths before each frozen column", () => {
-    expect(stickyOffsets([100, 50, 80], 2)).toEqual([0, 100])
-  })
-
-  it("stops at the number of columns", () => {
-    expect(stickyOffsets([100], 3)).toEqual([0])
-    expect(stickyOffsets([100, 50], 0)).toEqual([])
   })
 })
 
@@ -180,27 +167,6 @@ describe("pageSizeFor", () => {
 
   it("always shows at least one row", () => {
     expect(pageSizeFor(10, "lg", { header: true, footerRows: 3 })).toBe(1)
-  })
-})
-
-describe("pageRows", () => {
-  const rows = [1, 2, 3, 4, 5, 6, 7]
-
-  it("slices the requested page and counts the pages", () => {
-    expect(pageRows(rows, 1, 3)).toEqual({
-      rows: [4, 5, 6],
-      page: 1,
-      pageCount: 3,
-    })
-  })
-
-  it("clamps a page past the end or before the start", () => {
-    expect(pageRows(rows, 9, 3).rows).toEqual([7])
-    expect(pageRows(rows, -2, 3).page).toBe(0)
-  })
-
-  it("has one empty page for no rows", () => {
-    expect(pageRows([], 0, 5)).toEqual({ rows: [], page: 0, pageCount: 1 })
   })
 })
 

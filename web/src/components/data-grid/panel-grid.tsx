@@ -1,4 +1,5 @@
 import {
+  CellStyleModule,
   ClientSideRowModelApiModule,
   ClientSideRowModelModule,
   ColumnApiModule,
@@ -37,6 +38,7 @@ import { clickCellControl, tabStaysInCell } from "./keyboard"
 import { legendTableTheme, panelTableTheme } from "./theme"
 
 const modules = [
+  CellStyleModule,
   ClientSideRowModelModule,
   ClientSideRowModelApiModule,
   ColumnApiModule,
@@ -52,7 +54,9 @@ const themes = { table: panelTableTheme, legend: legendTableTheme }
 
 const detailEstimate = 64
 
-export type PanelGridSort = "ascending" | "descending" | "none"
+type PanelGridSort = "ascending" | "descending" | "none"
+
+type PanelGridCellStyle = { backgroundColor: string }
 
 export type PanelGridColumn<T> = {
   id: string
@@ -61,6 +65,7 @@ export type PanelGridColumn<T> = {
   sort?: PanelGridSort
   onSort?: () => void
   cell: (row: T) => ReactNode
+  cellStyle?: (row: T) => PanelGridCellStyle
   footer?: (index: number) => ReactNode
   width?: number
   minWidth?: number
@@ -172,6 +177,14 @@ function isDetail<T>({ rowNode }: IsFullWidthRowParams<Item<T>>): boolean {
   return rowNode.data?.kind === "detail"
 }
 
+function cellStyleOf<T>(
+  column: PanelGridColumn<T>
+): ColDef<Item<T>>["cellStyle"] {
+  const style = column.cellStyle
+  if (style === undefined) return undefined
+  return ({ data }) => (data?.kind === "row" ? style(data.row) : undefined)
+}
+
 function fitColumnsToContent(api: GridApi, available: number) {
   if (api.isDestroyed()) return
   api.autoSizeAllColumns()
@@ -196,6 +209,7 @@ export function PanelGrid<T>({
   onPageChange,
   details,
   sizeToContent = false,
+  height = "fill",
   look = "table",
   onLayout,
   className,
@@ -213,6 +227,7 @@ export function PanelGrid<T>({
   onPageChange?: (page: PanelGridPage) => void
   details?: PanelGridDetails<T>
   sizeToContent?: boolean
+  height?: "fill" | "rows"
   look?: keyof typeof themes
   onLayout?: () => void
   className?: string
@@ -260,6 +275,7 @@ export function PanelGrid<T>({
         pinned: column.pinned ? "left" : null,
         cellRenderer: PanelCell,
         cellRendererParams: { spec: column },
+        cellStyle: cellStyleOf(column),
         headerComponent: PanelHeader,
         headerComponentParams: { spec: column },
         width: column.width,
@@ -349,13 +365,16 @@ export function PanelGrid<T>({
     <div
       ref={containerRef}
       data-panel-grid=""
-      className={cn("h-full w-full", className)}
+      className={cn("w-full", height === "fill" && "h-full", className)}
     >
       <DetailContext value={detailRows}>
         <AgGridReact<Item<T>>
           modules={modules}
           theme={themes[look]}
-          containerStyle={{ height: "100%", width: "100%" }}
+          domLayout={height === "rows" ? "autoHeight" : "normal"}
+          containerStyle={
+            height === "fill" ? { height: "100%", width: "100%" } : undefined
+          }
           rowData={items}
           pinnedBottomRowData={footers}
           columnDefs={columnDefs}
@@ -371,6 +390,7 @@ export function PanelGrid<T>({
           paginationPageSizeSelector={false}
           suppressMovableColumns
           suppressColumnVirtualisation
+          ensureDomOrder
           suppressDragLeaveHidesColumns
           animateRows={false}
           onGridReady={(event) => {
