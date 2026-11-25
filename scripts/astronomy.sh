@@ -23,9 +23,9 @@ export COMPOSE_PROJECT_NAME="$PROJECT"
 
 SERVER="http://localhost:${SLASHOBSERVE_HOST_PORT}"
 KEY_FILE="$STATE_DIR/keys/astronomy.key"
-ADMIN_KEY_FILE="$STATE_DIR/keys/astronomy-admin.key"
+CODE_MARKER="$STATE_DIR/code-layer"
 CODE_SOURCE=shop-code
-CODE_TOOLS=3
+CODE_TOOLS=(list_dir read_file grep)
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
 FLAGS_FILE_MODE=644
 SEARCH_CONFIG_ARG="--config=/etc/otelcol-config-search.yml"
@@ -42,13 +42,13 @@ Usage: scripts/astronomy.sh <command>
                       shop and the SlashObserve stack and wait until everything is healthy;
                       --search adds Elasticsearch and OpenSearch and feeds them the shop's logs;
                       --code adds a read-only code server over the shop's source and registers it as
-                      the context source shop-code, with its read-only tools approved
+                      the context source shop-code, whose read-only tools the provisioning file approves
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
   check [--search] [--code]
                       check the health of every datasource through the SlashObserve API and
-                      read one row of the shop's data from each; when the shop-code source is
-                      registered (or with --code, which requires it) check that too
+                      read one row of the shop's data from each; when the stack was started with
+                      --code (or with --code here) check that shop-code offers its tools too
   flag [<name> [<variant>]]
                       without a name, list the feature flags and their variants;
                       with one, set it to <variant> (default 'on'); 'off' switches it off
@@ -114,14 +114,6 @@ fetch_upstream() {
     die "the upstream checkout is not at $UPSTREAM_COMMIT"
 }
 
-ensure_admin_key() {
-  if [[ ! -f "$ADMIN_KEY_FILE" ]]; then
-    printf 'sok_%s\n' "$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')" >"$ADMIN_KEY_FILE"
-  fi
-  chgrp "$1" "$ADMIN_KEY_FILE"
-  chmod 640 "$ADMIN_KEY_FILE"
-}
-
 prepare_state() {
   local gid
   gid="$(id -g)"
@@ -134,7 +126,6 @@ prepare_state() {
   fi
   chgrp "$gid" "$KEY_FILE"
   chmod 640 "$KEY_FILE"
-  if [[ "$CODE" == 1 ]]; then ensure_admin_key "$gid"; fi
   if [[ ! -f "$FLAGS_FILE" ]]; then
     cp "$UPSTREAM_DIR/src/flagd/demo.flagd.json" "$FLAGS_FILE"
     chmod "$FLAGS_FILE_MODE" "$FLAGS_FILE"
@@ -217,7 +208,7 @@ cmd_up() {
   if [[ "$CODE" == 1 ]]; then compose build codeserver; fi
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
   if [[ "$SEARCH" == 0 ]]; then remove_search_stores; fi
-  if [[ "$CODE" == 1 ]]; then approve_code_tools; fi
+  mark_code_layer
   cat <<EOF
 The Astronomy Shop is running at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}
 Its Jaeger UI is at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/jaeger/ui and its feature flags at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/feature/
@@ -225,7 +216,7 @@ SlashObserve is running at ${SERVER}
 Sign in as admin@example.com / password (Dex, development only)
 The service-account key is in ${KEY_FILE}
 EOF
-  if [[ "$CODE" == 1 ]]; then printf 'The shop source is a context source named %s, with %s read-only tools approved\n' "$CODE_SOURCE" "$CODE_TOOLS"; fi
+  if [[ "$CODE" == 1 ]]; then printf 'The shop source is the context source %s, with %s read-only tools approved\n' "$CODE_SOURCE" "${#CODE_TOOLS[@]}"; fi
 }
 
 cmd_down() {
@@ -241,6 +232,7 @@ cmd_down() {
   else
     docker compose --project-name "$PROJECT" down "${args[@]}"
   fi
+  rm -f "$CODE_MARKER"
   if [[ "$VOLUMES" == 1 ]]; then rm -f "$FLAGS_FILE"; fi
 }
 
@@ -258,49 +250,34 @@ api() {
   curl -fsS --max-time 30 -H "Authorization: Bearer $(cat "$KEY_FILE")" "$@"
 }
 
-admin_api() {
-  curl -fsS --max-time 30 -H "Authorization: Bearer $(cat "$ADMIN_KEY_FILE")" "$@"
+mark_code_layer() {
+  if [[ "$CODE" == 1 ]]; then : >"$CODE_MARKER"; else rm -f "$CODE_MARKER"; fi
 }
 
-code_source() {
-  admin_api "$SERVER/api/v1/context-sources/$CODE_SOURCE"
+code_offers() {
+  api -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_context_sources","arguments":{}}}' \
+    "$SERVER/mcp" | jq -r '[.. | strings] | join("\n")'
 }
 
-approve_code_tools() {
-  local deadline=$((SECONDS + CHECK_WAIT))
-  until admin_api -X POST "$SERVER/api/v1/context-sources/$CODE_SOURCE/discover" >/dev/null 2>&1; do
-    if ((SECONDS >= deadline)); then die "the $CODE_SOURCE source did not answer discovery; see 'docker compose logs codeserver server'"; fi
-    sleep 3
+offers_code_tools() {
+  local offers="$1" tool
+  grep -Fq "$CODE_SOURCE" <<<"$offers" || return 1
+  for tool in "${CODE_TOOLS[@]}"; do
+    grep -Eq "(\"name\": *\"$tool\"|^$tool\$)" <<<"$offers" || return 1
   done
-  admin_api -X POST "$SERVER/api/v1/context-sources/$CODE_SOURCE/tools/approve-read-only" >/dev/null ||
-    die "could not approve the read-only tools of $CODE_SOURCE"
-}
-
-code_layer_on() {
-  [[ -f "$ADMIN_KEY_FILE" ]] && code_source >/dev/null 2>&1
 }
 
 check_code() {
-  local source state private approved deadline=$((SECONDS + CHECK_WAIT))
-  until source="$(code_source 2>/dev/null)" && [[ "$(jq -r '.state' <<<"$source")" == ready ]]; do
+  local offers deadline=$((SECONDS + CHECK_WAIT))
+  until offers="$(code_offers 2>/dev/null)" && offers_code_tools "$offers"; do
     if ((SECONDS >= deadline)); then
-      printf 'FAIL %-8s the source is not ready\n' "$CODE_SOURCE"
+      printf 'FAIL %-8s does not offer %s\n' "$CODE_SOURCE" "${CODE_TOOLS[*]}"
       return 1
     fi
     sleep 3
   done
-  state="$(jq -r '.state' <<<"$source")"
-  private="$(jq -r '.private' <<<"$source")"
-  approved="$(jq -r '.tools.approved' <<<"$source")"
-  if [[ "$private" != true ]]; then
-    printf 'FAIL %-8s not marked private\n' "$CODE_SOURCE"
-    return 1
-  fi
-  if [[ "$approved" != "$CODE_TOOLS" ]]; then
-    printf 'FAIL %-8s %s approved tools, want %s\n' "$CODE_SOURCE" "$approved" "$CODE_TOOLS"
-    return 1
-  fi
-  printf 'ok   %-8s %s, %s approved tools\n' "$CODE_SOURCE" "$state" "$approved"
+  printf 'ok   %-8s offers %s\n' "$CODE_SOURCE" "${CODE_TOOLS[*]}"
 }
 
 datasource_healthy() {
@@ -364,10 +341,7 @@ cmd_check() {
     check_datasource es "frontend log lines" 'service.name: "frontend"' || failed=1
     check_datasource os "frontend log lines" 'resource.service.name: "frontend"' || failed=1
   fi
-  if [[ "$CODE" == 1 ]] || code_layer_on; then
-    [[ -f "$ADMIN_KEY_FILE" ]] || die "no admin key; start the stack with 'up --code' first"
-    check_code || failed=1
-  fi
+  if [[ "$CODE" == 1 || -f "$CODE_MARKER" ]]; then check_code || failed=1; fi
   return "$failed"
 }
 

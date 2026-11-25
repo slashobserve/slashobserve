@@ -33,7 +33,8 @@ Measured on an 8 CPU, 22 GB Linux host, with the shop running for a few minutes:
 - `compose.build.yaml` builds the server from this checkout; `compose.search.yaml` wires the collector to the search stores.
 - `compose.code.yaml` is the code layer, started by `up --code`: it builds `tools/codeserver` and serves `.upstream/src` read-only to the server at `codeserver.demo.internal`, a name with a dot because a context source must be a domain name on the outbound allowlist, which the layer fixes to that name.
   `context-sources.yaml` provisions it as `shop-code` with `allowPrivate: true`, the file-only switch for a plain `http` address on the compose network.
-  Provisioning cannot approve tools, so `service-accounts.code.yaml` adds the `astronomy-admin` service account, whose key `up --code` uses to discover and approve the read-only tools once the stack is healthy.
+  Its `approve` list names the three read-only tools, which the server approves at start.
+  `.state/code-layer` marks a stack started with `--code`, and `make demo-check` checks the source only then.
 - `.state/` holds the service-account key and the flag file the make target edits, and Git ignores it.
 
 Nothing is forked.

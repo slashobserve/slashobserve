@@ -149,40 +149,31 @@ echo '{}' >"$tmp/down-state/flagd/demo.flagd.json"
 [[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans" ]] || fail "down without --volumes keeps the volumes: $(cat "$recorded")"
 unset -f docker
 
-no_admin="$tmp/no-admin"
-UPSTREAM_DIR="$tmp/up" STATE_DIR="$no_admin" KEY_FILE="$no_admin/keys/astronomy.key" ADMIN_KEY_FILE="$no_admin/keys/astronomy-admin.key" FLAGS_FILE="$no_admin/flagd/demo.flagd.json"
-CODE=0
-prepare_state
-[[ ! -e "$ADMIN_KEY_FILE" ]] || fail "no admin key is created without --code"
-CODE=1
-prepare_state
-admin_key="$(cat "$ADMIN_KEY_FILE")"
-[[ "$admin_key" == sok_* && "$admin_key" != "$(cat "$KEY_FILE")" ]] || fail "the admin key has its own sok_ value"
-[[ "$(ls -l "$ADMIN_KEY_FILE" | cut -c1-10)" == -rw-r----- ]] || fail "the admin key is closed to others"
-prepare_state
-[[ "$(cat "$ADMIN_KEY_FILE")" == "$admin_key" ]] || fail "a second prepare keeps the admin key"
-
 CODE_SOURCE=shop-code
-CODE_TOOLS=3
-SERVER="http://localhost:1"
+CODE_TOOLS=(list_dir read_file grep)
 CHECK_WAIT=0
-code_source() { echo "$SOURCE_JSON"; }
-SOURCE_JSON='{"state":"ready","private":true,"tools":{"approved":3}}'
-message="$(check_code)" || fail "a ready private source with the three tools passes"
-[[ "$message" == "ok   shop-code ready, 3 approved tools" ]] || fail "the pass line names the state and the count: $message"
-SOURCE_JSON='{"state":"ready","private":true,"tools":{"approved":2}}'
-if message="$(check_code)"; then fail "a source with fewer approved tools fails"; fi
-[[ "$message" == *"2 approved tools, want 3"* ]] || fail "the failure names the count: $message"
-SOURCE_JSON='{"state":"ready","private":false,"tools":{"approved":3}}'
-if message="$(check_code)"; then fail "a source that is not marked private fails"; fi
-SOURCE_JSON='{"state":"unreachable","private":true,"tools":{"approved":3}}'
-if message="$(check_code)"; then fail "a source that is not ready fails"; fi
-[[ "$message" == *"the source is not ready"* ]] || fail "the failure says the source is not ready: $message"
-code_source() { return 22; }
-if code_layer_on; then fail "the layer counts as off when the server does not know the source"; fi
-code_source() { echo "$SOURCE_JSON"; }
-rm -f "$ADMIN_KEY_FILE"
-if code_layer_on; then fail "the layer counts as off without an admin key"; fi
+mkdir -p "$tmp/marker"
+CODE_MARKER="$tmp/marker/code-layer"
+CODE=1
+mark_code_layer
+[[ -e "$CODE_MARKER" ]] || fail "starting with --code leaves a marker the check can see"
+CODE=0
+mark_code_layer
+[[ ! -e "$CODE_MARKER" ]] || fail "starting without --code removes the marker"
+
+offers_code_tools "ok shop-code {\"name\": \"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep\"}" || fail "an answer that lists the source and its three tools passes"
+offers_code_tools "$(printf 'shop-code\nlist_dir\nread_file\ngrep')" || fail "an answer that lists the tools as plain values passes"
+if offers_code_tools "{\"name\":\"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep\"}"; then fail "an answer without the source fails"; fi
+if offers_code_tools "shop-code {\"name\":\"list_dir\"}{\"name\":\"read_file\"}"; then fail "an answer missing a tool fails"; fi
+if offers_code_tools "shop-code {\"name\":\"list_dir\"}{\"name\":\"read_file\"}{\"name\":\"grep_all\"}"; then fail "a tool whose name only starts like a wanted one does not count"; fi
+
+code_offers() { echo "$OFFERS"; }
+OFFERS="$(printf 'shop-code\nlist_dir\nread_file\ngrep')"
+message="$(check_code)" || fail "a source offering its three tools passes"
+[[ "$message" == "ok   shop-code offers list_dir read_file grep" ]] || fail "the pass line names the tools: $message"
+OFFERS="$(printf 'shop-code\nlist_dir')"
+if message="$(check_code)"; then fail "a source offering fewer tools fails"; fi
+[[ "$message" == *"FAIL"*"does not offer list_dir read_file grep"* ]] || fail "the failure names the tools: $message"
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1
