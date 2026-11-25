@@ -6472,7 +6472,7 @@ export interface components {
             /** @description The attempt that ran the step. A shutdown release gives the attempt back and keeps its steps, so the re-claimed run continues the same step list; an attempt keeps its most recent 1000 steps. Clients detect a restarted list by each step's `at`, not by `attempt` alone. */
             attempt: number;
             /** @enum {string} */
-            phase: "discover" | "lint" | "query" | "save" | "write" | "repair" | "ledger";
+            phase: "discover" | "lint" | "query" | "save" | "write" | "repair" | "ledger" | "stage";
             tool: string;
             /** @enum {string} */
             status: "ok" | "error";
@@ -6522,6 +6522,13 @@ export interface components {
             cost_usd: number | null;
             /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`) and only for the requester and Admins, because it quotes data the run read. */
             hypotheses?: components["schemas"]["AgentHypothesis"][];
+            /** @description The investigation's model-call limit when it ended, after any growth, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`. */
+            call_limit?: number;
+            /**
+             * @description The stage the investigation was in when it saved its finding, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` and a saved finding.
+             * @enum {string}
+             */
+            stage_at_save?: "orient" | "hypothesize" | "test" | "conclude";
         };
         AgentHypothesis: {
             id: string;

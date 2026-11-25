@@ -261,7 +261,8 @@ See [LLM providers](../connect/llm-providers.md) for how the settings combine.
 | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` | `0` | Cost cap of a run in US dollars. `0` is no limit. |
 | `SLASHOBSERVE_AGENT_WORKERS` | `8` | Agent requests this server runs at once, `1` to `64`. |
 | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | `12` | Model calls an investigation makes, `6` to `60`. |
-| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` | `false` | Gives investigations of the built-in agent a hypothesis ledger, stages, and a call limit that grows with progress. |
+| `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX` | the value of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` | The most model calls a growing investigation limit can reach, from `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` to `60`. |
 | `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB` | `256` | Session size that triggers shortening, `32` to `4096` KiB. |
 | `SLASHOBSERVE_LLM_PRICES_FILE` | the built-in table | YAML file of model prices. |
 | `SLASHOBSERVE_LLM_REPLAY_DIR` | unset | Folder of recorded model scripts. Required for `replay`. |
@@ -345,7 +346,18 @@ The finished run returns the last ledger as `usage.hypotheses` to its requester 
 An investigation that saves a finding with `root_cause` or `ruled_out` while every hypothesis in its ledger is still open, or it has none, gets that save sent back once with the request to update the ledger first; the second save is accepted as it is, and the run counts the first as a nudge.
 With `false`, the tool is not offered, the prompt has no section and the brief has no block, so a run is the same as it was before the setting existed.
 A connected agent in an investigate run, started with a run token, gets the tool and the prompt section as well, through `get_run_brief`; a connected agent outside a run never gets the tool.
+
+The server also works out the built-in agent's stage, tells it after each turn, and lets its call limit grow when the ledger shows progress, up to `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+A connected agent never sees stage lines and keeps the fixed limit.
 Changing the setting needs a server restart.
+
+### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`
+
+The value is the ceiling the call limit of an investigation can grow to when `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` is `true`.
+It must be at least `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS` and at most `60`, and the server refuses to start with a value outside that range.
+Unset, it equals `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, so the limit never grows.
+Without the loop setting it has no effect.
+The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end an investigation at any limit.
 
 ### Details of `SLASHOBSERVE_AGENT_SESSION_RENEW_KIB`
 

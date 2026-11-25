@@ -27,6 +27,7 @@ type State struct {
 	Counts             Counts          `json:"counts"`
 
 	InvestigationCalls int          `json:"investigation_calls,omitempty"`
+	Loop               *Loop        `json:"loop,omitempty"`
 	Ledger             *LedgerWatch `json:"ledger,omitempty"`
 }
 
@@ -57,6 +58,8 @@ type Turn struct {
 	Rejected  bool   `json:"rejected,omitempty"`
 	Noted     bool   `json:"noted,omitempty"`
 
+	Reads         int                `json:"reads,omitempty"`
+	LedgerChanged bool               `json:"ledger_changed,omitempty"`
 	ReadsInFlight int                `json:"reads_in_flight,omitempty"`
 	Keys          map[string]TurnKey `json:"keys,omitempty"`
 }

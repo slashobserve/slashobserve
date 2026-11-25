@@ -136,13 +136,11 @@ func (sess *session) admit(ctx context.Context, c guard.Call, turn *Turn) (admit
 		sess.state.noteModel(*turn.Usage)
 	}
 	if sess.state.Turn.Open && !sess.state.Turn.joinedBy(turn) {
-		nudge, err := sess.closeTurn(ctx)
+		notes, err := sess.closeTurn(ctx)
 		if err != nil {
 			return out, err
 		}
-		if nudge != "" {
-			out.notes = append(out.notes, nudge)
-		}
+		out.notes = append(out.notes, notes...)
 		if sess.ended {
 			answer := sess.endedAnswer(out.notes)
 			out.answer = &answer

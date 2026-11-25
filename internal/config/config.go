@@ -152,6 +152,7 @@ const (
 	envAgentWorkers            = "SLASHOBSERVE_AGENT_WORKERS"
 	envAgentInvestigationCalls = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS"
 	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
+	envAgentInvestigationMax   = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -166,7 +167,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -196,7 +197,9 @@ type Agent struct {
 	Workers            int
 	InvestigationCalls int
 	InvestigationLoop  bool
-	MaxRunCostUSD      float64
+
+	InvestigationCallsMax int
+	MaxRunCostUSD         float64
 }
 
 type Config struct {
@@ -717,6 +720,15 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.Agent.Workers = n
 		}
 	}
+	errs = append(errs, loadInvestigationCalls(lookup, cfg)...)
+	if err := loadRunMaxCost(lookup, cfg); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func loadInvestigationCalls(lookup func(string) (string, bool), cfg *Config) []error {
+	var errs []error
 	cfg.Agent.InvestigationCalls = guard.DefaultInvestigationCalls
 	if v := get(lookup, envAgentInvestigationCalls); v != "" {
 		n, err := strconv.Atoi(v)
@@ -726,8 +738,14 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			cfg.Agent.InvestigationCalls = n
 		}
 	}
-	if err := loadRunMaxCost(lookup, cfg); err != nil {
-		errs = append(errs, err)
+	cfg.Agent.InvestigationCallsMax = cfg.Agent.InvestigationCalls
+	if v := get(lookup, envAgentInvestigationMax); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < cfg.Agent.InvestigationCalls || n > maxAgentInvestigationCalls {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from the value of %s (%d) to %d, got %q", envAgentInvestigationMax, envAgentInvestigationCalls, cfg.Agent.InvestigationCalls, maxAgentInvestigationCalls, v))
+		} else {
+			cfg.Agent.InvestigationCallsMax = n
+		}
 	}
 	return errs
 }
