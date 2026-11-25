@@ -27,8 +27,8 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
 import {
@@ -223,14 +223,12 @@ export function DataGrid<T>({
           ),
     [allColumns, width]
   )
-  const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
   const nameRef = useRef({ label, labelledBy })
   useImperativeHandle(ref, () => containerRef.current as HTMLDivElement)
   useLayoutEffect(() => {
     nameRef.current = { label, labelledBy }
-    rowIdRef.current = rowId
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
   })
@@ -239,9 +237,7 @@ export function DataGrid<T>({
   const sortDirection = sort?.direction ?? null
   const open = detail?.open
   const hasDetail = detail !== undefined
-  const idOf = useCallback((row: T) => rowIdRef.current(row), [])
-  // eslint-disable-next-line react-hooks/refs -- rowId is read through a ref so an inline rowId does not rebuild every line on each render
-  const lines = useMemo(() => gridLines(rows, idOf, open), [rows, idOf, open])
+  const lines = useMemo(() => gridLines(rows, rowId, open), [rows, rowId, open])
   const getRowId = useCallback(
     ({ data }: GetRowIdParams<GridLine<T>>) => data.id,
     []
