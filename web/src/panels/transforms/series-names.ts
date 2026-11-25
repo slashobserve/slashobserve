@@ -195,6 +195,27 @@ function generic(
   return uniqueName(name, frame, fieldIndex)
 }
 
+function legendText(source: Source, field: WireFrame["fields"][number]) {
+  const legend = source.query?.legend
+  if (!legend || legend === "__auto") return ""
+  const rendered = renderLegend(legend, prometheusLabels(source.frame))
+  return rendered !== "" &&
+    source.kind === "sql" &&
+    numberFieldCount(source.frame) > 1
+    ? `${rendered} ${field.name}`
+    : rendered
+}
+
+export function legendSeriesName(
+  panel: DataPanel,
+  frame: WireFrame,
+  field: WireFrame["fields"][number],
+  datasourceTypeOf?: DatasourceTypeOf
+): string | undefined {
+  const text = legendText(resolveSource(panel, frame, datasourceTypeOf), field)
+  return text === "" ? undefined : text
+}
+
 function prometheusName(
   source: Source,
   context: Context,
@@ -208,7 +229,7 @@ function prometheusName(
     displayName =
       Object.keys(labels).length > 0 ? "" : metricNameFromLabels(labels)
   } else if (legend) {
-    displayName = renderLegend(legend, labels)
+    displayName = legendText(source, frame.fields[fieldIndex])
   } else {
     displayName = metricNameFromLabels(labels)
   }
@@ -225,21 +246,10 @@ function prometheusName(
 }
 
 function sqlName(source: Source, context: Context, fieldIndex: number): string {
-  const { frame, query } = source
+  const { frame } = source
   const field = frame.fields[fieldIndex]
-  const legend = query?.legend
-  if (legend && legend !== "__auto") {
-    const labels = {
-      ...frame.labels,
-      ...(frame.name ? { __name__: frame.name } : {}),
-    }
-    const rendered = renderLegend(legend, labels)
-    if (rendered !== "") {
-      return numberFieldCount(frame) > 1
-        ? `${rendered} ${field.name}`
-        : rendered
-    }
-  }
+  const rendered = legendText(source, field)
+  if (rendered !== "") return rendered
   return generic(
     field.name,
     { labels: frame.labels, frame: frame.ref },

@@ -22,6 +22,7 @@ type State struct {
 	Writes             int             `json:"writes,omitempty"`
 	Unchecked          []Unchecked     `json:"unchecked,omitempty"`
 	Absence            Absence         `json:"absence,omitzero"`
+	Answer             Answer          `json:"answer,omitzero"`
 	Turn               Turn            `json:"turn"`
 	Counts             Counts          `json:"counts"`
 
@@ -89,6 +90,7 @@ func (s *State) Restart() {
 	s.Churn, s.ChurnedInRow = nil, 0
 	s.Reads, s.Saves = nil, nil
 	s.Absence = Absence{}
+	s.Answer = Answer{}
 }
 
 func (s *State) BeginTurn(hasSave bool) {

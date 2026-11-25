@@ -13,6 +13,7 @@ import {
   barchartModel,
   categoryBand,
   labelSpot,
+  legendEntries,
   labelStep,
   labelStride,
   maxCategories,
@@ -145,6 +146,38 @@ describe("barchartModel categories", () => {
     expect(model.bars.map((row) => row.map((bar) => bar.value))).toEqual([
       [3],
       [5],
+    ])
+  })
+
+  it("labels the legend of table queries by their legends, like the bars", () => {
+    const table = (ref: string, value: number, seriesName: string) =>
+      frame(
+        [
+          {
+            name: `Value #${ref}`,
+            type: "number",
+            values: [value],
+            seriesName,
+            headedBySeriesName: true,
+          },
+        ],
+        { ref }
+      )
+    const built = panel()
+    const source = barSource(
+      built,
+      [table("A", 5, "placed"), table("B", 7, "refunded")],
+      createFieldResolver(built),
+      displayWithDefaults("barchart", {}),
+      undefined
+    )
+    expect(source.categories.map((category) => category.label)).toEqual([
+      "placed",
+      "refunded",
+    ])
+    expect(legendEntries(source).map((entry) => entry.label)).toEqual([
+      "placed",
+      "refunded",
     ])
   })
 
