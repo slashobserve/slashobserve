@@ -15,6 +15,11 @@ export function barShare(value: number | null, max: number): number {
   return Math.min(1, Math.max(0, value / max))
 }
 
+export function markerShare(value: number | null, max: number): number | null {
+  if (value === null || max <= 0 || value > max) return null
+  return barShare(value, max)
+}
+
 export function barColumnMinWidth(widthCh: number, chPx = 8): number {
   return Math.ceil(widthCh * chPx) + barGapPx + barMinWidthPx + cellPaddingPx
 }

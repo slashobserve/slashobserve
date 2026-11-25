@@ -168,6 +168,88 @@ describe("DataGrid", () => {
     expect(clicked).toHaveBeenCalledTimes(1)
   })
 
+  it("tabs between the controls of a cell that holds several, keeps arrows on the focused one, and Enter presses it", async () => {
+    const pressed = vi.fn()
+    const withActions: DataGridColumn<Row>[] = [
+      columns[0] as DataGridColumn<Row>,
+      {
+        id: "actions",
+        header: "Actions",
+        action: true,
+        cell: (row) => (
+          <>
+            {["Edit", "Copy", "Remove"].map((verb) => (
+              <button
+                key={verb}
+                type="button"
+                onClick={() => pressed(verb, row.id)}
+              >
+                {verb} {row.name}
+              </button>
+            ))}
+          </>
+        ),
+      },
+    ]
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={withActions}
+        rowId={(row) => row.id}
+      />
+    )
+    const edit = await screen.findByRole("button", { name: "Edit Checkout" })
+    const copy = screen.getByRole("button", { name: "Copy Checkout" })
+    const remove = screen.getByRole("button", { name: "Remove Checkout" })
+    const cell = edit.closest<HTMLElement>("[role=gridcell]") as HTMLElement
+    cell.focus()
+    fireEvent.keyDown(cell, { key: "Enter" })
+    expect(pressed).not.toHaveBeenCalled()
+    fireEvent.keyDown(cell, { key: "Tab" })
+    expect(edit).toHaveFocus()
+    fireEvent.keyDown(edit, { key: "Tab" })
+    expect(copy).toHaveFocus()
+    fireEvent.keyDown(copy, { key: "Tab" })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: "ArrowDown" })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: "Enter" })
+    expect(pressed).toHaveBeenLastCalledWith("Remove", "a")
+    expect(pressed).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
+    expect(copy).toHaveFocus()
+    cell.focus()
+    fireEvent.keyDown(cell, { key: "ArrowDown" })
+    await waitFor(() =>
+      expect(document.activeElement?.closest("[row-id]")).toHaveAttribute(
+        "row-id",
+        "b"
+      )
+    )
+  })
+
+  it("redraws a row whose content changes under the same id", async () => {
+    const props = {
+      label: "Services",
+      columns,
+      rowId: (row: Row) => row.id,
+    }
+    const { rerender } = render(<DataGrid {...props} rows={rows} />)
+    await screen.findByRole("gridcell", { name: "Search" })
+    rerender(
+      <DataGrid
+        {...props}
+        rows={rows.map((row) =>
+          row.id === "b" ? { ...row, name: "Search v2" } : row
+        )}
+      />
+    )
+    expect(
+      await screen.findByRole("gridcell", { name: "Search v2" })
+    ).toBeInTheDocument()
+  })
+
   it("reports the hovered row and paints the highlighted one", async () => {
     const onHighlightRow = vi.fn()
     const { rerender, container } = render(
@@ -296,6 +378,56 @@ describe("DataGrid", () => {
       ])
       expect(card?.firstElementChild).toHaveClass("basis-full", "font-medium")
       expect(card?.lastElementChild).toHaveClass("ml-auto")
+    })
+
+    it("presses the only control of a focused card on Enter", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+        />
+      )
+      const link = await screen.findByRole("link", { name: "Open Search" })
+      const clicked = vi.fn((event: MouseEvent) => event.preventDefault())
+      link.addEventListener("click", clicked)
+      const card = container.querySelector<HTMLElement>('[row-id="b"]')
+      expect(card).toHaveClass("ag-full-width-row")
+      card?.focus()
+      fireEvent.keyDown(card as HTMLElement, { key: "Enter" })
+      expect(clicked).toHaveBeenCalledTimes(1)
+    })
+
+    it("redraws a card whose content changes under the same id", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const props = {
+        label: "Services",
+        columns,
+        rowId: (row: Row) => row.id,
+      }
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={rows} />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search")
+      )
+      rerender(
+        <DataGrid
+          {...props}
+          rows={rows.map((row) =>
+            row.id === "b" ? { ...row, name: "Search v2" } : row
+          )}
+        />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="name"]')
+        ).toHaveTextContent("Search v2")
+      )
     })
 
     it("places each card below the measured height of the one before", async () => {
