@@ -38,7 +38,7 @@ function hasControlOrFormatCharacter(text: string): boolean {
 function hasControlCharacter(text: string): boolean {
   return [...text].some((char) => {
     const code = char.charCodeAt(0)
-    return code < 0x20 || code === 0x7f
+    return code < 0x20 || (code >= 0x7f && code <= 0x9f)
   })
 }
 
@@ -96,11 +96,14 @@ export function sourceProblems(
   }
   if ([...input.name].length > maxNameCharacters) {
     problems.name = `The name can be at most ${maxNameCharacters} characters.`
+  } else if (hasControlOrFormatCharacter(input.name)) {
+    problems.name = "The name must be without control or invisible characters."
   }
   if ([...input.description].length > maxDescriptionCharacters) {
     problems.description = `The description can be at most ${maxDescriptionCharacters} characters.`
   } else if (hasControlOrFormatCharacter(input.description)) {
-    problems.description = "The description must be on one line."
+    problems.description =
+      "The description must be on one line, without control or invisible characters."
   }
   const url = urlProblem(input.url)
   if (url !== undefined) problems.url = url
