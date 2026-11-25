@@ -3,7 +3,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
-import { inboxKeys } from "@/api/keys"
+import { inboxKeys, type InboxView } from "@/api/keys"
 import { ActivityStreamProvider } from "@/live/activity-stream"
 import { FakeEventSource } from "@/test/fake-event-source"
 import { testQueryClient } from "@/test/render"
@@ -90,21 +90,23 @@ describe("useInboxCount", () => {
     renderHook(() => useInboxCount(), {
       wrapper: wrapperFor(client, streamed),
     })
-    return client.getQueryCache().find({ queryKey: inboxKeys.badge() })
-      ?.observers[0]?.options.refetchInterval
+    return client
+      .getQueryCache()
+      .find({ queryKey: inboxKeys.list("for_you", "open") })?.observers[0]
+      ?.options.refetchInterval
   }
 
-  test("reads the count from a one-item page", async () => {
+  test("reads the count from the first page of For you", async () => {
     const client = testQueryClient()
     const { result } = renderHook(() => useInboxCount(), {
       wrapper: wrapperFor(client, false),
     })
     await waitFor(() => expect(result.current).toBe(4))
-    expect(requests[0].searchParams.get("limit")).toBe("1")
     expect(requests[0].searchParams.get("view")).toBe("for_you")
+    expect(requests[0].searchParams.get("filter")).toBe("open")
   })
 
-  test("polls on a page outside the shell and not inside it", () => {
+  test("polls For you on a page outside the shell and not inside it", () => {
     expect(intervalWhen(false)).toBe(15_000)
     expect(intervalWhen(true)).toBe(false)
   })
@@ -125,20 +127,24 @@ describe("keepInboxHead", () => {
 })
 
 describe("usePanelInboxList", () => {
-  function intervalWhen(streamed: boolean) {
+  function intervalWhen(streamed: boolean, view: InboxView = "mentions") {
     const client = testQueryClient()
-    renderHook(() => usePanelInboxList("mentions", "open"), {
+    renderHook(() => usePanelInboxList(view, "open"), {
       wrapper: wrapperFor(client, streamed),
     })
     return client
       .getQueryCache()
-      .find({ queryKey: inboxKeys.list("mentions", "open") })?.observers[0]
-      ?.options.refetchInterval
+      .find({ queryKey: inboxKeys.list(view, "open") })?.observers[0]?.options
+      .refetchInterval
   }
 
   test("polls the open panel's list on a page outside the shell and not inside it", () => {
     expect(intervalWhen(false)).toBe(15_000)
     expect(intervalWhen(true)).toBe(false)
+  })
+
+  test("leaves For you to the poll it always has", () => {
+    expect(intervalWhen(false, "for_you")).toBe(false)
   })
 })
 
@@ -163,7 +169,6 @@ describe("useInboxLive", () => {
         pageParams: [undefined],
       })
     }
-    client.setQueryData(inboxKeys.badge(), page([1]))
     renderHook(() => useInboxLive(), { wrapper: wrapperFor(client, true) })
     const invalidated = () =>
       client
@@ -184,17 +189,20 @@ describe("useInboxLive", () => {
     act(() => FakeEventSource.instances[0].emit("activity", event))
   }
 
-  test("refreshes only the badge at once on the first event while the panel is closed", () => {
+  test("refreshes only For you at once on the first event while the panel is closed", () => {
     const { invalidated } = mount()
     emit()
-    expect(invalidated()).toEqual(["inbox/badge"])
+    expect(invalidated()).toEqual(["inbox/list/for_you/open"])
   })
 
   test("also refreshes the list the open panel shows, and nothing else", () => {
     useInboxPanelStore.setState({ open: true, view: "mentions" })
     const { invalidated } = mount()
     emit()
-    expect(invalidated()).toEqual(["inbox/badge", "inbox/list/mentions/open"])
+    expect(invalidated()).toEqual([
+      "inbox/list/for_you/open",
+      "inbox/list/mentions/open",
+    ])
   })
 
   test("keeps refreshing once a second under events that never stop", async () => {
