@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js"
 import { configureLog } from "../src/log"
 import { ToolError } from "../src/protocol"
-import { briefUnavailableMessage, runLoop } from "../src/run"
+import {
+  briefUnavailableMessage,
+  runLoop,
+  toolsUnavailableMessage,
+} from "../src/run"
 import { estimateOutputTokens } from "../src/session/replay/replay"
 import { CallError, type SessionFactory } from "../src/session/types"
 import {
@@ -739,14 +743,14 @@ describe("opening a run through a database stall", () => {
     expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
   })
 
-  test("a session open that keeps timing out fails the run internal", async () => {
+  test("a session open that keeps timing out fails the run saying it could not load the tools", async () => {
     const claim = new FakeClaim()
     claim.tools.listFailures = [timeout(), timeout(), timeout(), timeout()]
     await drive(claim, claimed("create happy path"), quick)
     expect(claim.tools.listCalls).toBe(3)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",
-      failure_code: "internal",
+      message: toolsUnavailableMessage,
     })
   })
 
@@ -763,24 +767,7 @@ describe("opening a run through a database stall", () => {
     })
   })
 
-  test("a timed out brief is retried and the run goes on", async () => {
-    const claim = new FakeClaim()
-    claim.tools.handler = savedWith()
-    const getBrief = claim.getRunBrief.bind(claim)
-    let calls = 0
-    claim.getRunBrief = async (input) => {
-      calls += 1
-      if (calls < 3) {
-        throw timeout()
-      }
-      return getBrief(input)
-    }
-    await drive(claim, claimed("create happy path"), quick)
-    expect(calls).toBe(3)
-    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
-  })
-
-  test("a brief that keeps timing out fails the run saying it could not load the brief", async () => {
+  test("a timed out brief is not retried and fails the run saying it could not load the brief", async () => {
     const claim = new FakeClaim()
     let calls = 0
     claim.getRunBrief = async () => {
@@ -788,7 +775,7 @@ describe("opening a run through a database stall", () => {
       throw timeout()
     }
     await drive(claim, claimed("create happy path"), quick)
-    expect(calls).toBe(3)
+    expect(calls).toBe(1)
     expect(claim.finishes).toHaveLength(1)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",
@@ -797,15 +784,12 @@ describe("opening a run through a database stall", () => {
     expect(claim.finishes[0]?.failure_code).toBeUndefined()
   })
 
-  test("a brief the server refuses is not retried", async () => {
+  test("a brief the server refuses fails the run internal", async () => {
     const claim = new FakeClaim()
-    let calls = 0
     claim.getRunBrief = async () => {
-      calls += 1
       throw new ToolError("invalid_reason", "bad reason")
     }
     await drive(claim, claimed("create happy path"), quick)
-    expect(calls).toBe(1)
     expect(claim.finishes[0]).toMatchObject({
       outcome: "failed",
       failure_code: "internal",
@@ -814,13 +798,16 @@ describe("opening a run through a database stall", () => {
 
   test("finish_run is a write and is not retried", async () => {
     const claim = new FakeClaim()
-    claim.tools.listFailures = [timeout(), timeout(), timeout(), timeout()]
+    claim.getRunBrief = async () => {
+      throw timeout()
+    }
     let finishes = 0
     claim.finishRun = async () => {
       finishes += 1
       throw timeout()
     }
     await drive(claim, claimed("create happy path"), quick)
+    expect(claim.briefs).toHaveLength(0)
     expect(finishes).toBe(1)
   })
 })

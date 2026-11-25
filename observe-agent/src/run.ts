@@ -74,11 +74,13 @@ class Failure extends Error {
 
 export const briefUnavailableMessage =
   "the agent could not load the run's brief from the server"
+export const toolsUnavailableMessage =
+  "the agent could not load the run's tools from the server"
 
-class BriefUnavailable extends Error {
-  constructor() {
-    super(briefUnavailableMessage)
-    this.name = "BriefUnavailable"
+class StartUnavailable extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "StartUnavailable"
   }
 }
 
@@ -298,7 +300,7 @@ class RunLoop {
       log("info", "run is no longer ours", { run_id: this.runRef.run_id })
       return
     }
-    if (error instanceof BriefUnavailable) {
+    if (error instanceof StartUnavailable) {
       log("warn", "run failed", {
         ...this.counters(),
         failure_code: "agent_failed",
@@ -306,7 +308,7 @@ class RunLoop {
       })
       await this.finishQuietly({
         outcome: "failed",
-        message: briefUnavailableMessage,
+        message: error.message,
       })
       return
     }
@@ -333,10 +335,13 @@ class RunLoop {
   }
 
   private async main(): Promise<void> {
-    this.specs = await retryWithin(
-      (signal) => this.tools.listTools(startReadTimeoutMs, signal),
-      this.cancel.signal,
-      this.startRetry
+    this.specs = await this.unavailableAs(
+      toolsUnavailableMessage,
+      retryWithin(
+        (signal) => this.tools.listTools(startReadTimeoutMs, signal),
+        this.cancel.signal,
+        this.startRetry
+      )
     )
     let reason: BriefReason | undefined
     let carry: { results: ToolResult[] | undefined } | undefined
@@ -388,20 +393,25 @@ class RunLoop {
     }
   }
 
-  private async loadBrief(reason: BriefReason | undefined) {
-    const input = {
-      ...this.runRef,
-      ...(reason === undefined ? {} : { reason }),
-    }
-    try {
-      return await retryWithin(
-        (signal) => this.claim.getRunBrief(input, signal),
-        this.cancel.signal,
-        this.startRetry
+  private loadBrief(reason: BriefReason | undefined) {
+    return this.unavailableAs(
+      briefUnavailableMessage,
+      this.claim.getRunBrief(
+        { ...this.runRef, ...(reason === undefined ? {} : { reason }) },
+        this.cancel.signal
       )
+    )
+  }
+
+  private async unavailableAs<T>(
+    message: string,
+    request: Promise<T>
+  ): Promise<T> {
+    try {
+      return await request
     } catch (error) {
       if (!this.cancel.signal.aborted && isRetryable(error)) {
-        throw new BriefUnavailable()
+        throw new StartUnavailable(message)
       }
       throw error
     }

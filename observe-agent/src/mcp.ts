@@ -37,6 +37,7 @@ import { version } from "./version"
 export const claimTimeoutMs = 60_000
 export const reportTimeoutMs = 10_000
 export const startReadTimeoutMs = 15_000
+export const maxTimeoutsInRow = 3
 
 export type ToolReply = {
   content: string
@@ -123,6 +124,7 @@ export class McpClient implements RunTools {
   private readonly url: URL
   private readonly token: string
   private connection: Promise<Connected> | undefined
+  private timeoutsInRow = 0
 
   constructor(url: URL, token: string) {
     this.url = url
@@ -162,8 +164,17 @@ export class McpClient implements RunTools {
   private drop(attempt: Promise<Connected>): void {
     if (this.connection === attempt) {
       this.connection = undefined
+      this.timeoutsInRow = 0
       void attempt.then((c) => c.client.close()).catch(() => undefined)
     }
+  }
+
+  private shouldDrop(error: unknown): boolean {
+    if (!isRequestTimeout(error)) {
+      return true
+    }
+    this.timeoutsInRow += 1
+    return this.timeoutsInRow >= maxTimeoutsInRow
   }
 
   private async use<T>(
@@ -173,9 +184,11 @@ export class McpClient implements RunTools {
     const attempt = this.connect()
     try {
       const { client } = await attempt
-      return await run(client)
+      const result = await run(client)
+      this.timeoutsInRow = 0
+      return result
     } catch (error) {
-      if (isTransportFailure(error, signal) && !isRequestTimeout(error)) {
+      if (isTransportFailure(error, signal) && this.shouldDrop(error)) {
         this.drop(attempt)
       }
       throw error
