@@ -166,7 +166,8 @@ The rules below are how the code applies it.
 - Use `EmptyState` for first-time and all-clear states and `LoadProblem` for errors.
   A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
 - Use `FilterToolbar` for the filter row under a page header.
-- Every workspace table is a `DataGrid`, the only place that imports AG Grid Community; ESLint rejects `<table>`, `TableCard`, the shadcn `Table`, TanStack Table and AG Grid imports anywhere else, and any `ag-grid-enterprise` import.
+- Workspace tables use `DataGrid`, and panel tables, nested tables and legends use `PanelGrid`; only `web/src/components/data-grid/` imports AG Grid Community.
+  ESLint rejects `<table>`, `TableCard`, the shadcn `Table`, TanStack Table and AG Grid imports anywhere else, and any `ag-grid-enterprise` import.
   Below 899 px each row becomes a full-width card (the first column as the title, each other non-empty value with its header as a label, the action column last), so nothing scrolls sideways on a phone; the headers stay for screen readers at zero height.
   A row that expands passes `detail` (the open row ids and a renderer): `DataGrid` inserts a full-width row below each open row, at every width.
 - Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
