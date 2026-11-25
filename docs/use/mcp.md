@@ -1766,8 +1766,8 @@ All three need the Viewer role, and a run offers them in an investigation or a q
 
 Lists the context sources the caller may use, each with the approved tools it may call.
 
-- A source shows its `uid`, `name`, `about` and `tool_count`.
-  `about` is the source's description, or its name and host when it has none.
+- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
+  The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
 - While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
   Above that the list gives only the count for each source and a `find` line that points to `find_context_tools`, so the answer stays short however many tools there are.
 - A source set to Admins only is listed for an Admin and left out for anyone else.

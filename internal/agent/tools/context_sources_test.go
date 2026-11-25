@@ -301,17 +301,6 @@ func contextOfferedTools(n int) []ContextOfferedTool {
 	return out
 }
 
-func TestASourceDescriptionIsWhatTheListSaysItIsFor(t *testing.T) {
-	f := &fakeContextSources{offers: []ContextOffer{{UID: "code", Name: "Code", Description: "Read the shop's source code", Host: "h.example.com", Tools: contextOfferedTools(1)}}}
-	res, err := contextRegistry(t, f).Call(contextViewer(), nameListContextSources, []byte(`{}`))
-	if err != nil || res.IsError {
-		t.Fatalf("res = %+v err = %v", res, err)
-	}
-	if about := res.Content.(contextSourcesOut).Sources[0].About; about != "Read the shop's source code" {
-		t.Errorf("about = %q", about)
-	}
-}
-
 func TestAShortToolListIsShownInFullAndALongOneAsACount(t *testing.T) {
 	for _, c := range []struct {
 		name      string
@@ -527,5 +516,20 @@ func TestContextToolDescriptionsStayUnderTheAgentWordingCap(t *testing.T) {
 		if len(tool.AgentDescription) > 2000 || len(tool.Description) > 2000 {
 			t.Errorf("%s is %d bytes", tool.Name, len(tool.Description))
 		}
+	}
+}
+
+func TestASourceLineIsItsDescriptionWhenItHasOne(t *testing.T) {
+	offers := []ContextOffer{
+		{UID: "docs", Name: "Docs", Host: "docs.example.com", Description: "Runbooks and design notes"},
+		{UID: "code", Name: "Code", Host: "mcp.example.com"},
+	}
+	res, err := contextRegistry(t, &fakeContextSources{offers: offers}).Call(contextViewer(), nameListContextSources, []byte(`{}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextSourcesOut)
+	if out.Sources[0].About != "Runbooks and design notes" || out.Sources[1].About != "Code, an MCP server at mcp.example.com" {
+		t.Errorf("about = %q, %q", out.Sources[0].About, out.Sources[1].About)
 	}
 }

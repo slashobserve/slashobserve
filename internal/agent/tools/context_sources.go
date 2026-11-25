@@ -51,8 +51,8 @@ type ContextOfferedTool struct {
 type ContextOffer struct {
 	UID         string
 	Name        string
-	Description string
 	Host        string
+	Description string
 	Unreachable bool
 	Failure     string
 	Tools       []ContextOfferedTool
@@ -156,11 +156,18 @@ func (r *Registry) listContextSources(ctx context.Context, input json.RawMessage
 	return success("Listed "+plural(len(out.Sources), "context source", "context sources"), out), nil
 }
 
+func aboutOf(offer ContextOffer) string {
+	if offer.Description != "" {
+		return offer.Description
+	}
+	return fmt.Sprintf("%s, an MCP server at %s", offer.Name, offer.Host)
+}
+
 func contextSourceOf(offer ContextOffer, collapsed bool) contextSourceOut {
 	out := contextSourceOut{
 		Source:    offer.UID,
 		Name:      offer.Name,
-		About:     aboutSource(offer),
+		About:     aboutOf(offer),
 		ToolCount: len(offer.Tools),
 	}
 	if offer.Unreachable {
@@ -174,13 +181,6 @@ func contextSourceOf(offer ContextOffer, collapsed bool) contextSourceOut {
 		out.Tools[i] = contextToolOut(tool)
 	}
 	return out
-}
-
-func aboutSource(offer ContextOffer) string {
-	if offer.Description != "" {
-		return offer.Description
-	}
-	return fmt.Sprintf("%s, an MCP server at %s", offer.Name, offer.Host)
 }
 
 type callContextToolInput struct {
