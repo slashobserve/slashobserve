@@ -602,7 +602,7 @@ func run() error {
 	defer stopGrafana()
 
 	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
-		return contextSourcesService.Provision(ctx, cfg.ContextSources)
+		return contextSourcesService.ProvisionFile(ctx, cfg.ContextSources)
 	}); err != nil {
 		return contextSourcesExit(err)
 	}

@@ -15,6 +15,8 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
+var toolNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+
 var contextSourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$`)
 
 type ContextSource struct {
@@ -26,6 +28,7 @@ type ContextSource struct {
 	SecretHeader string
 	Secret       datasource.Secret
 	AllowPrivate bool
+	Approve      []string
 }
 
 type contextSourcesFile struct {
@@ -33,15 +36,16 @@ type contextSourcesFile struct {
 }
 
 type fileContextSource struct {
-	UID          string `yaml:"uid"`
-	Name         string `yaml:"name"`
-	Description  string `yaml:"description"`
-	URL          string `yaml:"url"`
-	Audience     string `yaml:"audience"`
-	SecretHeader string `yaml:"secretHeader"`
-	SecretEnv    string `yaml:"secretEnv"`
-	SecretFile   string `yaml:"secretFile"`
-	AllowPrivate bool   `yaml:"allowPrivate"`
+	UID          string   `yaml:"uid"`
+	Name         string   `yaml:"name"`
+	Description  string   `yaml:"description"`
+	URL          string   `yaml:"url"`
+	Audience     string   `yaml:"audience"`
+	SecretHeader string   `yaml:"secretHeader"`
+	SecretEnv    string   `yaml:"secretEnv"`
+	SecretFile   string   `yaml:"secretFile"`
+	AllowPrivate bool     `yaml:"allowPrivate"`
+	Approve      []string `yaml:"approve"`
 }
 
 func loadContextSources(path string, lookup func(string) (string, bool)) ([]ContextSource, error) {
@@ -135,5 +139,27 @@ func convertContextSource(path string, raw fileContextSource, lookup func(string
 	if secret.IsZero() && source.SecretHeader != "" && raw.SecretEnv == "" && raw.SecretFile == "" {
 		fail("secretHeader", "needs secretEnv or secretFile")
 	}
+	approve, err := approvedToolNames(raw.Approve)
+	if err != nil {
+		fail("approve", "%v", err)
+	}
+	source.Approve = approve
 	return source, errs
+}
+
+func approvedToolNames(raw []string) ([]string, error) {
+	seen := make(map[string]bool, len(raw))
+	names := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		name := strings.TrimSpace(entry)
+		switch {
+		case !toolNamePattern.MatchString(name):
+			return nil, fmt.Errorf("%q is not a tool name: use 1 to 128 letters, digits, dots, dashes or underscores", name)
+		case seen[name]:
+			return nil, fmt.Errorf("%q is listed twice", name)
+		}
+		seen[name] = true
+		names = append(names, name)
+	}
+	return names, nil
 }

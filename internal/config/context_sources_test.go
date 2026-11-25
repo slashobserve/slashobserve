@@ -40,6 +40,7 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
   - uid: code
     url: http://codeserver.demo.internal:8080/mcp
     allowPrivate: true
+    approve: [list_dir, " grep "]
 `)
 	lookup := func(name string) (string, bool) { return "env-secret", name == "SLASHOBSERVE_DOCS_TOKEN" }
 	got, err := loadContextSources(path, lookup)
@@ -58,7 +59,7 @@ func TestContextSourcesFileReadsEverySource(t *testing.T) {
 	if o := got[2]; !o.Secret.IsZero() || o.SecretHeader != "" || o.AllowPrivate {
 		t.Errorf("open = %+v", o)
 	}
-	if c := got[3]; !c.AllowPrivate || c.URL != "http://codeserver.demo.internal:8080/mcp" || got[0].AllowPrivate {
+	if c := got[3]; !c.AllowPrivate || c.URL != "http://codeserver.demo.internal:8080/mcp" || got[0].AllowPrivate || strings.Join(c.Approve, ",") != "list_dir,grep" || len(got[0].Approve) != 0 {
 		t.Errorf("code = %+v", c)
 	}
 }
@@ -78,6 +79,9 @@ func TestContextSourcesFileRefusals(t *testing.T) {
 		"format character":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    name: \"Do\\u200Bcs\"\n", "contextSources[0].name"},
 		"multiline description": {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    description: \"one\\ntwo\"\n", "contextSources[0].description"},
 		"long description":      {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    description: " + strings.Repeat("x", 301) + "\n", "contextSources[0].description"},
+		"empty tool name":       {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [\"\"]\n", "contextSources[0].approve"},
+		"bad tool name":         {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [\"a b\"]\n", "is not a tool name"},
+		"duplicate tool name":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    approve: [x, x]\n", "is listed twice"},
 		"two documents":         {"contextSources: []\n---\ncontextSources: []\n", "multiple YAML documents"},
 	}
 	for name, c := range cases {
@@ -132,7 +136,7 @@ func TestTheDemoCodeLayerProvisionsOnePrivateSourceOnItsOwnHost(t *testing.T) {
 		t.Fatalf("got %d sources, want 1", len(sources))
 	}
 	got := sources[0]
-	if got.UID != "shop-code" || !got.AllowPrivate || got.URL != "http://codeserver.demo.internal:8080/mcp" || got.Description == "" {
+	if got.UID != "shop-code" || !got.AllowPrivate || got.URL != "http://codeserver.demo.internal:8080/mcp" || got.Description == "" || strings.Join(got.Approve, ",") != "list_dir,read_file,grep" {
 		t.Fatalf("got %+v", got)
 	}
 	compose, err := os.ReadFile(filepath.Join("..", "..", "deploy", "astronomy", "compose.code.yaml"))

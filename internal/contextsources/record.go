@@ -87,8 +87,18 @@ func recordDiscovered(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Context
 	return audit.Record(ctx, q, e)
 }
 
-func recordTool(ctx context.Context, q *dbsqlc.Queries, action audit.Action, row dbsqlc.ContextSource, t Tool) error {
+func toolData(row dbsqlc.ContextSource, t Tool) map[string]any {
 	data := hostData(row, hostOfURL(row.Url))
 	data["tool"], data["hash"] = t.Name, t.Pinned.Hash
-	return audit.Record(ctx, q, audit.Event{Action: action, Target: targetOf(row), Data: data})
+	return data
+}
+
+func recordTool(ctx context.Context, q *dbsqlc.Queries, action audit.Action, row dbsqlc.ContextSource, t Tool) error {
+	return audit.Record(ctx, q, audit.Event{Action: action, Target: targetOf(row), Data: toolData(row, t)})
+}
+
+func recordFileApproval(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.ContextSource, t Tool) error {
+	data := toolData(row, t)
+	data["provisioned"] = true
+	return audit.Record(ctx, q, audit.Event{Action: actionApprove, Target: targetOf(row), Data: data})
 }

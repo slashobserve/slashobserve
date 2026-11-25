@@ -229,7 +229,7 @@ The server keeps only the fields an action declares, and no event holds a messag
 | `context_source.create`, `context_source.delete` | `name`, `host`, `audience`, `private` | A context source; never its secret; `private` is true only for a source the context sources file allows to use a private address |
 | `context_source.update` | `name`, `host`, `audience`, `private`, `changes`, `url_changed`, `credential_changed` | What changed in a context source; `credential_changed` says a secret or its header changed, never what it is |
 | `context_source.discover` | `host`, `private`, `found`, `new`, `changed`, `gone`, `ignored` | One discovery; a failed one carries the failure code as its reason instead of the counts |
-| `context_source.approve`, `context_source.revoke` | `host`, `private`, `tool`, `hash` | The tool and the SHA-256 of its pinned definition |
+| `context_source.approve`, `context_source.revoke` | `host`, `private`, `tool`, `hash`, `provisioned` | The tool and the SHA-256 of its pinned definition; `provisioned` is true only for an approval the context sources file made at start, which the system records as the actor |
 | `context_source.call` | `host`, `private`, `tool`, `arguments`, `truncated` | One call of an approved tool; `arguments` are the values sent, cut short, with any named like a secret masked, and `truncated` says the result was cut. A refused or failed call carries its reason |
 | any action that was denied | `needed_role`, `needed_access` | What the refusal said the request needed |
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model and tokens the run reported |
