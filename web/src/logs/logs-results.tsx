@@ -228,18 +228,13 @@ export function OpenTraceLink({
   traceId: string
   traceDatasource: string
   time: number
-  spanId: string | null
+  spanId: string | undefined
   className?: string
   children: React.ReactNode
 }) {
   return (
     <Link
-      {...traceLink(
-        traceId,
-        traceDatasource,
-        traceRangeAround(time),
-        spanId ?? undefined
-      )}
+      {...traceLink(traceId, traceDatasource, traceRangeAround(time), spanId)}
       aria-label={`Open trace ${traceId}`}
       className={className}
     >

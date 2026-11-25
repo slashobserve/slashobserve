@@ -438,7 +438,7 @@ export function DetailDrawer({
         >
           {entry.message}
         </p>
-        {traceId !== null || spanId !== null ? (
+        {traceId !== null || spanId !== undefined ? (
           <div className="flex flex-wrap gap-1.5">
             {traceId === null ? null : (
               <IdChip
@@ -446,7 +446,9 @@ export function DetailDrawer({
                 value={traceId.slice(0, tracePrefixLength)}
               />
             )}
-            {spanId === null ? null : <IdChip label="Span" value={spanId} />}
+            {spanId === undefined ? null : (
+              <IdChip label="Span" value={spanId} />
+            )}
           </div>
         ) : null}
         <div

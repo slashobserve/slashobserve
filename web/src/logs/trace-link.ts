@@ -2,6 +2,7 @@ import type { DatasourceStatus } from "@/datasources/queries"
 import type { LogEntry } from "@/panels/logs/logs-model"
 
 const traceIdText = /^[0-9a-fA-F]{16}$|^[0-9a-fA-F]{32}$/
+const spanIdText = /^[0-9a-fA-F]{16}$/
 const allZeros = /^0+$/
 
 export function detailValue(detail: LogEntry["details"][number]): string {
@@ -20,13 +21,13 @@ export function traceIdOf(entry: LogEntry): string | null {
   return null
 }
 
-export function spanIdOf(entry: LogEntry): string | null {
+export function spanIdOf(entry: LogEntry): string | undefined {
   for (const detail of entry.details) {
     if (detail.name.toLowerCase().replaceAll("_", "") !== "spanid") continue
     const text = detailValue(detail).trim()
-    if (text !== "" && !allZeros.test(text)) return text
+    if (spanIdText.test(text) && !allZeros.test(text)) return text.toLowerCase()
   }
-  return null
+  return undefined
 }
 
 export function traceDatasourceFor(

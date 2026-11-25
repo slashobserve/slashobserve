@@ -147,7 +147,21 @@ describe("spanIdOf", () => {
     )
   })
 
-  it.each(["", "0000000000000000"])("ignores %j", (text) => {
-    expect(spanIdOf(entryWithLabel("span_id", text))).toBeNull()
+  it("lowercases the id", () => {
+    expect(spanIdOf(entryWithLabel("span_id", "00F067AA0BA902B7"))).toBe(
+      "00f067aa0ba902b7"
+    )
+  })
+
+  it.each([
+    "",
+    "null",
+    "-",
+    "0000000000000000",
+    "00f067aa0ba902b",
+    "00f067aa0ba902b7a",
+    "ZZZZZZZZZZZZZZZZ",
+  ])("gives undefined for %j", (text) => {
+    expect(spanIdOf(entryWithLabel("span_id", text))).toBeUndefined()
   })
 })
