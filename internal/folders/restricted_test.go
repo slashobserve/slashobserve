@@ -104,9 +104,9 @@ func TestRestrictedAnswerMoveWithoutARunStaysGeneral(t *testing.T) {
 	}
 }
 
-func TestRestrictedAnswerRefusalTellsAnAdminWhatToDo(t *testing.T) {
+func TestRestrictedAnswerRefusalSaysWhereItCanGoWithoutNamingTheAuditFolder(t *testing.T) {
 	msg := folders.ErrRestrictedAnswer.Error()
-	if strings.Contains(strings.ToLower(msg), "ask an admin") || !strings.Contains(msg, "Audit folder") {
+	if strings.Contains(strings.ToLower(msg), "ask an admin") || strings.Contains(msg, "Audit folder") || !strings.Contains(msg, "save it in a folder only Admins can read") {
 		t.Fatalf("message = %q", msg)
 	}
 }

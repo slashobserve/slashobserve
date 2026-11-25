@@ -232,15 +232,15 @@ type observationListOut struct {
 	LeftOutWhy   string                         `json:"left_out_note,omitempty"`
 }
 
-func (r *Registry) observationFailure(step string, err error) (Result, error) {
-	if res, ok := observationRefusal(err); ok {
+func (r *Registry) observationFailure(ctx context.Context, step string, err error) (Result, error) {
+	if res, ok := observationRefusal(ctx, err); ok {
 		return res, nil
 	}
 	return datasourceFailure(step, err)
 }
 
-func observationRefusal(err error) (Result, bool) {
-	if res, ok := restrictedRefusal(err); ok {
+func observationRefusal(ctx context.Context, err error) (Result, bool) {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, true
 	}
 	var invalidInput *observations.InvalidInputError
@@ -337,7 +337,7 @@ func (r *Registry) checkPanel(ctx context.Context, principal auth.Principal, pan
 	from, to := own.bounds(fallback, Now(ctx))
 	variables, err := observations.ValueVariables(values)
 	if err != nil {
-		res, _ := observationRefusal(err)
+		res, _ := observationRefusal(ctx, err)
 		return res, false, nil
 	}
 	_, res, ok, err := r.evidenceDashboardWith(ctx, principal, findings.SaveInput{Title: panelCheckTitle, From: from, To: to}, []json.RawMessage{panel}, variables, true, Now(ctx))
@@ -428,7 +428,7 @@ func (r *Registry) addBlockTo(ctx context.Context, principal auth.Principal, obs
 	}
 	block, err := r.deps.Observations.AddBlock(ctx, principal, observationID, in)
 	if err != nil {
-		res, err := r.observationFailure("Added a block", err)
+		res, err := r.observationFailure(ctx, "Added a block", err)
 		return observations.Block{}, res, false, err
 	}
 	return block, Result{}, true, nil
@@ -478,14 +478,14 @@ func (r *Registry) createObservation(ctx context.Context, input json.RawMessage)
 	o, err := r.deps.Observations.Create(ctx, principal, observations.CreateInput{FolderID: folderID, Title: in.Title, From: rng.from, To: rng.to, Blocks: blocks, RunID: runID})
 	var refused *observations.BlockError
 	if errors.As(err, &refused) {
-		res, err := r.observationFailure("Created an observation", refused.Err)
+		res, err := r.observationFailure(ctx, "Created an observation", refused.Err)
 		if err != nil {
 			return Result{}, err
 		}
 		return blockRefused(refused.Index, res), nil
 	}
 	if err != nil {
-		return r.observationFailure("Created an observation", err)
+		return r.observationFailure(ctx, "Created an observation", err)
 	}
 	return success("Created observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
 }
@@ -517,7 +517,7 @@ func (r *Registry) addBlock(ctx context.Context, input json.RawMessage) (Result,
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Get(ctx, principal, id)
 	if err != nil {
-		return r.observationFailure("Read an observation", err)
+		return r.observationFailure(ctx, "Read an observation", err)
 	}
 	block, res, ok, err := r.addBlockTo(ctx, principal, id, in.blockFields, window{o.From, o.To}, runID)
 	if err != nil || !ok {
@@ -556,7 +556,7 @@ func (r *Registry) updateBlock(ctx context.Context, input json.RawMessage) (Resu
 	}
 	block, err := r.deps.Observations.UpdateBlock(ctx, principal, id, change)
 	if err != nil {
-		return r.observationFailure("Updated a block", err)
+		return r.observationFailure(ctx, "Updated a block", err)
 	}
 	out := observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}
 	if block.State == observations.BlockRequested {
@@ -625,7 +625,7 @@ func (r *Registry) panelChange(ctx context.Context, principal auth.Principal, bl
 		return nil, toolError(codeNotFound, "panel block not found"), false, nil
 	}
 	if err != nil {
-		res, err := r.observationFailure("Read a block", err)
+		res, err := r.observationFailure(ctx, "Read a block", err)
 		return nil, res, false, err
 	}
 	if res, ok, err := r.checkPanel(ctx, principal, panel, values, own, window{&shown, &end}); err != nil || !ok {
@@ -694,7 +694,7 @@ func (r *Registry) arrangeBlocks(ctx context.Context, input json.RawMessage) (Re
 	principal, _ := auth.FromContext(ctx)
 	arranged, err := r.deps.Observations.Arrange(ctx, principal, id, items, runID)
 	if err != nil {
-		return r.observationFailure("Arranged an observation", err)
+		return r.observationFailure(ctx, "Arranged an observation", err)
 	}
 	out := arrangedOut{ObservationID: id.String(), Blocks: make([]arrangedBlockOut, len(arranged)), URL: r.deps.Observations.URL(id.String())}
 	for i, b := range arranged {
@@ -721,7 +721,7 @@ func (r *Registry) resolveObservation(ctx context.Context, input json.RawMessage
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Resolve(ctx, principal, id, in.Summary)
 	if err != nil {
-		return r.observationFailure("Resolved an observation", err)
+		return r.observationFailure(ctx, "Resolved an observation", err)
 	}
 	return success("Resolved observation "+o.ID, observationWrittenOut{ObservationID: o.ID, State: string(o.State), URL: r.deps.Observations.URL(o.ID)}), nil
 }
@@ -751,7 +751,7 @@ func (r *Registry) keepBlock(ctx context.Context, input json.RawMessage) (Result
 	principal, _ := auth.FromContext(ctx)
 	block, err := r.deps.Observations.KeepBlock(ctx, principal, id, *in.Version, runID)
 	if err != nil {
-		return r.observationFailure("Kept a block", err)
+		return r.observationFailure(ctx, "Kept a block", err)
 	}
 	return success("Kept block "+block.ID, observationWrittenOut{ObservationID: block.ObservationID, BlockID: block.ID, State: string(block.State), Version: block.Version, URL: r.deps.Observations.URL(block.ObservationID)}), nil
 }
@@ -776,7 +776,7 @@ func (r *Registry) discardBlock(ctx context.Context, input json.RawMessage) (Res
 	}
 	principal, _ := auth.FromContext(ctx)
 	if err := r.deps.Observations.DiscardBlock(ctx, principal, id, runID); err != nil {
-		return r.observationFailure("Discarded a block", err)
+		return r.observationFailure(ctx, "Discarded a block", err)
 	}
 	return success("Discarded block "+id.String(), observationWrittenOut{BlockID: id.String(), State: "discarded"}), nil
 }
@@ -798,7 +798,7 @@ func (r *Registry) getObservation(ctx context.Context, input json.RawMessage) (R
 	principal, _ := auth.FromContext(ctx)
 	o, err := r.deps.Observations.Get(ctx, principal, id)
 	if err != nil {
-		return r.observationFailure("Read an observation", err)
+		return r.observationFailure(ctx, "Read an observation", err)
 	}
 	readContentIn(ctx, o.ID, o.Folder)
 	blocks := o.Blocks
@@ -943,7 +943,7 @@ func (r *Registry) listObservations(ctx context.Context, input json.RawMessage) 
 	for {
 		list, next, err := r.deps.Observations.List(ctx, principal, filter, limit, in.Cursor)
 		if err != nil {
-			return r.observationFailure("Listed observations", err)
+			return r.observationFailure(ctx, "Listed observations", err)
 		}
 		titles.restart()
 		list = slices.DeleteFunc(list, func(o observations.Observation) bool { return !titles.keep(o.Folder.ID, o.ID) })

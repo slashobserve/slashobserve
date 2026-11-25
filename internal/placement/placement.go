@@ -138,7 +138,7 @@ func (g *Guard) MoveDashboard(ctx context.Context, q *dbsqlc.Queries, id, to pgt
 		return keptWithAdmins(row), err
 	}, func() (folders.AnswerRef, error) {
 		row, err := q.DashboardRestrictedRun(ctx, id)
-		return answerRef(row.ID, row.Prompt, err)
+		return answerRef(ctx, answerRun{row.ID, row.Prompt, row.RequestedByKind, row.RequestedByID}, err)
 	}); err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func (g *Guard) MoveObservation(ctx context.Context, q *dbsqlc.Queries, id, to p
 		return keptWithAdmins(row), err
 	}, func() (folders.AnswerRef, error) {
 		row, err := q.ObservationRestrictedRun(ctx, id)
-		return answerRef(row.ID, row.Prompt, err)
+		return answerRef(ctx, answerRun{row.ID, row.Prompt, row.RequestedByKind, row.RequestedByID}, err)
 	}); err != nil {
 		return err
 	}

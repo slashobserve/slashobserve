@@ -24,7 +24,7 @@ var (
 	ErrLinkedObservationMove = errors.New("an RCA of this observation has public links, and a folder only Admins can read has none; revoke them before you move it there")
 	ErrLinkedFolder          = errors.New("a dashboard or an RCA in this folder has public links, and a folder only Admins can read has none; revoke them before you make it Admins only")
 	ErrRestrictedAnswer      = errors.New("this answer read data only Admins can read, such as the audit trail or what is in a folder only Admins can read, and people who are not Admins read where it would go; " +
-		"keep it in the private chat, or save it in the Audit folder or another folder only Admins can read")
+		"keep it in the private chat, or save it in a folder only Admins can read")
 )
 
 type restrictedAnswerError struct{ message string }

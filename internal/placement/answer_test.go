@@ -1,12 +1,15 @@
 package placement
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
@@ -248,19 +251,30 @@ func TestARunInFlightKeepsWhatItIsAboutWhereOnlyAdminsReadUntilItEnds(t *testing
 	}
 }
 
-func TestAMoveRefusedForARestrictedAnswerNamesTheRunThatCausedIt(t *testing.T) {
+func TestAMoveRefusedForARestrictedAnswerNamesTheRunOnlyToWhoMayReadIt(t *testing.T) {
 	r := newHoldersRig(t)
 	g := New(nil)
 	general := r.uuid(t, r.scalar(t, `SELECT id::text FROM folders WHERE general`))
 	id := r.observation(t, foldertest.AdminsOnly(t, r.d, "named answer"))
 	run := r.run(t, true)
 	r.d.Exec(t, `UPDATE agent_requests SET subject_observation_id = $2::uuid WHERE id = $1::uuid`, run, id)
+	named := `the answer to "who changed it" (run ` + run + `)`
 
-	err := g.MoveObservation(t.Context(), r.d.Queries(), r.uuid(t, id), general)
-	if !errors.Is(err, folders.ErrRestrictedAnswer) {
-		t.Fatalf("moving it to General: err = %v, want the restricted answer refusal", err)
-	}
-	if !strings.Contains(err.Error(), `the answer to "who changed it" (run `+run+`)`) {
-		t.Fatalf("message = %q, want it to name the answer", err.Error())
+	admin := auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, ID: uuid.NewString(), Role: auth.RoleAdmin})
+	editor := auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, ID: uuid.NewString(), Role: auth.RoleEditor})
+	asker := auth.WithPrincipal(t.Context(), auth.Principal{Kind: auth.KindUser, ID: r.scalar(t, `SELECT requested_by_id::text FROM agent_requests WHERE id = $1::uuid`, run), Role: auth.RoleEditor})
+	for name, tc := range map[string]struct {
+		ctx   context.Context
+		named bool
+	}{"an Admin": {admin, true}, "the Editor who asked": {asker, true}, "an Editor who did not ask": {editor, false}, "no caller": {t.Context(), false}} {
+		t.Run(name, func(t *testing.T) {
+			err := g.MoveObservation(tc.ctx, r.d.Queries(), r.uuid(t, id), general)
+			if !errors.Is(err, folders.ErrRestrictedAnswer) {
+				t.Fatalf("moving it to General: err = %v, want the restricted answer refusal", err)
+			}
+			if strings.Contains(err.Error(), named) != tc.named {
+				t.Fatalf("message = %q, names the answer = %v, want %v", err.Error(), !tc.named, tc.named)
+			}
+		})
 	}
 }

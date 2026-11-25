@@ -281,7 +281,8 @@ Both are refused with `409 restricted_answer`, which names the content to move f
 - A dashboard or observation that a `restricted` run was about.
 - An answer about another dashboard or observation that is in an Admins-only folder now.
 
-When the refusal comes from a move and the cause is a run on the item or a block a run wrote, the message names that answer by its question and run id.
+When the refusal comes from a move, the message names the answer by its question and run id to an Admin and to the person who asked it, and only says "an answer" to anyone else.
+It names the answer whenever the cause is a run the item holds, such as one that saved a version, wrote a block, opened a proposal or replied in a thread, and says "an answer" when the cause is a copy of one.
 A copy of a dashboard or observation that holds such an answer goes only into an Admins-only folder, and is refused elsewhere with `409 restricted_answer`.
 A copy comes from duplicating the dashboard, making a dashboard from the observation or pinning the observation onto a dashboard.
 The copy then holds the answer too, so it stays in Admins-only folders as well.
