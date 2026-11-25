@@ -519,6 +519,27 @@ describe("DataGrid", () => {
       expect(viewport.scrollTop).toBeGreaterThan(400)
     })
 
+    it("keeps the anchor through a refresh that changes nothing, so a later prepend still holds the reading position", async () => {
+      const { container, rerender } = render(
+        <DataGrid {...props} rows={many} />
+      )
+      await screen.findByRole("gridcell", { name: "Service 0" })
+      const viewport = await scrolled(container, 400)
+      rerender(<DataGrid {...props} rows={many.map((row) => ({ ...row }))} />)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(viewport.scrollTop).toBe(400)
+      rerender(
+        <DataGrid
+          {...props}
+          rows={[...added, ...many.map((row) => ({ ...row }))]}
+        />
+      )
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="x"]')).not.toBeNull()
+      )
+      await waitFor(() => expect(viewport.scrollTop).toBeGreaterThan(400))
+    })
+
     it("does not hold the viewport on an old row when the rows are replaced", async () => {
       const { container, rerender } = render(
         <DataGrid {...props} rows={many} />
