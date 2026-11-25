@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -250,6 +251,23 @@ func (r *databaseRig) deleteAsRetentionWould(t *testing.T, actions ...string) {
 	t.Helper()
 	for _, a := range actions {
 		r.db.Exec(t, `DO $$ BEGIN SET LOCAL session_replication_role = replica; DELETE FROM audit_events WHERE action = '`+a+`'; END $$`)
+	}
+}
+
+func (r *databaseRig) setPosition(t *testing.T, action string, xid int) {
+	t.Helper()
+	r.db.Exec(t, `DO $$ BEGIN SET LOCAL session_replication_role = replica; UPDATE audit_events SET xid = '`+strconv.Itoa(xid)+`'::text::xid8 WHERE action = '`+action+`'; END $$`)
+}
+
+func TestEventsAreExportedInNumericTransactionOrderWhenTheDigitsGrow(t *testing.T) {
+	r := newDatabaseRig(t)
+	rx := newOTLPReceiver(t)
+	r.insert(t, "a.one", "b.two")
+	r.setPosition(t, "a.one", 90)
+	r.setPosition(t, "b.two", 100)
+	r.runUntilIdle(t, rx.server.URL)
+	if got := rx.received(); !slices.Equal(got, []string{"a.one", "b.two"}) {
+		t.Fatalf("received %v", got)
 	}
 }
 
