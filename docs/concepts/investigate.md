@@ -186,7 +186,7 @@ Details of `from` and `to`:
 
 - Each is a relative time such as `now-1h`, epoch milliseconds or an RFC 3339 time.
 - `from` must be before `to`, and the two may be at most 400 days apart.
-- Without them the agent looks at the last hour.
+- Without them the agent starts from the last hour and widens it when the question needs more.
 - With `as_of`, `to` must not be later than `as_of`.
 
 Details of `observation_id`:
