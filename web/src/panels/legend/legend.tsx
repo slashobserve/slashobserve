@@ -17,7 +17,7 @@ export type LegendPlacement = "bottom" | "right"
 
 export const rowRem = 1.25
 const gapRem = 0.125
-const padRem = 0.375
+export const padRem = 0.375
 
 export function legendMaxHeight(available: number, rem: number): number {
   const rows = Math.max(
@@ -25,6 +25,22 @@ export function legendMaxHeight(available: number, rem: number): number {
     Math.floor((available / rem - padRem + gapRem) / (rowRem + gapRem))
   )
   return (rows * rowRem + (rows - 1) * gapRem + padRem) * rem
+}
+
+export type LegendTableFit = { maxHeight: number; overflows: boolean }
+
+export function legendTableFit(
+  available: number,
+  rem: number,
+  rowCount: number
+): LegendTableFit {
+  const slots = Math.max(
+    1,
+    Math.floor((available - (rowRem + padRem) * rem) / (rowRem * rem))
+  )
+  const overflows = rowCount > slots
+  const shown = overflows ? Math.max(2, slots) : slots
+  return { maxHeight: (rowRem * (shown + 1) + padRem) * rem, overflows }
 }
 
 export type LegendHover = (key: string | null) => void
