@@ -98,7 +98,7 @@ func init() { registerEntries((*Registry).claimEntries) }
 
 func (r *Registry) claimEntries() []entry {
 	claim := func(name, desc, schema string, handle func(context.Context, json.RawMessage) (Result, error)) entry {
-		return entry{Tool{Name: name, Description: desc, InputSchema: json.RawMessage(schema), MCPOnly: true, Claim: true, MinRole: auth.RoleViewer}, handle}
+		return entry{Tool{Name: name, Description: desc, InputSchema: json.RawMessage(schema), Claim: true, MinRole: auth.RoleViewer}, handle}
 	}
 	brief := claim(nameGetRunBrief, descGetRunBrief, schemaGetRunBrief, r.getRunBrief)
 	brief.tool.ReadOnly = true

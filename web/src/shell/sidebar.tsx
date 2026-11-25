@@ -17,7 +17,6 @@ import { PanelLeftCloseIcon } from "lucide-react"
 import { Wordmark } from "@/components/brand/wordmark"
 import { sourceRows } from "@/datasources/sources"
 import { useListedSources } from "@/datasources/use-sources"
-import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { cn } from "@/lib/utils"
 import {
@@ -30,7 +29,6 @@ import { AccountMenu } from "./account-menu"
 import { AuditList, auditRows } from "./audit-list"
 import {
   subNavState,
-  unreadBadge,
   visibleNavItems,
   type NavItem,
   type NavPath,
@@ -80,26 +78,13 @@ function HomeLink({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-function UnreadMark({ badge }: { badge: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="ml-auto grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
-    >
-      {badge}
-    </span>
-  )
-}
-
 function NavLink({
   item,
   state,
-  unread,
   onNavigate,
 }: {
   item: NavItem
   state: ParentState
-  unread: string | null
   onNavigate?: () => void
 }) {
   const Icon = navIcons[item.to]
@@ -115,9 +100,6 @@ function NavLink({
         onNavigate?.()
       }}
       aria-current={state === "current" ? "page" : undefined}
-      aria-label={
-        unread === null ? undefined : `${item.label}, ${unread} unread`
-      }
       className={cn(
         "relative flex h-8 items-center gap-2.5 rounded-control border border-transparent px-2.5 text-sm text-foreground no-underline hover:bg-nav-active aria-[current=page]:bg-nav-active",
         focusRing
@@ -132,7 +114,6 @@ function NavLink({
       >
         {item.label}
       </span>
-      {unread === null ? null : <UnreadMark badge={unread} />}
     </a>
   )
 }
@@ -273,7 +254,6 @@ export function SidebarContent({
   const items = visibleNavItems(principal.role)
   const main = items.filter((item) => item.group === "main")
   const workspace = items.filter((item) => item.group === "workspace")
-  const unreadInbox = unreadBadge(useInboxCount())
 
   const openObservations = useOpenObservationsPage()
   const pinned = useVisiblePins()
@@ -362,12 +342,7 @@ export function SidebarContent({
       )
       return (
         <Fragment key={item.to}>
-          <NavLink
-            item={item}
-            state={parent}
-            unread={item.to === "/inbox" ? unreadInbox : null}
-            onNavigate={onNavigate}
-          />
+          <NavLink item={item} state={parent} onNavigate={onNavigate} />
           {subList?.render(currentId) ?? null}
         </Fragment>
       )

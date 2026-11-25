@@ -43,6 +43,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useExploreSources } from "@/datasources/use-sources"
 import { readRecent } from "@/home/recent"
+import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
 import { docsUrl } from "@/lib/docs"
 import { isModChord } from "@/lib/shortcuts"
 import { ShortcutsHost } from "@/shortcuts/shortcuts-dialog"
@@ -65,7 +66,6 @@ import { useSignOut } from "./use-sign-out"
 
 const pageIcons: Record<PagePath, LucideIcon> = {
   "/": HouseIcon,
-  "/inbox": InboxIcon,
   "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
@@ -97,6 +97,7 @@ const actionIcons: Record<
   Extract<PaletteEntry, { kind: "action" }>["id"],
   LucideIcon
 > = {
+  "action:inbox": InboxIcon,
   "action:new-observation": PlusIcon,
   "action:ask": TerminalIcon,
   "action:import": UploadIcon,
@@ -221,6 +222,8 @@ function PaletteBody({ close }: { close: () => void }) {
       void navigate({ to: entry.to })
     } else if (hasPath(entry)) {
       router.history.push(entry.path)
+    } else if (entry.id === "action:inbox") {
+      useInboxPanelStore.getState().show()
     } else if (entry.id === "action:new-observation") {
       void navigate({ to: "/", search: { tab: "observe" } })
     } else if (entry.id === "action:ask") {

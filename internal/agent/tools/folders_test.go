@@ -93,3 +93,10 @@ func TestFolderInputsAreCheckedBeforeAnythingIsSaved(t *testing.T) {
 		})
 	}
 }
+
+func TestAFolderWriteRefusedForARunThatReadAdminOnlyDataAnswersRestrictedAnswer(t *testing.T) {
+	res, ok := folderWriteFailure(fmt.Errorf("create folder: %w", folders.ErrRestrictedAnswer))
+	if !ok || errorCode(t, res) != folders.CodeRestrictedAnswer {
+		t.Fatalf("refusal = %+v, %v; want %s", res, ok, folders.CodeRestrictedAnswer)
+	}
+}

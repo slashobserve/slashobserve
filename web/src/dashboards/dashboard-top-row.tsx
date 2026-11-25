@@ -19,6 +19,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { TopRowInboxBell } from "@/shell/inbox-bell"
 
 import { CloseControlsProvider } from "./controls-sheet"
 import { controlsButtonId } from "./pane-openers"
@@ -177,6 +178,7 @@ export function DashboardTopRow({
       ) : (
         <div className="flex max-w-full flex-none flex-wrap items-center gap-1.5">
           {tools}
+          <TopRowInboxBell />
         </div>
       )}
     </header>

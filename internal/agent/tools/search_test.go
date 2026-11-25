@@ -251,22 +251,22 @@ func TestSearchWorkspaceNoLongerTakesTheFindingKind(t *testing.T) {
 	}
 }
 
-func TestSearchWorkspaceIsMCPOnlyAndNeedsAViewer(t *testing.T) {
+func TestSearchWorkspaceIsOfferedInEveryRunAndNeedsAViewer(t *testing.T) {
 	var tool Tool
 	for _, candidate := range New(Deps{}).List() {
 		if candidate.Name == nameSearchWorkspace {
 			tool = candidate
 		}
 	}
-	if !tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
+	if tool.MCPOnly || !tool.ReadOnly || tool.MinRole != auth.RoleViewer {
 		t.Fatalf("search_workspace = %+v", tool)
 	}
 	if len(tool.Description) >= 2000 {
 		t.Errorf("description is %d bytes", len(tool.Description))
 	}
 	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest, ModeInvestigate} {
-		if tool.OfferedIn(mode) {
-			t.Errorf("search_workspace is offered to the agent in %s", mode)
+		if !tool.OfferedIn(mode) {
+			t.Errorf("search_workspace is not offered to the agent in %s", mode)
 		}
 	}
 }

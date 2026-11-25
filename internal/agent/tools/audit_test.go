@@ -34,12 +34,12 @@ func TestAuditToolsRefuseEveryoneBelowAdmin(t *testing.T) {
 	}
 }
 
-func TestAuditToolsAreReadOnlyAndMCPOnly(t *testing.T) {
+func TestAuditToolsAreReadOnlyAdminToolsOfferedInRuns(t *testing.T) {
 	registry := New(Deps{Logger: slog.New(slog.DiscardHandler)})
 	for _, name := range auditTools {
 		e, ok := registry.entries[name]
 		tool := e.tool
-		if !ok || !tool.ReadOnly || !tool.MCPOnly || tool.MinRole != auth.RoleAdmin {
+		if !ok || !tool.ReadOnly || tool.MCPOnly || !tool.OfferedIn(ModeCreate) || tool.MinRole != auth.RoleAdmin {
 			t.Errorf("%s = %+v", name, tool)
 		}
 	}

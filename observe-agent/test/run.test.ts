@@ -811,3 +811,91 @@ describe("opening a run through a database stall", () => {
     expect(finishes).toBe(1)
   })
 })
+
+describe("a run that wrote but did not answer", () => {
+  const observationURL = "http://app/o/o1"
+
+  function writer(findingReply = reply({ meta: meta("finding") })) {
+    const claim = new FakeClaim()
+    claim.tools.specs = [
+      {
+        name: "create_observation",
+        description: "",
+        inputSchema: {},
+        readOnly: false,
+      },
+      {
+        name: "save_finding",
+        description: "",
+        inputSchema: {},
+        readOnly: false,
+      },
+    ]
+    claim.tools.handler = async (call) =>
+      call.name === "create_observation"
+        ? reply({
+            content: JSON.stringify({
+              observation_id: "o1",
+              url: observationURL,
+            }),
+          })
+        : findingReply
+    return claim
+  }
+
+  function savedMarkdown(claim: FakeClaim): unknown {
+    return claim.tools.calls.find((c) => c.name === "save_finding")?.args
+      .markdown
+  }
+
+  test("a create run is nudged once, then answers with what it made", async () => {
+    const claim = writer()
+    await drive(claim, claimed("start an observation"))
+    expect(claim.briefs.map((b) => b.reason)).toEqual([undefined, "no_answer"])
+    expect(savedMarkdown(claim)).toContain(
+      `- Create observation: [Checkout latency](${observationURL})`
+    )
+    expect(claim.finishes).toHaveLength(1)
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
+    expect(claim.finishes[0]?.commit).toBeUndefined()
+  })
+
+  test("a build with no saved panel is answered the same way, not committed", async () => {
+    const claim = writer()
+    claim.brief = () => ({ build: progress(0, 0, 0) })
+    await drive(claim, claimed("start an observation"))
+    expect(claim.briefs.map((b) => b.reason)).toEqual([undefined, "no_answer"])
+    expect(claim.finishes[0]).toMatchObject({ outcome: "succeeded" })
+    expect(claim.finishes[0]?.commit).toBeUndefined()
+  })
+
+  test("an investigation is nudged with no_finding, then answers with what it made", async () => {
+    const claim = writer()
+    await drive(claim, claimed("start an observation", { kind: "investigate" }))
+    expect(claim.briefs.map((b) => b.reason)).toEqual([undefined, "no_finding"])
+    expect(savedMarkdown(claim)).toContain(observationURL)
+    expect(claim.finishes[0]?.outcome).toBe("succeeded")
+  })
+
+  test("a refused answer still fails the run", async () => {
+    const claim = writer(
+      reply({ isError: true, content: '{"code":"invalid_input"}' })
+    )
+    await drive(claim, claimed("start an observation"))
+    expect(claim.finishes[0]).toMatchObject({
+      outcome: "failed",
+      failure_code: "no_tool_call",
+    })
+  })
+
+  test("a write that failed counts as nothing made", async () => {
+    const claim = writer()
+    claim.tools.handler = async (call) =>
+      call.name === "create_observation"
+        ? reply({ isError: true, content: '{"code":"out_of_scope"}' })
+        : reply({ meta: meta("finding") })
+    await drive(claim, claimed("start an observation out of scope"))
+    expect(savedMarkdown(claim)).toBeUndefined()
+    expect(claim.finishes[0]?.failure_code).toBe("no_tool_call")
+  })
+})

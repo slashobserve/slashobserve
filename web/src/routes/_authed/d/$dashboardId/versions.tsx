@@ -13,7 +13,9 @@ import { useKnownLatestVersion } from "@/history/use-version-history"
 import { VersionDiff } from "@/history/version-diff"
 import { VersionList } from "@/history/version-list"
 import { dashboardLink } from "@/lib/links"
+import { InboxPanel } from "@/inbox/inbox-panel"
 import { CommandPalette } from "@/shell/command-palette"
+import { TopRowInboxBell } from "@/shell/inbox-bell"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
 
@@ -116,6 +118,9 @@ function HistoryRoute() {
               {title ? `Versions of ${title}` : "Versions"}
             </h1>
           </div>
+          <div className="ml-auto">
+            <TopRowInboxBell />
+          </div>
         </header>
         <main className="mx-auto w-full max-w-5xl p-6">
           <VersionList
@@ -137,6 +142,9 @@ function HistoryRoute() {
             />
           ) : null}
         </main>
+      </div>
+      <div className="sticky top-0 flex h-svh empty:hidden">
+        <InboxPanel />
       </div>
     </div>
   )

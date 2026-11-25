@@ -337,3 +337,30 @@ func TestAWriteInTheTurnOfAnUnsettledReadIsRefusedUntilTheReadSettles(t *testing
 		t.Fatalf("write after the read settled = %+v, %v", retried.adm, err)
 	}
 }
+
+func TestOnlyASuccessfulWriteMarksTheRunAsHavingWritten(t *testing.T) {
+	sess := &session{s: &Service{}}
+	call := guard.Call{Name: "create_observation", Input: json.RawMessage(`{"title":"t"}`)}
+	failed := dispatched{res: tools.Result{IsError: true}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, failed, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if sess.state.Wrote || sess.endingOf("", tools.RunFinish{Outcome: outcomeDone}).Wrote {
+		t.Fatal("a failed write marked the run as having written")
+	}
+	done := dispatched{res: tools.Result{Created: []string{"obs"}}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, done, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if !sess.endingOf("", tools.RunFinish{Outcome: outcomeDone}).Wrote {
+		t.Fatal("the ending of a run that wrote does not say so")
+	}
+	var back State
+	raw, err := json.Marshal(sess.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &back); err != nil || !back.Wrote {
+		t.Fatalf("wrote did not survive a stored state round trip: %v %s", err, raw)
+	}
+}

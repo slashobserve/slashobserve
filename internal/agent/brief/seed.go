@@ -41,8 +41,8 @@ var seedSentences = map[Reason]string{
 	Continue:    "Your earlier run stopped before it finished, and the person asked you to continue it from the build above.",
 	Renewed:     "Your session was renewed to keep it short; the build above holds every panel you saved.",
 	Conflict:    "Someone saved a new version while you worked; your build was discarded. Make the change again on the dashboard above.",
-	NoFinding:   "You answered without a tool call. Call save_finding now with your answer and the evidence you checked; your text alone is not saved.",
-	NoAnswer:    "Your answer is not kept once the run ends. Call save_finding with it, or save a panel.",
+	NoFinding:   "You answered without a tool call. Call save_finding now with your answer and the evidence you checked; your text alone is not saved. If you made something the person asked for, the finding names it and links it.",
+	NoAnswer:    "Your answer is not kept once the run ends. Call save_finding with it, or save a panel. If you made something the person asked for, the finding names it and links it.",
 }
 
 func (r Reason) shortensConversation() bool {

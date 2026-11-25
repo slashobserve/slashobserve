@@ -22,7 +22,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
-const commentRejection = "comment tools are for MCP clients; the server answers and resolves threads after a run"
+const commentRejection = "comment writes are for MCP clients; the server answers and resolves threads after a run"
 
 func commentCalls() map[string]string {
 	return map[string]string{
@@ -36,7 +36,7 @@ func commentCalls() map[string]string {
 	}
 }
 
-func TestCommentToolsRejectAgentRuns(t *testing.T) {
+func TestCommentWritesRejectAgentRunsAndCommentReadsReachTheThreads(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Kind: auth.KindUser, ID: dashB, Name: "n", Role: auth.RoleEditor})
 	runs := map[string]Run{
@@ -49,6 +49,12 @@ func TestCommentToolsRejectAgentRuns(t *testing.T) {
 		for name, run := range runs {
 			t.Run(tool+" "+name, func(t *testing.T) {
 				res, err := r.Call(WithRun(ctx, run), tool, []byte(input))
+				if leftOutOfRuns[tool] == "" {
+					if !errors.Is(err, errCommentsNotConfigured) {
+						t.Fatalf("res = %#v err = %v, want the read to reach the threads", res, err)
+					}
+					return
+				}
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -63,15 +69,39 @@ func TestCommentToolsRejectAgentRuns(t *testing.T) {
 	}
 }
 
-func TestMCPOnlyTools(t *testing.T) {
+func TestToolsLeftOutOfRuns(t *testing.T) {
 	var got []string
+	registered := map[string]bool{}
 	for _, tool := range New(Deps{}).List() {
+		registered[tool.Name] = true
 		if tool.MCPOnly {
 			got = append(got, tool.Name)
 		}
+		if tool.MCPOnly != (leftOutOfRuns[tool.Name] != "") {
+			t.Errorf("%s: MCPOnly %v, left out of runs for %q", tool.Name, tool.MCPOnly, leftOutOfRuns[tool.Name])
+		}
 	}
-	if strings.Join(got, ",") != "add_block,aggregate_audit_events,apply_suggested_change,archive_run,arrange_blocks,cancel_run,claim_run,clear_home_dashboard,create_annotation,create_comment,create_folder,create_observation,diff_dashboard_versions,discard_block,discard_proposal,draft_query,duplicate_dashboard,edit_comment,finish_run,get_audit_event,get_audit_histogram,get_chat,get_home_dashboard,get_proposal,get_rca,get_run,get_run_brief,get_run_build,keep_block,list_access_requests,list_activity,list_audit_facets,list_audit_fields,list_chats,list_comments,list_dashboard_health,list_dashboard_versions,list_dashboard_viewers,list_inbox,list_mentionable_people,list_pinned_dashboards,list_proposals,list_rcas,list_runs,list_saved_searches,make_dashboard,merge_proposal,move_dashboard,move_observation,pin_dashboard,pin_observation,pin_run,publish_rca,recheck_datasource,rename_folder,rename_run,reopen_comment,reopen_observation,reply_to_comment,report_run,request_comment_access,resolve_comment,resolve_observation,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,save_search,search_audit_events,search_workspace,set_home_dashboard,set_inbox_item_done,share_answer,start_run,unpin_dashboard,unpin_run,update_annotation,update_block,update_observation,update_saved_search" {
-		t.Fatalf("mcp-only tools = %v", got)
+	if strings.Join(got, ",") != "apply_suggested_change,cancel_run,claim_run,create_comment,draft_query,duplicate_dashboard,edit_comment,finish_run,get_run_brief,make_dashboard,merge_proposal,reopen_comment,reply_to_comment,report_run,resolve_comment,restore_dashboard_version,retry_run,run_dashboard_health,save_run_answer,share_answer,start_run" {
+		t.Fatalf("tools left out of runs = %v", got)
+	}
+	for name, reason := range leftOutOfRuns {
+		if !registered[name] {
+			t.Errorf("leftOutOfRuns names %s, which is not a registered tool", name)
+		}
+		if reason == "" {
+			t.Errorf("%s is left out of runs without a reason", name)
+		}
+	}
+}
+
+func TestRunsOfferEveryToolNotLeftOut(t *testing.T) {
+	for _, tool := range New(Deps{}).List() {
+		if tool.AgentOnly || tool.MCPOnly {
+			continue
+		}
+		if !tool.OfferedIn(ModeCreate) {
+			t.Errorf("%s is neither offered in a create run nor left out of runs with a reason", tool.Name)
+		}
 	}
 }
 

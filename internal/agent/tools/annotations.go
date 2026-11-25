@@ -60,8 +60,8 @@ func init() { registerEntries((*Registry).annotationEntries) }
 func (r *Registry) annotationEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListAnnotations, Description: descListAnnotations, InputSchema: json.RawMessage(schemaListAnnotations), ReadOnly: true, MinRole: auth.RoleViewer}, r.listAnnotations},
-		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.createAnnotation},
-		{Tool{Name: nameUpdateAnnotation, Description: descUpdateAnnotation, InputSchema: json.RawMessage(schemaUpdateAnnotation), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateAnnotation},
+		{Tool{Name: nameCreateAnnotation, Description: descCreateAnnotation, InputSchema: json.RawMessage(schemaCreateAnnotation), MinRole: auth.RoleViewer}, r.createAnnotation},
+		{Tool{Name: nameUpdateAnnotation, Description: descUpdateAnnotation, InputSchema: json.RawMessage(schemaUpdateAnnotation), MinRole: auth.RoleViewer}, r.updateAnnotation},
 	}
 }
 
@@ -212,9 +212,6 @@ func annotationOf(a annotations.Annotation) annotationOut {
 }
 
 func (r *Registry) createAnnotation(ctx context.Context, input json.RawMessage) (Result, error) {
-	if _, scoped := RunFrom(ctx); scoped {
-		return invalid("%s is for MCP clients; a run saves only dashboards or a finding", nameCreateAnnotation), nil
-	}
 	if r.deps.Annotations == nil {
 		return Result{}, errAnnotationsNotConfigured
 	}
@@ -246,9 +243,6 @@ type updateAnnotationInput struct {
 }
 
 func (r *Registry) updateAnnotation(ctx context.Context, input json.RawMessage) (Result, error) {
-	if _, scoped := RunFrom(ctx); scoped {
-		return invalid("%s is for MCP clients; a run saves only dashboards or a finding", nameUpdateAnnotation), nil
-	}
 	if r.deps.Annotations == nil {
 		return Result{}, errAnnotationsNotConfigured
 	}

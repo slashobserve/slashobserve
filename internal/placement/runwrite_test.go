@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/actor"
+	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/folders/foldertest"
 )
@@ -28,14 +29,11 @@ func TestPlacementOfAWriteRefusesARunIdThatIsNotAUUID(t *testing.T) {
 	}
 }
 
-func TestPlacementRunOfReadsTheActorsRun(t *testing.T) {
-	id := "11111111-1111-4111-8111-111111111111"
-	got, err := RunOf(actor.Actor{RunID: id})
-	if err != nil || !got.Valid || got.String() != id {
-		t.Fatalf("RunOf = %v, %v", got, err)
-	}
-	if got, err := RunOf(actor.Actor{}); err != nil || got.Valid {
-		t.Fatalf("RunOf with no run = %v, %v", got, err)
+func TestPlacementOfAConnectedAgentsWriteIsKeyedOnTheRunOfItsContext(t *testing.T) {
+	folder := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	ctx := actor.AsConnectedAgent(actor.WithRun(t.Context(), "not-a-run"))
+	if err := RunWrite(ctx, nil, actor.In(ctx, auth.Principal{Kind: auth.KindUser, ID: "u"}, ""), folder); err == nil {
+		t.Fatal("a connected agent's run write skipped the run of its context")
 	}
 }
 

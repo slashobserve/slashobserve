@@ -22,8 +22,8 @@ const (
 	defaultListSavedSearches = 20
 	maxListSavedSearches     = 50
 
-	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder (default your My Dashboards) so people can open it from its page. A query with a lint_query error is not saved; draft_query writes one. A repeat returns the saved search with replayed true. Returns its url."
-	descUpdateSavedSearch = "Change what a saved logs, trace or metrics search runs: its query, filters or range, which each replace the saved value (filters replace all the filters, so send every one to keep). Its kind, datasource, title and folder stay. Needs Edit on the search's folder; get the id and the current values from list_saved_searches. Check a new query with lint_query or draft_query first. Returns the search with its url."
+	descSaveSearch        = "Save a logs, trace or metrics search with a title in a folder (default your My Dashboards) so people can open it from its page. A query with a lint_query error is not saved{draft_query_writes}. A repeat returns the saved search with replayed true. Returns its url."
+	descUpdateSavedSearch = "Change what a saved logs, trace or metrics search runs: its query, filters or range, which each replace the saved value (filters replace all the filters, so send every one to keep). Its kind, datasource, title and folder stay. Needs Edit on the search's folder; get the id and the current values from list_saved_searches. Check a new query with lint_query{or_draft_query} first. Returns the search with its url."
 	descListSavedSearches = "List the saved logs, trace and metrics searches this key can see, most recently changed first, optionally of one kind or in one folder. Each has its datasource, query, filters, range and url. Page with next_cursor."
 
 	propSearchKind = `"kind":{"type":"string","enum":["logs","traces","metrics"],"description":"Which page opens the search."}`
@@ -68,9 +68,9 @@ func init() { registerEntries((*Registry).savedSearchEntries) }
 
 func (r *Registry) savedSearchEntries() []entry {
 	return []entry{
-		{Tool{Name: nameSaveSearch, Description: descSaveSearch, InputSchema: json.RawMessage(schemaSaveSearch), MCPOnly: true, MinRole: auth.RoleViewer}, r.saveSearch},
-		{Tool{Name: nameUpdateSavedSearch, Description: descUpdateSavedSearch, InputSchema: json.RawMessage(schemaUpdateSavedSearch), MCPOnly: true, MinRole: auth.RoleViewer}, r.updateSavedSearch},
-		{Tool{Name: nameListSavedSearches, Description: descListSavedSearches, InputSchema: json.RawMessage(schemaListSavedSearches), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listSavedSearches},
+		{Tool{Name: nameSaveSearch, Description: descSaveSearch, InputSchema: json.RawMessage(schemaSaveSearch), MinRole: auth.RoleViewer}, r.saveSearch},
+		{Tool{Name: nameUpdateSavedSearch, Description: descUpdateSavedSearch, InputSchema: json.RawMessage(schemaUpdateSavedSearch), MinRole: auth.RoleViewer}, r.updateSavedSearch},
+		{Tool{Name: nameListSavedSearches, Description: descListSavedSearches, InputSchema: json.RawMessage(schemaListSavedSearches), ReadOnly: true, MinRole: auth.RoleViewer}, r.listSavedSearches},
 	}
 }
 
@@ -114,9 +114,6 @@ type savedSearchListOut struct {
 }
 
 func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Result, error) {
-	if res, scoped := rejectInRun(ctx, nameSaveSearch); scoped {
-		return res, nil
-	}
 	if r.deps.SavedSearches == nil {
 		return Result{}, errSavedSearchesNotConfigured
 	}
@@ -156,9 +153,6 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 }
 
 func (r *Registry) updateSavedSearch(ctx context.Context, input json.RawMessage) (Result, error) {
-	if res, scoped := rejectInRun(ctx, nameUpdateSavedSearch); scoped {
-		return res, nil
-	}
 	if r.deps.SavedSearches == nil {
 		return Result{}, errSavedSearchesNotConfigured
 	}
@@ -295,9 +289,6 @@ func (in listSavedSearchesInput) parse() (savedsearches.ListFilter, int, Result,
 }
 
 func (r *Registry) listSavedSearches(ctx context.Context, input json.RawMessage) (Result, error) {
-	if res, scoped := rejectInRun(ctx, nameListSavedSearches); scoped {
-		return res, nil
-	}
 	if r.deps.SavedSearches == nil {
 		return Result{}, errSavedSearchesNotConfigured
 	}
@@ -350,13 +341,6 @@ func savedSearchItem(s savedsearches.SavedSearch) savedSearchItemOut {
 		Folder:        s.Folder.Title,
 		URL:           s.URL,
 	}
-}
-
-func rejectInRun(ctx context.Context, name string) (Result, bool) {
-	if _, scoped := RunFrom(ctx); scoped {
-		return invalid("%s is for MCP clients; a run saves only dashboards or a finding", name), true
-	}
-	return Result{}, false
 }
 
 func savedSearchFailure(ctx context.Context, err error) (Result, error) {

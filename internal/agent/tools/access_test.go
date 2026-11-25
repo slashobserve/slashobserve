@@ -82,9 +82,10 @@ func newAccessRig(t *testing.T) *accessRig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposals.New(database.DB, access, service, logger))
+	proposed := proposals.New(database.DB, access, service, logger)
+	commentThreads := threads.NewService(database.DB, access, service, notes, observationService, proposed)
 	queue := revisions.NewService(database.DB, logger, revisions.WithAccess(access))
-	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Asks: threads.NewAsks(commentThreads, queue, false), Folders: access, Annotations: notes, Observations: observationService, Viewers: viewers.New(database.DB), Logger: logger})
+	registry := New(Deps{Datasources: datasources, Runner: runner, Dashboards: service, Threads: commentThreads, Asks: threads.NewAsks(commentThreads, queue, false), Folders: access, Annotations: notes, Observations: observationService, Proposals: proposed, Viewers: viewers.New(database.DB), Logger: logger})
 	return &accessRig{registry: registry, service: service, threads: commentThreads, notes: notes, findings: found, db: database}
 }
 

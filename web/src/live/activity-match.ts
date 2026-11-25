@@ -3,6 +3,19 @@ import type { Block, Observation } from "@/observations/queries"
 
 export type ActivityEvent = components["schemas"]["ActivityEvent"]
 
+export type ActivityFilter = {
+  folderId?: string | null
+  types?: readonly string[]
+}
+
+export function matchesActivityFilter(
+  event: ActivityEvent,
+  { folderId, types }: ActivityFilter
+): boolean {
+  if (folderId && event.folder_id !== folderId) return false
+  return types === undefined || types.length === 0 || types.includes(event.type)
+}
+
 type Touch = "observation" | "discussion" | "both"
 
 function namesObservation(event: ActivityEvent, id: string): boolean {

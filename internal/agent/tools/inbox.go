@@ -53,8 +53,8 @@ func init() { registerEntries((*Registry).inboxEntries) }
 
 func (r *Registry) inboxEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listInbox},
-		{Tool{Name: nameSetInboxItemDone, Description: descSetInboxItemDone, InputSchema: json.RawMessage(schemaSetInboxItemDone), MCPOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.setInboxItemDone},
+		{Tool{Name: nameListInbox, Description: descListInbox, InputSchema: json.RawMessage(schemaListInbox), ReadOnly: true, MinRole: auth.RoleViewer, PersonOnly: true}, r.listInbox},
+		{Tool{Name: nameSetInboxItemDone, Description: descSetInboxItemDone, InputSchema: json.RawMessage(schemaSetInboxItemDone), MinRole: auth.RoleViewer, PersonOnly: true}, r.setInboxItemDone},
 	}
 }
 

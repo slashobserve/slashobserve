@@ -36,7 +36,7 @@ const (
 	descRetryRun    = "Start a succeeded, failed or canceled run of the built-in agent again with the same prompt; the new run is yours and queues at once, with a new id to follow with get_run. A queued or running run answers invalid_transition with allowed_actions. It is not safe to repeat: each call queues another run. An investigation cannot be retried here; a private ask can."
 
 	schemaStartRun  = `{"type":"object","properties":{"prompt":{"type":"string","minLength":1,"maxLength":4000,"description":"What to create or change, 1 to 4000 characters."},"dashboard_id":{"type":"string","format":"uuid","description":"The dashboard to ask about or revise; omit for a new one."},"base_version":{"type":"integer","minimum":1,"description":"The version to revise; the latest by default."},"chat_id":{"type":"string","format":"uuid","description":"Your chat, from list_chats, to continue."},"client_id":{"type":"string","format":"uuid","description":"A new UUID per question; a resend starts nothing."},"new_chat":{"type":"boolean","description":"Start a new chat."},"kind":{"type":"string","enum":["ask","revise"],"description":"ask (default) or revise."},"observation_id":{"type":"string","format":"uuid","description":"The observation an ask is about."},"anchor":{"type":"object","description":"A spot, as in list_comments."},"block_id":{"type":"string","format":"uuid","description":"A block of observation_id; alone, the whole block."},"applies_finding_id":{"type":"string","format":"uuid","description":"With kind revise, instead of prompt: a finding id from get_run; its suggested_change is the prompt."},"as_of":{"type":"string","description":"Admin only: past time, RFC 3339 or epoch ms; not for revise."}},"additionalProperties":false}`
-	schemaRunTarget = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from start_run, get_run or list_activity."}},"required":["id"],"additionalProperties":false}`
+	schemaRunTarget = `{"type":"object","properties":{"id":{"type":"string","format":"uuid","description":"The run id, from {run_starter}get_run or list_activity."}},"required":["id"],"additionalProperties":false}`
 
 	runStepLimit = 20
 )
@@ -60,11 +60,11 @@ func init() { registerEntries((*Registry).runEntries) }
 
 func (r *Registry) runEntries() []entry {
 	return []entry{
-		{Tool{Name: nameGetRun, Description: descGetRun, InputSchema: json.RawMessage(schemaGetRun), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.getRun},
-		{Tool{Name: nameStartRun, Description: descStartRun, InputSchema: json.RawMessage(schemaStartRun), MCPOnly: true, MinRole: auth.RoleViewer}, r.startRun},
-		{Tool{Name: nameGetRunBuild, Description: descGetRunBuild, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.getRunBuild},
-		{Tool{Name: nameCancelRun, Description: descCancelRun, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, MinRole: auth.RoleViewer}, r.cancelRun},
-		{Tool{Name: nameRetryRun, Description: descRetryRun, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, MinRole: auth.RoleViewer}, r.retryRun},
+		{Tool{Name: nameGetRun, Description: descGetRun, InputSchema: json.RawMessage(schemaGetRun), ReadOnly: true, MinRole: auth.RoleViewer}, r.getRun},
+		{Tool{Name: nameStartRun, Description: descStartRun, InputSchema: json.RawMessage(schemaStartRun), MinRole: auth.RoleViewer}, r.startRun},
+		{Tool{Name: nameGetRunBuild, Description: descGetRunBuild, InputSchema: json.RawMessage(schemaRunTarget), ReadOnly: true, MinRole: auth.RoleViewer}, r.getRunBuild},
+		{Tool{Name: nameCancelRun, Description: descCancelRun, InputSchema: json.RawMessage(schemaRunTarget), MinRole: auth.RoleViewer}, r.cancelRun},
+		{Tool{Name: nameRetryRun, Description: descRetryRun, InputSchema: json.RawMessage(schemaRunTarget), MinRole: auth.RoleViewer}, r.retryRun},
 	}
 }
 

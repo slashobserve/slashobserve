@@ -49,11 +49,11 @@ func init() { registerEntries((*Registry).runListEntries) }
 
 func (r *Registry) runListEntries() []entry {
 	return []entry{
-		{Tool{Name: nameListRuns, Description: descListRuns, InputSchema: json.RawMessage(schemaListRuns), MCPOnly: true, ReadOnly: true, MinRole: auth.RoleViewer}, r.listRuns},
-		{Tool{Name: nameRenameRun, Description: descRenameRun, InputSchema: json.RawMessage(schemaRenameRun), MCPOnly: true, MinRole: auth.RoleViewer}, r.renameRun},
-		{Tool{Name: namePinRun, Description: descPinRun, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, MinRole: auth.RoleViewer}, r.pinRun},
-		{Tool{Name: nameUnpinRun, Description: descUnpinRun, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, MinRole: auth.RoleViewer}, r.unpinRun},
-		{Tool{Name: nameArchiveRun, Description: descArchiveRun, InputSchema: json.RawMessage(schemaRunTarget), MCPOnly: true, MinRole: auth.RoleViewer}, r.archiveRun},
+		{Tool{Name: nameListRuns, Description: descListRuns, InputSchema: json.RawMessage(schemaListRuns), ReadOnly: true, MinRole: auth.RoleViewer}, r.listRuns},
+		{Tool{Name: nameRenameRun, Description: descRenameRun, InputSchema: json.RawMessage(schemaRenameRun), MinRole: auth.RoleViewer}, r.renameRun},
+		{Tool{Name: namePinRun, Description: descPinRun, InputSchema: json.RawMessage(schemaRunTarget), MinRole: auth.RoleViewer}, r.pinRun},
+		{Tool{Name: nameUnpinRun, Description: descUnpinRun, InputSchema: json.RawMessage(schemaRunTarget), MinRole: auth.RoleViewer}, r.unpinRun},
+		{Tool{Name: nameArchiveRun, Description: descArchiveRun, InputSchema: json.RawMessage(schemaRunTarget), MinRole: auth.RoleViewer}, r.archiveRun},
 	}
 }
 

@@ -378,7 +378,8 @@ The empty Dashboards list and the Search page link to their docs page the same w
 
 ### Use the sidebar
 
-The sidebar starts with **Home**, then Inbox, Observations, Dashboards, Logs, Traces, Metrics and Agents.
+The sidebar starts with **Home**, then Observations, Dashboards, Logs, Traces, Metrics and Agents.
+The [inbox](inbox.md) is not in the sidebar: the bell at the top right of every page opens it as a panel, with the unread count on the bell.
 A Workspace group follows with Datasources, API keys, People and Audit for Admins and Settings for everyone.
 The Workspace group stays at the bottom of the sidebar, above your account, while the items above it scroll, so Datasources, People and Settings never sit below the fold.
 Open observations are listed indented under **Observations** the same way.
@@ -394,7 +395,7 @@ Under 1200 pixels wide, and on dashboard pages, the sidebar is always a rail, an
 `⌘\` or `Ctrl+\` does the same as these buttons on every page that shows the sidebar, including while you type in a field, and does nothing on a phone.
 
 Hovering or focusing an icon on the rail shows its name.
-On the rail, Inbox shows its unread count and Observations shows a teal dot while one of your open observations has something unread.
+On the rail, Observations shows a teal dot while one of your open observations has something unread.
 Dashboards and Audit open a menu that Escape or a click outside closes.
 With two or more sources, Logs, Traces and Metrics open a menu with a link to their list and the sources.
 A pinned dashboard, in the sidebar and in the Dashboards menu, shows its problem count from the last health check, such as "1 problem", and nothing while it has none.
@@ -406,7 +407,7 @@ Dashboards answer `v`, `e`, `i`, `a`, `c`, `Esc`, `t z`, `t ←`, `t →`, `d r`
 
 ## Use the app on a phone or a narrow screen
 
-Under 900 pixels wide, every page has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and **Inbox** with its unread count.
+Under 900 pixels wide, every page has a bar at the top with **Menu**, which opens the sidebar, the page's name, or the wordmark on Home, **Search or jump to** and the Inbox bell with its unread count.
 On a dashboard, a build and a dashboard's version history the bar shows the dashboard's name.
 On a dashboard the dashboard's name, its version button and **Controls** sit under it, without the folder crumbs, which the sidebar and **Dashboards** page keep.
 A page's own actions, such as **Share** on an observation or **History** on a chat, sit in a row under the bar.
@@ -493,7 +494,7 @@ The button is missing on an older version and while a layout or panel is being e
 | Address | Opens |
 | --- | --- |
 | `/` | [Home](home.md): ask Observe Agent, start an observation or import a dashboard. |
-| `/inbox` | Your inbox: what happened on your observations, dashboards and requests. |
+| `/inbox` | Home with the [Inbox](inbox.md) panel open. |
 | `/ask` | The chat: ask the Observe Agent for a dashboard. |
 | `/chats` | Your chats with the Observe Agent. |
 | `/observations` | The list of [observations](observations.md). |
@@ -525,7 +526,7 @@ The button is missing on an older version and while a layout or panel is being e
 #### Details of query strings
 
 - `/`: `tab=observe` or `tab=import` opens that tab.
-- `/inbox`: `view` and `item` reopen a view and an open item.
+- `/inbox`: `view` and `filter` open the Inbox panel on that view and filter, and `item` scrolls to that item and highlights it.
 - `/o/<observation id>`: `rca=1` opens the Publish as RCA panel, and `thread=<thread id>` opens the discussion with that thread marked.
 - `/proposals/<proposal id>`: `thread=<thread id>` marks that thread in the discussion.
 - `/d/<dashboard id>/<slug>`: `thread=<thread id>` opens the activity pane on that comment thread.

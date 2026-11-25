@@ -38,7 +38,7 @@ func init() { registerEntries((*Registry).discoveryEntries) }
 func (r *Registry) discoveryEntries() []entry {
 	return []entry{
 		{Tool{Name: nameListDatasources, Description: descListDatasources, InputSchema: json.RawMessage(schemaEmpty), ReadOnly: true, MinRole: auth.RoleViewer}, r.listDatasources},
-		{Tool{Name: nameRecheckDatasource, Description: descRecheckDatasource, InputSchema: json.RawMessage(schemaRecheckDatasource), ReadOnly: true, MCPOnly: true, MinRole: auth.RoleViewer}, r.recheckDatasource},
+		{Tool{Name: nameRecheckDatasource, Description: descRecheckDatasource, InputSchema: json.RawMessage(schemaRecheckDatasource), ReadOnly: true, MinRole: auth.RoleViewer}, r.recheckDatasource},
 		{Tool{Name: nameListMetrics, Description: descListMetrics, InputSchema: json.RawMessage(schemaListMetrics), ReadOnly: true, MinRole: auth.RoleViewer}, r.listMetrics},
 		{Tool{Name: nameListLabels, Description: descListLabels, InputSchema: json.RawMessage(schemaListLabels), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabels},
 		{Tool{Name: nameListLabelValues, Description: descListLabelValues, InputSchema: json.RawMessage(schemaListLabelValues), ReadOnly: true, MinRole: auth.RoleViewer}, r.listLabelValues},

@@ -17,13 +17,49 @@ const (
 	MaxCreatedIDs = 256
 )
 
+const (
+	reasonClaims    = "a run token works a run and never claims one; only a claimer calls the claim tools"
+	reasonComments  = "the server answers and resolves threads after a run"
+	reasonRuns      = "a run never starts, retries or cancels a run, because the new run would escape the cost and call limits of this one"
+	reasonVersions  = "only the finished build becomes a version, one per request"
+	reasonDraft     = "a run's cost is computed once by runsession, and draft_query makes model calls outside it"
+	reasonShare     = "only the requester shares a finished answer into a thread, and inside a run the answer is not finished"
+	reasonApply     = "it posts in a thread and starts a run"
+	reasonProposals = "merging writes a dashboard version outside the build"
+	reasonRunAnswer = "a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer"
+	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
+)
+
+var leftOutOfRuns = map[string]string{
+	nameClaimRun:                reasonClaims,
+	nameReportRun:               reasonClaims,
+	nameFinishRun:               reasonClaims,
+	nameGetRunBrief:             reasonClaims,
+	nameCreateComment:           reasonComments,
+	nameReplyToComment:          reasonComments,
+	nameEditComment:             reasonComments,
+	nameResolveComment:          reasonComments,
+	nameReopenComment:           reasonComments,
+	nameShareAnswer:             reasonShare,
+	nameApplySuggestedChange:    reasonApply,
+	nameStartRun:                reasonRuns,
+	nameRetryRun:                reasonRuns,
+	nameCancelRun:               reasonRuns,
+	nameDraftQuery:              reasonDraft,
+	nameRestoreDashboardVersion: reasonVersions,
+	nameMergeProposal:           reasonProposals,
+	nameMakeDashboard:           reasonVersions,
+	nameDuplicateDashboard:      reasonVersions,
+	nameSaveRunAnswer:           reasonRunAnswer,
+	nameRunDashboardHealth:      reasonHealth,
+}
+
 var creatingWrites = map[string]bool{
 	nameCreateObservation: true,
 	nameAddBlock:          true,
 	nameCreateFolder:      true,
 	nameSaveSearch:        true,
 	nameCreateAnnotation:  true,
-	nameSaveRunAnswer:     true,
 }
 
 type TargetKind int
@@ -39,8 +75,9 @@ const (
 )
 
 type Target struct {
-	Kind TargetKind
-	ID   string
+	Kind  TargetKind
+	ID    string
+	Field string
 }
 
 type WriteScope struct {
@@ -85,7 +122,7 @@ func (scope WriteScope) created(id string) bool {
 
 func fieldTarget(kind TargetKind, field string) func(json.RawMessage) []Target {
 	return func(input json.RawMessage) []Target {
-		return []Target{{Kind: kind, ID: stringField(input, field)}}
+		return []Target{{Kind: kind, ID: stringField(input, field), Field: field}}
 	}
 }
 
@@ -113,11 +150,7 @@ func annotationTarget(input json.RawMessage) []Target {
 }
 
 func pinObservationTarget(input json.RawMessage) []Target {
-	targets := fieldTarget(TargetObservation, "observation_id")(input)
-	if id := stringField(input, "dashboard_id"); id != "" {
-		targets = append(targets, Target{Kind: TargetDashboard, ID: id})
-	}
-	return targets
+	return append(fieldTarget(TargetObservation, "observation_id")(input), fieldTarget(TargetDashboard, "dashboard_id")(input)...)
 }
 
 var writeTargets = map[string]func(json.RawMessage) []Target{
@@ -133,7 +166,6 @@ var writeTargets = map[string]func(json.RawMessage) []Target{
 	nameMoveObservation:      fieldTarget(TargetObservation, "observation_id"),
 	namePublishRCA:           fieldTarget(TargetObservation, "observation_id"),
 	namePinObservation:       pinObservationTarget,
-	nameSaveRunAnswer:        fieldTarget(TargetRun, "run_id"),
 	nameMoveDashboard:        fieldTarget(TargetDashboard, "dashboard_id"),
 	nameCreateAnnotation:     annotationTarget,
 	nameUpdateAnnotation:     fieldTarget(TargetOwned, "id"),
@@ -141,7 +173,6 @@ var writeTargets = map[string]func(json.RawMessage) []Target{
 	nameUnpinDashboard:       personState,
 	nameSetHomeDashboard:     personState,
 	nameClearHomeDashboard:   personState,
-	nameRunDashboardHealth:   personState,
 	nameCreateFolder:         newObject,
 	nameRenameFolder:         fieldTarget(TargetOwned, "folder_id"),
 	nameSaveSearch:           newObject,
@@ -160,7 +191,6 @@ var personStateWrites = map[string]bool{
 	nameUnpinDashboard:       true,
 	nameSetHomeDashboard:     true,
 	nameClearHomeDashboard:   true,
-	nameRunDashboardHealth:   true,
 	nameSetInboxItemDone:     true,
 	nameRequestCommentAccess: true,
 	nameRenameRun:            true,
@@ -182,7 +212,6 @@ var webActions = map[string]string{
 	nameMoveObservation:      "Move on the observation page",
 	namePublishRCA:           "Publish RCA on the observation page",
 	namePinObservation:       "Pin on the observation page",
-	nameSaveRunAnswer:        "Save as observation on the answer",
 	nameMoveDashboard:        "Move on the dashboard's menu",
 	nameCreateAnnotation:     "adding an annotation on the dashboard",
 	nameUpdateAnnotation:     "editing the annotation on the dashboard",
@@ -190,7 +219,6 @@ var webActions = map[string]string{
 	nameUnpinDashboard:       "the pin on the dashboard",
 	nameSetHomeDashboard:     "Set as home on the dashboard's menu",
 	nameClearHomeDashboard:   "Clear home in the settings",
-	nameRunDashboardHealth:   "Run check on the health page",
 	nameCreateFolder:         "New folder",
 	nameRenameFolder:         "Rename on the folder's menu",
 	nameSaveSearch:           "Save search on the search page",
@@ -234,6 +262,9 @@ func writeScopeViolation(tool string, run Run, scope WriteScope, targets []Targe
 }
 
 func targetViolation(run Run, scope WriteScope, target Target, inChat func(runID string) bool) string {
+	if target.ID == "" && target.Field != "" {
+		return fmt.Sprintf("%s %s is empty, and inside a run a write names what it changes", missingTarget+":", target.Field)
+	}
 	switch target.Kind {
 	case TargetEveryDashboard:
 		return "without dashboard_id it would land on every dashboard"
@@ -247,22 +278,33 @@ func targetViolation(run Run, scope WriteScope, target Target, inChat func(runID
 	return ""
 }
 
+const missingTarget = "it names no target"
+
 func objectViolation(run Run, scope WriteScope, id string) string {
-	if id == "" || run.subjectIs(id) || scope.created(id) || sameID(scope.Committed, id) {
+	if id == "" {
+		return missingTarget
+	}
+	if run.subjectIs(id) || scope.created(id) || sameID(scope.Committed, id) {
 		return ""
 	}
 	return "a run may change only what it is about, what it created and the dashboard it built"
 }
 
 func ownedViolation(scope WriteScope, id string) string {
-	if id == "" || scope.created(id) {
+	if id == "" {
+		return missingTarget
+	}
+	if scope.created(id) {
 		return ""
 	}
 	return "a run may change only what it created"
 }
 
 func runViolation(run Run, id string, inChat func(runID string) bool) string {
-	if id == "" || sameID(run.RequestID, id) || (run.ChatID != "" && inChat != nil && inChat(id)) {
+	if id == "" {
+		return missingTarget
+	}
+	if sameID(run.RequestID, id) || (run.ChatID != "" && inChat != nil && inChat(id)) {
 		return ""
 	}
 	return "a run may change only runs of its own chat"
