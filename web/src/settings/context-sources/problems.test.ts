@@ -124,6 +124,16 @@ describe("sourceProblems", () => {
     expect(refused("é".repeat(301))).toBeDefined()
     expect(refused("two\nlines")).toBeDefined()
     expect(refused("zero\u200Bwidth")).toBeDefined()
+    expect(refused("next\u0085line")).toBeDefined()
+  })
+
+  test("refuses a name with a control or invisible character", () => {
+    const refused = (name: string) =>
+      sourceProblems({ ...input, name }, "add", false).name
+    expect(refused("Company docs")).toBeUndefined()
+    expect(refused("Co\u200Dmpany")).toBeDefined()
+    expect(refused("Company\u0085docs")).toBeDefined()
+    expect(refused("Company\ndocs")).toBeDefined()
   })
 
   test("refuses a secret with a line break", () => {
