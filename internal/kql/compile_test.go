@@ -103,6 +103,10 @@ func TestCompileWarnsOnceForEachUnknownField(t *testing.T) {
 			}},
 		{"a field that only ends the same way is offered", "service.name:a", kql.Fields{"resource.service.name": kql.Keyword, "resource.service.name.keyword": kql.Keyword},
 			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "service.name"; did you mean "resource.service.name"?`, Start: 0, End: 12}}},
+		{"a field that differs only by case is offered", "Body:a", kql.Fields{"body": kql.Text, "message": kql.Text},
+			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "Body"; did you mean "body"?`, Start: 0, End: 4}}},
+		{"a dotted suffix is matched without regard to case", "Service.Name:a", kql.Fields{"resource.service.name": kql.Keyword},
+			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "Service.Name"; did you mean "resource.service.name"?`, Start: 0, End: 12}}},
 		{"two fields that end the same way offer nothing", "name:a", kql.Fields{"host.name": kql.Keyword, "user.name": kql.Keyword},
 			[]kql.Diagnostic{{Severity: kql.SeverityWarning, Message: `unknown field "name"`, Start: 0, End: 4}}},
 		{"nil fields report nothing", "nope:1", nil, nil},
@@ -164,4 +168,30 @@ func roundTrip(t *testing.T, query map[string]any) map[string]any {
 		t.Fatal(err)
 	}
 	return out
+}
+
+func TestCompileReportsUnknownFieldsAndWhetherTheQueryNeedsThem(t *testing.T) {
+	fields := kql.Fields{"body": kql.Text, "log.level": kql.Keyword}
+	for _, tc := range []struct {
+		name string
+		text string
+		want []kql.UnknownField
+	}{
+		{"a plain clause", "Body:a", []kql.UnknownField{{Name: "Body", Suggestion: "body", Required: true}}},
+		{"clauses joined by and and grouped", "(nope:a) and log.level:x", []kql.UnknownField{{Name: "nope", Required: true}}},
+		{"a negated clause", "not nope:a", []kql.UnknownField{{Name: "nope"}}},
+		{"one branch of an or", "log.level:x or nope:a", []kql.UnknownField{{Name: "nope"}}},
+		{"required once it also appears in a required position", "(nope:a or log.level:x) and nope:c", []kql.UnknownField{{Name: "nope", Required: true}}},
+		{"a known field", "body:a", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := kql.Compile(tc.text, fields)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got.UnknownFields, tc.want) {
+				t.Fatalf("unknown fields %+v, want %+v", got.UnknownFields, tc.want)
+			}
+		})
+	}
 }
