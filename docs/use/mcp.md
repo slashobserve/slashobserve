@@ -1765,7 +1765,7 @@ Both need the Viewer role, and a run offers them in an investigation or a questi
 
 Lists the context sources the caller may use, each with the approved tools it may call.
 
-- A source shows its `uid`, `name`, an `about` line and its tools.
+- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its tools.
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
   Each tool shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
