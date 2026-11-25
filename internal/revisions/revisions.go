@@ -286,7 +286,9 @@ type Usage struct {
 
 	CostUSD *float64 `json:"cost_usd"`
 
-	Hypotheses []Hypothesis `json:"hypotheses,omitempty"`
+	Hypotheses  []Hypothesis `json:"hypotheses,omitempty"`
+	CallLimit   int          `json:"call_limit,omitempty"`
+	StageAtSave string       `json:"stage_at_save,omitempty"`
 }
 
 type Step struct {

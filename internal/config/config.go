@@ -152,6 +152,7 @@ const (
 	envAgentWorkers            = "SLASHOBSERVE_AGENT_WORKERS"
 	envAgentInvestigationCalls = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS"
 	envAgentInvestigationLoop  = "SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"
+	envAgentInvestigationMax   = "SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"
 	envAgentRunMaxCostUSD      = "SLASHOBSERVE_AGENT_RUN_MAX_COST_USD"
 
 	envProvisionDir = "SLASHOBSERVE_PROVISION_DIR"
@@ -166,7 +167,7 @@ var serverEnvNames = []string{
 	envAdminEmails, envOIDCGroupRoles,
 	envLLMProvider, envLLMModel, envLLMAPIKey, envLLMAPIKeyFile, envLLMBaseURL,
 	envLLMEffort, envLLMMaxTokens, envLLMRequestTimeout, envLLMIdleTimeout, envLLMReplayDir,
-	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop,
+	envLLMLogProviderErrors, envLLMPricesFile, envAgentRunTimeout, envAgentRunMaxCostUSD, envAgentSessionRenewKiB, envAgentWorkers, envAgentInvestigationCalls, envAgentInvestigationLoop, envAgentInvestigationMax,
 	envProvisionDir, envMetrics, envSecretKey, envServiceAccountsFile,
 }
 
@@ -196,7 +197,9 @@ type Agent struct {
 	Workers            int
 	InvestigationCalls int
 	InvestigationLoop  bool
-	MaxRunCostUSD      float64
+
+	InvestigationCallsMax int
+	MaxRunCostUSD         float64
 }
 
 type Config struct {
@@ -724,6 +727,15 @@ func loadAgent(lookup func(string) (string, bool), cfg *Config) []error {
 			errs = append(errs, fmt.Errorf("%s: must be a whole number from %d to %d, got %q", envAgentInvestigationCalls, minAgentInvestigationCalls, maxAgentInvestigationCalls, v))
 		} else {
 			cfg.Agent.InvestigationCalls = n
+		}
+	}
+	cfg.Agent.InvestigationCallsMax = cfg.Agent.InvestigationCalls
+	if v := get(lookup, envAgentInvestigationMax); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < cfg.Agent.InvestigationCalls || n > maxAgentInvestigationCalls {
+			errs = append(errs, fmt.Errorf("%s: must be a whole number from the value of %s (%d) to %d, got %q", envAgentInvestigationMax, envAgentInvestigationCalls, cfg.Agent.InvestigationCalls, maxAgentInvestigationCalls, v))
+		} else {
+			cfg.Agent.InvestigationCallsMax = n
 		}
 	}
 	if err := loadRunMaxCost(lookup, cfg); err != nil {

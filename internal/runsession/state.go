@@ -90,9 +90,8 @@ func (s *State) addDiscovery(found tools.Discovery) {
 }
 
 func (s *State) noteLedger(ledger []revisions.Hypothesis) (changed bool) {
-	changed = !slices.EqualFunc(s.Ledger, ledger, func(a, b revisions.Hypothesis) bool {
-		return a.ID == b.ID && a.Text == b.Text && a.Status == b.Status && a.Next == b.Next && slices.Equal(a.Evidence, b.Evidence)
-	})
+	changed = !guard.SameLedger(s.Ledger, ledger)
+	s.Guard.NoteLedger(s.Ledger, ledger)
 	s.Ledger = ledger
 	return changed
 }

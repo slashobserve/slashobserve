@@ -57,7 +57,7 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 
 func validPhase(phase string) bool {
 	switch phase {
-	case "discover", "lint", "query", "save", "write", "repair", "ledger":
+	case "discover", "lint", "query", "save", "write", "repair", "ledger", "stage":
 		return true
 	}
 	return false

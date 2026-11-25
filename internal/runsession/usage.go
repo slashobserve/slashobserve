@@ -74,6 +74,9 @@ func (s *State) usage() revisions.Usage {
 	u.StalledTurns = counts.StalledTurns
 	u.OnePanelRefusals = counts.OnePanelRefusals
 	u.Hypotheses = s.Ledger
+	if loop := s.Guard.Loop; loop != nil {
+		u.CallLimit, u.StageAtSave = loop.Limit, loop.SavedStage
+	}
 	return u
 }
 

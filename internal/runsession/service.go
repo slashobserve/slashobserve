@@ -62,19 +62,20 @@ type Statuses interface {
 }
 
 type Config struct {
-	DB                 *db.DB
-	Runs               *revisions.Service
-	Claims             *claims.Service
-	Builds             Builds
-	Dashboards         Dashboards
-	Imports            brief.ImportReader
-	Statuses           Statuses
-	Steps              revisions.StepRecorder
-	Prices             pricing.Table
-	MaxRunCostUSD      float64
-	InvestigationCalls int
-	InvestigationLoop  bool
-	Logger             *slog.Logger
+	DB                    *db.DB
+	Runs                  *revisions.Service
+	Claims                *claims.Service
+	Builds                Builds
+	Dashboards            Dashboards
+	Imports               brief.ImportReader
+	Statuses              Statuses
+	Steps                 revisions.StepRecorder
+	Prices                pricing.Table
+	MaxRunCostUSD         float64
+	InvestigationCalls    int
+	InvestigationLoop     bool
+	InvestigationCallsMax int
+	Logger                *slog.Logger
 }
 
 type Service struct {
@@ -90,6 +91,7 @@ type Service struct {
 	maxRunCost         float64
 	investigationCalls int
 	investigationLoop  bool
+	investigationMax   int
 	logger             *slog.Logger
 	inFlight           slots
 	runLocks           runLocks
@@ -105,7 +107,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, logger: c.Logger,
+		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -186,6 +188,9 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	}
 	if sess.state.Guard.InvestigationCalls == 0 {
 		sess.state.Guard.InvestigationCalls = s.investigationCalls
+	}
+	if s.investigationLoop && req.Assignee == revisions.AssignBuiltin {
+		sess.state.Guard.StartLoop(s.investigationMax)
 	}
 	return sess, nil
 }

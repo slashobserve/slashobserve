@@ -80,6 +80,31 @@ Details of the ledger:
 - The finished run's `usage.hypotheses` holds the last ledger, in the run API and in `get_run`.
 - Without the setting, the tool, the prompt section and the block are absent.
 
+### Stages and the call budget
+
+With the same setting on, the server also works out which stage the investigation is in and lets the call limit follow progress.
+The agent never declares a stage; the server derives it from the ledger and the call count after each turn.
+
+| Stage | When |
+| --- | --- |
+| `orient` | No ledger yet. |
+| `hypothesize` | A ledger exists and no hypothesis has an evidence line. |
+| `test` | At least one evidence line exists and the ledger is not ready to conclude. |
+| `conclude` | One hypothesis is supported and none is open, or the call before the limit has come. |
+
+Details of the stages:
+
+- The agent gets one line after each turn, such as `Stage: test. Model call 7 of 12.`, and the run's steps show one line each time the stage changes, under the label `stage`.
+- The limit starts at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`.
+  It grows by 3 calls each time a hypothesis moves to `supported` or `ruled_out` with a new evidence line, as long as the run made at least one successful read since the limit last grew, and stops at `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+  A ledger written without reading anything earns nothing, and unset, the ceiling equals the starting limit, so the limit never grows.
+- When the stage becomes `conclude` because a hypothesis is supported and none is open, the agent is told at once to save the finding instead of waiting for the limit.
+- After a ledger exists, two turns in a row with reads and no ledger change get one reminder to update the ledger or save; it is a message, never a refusal, and a later change followed by two more quiet turns earns another.
+  Send the ledger in the same call as reads: a turn with only ledger calls still counts as stalled.
+- Repeated reads, stalled turns, rejected findings, the cost limit and the run timeout are unchanged and end a run in any stage.
+- The finished run's `usage.call_limit` is the limit when it ended and `usage.stage_at_save` is the stage when it saved its finding.
+- Without the setting, none of this exists and the limit is the fixed one.
+
 ## Where the answer goes
 
 The answer lives in an observation: a text block that starts with `## <title>`, and one panel block for each evidence panel.

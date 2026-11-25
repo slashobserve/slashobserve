@@ -71,6 +71,20 @@ describe("StepTimeline", () => {
     expect(screen.getByText("note_hypotheses")).toBeVisible()
   })
 
+  it("labels the investigation stage steps on their own", () => {
+    render(
+      <StepTimeline
+        steps={[
+          step({}),
+          step({ phase: "stage", tool: "agent", message: "Stage: test" }),
+        ]}
+        working={false}
+        reconnecting={false}
+      />
+    )
+    expect(screen.getByText("Investigation stage")).toBeVisible()
+  })
+
   it("shows the live text under the working row while working", () => {
     render(
       <StepTimeline

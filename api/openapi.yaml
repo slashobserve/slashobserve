@@ -4457,7 +4457,7 @@ components:
             Clients detect a restarted list by each step's `at`, not by `attempt` alone.
         phase:
           type: string
-          enum: [discover, lint, query, save, write, repair, ledger]
+          enum: [discover, lint, query, save, write, repair, ledger, stage]
         tool:
           type: string
         status:
@@ -4582,6 +4582,14 @@ components:
           items:
             $ref: "#/components/schemas/AgentHypothesis"
           description: The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`).
+        call_limit:
+          type: integer
+          minimum: 1
+          description: The investigation's model-call limit when it ended, after any growth, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`.
+        stage_at_save:
+          type: string
+          enum: [orient, hypothesize, test, conclude]
+          description: The stage the investigation was in when it saved its finding, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` and a saved finding.
     AgentHypothesis:
       type: object
       additionalProperties: false
