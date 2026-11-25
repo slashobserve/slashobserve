@@ -33,6 +33,12 @@ The old address `/inbox` opens Home with the panel open, keeping its `view` and 
 With `item=<seq>` the panel also scrolls to that item, loading further pages until it finds it, focuses and highlights it, and opens it in place when it has no page of its own.
 When no page holds the item, the panel says so above the list.
 
+When something in **Needs you** arrives while the panel is closed, a toast appears at the top right under the bell for eight seconds.
+Its **Open** action does what selecting the item does, and for an item with no page of its own it opens the panel on that item.
+More than three at once give one "N new in Inbox" toast whose **Open** opens the panel.
+Items that arrive while the tab is hidden toast when you come back to it, by the same rule.
+Workspace activity never makes a toast, and neither do items that arrived before you opened the app.
+
 One right panel shows at a time, and the newest one wins.
 Opening the Inbox hides the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, and it comes back as it was when the Inbox closes.
 Opening another panel while the Inbox is open closes the Inbox, and so does moving to another page.

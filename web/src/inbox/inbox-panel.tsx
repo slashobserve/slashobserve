@@ -40,6 +40,7 @@ import {
 } from "./inbox-panel-store"
 import { InboxRow } from "./inbox-row"
 import { inboxFilters, inboxViews } from "./inbox-views"
+import { useLiveInboxToasts } from "./use-live-toasts"
 import {
   keepInboxHead,
   usePanelInboxList,
@@ -93,6 +94,7 @@ function ListSkeleton() {
 export function InboxPanel() {
   const open = useInboxPanelStore((state) => state.open)
   const openings = useInboxPanelStore((state) => state.openings)
+  useLiveInboxToasts()
   useDashboardShortcuts({ inbox: toggleInboxFromKeys })
   return open ? <InboxCard key={openings} /> : null
 }

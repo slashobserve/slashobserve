@@ -1,3 +1,4 @@
+import { liveToastDuration, liveToasterId } from "@/inbox/live-toasts"
 import { useTheme } from "@/lib/theme"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import {
@@ -40,4 +41,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
   )
 }
 
-export { Toaster }
+const LiveToaster = () => (
+  <Toaster
+    id={liveToasterId}
+    position="top-right"
+    offset={{ top: 52, right: 16 }}
+    mobileOffset={{ top: 60, right: 16 }}
+    duration={liveToastDuration}
+    closeButton
+  />
+)
+
+export { Toaster, LiveToaster }

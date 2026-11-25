@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router"
 
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Toaster } from "@/components/ui/sonner"
+import { LiveToaster, Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useFocusAfterNavigation } from "@/shell/focus-after-navigation"
@@ -43,6 +43,7 @@ function RootLayout() {
         duration={5000}
         closeButton
       />
+      <LiveToaster />
     </Shell>
   )
 }
