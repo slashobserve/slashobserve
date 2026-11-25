@@ -101,8 +101,10 @@ describe("AgentsPage", () => {
     expect(within(card).getByText("12 s")).toBeTruthy()
     expect(within(card).getByText("Last 7 days, everyone")).toBeTruthy()
 
-    const connected = screen.getByRole("region", { name: "Connected agents" })
-    expect(within(connected).getByText("Claude Code")).toBeTruthy()
+    const connected = await screen.findByRole("grid", {
+      name: "Connected agents",
+    })
+    expect(await within(connected).findByText("Claude Code")).toBeTruthy()
     expect(within(connected).getByText("Listening")).toBeTruthy()
     expect(within(connected).getByText("7")).toBeTruthy()
     expect(
@@ -114,10 +116,10 @@ describe("AgentsPage", () => {
       })
     ).toBeTruthy()
 
-    const accounts = screen.getByRole("region", {
+    const accounts = await screen.findByRole("grid", {
       name: "Service accounts that take runs",
     })
-    expect(within(accounts).getByText("nightly-audit")).toBeTruthy()
+    expect(await within(accounts).findByText("nightly-audit")).toBeTruthy()
     expect(within(accounts).getByText("Never seen")).toBeTruthy()
     expect(within(accounts).getByText("21")).toBeTruthy()
     expect(screen.getByRole("link", { name: "API keys" })).toBeTruthy()
@@ -147,10 +149,10 @@ describe("AgentsPage", () => {
     )
     renderPage()
 
-    const accounts = await screen.findByRole("region", {
+    const accounts = await screen.findByRole("grid", {
       name: "Service accounts that take runs",
     })
-    expect(within(accounts).getByText("nightly-audit")).toBeTruthy()
+    expect(await within(accounts).findByText("nightly-audit")).toBeTruthy()
     expect(within(accounts).queryByText("Runs in 7 days")).toBeNull()
     expect(screen.queryByRole("link", { name: "API keys" })).toBeNull()
     expect(screen.getByText("Last 7 days, yours")).toBeTruthy()

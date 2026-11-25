@@ -194,7 +194,7 @@ describe("AuditDashboards", () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Observations" })).toBeNull()
     expect(requestedPaths).not.toContain("/api/v1/observations")
-    const searches = await screen.findByRole("region", {
+    const searches = await screen.findByRole("grid", {
       name: "Saved searches",
     })
     expect(

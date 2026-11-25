@@ -56,7 +56,9 @@ describe("AccountsTable", () => {
     )
 
     await user.click(
-      screen.getByRole("button", { name: "Delete service account ci-bot" })
+      await screen.findByRole("button", {
+        name: "Delete service account ci-bot",
+      })
     )
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {

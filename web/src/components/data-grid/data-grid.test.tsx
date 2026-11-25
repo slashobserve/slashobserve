@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react"
+import { createRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
@@ -67,6 +68,24 @@ describe("DataGrid", () => {
     expect(
       screen.getByRole("link", { name: "Open Search" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps the name of an action column for a screen reader only", async () => {
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+      />
+    )
+    const open = await screen.findByRole("columnheader", { name: "Open" })
+    expect(within(open).getByText("Open")).toHaveClass("sr-only")
+    expect(
+      within(screen.getByRole("columnheader", { name: "Note" })).getByText(
+        "Note"
+      )
+    ).not.toHaveClass("sr-only")
   })
 
   it("marks the sorted column and asks for the next sort on a header click", async () => {
@@ -147,6 +166,48 @@ describe("DataGrid", () => {
     expect(
       await screen.findByRole("gridcell", { name: "Checkout service" })
     ).toBeInTheDocument()
+  })
+
+  it("keeps what a cell holds when its column or its row changes", async () => {
+    function Counter({ label }: { label: string }) {
+      const [count, setCount] = useState(0)
+      return (
+        <button type="button" onClick={() => setCount(count + 1)}>
+          {label}:{count}
+        </button>
+      )
+    }
+    const counted = (suffix: string): DataGridColumn<Row>[] => [
+      {
+        id: "name",
+        header: "Name",
+        cell: (row) => <Counter label={row.name} />,
+      },
+      { id: "suffix", header: "Suffix", cell: () => suffix },
+    ]
+    const props = { label: "Services", rowId: (row: Row) => row.id }
+    const { rerender } = render(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("a")} />
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Checkout:0" }))
+    await screen.findByRole("button", { name: "Checkout:1" })
+
+    rerender(
+      <DataGrid {...props} rows={rows.slice(0, 1)} columns={counted("b")} />
+    )
+    await screen.findByText("b")
+    expect(screen.getByRole("button", { name: "Checkout:1" })).toBeVisible()
+
+    rerender(
+      <DataGrid
+        {...props}
+        rows={[{ ...rows[0], name: "Basket" }]}
+        columns={counted("b")}
+      />
+    )
+    expect(
+      await screen.findByRole("button", { name: "Basket:1" })
+    ).toBeVisible()
   })
 
   it("follows the link of a cell on Enter", async () => {
@@ -353,6 +414,217 @@ describe("DataGrid", () => {
     expect(box.style.height).toBe("")
   })
 
+  it("names the grid by a heading and takes focus through its ref", async () => {
+    const ref = createRef<HTMLDivElement>()
+    render(
+      <>
+        <h2 id="services-heading">Services</h2>
+        <DataGrid
+          labelledBy="services-heading"
+          ref={ref}
+          busy
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+        />
+      </>
+    )
+    const grid = await screen.findByRole("grid", { name: "Services" })
+    expect(grid).not.toHaveAttribute("aria-label")
+    expect(ref.current).toHaveAttribute("aria-busy", "true")
+    ref.current?.focus()
+    expect(ref.current).toHaveFocus()
+  })
+
+  it("draws a column's header content in place of its name, and redraws it when the content changes", async () => {
+    const onChange = vi.fn()
+    const withHeader = (label: string) => [
+      {
+        ...columns[0],
+        headerCell: () => (
+          <label>
+            <input type="checkbox" onChange={onChange} />
+            {label}
+          </label>
+        ),
+      },
+      ...columns.slice(1),
+    ]
+    const { rerender } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={withHeader("Select all")}
+        rowId={(row) => row.id}
+      />
+    )
+    const header = await screen.findByRole("columnheader", {
+      name: "Select all",
+    })
+    fireEvent.click(within(header).getByRole("checkbox"))
+    expect(onChange).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={withHeader("Select none")}
+        rowId={(row) => row.id}
+      />
+    )
+    expect(
+      await screen.findByRole("columnheader", { name: "Select none" })
+    ).toBeInTheDocument()
+  })
+
+  it("draws the rows its predicate picks across the full width, in the wide layout too", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={[...rows, { id: "g", name: "Group", owner: "", note: "" }]}
+        columns={columns}
+        rowId={(row) => row.id}
+        fullWidthRow={{
+          is: (row) => row.id === "g",
+          render: (row) => <p>Section {row.name}</p>,
+        }}
+      />
+    )
+    await screen.findByText("Section Group")
+    expect(container.querySelectorAll("[data-full-width-row]")).toHaveLength(1)
+    expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(0)
+    expect(
+      screen.getByRole("gridcell", { name: "Checkout" })
+    ).toBeInTheDocument()
+  })
+
+  describe("hideBelow", () => {
+    const hiding = columns.map((column) =>
+      column.id === "owner" ? { ...column, hideBelow: 900 } : column
+    )
+
+    function widthOfGrid(width: number) {
+      return vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockImplementation(function (this: HTMLElement) {
+          const grid = this.hasAttribute("data-layout")
+          return { width: grid ? width : 0 } as DOMRect
+        })
+    }
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it("drops the column while the grid is narrower than its limit", async () => {
+      widthOfGrid(800)
+      render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      await screen.findByRole("columnheader", { name: "Name" })
+      expect(screen.queryByRole("columnheader", { name: "Owner" })).toBeNull()
+    })
+
+    it("measures the grid once rows replace the empty state", async () => {
+      widthOfGrid(800)
+      const props = {
+        label: "Services",
+        columns: hiding,
+        rowId: (row: (typeof rows)[number]) => row.id,
+        empty: <p>No services</p>,
+      }
+      const { rerender } = render(<DataGrid {...props} rows={[]} />)
+      expect(screen.getByText("No services")).toBeInTheDocument()
+      rerender(<DataGrid {...props} rows={rows} />)
+      await screen.findByRole("columnheader", { name: "Name" })
+      expect(screen.queryByRole("columnheader", { name: "Owner" })).toBeNull()
+    })
+
+    it("keeps the column at its limit and while the width is unknown", async () => {
+      widthOfGrid(900)
+      const { unmount } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      expect(
+        await screen.findByRole("columnheader", { name: "Owner" })
+      ).toBeInTheDocument()
+      unmount()
+      widthOfGrid(0)
+      render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={hiding}
+          rowId={(row) => row.id}
+        />
+      )
+      expect(
+        await screen.findByRole("columnheader", { name: "Owner" })
+      ).toBeInTheDocument()
+    })
+  })
+
+  it("sets the attributes a row asks for on the row itself, wide and narrow", async () => {
+    const rowAttributes = (row: Row) => ({ "data-row-key": row.id })
+    const { container, unmount } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(
+      container.querySelector('[role=row][data-row-key="b"]')
+    ).toHaveAttribute("row-id", "b")
+    unmount()
+
+    vi.mocked(useNarrow).mockReturnValue(true)
+    const narrow = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await waitFor(() =>
+      expect(
+        narrow.container.querySelector('[data-row-key="a"] [data-narrow-row]')
+      ).not.toBeNull()
+    )
+  })
+
+  it("drops the frame of its own when it sits inside a card", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        bare
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(container.firstElementChild).toHaveClass(
+      "[&_.ag-root-wrapper]:border-0!",
+      "[&_.ag-root-wrapper]:rounded-none!",
+      "[&_.ag-styled-root]:[--ag-background-color:transparent]!",
+      "[&_.ag-styled-root]:[--ag-header-background-color:transparent]!"
+    )
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid
@@ -398,6 +670,24 @@ describe("DataGrid", () => {
       await waitFor(() =>
         expect(screen.queryByText("Detail of Search")).not.toBeInTheDocument()
       )
+    })
+
+    it("tags the row and not its detail row with the row's attributes", async () => {
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          rowAttributes={(row) => ({ "data-row-key": row.id })}
+          detail={detail(["b"])}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      expect(container.querySelectorAll("[data-row-key]")).toHaveLength(2)
+      expect(
+        container.querySelector('[row-id="b#detail"]')
+      ).not.toHaveAttribute("data-row-key")
     })
 
     it("keeps the row highlighted over its detail row and clears it over the header", async () => {
@@ -681,6 +971,29 @@ describe("DataGrid", () => {
         container.querySelector<HTMLElement>('[row-id="a"]')?.style.height
       ).toBe("120px")
       height.mockRestore()
+    })
+
+    it("draws a picked row with its own content and the other rows as cards", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={[{ id: "g", name: "Group", owner: "", note: "" }, ...rows]}
+          columns={columns}
+          rowId={(row) => row.id}
+          fullWidthRow={{
+            is: (row) => row.id === "g",
+            render: (row) => <p>Section {row.name}</p>,
+          }}
+        />
+      )
+      await screen.findByText("Section Group")
+      await waitFor(() =>
+        expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
+      )
+      expect(container.querySelectorAll("[data-full-width-row]")).toHaveLength(
+        1
+      )
     })
 
     it("hides a value the row does not have", async () => {

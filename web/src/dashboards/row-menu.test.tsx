@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -119,5 +119,43 @@ describe("DashboardRowMenu", () => {
       await screen.findByRole("button", { name: "More for Audit overview" })
     )
     expect(await screen.findAllByRole("menuitemradio")).not.toHaveLength(0)
+  })
+  it("moves focus to the next dashboard of its own grid after a delete, not a row of another grid", async () => {
+    stubServer()
+    const first = dashboard({ id: "d0", title: "First" })
+    const rowAttributes = (id: string, index: number) => ({
+      role: "row",
+      "row-id": id,
+      "row-index": String(index),
+    })
+    const { user } = renderMenu(
+      <>
+        <div role="grid" aria-label="Dashboards">
+          <div {...rowAttributes("d0", 0)}>
+            <DashboardRowMenu dashboard={first} />
+          </div>
+          <div {...rowAttributes("d1", 1)}>
+            <a href="/d/d1">Second</a>
+          </div>
+        </div>
+        <div role="grid" aria-label="Observations">
+          <div {...rowAttributes("o1", 0)}>
+            <a href="/o/o1">Login failures</a>
+          </div>
+        </div>
+      </>
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "More for First" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Delete dashboard..." })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete dashboard" })
+    )
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Second" })).toHaveFocus()
+    )
   })
 })

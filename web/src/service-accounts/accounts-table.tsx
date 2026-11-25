@@ -2,7 +2,7 @@ import { useId, useState, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -25,6 +25,10 @@ import {
 } from "./delete-account"
 import type { ServiceAccount } from "./queries"
 import { useAllKeys } from "./use-all-keys"
+
+function accountId(account: ServiceAccount): string {
+  return account.id
+}
 
 type DeleteProps = {
   account: ServiceAccount
@@ -107,6 +111,70 @@ function DeleteAccountButton({ account, liveKeys, finalFocus }: DeleteProps) {
   )
 }
 
+function accountColumns(
+  live: ReadonlyMap<string, number>,
+  deleteFocus: RefObject<HTMLElement | null>
+): DataGridColumn<ServiceAccount>[] {
+  return [
+    {
+      id: "name",
+      header: "Name",
+      minWidth: 200,
+      flex: 2,
+      autoHeight: true,
+      cell: (account) => (
+        <div className="py-2">
+          <div className="font-medium wrap-anywhere">{account.name}</div>
+          {account.description === "" ? null : (
+            <div className="text-xs wrap-anywhere text-muted-foreground">
+              {account.description}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "role",
+      header: "Role",
+      width: 120,
+      cell: (account) => (
+        <span className="text-muted-foreground">
+          {roleLabels[account.role]}
+        </span>
+      ),
+    },
+    {
+      id: "workingKeys",
+      header: "Working keys",
+      width: 140,
+      cell: (account) => (
+        <span className="text-muted-foreground">
+          {live.get(account.id) ?? 0}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 220,
+      cell: (account) =>
+        account.provisioned ? (
+          <span className="text-xs text-muted-foreground">
+            From the service-accounts file
+          </span>
+        ) : (
+          <DeleteAccountButton
+            account={account}
+            liveKeys={live.get(account.id) ?? 0}
+            finalFocus={deleteFocus}
+          />
+        ),
+    },
+  ]
+}
+
 export function AccountsTable({
   deleteFocus,
 }: {
@@ -130,51 +198,13 @@ export function AccountsTable({
           including an account with no keys left.
         </p>
       </div>
-      <TableCard labelledBy={headingId} minWidth={560} stackOnNarrow>
-        <thead>
-          <tr>
-            <HeaderCell>Name</HeaderCell>
-            <HeaderCell>Role</HeaderCell>
-            <HeaderCell>Working keys</HeaderCell>
-            <HeaderCell>
-              <span className="sr-only">Actions</span>
-            </HeaderCell>
-          </tr>
-        </thead>
-        <tbody>
-          {keys.accounts.map((account) => (
-            <tr key={account.id} data-account-id={account.id}>
-              <Cell>
-                <div className="font-medium wrap-anywhere">{account.name}</div>
-                {account.description === "" ? null : (
-                  <div className="text-xs wrap-anywhere text-muted-foreground">
-                    {account.description}
-                  </div>
-                )}
-              </Cell>
-              <Cell data-label="Role" className="text-muted-foreground">
-                {roleLabels[account.role]}
-              </Cell>
-              <Cell data-label="Working keys" className="text-muted-foreground">
-                {live.get(account.id) ?? 0}
-              </Cell>
-              <Cell data-cell="action" className="text-right">
-                {account.provisioned ? (
-                  <span className="text-xs text-muted-foreground">
-                    From the service-accounts file
-                  </span>
-                ) : (
-                  <DeleteAccountButton
-                    account={account}
-                    liveKeys={live.get(account.id) ?? 0}
-                    finalFocus={deleteFocus}
-                  />
-                )}
-              </Cell>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+      <DataGrid
+        label="Service accounts"
+        rows={keys.accounts}
+        columns={accountColumns(live, deleteFocus)}
+        rowId={accountId}
+        rowAttributes={(account) => ({ "data-account-id": account.id })}
+      />
     </section>
   )
 }

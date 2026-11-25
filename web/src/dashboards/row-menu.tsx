@@ -32,20 +32,26 @@ import { useMoveDashboard } from "./queries"
 
 type Target = { id: string; title: string }
 
-function listedDashboardIds(): string[] {
-  return Array.from(
-    document.querySelectorAll<HTMLTableRowElement>("tr[data-dashboard-id]"),
-    (row) => row.dataset.dashboardId ?? ""
-  )
+function gridOf(trigger: HTMLElement | null): ParentNode {
+  return trigger?.closest('[role="grid"]') ?? document
 }
 
-function focusNeighbour(neighbour: string | null) {
+function listedDashboardIds(grid: ParentNode): string[] {
+  return Array.from(grid.querySelectorAll<HTMLElement>('[role="row"][row-id]'))
+    .filter((row) => !row.getAttribute("row-id")?.includes(":"))
+    .sort(
+      (a, b) =>
+        Number(a.getAttribute("row-index")) -
+        Number(b.getAttribute("row-index"))
+    )
+    .map((row) => row.getAttribute("row-id") ?? "")
+}
+
+function focusNeighbour(neighbour: string | null, grid: ParentNode) {
   const target =
     neighbour === null
       ? document.querySelector<HTMLElement>("main h1")
-      : document.querySelector<HTMLElement>(
-          `tr[data-dashboard-id="${neighbour}"] a`
-        )
+      : grid.querySelector<HTMLElement>(`[role="row"][row-id="${neighbour}"] a`)
   if (target === null) return
   if (neighbour === null && !target.hasAttribute("tabindex")) {
     target.tabIndex = -1
@@ -66,6 +72,7 @@ export function DashboardRowMenu({
   const leaveFocusAlone = useRef(false)
   const deleted = useRef(false)
   const neighbour = useRef<string | null>(null)
+  const grid = useRef<ParentNode>(document)
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
@@ -91,7 +98,7 @@ export function DashboardRowMenu({
     () => () => {
       const active = document.activeElement
       if (refocus.current && (active === null || active === document.body)) {
-        focusNeighbour(neighbour.current)
+        focusNeighbour(neighbour.current, grid.current)
       }
     },
     []
@@ -99,7 +106,11 @@ export function DashboardRowMenu({
 
   function moveTo(target: Target) {
     refocus.current = true
-    neighbour.current = neighbourAfterDelete(listedDashboardIds(), dashboard.id)
+    grid.current = gridOf(trigger.current)
+    neighbour.current = neighbourAfterDelete(
+      listedDashboardIds(grid.current),
+      dashboard.id
+    )
     move.mutateAsync({ id: dashboard.id, folderId: target.id }).then(
       () => toast.success(`${movedVerb} to ${target.title}`),
       (error) => {
@@ -114,7 +125,11 @@ export function DashboardRowMenu({
   function startDelete() {
     leaveFocusAlone.current = true
     deleted.current = false
-    neighbour.current = neighbourAfterDelete(listedDashboardIds(), dashboard.id)
+    grid.current = gridOf(trigger.current)
+    neighbour.current = neighbourAfterDelete(
+      listedDashboardIds(grid.current),
+      dashboard.id
+    )
     setDeleting(true)
   }
 
@@ -126,7 +141,7 @@ export function DashboardRowMenu({
         : `Deleted ${dashboard.title}`
     )
     setDeleting(false)
-    focusNeighbour(neighbour.current)
+    focusNeighbour(neighbour.current, grid.current)
   }
 
   if (!canDelete && !canDuplicate) return null

@@ -93,11 +93,11 @@ async function openPeople(page: Page) {
   await expect(
     page.getByRole("heading", { level: 1, name: "People" })
   ).toBeVisible()
-  await expect(page.locator("tbody tr").first()).toBeVisible()
+  await expect(page.locator("[data-user-id]").first()).toBeVisible()
 }
 
 function row(page: Page, email: string) {
-  return page.locator("tbody tr", { hasText: email })
+  return page.locator("[data-user-id]", { hasText: email })
 }
 
 async function noDocumentOverflow(page: Page) {
@@ -110,7 +110,7 @@ test("lists the signed-in user as online", async ({ page }) => {
   await openPeople(page)
   const admin = row(page, "admin@example.com")
   await expect(admin.locator('[data-status="ok"]')).toHaveText("Online now")
-  const cells = admin.locator("td")
+  const cells = admin.getByRole("gridcell")
   await expect(cells.nth(3)).toHaveText(/^\d+$/)
   await expect(cells.nth(4)).toHaveText(/^\d+$/)
 })
@@ -133,9 +133,13 @@ test("signs another person out everywhere", async ({ page }) => {
   )
   await openPeople(page)
 
-  const rows = page.locator("tbody tr")
-  await expect(rows.first()).toContainText("admin@example.com")
-  await expect(rows.last()).toContainText("priya@example.com")
+  const rows = page.locator("[data-user-id]")
+  await expect(rows.and(page.locator('[row-index="0"]'))).toContainText(
+    "admin@example.com"
+  )
+  await expect(rows.and(page.locator('[row-index="1"]'))).toContainText(
+    "priya@example.com"
+  )
   await expect(row(page, "priya@example.com")).toContainText("3 weeks ago")
 
   const trigger = page.getByRole("button", {
@@ -302,7 +306,9 @@ test("signs a person out with the keyboard", async ({ page }) => {
 })
 
 test("draws both themes and fits a phone", async ({ page }) => {
-  const card = page.getByRole("region", { name: "People" })
+  const card = page
+    .locator(".ag-root-wrapper")
+    .filter({ has: page.getByRole("grid", { name: "People" }) })
 
   await page.emulateMedia({ colorScheme: "light" })
   await openPeople(page)
@@ -311,7 +317,7 @@ test("draws both themes and fits a phone", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" })
   await page.reload()
   await expect(page.locator("html")).toHaveClass(/\bdark\b/)
-  await expect(card).toHaveCSS("background-color", "rgb(19, 20, 23)")
+  await expect(card).toHaveCSS("background-color", "rgb(26, 27, 31)")
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(card).toBeVisible()

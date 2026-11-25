@@ -3,14 +3,8 @@ import type { SuppressKeyboardEventParams } from "ag-grid-community"
 const controlSelector =
   "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])"
 const keyStopSelector = ".ag-cell, .ag-full-width-row"
-const controlKeys = new Set([
-  "Enter",
-  " ",
-  "ArrowUp",
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-])
+const controlKeys = new Set(["Enter", " "])
+const arrowKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"])
 
 const fieldKeys = new Set(["Home", "End", "PageUp", "PageDown"])
 
@@ -19,6 +13,10 @@ function isField(target: HTMLElement): boolean {
     target.isContentEditable ||
     target.matches("input, textarea, select, [contenteditable]")
   )
+}
+
+function leavesArrowsToGrid(target: HTMLElement): boolean {
+  return target.matches("a[href]")
 }
 
 export type CellKeyAction = { kind: "click" | "focus"; stop: number } | null
@@ -46,7 +44,9 @@ export function keepKeysOnFocusedControl({
 }: Pick<SuppressKeyboardEventParams, "event">): boolean {
   const target = event.target
   if (!(target instanceof HTMLElement)) return false
-  if (!controlKeys.has(event.key)) {
+  if (arrowKeys.has(event.key)) {
+    if (leavesArrowsToGrid(target)) return false
+  } else if (!controlKeys.has(event.key)) {
     if (!fieldKeys.has(event.key) || !isField(target)) return false
   }
   const cell = target.closest(keyStopSelector)

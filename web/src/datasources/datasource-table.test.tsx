@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys } from "@/api/keys"
 import { renderWithProviders, testQueryClient } from "@/test/render"
@@ -38,11 +38,11 @@ describe("DatasourceTable audience", () => {
       status({ uid: "everyone", audience: "everyone" }),
     ])
     expect(await screen.findAllByText("Only Admins")).toHaveLength(2)
-    const payroll = screen.getByText("payroll").closest("tr")
+    const payroll = screen.getByText("payroll").closest("[data-uid]")
     expect(payroll).toHaveTextContent("Only Admins")
-    expect(screen.getByText("open").closest("tr")).not.toHaveTextContent(
-      "Only Admins"
-    )
+    expect(
+      screen.getByText("open").closest("[data-uid]")
+    ).not.toHaveTextContent("Only Admins")
   })
 
   it("offers no Edit for an Admins-only datasource from the file", async () => {
@@ -51,6 +51,35 @@ describe("DatasourceTable audience", () => {
     expect(
       screen.queryByRole("button", { name: "Edit audit" })
     ).not.toBeInTheDocument()
+  })
+})
+
+describe("DatasourceTable rows", () => {
+  it("names the columns and tags each row with the datasource uid", async () => {
+    const { container } = renderTable([status({ uid: "metrics" })])
+    await screen.findByText("Recheck")
+    expect(
+      screen.getAllByRole("columnheader").map((header) => header.textContent)
+    ).toEqual(["Name", "Type", "Status", "Used by", "Checked", "Actions"])
+    expect(container.querySelector('[data-uid="metrics"]')).toHaveTextContent(
+      "Prometheus"
+    )
+  })
+
+  it("hands an app datasource's Edit button to the page", async () => {
+    const onEdit = vi.fn()
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(datasourceKeys.list(), {
+      datasources: [status({ uid: "metrics" })],
+    })
+    const { user } = renderWithProviders(
+      <DatasourceTable onAdd={() => undefined} onEdit={onEdit} />,
+      { queryClient, route: { path: "/", url: "/" } }
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Edit metrics" })
+    )
+    expect(onEdit).toHaveBeenCalledWith("metrics", expect.any(HTMLElement))
   })
 })
 
@@ -65,7 +94,7 @@ describe("DatasourceTable built-in datasource", () => {
 
   it("says it is built in and for Admins only", async () => {
     renderTable([builtin])
-    const row = (await screen.findByText("Audit trail")).closest("tr")
+    const row = (await screen.findByText("Audit trail")).closest("[data-uid]")
     expect(row).toHaveTextContent("Built in")
     expect(row).toHaveTextContent("Only Admins")
   })
