@@ -128,7 +128,9 @@ function nameValues(
         ? {
             ...field,
             name,
-            ...(seriesName === undefined ? {} : { seriesName }),
+            ...(seriesName === undefined
+              ? {}
+              : { seriesName, headedBySeriesName: true as const }),
           }
         : field
     ),

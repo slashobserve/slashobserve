@@ -7,6 +7,7 @@ import { isNumber } from "../reducers"
 
 export type PreparedField = WireField & {
   seriesName?: string
+  headedBySeriesName?: true
   config?: FieldProps
   nested?: { headers: boolean }
 }
