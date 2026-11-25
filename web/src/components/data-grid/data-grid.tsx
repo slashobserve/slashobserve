@@ -335,7 +335,7 @@ export function DataGrid<T>({
       className={cn(
         "w-full text-[13px]",
         bare &&
-          "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0!",
+          "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
         className
       )}
       style={layout === "normal" ? { height } : undefined}

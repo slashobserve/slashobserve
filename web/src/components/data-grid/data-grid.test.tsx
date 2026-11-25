@@ -355,7 +355,9 @@ describe("DataGrid", () => {
     await screen.findByRole("gridcell", { name: "Checkout" })
     expect(container.firstElementChild).toHaveClass(
       "[&_.ag-root-wrapper]:border-0!",
-      "[&_.ag-root-wrapper]:rounded-none!"
+      "[&_.ag-root-wrapper]:rounded-none!",
+      "[&_.ag-styled-root]:[--ag-background-color:transparent]!",
+      "[&_.ag-styled-root]:[--ag-header-background-color:transparent]!"
     )
   })
 
