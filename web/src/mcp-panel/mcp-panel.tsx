@@ -17,7 +17,23 @@ type View =
   | { kind: "problem"; message: string }
 
 const chartHeight = 360
+const framePadding = 8
 const fallbackWidth = 640
+
+export function chartHeightFor(
+  dimensions?: HostContext["containerDimensions"]
+) {
+  if (dimensions?.height !== undefined) {
+    return Math.max(0, dimensions.height - framePadding)
+  }
+  if (dimensions?.maxHeight !== undefined) {
+    return Math.max(
+      0,
+      Math.min(chartHeight, dimensions.maxHeight - framePadding)
+    )
+  }
+  return chartHeight
+}
 
 export function viewOf(result: ToolResult): View {
   const payload = payloadOf(result)
@@ -75,15 +91,14 @@ export function McpPanel({ target = window.parent, self = window }: Props) {
     return () => observer.disconnect()
   }, [view.kind])
 
-  const dimensions = context.containerDimensions
-  const height = dimensions?.height ?? chartHeight
+  const height = chartHeightFor(context.containerDimensions)
 
   return (
     <div ref={body} className="w-full p-1 text-foreground">
       {view.kind === "ready" ? (
         <PanelApp
           payload={view.payload}
-          width={width - 8}
+          width={width - framePadding}
           height={height}
           onOpen={(url) => void host.current?.openLink(url)}
         />

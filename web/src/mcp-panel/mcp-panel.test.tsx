@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import recorded from "./fixtures/show-panel-result.json"
-import { McpPanel, viewOf } from "./mcp-panel"
+import { chartHeightFor, McpPanel, viewOf } from "./mcp-panel"
 import { payloadOf } from "./payload"
 
 const network = {
@@ -132,5 +132,21 @@ describe("McpPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "unknown datasource"
     )
+  })
+})
+
+describe("chartHeightFor", () => {
+  it("leaves room for the frame inside a fixed height", () => {
+    expect(chartHeightFor({ height: 320 })).toBe(312)
+  })
+
+  it("stays within a maximum height when no height is given", () => {
+    expect(chartHeightFor({ maxHeight: 200 })).toBe(192)
+    expect(chartHeightFor({ maxHeight: 900 })).toBe(360)
+  })
+
+  it("uses the default height when the host gives no limit", () => {
+    expect(chartHeightFor(undefined)).toBe(360)
+    expect(chartHeightFor({ width: 500 })).toBe(360)
   })
 })

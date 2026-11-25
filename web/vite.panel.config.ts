@@ -3,21 +3,7 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-const renderers = [
-  "timeseries",
-  "barchart",
-  "stat",
-  "gauge",
-  "bargauge",
-  "piechart",
-  "table",
-  "trend",
-  "histogram",
-  "heatmap",
-  "state-timeline",
-  "status-history",
-  "logs",
-]
+import renderers from "./chart-types.json" with { type: "json" }
 
 const emptyFontCss = resolve(import.meta.dirname, "scripts/empty-font.css")
 
