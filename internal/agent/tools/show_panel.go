@@ -27,10 +27,9 @@ const (
 
 	descShowPanel = "Draw a chart in the conversation, in a host that supports MCP Apps: a query, or a panel of a saved dashboard. Give datasource and query (type picks the drawing, timeseries by default) or dashboard_id and panel. It runs like query_range, under the same limits, and returns the same summary plus a link that opens it in SlashObserve. A host without apps shows only the summary; use query_range to read numbers."
 
-	propShowTypeHead = `"type":{"type":"string","enum":`
-	propShowTypeTail = `,"description":"How to draw a datasource and query. Default timeseries."}`
-	propShowTitle    = `"title":{"type":"string","maxLength":200,"description":"Title of the chart for a datasource and query. Default the start of the query."}`
-	propShowPanel    = `"panel":{"type":"string","maxLength":64,"description":"Panel id in the dashboard, from get_dashboard."}`
+	descShowType  = "How to draw a datasource and query. Default timeseries."
+	propShowTitle = `"title":{"type":"string","maxLength":200,"description":"Title of the chart for a datasource and query. Default the start of the query."}`
+	propShowPanel = `"panel":{"type":"string","maxLength":64,"description":"Panel id in the dashboard, from get_dashboard."}`
 
 	schemaShowPanelHead = `{"type":"object","properties":{`
 	schemaShowPanelTail = `,` + propShowTitle + `,` + propVersionDashboardID + `,` + propShowPanel + `,` + propFrom + `,` + propTo + `,"max_data_points":{"type":"integer","minimum":10,"maximum":1000,"description":"Target points per series. Default 200."},` + propVariables + `},"additionalProperties":false}`
@@ -48,11 +47,15 @@ var chartTypes = []spec.PanelType{
 var schemaShowPanel = showPanelSchema()
 
 func showPanelSchema() string {
-	names, err := json.Marshal(chartTypeNames())
+	property, err := json.Marshal(struct {
+		Type        string   `json:"type"`
+		Enum        []string `json:"enum"`
+		Description string   `json:"description"`
+	}{"string", chartTypeNames(), descShowType})
 	if err != nil {
 		panic(err)
 	}
-	return schemaShowPanelHead + propDatasource + `,` + propQuery + `,` + propShowTypeHead + string(names) + propShowTypeTail + schemaShowPanelTail
+	return schemaShowPanelHead + propDatasource + `,` + propQuery + `,"type":` + string(property) + schemaShowPanelTail
 }
 
 var chartFormats = map[spec.PanelType]string{
