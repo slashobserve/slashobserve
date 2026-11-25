@@ -20,9 +20,7 @@ import {
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -34,7 +32,10 @@ import {
 
 import { cn } from "@/lib/utils"
 
-import { clickCellControl, tabStaysInCell } from "./keyboard"
+import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
+import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
+import { tabStaysInHeader } from "./header-keys"
+import { gridLines, type GridLine } from "./lines"
 import { legendTableTheme, panelTableTheme } from "./theme"
 
 const modules = [
@@ -51,8 +52,6 @@ const modules = [
 ]
 
 const themes = { table: panelTableTheme, legend: legendTableTheme }
-
-const detailEstimate = 64
 
 type PanelGridSort = "ascending" | "descending" | "none"
 
@@ -86,13 +85,12 @@ export type PanelGridDetails<T> = {
   render: (row: T) => ReactNode
 }
 
-type Item<T> =
-  | { kind: "row"; id: string; row: T }
-  | { kind: "detail"; id: string; row: T }
-  | { kind: "footer"; id: string; index: number }
+type FooterLine = { id: string; footer: number }
 
-export function detailRowId(rowId: string): string {
-  return `detail:${rowId}`
+type Item<T> = GridLine<T> | FooterLine
+
+function isFooter<T>(item: Item<T>): item is FooterLine {
+  return "footer" in item
 }
 
 export function footerRowId(index: number): string {
@@ -136,45 +134,13 @@ type CellParams<T> = ICellRendererParams<Item<T>> & {
 
 function PanelCell<T>({ data, spec }: CellParams<T>) {
   if (data === undefined) return null
-  if (data.kind === "footer") return <>{spec.footer?.(data.index) ?? null}</>
-  if (data.kind === "row") return <>{spec.cell(data.row)}</>
-  return null
-}
-
-type DetailRows<T> = { render: (row: T) => ReactNode }
-
-const DetailContext = createContext<DetailRows<unknown>>({
-  render: () => null,
-})
-
-function DetailRow<T>({ data, node, api }: ICellRendererParams<Item<T>>) {
-  const { render } = useContext(DetailContext) as DetailRows<T>
-  const ref = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (element === null) return
-    function fit() {
-      const height = element?.offsetHeight ?? 0
-      if (height <= 0 || height === node.rowHeight || api.isDestroyed()) return
-      node.setRowHeight(height)
-      api.onRowHeightChanged()
-    }
-    fit()
-    if (typeof ResizeObserver === "undefined") return
-    const observer = new ResizeObserver(fit)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [api, node])
-  if (data === undefined || data.kind !== "detail") return null
-  return (
-    <div ref={ref} data-detail-row="">
-      {render(data.row)}
-    </div>
-  )
+  if (isFooter(data)) return <>{spec.footer?.(data.footer) ?? null}</>
+  return <>{spec.cell(data.row)}</>
 }
 
 function isDetail<T>({ rowNode }: IsFullWidthRowParams<Item<T>>): boolean {
-  return rowNode.data?.kind === "detail"
+  const data = rowNode.data
+  return data !== undefined && !isFooter(data) && data.detail
 }
 
 function cellStyleOf<T>(
@@ -182,7 +148,8 @@ function cellStyleOf<T>(
 ): ColDef<Item<T>>["cellStyle"] {
   const style = column.cellStyle
   if (style === undefined) return undefined
-  return ({ data }) => (data?.kind === "row" ? style(data.row) : undefined)
+  return ({ data }) =>
+    data === undefined || isFooter(data) ? undefined : style(data.row)
 }
 
 function fitColumnsToContent(api: GridApi, available: number) {
@@ -245,21 +212,15 @@ export function PanelGrid<T>({
   })
 
   const open = details?.open
-  const items = useMemo(() => {
-    const out: Item<T>[] = []
-    for (const row of rows) {
-      const id = rowId(row)
-      out.push({ kind: "row", id, row })
-      if (open?.has(id)) out.push({ kind: "detail", id: detailRowId(id), row })
-    }
-    return out
-  }, [rows, rowId, open])
+  const items = useMemo<Item<T>[]>(
+    () => gridLines(rows, rowId, open),
+    [rows, rowId, open]
+  )
   const footers = useMemo(
     () =>
-      Array.from({ length: footerRows }, (_, index): Item<T> => ({
-        kind: "footer",
-        id: footerRowId(index),
-        index,
+      Array.from({ length: footerRows }, (_, footer): Item<T> => ({
+        id: footerRowId(footer),
+        footer,
       })),
     [footerRows]
   )
@@ -284,9 +245,8 @@ export function PanelGrid<T>({
         autoHeight: column.autoHeight,
         wrapHeaderText: column.wrapHeader,
         autoHeaderHeight: column.wrapHeader,
-        suppressKeyboardEvent: ({ event }) =>
-          clickCellControl(event) || tabStaysInCell(event),
-        suppressHeaderKeyboardEvent: ({ event }) => tabStaysInCell(event),
+        suppressKeyboardEvent: keepKeysOnFocusedControl,
+        suppressHeaderKeyboardEvent: ({ event }) => tabStaysInHeader(event),
       })),
     [columns, sizeToContent]
   )
@@ -297,9 +257,9 @@ export function PanelGrid<T>({
   )
   const getRowHeight = useCallback(
     ({ data }: RowHeightParams<Item<T>>) => {
-      if (data?.kind === "footer") return footerHeight
-      if (data?.kind === "detail") return detailEstimate
-      return undefined
+      if (data === undefined) return undefined
+      if (isFooter(data)) return footerHeight
+      return data.detail ? detailRowEstimate : undefined
     },
     [footerHeight]
   )
@@ -356,18 +316,19 @@ export function PanelGrid<T>({
   }, [])
   useEffect(labelGrid, [label, labelGrid])
 
-  const detailRows = useMemo(
-    () => ({ render: details?.render ?? (() => null) }) as DetailRows<unknown>,
-    [details?.render]
-  )
+  const renderDetail = details?.render as
+    ((row: unknown) => ReactNode) | undefined
 
   return (
     <div
       ref={containerRef}
       data-panel-grid=""
       className={cn("w-full", height === "fill" && "h-full", className)}
+      onKeyDownCapture={(event) =>
+        handleCellKey(event.nativeEvent, event.currentTarget)
+      }
     >
-      <DetailContext value={detailRows}>
+      <DetailRenderContext value={renderDetail}>
         <AgGridReact<Item<T>>
           modules={modules}
           theme={themes[look]}
@@ -416,7 +377,7 @@ export function PanelGrid<T>({
           onModelUpdated={layout}
           onRowDataUpdated={layout}
         />
-      </DetailContext>
+      </DetailRenderContext>
     </div>
   )
 }

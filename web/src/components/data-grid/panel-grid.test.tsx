@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { drawnColumns, drawnRows } from "./grid-dom"
 import {
   PanelGrid,
-  detailRowId,
   footerRowId,
   type PanelGridColumn,
   type PanelGridHandle,
@@ -135,9 +134,11 @@ describe("PanelGrid", () => {
     }
     const { container, rerender } = render(<PanelGrid {...props} />)
     expect(await screen.findByText("checkout detail")).toBeInTheDocument()
-    expect(
-      container.querySelector(`[row-id="${detailRowId("a")}"]`)
-    ).not.toBeNull()
+    const detail = container.querySelector("[data-detail-row]")
+    const rowOf = (element: Element | null) =>
+      element?.closest("[role=row]")?.getAttribute("row-id")
+    expect(rowOf(detail)).not.toBe("a")
+    expect(rowOf(detail)).toMatch(/^a/)
     expect(screen.queryByText("search detail")).not.toBeInTheDocument()
     rerender(
       <PanelGrid {...props} details={{ ...props.details, open: new Set() }} />
@@ -181,6 +182,27 @@ describe("PanelGrid", () => {
     expect(
       await screen.findByRole("gridcell", { name: "row 6" })
     ).toBeInTheDocument()
+  })
+
+  it("clicks a cell's one control on Enter", async () => {
+    const onOpen = vi.fn()
+    const withButton = columns.map((column) =>
+      column.id === "name"
+        ? {
+            ...column,
+            cell: (row: Row) => (
+              <button type="button" onClick={() => onOpen(row.id)}>
+                {row.name}
+              </button>
+            ),
+          }
+        : column
+    )
+    render(<PanelGrid {...base} rows={rows} columns={withButton} />)
+    const button = await screen.findByRole("button", { name: "search" })
+    const cell = button.closest("[role=gridcell]") as HTMLElement
+    fireEvent.keyDown(cell, { key: "Enter" })
+    expect(onOpen).toHaveBeenCalledWith("b")
   })
 
   it("gives rows the row height and footers their own", async () => {

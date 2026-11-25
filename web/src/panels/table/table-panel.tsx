@@ -852,7 +852,7 @@ const TablePanel: PanelRenderer = ({
           ? cellOf(fields, views[0].column, row).text
           : "row"
         return (
-          <div id={`${baseId}-${row.key}`} className="p-2 pl-8">
+          <div id={`${baseId}-${row.key}`} className="pl-[18px]">
             <NestedTable
               nested={row.nested}
               fields={fields}
