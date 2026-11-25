@@ -93,10 +93,12 @@ describe("the summary toast", () => {
     const { queryClient, user } = renderWithProviders(<Page />, {
       route: { path: "/", url: "/" },
     })
-    await screen.findByText("Discussion")
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20))
-    })
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryData(inboxKeys.list("for_you", "open"))
+      ).toBeDefined()
+    )
+    await act(async () => {})
     server.items = [2, 3, 4, 5, 6, 7, 8, 9, 10]
       .map(mention)
       .reverse()

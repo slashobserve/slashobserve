@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react"
+import { act, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { QueryClient } from "@tanstack/react-query"
@@ -68,7 +68,6 @@ async function setItems(queryClient: QueryClient, items: InboxItem[]) {
   server.items = items
   await act(async () => {
     await queryClient.invalidateQueries({ queryKey: inboxKeys.all })
-    await new Promise((resolve) => setTimeout(resolve, 5))
   })
 }
 
@@ -77,15 +76,18 @@ function Probe() {
   return <p>mounted</p>
 }
 
-function mountWith(items: InboxItem[]) {
+async function mounted(items: InboxItem[]) {
   server.items = items
-  return renderWithProviders(<Probe />, { route: { path: "/", url: "/" } })
-}
-
-async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 5))
+  const result = renderWithProviders(<Probe />, {
+    route: { path: "/", url: "/" },
   })
+  await waitFor(() =>
+    expect(
+      result.queryClient.getQueryData(inboxKeys.list("for_you", "open"))
+    ).toBeDefined()
+  )
+  await act(async () => {})
+  return result
 }
 
 beforeEach(() => {
@@ -114,9 +116,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe("useLiveInboxToasts", () => {
   it("toasts a new mention on the live toaster and not the first load", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await screen.findByText("mounted")
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
 
     await setItems(queryClient, [mention(6), mention(5)])
@@ -129,16 +129,14 @@ describe("useLiveInboxToasts", () => {
   })
 
   it("makes no toast while the panel is open", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     act(() => useInboxPanelStore.getState().show())
     await setItems(queryClient, [mention(6), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
   })
 
   it("sums more than three into one toast that opens the panel", async () => {
-    const { queryClient } = mountWith([mention(1)])
-    await settle()
+    const { queryClient } = await mounted([mention(1)])
     const burst = [2, 3, 4, 5, 6].map(mention).reverse()
     await setItems(queryClient, [...burst, mention(1)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
@@ -149,33 +147,30 @@ describe("useLiveInboxToasts", () => {
   })
 
   it("toasts items that arrived while the tab was hidden once it returns", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     setHidden(true)
     await setItems(queryClient, [mention(6), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
 
     setHidden(false)
-    await settle()
+    await act(async () => {})
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
     expect(toastMock.mock.calls[0][0]).toBe("Ada mentioned you on Checkout")
   })
 
   it("sums items missed while hidden into one summary on return", async () => {
-    const { queryClient } = mountWith([mention(1)])
-    await settle()
+    const { queryClient } = await mounted([mention(1)])
     setHidden(true)
     const burst = [2, 3, 4, 5].map(mention).reverse()
     await setItems(queryClient, [...burst, mention(1)])
     setHidden(false)
-    await settle()
+    await act(async () => {})
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
     expect(toastMock.mock.calls[0][0]).toBe("4 new in Inbox")
   })
 
   it("toasts nothing on return when nothing arrived while hidden", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     setHidden(true)
     setHidden(false)
     await setItems(queryClient, [mention(5)])
@@ -186,24 +181,21 @@ describe("useLiveInboxToasts", () => {
   })
 
   it("starts from a first load after a reset", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     resetLiveToasts()
     await setItems(queryClient, [mention(6), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
   })
 
   it("gives a second person in the same tab no toasts for earlier items", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     signedIn.id = "u2"
     await setItems(queryClient, [mention(8), mention(5)])
     expect(toastMock).not.toHaveBeenCalled()
   })
 
   it("opens the panel on the item when it has no page of its own", async () => {
-    const { queryClient } = mountWith([mention(5)])
-    await settle()
+    const { queryClient } = await mounted([mention(5)])
     const pageless = {
       ...mention(6),
       type: "user.invited",
@@ -222,8 +214,7 @@ describe("useLiveInboxToasts", () => {
   })
 
   it("toasts an item that arrives after the first load of an empty inbox", async () => {
-    const { queryClient } = mountWith([])
-    await settle()
+    const { queryClient } = await mounted([])
     await setItems(queryClient, [mention(1)])
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
   })
