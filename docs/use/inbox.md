@@ -69,7 +69,7 @@ The pane of an item has an **Open** button, **Mark as read** or **Mark as unread
 - A proposal item reads "proposed" followed by the proposal's title, and opens the proposal.
 - A mention or a reply opens the thread it is in.
   On a dashboard that is the dashboard with the activity pane open on the thread (`thread=<thread id>` in the address).
-  On an observation it is the discussion, and on a proposal it is the proposal.
+  On an observation and on a proposal it is the page with its discussion open and the thread marked (`thread=<thread id>` in the address).
 - A closed proposal reads "merged your proposal" or "discarded your proposal" with its title, shows the reason given for a discard, and opens the proposal.
   The same notice is posted as a comment in the proposal's discussion.
 - A failed run opens its chat.

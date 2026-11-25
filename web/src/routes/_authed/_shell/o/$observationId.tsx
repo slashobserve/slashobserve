@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { threadParam } from "@/discussion/thread-param"
 import { useRecordRecent } from "@/home/recent"
 import { ObservationPage } from "@/observations/observation-page"
 import { useObservation } from "@/observations/queries"
 
-type ObservationSearch = { rca?: "1" }
+type ObservationSearch = { rca?: "1"; thread?: string }
 
 export const Route = createFileRoute("/_authed/_shell/o/$observationId")({
   staticData: {
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/_authed/_shell/o/$observationId")({
   },
   validateSearch: (search: Record<string, unknown>): ObservationSearch => ({
     rca: search.rca === "1" ? "1" : undefined,
+    thread: threadParam(search.thread),
   }),
   component: ObservationRoute,
 })
@@ -29,11 +31,12 @@ function ObservationRoute() {
     <ObservationPage
       key={observationId}
       observationId={observationId}
+      focusedThreadId={search.thread}
       rca={{
         open: search.rca === "1",
         onOpenChange: (open) =>
           void navigate({
-            search: open ? { rca: "1" } : {},
+            search: (prev) => ({ ...prev, rca: open ? "1" : undefined }),
             replace: !open,
           }),
       }}

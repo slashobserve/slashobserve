@@ -42,6 +42,7 @@ type Props = {
   canEdit: boolean
   hidden: boolean
   headingRef: RefObject<HTMLHeadingElement | null>
+  focusedThreadId?: string
   onClose: () => void
   onShowBlock: (blockId: string) => void
   onAdded: (blockId: string) => void
@@ -112,6 +113,7 @@ export function DiscussionPane({
   canEdit,
   hidden,
   headingRef,
+  focusedThreadId,
   onClose,
   onShowBlock,
   onAdded,
@@ -212,6 +214,7 @@ export function DiscussionPane({
           onShow: onShowBlock,
         }}
         view={{ filter, onClear: clearFilter }}
+        focusedThreadId={focusedThreadId}
         readOnlyAction={
           <RequestCommentAccess
             object={{ kind: "observation", id: observation.id }}

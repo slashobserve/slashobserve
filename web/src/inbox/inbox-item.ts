@@ -249,15 +249,19 @@ function page(to: string): ItemLink {
 function threadLink(item: InboxItem): ItemLink | null {
   const ref = objectRef(item)
   if (ref === null) return null
+  const onThread = (to: string): ItemLink => ({
+    to,
+    search: { thread: item.target.id },
+  })
   switch (ref.kind) {
     case "dashboard":
-      return { to: dashboardPath(ref.id), search: { thread: item.target.id } }
+      return onThread(dashboardPath(ref.id))
     case "observation":
-      return page(observationPath(ref.id))
+      return onThread(observationPath(ref.id))
     case "proposal":
-      return page(proposalPath(ref.id))
+      return onThread(proposalPath(ref.id))
     case "finding":
-      return page(findingPath(ref.id))
+      return onThread(findingPath(ref.id))
     case "annotation":
       return item.dashboard_id === null
         ? null

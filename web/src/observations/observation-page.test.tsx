@@ -13,8 +13,18 @@ vi.mock("@/query-editor/code-editor", () => ({
 }))
 
 vi.mock("./discussion-pane", () => ({
-  DiscussionPane: ({ hidden }: { hidden: boolean }) => (
-    <div data-testid="discussion" data-hidden={String(hidden)} />
+  DiscussionPane: ({
+    hidden,
+    focusedThreadId,
+  }: {
+    hidden: boolean
+    focusedThreadId?: string
+  }) => (
+    <div
+      data-testid="discussion"
+      data-hidden={String(hidden)}
+      data-focused-thread={focusedThreadId}
+    />
   ),
 }))
 
@@ -117,7 +127,7 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-function renderPage() {
+function renderPage(focusedThreadId?: string) {
   const host = document.createElement("div")
   document.body.append(host)
   return renderWithProviders(
@@ -125,11 +135,34 @@ function renderPage() {
       <ObservationPage
         observationId="o1"
         rca={{ open: false, onOpenChange: () => {} }}
+        focusedThreadId={focusedThreadId}
       />
     </PanelHostContext>,
     { route: { path: "/", url: "/" } }
   )
 }
+
+describe("ObservationPage focused thread", { timeout: 20_000 }, () => {
+  const originalWidth = window.innerWidth
+
+  afterEach(() => {
+    window.innerWidth = originalWidth
+  })
+
+  it("opens the discussion on a narrow screen and passes the thread to it", async () => {
+    window.innerWidth = 500
+    renderPage("t1")
+    const discussion = await screen.findByTestId("discussion")
+    expect(discussion.dataset.focusedThread).toBe("t1")
+  })
+
+  it("leaves the discussion closed on a narrow screen with no thread", async () => {
+    window.innerWidth = 500
+    renderPage()
+    await screen.findByRole("heading", { name: "Checkout slow" })
+    expect(screen.queryByTestId("discussion")).toBeNull()
+  })
+})
 
 describe("ObservationPage right dock", { timeout: 20_000 }, () => {
   it("hides the discussion while the panel picker holds the right dock", async () => {
