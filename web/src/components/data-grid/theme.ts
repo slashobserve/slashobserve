@@ -31,3 +31,23 @@ export const gridTheme = themeQuartz.withParams({
   iconColor: "var(--muted-foreground)",
   scrollbarThumbColor: "var(--border)",
 })
+
+export const panelTableTheme = gridTheme.withParams({
+  fontSize: 12,
+  dataFontSize: 12,
+  headerFontSize: 12,
+  wrapperBorder: false,
+  wrapperBorderRadius: 0,
+  cellHorizontalPadding: 0,
+  pinnedColumnBorder: false,
+  pinnedRowBorder: { color: "var(--border)" },
+})
+
+export const legendTableTheme = panelTableTheme.withParams({
+  backgroundColor: "transparent",
+  chromeBackgroundColor: "transparent",
+  headerBackgroundColor: "transparent",
+  rowBorder: false,
+  headerRowBorder: false,
+  rowHoverColor: "transparent",
+})

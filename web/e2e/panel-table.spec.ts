@@ -19,6 +19,10 @@ async function openTables(
   await expectPanelsReady(page)
 }
 
+function bodyRows(table: ReturnType<typeof panel>) {
+  return table.locator('[role=row][row-id]:not([row-id^="footer:"])')
+}
+
 function firstNumber(text: string): number {
   const match = /-?\d[\d,]*(?:\.\d+)?/.exec(text)
   if (!match) throw new Error(`no number in "${text}"`)
@@ -33,7 +37,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openTables(page, await createTables(request))
 
       const top = panel(page, "Top routes")
-      await expect(top.locator("tbody tr")).toHaveCount(3)
+      await expect(bodyRows(top)).toHaveCount(3)
       await expect(
         top.getByRole("columnheader", { name: "Requests" })
       ).toBeVisible()
@@ -42,7 +46,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       )
 
       const cells = await top
-        .locator('td[data-column="Requests"]')
+        .locator('[data-column="Requests"]')
         .allTextContents()
       expect(cells).toHaveLength(3)
       expect(firstNumber(cells[0])).toBeGreaterThanOrEqual(
@@ -54,7 +58,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openTables(page, await createTables(request))
 
       const cells = panel(page, "Top routes").locator(
-        'td[data-column="Requests"]'
+        '[data-column="Requests"]'
       )
       await expect(cells).toHaveCount(3)
       for (const cell of await cells.all()) {
@@ -66,8 +70,11 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("adds a footer", async ({ page, request }) => {
       await openTables(page, await createTables(request))
 
-      const footer = panel(page, "Top routes").locator("tfoot tr").first()
-      await expect(footer.locator("th[scope=row]")).toHaveText("Total")
+      const footer = panel(page, "Top routes")
+        .locator("[data-footer-label]")
+        .first()
+      await expect(footer).toHaveAttribute("data-footer-label", "Total")
+      await expect(footer).toContainText("Total")
     })
 
     test("links cells with row values and hides the header", async ({
@@ -77,12 +84,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openTables(page, await createTables(request))
 
       const logs = panel(page, "Log rows")
-      await expect(logs.locator("thead")).toHaveClass(/\bsr-only\b/)
+      const service = logs.getByRole("columnheader", { name: "service" })
+      await expect(service).toHaveCount(1)
+      await expect(service.getByRole("button")).toHaveCount(0)
       await expect(
-        logs.getByRole("columnheader", { name: "service" })
-      ).toHaveCount(1)
-      await expect(
-        logs.locator('td[data-column="service"] a').first()
+        logs.locator('[data-column="service"] a').first()
       ).toHaveAttribute("href", /\/dashboards\?q=.+/)
     })
 
@@ -102,9 +108,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         rps.getByRole("columnheader", { name: "Value" })
       ).toBeVisible()
-      await expect(
-        rps.locator('td[data-column="Value"]').first()
-      ).toContainText("req/s")
+      await expect(rps.locator('[data-column="Value"]').first()).toContainText(
+        "req/s"
+      )
       await expect(rps.locator("canvas")).toHaveCount(0)
     })
 
@@ -115,19 +121,19 @@ for (const colorScheme of ["light", "dark"] as const) {
       await openTables(page, await createTables(request))
 
       const table = panel(page, "Services last seen")
-      await expect(table.locator("thead th")).toHaveText([
+      await expect(table.getByRole("columnheader")).toHaveText([
         "service",
         "last_seen",
         "c",
       ])
-      expect(await table.locator("tbody tr").count()).toBeGreaterThanOrEqual(2)
+      expect(await bodyRows(table).count()).toBeGreaterThanOrEqual(2)
     })
 
     test("names reduced rows by the legend", async ({ page, request }) => {
       await openTables(page, await createTables(request))
 
       const cells = panel(page, "Targets by job").locator(
-        'td[data-column="Field"]'
+        '[data-column="Field"]'
       )
       await expect.poll(() => cells.count()).toBeGreaterThan(0)
       for (const name of await cells.allTextContents())

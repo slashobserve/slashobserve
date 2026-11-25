@@ -1,8 +1,28 @@
 import { describe, expect, it } from "vitest"
 
-import { legendTableWidth, rightLegendWidth } from "./legend-width"
+import {
+  legendTableWidth,
+  legendValueWidths,
+  rightLegendWidth,
+} from "./legend-width"
 
 const tenPerCharacter = (text: string) => text.length * 10
+
+describe("legendValueWidths", () => {
+  it("sizes each reducer column to its header or its widest value, with padding", () => {
+    expect(
+      legendValueWidths(
+        ["Mean", "Max"],
+        [
+          ["1.20", "10"],
+          ["300.50", "9"],
+        ],
+        tenPerCharacter,
+        16
+      )
+    ).toEqual([12 + 60, 12 + 30])
+  })
+})
 
 describe("legendTableWidth", () => {
   it("adds the name column and one column per reducer at their widest text", () => {

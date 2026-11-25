@@ -9,7 +9,6 @@ import {
   rowHeightOf,
   rowHeightPx,
   rowSizing,
-  stickyOffsets,
   tooltipSideOf,
   typeWord,
 } from "./table-layout"
@@ -64,17 +63,6 @@ describe("columnWidths", () => {
       widths: [200, 200],
       total: 400,
     })
-  })
-})
-
-describe("stickyOffsets", () => {
-  it("accumulates the widths before each frozen column", () => {
-    expect(stickyOffsets([100, 50, 80], 2)).toEqual([0, 100])
-  })
-
-  it("stops at the number of columns", () => {
-    expect(stickyOffsets([100], 3)).toEqual([0])
-    expect(stickyOffsets([100, 50], 0)).toEqual([])
   })
 })
 
