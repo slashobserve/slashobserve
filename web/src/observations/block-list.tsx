@@ -410,6 +410,7 @@ export function BlockList({
           permissions={{ comment: canComment, edit: false }}
           idle={!arranging.arranging}
           modeTexts={observationModeTexts}
+          reserve
         />
       </div>
     </CanvasHostProvider>

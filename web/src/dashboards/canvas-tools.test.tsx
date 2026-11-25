@@ -345,7 +345,7 @@ describe("CanvasTools", () => {
   it("reserves room in the page flow for the floating toolbar only when asked", async () => {
     await renderTools({ comment: true, edit: false }, false, true, true)
     const box = screen.getByRole("toolbar").parentElement?.parentElement
-    expect(box).toHaveClass("sticky", "h-18", "flex-none")
+    expect(box).toHaveClass("sticky", "h-18")
     expect(box).not.toHaveClass("h-0")
   })
 
