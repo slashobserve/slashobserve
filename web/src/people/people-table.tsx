@@ -19,14 +19,14 @@ function personId(user: User): string {
   return user.id
 }
 
-const actionsWidth = 240
+const actionsWidth = 220
 
-function peopleColumns(now: number): DataGridColumn<User>[] {
+export function peopleColumns(now: number): DataGridColumn<User>[] {
   return [
     {
       id: "name",
       header: "Name",
-      minWidth: 160,
+      minWidth: 150,
       autoHeight: true,
       cell: (user) => (
         <span className="flex min-w-0 items-center gap-2.5 py-2">
@@ -43,7 +43,7 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
     {
       id: "email",
       header: "Email",
-      minWidth: 220,
+      minWidth: 170,
       flex: 2,
       cell: (user) => (
         <span
@@ -57,7 +57,7 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
     {
       id: "role",
       header: "Role",
-      minWidth: 220,
+      minWidth: 190,
       flex: 1.5,
       autoHeight: true,
       cell: (user) => (
@@ -69,19 +69,19 @@ function peopleColumns(now: number): DataGridColumn<User>[] {
     {
       id: "dashboards",
       header: "Dashboards",
-      width: 110,
+      width: 104,
       cell: (user) => user.dashboard_count,
     },
     {
       id: "keys",
       header: "API keys",
-      width: 100,
+      width: 92,
       cell: (user) => user.key_count,
     },
     {
       id: "lastActive",
       header: "Last active",
-      minWidth: 140,
+      minWidth: 130,
       cell: (user) =>
         isDeactivated(user) ? (
           <StatusLabel tone="none">

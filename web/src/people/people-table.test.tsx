@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { PeopleTable } from "./people-table"
+import { PeopleTable, peopleColumns } from "./people-table"
 import { usersQuery, type User } from "./queries"
 
 vi.mock("./person-menu", () => ({
@@ -71,6 +71,15 @@ describe("PeopleTable", () => {
         name: "Sign out Ada Lovelace",
       })
     ).toBeInTheDocument()
+  })
+
+  it("fits its columns within the card at 1440 px", () => {
+    const total = peopleColumns(0).reduce(
+      (sum, column) => sum + (column.width ?? column.minWidth ?? 0),
+      0
+    )
+
+    expect(total).toBeLessThanOrEqual(1100)
   })
 
   it("keeps each email on one line and shows it whole on hover", async () => {
