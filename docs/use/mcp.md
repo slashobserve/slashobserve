@@ -1766,7 +1766,7 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
 ### Context source tools
 
 Two tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
-Both need the Viewer role, and a run offers them in an investigation or a question only, not when a dashboard is built or revised or a panel is suggested.
+Both need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
 
 #### `list_context_sources`
 

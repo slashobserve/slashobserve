@@ -27,7 +27,7 @@ const (
 	reasonApply     = "it posts in a thread and starts a run"
 	reasonProposals = "merging writes a dashboard version outside the build"
 	reasonRunAnswer = "a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer"
-	reasonContext   = "what a context source returns is outside text a build must not act on, so only a run that investigates or answers reads it"
+	reasonContext   = "what a context source returns is outside text a build must not act on, so only an investigation or a chat question reads it"
 	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
 )
 
@@ -55,7 +55,7 @@ var leftOutOfRuns = map[string]string{
 	nameRunDashboardHealth:      reasonHealth,
 }
 
-var investigateOnly = map[string]string{
+var contextReads = map[string]string{
 	nameListContextSources: reasonContext,
 	nameCallContextTool:    reasonContext,
 }
@@ -110,7 +110,7 @@ func sameID(a, b string) bool {
 	return a != "" && normalizeID(a) == normalizeID(b)
 }
 
-func (run Run) chatRun() bool {
+func (run Run) Chat() bool {
 	return run.ChatID != "" && !run.ThreadAsk && !run.Investigation
 }
 
@@ -254,7 +254,7 @@ func writeScopeViolation(tool string, run Run, scope WriteScope, targets []Targe
 	switch {
 	case creatingWrites[tool] && len(scope.Created) >= MaxCreatedIDs:
 		return scopeRefusal(tool, fmt.Sprintf("this run already created %d objects, the most it may track", MaxCreatedIDs))
-	case person && !run.chatRun():
+	case person && !run.Chat():
 		return scopeRefusal(tool, "it changes the requester's own pins, inbox or run list, which only a chat run may do")
 	case !person && run.privateAsk():
 		return scopeRefusal(tool, "a private ask writes nothing shared; ask in a thread on the page, or do it on the page")

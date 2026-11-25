@@ -44,7 +44,7 @@ func contextInvestigation(ctx context.Context) context.Context {
 	return WithRun(ctx, Run{Mode: ModeInvestigate, RequestID: dashA, Access: datasource.Access{By: principal}})
 }
 
-func TestTheContextToolsAreInvestigationOnlyReadsForEveryRole(t *testing.T) {
+func TestTheContextToolsAreReadsOfInvestigationsAndChatQuestionsForEveryRole(t *testing.T) {
 	var found []string
 	for _, tool := range New(Deps{}).List() {
 		if tool.OnlyIn != ModeInvestigate || tool.AgentOnly {
@@ -80,6 +80,44 @@ func TestABuildRunRefusesTheContextToolsEvenIfAskedDirectly(t *testing.T) {
 	}
 	if len(f.calls) != 0 {
 		t.Fatalf("the source desk was reached from a build run: %v", f.calls)
+	}
+}
+
+func TestAChatQuestionOffersTheContextToolsInEveryModeAChatRunsIn(t *testing.T) {
+	runs := map[string]Run{
+		"home question":      {Mode: ModeCreate, Build: true, ChatID: dashB},
+		"dashboard question": {Mode: ModeInvestigate, ChatID: dashB, DashboardID: dashA},
+		"thread question":    {Mode: ModeInvestigate, ChatID: dashB, ThreadAsk: true},
+	}
+	for name, run := range runs {
+		for _, tool := range contextRegistry(t, &fakeContextSources{}).List() {
+			if tool.AlsoInChats && !tool.OfferedInRun(run) {
+				t.Errorf("%s: %s is not offered", name, tool.Name)
+			}
+		}
+	}
+	for name, run := range map[string]Run{
+		"new dashboard":   {Mode: ModeCreate, Build: true},
+		"revision":        {Mode: ModeRevise, Build: true, DashboardID: dashA},
+		"suggestion":      {Mode: ModeSuggest, DashboardID: dashA},
+		"thread build":    {Mode: ModeCreate, Build: true, ChatID: dashB, ThreadAsk: true},
+		"chat investigat": {Mode: ModeCreate, ChatID: dashB, Investigation: true},
+	} {
+		for _, tool := range contextRegistry(t, &fakeContextSources{}).List() {
+			if tool.AlsoInChats && tool.OfferedInRun(run) {
+				t.Errorf("%s: %s is offered", name, tool.Name)
+			}
+		}
+	}
+}
+
+func TestAHomeQuestionCallsAContextTool(t *testing.T) {
+	f := &fakeContextSources{result: ContextResult{Text: "charge.js:48", Bytes: 12}}
+	principal, _ := auth.FromContext(contextViewer())
+	ctx := WithRun(contextViewer(), Run{Mode: ModeCreate, Build: true, ChatID: dashB, RequestID: dashA, Access: datasource.Access{By: principal}})
+	res, err := contextRegistry(t, f).Call(ctx, nameCallContextTool, []byte(`{"source":"code","tool":"search"}`))
+	if err != nil || res.IsError || len(f.calls) != 1 {
+		t.Fatalf("res = %+v err = %v calls = %v", res, err, f.calls)
 	}
 }
 
