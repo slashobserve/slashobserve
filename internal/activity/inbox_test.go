@@ -765,17 +765,125 @@ func TestInboxShowsRunTextOnlyOnTheRequestersFailedRun(t *testing.T) {
 	r := newRig(t)
 	own, _ := r.failedRun(t, miaActor)
 	foreign, _ := r.failedRun(t, ola)
-	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'my prompt' WHERE id = $1::uuid`, own.String())
-	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'private prompt' WHERE id = $1::uuid`, foreign.String())
+	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'my prompt', error = 'my error' WHERE id = $1::uuid`, own.String())
+	r.db.Exec(t, `UPDATE agent_requests SET prompt = 'private prompt', error = 'private error' WHERE id = $1::uuid`, foreign.String())
 
-	excerpts := map[string]string{}
+	excerpts, questions := map[string]string{}, map[string]string{}
 	for _, item := range r.inbox(t, mia, ViewEverything).Items {
 		if item.Type == TypeRunFailed {
 			excerpts[item.TargetID] = item.Excerpt
+			questions[item.TargetID] = item.Question
 		}
 	}
-	if excerpts[own.String()] != "my prompt" || excerpts[foreign.String()] != "" {
+	if excerpts[own.String()] != "my error" || excerpts[foreign.String()] != "" {
 		t.Fatalf("run excerpts = %v, want only Mia's own run quoted", excerpts)
+	}
+	if questions[own.String()] != "my prompt" || questions[foreign.String()] != "" {
+		t.Fatalf("run questions = %v, want only Mia's own run named", questions)
+	}
+}
+
+func TestInboxNamesTheQuestionAndTheDashboardOfAFailedRun(t *testing.T) {
+	r := newRig(t)
+	r.endedPromptRun(t, miaActor, "why did checkout slow down after the deploy?", "failed", nil)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a failed run", page, ReasonRunFailed)
+	if item := page.Items[0]; item.Question != "why did checkout slow down after the deploy?" || item.TargetTitle != "Checkout" {
+		t.Fatalf("question %q, title %q, want the run's prompt and its dashboard", item.Question, item.TargetTitle)
+	}
+}
+
+func (r rig) failedInThread(t *testing.T) (o, thread, asked, run pgtype.UUID, failure func(t *testing.T) int64) {
+	t.Helper()
+	o = r.observation(t, ola)
+	thread = r.thread(t, o)
+	asked = r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name) VALUES ($1::uuid, 'is the cache cold?', 'user', $2::uuid, $3) RETURNING id::text`, thread.String(), mia.ID, mia.Name))
+	run, _ = r.failedRun(t, miaActor)
+	r.db.Exec(t, `UPDATE agent_requests SET thread_message_id = $1::uuid, trigger = 'mention', prompt = 'is the cache cold?' WHERE id = $2::uuid`, asked.String(), run.String())
+	return o, thread, asked, run, func(t *testing.T) int64 {
+		return r.runReply(t, o, thread, run, "The run failed: the run did not finish.", true)
+	}
+}
+
+func (r rig) runReply(t *testing.T, o, thread, run pgtype.UUID, body string, failed bool) int64 {
+	t.Helper()
+	answer := miaActor
+	answer.RunID = run.String()
+	reply := r.uuid(t, r.scalar(t, `INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, run_id, run_assigned_kind, run_failed) VALUES ($1::uuid, $2, 'user', $3::uuid, $4, $5::uuid, 'builtin', $6) RETURNING id::text`, thread.String(), body, mia.ID, mia.Name, run.String(), failed))
+	return r.append(t, Entry{Type: TypeThreadReplied, TargetID: thread, Owner: OnObservation(o), Actor: answer, Data: map[string]any{"object": map[string]any{"kind": "observation", "id": o.String()}, "message_id": reply.String()}})
+}
+
+func TestInboxShowsAFailedRunThatAnsweredInAThreadOnceAsTheFailedRun(t *testing.T) {
+	r := newRig(t)
+	_, _, _, _, failure := r.failedInThread(t)
+	failure(t)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a failed run and its failure reply", page, ReasonRunFailed)
+	if page.Items[0].Question != "is the cache cold?" || page.UnreadCount != 1 {
+		t.Fatalf("question %q, unread %d, want the asked question and one unread item", page.Items[0].Question, page.UnreadCount)
+	}
+	wantReasons(t, "the mentions view", r.inbox(t, mia, ViewMentions))
+}
+
+func TestInboxKeepsTheAnswerARunPostedBeforeItFailed(t *testing.T) {
+	r := newRig(t)
+	o, thread, _, run, failure := r.failedInThread(t)
+	answered := r.runReply(t, o, thread, run, "Partly: the cache hit rate fell at 10:02.", false)
+	failure(t)
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "an answer and then a failure", page, ReasonReply, ReasonRunFailed)
+	if page.Items[0].Seq != answered {
+		t.Fatalf("items = %v, want the answer %d kept", inboxSeqs(page), answered)
+	}
+}
+
+func TestInboxShowsTheFailureReplyAgainOnceTheFailedRunIsContinued(t *testing.T) {
+	r := newRig(t)
+	_, _, _, run, failure := r.failedInThread(t)
+	reply := failure(t)
+
+	r.db.Exec(t, `INSERT INTO agent_requests (intent, prompt, requested_by_kind, requested_by_id, requested_by_name, continues_id) VALUES ('ask', 'again', 'user', $1::uuid, 'Mia', $2::uuid)`, mia.ID, run.String())
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "after a continuation", page, ReasonReply)
+	if page.Items[0].Seq != reply {
+		t.Fatalf("items = %v, want the failure reply %d", inboxSeqs(page), reply)
+	}
+}
+
+func TestInboxDropsTheQuestionOfAFailedThreadRunOnceItsMessageIsGone(t *testing.T) {
+	r := newRig(t)
+	_, _, asked, _, _ := r.failedInThread(t)
+	r.db.Exec(t, `DELETE FROM thread_messages WHERE id = $1::uuid`, asked.String())
+
+	page := r.inbox(t, mia, ViewForYou)
+	wantReasons(t, "a failed run whose message is gone", page, ReasonRunFailed)
+	if page.Items[0].Question != "" {
+		t.Fatalf("question = %q, want none once the message is deleted", page.Items[0].Question)
+	}
+}
+
+func TestInboxDescribesAFailedRepairAsAPanelRepair(t *testing.T) {
+	r := newRig(t)
+	r.endedPromptRun(t, miaActor, repairprompt.Prefix+"\n- panel rps fails", "failed", nil)
+
+	page := r.inbox(t, mia, ViewForYou)
+	if page.Items[0].Question != "a panel repair" {
+		t.Fatalf("question = %q, want a panel repair rather than the generated prompt", page.Items[0].Question)
+	}
+}
+
+func TestInboxNamesTheObservationOfAFailedInvestigation(t *testing.T) {
+	r := newRig(t)
+	o := r.observation(t, ola)
+	run, _ := r.failedRun(t, miaActor)
+	r.db.Exec(t, `UPDATE agent_requests SET observation_id = $1::uuid WHERE id = $2::uuid`, o.String(), run.String())
+
+	page := r.inbox(t, mia, ViewForYou)
+	if page.Items[0].TargetTitle != "Checkout latency" {
+		t.Fatalf("target title = %q, want the observation's title", page.Items[0].TargetTitle)
 	}
 }
 

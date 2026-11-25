@@ -234,7 +234,9 @@ func (r *Registry) createAnnotation(ctx context.Context, input json.RawMessage) 
 	if err != nil {
 		return annotationFailure(err)
 	}
-	return success("Added annotation "+a.ID, annotationOf(a)), nil
+	res := success("Added annotation "+a.ID, annotationOf(a))
+	res.Created = []string{a.ID}
+	return res, nil
 }
 
 type updateAnnotationInput struct {

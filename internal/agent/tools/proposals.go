@@ -117,7 +117,7 @@ func (r *Registry) listProposals(ctx context.Context, input json.RawMessage) (Re
 	for {
 		page, err := r.deps.Proposals.List(ctx, principal, proposals.ListQuery{DashboardID: id, State: in.State, Limit: limit, Cursor: in.Cursor})
 		if err != nil {
-			return r.proposalFailure(err)
+			return r.proposalFailure(ctx, err)
 		}
 		items := make([]proposals.SummaryJSON, len(page.Items))
 		for i, item := range page.Items {
@@ -153,7 +153,7 @@ func (r *Registry) getProposal(ctx context.Context, input json.RawMessage) (Resu
 	principal, _ := auth.FromContext(ctx)
 	proposal, err := r.deps.Proposals.Get(ctx, principal, id)
 	if err != nil {
-		return r.proposalFailure(err)
+		return r.proposalFailure(ctx, err)
 	}
 	out := proposals.NewProposalJSON(proposal)
 	step := "Read proposal revision " + strconv.Itoa(out.Revision)
@@ -200,7 +200,7 @@ func (r *Registry) mergeProposal(ctx context.Context, input json.RawMessage) (Re
 	principal, _ := auth.FromContext(ctx)
 	merged, err := r.deps.Proposals.Merge(ctx, principal, id, revision, choices)
 	if err != nil {
-		return r.proposalFailure(err)
+		return r.proposalFailure(ctx, err)
 	}
 	step := "Merged proposal; it saved no new version because the dashboard already had everything kept"
 	if merged.MergedVersion != nil {
@@ -240,12 +240,12 @@ func (r *Registry) discardProposal(ctx context.Context, input json.RawMessage) (
 	principal, _ := auth.FromContext(ctx)
 	discarded, err := r.deps.Proposals.Discard(ctx, principal, id, in.Reason)
 	if err != nil {
-		return r.proposalFailure(err)
+		return r.proposalFailure(ctx, err)
 	}
 	return success("Discarded proposal", proposals.NewSummaryJSON(discarded.Item)), nil
 }
 
-func (r *Registry) proposalFailure(err error) (Result, error) {
+func (r *Registry) proposalFailure(ctx context.Context, err error) (Result, error) {
 	var refusal *lifecycle.Refusal
 	var changed *proposals.ChangedError
 	var invalidInput *dashboards.InvalidInputError
@@ -280,5 +280,5 @@ func (r *Registry) proposalFailure(err error) (Result, error) {
 	case errors.As(err, &invalidInput):
 		return invalid("%s", invalidInput.Message), nil
 	}
-	return saveFailure(err)
+	return saveFailure(ctx, err)
 }

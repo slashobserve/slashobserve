@@ -462,9 +462,14 @@ func (s querySummary) describe() string {
 }
 
 func (s querySummary) describeData() string {
+	if s.Hint == "" {
+		return s.describeShape()
+	}
+	return s.describeShape() + " (" + s.Hint + ")"
+}
+
+func (s querySummary) describeShape() string {
 	switch {
-	case s.Empty && s.Hint != "":
-		return "no data (" + s.Hint + ")"
 	case s.Empty:
 		return "no data"
 	case len(s.Series) > 0 && s.Table != nil:

@@ -1,5 +1,6 @@
 import { flattenFrames } from "./format"
 import {
+  carriedProps,
   copyFrame,
   rowCount,
   type PreparedField,
@@ -15,8 +16,10 @@ export function merge(frames: PreparedFrame[]): PreparedFrame[] {
   if (flat.length < 2) return frames.map(copyFrame)
 
   const columns = new Map<string, Column & { index: number }>()
+  const sources = new Map<string, PreparedField[]>()
   for (const frame of flat) {
     for (const field of frame.fields) {
+      sources.set(field.name, [...(sources.get(field.name) ?? []), field])
       if (!columns.has(field.name)) {
         columns.set(field.name, {
           name: field.name,
@@ -119,6 +122,7 @@ export function merge(frames: PreparedFrame[]): PreparedFrame[] {
         name: column.name,
         type: column.type,
         values: out[column.index],
+        ...carriedProps(sources.get(column.name) ?? []),
       })),
     },
   ]

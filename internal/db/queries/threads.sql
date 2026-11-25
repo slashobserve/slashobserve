@@ -60,9 +60,9 @@ SELECT id FROM proposals WHERE id = @id FOR KEY SHARE;
 SELECT id FROM annotations WHERE id = @id FOR KEY SHARE;
 
 -- name: InsertRunReply :one
-INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind)
+INSERT INTO thread_messages (thread_id, body, author_kind, author_id, author_name, origin, origin_client, run_id, run_assigned_kind, run_failed)
 SELECT @thread_id::uuid, @body::text, @author_kind::text, @author_id::uuid, @author_name::text,
-  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text
+  sqlc.narg('origin')::text, sqlc.narg('origin_client')::text, @run_id::uuid, @run_assigned_kind::text, @run_failed::boolean
 WHERE NOT EXISTS (SELECT 1 FROM thread_messages WHERE run_id = @run_id::uuid AND thread_id = @thread_id::uuid)
   AND EXISTS (SELECT 1 FROM agent_requests WHERE id = @run_id::uuid AND thread_replied_at IS NULL)
 RETURNING *;

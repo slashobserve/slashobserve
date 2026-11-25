@@ -255,6 +255,15 @@ describe("a text block on the canvas", () => {
     ).not.toBeInTheDocument()
   })
 
+  it("gives the floating toolbar its own room after the last block", async () => {
+    show()
+    const list = await screen.findByRole("list", { name: "Blocks" })
+    const box = screen.getByRole("toolbar", { name: "Canvas tools" })
+      .parentElement?.parentElement
+    expect(box).toHaveClass("sticky", "h-18")
+    expect(list.nextElementSibling).toBe(box)
+  })
+
   it("offers nothing to someone who cannot comment", async () => {
     show({ canComment: false })
     await screen.findByText("Checkout errors rose after the deploy.")

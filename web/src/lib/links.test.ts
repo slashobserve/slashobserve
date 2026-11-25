@@ -21,6 +21,7 @@ import {
   tracesLink,
   tracesPath,
   traceUrl,
+  traceUrlTemplate,
 } from "./links"
 
 describe("slugOf", () => {
@@ -205,5 +206,13 @@ describe("askLink", () => {
       to: "/ask",
       search: { prompt: "add a row", dashboard: "d1" },
     })
+  })
+})
+
+describe("traceUrlTemplate", () => {
+  it("leaves the trace id and the range to the link's own tokens", () => {
+    expect(traceUrlTemplate("tempo 1")).toBe(
+      "/t/${__value.traceId}?ds=tempo+1&from=${__from}&to=${__to}"
+    )
   })
 })
