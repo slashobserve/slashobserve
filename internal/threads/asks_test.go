@@ -670,6 +670,27 @@ func TestHTTPStartsAnAskOnAnObservationThread(t *testing.T) {
 	}
 }
 
+func TestHTTPPostsAMessageWhoseTimeZoneTheServerDoesNotKnowAndLeavesTheRunsZoneNull(t *testing.T) {
+	r := newAgentRig(t, true)
+	id := r.createObservation(t, testUser, pgtype.UUID{})
+
+	started := r.call(t, testUser, http.MethodPost, "/threads", map[string]any{"target": "observation:" + id.String(), "body": "@observe what changed?", "to": "agent", "time_zone": "Asia/Kolkata"})
+	started.expect(t, http.StatusCreated, "")
+	threadID := started.at(t, "thread", "id").(string)
+	unknown := r.call(t, testUser, http.MethodPost, "/threads/"+threadID+"/messages", map[string]any{"body": "@observe and now?", "to": "agent", "time_zone": "Mars/Olympus"})
+	unknown.expect(t, http.StatusCreated, "")
+	if unknown.at(t, "message", "run", "id") == nil {
+		t.Fatalf("a message with an unknown zone started no run: %v", unknown.body)
+	}
+	var zones []string
+	for _, q := range r.queuedRuns(t) {
+		zones = append(zones, q.TimeZone)
+	}
+	if want := []string{"Asia/Kolkata", ""}; !slices.Equal(zones, want) {
+		t.Fatalf("run time zones %q, want %q", zones, want)
+	}
+}
+
 func TestAMentionRunCarriesTheOriginAndAssigneeTheWritesOfItsRunRead(t *testing.T) {
 	r := newAgentRig(t, true)
 	dash := r.createDashboard(t)

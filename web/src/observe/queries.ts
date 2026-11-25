@@ -27,7 +27,7 @@ import {
 } from "@/api/keys"
 import type { components, paths } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
-import { agentZone } from "@/lib/time"
+import { askZone } from "@/lib/time"
 
 export type ObserveRequest =
   paths["/observe/{id}"]["get"]["responses"][200]["content"]["application/json"]["request"]
@@ -293,6 +293,10 @@ function recordRequest(queryClient: QueryClient, request: ObserveRequest) {
   }
 }
 
+function optionalZone(zone: string | undefined) {
+  return zone === undefined ? {} : { time_zone: zone }
+}
+
 export function useCreateObserveRequest() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -330,7 +334,7 @@ export function useCreateObserveRequest() {
             ...(observationId === undefined
               ? {}
               : { observation_id: observationId }),
-            time_zone: timeZone ?? agentZone(undefined),
+            ...optionalZone(askZone(timeZone)),
           },
         })
       )

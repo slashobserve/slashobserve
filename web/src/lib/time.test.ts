@@ -20,6 +20,7 @@ import {
   relativeTickMs,
   requestZone,
   agentZone,
+  askZone,
   resolveTime,
   timeOptionsFor,
   zonedDateTime,
@@ -500,6 +501,40 @@ describe("agentZone", () => {
     ["an unknown zone", "Mars/Olympus", browser],
   ])("gives the agent the zone the page shows for %s", (_, timezone, want) => {
     expect(agentZone(timezone)).toBe(want)
+  })
+})
+
+describe("askZone", () => {
+  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+  it.each([
+    ["no zone", undefined, browser],
+    ["a browser zone", "browser", browser],
+    ["a UTC zone", "utc", "UTC"],
+    ["a named zone", "Asia/Kolkata", "Asia/Kolkata"],
+    ["an unknown zone", "Mars/Olympus", browser],
+  ])("sends the zone the page shows for %s", (_, timezone, want) => {
+    expect(askZone(timezone)).toBe(want)
+  })
+
+  it("sends nothing when the browser's own zone is not one it can format", () => {
+    const resolved = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({
+        timeZone: "Not/AZone",
+      } as Intl.ResolvedDateTimeFormatOptions)
+    const supported = vi.spyOn(Intl, "DateTimeFormat").mockImplementation(((
+      _: unknown,
+      options?: { timeZone?: string }
+    ) => {
+      if (options?.timeZone === "Not/AZone") throw new RangeError("bad zone")
+      return { resolvedOptions: () => ({ timeZone: "Not/AZone" }) }
+    }) as never)
+    try {
+      expect(askZone(undefined)).toBeUndefined()
+    } finally {
+      supported.mockRestore()
+      resolved.mockRestore()
+    }
   })
 })
 

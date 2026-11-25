@@ -275,11 +275,7 @@ func (th *Threads) open(c *gin.Context) {
 		th.fail(c, "open thread", err)
 		return
 	}
-	ctx, err := withRequestZone(c.Request.Context(), req.TimeZone)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-		return
-	}
+	ctx := withRequestZone(c.Request.Context(), req.TimeZone)
 	sent, err := th.asks.Open(ctx, httpapi.Caller(c), OpenInput{
 		Target: target, Version: req.Version, PanelID: req.PanelID, BlockID: req.BlockID, Anchor: req.Anchor, ClientID: clientID, Body: req.Body,
 	}, to)
@@ -309,11 +305,7 @@ func (th *Threads) reply(c *gin.Context) {
 		th.fail(c, "reply to thread", err)
 		return
 	}
-	ctx, err := withRequestZone(c.Request.Context(), req.TimeZone)
-	if err != nil {
-		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", err.Error())
-		return
-	}
+	ctx := withRequestZone(c.Request.Context(), req.TimeZone)
 	sent, err := th.asks.Reply(ctx, httpapi.Caller(c), id, ReplyInput{Body: req.Body, BlockID: req.BlockID, ReplyToID: req.ReplyToID, ClientID: clientID}, to)
 	if err != nil {
 		th.fail(c, "reply to thread", err)
@@ -322,15 +314,15 @@ func (th *Threads) reply(c *gin.Context) {
 	th.respondSent(c, sent)
 }
 
-func withRequestZone(ctx context.Context, zone *string) (context.Context, error) {
+func withRequestZone(ctx context.Context, zone *string) context.Context {
 	if zone == nil {
-		return ctx, nil
+		return ctx
 	}
 	checked, err := revisions.CheckTimeZone(*zone)
 	if err != nil {
-		return ctx, err
+		return ctx
 	}
-	return revisions.WithTimeZone(ctx, checked), nil
+	return revisions.WithTimeZone(ctx, checked)
 }
 
 func (th *Threads) respondSent(c *gin.Context, sent Sent) {

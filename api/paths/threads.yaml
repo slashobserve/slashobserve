@@ -149,7 +149,7 @@ threads:
               time_zone:
                 type: string
                 maxLength: 64
-                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`.
+                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, with `UTC`, or with a zone the server does not know, they are UTC; the message is posted either way.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.
@@ -235,7 +235,7 @@ threads-threadid-messages:
               time_zone:
                 type: string
                 maxLength: 64
-                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`.
+                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, with `UTC`, or with a zone the server does not know, they are UTC; the message is posted either way.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.

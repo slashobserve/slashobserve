@@ -39,7 +39,7 @@ import {
 } from "@/comments/use-mention-picks"
 import { useMentionableAgents } from "@/comments/use-mentionable-agents"
 import { roleAtLeast } from "@/lib/roles"
-import { agentZone } from "@/lib/time"
+import { askZone } from "@/lib/time"
 import { cleanText } from "@/lib/user-text"
 import {
   describeSubmitError,
@@ -214,7 +214,7 @@ function chatFailureText(error: unknown): Failure | null {
 }
 
 export function useDeliver(subject: Subject | null, timeZone?: string) {
-  const zone = timeZone ?? agentZone(undefined)
+  const zone = askZone(timeZone)
   const target = subject === null ? "" : threadTargetOf(subject)
   const openThread = useOpenThread(target)
   const replyToThread = useReplyToThread(target)
