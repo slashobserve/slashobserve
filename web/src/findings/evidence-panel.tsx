@@ -7,6 +7,7 @@ import {
   type PanelState,
 } from "@/dashboards/panel-chrome"
 import { maxDataPointsFor } from "@/dashboards/use-panel-data"
+import { useDatasources } from "@/datasources/queries"
 import { isRenderable, isStaticPanel } from "@/panels"
 import { createFieldResolver } from "@/panels/field-config"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
@@ -15,6 +16,7 @@ import { createSharedCursor } from "@/panels/shared-cursor"
 import { isDataPanel, isRowPanel, type Panel } from "@/spec"
 
 import { useFindingPanelData } from "./queries"
+import { withTraceColumns } from "./trace-columns"
 
 const noVars = {}
 
@@ -42,17 +44,25 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
     maxDataPoints: maxDataPointsFor(panel, body.width),
     enabled: dataPanel !== undefined && supported && mounted,
   })
+  const datasources = useDatasources().data
+  const shown = useMemo(
+    () =>
+      dataPanel && query.data && datasources
+        ? withTraceColumns(dataPanel, query.data.frames, datasources)
+        : dataPanel,
+    [dataPanel, query.data, datasources]
+  )
   const fields = useMemo(
-    () => (dataPanel ? createFieldResolver(dataPanel, noVars) : undefined),
-    [dataPanel]
+    () => (shown ? createFieldResolver(shown, noVars) : undefined),
+    [shown]
   )
   const populated = useMemo(
     () =>
-      dataPanel !== undefined &&
+      shown !== undefined &&
       fields !== undefined &&
       query.data !== undefined &&
-      panelHasData(dataPanel, query.data.frames, fields),
-    [dataPanel, fields, query.data]
+      panelHasData(shown, query.data.frames, fields),
+    [shown, fields, query.data]
   )
 
   if (isRowPanel(panel)) return null
@@ -73,9 +83,9 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
           refreshing={query.isFetching && query.data !== undefined}
           onRetry={() => void query.refetch()}
         >
-          {dataPanel && query.data ? (
+          {shown && query.data ? (
             <PanelBody
-              panel={dataPanel}
+              panel={shown}
               data={query.data}
               width={body.width}
               height={body.height}
