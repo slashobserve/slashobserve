@@ -32,9 +32,9 @@
     "pass_all_attempts": 0.6863,
     "cost_usd": 13.83641,
     "failures_by_cause": {
-      "adapter_fault": 1,
+      "adapter_fault": 0,
       "missing_capability": 3,
-      "agent_mistake": 24
+      "agent_mistake": 25
     }
   },
   "skipped": [],
@@ -605,8 +605,8 @@
           "trial_seconds": 117.3,
           "error": null,
           "failure": {
-            "cause": "adapter_fault",
-            "summary": "The answer matches the passing attempts in substance, and the judge failed a line-count criterion that the same opening sentence satisfied in another attempt."
+            "cause": "agent_mistake",
+            "summary": "The judge failed the line-count criterion although another attempt's answer opened with the same sentence and passed it, so a grader inconsistency is suspected but not proven."
           }
         },
         {
