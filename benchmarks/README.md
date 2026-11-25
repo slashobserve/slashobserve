@@ -137,7 +137,9 @@ Each failed trial needs a cause and one sentence, which the command cannot judge
 The cause is `adapter_fault`, `missing_capability` or `agent_mistake`.
 The command refuses to write while a failure has none, and keeps the classifications of an existing output file when it is run again with more jobs.
 Copy no task statement and no benchmark text into the sentence.
-It also rewrites the table in `benchmarks/results/README.md`, and `make test-benchmarks` fails when the table or a file is out of date.
+It also rewrites the table in `benchmarks/results/README.md`, and `make test-benchmarks` fails when the table is out of date or a file is invalid.
+A trial that Harbor reports as skipped (`TaskSkipped` or `agent/skipped.txt`) is listed under `skipped` and counted apart from the scores, and a trial with no `agent/` folder is an errored attempt recorded as an adapter fault unless you classify it otherwise.
+A rerun keeps the notes and benchmark version of the existing file unless you pass new ones.
 
 ## Skipped tasks
 

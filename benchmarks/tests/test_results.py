@@ -22,12 +22,19 @@ def write_trial(
     kwargs: dict | None = None,
     exception: dict | None = None,
     version: str = "0.1.5",
+    agent_dir: bool = True,
+    skipped_marker: str | None = None,
+    graded: bool = True,
 ):
     trial = job / f"{task}__{suffix}"
-    (trial / "agent").mkdir(parents=True)
+    trial.mkdir(parents=True)
     (trial / "verifier").mkdir()
-    (trial / "agent" / "server.log").write_text(SERVER_LOG.replace("0.1.5", version) + "\n")
-    if reward is not None:
+    if agent_dir:
+        (trial / "agent").mkdir()
+        (trial / "agent" / "server.log").write_text(SERVER_LOG.replace("0.1.5", version) + "\n")
+    if skipped_marker:
+        (trial / "agent" / "skipped.txt").write_text(skipped_marker + "\n")
+    if reward is not None and graded:
         (trial / "verifier" / "grading_details.json").write_text(json.dumps({"score": reward, "grading_model": "claude-haiku-5-5@high"}))
     (trial / "result.json").write_text(
         json.dumps(
@@ -89,6 +96,7 @@ def test_one_attempt_per_task(tmp_path):
         "tasks": 2,
         "attempts_per_task": 1,
         "trials": 2,
+        "skipped_trials": 0,
         "mean_reward": 0.7,
         "trials_passed": 1,
         "tasks_passed_every_attempt": 1,
@@ -246,7 +254,7 @@ def test_cli_writes_the_file_and_the_readme_table(tmp_path, capsys):
     readme = (out_dir / "README.md").read_text()
     assert readme.startswith("# Results\n\nIntro.\n\n## Runs\n\n| Run |")
     assert "stale" not in readme
-    assert "| [run-one.json](run-one.json) | 2026-11-23 | 0.1.5 | anthropic/claude-sonnet-5-5 | 2 | 1 | 0.750 | 1/2 | 1/2 | 0.100 | 1 agent mistake |" in readme
+    assert "| [run-one.json](run-one.json) | 2026-11-23 | 0.1.5 | anthropic/claude-sonnet-5-5 | 2 | 1 | 0.750 | 1/2 | 1/2 | 0 | 0.100 | 1 agent mistake |" in readme
     assert results.main(["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out)]) == 0
 
 
@@ -257,6 +265,129 @@ def test_cli_reports_an_unclassified_failure_and_writes_nothing(tmp_path, capsys
     assert results.main(["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out)]) == 1
     assert "task-a" in capsys.readouterr().err
     assert not out.exists()
+
+
+def test_skipped_trials_stay_out_of_the_scores_and_are_counted(tmp_path):
+    job = write_job(tmp_path)
+    write_trial(job, "task-a", "AAA", 1.0)
+    write_trial(job, "skip-marker", "SSS", None, skipped_marker="skipped: graded on Grafana state")
+    write_trial(job, "skip-exception", "EEE", None, exception={"exception_type": "TaskSkipped", "exception_message": "no store"})
+    run = build_from([job])
+    assert [task["task"] for task in run["tasks"]] == ["task-a"]
+    assert run["summary"]["tasks"] == 1
+    assert run["summary"]["mean_reward"] == 1.0
+    assert run["summary"]["pass_all_attempts"] == 1.0
+    assert run["summary"]["skipped_trials"] == 2
+    assert run["skipped"] == [
+        {"task": "skip-exception", "trial": "skip-exception__EEE", "reason": "no store"},
+        {"task": "skip-marker", "trial": "skip-marker__SSS", "reason": "skipped: graded on Grafana state"},
+    ]
+
+
+def test_a_run_of_only_skipped_trials_is_refused(tmp_path):
+    job = write_job(tmp_path)
+    write_trial(job, "skip-marker", "SSS", None, skipped_marker="skipped: x")
+    with pytest.raises(results.ResultsError, match="skipped"):
+        build_from([job])
+
+
+def test_a_trial_without_an_agent_folder_is_an_errored_attempt(tmp_path):
+    job = write_job(tmp_path)
+    write_trial(job, "task-a", "AAA", 1.0)
+    write_trial(job, "task-b", "BBB", None, agent_dir=False)
+    run = build_from([job])
+    attempt = run["tasks"][1]["attempts"][0]
+    assert attempt["reward"] is None
+    assert attempt["failure"]["cause"] == "adapter_fault"
+    assert run["summary"]["trials"] == 2
+    assert run["summary"]["failures_by_cause"]["adapter_fault"] == 1
+    reclassified = build_from([job], {"task-b__BBB": failure("agent_mistake", "A person recorded another cause.")})
+    assert reclassified["tasks"][1]["attempts"][0]["failure"]["cause"] == "agent_mistake"
+
+
+def test_a_graded_trial_needs_server_and_judge_information(tmp_path):
+    job = write_job(tmp_path)
+    write_trial(job, "task-a", "AAA", 1.0)
+    write_trial(job, "task-b", "BBB", 1.0, agent_dir=False)
+    with pytest.raises(results.ResultsError, match=r"task-b__BBB \(no server\)"):
+        build_from([job])
+    other = write_job(tmp_path, "other")
+    write_trial(other, "task-a", "AAA", 1.0)
+    write_trial(other, "task-b", "BBB", 1.0, graded=False)
+    with pytest.raises(results.ResultsError, match=r"task-b__BBB \(no judge\)"):
+        build_from([other])
+
+
+def test_a_rewrite_keeps_the_notes_and_benchmark_version_it_is_not_given(tmp_path):
+    job = write_job(tmp_path / "jobs")
+    write_trial(job, "task-a", "AAA", 1.0)
+    out = tmp_path / "run.json"
+    base = ["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out)]
+    assert results.main([*base, "--benchmark-version", "abc123", "--note", "first", "--note", "second"]) == 0
+    assert results.main(base) == 0
+    kept = json.loads(out.read_text())
+    assert kept["benchmark_version"] == "abc123"
+    assert kept["notes"] == ["first", "second"]
+    assert results.main([*base, "--benchmark-version", "def456", "--note", "only"]) == 0
+    replaced = json.loads(out.read_text())
+    assert replaced["benchmark_version"] == "def456"
+    assert replaced["notes"] == ["only"]
+
+
+def test_load_runs_ignores_files_without_a_schema_and_refuses_bad_ones(tmp_path):
+    job = write_job(tmp_path / "jobs")
+    write_trial(job, "task-a", "AAA", 1.0)
+    out_dir = tmp_path / "results"
+    assert results.main(["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out_dir / "run.json")]) == 0
+    (out_dir / "classifications.json").write_text(json.dumps({"task-a__AAA": failure()}))
+    assert [name for name, _ in results.load_runs(out_dir)] == ["run.json"]
+    (out_dir / "broken.json").write_text("{not json")
+    with pytest.raises(results.ResultsError, match="broken.json"):
+        results.load_runs(out_dir)
+    (out_dir / "broken.json").write_text(json.dumps({"schema": results.SCHEMA_VERSION}))
+    with pytest.raises(results.ResultsError, match="broken.json: missing"):
+        results.load_runs(out_dir)
+    (out_dir / "broken.json").write_text(json.dumps({"schema": 99}))
+    with pytest.raises(results.ResultsError, match="schema 99"):
+        results.load_runs(out_dir)
+
+
+def test_the_readme_sync_survives_a_classifications_file_beside_the_results(tmp_path):
+    job = write_job(tmp_path / "jobs")
+    write_trial(job, "task-a", "AAA", 1.0)
+    out_dir = tmp_path / "results"
+    out_dir.mkdir()
+    (out_dir / "README.md").write_text("# Results\n\n## Runs\n")
+    (out_dir / "classifications.json").write_text("{}")
+    assert results.main(["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out_dir / "run.json")]) == 0
+    assert "run.json" in (out_dir / "README.md").read_text()
+
+
+def test_cli_prints_an_error_and_exits_1_on_unreadable_input(tmp_path, capsys):
+    job = write_job(tmp_path / "jobs")
+    write_trial(job, "task-a", "AAA", 1.0)
+    out = tmp_path / "run.json"
+    base = ["write", "--job", str(job), "--benchmark", "o11y-bench", "--out", str(out)]
+    assert results.main([*base, "--classifications", str(tmp_path / "missing.json")]) == 1
+    assert capsys.readouterr().err.startswith("error:")
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json")
+    assert results.main([*base, "--classifications", str(bad)]) == 1
+    assert capsys.readouterr().err.startswith("error:")
+    bad.write_text("[]")
+    assert results.main([*base, "--classifications", str(bad)]) == 1
+    assert "keyed by trial name" in capsys.readouterr().err
+    out.write_text("{not json")
+    assert results.main(base) == 1
+    assert capsys.readouterr().err.startswith("error:")
+
+
+def test_a_trial_without_the_fields_harbor_writes_is_refused_by_name(tmp_path):
+    job = write_job(tmp_path)
+    trial = write_trial(job, "task-a", "AAA", 1.0)
+    (trial / "result.json").write_text("{}")
+    with pytest.raises(results.ResultsError, match="task-a__AAA"):
+        results.read_jobs([job])
 
 
 def test_readme_needs_its_runs_heading():
@@ -273,5 +404,7 @@ def test_the_kept_results_are_valid_and_the_readme_table_matches_them():
         assert all(attempt["failure"] and attempt["failure"]["cause"] in results.CAUSES for attempt in failures), name
         assert all(attempt["failure"] is None for task in run["tasks"] for attempt in task["attempts"] if attempt["passed"]), name
         assert sum(run["summary"]["failures_by_cause"].values()) == len(failures), name
+    for path in results.RESULTS_DIR.glob("*.json"):
+        assert "schema" in json.loads(path.read_text()), path.name
     readme = (results.RESULTS_DIR / "README.md").read_text()
     assert readme == results.render_readme(readme, runs)

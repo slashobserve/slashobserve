@@ -11,6 +11,6 @@ The table below is rewritten by the command and checked by `make test-benchmarks
 
 ## Runs
 
-| Run | Date | Server | Model | Tasks | Attempts | Mean reward | Trials passed | Pass^n | Cost (USD) | Failures |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [o11y-bench-subset-v0.1.5-baseline-2026-11-23.json](o11y-bench-subset-v0.1.5-baseline-2026-11-23.json) | 2026-11-23 | 0.1.4-6-gc75cceda2 | anthropic/claude-sonnet-5-5 | 10 | 1 | 0.889 | 8/10 | 8/10 | 0.687 | 2 agent mistake |
+| Run | Date | Server | Model | Tasks | Attempts | Mean reward | Trials passed | Pass^n | Skipped | Cost (USD) | Failures |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [o11y-bench-subset-0.1.4-6-gc75cceda2-2026-11-23.json](o11y-bench-subset-0.1.4-6-gc75cceda2-2026-11-23.json) | 2026-11-23 | 0.1.4-6-gc75cceda2 | anthropic/claude-sonnet-5-5 | 10 | 1 | 0.889 | 8/10 | 8/10 | 0 | 0.687 | 2 agent mistake |

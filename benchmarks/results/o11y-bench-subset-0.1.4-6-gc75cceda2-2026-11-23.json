@@ -18,15 +18,16 @@
   "started_at": "2026-11-23T11:00:53.977525Z",
   "finished_at": "2026-11-23T11:20:03.951245Z",
   "notes": [
-    "Ten-task subset (the adapter's fixed subset), one attempt, not a benchmark score.",
+    "The v0.1.5 baseline: the adapter's fixed ten-task subset, one attempt, not a benchmark score.",
     "A null setting was the server default: 12 investigation calls and the server's default effort.",
-    "Server image built from core main at c75cceda2, run on msi two trials at a time.",
+    "Server image built from core main at c75cceda2 (the server reports 0.1.4-6-gc75cceda2), run on msi two trials at a time.",
     "The o11y-bench checkout version was not kept with the job folders."
   ],
   "summary": {
     "tasks": 10,
     "attempts_per_task": 1,
     "trials": 10,
+    "skipped_trials": 0,
     "mean_reward": 0.8891,
     "trials_passed": 8,
     "tasks_passed_every_attempt": 8,
@@ -38,6 +39,7 @@
       "agent_mistake": 2
     }
   },
+  "skipped": [],
   "tasks": [
     {
       "task": "dependency-outage-false-lead",
