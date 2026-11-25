@@ -165,6 +165,26 @@ describe("PatternsView", () => {
     }
   })
 
+  it("offers Filter and Filter out on every row and Samples only where the row has a sample line", async () => {
+    setup(
+      [
+        pattern({ pattern: "with sample", count: 9, sample: "with sample 1" }),
+        pattern({ pattern: "without sample", count: 1 }),
+      ],
+      10
+    )
+    await screen.findByText("with sample")
+    const actions = (name: string) => {
+      const row = screen.getByText(name).closest<HTMLElement>("[role=row]")
+      expect(row).not.toBeNull()
+      return within(row as HTMLElement)
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    }
+    expect(actions("with sample")).toEqual(["Filter", "Filter out", "Samples"])
+    expect(actions("without sample")).toEqual(["Filter", "Filter out"])
+  })
+
   it("folds the patterns under 1% until Show all", async () => {
     const major = Array.from({ length: 9 }, (_, index) =>
       pattern({ pattern: `major ${index}`, count: 1000 })

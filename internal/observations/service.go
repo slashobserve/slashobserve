@@ -88,6 +88,19 @@ func (s *Service) open(ctx context.Context, by auth.Principal, id pgtype.UUID) (
 
 type writeFunc func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, by actor.Actor) error
 
+func placedForRun(ctx context.Context, fn writeFunc) writeFunc {
+	return func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
+		if err := placement.RunWrite(ctx, q, who, row.FolderID); err != nil {
+			return err
+		}
+		return fn(q, row, abilities, who)
+	}
+}
+
+func (s *Service) writeContent(ctx context.Context, by auth.Principal, id, runID pgtype.UUID, fn writeFunc) error {
+	return s.write(ctx, by, id, runID, placedForRun(ctx, fn))
+}
+
 func (s *Service) write(ctx context.Context, by auth.Principal, id, runID pgtype.UUID, fn writeFunc) error {
 	for range maxFolderRetries {
 		seen, _, abilities, err := s.open(ctx, by, id)
@@ -143,6 +156,9 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	}
 	var row dbsqlc.Observation
 	err = s.store.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := placement.RunWrite(ctx, q, who, folder.ID); err != nil {
+			return err
+		}
 		var err error
 		row, err = q.CreateObservation(ctx, dbsqlc.CreateObservationParams{
 			FolderID:      folder.ID,
@@ -162,12 +178,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 		if err := appendEvent(ctx, q, activity.TypeObservationCreated, who, row.ID, eventData{Title: row.Title}); err != nil {
 			return err
 		}
-		for i, block := range prepared {
-			if _, err := s.insertBlock(ctx, q, row, block, BlockLive, who); err != nil {
-				return &BlockError{Index: i, Err: err}
-			}
-		}
-		return nil
+		return s.insertCreatedBlocks(ctx, q, row, prepared, who)
 	})
 	var refused *BlockError
 	switch {
@@ -181,6 +192,15 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	s.logger.InfoContext(ctx, "observation created",
 		slog.String("actor_id", by.ID), slog.String("observation_id", row.ID.String()), slog.String("folder_id", folder.ID.String()))
 	return s.Get(ctx, by, row.ID)
+}
+
+func (s *Service) insertCreatedBlocks(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Observation, blocks []preparedBlock, who actor.Actor) error {
+	for i, block := range blocks {
+		if _, err := s.insertBlock(ctx, q, row, block, BlockLive, who); err != nil {
+			return &BlockError{Index: i, Err: err}
+		}
+	}
+	return nil
 }
 
 func (s *Service) Get(ctx context.Context, by auth.Principal, id pgtype.UUID) (Observation, error) {
@@ -404,7 +424,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		return Observation{}, err
 	}
 	var chat revisions.SharedTitle
-	err = s.write(ctx, by, id, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
+	err = s.writeContent(ctx, by, id, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(Machine, State(row.State), ActionUpdate, can(abilities, false)); err != nil {
 			return err
 		}

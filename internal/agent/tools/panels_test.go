@@ -47,7 +47,7 @@ func newPanelsRig(t *testing.T) *panelsRig {
 		switch {
 		case strings.Contains(text, "broken"):
 			return nil, datasource.Errorf(datasource.ErrInvalidQuery, "parse error")
-		case strings.Contains(text, "empty"), strings.Contains(text, "short") && tr.To.Sub(tr.From) > time.Hour:
+		case strings.Contains(text, "empty"), strings.Contains(text, "narrow") && tr.To.Sub(tr.From) < 10*time.Minute:
 			return nil, nil
 		}
 		return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
@@ -534,8 +534,8 @@ func TestUpdatePanelsDashboardFields(t *testing.T) {
 	})
 	t.Run("a time range that leaves a verified panel empty is rejected", func(t *testing.T) {
 		rig := newPanelsRig(t)
-		id := rig.seed(t, suggestStat("p1", "One", "short(up)", 0), suggestStat("p2", "Two", "sum(up)", 4))
-		res, _ := rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,"summary":"Six hours","dashboard":{"time":{"from":"now-6h","to":"now"}}}`)
+		id := rig.seed(t, suggestStat("p1", "One", "narrow(up)", 0), suggestStat("p2", "Two", "sum(up)", 4))
+		res, _ := rig.as(rig.ctx).run(t, nameUpdatePanels, `{"dashboard_id":"`+id+`","parent_version":1,"summary":"Five minutes","dashboard":{"time":{"from":"now-5m","to":"now"}}}`)
 		out := rejected(t, res)
 		if !slices.Equal(out.FailingPanels, []string{"p1"}) || !slices.Equal(issueCodesIn(out), []spec.IssueCode{queryproxy.CodeQueryEmpty}) {
 			t.Fatalf("out = %+v", out)

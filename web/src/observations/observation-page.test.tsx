@@ -13,8 +13,24 @@ vi.mock("@/query-editor/code-editor", () => ({
 }))
 
 vi.mock("./discussion-pane", () => ({
-  DiscussionPane: ({ hidden }: { hidden: boolean }) => (
-    <div data-testid="discussion" data-hidden={String(hidden)} />
+  DiscussionPane: ({
+    hidden,
+    focusedThreadId,
+    onClose,
+  }: {
+    hidden: boolean
+    focusedThreadId?: string
+    onClose: () => void
+  }) => (
+    <div
+      data-testid="discussion"
+      data-hidden={String(hidden)}
+      data-focused-thread={focusedThreadId}
+    >
+      <button type="button" onClick={onClose}>
+        Close discussion
+      </button>
+    </div>
   ),
 }))
 
@@ -117,7 +133,7 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-function renderPage() {
+function renderPage(focusedThreadId?: string, onClearThread = () => {}) {
   const host = document.createElement("div")
   document.body.append(host)
   return renderWithProviders(
@@ -125,11 +141,53 @@ function renderPage() {
       <ObservationPage
         observationId="o1"
         rca={{ open: false, onOpenChange: () => {} }}
+        focusedThreadId={focusedThreadId}
+        onClearThread={onClearThread}
       />
     </PanelHostContext>,
     { route: { path: "/", url: "/" } }
   )
 }
+
+describe("ObservationPage focused thread", { timeout: 20_000 }, () => {
+  const originalWidth = window.innerWidth
+
+  afterEach(() => {
+    window.innerWidth = originalWidth
+  })
+
+  it("opens the discussion on a narrow screen and passes the thread to it", async () => {
+    window.innerWidth = 500
+    renderPage("t1")
+    const discussion = await screen.findByTestId("discussion")
+    expect(discussion.dataset.focusedThread).toBe("t1")
+  })
+
+  it("drops the thread from the address when the discussion closes", async () => {
+    const onClearThread = vi.fn()
+    const { user } = renderPage("t1", onClearThread)
+    await user.click(
+      await screen.findByRole("button", { name: "Close discussion" })
+    )
+    expect(onClearThread).toHaveBeenCalledOnce()
+  })
+
+  it("leaves the address alone when the discussion closes with no thread", async () => {
+    const onClearThread = vi.fn()
+    const { user } = renderPage(undefined, onClearThread)
+    await user.click(
+      await screen.findByRole("button", { name: "Close discussion" })
+    )
+    expect(onClearThread).not.toHaveBeenCalled()
+  })
+
+  it("leaves the discussion closed on a narrow screen with no thread", async () => {
+    window.innerWidth = 500
+    renderPage()
+    await screen.findByRole("heading", { name: "Checkout slow" })
+    expect(screen.queryByTestId("discussion")).toBeNull()
+  })
+})
 
 describe("ObservationPage right dock", { timeout: 20_000 }, () => {
   it("hides the discussion while the panel picker holds the right dock", async () => {
