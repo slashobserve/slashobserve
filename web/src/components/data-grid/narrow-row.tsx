@@ -1,13 +1,25 @@
 import type { ICellRendererParams } from "ag-grid-community"
-import { createContext, useContext, useLayoutEffect, useRef } from "react"
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react"
 
 import type { DataGridColumn } from "./data-grid"
 
 export const narrowRowEstimate = 72
 
+export type FullWidthRow<T> = {
+  is: (row: T) => boolean
+  render: (row: T) => ReactNode
+}
+
 export type NarrowRows<T> = {
   columns: readonly DataGridColumn<T>[]
   onHighlight: (rowId: string | null) => void
+  fullWidth?: FullWidthRow<T>
 }
 
 export const NarrowRowsContext = createContext<NarrowRows<unknown>>({
@@ -16,7 +28,7 @@ export const NarrowRowsContext = createContext<NarrowRows<unknown>>({
 })
 
 export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
-  const { columns, onHighlight } = useContext(
+  const { columns, onHighlight, fullWidth } = useContext(
     NarrowRowsContext
   ) as NarrowRows<T>
   const ref = useRef<HTMLDivElement>(null)
@@ -38,6 +50,13 @@ export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
   }, [api, node])
 
   if (data === undefined) return null
+  if (fullWidth?.is(data)) {
+    return (
+      <div ref={ref} data-full-width-row="">
+        {fullWidth.render(data)}
+      </div>
+    )
+  }
   const [title, ...rest] = columns
   if (title === undefined) return null
   const fields = rest.filter((column) => !column.action)

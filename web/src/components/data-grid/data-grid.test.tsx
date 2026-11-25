@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react"
+import { createRef } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DataGrid, type DataGridColumn } from "./data-grid"
@@ -247,6 +248,77 @@ describe("DataGrid", () => {
     expect(box.style.height).toBe("")
   })
 
+  it("names the grid by a heading and takes focus through its ref", async () => {
+    const ref = createRef<HTMLDivElement>()
+    render(
+      <>
+        <h2 id="services-heading">Services</h2>
+        <DataGrid
+          labelledBy="services-heading"
+          ref={ref}
+          busy
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+        />
+      </>
+    )
+    const grid = await screen.findByRole("grid", { name: "Services" })
+    expect(grid).not.toHaveAttribute("aria-label")
+    expect(ref.current).toHaveAttribute("aria-busy", "true")
+    ref.current?.focus()
+    expect(ref.current).toHaveFocus()
+  })
+
+  it("draws a column's header content in place of its name", async () => {
+    const onChange = vi.fn()
+    render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={[
+          {
+            ...columns[0],
+            headerCell: (
+              <label>
+                <input type="checkbox" onChange={onChange} />
+                Select all
+              </label>
+            ),
+          },
+          ...columns.slice(1),
+        ]}
+        rowId={(row) => row.id}
+      />
+    )
+    const header = await screen.findByRole("columnheader", {
+      name: "Select all",
+    })
+    fireEvent.click(within(header).getByRole("checkbox"))
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it("draws the rows its predicate picks across the full width, in the wide layout too", async () => {
+    const { container } = render(
+      <DataGrid
+        label="Services"
+        rows={[...rows, { id: "g", name: "Group", owner: "", note: "" }]}
+        columns={columns}
+        rowId={(row) => row.id}
+        fullWidthRow={{
+          is: (row) => row.id === "g",
+          render: (row) => <p>Section {row.name}</p>,
+        }}
+      />
+    )
+    await screen.findByText("Section Group")
+    expect(container.querySelectorAll("[data-full-width-row]")).toHaveLength(1)
+    expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(0)
+    expect(
+      screen.getByRole("gridcell", { name: "Checkout" })
+    ).toBeInTheDocument()
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid
@@ -322,6 +394,29 @@ describe("DataGrid", () => {
         container.querySelector<HTMLElement>('[row-id="a"]')?.style.height
       ).toBe("120px")
       height.mockRestore()
+    })
+
+    it("draws a picked row with its own content and the other rows as cards", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={[{ id: "g", name: "Group", owner: "", note: "" }, ...rows]}
+          columns={columns}
+          rowId={(row) => row.id}
+          fullWidthRow={{
+            is: (row) => row.id === "g",
+            render: (row) => <p>Section {row.name}</p>,
+          }}
+        />
+      )
+      await screen.findByText("Section Group")
+      await waitFor(() =>
+        expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
+      )
+      expect(container.querySelectorAll("[data-full-width-row]")).toHaveLength(
+        1
+      )
     })
 
     it("hides a value the row does not have", async () => {

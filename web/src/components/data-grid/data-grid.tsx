@@ -9,6 +9,7 @@ import {
   type ICellRendererParams,
   type IHeaderParams,
   type RowClassRules,
+  type RowHeightParams,
   type SuppressKeyboardEventParams,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
@@ -18,8 +19,10 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useImperativeHandle,
   useRef,
   type ReactNode,
+  type Ref,
 } from "react"
 
 import { cn } from "@/lib/utils"
@@ -29,6 +32,7 @@ import {
   NarrowRow,
   NarrowRowsContext,
   narrowRowEstimate,
+  type FullWidthRow,
   type NarrowRows,
 } from "./narrow-row"
 import { gridTheme } from "./theme"
@@ -53,6 +57,7 @@ export type DataGridColumn<T> = {
   sortable?: boolean
   autoHeight?: boolean
   action?: boolean
+  headerCell?: ReactNode
 }
 
 export type DataGridSort = {
@@ -77,6 +82,7 @@ function GridCell<T>({ data, column }: CellParams<T>) {
 }
 
 type HeaderParams = IHeaderParams & {
+  headerCell?: ReactNode
   align: "left" | "right"
   direction: DataGridSort["direction"] | null
   onSort?: () => void
@@ -84,6 +90,7 @@ type HeaderParams = IHeaderParams & {
 
 function SortHeader({
   displayName,
+  headerCell,
   eGridHeader,
   align,
   direction,
@@ -112,7 +119,7 @@ function SortHeader({
       <span
         className={cn("w-full truncate", align === "right" && "text-right")}
       >
-        {displayName}
+        {headerCell ?? displayName}
       </span>
     )
   }
@@ -128,7 +135,7 @@ function SortHeader({
         direction !== null && "text-foreground"
       )}
     >
-      {displayName}
+      {headerCell ?? displayName}
       {direction !== null ? (
         <Arrow className="size-3" aria-hidden="true" />
       ) : null}
@@ -150,10 +157,10 @@ function activateCellControl({ event }: SuppressKeyboardEventParams): boolean {
 const highlightClass = "bg-selection!"
 
 const everyRowFullWidth = () => true
-const estimateNarrowRow = () => narrowRowEstimate
 
 export function DataGrid<T>({
   label,
+  labelledBy,
   rows,
   columns,
   rowId,
@@ -163,9 +170,13 @@ export function DataGrid<T>({
   onHighlightRow,
   compact = false,
   empty,
+  fullWidthRow,
+  busy = false,
+  ref,
   className,
 }: {
-  label: string
+  label?: string
+  labelledBy?: string
   rows: readonly T[]
   columns: readonly DataGridColumn<T>[]
   rowId: (row: T) => string
@@ -175,6 +186,9 @@ export function DataGrid<T>({
   onHighlightRow?: (rowId: string | null) => void
   compact?: boolean
   empty?: ReactNode
+  fullWidthRow?: FullWidthRow<T>
+  busy?: boolean
+  ref?: Ref<HTMLDivElement>
   className?: string
 }) {
   const narrow = useNarrow()
@@ -182,9 +196,10 @@ export function DataGrid<T>({
   const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
-  const labelRef = useRef(label)
+  const nameRef = useRef({ label, labelledBy })
+  useImperativeHandle(ref, () => containerRef.current as HTMLDivElement)
   useLayoutEffect(() => {
-    labelRef.current = label
+    nameRef.current = { label, labelledBy }
     rowIdRef.current = rowId
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
@@ -212,8 +227,30 @@ export function DataGrid<T>({
     [highlight]
   )
   const narrowRows = useMemo(
-    () => ({ columns, onHighlight: highlight }) as NarrowRows<unknown>,
-    [columns, highlight]
+    () =>
+      ({
+        columns,
+        onHighlight: highlight,
+        fullWidth: fullWidthRow,
+      }) as NarrowRows<unknown>,
+    [columns, highlight, fullWidthRow]
+  )
+  const isFullWidthRow = useMemo(
+    () =>
+      narrow
+        ? everyRowFullWidth
+        : fullWidthRow === undefined
+          ? undefined
+          : ({ rowNode }: { rowNode: { data: T | undefined } }) =>
+              rowNode.data !== undefined && fullWidthRow.is(rowNode.data),
+    [narrow, fullWidthRow]
+  )
+  const getRowHeight = useCallback(
+    ({ data }: RowHeightParams<T>) =>
+      narrow || (data !== undefined && fullWidthRow?.is(data))
+        ? narrowRowEstimate
+        : undefined,
+    [narrow, fullWidthRow]
   )
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
@@ -230,6 +267,7 @@ export function DataGrid<T>({
         cellRendererParams: { column },
         headerComponent: SortHeader,
         headerComponentParams: {
+          headerCell: column.headerCell,
           align: column.align ?? "left",
           direction: sortKey === column.id ? sortDirection : null,
           onSort:
@@ -251,11 +289,18 @@ export function DataGrid<T>({
   )
 
   const labelGrid = useCallback(() => {
-    containerRef.current
-      ?.querySelector("[role=grid]")
-      ?.setAttribute("aria-label", labelRef.current)
+    const grid = containerRef.current?.querySelector("[role=grid]")
+    if (grid === null || grid === undefined) return
+    const name = nameRef.current
+    for (const [attribute, value] of [
+      ["aria-label", name.label],
+      ["aria-labelledby", name.labelledBy],
+    ] as const) {
+      if (value === undefined) grid.removeAttribute(attribute)
+      else grid.setAttribute(attribute, value)
+    }
   }, [])
-  useEffect(labelGrid, [label, labelGrid])
+  useEffect(labelGrid, [label, labelledBy, labelGrid])
 
   if (rows.length === 0 && empty !== undefined) return <>{empty}</>
 
@@ -264,7 +309,9 @@ export function DataGrid<T>({
       ref={containerRef}
       data-layout={narrow ? "narrow" : "wide"}
       data-dom-layout={layout}
-      className={cn("w-full text-[13px]", className)}
+      tabIndex={-1}
+      aria-busy={busy || undefined}
+      className={cn("w-full text-[13px] outline-none", className)}
       style={layout === "normal" ? { height } : undefined}
       onPointerLeave={() => onHighlightRow?.(null)}
     >
@@ -280,9 +327,11 @@ export function DataGrid<T>({
           rowHeight={rowHeight}
           headerHeight={narrow ? 0 : headerHeight}
           suppressMovableColumns
-          isFullWidthRow={narrow ? everyRowFullWidth : undefined}
+          isFullWidthRow={isFullWidthRow}
           fullWidthCellRenderer={NarrowRow}
-          getRowHeight={narrow ? estimateNarrowRow : undefined}
+          getRowHeight={
+            narrow || fullWidthRow !== undefined ? getRowHeight : undefined
+          }
           rowClassRules={rowClassRules}
           onCellMouseOver={onCellMouseOver}
           onGridReady={labelGrid}
