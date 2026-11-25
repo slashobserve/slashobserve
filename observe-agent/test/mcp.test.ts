@@ -144,6 +144,22 @@ describe("McpClient", () => {
     expect(second.calls).toHaveLength(1)
   })
 
+  test("a call that timed out leaves the other calls on the connection running", async () => {
+    const server = serve(async (call) => {
+      if (call.name === "slow") {
+        return new Promise(() => undefined)
+      }
+      await Bun.sleep(300)
+      return { text: '{"done":true}' }
+    })
+    const client = connect(server)
+    await client.callTool("warm", {}, undefined, 5000)
+    const other = client.callTool("other", {}, undefined, 5000)
+    await expect(client.callTool("slow", {}, undefined, 100)).rejects.toThrow()
+    const reply = await other
+    expect(reply.content).toBe('{"done":true}')
+  })
+
   test("a wrong token fails to connect", async () => {
     const server = serve(() => ({ text: "{}" }))
     await expect(

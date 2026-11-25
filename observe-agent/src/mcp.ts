@@ -36,6 +36,7 @@ import { version } from "./version"
 
 export const claimTimeoutMs = 60_000
 export const reportTimeoutMs = 10_000
+export const startReadTimeoutMs = 15_000
 
 export type ToolReply = {
   content: string
@@ -79,6 +80,10 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined
   }
+}
+
+function isRequestTimeout(error: unknown): boolean {
+  return error instanceof McpError && error.code === ErrorCode.RequestTimeout
 }
 
 function isTransportFailure(error: unknown, signal?: AbortSignal): boolean {
@@ -170,7 +175,7 @@ export class McpClient implements RunTools {
       const { client } = await attempt
       return await run(client)
     } catch (error) {
-      if (isTransportFailure(error, signal)) {
+      if (isTransportFailure(error, signal) && !isRequestTimeout(error)) {
         this.drop(attempt)
       }
       throw error
@@ -293,7 +298,7 @@ export class ClaimClient implements ClaimApi {
       "get_run_brief",
       briefInput.parse(input),
       briefAnswer,
-      reportTimeoutMs,
+      startReadTimeoutMs,
       signal
     )
   }
