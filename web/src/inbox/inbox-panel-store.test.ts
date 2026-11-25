@@ -12,7 +12,6 @@ const closed = {
   view: "for_you" as const,
   filter: "open" as const,
   item: null,
-  opener: null,
   pending: null,
 }
 
@@ -78,21 +77,11 @@ describe("returnFocusFromInbox", () => {
     return element
   }
 
-  it("focuses the element that opened the panel", () => {
-    button({ "data-inbox-bell": "" })
-    const opener = button()
-
-    returnFocusFromInbox(opener)
-
-    expect(opener).toHaveFocus()
-  })
-
-  it("falls back to the bell when the opener has left the page", () => {
+  it("focuses the bell, not another focused element", () => {
     const bell = button({ "data-inbox-bell": "" })
-    const opener = button()
-    opener.remove()
+    button().focus()
 
-    returnFocusFromInbox(opener)
+    returnFocusFromInbox()
 
     expect(bell).toHaveFocus()
   })
@@ -101,31 +90,24 @@ describe("returnFocusFromInbox", () => {
     const hidden = button({ "data-inbox-bell": "", style: "display: none" })
     const shown = button({ "data-inbox-bell": "" })
 
-    returnFocusFromInbox(null)
+    returnFocusFromInbox()
 
     expect(hidden).not.toHaveFocus()
     expect(shown).toHaveFocus()
   })
 
   it("falls back to offsetParent where checkVisibility is missing", () => {
-    const opener = button()
-    Object.defineProperty(opener, "checkVisibility", { value: undefined })
-    Object.defineProperty(opener, "offsetParent", { value: document.body })
+    const hidden = button({ "data-inbox-bell": "" })
+    Object.defineProperty(hidden, "checkVisibility", { value: undefined })
+    Object.defineProperty(hidden, "offsetParent", { value: null })
+    const shown = button({ "data-inbox-bell": "" })
+    Object.defineProperty(shown, "checkVisibility", { value: undefined })
+    Object.defineProperty(shown, "offsetParent", { value: document.body })
 
-    returnFocusFromInbox(opener)
+    returnFocusFromInbox()
 
-    expect(opener).toHaveFocus()
-  })
-
-  it("treats an element with no offsetParent as hidden where checkVisibility is missing", () => {
-    const bell = button({ "data-inbox-bell": "" })
-    const opener = button()
-    Object.defineProperty(opener, "checkVisibility", { value: undefined })
-    Object.defineProperty(opener, "offsetParent", { value: null })
-
-    returnFocusFromInbox(opener)
-
-    expect(bell).toHaveFocus()
+    expect(hidden).not.toHaveFocus()
+    expect(shown).toHaveFocus()
   })
 })
 

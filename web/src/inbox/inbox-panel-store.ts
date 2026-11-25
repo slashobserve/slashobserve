@@ -15,21 +15,13 @@ type InboxPanelState = {
   filter: InboxFilter
   item: number | null
   openings: number
-  opener: HTMLElement | null
   pending: InboxChoice | null
-  show: (choice?: InboxChoice, opener?: HTMLElement | null) => void
+  show: (choice?: InboxChoice) => void
   showAfterNavigation: (choice: InboxChoice) => void
   close: () => void
-  toggle: (opener: HTMLElement) => void
+  toggle: () => void
   setView: (view: InboxView) => void
   setFilter: (filter: InboxFilter) => void
-}
-
-function focusedElement(): HTMLElement | null {
-  const active = document.activeElement
-  return active instanceof HTMLElement && active !== document.body
-    ? active
-    : null
 }
 
 export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
@@ -38,23 +30,21 @@ export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
   filter: "open",
   item: null,
   openings: 0,
-  opener: null,
   pending: null,
-  show: (choice = {}, opener = focusedElement()) =>
+  show: (choice = {}) =>
     set((state) => ({
       open: true,
       view: choice.view ?? state.view,
       filter: choice.filter ?? state.filter,
       item: choice.item ?? null,
       openings: state.openings + 1,
-      opener,
       pending: null,
     })),
   showAfterNavigation: (choice) => set({ pending: choice }),
-  close: () => set({ open: false, item: null, opener: null }),
-  toggle: (opener) => {
+  close: () => set({ open: false, item: null }),
+  toggle: () => {
     if (get().open) get().close()
-    else get().show({}, opener)
+    else get().show()
   },
   setView: (view) => set({ view }),
   setFilter: (filter) => set({ filter }),
@@ -67,13 +57,13 @@ export function closeInboxIfOpen(): boolean {
 }
 
 export function toggleInboxFromKeys(): void {
-  const { open, opener, close, show } = useInboxPanelStore.getState()
+  const { open, close, show } = useInboxPanelStore.getState()
   if (!open) {
     show()
     return
   }
   close()
-  returnFocusFromInbox(opener)
+  returnFocusFromInbox()
 }
 
 export function useInboxPanelOpen(): boolean {
@@ -85,7 +75,7 @@ const redirectPath = "/inbox"
 export function inboxAfterNavigation(to: string, pathChanged: boolean): void {
   if (to === redirectPath) return
   const { pending, open, show, close } = useInboxPanelStore.getState()
-  if (pending !== null) show(pending, null)
+  if (pending !== null) show(pending)
   else if (open && pathChanged) close()
 }
 
@@ -102,10 +92,8 @@ function shown(element: HTMLElement): boolean {
   )
 }
 
-export function returnFocusFromInbox(opener: HTMLElement | null): void {
-  const bell = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-inbox-bell]")
-  ).find(shown)
-  const target = opener !== null && shown(opener) ? opener : bell
-  target?.focus()
+export function returnFocusFromInbox(): void {
+  Array.from(document.querySelectorAll<HTMLElement>("[data-inbox-bell]"))
+    .find(shown)
+    ?.focus()
 }

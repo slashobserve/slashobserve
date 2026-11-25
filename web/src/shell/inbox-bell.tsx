@@ -27,7 +27,7 @@ export function InboxBell({
       data-inbox-bell=""
       aria-label={inboxBellLabel(unread)}
       aria-expanded={open}
-      onClick={(event) => toggle(event.currentTarget)}
+      onClick={toggle}
       className={cn("relative", className)}
     >
       <BellIcon aria-hidden="true" className="size-4" strokeWidth={1.8} />
