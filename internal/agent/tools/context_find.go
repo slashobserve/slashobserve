@@ -107,13 +107,13 @@ func contextFoundResult(in findContextToolsInput, found ContextFound) Result {
 			out.Matches[i].InputSchema = m.InputSchema
 		}
 	}
-	var cut bool
-	out.Matches, cut = fit(out.Matches, listBudget-jsonSize(contextFoundOut{Notice: out.Notice, Query: out.Query, Hint: findHint}))
+	frame := contextFoundOut{Notice: out.Notice, Query: out.Query, MoreMatches: found.Total, Hint: findHint}
+	out.Matches, _ = fit(out.Matches, listBudget-jsonSize(frame))
 	out.MoreMatches = found.Total - len(out.Matches)
 	switch {
-	case len(out.Matches) == 0:
+	case found.Total == 0:
 		out.Hint = "Nothing matched. Try other words, a tool's likely name or what it returns, or call list_context_sources."
-	case out.MoreMatches > 0 || cut:
+	case out.MoreMatches > 0:
 		out.Hint = findHint
 	}
 	return success("Found "+plural(len(out.Matches), "context tool", "context tools")+" for "+clip(in.Query, maxStepNameBytes), out)

@@ -45,24 +45,22 @@ type scored struct {
 func words(text string) []string {
 	var out []string
 	var current []rune
-	var last rune
 	flush := func() {
 		if len(current) > 0 {
 			out = append(out, stem(string(current)))
 			current = current[:0]
 		}
 	}
-	for _, r := range text {
-		switch {
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			if unicode.IsUpper(r) && unicode.IsLower(last) {
-				flush()
-			}
-			current = append(current, unicode.ToLower(r))
-		default:
+	runes := []rune(text)
+	for i, r := range runes {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			flush()
+			continue
+		}
+		if unicode.IsUpper(r) && i > 0 && (unicode.IsLower(runes[i-1]) || unicode.IsUpper(runes[i-1]) && i+1 < len(runes) && unicode.IsLower(runes[i+1])) {
 			flush()
 		}
-		last = r
+		current = append(current, unicode.ToLower(r))
 	}
 	flush()
 	return out
@@ -73,11 +71,31 @@ func stem(word string) string {
 	case len(word) >= minStemLength+2 && strings.HasSuffix(word, "ies"):
 		return word[:len(word)-3] + "y"
 	case len(word) >= minStemLength+3 && strings.HasSuffix(word, "ing"):
-		return word[:len(word)-3]
+		return undouble(word[:len(word)-3])
+	case len(word) >= minStemLength+1 && hasSibilantPlural(word):
+		return word[:len(word)-2]
 	case len(word) >= minStemLength && strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") && !strings.HasSuffix(word, "us"):
 		return word[:len(word)-1]
 	}
 	return word
+}
+
+func hasSibilantPlural(word string) bool {
+	switch {
+	case strings.HasSuffix(word, "xes"), strings.HasSuffix(word, "zes"), strings.HasSuffix(word, "ches"), strings.HasSuffix(word, "shes"):
+		return true
+	case strings.HasSuffix(word, "sses"), strings.HasSuffix(word, "tuses"):
+		return true
+	}
+	return false
+}
+
+func undouble(stem string) string {
+	n := len(stem)
+	if n >= 2 && stem[n-1] == stem[n-2] && strings.IndexByte("bgmnprt", stem[n-1]) >= 0 {
+		return stem[:n-1]
+	}
+	return stem
 }
 
 func queryTerms(query string) []string {

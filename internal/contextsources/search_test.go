@@ -134,10 +134,16 @@ func TestAParameterNameAloneFindsATool(t *testing.T) {
 }
 
 func TestPluralsAndCasesMatchTheSameWords(t *testing.T) {
-	for _, pair := range [][2]string{{"pods", "pod"}, {"Logs", "log"}, {"policies", "policy"}, {"restarting", "restart"}, {"status", "status"}, {"class", "class"}} {
+	for _, pair := range [][2]string{{"pods", "pod"}, {"Logs", "log"}, {"policies", "policy"}, {"restarting", "restart"}, {"status", "status"}, {"class", "class"}, {"processes", "process"}, {"statuses", "status"}, {"classes", "class"}, {"boxes", "box"}, {"matches", "match"}, {"running", "run"}, {"logging", "log"}, {"calling", "call"}, {"databases", "database"}, {"nodes", "node"}} {
 		if got := words(pair[0]); len(got) != 1 || got[0] != pair[1] {
 			t.Errorf("words(%q) = %v, want [%s]", pair[0], got, pair[1])
 		}
+	}
+	if got := words("getHTTPLogs"); !slices.Equal(got, []string{"get", "http", "log"}) {
+		t.Errorf("words(getHTTPLogs) = %v", got)
+	}
+	if got := words("HTTPRoute"); !slices.Equal(got, []string{"http", "route"}) {
+		t.Errorf("words(HTTPRoute) = %v", got)
 	}
 	if got := words("getFileContents_v2"); !slices.Equal(got, []string{"get", "file", "content", "v2"}) {
 		t.Errorf("words = %v", got)

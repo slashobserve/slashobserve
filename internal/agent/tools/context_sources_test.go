@@ -439,6 +439,19 @@ func TestFindingContextToolsIsCutToTheListBudget(t *testing.T) {
 	}
 }
 
+func TestFindingContextToolsThatDoNotFitAreNotReportedAsNoMatch(t *testing.T) {
+	big := contextMatch(1)
+	big.Arguments = strings.Repeat("a", listBudget)
+	res, err := contextRegistry(t, &fakeContextSources{found: ContextFound{Matches: []ContextMatch{big}, Total: 5}}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextFoundOut)
+	if len(out.Matches) != 0 || out.MoreMatches != 5 || out.Hint != findHint || jsonSize(out) > maxContentBytes {
+		t.Errorf("out = %+v", out)
+	}
+}
+
 func TestFindingContextToolsWithNoMatchesSuggestsWhatToDo(t *testing.T) {
 	res, err := contextRegistry(t, &fakeContextSources{}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"quantum"}`))
 	if err != nil || res.IsError {
