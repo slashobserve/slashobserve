@@ -67,7 +67,7 @@ const server = { items: [] as InboxItem[] }
 async function setItems(queryClient: QueryClient, items: InboxItem[]) {
   server.items = items
   await act(async () => {
-    await queryClient.invalidateQueries({ queryKey: inboxKeys.badge() })
+    await queryClient.invalidateQueries({ queryKey: inboxKeys.all })
     await new Promise((resolve) => setTimeout(resolve, 5))
   })
 }

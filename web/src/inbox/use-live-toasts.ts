@@ -12,13 +12,8 @@ import {
   liveToastDuration,
   liveToasterId,
   planLiveToasts,
-  type LiveToastPlan,
 } from "./live-toasts"
-import {
-  fetchInboxHead,
-  useInboxNewestSeq,
-  useSetInboxItemUnread,
-} from "./queries"
+import { useInboxForYou, useSetInboxItemUnread } from "./queries"
 
 type Cursor = { principal: string | null; seen: number | null; resync: boolean }
 
@@ -49,7 +44,7 @@ function toastDescription(item: InboxItem): string | undefined {
 export function useLiveInboxToasts(): void {
   const navigate = useNavigate()
   const { mutate: markRead } = useSetInboxItemUnread()
-  const newest = useInboxNewestSeq()
+  const data = useInboxForYou().data
   const visible = useDocumentVisible()
   const principal =
     useMatch({
@@ -63,16 +58,20 @@ export function useLiveInboxToasts(): void {
   }, [visible, principal])
 
   useEffect(() => {
-    if (newest === null) return
+    if (data === undefined) return
+    const items = data.pages.flatMap((page) => page.items)
+    const newest = items.reduce((top, item) => Math.max(top, item.seq), 0)
     const current = cursorFor(principal)
     const hidden = document.hidden
     const gate = gateLiveToasts(newest, current.seen, {
       panelOpen: useInboxPanelStore.getState().open,
       resync: current.resync || hidden,
     })
-    current.seen = gate.seen
     current.resync = hidden
-    if (!gate.fetch) return
+    current.seen = gate.seen
+    if (!gate.fresh) return
+    const plan = planLiveToasts(items, gate.seen)
+    current.seen = plan.seen
 
     function open(item: InboxItem) {
       if (item.unread) markRead({ seq: item.seq, unread: false })
@@ -86,42 +85,23 @@ export function useLiveInboxToasts(): void {
       void navigate({ to: link.to, search: link.search })
     }
 
-    function show(plan: LiveToastPlan) {
-      for (const item of plan.items) {
-        toast(toastTitle(item), {
-          toasterId: liveToasterId,
-          duration: liveToastDuration,
-          description: toastDescription(item),
-          action: { label: "Open", onClick: () => open(item) },
-        })
-      }
-      if (plan.overflow > 0) {
-        toast(`${plan.overflow} new in Inbox`, {
-          toasterId: liveToasterId,
-          duration: liveToastDuration,
-          action: {
-            label: "Open",
-            onClick: () => useInboxPanelStore.getState().show(),
-          },
-        })
-      }
+    for (const item of plan.items) {
+      toast(toastTitle(item), {
+        toasterId: liveToasterId,
+        duration: liveToastDuration,
+        description: toastDescription(item),
+        action: { label: "Open", onClick: () => open(item) },
+      })
     }
-
-    void fetchInboxHead().then(
-      (head) => {
-        if (cursor !== current || current.seen === null) return
-        if (useInboxPanelStore.getState().open || document.hidden) {
-          current.seen = Math.max(
-            current.seen,
-            ...head.items.map((item) => item.seq)
-          )
-          return
-        }
-        const plan = planLiveToasts(head.items, current.seen)
-        current.seen = plan.seen
-        show(plan)
-      },
-      () => {}
-    )
-  }, [newest, principal, navigate, markRead])
+    if (plan.overflow > 0) {
+      toast(`${plan.overflow} new in Inbox`, {
+        toasterId: liveToasterId,
+        duration: liveToastDuration,
+        action: {
+          label: "Open",
+          onClick: () => useInboxPanelStore.getState().show(),
+        },
+      })
+    }
+  }, [data, principal, navigate, markRead])
 }

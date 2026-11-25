@@ -10,31 +10,31 @@ function item(seq: number, reason: InboxItem["reason"] = "mention"): InboxItem {
 const idle = { panelOpen: false, resync: false }
 
 describe("gateLiveToasts", () => {
-  it("records the newest seq on first load without fetching", () => {
-    expect(gateLiveToasts(9, null, idle)).toEqual({ seen: 9, fetch: false })
+  it("records the newest seq on first load without toasting", () => {
+    expect(gateLiveToasts(9, null, idle)).toEqual({ seen: 9, fresh: false })
   })
 
   it("starts at zero when the inbox is empty", () => {
-    expect(gateLiveToasts(0, null, idle)).toEqual({ seen: 0, fetch: false })
+    expect(gateLiveToasts(0, null, idle)).toEqual({ seen: 0, fresh: false })
   })
 
-  it("fetches when something newer than the seen seq exists", () => {
-    expect(gateLiveToasts(12, 9, idle)).toEqual({ seen: 9, fetch: true })
+  it("is fresh when something newer than the seen seq exists", () => {
+    expect(gateLiveToasts(12, 9, idle)).toEqual({ seen: 9, fresh: true })
   })
 
   it("does nothing when nothing is newer", () => {
-    expect(gateLiveToasts(9, 9, idle)).toEqual({ seen: 9, fetch: false })
-    expect(gateLiveToasts(4, 9, idle)).toEqual({ seen: 9, fetch: false })
+    expect(gateLiveToasts(9, 9, idle)).toEqual({ seen: 9, fresh: false })
+    expect(gateLiveToasts(4, 9, idle)).toEqual({ seen: 9, fresh: false })
   })
 
   it("advances past items that arrive while the panel is open", () => {
     const gate = gateLiveToasts(12, 9, { ...idle, panelOpen: true })
-    expect(gate).toEqual({ seen: 12, fetch: false })
+    expect(gate).toEqual({ seen: 12, fresh: false })
   })
 
   it("advances past items when the tab has just come back from hidden", () => {
     const gate = gateLiveToasts(12, 9, { ...idle, resync: true })
-    expect(gate).toEqual({ seen: 12, fetch: false })
+    expect(gate).toEqual({ seen: 12, fresh: false })
   })
 
   it("never lowers the seen seq", () => {

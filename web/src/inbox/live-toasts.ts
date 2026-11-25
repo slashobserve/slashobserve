@@ -6,7 +6,7 @@ export const liveToastDuration = 8000
 
 type Context = { panelOpen: boolean; resync: boolean }
 
-export type LiveToastGate = { seen: number; fetch: boolean }
+export type LiveToastGate = { seen: number; fresh: boolean }
 
 export type LiveToastPlan = {
   seen: number
@@ -19,9 +19,9 @@ export function gateLiveToasts(
   seen: number | null,
   { panelOpen, resync }: Context
 ): LiveToastGate {
-  if (seen === null) return { seen: newest, fetch: false }
-  if (panelOpen || resync) return { seen: Math.max(seen, newest), fetch: false }
-  return { seen, fetch: newest > seen }
+  if (seen === null) return { seen: newest, fresh: false }
+  if (panelOpen || resync) return { seen: Math.max(seen, newest), fresh: false }
+  return { seen, fresh: newest > seen }
 }
 
 export function planLiveToasts(
