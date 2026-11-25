@@ -21,12 +21,12 @@ import {
   datasourceTypes,
   fieldsOf,
   isAudience,
-  isDatasourceType,
   toggleClear,
   type FormValues,
   type Problems,
   type SavedCredentials,
 } from "./draft"
+import { SourceKindSelect } from "./source-kind-select"
 
 type Props = {
   mode: "create" | "edit"
@@ -34,6 +34,7 @@ type Props = {
   problems: Problems
   saved: SavedCredentials
   onChange: (change: Partial<FormValues>) => void
+  onPickMcp: () => void
   firstInputRef: RefObject<HTMLElement | null>
 }
 
@@ -192,6 +193,7 @@ export function DatasourceForm({
   problems,
   saved,
   onChange,
+  onPickMcp,
   firstInputRef,
 }: Props) {
   const baseId = useId()
@@ -214,32 +216,17 @@ export function DatasourceForm({
     <div className="flex flex-col gap-4">
       {mode === "create" ? (
         <Field id={typeId} label="Type" error={problems.type}>
-          <Select
-            items={datasourceTypes}
-            value={values.type === "" ? null : values.type}
-            onValueChange={(pick) => {
-              if (pick !== null && isDatasourceType(pick)) {
-                onChange({ type: pick })
-              }
+          <SourceKindSelect
+            id={typeId}
+            value={values.type}
+            triggerRef={firstInputRef}
+            invalid={problems.type !== undefined}
+            describedBy={describedBy(typeId, problems.type)}
+            onChange={(kind) => {
+              if (kind === "mcp") onPickMcp()
+              else onChange({ type: kind })
             }}
-          >
-            <SelectTrigger
-              id={typeId}
-              ref={firstInputRef as RefObject<HTMLButtonElement>}
-              className="w-full narrow:h-11"
-              aria-invalid={problems.type !== undefined}
-              aria-describedby={describedBy(typeId, problems.type)}
-            >
-              <SelectValue placeholder="Choose a type" />
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} align="start">
-              {datasourceTypes.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </Field>
       ) : (
         <div className="flex flex-col gap-0.5 text-[13px]">

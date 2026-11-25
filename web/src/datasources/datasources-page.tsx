@@ -6,15 +6,18 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { McpSourcesSection } from "./context-sources/sources-table"
+import type { DatasourceType } from "./draft"
 import { DatasourcePanel } from "./datasource-panel"
 import { DatasourceTable } from "./datasource-table"
 
-type Target = { mode: "create" } | { mode: "edit"; uid: string }
+type Target =
+  { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
 
 type Props = { focusMcpSources?: boolean }
 
 export function DatasourcesPage({ focusMcpSources = false }: Props) {
   const [target, setTarget] = useState<Target | null>(null)
+  const [addingMcp, setAddingMcp] = useState(false)
   const trigger = useRef<HTMLElement | null>(null)
   const mcpHeading = useRef<HTMLHeadingElement>(null)
 
@@ -27,6 +30,21 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
   function open(next: Target, from: HTMLElement) {
     trigger.current = from
     setTarget(next)
+  }
+
+  function pickMcp() {
+    setTarget(null)
+    setAddingMcp(true)
+  }
+
+  function pickNative(type: DatasourceType) {
+    setAddingMcp(false)
+    setTarget({ mode: "create", type })
+  }
+
+  function addMcp(from: HTMLElement) {
+    trigger.current = from
+    setAddingMcp(true)
   }
 
   return (
@@ -52,7 +70,7 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
               onClick={(event) => open({ mode: "create" }, event.currentTarget)}
             >
               <PlusIcon aria-hidden="true" />
-              Add datasource
+              Add source
             </Button>
           </div>
         }
@@ -71,7 +89,14 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
         </p>
       </section>
       <div className="mt-10">
-        <McpSourcesSection headingRef={mcpHeading} />
+        <McpSourcesSection
+          headingRef={mcpHeading}
+          adding={addingMcp}
+          addTrigger={trigger}
+          onAddMcp={addMcp}
+          onAddClose={() => setAddingMcp(false)}
+          onPickNative={pickNative}
+        />
       </div>
       {target === null ? null : (
         <DatasourcePanel
@@ -79,6 +104,7 @@ export function DatasourcesPage({ focusMcpSources = false }: Props) {
           target={target}
           trigger={trigger}
           onClose={() => setTarget(null)}
+          onPickMcp={pickMcp}
         />
       )}
     </>

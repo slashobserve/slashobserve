@@ -2,7 +2,11 @@ import { useId, useRef, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
 import { SidePanel } from "@/shell/side-panel"
+
+import type { DatasourceType } from "../draft"
+import { SourceKindSelect } from "../source-kind-select"
 
 import { createBody, updateBody, type SourceInput } from "./problems"
 import {
@@ -19,6 +23,8 @@ type Props = {
   mode: SourcePanelMode
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  onAdded?: (uid: string) => void
+  onPickNative?: (type: DatasourceType) => void
 }
 
 const addNote =
@@ -27,8 +33,15 @@ const addNote =
 const editNote =
   "A new address drops the approved tools, so approvals never carry over to another server. A new host needs the secret again, or removes it."
 
-export function SourcePanel({ mode, onClose, trigger }: Props) {
+export function SourcePanel({
+  mode,
+  onClose,
+  trigger,
+  onAdded,
+  onPickNative,
+}: Props) {
   const formId = useId()
+  const kindId = useId()
   const firstInput = useRef<HTMLInputElement>(null)
   const create = useCreateContextSource()
   const update = useUpdateContextSource()
@@ -38,7 +51,12 @@ export function SourcePanel({ mode, onClose, trigger }: Props) {
   function submit(input: SourceInput) {
     if (active.isPending) return
     if (mode.kind === "add") {
-      create.mutate(createBody(input), { onSuccess: onClose })
+      create.mutate(createBody(input), {
+        onSuccess: () => {
+          onAdded?.(input.uid)
+          onClose()
+        },
+      })
       return
     }
     const body = updateBody(mode.source, input)
@@ -87,6 +105,20 @@ export function SourcePanel({ mode, onClose, trigger }: Props) {
         </>
       }
     >
+      {onPickNative === undefined ? null : (
+        <div className="mb-4 flex flex-col gap-1.5">
+          <Label htmlFor={kindId} className="text-[13px] font-medium">
+            Type
+          </Label>
+          <SourceKindSelect
+            id={kindId}
+            value="mcp"
+            onChange={(kind) => {
+              if (kind !== "mcp") onPickNative(kind)
+            }}
+          />
+        </div>
+      )}
       <SourceForm
         key={adding ? "add" : mode.source.uid}
         formId={formId}

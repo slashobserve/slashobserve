@@ -10,9 +10,10 @@ The datasource answers queries as soon as it is saved, and other servers in a fl
 ## Add a datasource
 
 1. Sign in as an Admin and choose **Datasources** in the sidebar.
-2. Choose **Add datasource**.
+2. Choose **Add source** in the page header.
 3. Fill in the form:
    - **Type**, one of Prometheus, Loki, Tempo, Jaeger, "ClickHouse, read only", Elasticsearch or OpenSearch.
+     The list also offers **MCP server**, which registers a context source instead; see [Context sources](../operate/context-sources.md).
    - **Id**, which dashboards use to refer to the datasource and which cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters.
