@@ -19,6 +19,7 @@ Use it to see who is working, what it cost and what failed, to connect a new age
 
 **Observe Agent** shows whether it is On or Off, and the provider and model it uses or "No model configured".
 It also shows four counts for the last seven days: Runs, Failed, Cost and Median wait.
+Cost adds up the runs that recorded one; when some finished runs recorded none, a note under it says how many.
 Under them, "Last 7 days, everyone" shows for an Admin and "Last 7 days, yours" for anyone else.
 
 **Connected agents** lists your own live connections.
@@ -170,7 +171,8 @@ Each `last_7_days` counts the runs created in the last seven days that were assi
 | --- | --- |
 | `runs` | The runs created in the last seven days. |
 | `failed` | The failed runs; canceled runs are left out. |
-| `cost_usd` | The recorded cost of the runs; null when a finished run has none, because an unknown price is never counted as zero, and the page then shows "Not priced". |
+| `cost_usd` | The sum of the recorded run costs; null when finished runs exist and none has a cost, and the page then shows "Not priced". |
+| `unpriced_runs` | How many finished runs have no recorded cost; the sum leaves them out, because an unknown price is never counted as zero, and the page notes the count under Cost. |
 | `median_queue_wait_seconds` | The middle wait between a request and its start over the runs that started; null when none did. |
 
 ### Recent work over HTTP

@@ -16,6 +16,7 @@ const stats = {
   runs: 14,
   failed: 2,
   cost_usd: 1.5,
+  unpriced_runs: 0,
   median_queue_wait_seconds: 12,
 }
 
@@ -186,6 +187,24 @@ describe("AgentsPage", () => {
     const card = await screen.findByRole("region", { name: "Observe Agent" })
     expect(within(card).getByText("Off")).toBeTruthy()
     expect(within(card).getByText("No model configured")).toBeTruthy()
+  })
+
+  it("shows the summed cost with a note on the runs without usage", async () => {
+    serve(() =>
+      json(
+        overview({
+          observe_agent: {
+            ...overview().observe_agent,
+            last_7_days: { ...stats, cost_usd: 0.42, unpriced_runs: 2 },
+          },
+        })
+      )
+    )
+    renderPage()
+
+    const card = await screen.findByRole("region", { name: "Observe Agent" })
+    expect(within(card).getByText("$0.42")).toBeTruthy()
+    expect(within(card).getByText("2 runs without usage")).toBeTruthy()
   })
 
   it("tells a key session the page is for signed-in people", async () => {

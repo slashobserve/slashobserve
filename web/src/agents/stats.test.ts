@@ -6,6 +6,7 @@ const stats = {
   runs: 14,
   failed: 2,
   cost_usd: 1.234,
+  unpriced_runs: 0,
   median_queue_wait_seconds: 12,
 }
 
@@ -17,6 +18,16 @@ describe("statCells", () => {
       { label: "Cost", value: "$1.23" },
       { label: "Median wait", value: "12 s" },
     ])
+  })
+
+  test("notes how many runs had no usage under the cost", () => {
+    expect(statCells({ ...stats, unpriced_runs: 1 })[2]?.note).toBe(
+      "1 run without usage"
+    )
+    expect(statCells({ ...stats, unpriced_runs: 3 })[2]?.note).toBe(
+      "3 runs without usage"
+    )
+    expect(statCells(stats)[2]?.note).toBeUndefined()
   })
 
   test("is empty when the caller may not see the stats", () => {

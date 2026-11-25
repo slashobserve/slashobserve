@@ -27,14 +27,23 @@ function waitText(seconds: number | null): string {
   return `${Math.round(minutes / 60)} h`
 }
 
-export function statCells(
-  stats: Stats | null
-): { label: string; value: string }[] {
+function unpricedNote(runs: number): string | undefined {
+  if (runs === 0) return undefined
+  return `${runs} ${runs === 1 ? "run" : "runs"} without usage`
+}
+
+export type StatCell = { label: string; value: string; note?: string }
+
+export function statCells(stats: Stats | null): StatCell[] {
   if (stats === null) return []
   return [
     { label: "Runs", value: String(stats.runs) },
     { label: "Failed", value: String(stats.failed) },
-    { label: "Cost", value: costText(stats.cost_usd) },
+    {
+      label: "Cost",
+      value: costText(stats.cost_usd),
+      note: unpricedNote(stats.unpriced_runs),
+    },
     { label: "Median wait", value: waitText(stats.median_queue_wait_seconds) },
   ]
 }

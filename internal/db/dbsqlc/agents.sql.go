@@ -16,6 +16,7 @@ SELECT count(*)::int AS runs,
        (count(*) FILTER (WHERE r.state = 'failed'))::int AS failed,
        coalesce(sum((r.run_usage->>'cost_usd')::float8), 0)::float8 AS cost_usd,
        (count(*) FILTER (WHERE r.status IN ('succeeded', 'failed') AND (r.run_usage->>'cost_usd') IS NULL))::int AS unpriced,
+       (count(*) FILTER (WHERE (r.run_usage->>'cost_usd') IS NOT NULL))::int AS priced,
        (count(*) FILTER (WHERE r.started_at IS NOT NULL))::int AS started,
        coalesce(percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM r.started_at - r.created_at)) FILTER (WHERE r.started_at IS NOT NULL), 0)::float8 AS median_queue_wait_seconds
 FROM agent_requests r
@@ -36,6 +37,7 @@ type AgentRunStatsRow struct {
 	Failed                 int32
 	CostUsd                float64
 	Unpriced               int32
+	Priced                 int32
 	Started                int32
 	MedianQueueWaitSeconds float64
 }
@@ -48,6 +50,7 @@ func (q *Queries) AgentRunStats(ctx context.Context, arg AgentRunStatsParams) (A
 		&i.Failed,
 		&i.CostUsd,
 		&i.Unpriced,
+		&i.Priced,
 		&i.Started,
 		&i.MedianQueueWaitSeconds,
 	)

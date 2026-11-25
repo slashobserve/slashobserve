@@ -984,7 +984,7 @@ components:
     AgentRunStats:
       type: object
       additionalProperties: false
-      required: [runs, failed, cost_usd, median_queue_wait_seconds]
+      required: [runs, failed, cost_usd, unpriced_runs, median_queue_wait_seconds]
       properties:
         runs:
           type: integer
@@ -993,7 +993,10 @@ components:
         cost_usd:
           type: number
           nullable: true
-          description: Null when a finished run has no recorded cost.
+          description: The sum of the recorded run costs, null when finished runs exist and none has a recorded cost.
+        unpriced_runs:
+          type: integer
+          description: How many finished runs have no recorded cost, not counted in `cost_usd`.
         median_queue_wait_seconds:
           type: number
           nullable: true
