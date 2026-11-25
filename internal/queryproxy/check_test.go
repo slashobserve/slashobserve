@@ -245,11 +245,11 @@ func TestCheckSpecIssues(t *testing.T) {
 			wantCalls: 2,
 		},
 		{
-			name:      "variable timeout is variable_failed",
+			name:      "variable timeout is query_timeout",
 			panels:    oneTimeseries("up"),
 			variables: []spec.Variable{queryVariable("job", "prom", "x")},
 			setup:     failVariable(context.DeadlineExceeded),
-			want:      []wantIssue{{"/variables/0", CodeVariableFailed, "query timed out"}},
+			want:      []wantIssue{{"/variables/0", CodeQueryTimeout, "query timed out"}},
 			wantCalls: 2,
 		},
 		{
@@ -838,7 +838,7 @@ func TestCheckSpecParentContextEnds(t *testing.T) {
 		}
 		assertIssues(t, issues, []wantIssue{
 			{"/panels/0/queries/0/query", CodeVariableUnresolved, ""},
-			{"/variables/0", CodeVariableFailed, "query timed out"},
+			{"/variables/0", CodeQueryTimeout, "query timed out"},
 		})
 	})
 }

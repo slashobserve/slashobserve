@@ -28,6 +28,7 @@ type probe struct {
 	mu         sync.Mutex
 	ran        []string
 	fail       map[string]bool
+	slow       map[string]bool
 	emptyBelow map[string]time.Duration
 }
 
@@ -59,6 +60,12 @@ func (p *probe) setFail(text string, failing bool) {
 	p.fail[text] = failing
 }
 
+func (p *probe) setSlow(text string, slow bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.slow[text] = slow
+}
+
 func (p *probe) setEmptyBelow(text string, d time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -72,6 +79,11 @@ func (p *probe) answer(text string, rng datasource.TimeRange) ([]datasource.Fram
 	for part, failing := range p.fail {
 		if failing && strings.Contains(text, part) {
 			return nil, errors.New("boom")
+		}
+	}
+	for part, slow := range p.slow {
+		if slow && strings.Contains(text, part) {
+			return nil, datasource.ErrTimeout
 		}
 	}
 	for part, below := range p.emptyBelow {
@@ -99,7 +111,7 @@ func (p *probe) VariableValues(_ context.Context, q datasource.Query, rng dataso
 
 func newProbeRig(t *testing.T) (*rig, *probe) {
 	t.Helper()
-	p := &probe{fail: map[string]bool{}, emptyBelow: map[string]time.Duration{}}
+	p := &probe{fail: map[string]bool{}, slow: map[string]bool{}, emptyBelow: map[string]time.Duration{}}
 	database := dbtest.New(t)
 	logger := slog.New(slog.DiscardHandler)
 	registry, err := datasource.NewRegistry(logger, datasource.Instance{UID: "prom", Datasource: p})
@@ -468,6 +480,130 @@ func TestTimeChangeBlocksOnAVerifiedPanelThatIsEmptyOverTheNewRange(t *testing.T
 	invalid := wantInvalid(t, err)
 	if len(invalid.Issues) != 1 || invalid.Issues[0].Path != "/panels/1/queries" || invalid.Issues[0].Code != queryproxy.CodeQueryEmpty {
 		t.Fatalf("issues %v, want the empty panel p1", invalid.Issues)
+	}
+}
+
+func TestTimeChangeToALongerRangeSavesAnUnchangedEmptyPanelAsUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setEmptyBelow("m1", 1000*time.Hour)
+
+	ver, err := r.saveChanged(t, id, 1, dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "p1" {
+		t.Fatalf("unverified %v, want only p1", ids)
+	}
+	if issues := ver.Unverified.Panels[0].Issues; len(issues) != 1 || issues[0].Code != queryproxy.CodeQueryEmpty {
+		t.Fatalf("issues %v, want one query_empty", issues)
+	}
+}
+
+func TestTimeChangeSavesAnUnchangedPanelThatTimesOutAsUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setSlow("m1", true)
+
+	ver, err := r.saveChanged(t, id, 1, dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "p1" {
+		t.Fatalf("unverified %v, want only p1", ids)
+	}
+	if issues := ver.Unverified.Panels[0].Issues; len(issues) != 1 || issues[0].Code != queryproxy.CodeQueryTimeout {
+		t.Fatalf("issues %v, want one query_timeout", issues)
+	}
+	if ver.Spec.Time.From != "now-24h" {
+		t.Fatalf("stored time %+v", ver.Spec.Time)
+	}
+}
+
+func TestTimeChangeStillBlocksOnAChangedPanelThatTimesOut(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setSlow("edited1", true)
+
+	patch := upsert(1, panelDef{id: "p1", query: "edited1"})
+	patch.Dashboard = dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`).Dashboard
+	_, err := r.saveChanged(t, id, 1, patch)
+	invalid := wantInvalid(t, err)
+	if len(invalid.Issues) != 1 || invalid.Issues[0].Code != queryproxy.CodeQueryTimeout {
+		t.Fatalf("issues %v, want the edited panel's query_timeout", invalid.Issues)
+	}
+}
+
+const slowVariable = `{"name":"inst","type":"query","datasource":"prom","query":"label_values(vq, instance)"}`
+
+func variablePanels() []panelDef {
+	panels := numberedPanels(3)
+	panels[1].query = `m1{instance=~"$inst"}`
+	return panels
+}
+
+func (r *rig) saveFull(t *testing.T, id pgtype.UUID, parent int, patch spec.PanelPatch) (Version, error) {
+	t.Helper()
+	_, ver, _, err := r.saveRequest(t, id, parent, r.mergedPatch(t, id, parent, patch), "full", pgtype.UUID{})
+	return ver, err
+}
+
+func TestTimeChangeSavesASlowVariableAndItsDependentPanelAsUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{variables: slowVariable, panels: variablePanels()})
+	p.setSlow("vq", true)
+
+	ver, err := r.saveChanged(t, id, 1, dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ver.Unverified.Variables) != 1 || ver.Unverified.Variables[0].Name != "inst" || ver.Unverified.Variables[0].Issues[0].Code != queryproxy.CodeQueryTimeout {
+		t.Fatalf("unverified variables %v, want inst with query_timeout", ver.Unverified.Variables)
+	}
+	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "p1" || ver.Unverified.Panels[0].Issues[0].Code != queryproxy.CodeVariableUnresolved {
+		t.Fatalf("unverified panels %v, want p1 with variable_unresolved", ver.Unverified.Panels)
+	}
+}
+
+func TestTimeChangeStillBlocksOnAChangedVariableThatTimesOut(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{variables: slowVariable, panels: variablePanels()})
+	p.setSlow("vq2", true)
+
+	patch := dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`)
+	patch.Variables = json.RawMessage(`[{"name":"inst","type":"query","datasource":"prom","query":"label_values(vq2, instance)"}]`)
+	_, err := r.saveChanged(t, id, 1, patch)
+	invalid := wantInvalid(t, err)
+	if !slices.ContainsFunc(invalid.Issues, func(is spec.Issue) bool { return is.Path == "/variables/0" && is.Code == queryproxy.CodeQueryTimeout }) {
+		t.Fatalf("issues %v, want the changed variable's query_timeout", invalid.Issues)
+	}
+}
+
+func TestFullSaveWithATimeChangeSavesAnUnchangedSlowPanelAsUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setSlow("m1", true)
+
+	ver, err := r.saveFull(t, id, 1, dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "p1" {
+		t.Fatalf("unverified %v, want only p1", ids)
+	}
+}
+
+func TestFullSaveStillBlocksOnAChangedPanelThatTimesOut(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setSlow("edited1", true)
+
+	patch := upsert(1, panelDef{id: "p1", query: "edited1"})
+	patch.Dashboard = dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`).Dashboard
+	_, err := r.saveFull(t, id, 1, patch)
+	invalid := wantInvalid(t, err)
+	if len(invalid.Issues) != 1 || invalid.Issues[0].Code != queryproxy.CodeQueryTimeout {
+		t.Fatalf("issues %v, want the edited panel's query_timeout", invalid.Issues)
 	}
 }
 
