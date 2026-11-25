@@ -49,6 +49,7 @@ export type PaletteSource = {
   type: string
 }
 type ActionId =
+  | "action:inbox"
   | "action:new-observation"
   | "action:ask"
   | "action:import"
@@ -87,6 +88,12 @@ function pageEntries(role: Role): PageEntry[] {
     label: item.label,
     to: item.to,
   }))
+}
+
+const inboxEntry: ActionEntry = {
+  kind: "action",
+  id: "action:inbox",
+  label: "Inbox",
 }
 
 const newActionEntries: ActionEntry[] = [
@@ -251,7 +258,7 @@ export function paletteGroups(
   const groups: PaletteGroup[] = [
     {
       value: "Pages",
-      items: pageEntries(role).filter((e) => matches(e.label)),
+      items: [...pageEntries(role), inboxEntry].filter((e) => matches(e.label)),
     },
     { value: "Dashboards", items: dashboardEntries },
     { value: "Sources", items: sourceEntries(sources, needle) },

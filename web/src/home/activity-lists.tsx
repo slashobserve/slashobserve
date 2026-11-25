@@ -11,7 +11,8 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { dashboardsHealthQuery } from "@/health/queries"
 import { InboxRow } from "@/inbox/inbox-row"
 import { itemText, type InboxItem } from "@/inbox/inbox-item"
-import { useInboxForYou } from "@/inbox/queries"
+import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
+import { useInboxForYou, useSetInboxItemUnread } from "@/inbox/queries"
 import { dashboardLink, observationLink } from "@/lib/links"
 import { describeSubmitError, useRetryRequest } from "@/observe/queries"
 import { pinProblemText } from "@/pins/pin-problems"
@@ -34,6 +35,7 @@ import {
   HomeSection,
   IconTile,
   RowText,
+  SectionButton,
   SectionLink,
   SectionList,
   rowLinkClass,
@@ -99,8 +101,12 @@ function ActionControl({
 }
 
 function NeedsYouRow({ item }: { item: InboxItem }) {
-  const navigate = useNavigate()
+  const showInbox = useInboxPanelStore((state) => state.show)
+  const setUnread = useSetInboxItemUnread()
   const action = needsYouAction(item)
+  function markRead() {
+    if (item.unread) setUnread.mutate({ seq: item.seq, unread: false })
+  }
   return (
     <div className="flex items-center gap-2 p-1 pr-3">
       <div className="min-w-0 flex-1">
@@ -109,12 +115,11 @@ function NeedsYouRow({ item }: { item: InboxItem }) {
           selected={false}
           tabStop
           asLink
-          onSelect={(selected) =>
-            void navigate({
-              to: "/inbox",
-              search: { item: String(selected.seq) },
-            })
-          }
+          onOpen={markRead}
+          onSelect={() => {
+            markRead()
+            showInbox({ view: "for_you", filter: "open", item: item.seq })
+          }}
         />
       </div>
       {action === null ? null : (
@@ -127,6 +132,7 @@ function NeedsYouRow({ item }: { item: InboxItem }) {
 }
 
 export function NeedsYouList() {
+  const showInbox = useInboxPanelStore((state) => state.show)
   const query = useInboxForYou()
   const items =
     query.data === undefined
@@ -136,7 +142,9 @@ export function NeedsYouList() {
   return (
     <HomeSection
       title="Needs you"
-      action={<SectionLink to="/inbox">Open Inbox</SectionLink>}
+      action={
+        <SectionButton onClick={() => showInbox()}>Open Inbox</SectionButton>
+      }
     >
       <SectionList
         items={items}

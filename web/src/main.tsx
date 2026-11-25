@@ -7,6 +7,7 @@ import { watchPostedDrafts } from "@/activity/activity-store"
 import { setRoleRefusedHandler, setUnauthorizedHandler } from "@/api/client"
 import { createQueryClient } from "@/api/query-client"
 import { parseSearch, stringifySearch } from "@/lib/search"
+import { followNavigationWithInbox } from "@/inbox/inbox-panel-store"
 import { catchUpWithSession } from "@/lib/session-sync"
 import { followTraceOrigin } from "@/traces/trace-origin"
 import { routeTree } from "./routeTree.gen"
@@ -26,6 +27,7 @@ const router = createRouter({
 
 setUnauthorizedHandler(() => void router.invalidate())
 followTraceOrigin(router)
+followNavigationWithInbox(router)
 
 declare module "@tanstack/react-router" {
   interface Register {

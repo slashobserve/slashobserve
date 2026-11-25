@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { touchesObservation, type ActivityEvent } from "./activity-match"
+import {
+  matchesActivityFilter,
+  touchesObservation,
+  type ActivityEvent,
+} from "./activity-match"
 
 const observation = {
   id: "o1",
@@ -88,5 +92,44 @@ describe("touchesObservation", () => {
       actor: { run_id: "r9" } as ActivityEvent["actor"],
     })
     expect(touchesObservation(reply, observation)).toBe("both")
+  })
+})
+
+describe("matchesActivityFilter", () => {
+  const inFolder = { ...event("dashboard", "d1"), folder_id: "f1" }
+
+  it("passes every event with no filter", () => {
+    expect(matchesActivityFilter(inFolder, {})).toBe(true)
+    expect(matchesActivityFilter(inFolder, { folderId: null, types: [] })).toBe(
+      true
+    )
+  })
+
+  it("keeps the events of one folder, as the stream's folder_id does", () => {
+    expect(matchesActivityFilter(inFolder, { folderId: "f1" })).toBe(true)
+    expect(matchesActivityFilter(inFolder, { folderId: "f2" })).toBe(false)
+    expect(
+      matchesActivityFilter(event("dashboard", "d1"), { folderId: "f1" })
+    ).toBe(false)
+  })
+
+  it("keeps the events of the listed types, as the stream's type does", () => {
+    expect(
+      matchesActivityFilter(inFolder, {
+        types: ["dashboard.created", "observation.updated"],
+      })
+    ).toBe(true)
+    expect(
+      matchesActivityFilter(inFolder, { types: ["dashboard.created"] })
+    ).toBe(false)
+  })
+
+  it("needs both the folder and the type to match", () => {
+    expect(
+      matchesActivityFilter(inFolder, {
+        folderId: "f2",
+        types: ["observation.updated"],
+      })
+    ).toBe(false)
   })
 })

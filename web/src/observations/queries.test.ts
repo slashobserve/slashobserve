@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { chatKeys, observationKeys, threadKeys } from "@/api/keys"
+import { ActivityStreamProvider } from "@/live/activity-stream"
 import { testQueryClient } from "@/test/render"
 
 import { BlockVersionConflict } from "./errors"
@@ -682,17 +683,28 @@ describe("useObservationLive", () => {
     const queryClient = seededClient()
     queryClient.setQueryData(threadKeys.list("observation:o1"), { pages: [] })
     renderHook(() => useObservationLive(live), {
-      wrapper: wrapperFor(queryClient),
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          createElement(ActivityStreamProvider, null, children)
+        ),
     })
     return queryClient
   }
 
-  it("listens to the observation's folder", () => {
-    mount()
-    expect(FakeEventSource.instances).toHaveLength(1)
-    expect(FakeEventSource.instances[0]?.url).toBe(
-      "/api/v1/activity/stream?folder_id=f1"
+  it("listens on the shell's one stream and keeps only the observation's folder", () => {
+    const queryClient = mount()
+    expect(FakeEventSource.instances.map((source) => source.url)).toEqual([
+      "/api/v1/activity/stream",
+    ])
+    act(() =>
+      FakeEventSource.instances[0]?.emit("activity", {
+        ...activity("observation", "o1"),
+        folder_id: "f2",
+      })
     )
+    expect(isInvalidated(queryClient, observationKeys.one("o1"))).toBe(false)
   })
 
   it.each([

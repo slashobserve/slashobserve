@@ -11,6 +11,7 @@ export type ShortcutAction =
   | "refresh"
   | "tvMode"
   | "fullscreen"
+  | "inbox"
   | "help"
 
 export type Shortcut = {
@@ -79,6 +80,7 @@ export const dashboardShortcuts: readonly Shortcut[] = [
     keys: ["f"],
     description: "Go full screen in TV mode opened from a link",
   },
+  { action: "inbox", keys: ["g", "i"], description: "Open or close the Inbox" },
   { action: "help", keys: ["?"], description: "Show keyboard shortcuts" },
 ]
 

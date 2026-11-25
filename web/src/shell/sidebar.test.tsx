@@ -183,11 +183,10 @@ describe("SidebarContent", () => {
       { timeout: 5000 }
     )
     const home = screen.getByRole("link", { name: "Home" })
-    const inbox = screen.getByRole("link", { name: "Inbox" })
     const observations = screen.getByRole("link", { name: "Observations" })
     const dashboards = navLink("Dashboards")
     expect(home).toHaveAttribute("href", "/")
-    expect(precedes(home, inbox)).toBe(true)
+    expect(screen.queryByRole("link", { name: /^Inbox/ })).toBeNull()
     expect(screen.queryByRole("button", { name: "New" })).toBeNull()
     expect(
       screen.getByRole("list", { name: "Open observations" })

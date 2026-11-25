@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
+
+import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
 
 import { panelWidth } from "./card-width"
 import { DockHeader } from "./dock-header"
@@ -44,7 +46,10 @@ function Panel({
   )
 }
 
-afterEach(() => setViewport(initialViewport))
+afterEach(() => {
+  setViewport(initialViewport)
+  useInboxPanelStore.setState({ open: false })
+})
 
 describe("DockPanel", () => {
   it("renders an aside named by its heading with a resize handle", () => {
@@ -165,5 +170,95 @@ describe("DockPanel", () => {
     expect(
       screen.getByRole("complementary", { name: "Activity" })
     ).not.toHaveAttribute("data-sheet")
+  })
+
+  it("hides every other panel while the Inbox is open and shows it again, as it was, on close", () => {
+    setViewport(1440)
+    render(
+      <>
+        <Panel />
+        <DockPanel
+          isInbox
+          labelledBy="inbox-title"
+          width={384}
+          bounds={panelWidth}
+          onWidthChange={() => undefined}
+          stacked="container"
+        >
+          <h2 id="inbox-title">Inbox</h2>
+        </DockPanel>
+      </>
+    )
+    const activity = screen.getByRole("complementary", { name: "Activity" })
+    const inbox = screen.getByRole("complementary", { name: "Inbox" })
+    expect(activity).toBeVisible()
+
+    act(() => useInboxPanelStore.getState().show())
+    expect(activity).not.toBeVisible()
+    expect(activity).toBeInTheDocument()
+    expect(inbox).toBeVisible()
+
+    act(() => useInboxPanelStore.getState().close())
+    expect(activity).toBeVisible()
+    expect(screen.getByText("Comments and saved versions.")).toBeVisible()
+  })
+
+  it("keeps a panel the page hid hidden when the Inbox closes", () => {
+    setViewport(1440)
+    const { container } = render(
+      <DockPanel
+        hidden
+        labelledBy="t"
+        width={400}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked={false}
+      >
+        <h2 id="t">Activity</h2>
+      </DockPanel>
+    )
+    act(() => useInboxPanelStore.getState().show())
+    act(() => useInboxPanelStore.getState().close())
+    expect(container.querySelector("aside")).not.toBeVisible()
+  })
+
+  it("closes the Inbox when another panel opens after it", () => {
+    setViewport(1440)
+    act(() => useInboxPanelStore.getState().show())
+    const { rerender } = render(
+      <DockPanel
+        hidden
+        labelledBy="t"
+        width={400}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked={false}
+      >
+        <h2 id="t">Activity</h2>
+      </DockPanel>
+    )
+    expect(useInboxPanelStore.getState().open).toBe(true)
+    rerender(
+      <DockPanel
+        labelledBy="t"
+        width={400}
+        bounds={panelWidth}
+        onWidthChange={() => undefined}
+        stacked={false}
+      >
+        <h2 id="t">Activity</h2>
+      </DockPanel>
+    )
+    expect(useInboxPanelStore.getState().open).toBe(false)
+    expect(
+      screen.getByRole("complementary", { name: "Activity" })
+    ).toBeVisible()
+  })
+
+  it("closes the Inbox when another panel mounts open", () => {
+    setViewport(1440)
+    act(() => useInboxPanelStore.getState().show())
+    render(<Panel />)
+    expect(useInboxPanelStore.getState().open).toBe(false)
   })
 })
