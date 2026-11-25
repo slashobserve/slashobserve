@@ -68,6 +68,7 @@ func TestContextSourcesFileRefusals(t *testing.T) {
 		"secret no header":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretEnv: SLASHOBSERVE_A\n", "secretHeader: required"},
 		"header no secret":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n", "needs secretEnv or secretFile"},
 		"env prefix":         {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    secretHeader: X\n    secretEnv: HOME\n", "must start with SLASHOBSERVE_"},
+		"format character":   {"contextSources:\n  - uid: a\n    url: https://a.example.com\n    name: \"Do\\u200Bcs\"\n", "contextSources[0].name"},
 		"two documents":      {"contextSources: []\n---\ncontextSources: []\n", "multiple YAML documents"},
 	}
 	for name, c := range cases {
@@ -102,5 +103,13 @@ func TestLoadReadsTheContextSourcesFile(t *testing.T) {
 	_, err = Load(envOf(env))
 	if err == nil || !strings.Contains(err.Error(), envContextSourcesFile) {
 		t.Fatalf("err = %v, want it to name %s", err, envContextSourcesFile)
+	}
+}
+
+func TestValidContextSourceNameRefusesControlAndFormatCharacters(t *testing.T) {
+	for name, want := range map[string]bool{"Docs": true, "": false, "a\nb": false, "a\u200bb": false, strings.Repeat("é", 100): true, strings.Repeat("é", 101): false} {
+		if got := ValidContextSourceName(name); got != want {
+			t.Errorf("ValidContextSourceName(%q) = %v, want %v", name, got, want)
+		}
 	}
 }

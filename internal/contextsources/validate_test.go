@@ -48,7 +48,7 @@ func TestCheckUIDAndName(t *testing.T) {
 			t.Errorf("uid %q should be refused", uid)
 		}
 	}
-	if checkName("Docs") != nil || checkName("") == nil || checkName("a\nb") == nil || checkName(strings.Repeat("é", 101)) == nil || checkName(strings.Repeat("é", 100)) != nil {
+	if checkName("Docs") != nil || checkName("") == nil || checkName("a\nb") == nil || checkName("a\u200bb") == nil || checkName(strings.Repeat("é", 101)) == nil || checkName(strings.Repeat("é", 100)) != nil {
 		t.Error("name checks")
 	}
 }

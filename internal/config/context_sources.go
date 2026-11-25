@@ -76,6 +76,11 @@ func loadContextSources(path string, lookup func(string) (string, bool)) ([]Cont
 	return out, nil
 }
 
+func ValidContextSourceName(name string) bool {
+	n := utf8.RuneCountInString(name)
+	return n >= 1 && n <= 100 && !strings.ContainsFunc(name, isControlOrFormat)
+}
+
 func convertContextSource(path string, raw fileContextSource, lookup func(string) (string, bool)) (ContextSource, []error) {
 	var errs []error
 	fail := func(field, format string, args ...any) {
@@ -88,8 +93,8 @@ func convertContextSource(path string, raw fileContextSource, lookup func(string
 	if source.Name == "" {
 		source.Name = raw.UID
 	}
-	if utf8.RuneCountInString(source.Name) > 100 || strings.ContainsFunc(source.Name, isControlOrFormat) {
-		fail("name", "must be at most 100 characters without control characters")
+	if !ValidContextSourceName(source.Name) {
+		fail("name", "must be 1 to 100 characters without control or format characters")
 	}
 	if source.URL == "" {
 		fail("url", "required")
