@@ -1,18 +1,14 @@
 import {
-  ClientSideRowModelModule,
-  RenderApiModule,
-  RowApiModule,
-  RowAutoHeightModule,
   ClientSideRowModelApiModule,
+  ClientSideRowModelModule,
+  RowAutoHeightModule,
   RowStyleModule,
   type CellMouseOverEvent,
   type ColDef,
   type GetRowIdParams,
-  type GridApi,
   type ICellRendererParams,
   type IHeaderParams,
-  type RowClassParams,
-  type RowStyle,
+  type RowClassRules,
   type SuppressKeyboardEventParams,
 } from "ag-grid-community"
 import { AgGridReact } from "ag-grid-react"
@@ -29,7 +25,12 @@ import {
 import { cn } from "@/lib/utils"
 
 import { gridLayout } from "./layout"
-import { NarrowRow, narrowRowEstimate } from "./narrow-row"
+import {
+  NarrowRow,
+  NarrowRowsContext,
+  narrowRowEstimate,
+  type NarrowRows,
+} from "./narrow-row"
 import { gridTheme } from "./theme"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
@@ -38,8 +39,6 @@ const modules = [
   ClientSideRowModelModule,
   RowAutoHeightModule,
   RowStyleModule,
-  RenderApiModule,
-  RowApiModule,
   ClientSideRowModelApiModule,
 ]
 
@@ -148,7 +147,7 @@ function activateCellControl({ event }: SuppressKeyboardEventParams): boolean {
   return true
 }
 
-const highlightStyle: RowStyle = { backgroundColor: "var(--selection)" }
+const highlightClass = "bg-selection!"
 
 const everyRowFullWidth = () => true
 const estimateNarrowRow = () => narrowRowEstimate
@@ -179,9 +178,7 @@ export function DataGrid<T>({
   className?: string
 }) {
   const narrow = useNarrow()
-  const apiRef = useRef<GridApi<T> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const highlightedRef = useRef(highlightedRowId)
   const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
@@ -199,17 +196,25 @@ export function DataGrid<T>({
     ({ data }: GetRowIdParams<T>) => rowIdRef.current(data),
     []
   )
-  const getRowStyle = useCallback(
-    (params: RowClassParams<T>) =>
-      params.node.id === highlightedRef.current ? highlightStyle : undefined,
+  const rowClassRules = useMemo<RowClassRules<T>>(
+    () => ({
+      [highlightClass]: ({ node }) =>
+        highlightedRowId !== null && node.id === highlightedRowId,
+    }),
+    [highlightedRowId]
+  )
+  const highlight = useCallback(
+    (id: string | null) => highlightRef.current?.(id),
     []
   )
   const onCellMouseOver = useCallback(
-    (event: CellMouseOverEvent<T>) =>
-      highlightRef.current?.(event.node.id ?? null),
-    []
+    (event: CellMouseOverEvent<T>) => highlight(event.node.id ?? null),
+    [highlight]
   )
-  const narrowParams = useMemo(() => ({ columns }), [columns])
+  const narrowRows = useMemo(
+    () => ({ columns, onHighlight: highlight }) as NarrowRows<unknown>,
+    [columns, highlight]
+  )
   const layout = gridLayout(rows.length)
   const height = useFillHeight(containerRef, layout === "normal")
   const rowHeight = compact ? 32 : 40
@@ -217,42 +222,33 @@ export function DataGrid<T>({
 
   const columnDefs = useMemo<ColDef<T>[]>(
     () =>
-      narrow
-        ? [{ colId: "narrow", headerName: label, flex: 1 }]
-        : columns.map((column) => ({
-            colId: column.id,
-            headerName: column.header,
-            cellRenderer: GridCell,
-            cellRendererParams: { column },
-            headerComponent: SortHeader,
-            headerComponentParams: {
-              align: column.align ?? "left",
-              direction: sortKey === column.id ? sortDirection : null,
-              onSort:
-                column.sortable && sorts
-                  ? () => sortRef.current?.(column.id)
-                  : undefined,
-            },
-            width: column.width,
-            minWidth: column.minWidth,
-            flex: column.width === undefined ? (column.flex ?? 1) : undefined,
-            autoHeight: column.autoHeight,
-            suppressKeyboardEvent: activateCellControl,
-          })),
-    [columns, label, narrow, sorts, sortKey, sortDirection]
+      columns.map((column) => ({
+        colId: column.id,
+        headerName: column.header,
+        sortable: false,
+        cellRenderer: GridCell,
+        cellRendererParams: { column },
+        headerComponent: SortHeader,
+        headerComponentParams: {
+          align: column.align ?? "left",
+          direction: sortKey === column.id ? sortDirection : null,
+          onSort:
+            column.sortable && sorts
+              ? () => sortRef.current?.(column.id)
+              : undefined,
+        },
+        ...(narrow
+          ? { flex: 1 }
+          : {
+              width: column.width,
+              minWidth: column.minWidth,
+              flex: column.width === undefined ? (column.flex ?? 1) : undefined,
+              autoHeight: column.autoHeight,
+            }),
+        suppressKeyboardEvent: activateCellControl,
+      })),
+    [columns, narrow, sorts, sortKey, sortDirection]
   )
-
-  useEffect(() => {
-    const previous = highlightedRef.current
-    highlightedRef.current = highlightedRowId
-    const api = apiRef.current
-    if (api === null || previous === highlightedRowId) return
-    const rowNodes = [previous, highlightedRowId].flatMap((id) => {
-      const node = id === null ? undefined : api.getRowNode(id)
-      return node === undefined ? [] : [node]
-    })
-    if (rowNodes.length > 0) api.redrawRows({ rowNodes })
-  }, [highlightedRowId])
 
   const labelGrid = useCallback(() => {
     containerRef.current
@@ -272,28 +268,26 @@ export function DataGrid<T>({
       style={layout === "normal" ? { height } : undefined}
       onPointerLeave={() => onHighlightRow?.(null)}
     >
-      <AgGridReact<T>
-        key={narrow ? "narrow" : "wide"}
-        modules={modules}
-        theme={gridTheme}
-        domLayout={layout}
-        rowData={rows as T[]}
-        columnDefs={columnDefs}
-        getRowId={getRowId}
-        rowHeight={rowHeight}
-        headerHeight={narrow ? 0 : headerHeight}
-        suppressMovableColumns
-        isFullWidthRow={narrow ? everyRowFullWidth : undefined}
-        fullWidthCellRenderer={NarrowRow}
-        fullWidthCellRendererParams={narrowParams}
-        getRowHeight={narrow ? estimateNarrowRow : undefined}
-        getRowStyle={getRowStyle}
-        onCellMouseOver={onCellMouseOver}
-        onGridReady={(event) => {
-          apiRef.current = event.api
-          labelGrid()
-        }}
-      />
+      <NarrowRowsContext value={narrowRows}>
+        <AgGridReact<T>
+          key={narrow ? "narrow" : "wide"}
+          modules={modules}
+          theme={gridTheme}
+          domLayout={layout}
+          rowData={rows as T[]}
+          columnDefs={columnDefs}
+          getRowId={getRowId}
+          rowHeight={rowHeight}
+          headerHeight={narrow ? 0 : headerHeight}
+          suppressMovableColumns
+          isFullWidthRow={narrow ? everyRowFullWidth : undefined}
+          fullWidthCellRenderer={NarrowRow}
+          getRowHeight={narrow ? estimateNarrowRow : undefined}
+          rowClassRules={rowClassRules}
+          onCellMouseOver={onCellMouseOver}
+          onGridReady={labelGrid}
+        />
+      </NarrowRowsContext>
     </div>
   )
 }

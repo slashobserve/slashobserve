@@ -192,12 +192,23 @@ describe("DataGrid", () => {
         onHighlightRow={onHighlightRow}
       />
     )
-    await waitFor(() =>
-      expect(
-        container.querySelector<HTMLElement>('[role=row][row-id="b"]')?.style
-          .backgroundColor
-      ).toBe("var(--selection)")
+    const row = (id: string) =>
+      container.querySelector<HTMLElement>(`[role=row][row-id="${id}"]`)
+    await waitFor(() => expect(row("b")).toHaveClass("bg-selection!"))
+    expect(row("a")).not.toHaveClass("bg-selection!")
+    rerender(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        highlightedRowId="a"
+        onHighlightRow={onHighlightRow}
+      />
     )
+    await waitFor(() => expect(row("a")).toHaveClass("bg-selection!"))
+    expect(row("b")).not.toHaveClass("bg-selection!")
+    expect(cell).toBeInTheDocument()
     fireEvent.pointerLeave(container.firstElementChild as HTMLElement)
     expect(onHighlightRow).toHaveBeenLastCalledWith(null)
   })
@@ -333,27 +344,84 @@ describe("DataGrid", () => {
       expect(note).toHaveClass("empty:hidden")
     })
 
-    it("hides the column headers and keeps one column so nothing scrolls sideways", async () => {
+    it("hides the column headers but keeps them sortable for a screen reader", async () => {
       vi.mocked(useNarrow).mockReturnValue(true)
+      const onSort = vi.fn()
       const { container } = render(
         <DataGrid
           label="Services"
           rows={rows}
           columns={columns}
           rowId={(row) => row.id}
+          sort={{ key: "name", direction: "ascending" }}
+          onSort={onSort}
         />
       )
       await waitFor(() =>
         expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
       )
       expect(
-        screen
-          .getAllByRole("columnheader", { hidden: true })
-          .map((header) => header.textContent?.trim())
-      ).toEqual(["Services"])
-      expect(
         container.querySelector<HTMLElement>(".ag-header-row")?.style.height
       ).toBe("0px")
+      const name = screen.getByRole("columnheader", { name: "Name" })
+      expect(name).toHaveAttribute("aria-sort", "ascending")
+      fireEvent.keyDown(screen.getByRole("columnheader", { name: "Owner" }), {
+        key: "Enter",
+      })
+      expect(onSort).toHaveBeenLastCalledWith("owner")
+    })
+
+    it("redraws the cards when a column is hidden", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const props = { label: "Services", rows, rowId: (row: Row) => row.id }
+      const { container, rerender } = render(
+        <DataGrid {...props} columns={columns} />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="owner"]')
+        ).not.toBeNull()
+      )
+      rerender(
+        <DataGrid
+          {...props}
+          columns={columns.filter((column) => column.id !== "owner")}
+        />
+      )
+      await waitFor(() =>
+        expect(
+          container.querySelector('[row-id="b"] [data-cell="owner"]')
+        ).toBeNull()
+      )
+      expect(
+        container.querySelector('[row-id="b"] [data-cell="note"]')
+      ).toHaveTextContent("slow")
+    })
+
+    it("reports the card under the pointer and paints the highlighted one", async () => {
+      vi.mocked(useNarrow).mockReturnValue(true)
+      const onHighlightRow = vi.fn()
+      const props = {
+        label: "Services",
+        rows,
+        columns,
+        rowId: (row: Row) => row.id,
+        onHighlightRow,
+      }
+      const { container, rerender } = render(<DataGrid {...props} />)
+      await waitFor(() =>
+        expect(container.querySelectorAll("[data-narrow-row]")).toHaveLength(2)
+      )
+      fireEvent.pointerEnter(
+        container.querySelector('[row-id="b"] [data-narrow-row]') as Element
+      )
+      expect(onHighlightRow).toHaveBeenLastCalledWith("b")
+      rerender(<DataGrid {...props} highlightedRowId="b" />)
+      await waitFor(() =>
+        expect(container.querySelector('[row-id="b"]')).toHaveClass(
+          "bg-selection!"
+        )
+      )
     })
   })
 })

@@ -1,15 +1,24 @@
 import type { ICellRendererParams } from "ag-grid-community"
-import { useLayoutEffect, useRef } from "react"
+import { createContext, useContext, useLayoutEffect, useRef } from "react"
 
 import type { DataGridColumn } from "./data-grid"
 
 export const narrowRowEstimate = 72
 
-type NarrowRowParams<T> = ICellRendererParams<T> & {
+export type NarrowRows<T> = {
   columns: readonly DataGridColumn<T>[]
+  onHighlight: (rowId: string | null) => void
 }
 
-export function NarrowRow<T>({ data, node, api, columns }: NarrowRowParams<T>) {
+export const NarrowRowsContext = createContext<NarrowRows<unknown>>({
+  columns: [],
+  onHighlight: () => {},
+})
+
+export function NarrowRow<T>({ data, node, api }: ICellRendererParams<T>) {
+  const { columns, onHighlight } = useContext(
+    NarrowRowsContext
+  ) as NarrowRows<T>
   const ref = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -17,7 +26,7 @@ export function NarrowRow<T>({ data, node, api, columns }: NarrowRowParams<T>) {
     if (element === null) return
     function fit() {
       const height = element?.offsetHeight ?? 0
-      if (height <= 0 || height === node.rowHeight) return
+      if (height <= 0 || height === node.rowHeight || api.isDestroyed()) return
       node.setRowHeight(height)
       api.onRowHeightChanged()
     }
@@ -38,6 +47,7 @@ export function NarrowRow<T>({ data, node, api, columns }: NarrowRowParams<T>) {
       ref={ref}
       data-narrow-row=""
       className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-3 text-[13px] leading-normal"
+      onPointerEnter={() => onHighlight(node.id ?? null)}
     >
       <div data-cell={title.id} className="min-w-0 basis-full font-medium">
         {title.cell(data)}
