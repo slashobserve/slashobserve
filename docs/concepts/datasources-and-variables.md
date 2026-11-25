@@ -359,7 +359,8 @@ When a reference gives no format, the server picks one from where the variable s
 | Prometheus, Loki, Tempo | Anywhere else | `raw` |
 | Jaeger | Anywhere | `raw` |
 | ClickHouse | Inside a quoted string | `raw` |
-| ClickHouse | Outside quotes | `sqlstring` |
+| ClickHouse | Next to a `.` outside quotes, as in `${database}.otel_traces` | `raw`, and the value must be a plain identifier; an explicit `${var:raw}` there follows the same rule |
+| ClickHouse | Elsewhere outside quotes | `sqlstring` |
 | Elasticsearch, OpenSearch | Inside a quoted string | The one value, JSON-escaped; several values need a format such as `${var:pipe}` |
 | Elasticsearch, OpenSearch | Outside quotes | `"a"` for one value, `("a" OR "b")` for several |
 
