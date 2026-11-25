@@ -356,7 +356,7 @@ export function DataGrid<T>({
               : undefined,
         },
         ...(narrow
-          ? { flex: 1 }
+          ? { flex: 1, minWidth: 1 }
           : {
               width: column.width,
               minWidth: column.minWidth,
@@ -462,7 +462,7 @@ export function DataGrid<T>({
       tabIndex={-1}
       aria-busy={busy || undefined}
       className={cn(
-        "w-full text-[13px] outline-none",
+        "w-full text-[13px] outline-none [&_.ag-cell-auto-height]:flex! [&_.ag-cell-auto-height]:items-center! [&_.ag-cell-auto-height>.ag-cell-wrapper]:w-full",
         bare &&
           "[&_.ag-root-wrapper]:rounded-none! [&_.ag-root-wrapper]:border-0! [&_.ag-styled-root]:[--ag-background-color:transparent]! [&_.ag-styled-root]:[--ag-chrome-background-color:transparent]! [&_.ag-styled-root]:[--ag-header-background-color:transparent]!",
         className
