@@ -4,6 +4,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -57,12 +58,19 @@ export function SourceKindSelect({
       >
         <SelectValue placeholder="Choose a type" />
       </SelectTrigger>
-      <SelectContent alignItemWithTrigger={false} align="start">
-        {kinds.map((kind) => (
-          <SelectItem key={kind.value} value={kind.value}>
-            {kind.label}
+      <SelectContent
+        alignItemWithTrigger={false}
+        align="start"
+        sideOffset={6}
+        className="p-1"
+      >
+        {datasourceTypes.map((type) => (
+          <SelectItem key={type.value} value={type.value}>
+            {type.label}
           </SelectItem>
         ))}
+        <SelectSeparator />
+        <SelectItem value={mcpKind.value}>{mcpKind.label}</SelectItem>
       </SelectContent>
     </Select>
   )

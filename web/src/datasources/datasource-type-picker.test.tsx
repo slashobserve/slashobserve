@@ -6,15 +6,16 @@ import { PanelHostContext } from "@/shell/side-panel"
 import { renderWithProviders } from "@/test/render"
 
 import { DatasourcePanel } from "./datasource-panel"
+import type { DatasourceType } from "./draft"
 
 describe("DatasourcePanel type picker", () => {
-  function renderCreate(onPickMcp: () => void) {
+  function renderCreate(onPickMcp: () => void, type?: DatasourceType) {
     const host = document.createElement("div")
     document.body.append(host)
     return renderWithProviders(
       <PanelHostContext.Provider value={host}>
         <DatasourcePanel
-          target={{ mode: "create" }}
+          target={{ mode: "create", type }}
           onClose={() => undefined}
           trigger={createRef()}
           onPickMcp={onPickMcp}
@@ -40,21 +41,34 @@ describe("DatasourcePanel type picker", () => {
   })
 
   it("starts on the type the page preselected", async () => {
-    const host = document.createElement("div")
-    document.body.append(host)
-    renderWithProviders(
-      <PanelHostContext.Provider value={host}>
-        <DatasourcePanel
-          target={{ mode: "create", type: "loki" }}
-          onClose={() => undefined}
-          trigger={createRef()}
-          onPickMcp={() => undefined}
-        />
-      </PanelHostContext.Provider>,
-      { route: { path: "/", url: "/" } }
-    )
+    renderCreate(() => undefined, "loki")
     expect(
       await screen.findByRole("combobox", { name: "Type" })
     ).toHaveTextContent("Loki")
+  })
+
+  it("sets MCP server apart from the datasource types with a separator", async () => {
+    const { user } = renderCreate(() => undefined)
+    await user.click(await screen.findByRole("combobox", { name: "Type" }))
+    await screen.findByRole("option", { name: "MCP server" })
+    const options = screen
+      .getAllByRole("option")
+      .map((option) => option.textContent)
+    expect(options.at(-1)).toBe("MCP server")
+    expect(screen.getByRole("separator")).toBeInTheDocument()
+  })
+
+  it("titles the panel Add a source until a type is picked", async () => {
+    const { user } = renderCreate(() => undefined)
+    expect(await screen.findByText("Add a source")).toBeVisible()
+    await user.click(screen.getByRole("combobox", { name: "Type" }))
+    await user.click(await screen.findByRole("option", { name: "Loki" }))
+    expect(await screen.findByText("Add a datasource")).toBeVisible()
+    expect(screen.queryByText("Add a source")).toBeNull()
+  })
+
+  it("titles the panel Add a datasource when the page preselected a type", async () => {
+    renderCreate(() => undefined, "loki")
+    expect(await screen.findByText("Add a datasource")).toBeVisible()
   })
 })
