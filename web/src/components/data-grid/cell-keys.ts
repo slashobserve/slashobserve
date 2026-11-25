@@ -11,11 +11,16 @@ const controlKeys = new Set([
   "ArrowDown",
   "ArrowLeft",
   "ArrowRight",
-  "Home",
-  "End",
-  "PageUp",
-  "PageDown",
 ])
+
+const fieldKeys = new Set(["Home", "End", "PageUp", "PageDown"])
+
+function isField(target: HTMLElement): boolean {
+  return (
+    target.isContentEditable ||
+    target.matches("input, textarea, select, [contenteditable]")
+  )
+}
 
 export type CellKeyAction = { kind: "click" | "focus"; stop: number } | null
 
@@ -41,8 +46,9 @@ export function keepKeysOnFocusedControl({
   event,
 }: Pick<SuppressKeyboardEventParams, "event">): boolean {
   const target = event.target
-  if (!(target instanceof HTMLElement) || !controlKeys.has(event.key)) {
-    return false
+  if (!(target instanceof HTMLElement)) return false
+  if (!controlKeys.has(event.key)) {
+    if (!fieldKeys.has(event.key) || !isField(target)) return false
   }
   const cell = target.closest(keyStopSelector)
   return cell !== null && cell !== target
@@ -51,7 +57,7 @@ export function keepKeysOnFocusedControl({
 export function handleCellKey(event: KeyboardEvent, grid: HTMLElement): void {
   const target = event.target
   if (!(target instanceof HTMLElement)) return
-  if (event.key === "Enter" && target.matches("input, textarea, select")) return
+  if (event.key === "Enter" && isField(target)) return
   const cell = target.closest<HTMLElement>(keyStopSelector)
   if (cell === null || !grid.contains(cell)) return
   const stops = [cell, ...cell.querySelectorAll<HTMLElement>(controlSelector)]
