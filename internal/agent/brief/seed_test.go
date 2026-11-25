@@ -239,3 +239,11 @@ func TestNoSeedSentenceSaysTheModelTextIsNotShown(t *testing.T) {
 		t.Errorf("no_answer sentence does not say the text is not kept: %q", seedSentences[NoAnswer])
 	}
 }
+
+func TestUnansweredSeedsAskARunThatMadeSomethingToNameAndLinkIt(t *testing.T) {
+	for _, reason := range []Reason{NoAnswer, NoFinding} {
+		if !strings.Contains(seedSentences[reason], "save_finding") || !strings.Contains(seedSentences[reason], "names it and links it") {
+			t.Errorf("%s sentence does not ask for an answer naming and linking what the run made: %q", reason, seedSentences[reason])
+		}
+	}
+}

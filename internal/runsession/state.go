@@ -34,6 +34,7 @@ type State struct {
 	RejectedTransient bool                 `json:"rejected_transient,omitempty"`
 	Settled           Settled              `json:"settled"`
 	Created           []string             `json:"created,omitempty"`
+	Wrote             bool                 `json:"wrote,omitempty"`
 	Committed         string               `json:"committed,omitempty"`
 	Usage             revisions.Usage      `json:"usage"`
 	Turn              OpenTurn             `json:"turn"`

@@ -256,6 +256,7 @@ func (sess *session) settleOutcome(ctx context.Context, c guard.Call, d dispatch
 	}
 	if !isSave(c.Name) {
 		if tools.Phase(c.Name) == tools.PhaseWrite && !d.res.IsError {
+			state.Wrote = true
 			state.noteCreated(d.res.Created)
 		}
 		if found := d.res.Discovered; found != nil && !d.res.IsError {

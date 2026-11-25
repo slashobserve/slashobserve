@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { log, type Fields } from "./log"
+import { type Made, madeAnswer, madeBy } from "./made"
 import type { ClaimApi, RunTools } from "./mcp"
 import { isSave, offersWrite } from "./phase"
 import {
@@ -40,6 +41,7 @@ export const compactResultBytes = 2 << 10
 export const pruneKeepTurns = 4
 export const pruneStepBytes = 64 << 10
 export const maxCutOffsInRow = 2
+export const saveFindingTool = "save_finding"
 export const listToolsTimeoutMs = 10_000
 
 export type ClaimedRun = {
@@ -180,8 +182,8 @@ class RunLoop {
   private buildSaves = 0
   private sessionBytes = 0
   private cutOffs = 0
-  private findingNudged = false
   private answerNudged = false
+  private made: Made[] = []
   private pendingNudged = false
   private modelCalls = 0
   private failedCalls = 0
@@ -321,7 +323,6 @@ class RunLoop {
       }
       if (end.kind === "restart") {
         this.cutOffs = 0
-        this.findingNudged = false
         this.answerNudged = false
         this.pendingNudged = false
         this.session = undefined
@@ -486,6 +487,7 @@ class RunLoop {
       this.throwIfQuiet(error)
       throw error
     })
+    this.made.push(...madeBy(this.specs, turn.toolCalls, executed.results))
     this.sessionBytes += sizeOfTurn(
       turn.text,
       turn.toolCalls.map((call) => call.input),
@@ -550,23 +552,15 @@ class RunLoop {
       case "suggest":
         throw new Failure("no_tool_call")
       case "investigate":
-        if (this.findingNudged) {
-          throw new Failure("no_finding")
-        }
-        this.findingNudged = true
-        return this.compaction("no_finding", undefined)
+        return this.unanswered("no_finding", "no_finding")
     }
     if (this.inWriteWindow) {
       await this.finish({ outcome: "succeeded" })
       return { kind: "end", end: { kind: "finished" } }
     }
     const build = this.build
-    if (build === null) {
-      if (this.answerNudged) {
-        throw new Failure("no_tool_call")
-      }
-      this.answerNudged = true
-      return this.compaction("no_answer", undefined)
+    if (build === null || (build.saves === 0 && this.made.length > 0)) {
+      return this.unanswered("no_answer", "no_tool_call")
     }
     if (build.planned_panels - build.panels > 0 && !this.pendingNudged) {
       this.pendingNudged = true
@@ -577,6 +571,43 @@ class RunLoop {
       kind: "end",
       end: { kind: finished.restarted ? "restart" : "finished" },
     }
+  }
+
+  private async unanswered(
+    reason: BriefReason,
+    failure: FailureCode
+  ): Promise<TurnStep> {
+    if (!this.answerNudged) {
+      this.answerNudged = true
+      return this.compaction(reason, undefined)
+    }
+    if (
+      this.made.length === 0 ||
+      !this.specs.some((spec) => spec.name === saveFindingTool)
+    ) {
+      throw new Failure(failure)
+    }
+    const executed = await executeTurn(
+      this.tools,
+      [
+        {
+          id: randomUUID(),
+          name: saveFindingTool,
+          input: JSON.stringify({ markdown: madeAnswer(this.made) }),
+        },
+      ],
+      randomUUID(),
+      this.usageBody(),
+      this.cancel.signal
+    ).catch((error: unknown) => {
+      this.throwIfQuiet(error)
+      throw error
+    })
+    const step = await this.settle(executed.metas, executed.results)
+    if (step.kind === "end") {
+      return step
+    }
+    throw new Failure(failure)
   }
 
   private async finish(body: FinishBody) {

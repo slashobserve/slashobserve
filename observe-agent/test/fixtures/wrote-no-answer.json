@@ -1,0 +1,16 @@
+{
+  "prompt": "start an observation",
+  "turns": [
+    {
+      "text": "making it",
+      "tool_calls": [
+        {
+          "name": "create_observation",
+          "input": { "title": "Checkout latency" }
+        }
+      ]
+    },
+    { "text": "done" },
+    { "text": "still done" }
+  ]
+}
