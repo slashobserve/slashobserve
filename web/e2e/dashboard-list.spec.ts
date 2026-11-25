@@ -102,7 +102,10 @@ function dashboardsCard(page: Page) {
 }
 
 function dashboardsSurface(page: Page) {
-  return page.locator(".ag-root-wrapper").filter({ has: dashboardsCard(page) })
+  return page
+    .locator(".ag-root-wrapper")
+    .filter({ has: dashboardsCard(page) })
+    .last()
 }
 
 function filterBox(page: Page) {

@@ -1,6 +1,12 @@
 import type { Locator, Route } from "@playwright/test"
 
-import { expect, failedResourceLogged, test, type Page } from "./fixtures"
+import {
+  expect,
+  failedResourceLogged,
+  tabUntilFocused,
+  test,
+  type Page,
+} from "./fixtures"
 
 type Person = {
   id: string
@@ -245,6 +251,16 @@ test("shows allow-all sign-in", async ({ page }) => {
   )
 })
 
+function focusedCell(page: Page) {
+  return page.evaluate(() => {
+    const focused = document.activeElement?.closest("[role=gridcell]")
+    return {
+      row: Number(focused?.closest("[row-index]")?.getAttribute("row-index")),
+      column: Number(focused?.getAttribute("aria-colindex")),
+    }
+  })
+}
+
 async function openFromGridCell(page: Page, trigger: Locator) {
   const grid = page.getByRole("grid").filter({ has: trigger }).first()
   const cell = grid.getByRole("gridcell").filter({ has: trigger }).first()
@@ -252,18 +268,17 @@ async function openFromGridCell(page: Page, trigger: Locator) {
     row: Number(element.closest("[row-index]")?.getAttribute("row-index")),
     column: Number(element.getAttribute("aria-colindex")),
   }))
-  for (let presses = 0; presses < 80; presses++) {
-    if (await grid.evaluate((el) => el.contains(document.activeElement))) break
+  const controls = await cell.locator("a[href], button:not(:disabled)").count()
+
+  const inGrid = () =>
+    grid.evaluate((element) => element.contains(document.activeElement))
+  for (let presses = 0; presses < 80 && !(await inGrid()); presses++) {
     await page.keyboard.press("Tab")
   }
+  expect(await inGrid(), "Tab never moved focus into the grid").toBe(true)
+
   for (let presses = 0; presses < 40; presses++) {
-    const at = await page.evaluate(() => {
-      const focused = document.activeElement?.closest("[role=gridcell]")
-      return {
-        row: Number(focused?.closest("[row-index]")?.getAttribute("row-index")),
-        column: Number(focused?.getAttribute("aria-colindex")),
-      }
-    })
+    const at = await focusedCell(page)
     if (at.row === target.row && at.column === target.column) break
     const key =
       Number.isNaN(at.row) || at.row < target.row
@@ -275,13 +290,13 @@ async function openFromGridCell(page: Page, trigger: Locator) {
             : "ArrowLeft"
     await page.keyboard.press(key)
   }
-  await page.keyboard.press("Enter")
-  const onControl = await page.evaluate(
-    () =>
-      document.activeElement instanceof HTMLButtonElement &&
-      document.activeElement.closest("[role=gridcell]") !== null
+  expect(await focusedCell(page), "the arrows never reached the cell").toEqual(
+    target
   )
-  if (onControl) {
+
+  await page.keyboard.press("Enter")
+  if (controls > 1) {
+    await tabUntilFocused(page, trigger, controls)
     await page.keyboard.press("Enter")
   }
 }
