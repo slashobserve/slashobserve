@@ -4457,7 +4457,7 @@ components:
             Clients detect a restarted list by each step's `at`, not by `attempt` alone.
         phase:
           type: string
-          enum: [discover, lint, query, save, repair]
+          enum: [discover, lint, query, save, write, repair]
         tool:
           type: string
         status:

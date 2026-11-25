@@ -213,14 +213,14 @@ func (r *Registry) importGrafana(ctx context.Context, input json.RawMessage) (Re
 	}
 	converted, err := r.deps.Imports.Preview(ctx, principal, req)
 	if err != nil {
-		return r.importFailed(err)
+		return r.importFailed(ctx, err)
 	}
 	if res, refused := importContentRefusal(converted.Spec); refused {
 		return res, nil
 	}
 	imported, err := r.deps.Imports.Import(ctx, principal, req)
 	if err != nil {
-		return r.importFailed(err)
+		return r.importFailed(ctx, err)
 	}
 	return success(importStep(imported), newImportedOut(r.deps.PublicURL, imported)), nil
 }
@@ -309,7 +309,7 @@ func parseImportFolder(raw *string) (string, Result, bool) {
 	return title, Result{}, true
 }
 
-func (r *Registry) importFailed(err error) (Result, error) {
+func (r *Registry) importFailed(ctx context.Context, err error) (Result, error) {
 	var input *grafana.InputError
 	var unresolved *imports.UnresolvedError
 	var already *imports.AlreadyImportedError
@@ -345,5 +345,5 @@ func (r *Registry) importFailed(err error) (Result, error) {
 	if res, ok := createFolderFailure(err); ok {
 		return res, nil
 	}
-	return saveFailure(err)
+	return saveFailure(ctx, err)
 }

@@ -33,12 +33,12 @@ const (
 
 	defaultWindow = time.Hour
 
-	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words that answers with the names and numbers that show it, plus up to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with one plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so run reads together and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link."
+	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words answering with the names and numbers that show it, plus, with counts, 1 to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with a plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read and say what you did not check; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so batch reads and name a refused read in the finding as not read. Cite an observation you read by title and /o/<id> link."
 	descFindingAskOn    = " A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
 	descSaveFinding     = descFindingBase + descFindingAskOn
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
-	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"Up to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
+	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"1 to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
 	propFindingFrom     = `"from":{"type":"string","description":"Start of the evidence window: now-1h or an RFC 3339 time."}`
 	propFindingTo       = `"to":{"type":"string","description":"End of the evidence window: now or an RFC 3339 time."}`
 
@@ -138,7 +138,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil
 	}
-	if res, ok := restrictedRefusal(err); ok {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if err != nil {

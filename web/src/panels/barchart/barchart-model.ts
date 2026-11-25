@@ -367,6 +367,19 @@ function seriesLabelsByFrame(
   return new Map(named.map(({ frame }, index) => [frame, labels[index]]))
 }
 
+function instantColumnName(
+  frame: PreparedFrame,
+  field: PreparedField,
+  fields: FieldResolver,
+  hasText: boolean,
+  seriesLabel: string | undefined
+): string {
+  if (field.headedBySeriesName) {
+    return seriesLabel ?? fields.displayName(frame, field)
+  }
+  return hasText ? fields.displayName(frame, field) : field.name
+}
+
 function instantBarSource(
   panel: DataPanel,
   frames: PreparedFrame[],
@@ -407,8 +420,13 @@ function instantBarSource(
       if (column === undefined) {
         column = columnOf(frame, field, fields, {
           key: uniqueKey(seen, seriesKey(frame, field.name)),
-          name:
-            text === undefined ? field.name : fields.displayName(frame, field),
+          name: instantColumnName(
+            frame,
+            field,
+            fields,
+            text !== undefined,
+            field === first ? seriesLabels.get(frame) : undefined
+          ),
           slot: columns.size,
           byCategory: new Map(),
           colors: new Map(),

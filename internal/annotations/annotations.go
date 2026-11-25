@@ -183,7 +183,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	if err := s.checkPanel(ctx, clean); err != nil {
 		return Annotation{}, err
 	}
-	creator := actor.Of(by, origin.From(ctx), "")
+	creator := actor.In(ctx, by, "")
 	if _, err := db.ParseUUID(creator.ID); err != nil {
 		return Annotation{}, ErrForbidden
 	}
@@ -220,14 +220,14 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 	if text == a.Text && slices.Equal(tags, a.Tags) {
 		return s.store.named(ctx, id)
 	}
-	return s.store.update(ctx, id, text, tags, actor.Of(by, origin.From(ctx), ""))
+	return s.store.update(ctx, id, text, tags, actor.In(ctx, by, ""))
 }
 
 func (s *Service) Delete(ctx context.Context, by auth.Principal, id pgtype.UUID) error {
 	if _, err := s.mayChange(ctx, by, id); err != nil {
 		return err
 	}
-	return s.store.remove(ctx, id, actor.Of(by, origin.From(ctx), ""))
+	return s.store.remove(ctx, id, actor.In(ctx, by, ""))
 }
 
 func (s *Service) mayChange(ctx context.Context, by auth.Principal, id pgtype.UUID) (Annotation, error) {

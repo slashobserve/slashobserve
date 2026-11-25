@@ -6,6 +6,9 @@ import { defineConfig } from "vite"
 
 const devServer = "http://localhost:8080"
 
+const gridPackages =
+  /node_modules[\\/](ag-grid-community|ag-grid-react|ag-stack)[\\/]/
+
 const vendorPackages =
   /node_modules[\\/](react|react-dom|scheduler|@tanstack|@base-ui|@floating-ui|zustand|lucide-react|openapi-fetch|sonner|cn|class-variance-authority|use-sync-external-store)[\\/]/
 
@@ -22,7 +25,10 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         codeSplitting: {
-          groups: [{ name: "vendor", test: vendorPackages, priority: 2 }],
+          groups: [
+            { name: "grid", test: gridPackages, priority: 1 },
+            { name: "vendor", test: vendorPackages, priority: 2 },
+          ],
         },
       },
     },

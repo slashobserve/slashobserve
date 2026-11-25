@@ -12,7 +12,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Restyle every new one to the M1 rules before commit: controls `rounded-control` and `h-8`, popups and dialogs `border border-border` with no shadow, ring or backdrop blur, badges never pill-shaped, focus a solid 2px `ring-ring`.
 - Import `cn` only from `@/lib/utils`, which knows the custom `control` and `card` radii.
   A generated file that imports `cn` from `cn` is rewritten in the same restyle.
-- Workspace pages are built from `PageHeader`, `TableCard` (`HeaderCell`, `Cell`), `StatusLabel` and `RelativeTime` in `web/src/components`.
+- Workspace pages are built from `PageHeader`, `DataGrid` (`web/src/components/data-grid/`), `StatusLabel` and `RelativeTime` in `web/src/components`.
 - `web/src/routeTree.gen.ts`, `web/src/spec/*.gen.ts` and `web/src/api/schema.gen.ts` are generated; commit them, never edit them.
   The route tree comes from the Vite plugin on `dev` and `build`, the other two from `make generate`.
 - Import the Spec only from `web/src/spec/index.ts`, and keep `web/src/spec` free of app imports so it can become the `@slashobserve/spec` package.
@@ -20,6 +20,7 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
   Editors validate through `useSpecValidator()` or `await loadSpecValidator()`, never a static import, so the 1.3 MB validator stays out of the initial bundle; only `web/src/spec` tests, editor tests and `scripts/check-spec-fixtures.mjs` import `web/src/spec/validate.ts` directly.
 - A route's `pendingComponent` lives in its own small module, because the router keeps it in the entry chunk.
   Vendor code goes to one chunk through the named-package `vendor` group in `web/vite.config.ts`; never add a catch-all group, which pulls lazy chunks into the entry.
+  AG Grid goes to its own `grid` group, loaded only by the routes that draw a grid; it keeps a lower priority than `vendor`, because a group with the higher priority also takes the shared packages it imports, such as React, and every chunk then loads the grid.
 - Vitest covers pure helpers (`*.test.ts` next to the code) and, under happy-dom with Testing Library, components whose behaviour is not a pure helper (`*.test.tsx`).
   A test that reads files from disk opts out of the DOM with `// @vitest-environment node`.
 - cmdk is deliberately not used.
@@ -168,7 +169,9 @@ The rules below are how the code applies it.
 - Use `EmptyState` for first-time and all-clear states and `LoadProblem` for errors.
   A filtered empty is one "No <things> match these filters." line with a "Clear filters" button.
 - Use `FilterToolbar` for the filter row under a page header.
-- Every workspace table is a `TableCard` with `stackOnNarrow`, so its rows become lists on a phone and nothing scrolls sideways.
+- Every workspace table is a `DataGrid`, the only place that imports AG Grid Community; ESLint rejects `<table>`, `TableCard`, the shadcn `Table`, TanStack Table and AG Grid imports anywhere else, and any `ag-grid-enterprise` import.
+  Below 899 px each row becomes a full-width card (the first column as the title, each other non-empty value with its header as a label, the action column last), so nothing scrolls sideways on a phone; the headers stay for screen readers at zero height.
+  The files still on `TableCard`, the shadcn `Table` or TanStack Table are listed by path in `waitingForDataGrid` in `web/eslint.config.js`; a file leaves the list when it moves, and none joins it.
 - Motion needs one of four reasons, named in the change: feedback, showing where something came from, making a state change legible, or bridging a change that would otherwise jump.
   Nothing opened by a key moves, and nothing a person sees a hundred times a day moves.
   The one exception is arranging the dashboard grid: the panel being dragged or resized, its placeholder and the neighbours settling around it slide with `transform` over `--duration-panel`, and stay still under reduced motion.

@@ -216,6 +216,7 @@ type Props = {
   permissions: Pick<DashboardPermissions, "comment" | "edit">
   idle: boolean
   modeTexts?: ModeTexts
+  reserve?: boolean
 }
 
 const toolClass =
@@ -270,6 +271,7 @@ export function CanvasTools({
   permissions,
   idle,
   modeTexts = dashboardModeTexts,
+  reserve = false,
 }: Props) {
   const tool = useCanvasTool((state) => state.tool)
   const setTool = useCanvasTool((state) => state.setTool)
@@ -293,6 +295,7 @@ export function CanvasTools({
           idle={idle}
           mayAsk={mayAsk}
           modeTexts={modeTexts}
+          reserve={reserve}
           leave={leave}
         />
       ) : null}
@@ -305,12 +308,14 @@ function ToolBar({
   idle,
   mayAsk,
   modeTexts,
+  reserve,
   leave,
 }: {
   active: CanvasTool
   idle: boolean
   mayAsk: boolean
   modeTexts: ModeTexts
+  reserve: boolean
   leave: (to: Leaving) => void
 }) {
   const bar = (
@@ -318,7 +323,7 @@ function ToolBar({
       role="toolbar"
       aria-label="Canvas tools"
       data-tool={active}
-      className="flex h-10 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
+      className="pointer-events-auto flex h-10 items-center gap-1 rounded-control border border-border bg-popover px-1.5 text-popover-foreground"
     >
       <ToolButton
         tool="select"
@@ -351,7 +356,7 @@ function ToolBar({
         "sticky bottom-0 z-30 narrow:hidden",
         docked
           ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
-          : "h-0"
+          : cn("pointer-events-none", reserve ? "h-18" : "h-0")
       )}
     >
       <div
