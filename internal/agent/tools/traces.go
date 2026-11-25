@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -23,13 +24,15 @@ const (
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
 
+	approximateQuantilesNote = "Tempo quantiles are interpolated from its log-scale duration buckets, so treat them as approximate. The histogram lists bucket upper bounds, not quantiles."
+
 	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
-	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Use it to see whether latency or errors moved before reading single traces."
+	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Also returns p50, p95 and p99 for the whole range (a window block), and with group_by on Tempo, the same per value of one attribute such as resource.service.name (top 20 by span count). Tempo quantiles are interpolated from log-scale duration buckets, so they are approximate, and the histogram holds bucket upper bounds, not quantiles. Use it to see whether latency or errors moved before reading single traces, or to compare services on one footing."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
 	schemaGetTrace   = `{"type":"object","properties":{` + propDatasource + `,"trace_id":{"type":"string","description":"The trace id as 16 or 32 hex characters."},` + propTraceFrom + `,` + propTo + `},"required":["datasource","trace_id"],"additionalProperties":false}`
 	propTraceFilter  = `"query":{"type":"string","description":"A TraceQL spanset filter such as { resource.service.name = \"checkout\" } on Tempo, {} for every span; a SQL boolean condition over otel_traces on ClickHouse such as ServiceName = 'checkout' AND Duration > 1000000, not a SELECT; empty for every span."}`
-	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."}},"required":["datasource","query"],"additionalProperties":false}`
+	schemaTraceStats = `{"type":"object","properties":{` + propDatasource + `,` + propTraceFilter + `,` + propFrom + `,` + propTo + `,"buckets":{"type":"integer","minimum":1,"maximum":60,"description":"The most time buckets wanted. Default 60."},"group_by":{"type":"string","maxLength":128,"description":"Tempo only: one TraceQL attribute to group span counts, errors and p50, p95 and p99 by over the whole range, such as resource.service.name, span.http.route or .http.method, or name, status or kind."}},"required":["datasource","query"],"additionalProperties":false}`
 )
 
 func init() { registerEntries((*Registry).traceEntries) }
@@ -378,6 +381,24 @@ type traceStatsOut struct {
 	Errors    int64               `json:"errors"`
 	Buckets   []traceBucketOut    `json:"buckets"`
 	Histogram []durationBucketOut `json:"histogram"`
+	Window    *traceQuantilesOut  `json:"window,omitempty"`
+	GroupBy   string              `json:"group_by,omitempty"`
+	Groups    []traceGroupOut     `json:"groups,omitempty"`
+	Truncated bool                `json:"groups_truncated,omitempty"`
+	Note      string              `json:"note,omitempty"`
+}
+
+type traceQuantilesOut struct {
+	P50MS *float64 `json:"p50_ms"`
+	P95MS *float64 `json:"p95_ms"`
+	P99MS *float64 `json:"p99_ms"`
+}
+
+type traceGroupOut struct {
+	Value  string `json:"value"`
+	Spans  int64  `json:"spans"`
+	Errors int64  `json:"errors"`
+	traceQuantilesOut
 }
 
 type traceBucketOut struct {
@@ -401,6 +422,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 		From       string  `json:"from"`
 		To         string  `json:"to"`
 		Buckets    *int    `json:"buckets"`
+		GroupBy    string  `json:"group_by"`
 	}
 	if res, ok := decodeInput(input, &in); !ok {
 		return res, nil
@@ -441,7 +463,7 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 		return datasourceFailure(stepName, err)
 	}
 	defer release()
-	stats, err := source.TraceStats(ctx, datasource.TraceStatsRequest{Query: *in.Query, Range: rng, Step: step, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal)})
+	stats, err := source.TraceStats(ctx, datasource.TraceStatsRequest{Query: *in.Query, GroupBy: in.GroupBy, Range: rng, Step: step, Limits: queryproxy.DraftLimits, User: queryproxy.UserFor(principal)})
 	datasource.NoteQuery(ctx, inst.UID, *in.Query, rng, len(stats.Buckets))
 	if err != nil {
 		return datasourceFailure(stepName, err)
@@ -451,17 +473,34 @@ func (r *Registry) traceStats(ctx context.Context, input json.RawMessage) (Resul
 }
 
 func newTraceStatsOut(s datasource.TraceStats) traceStatsOut {
-	out := traceStatsOut{StepMS: s.Step.Milliseconds(), Partial: s.Partial, Spans: s.Spans, Errors: s.Errors, Buckets: make([]traceBucketOut, len(s.Buckets)), Histogram: make([]durationBucketOut, len(s.Histogram))}
+	out := traceStatsOut{StepMS: s.Step.Milliseconds(), Partial: s.Partial, Spans: s.Spans, Errors: s.Errors, Buckets: make([]traceBucketOut, len(s.Buckets)), Histogram: make([]durationBucketOut, len(s.Histogram)), GroupBy: s.GroupBy, Truncated: s.GroupsTruncated, Note: s.Note}
 	for i, b := range s.Buckets {
 		out.Buckets[i] = traceBucketOut{Start: b.Start.UTC().Format(time.RFC3339), Spans: b.Spans, Errors: b.Errors, P50MS: b.P50, P95MS: b.P95, P99MS: b.P99}
 	}
 	for i, b := range s.Histogram {
 		out.Histogram[i] = durationBucketOut{LeMS: b.LeMS, Count: b.Count}
 	}
+	if s.Window != nil {
+		q := quantilesOut(*s.Window)
+		out.Window = &q
+	}
+	for _, g := range s.Groups {
+		out.Groups = append(out.Groups, traceGroupOut{Value: g.Value, Spans: g.Spans, Errors: g.Errors, traceQuantilesOut: quantilesOut(g.TraceQuantiles)})
+	}
+	if s.Window != nil || len(s.Groups) > 0 {
+		out.Note = strings.TrimSpace(approximateQuantilesNote + " " + out.Note)
+	}
 	return out
 }
 
+func quantilesOut(q datasource.TraceQuantiles) traceQuantilesOut {
+	return traceQuantilesOut{P50MS: q.P50, P95MS: q.P95, P99MS: q.P99}
+}
+
 func describeP95(s datasource.TraceStats) string {
+	if s.Window != nil {
+		return formatP95(s.Window.P95)
+	}
 	var worst *float64
 	for _, b := range s.Buckets {
 		if b.P95 != nil && (worst == nil || *b.P95 > *worst) {
@@ -471,5 +510,12 @@ func describeP95(s datasource.TraceStats) string {
 	if worst == nil {
 		return "n/a"
 	}
-	return strconv.FormatFloat(*worst, 'f', 1, 64) + " ms"
+	return formatP95(worst) + " in the peak bucket"
+}
+
+func formatP95(p *float64) string {
+	if p == nil {
+		return "n/a"
+	}
+	return strconv.FormatFloat(*p, 'f', 1, 64) + " ms"
 }
