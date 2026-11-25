@@ -86,7 +86,10 @@ export function followNavigationWithInbox(router: AnyRouter) {
 }
 
 function shown(element: HTMLElement): boolean {
-  return element.isConnected && element.checkVisibility()
+  return (
+    element.isConnected &&
+    (element.checkVisibility?.() ?? element.offsetParent !== null)
+  )
 }
 
 export function returnFocusFromInbox(opener: HTMLElement | null): void {

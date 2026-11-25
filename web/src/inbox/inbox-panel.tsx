@@ -160,8 +160,8 @@ function InboxCard() {
   })
 
   function closeToOpener() {
-    returnFocusFromInbox(opener)
     close()
+    returnFocusFromInbox(opener)
   }
 
   function toggleExpanded(item: InboxItem) {

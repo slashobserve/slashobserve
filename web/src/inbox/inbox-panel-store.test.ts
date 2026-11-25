@@ -106,6 +106,27 @@ describe("returnFocusFromInbox", () => {
     expect(hidden).not.toHaveFocus()
     expect(shown).toHaveFocus()
   })
+
+  it("falls back to offsetParent where checkVisibility is missing", () => {
+    const opener = button()
+    Object.defineProperty(opener, "checkVisibility", { value: undefined })
+    Object.defineProperty(opener, "offsetParent", { value: document.body })
+
+    returnFocusFromInbox(opener)
+
+    expect(opener).toHaveFocus()
+  })
+
+  it("treats an element with no offsetParent as hidden where checkVisibility is missing", () => {
+    const bell = button({ "data-inbox-bell": "" })
+    const opener = button()
+    Object.defineProperty(opener, "checkVisibility", { value: undefined })
+    Object.defineProperty(opener, "offsetParent", { value: null })
+
+    returnFocusFromInbox(opener)
+
+    expect(bell).toHaveFocus()
+  })
 })
 
 describe("closeInboxIfOpen", () => {
