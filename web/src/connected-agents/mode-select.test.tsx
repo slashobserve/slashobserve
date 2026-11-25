@@ -137,6 +137,19 @@ describe("ModeSelect", () => {
       expect(within(everyone).getByText("Direct")).toBeTruthy()
     )
     expect(screen.queryByRole("combobox")).toBeNull()
+    expect(
+      within(everyone).getByRole("columnheader", { name: "Person" })
+    ).toBeTruthy()
+    expect(
+      within(everyone).getByText("Ada Lovelace (ada@example.com)")
+    ).toBeTruthy()
+  })
+
+  it("leaves the person column out of the person's own list", async () => {
+    mockServer()
+    renderWithProviders(<ConnectedAgentsSection />, { route })
+    await screen.findByRole("combobox", { name: "Mode for Claude Code" })
+    expect(screen.queryByRole("columnheader", { name: "Person" })).toBeNull()
   })
 
   it("keeps the everyone's list out of the person's own section", async () => {

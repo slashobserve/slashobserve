@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router"
 
 import { instanceQuery } from "@/api/instance"
 import { RelativeTime } from "@/components/relative-time"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CodeSnippet } from "@/service-accounts/code-snippet"
@@ -175,6 +175,93 @@ function MoreButton({
   )
 }
 
+function grantColumns(scope: GrantScope): DataGridColumn<ConnectedAgent>[] {
+  return [
+    {
+      id: "agent",
+      header: "Agent",
+      minWidth: 180,
+      flex: 1.5,
+      autoHeight: true,
+      cell: (grant) => (
+        <div className="py-2">
+          <div className="font-medium wrap-anywhere">
+            {agentName(grant.client.name)}
+          </div>
+          <div className="text-xs wrap-anywhere text-muted-foreground">
+            {grant.client.redirect_host}
+          </div>
+        </div>
+      ),
+    },
+    ...(scope === "all"
+      ? [
+          {
+            id: "person",
+            header: "Person",
+            minWidth: 200,
+            flex: 1.5,
+            autoHeight: true,
+            cell: (grant: ConnectedAgent) => (
+              <span className="py-2 wrap-anywhere text-muted-foreground">
+                {`${grant.person.name} (${grant.person.email})`}
+              </span>
+            ),
+          },
+        ]
+      : []),
+    {
+      id: "mode",
+      header: "Mode",
+      minWidth: 150,
+      cell: (grant) =>
+        scope === "mine" ? (
+          <ModeSelect
+            grantId={grant.id}
+            mode={grant.mode}
+            name={agentName(grant.client.name)}
+          />
+        ) : (
+          <span className="text-muted-foreground">{modeLabel(grant.mode)}</span>
+        ),
+    },
+    {
+      id: "connected",
+      header: "Connected",
+      minWidth: 150,
+      cell: (grant) => (
+        <span className="text-muted-foreground">
+          Connected <RelativeTime iso={grant.created_at} />
+        </span>
+      ),
+    },
+    {
+      id: "lastUsed",
+      header: "Last used",
+      minWidth: 150,
+      cell: (grant) => (
+        <span className="text-muted-foreground">
+          {grant.last_used_at === null ? (
+            "Not used yet"
+          ) : (
+            <>
+              Last used <RelativeTime iso={grant.last_used_at} />
+            </>
+          )}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      action: true,
+      align: "right",
+      width: 140,
+      cell: (grant) => <DisconnectButton grant={grant} scope={scope} />,
+    },
+  ]
+}
+
 function GrantsTable({
   grants,
   scope,
@@ -185,71 +272,13 @@ function GrantsTable({
   label: string
 }) {
   return (
-    <TableCard
+    <DataGrid
       label={label}
-      minWidth={scope === "all" ? 720 : 600}
-      stackOnNarrow
-      className="rounded-none border-0 border-t bg-transparent"
-    >
-      <thead>
-        <tr>
-          <HeaderCell>Agent</HeaderCell>
-          {scope === "all" ? <HeaderCell>Person</HeaderCell> : null}
-          <HeaderCell>Mode</HeaderCell>
-          <HeaderCell>Connected</HeaderCell>
-          <HeaderCell>Last used</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
-      <tbody>
-        {grants.map((grant) => (
-          <tr key={grant.id}>
-            <Cell>
-              <div className="font-medium wrap-anywhere">
-                {agentName(grant.client.name)}
-              </div>
-              <div className="text-xs wrap-anywhere text-muted-foreground">
-                {grant.client.redirect_host}
-              </div>
-            </Cell>
-            {scope === "all" ? (
-              <Cell className="wrap-anywhere text-muted-foreground">
-                {`${grant.person.name} (${grant.person.email})`}
-              </Cell>
-            ) : null}
-            <Cell
-              className={scope === "all" ? "text-muted-foreground" : undefined}
-            >
-              {scope === "mine" ? (
-                <ModeSelect
-                  grantId={grant.id}
-                  mode={grant.mode}
-                  name={agentName(grant.client.name)}
-                />
-              ) : (
-                modeLabel(grant.mode)
-              )}
-            </Cell>
-            <Cell className="text-muted-foreground">
-              Connected <RelativeTime iso={grant.created_at} />
-            </Cell>
-            <Cell className="text-muted-foreground">
-              {grant.last_used_at === null ? (
-                "Not used yet"
-              ) : (
-                <>
-                  Last used <RelativeTime iso={grant.last_used_at} />
-                </>
-              )}
-            </Cell>
-            <Cell data-cell="action" className="text-right">
-              <DisconnectButton grant={grant} scope={scope} />
-            </Cell>
-          </tr>
-        ))}
-      </tbody>
-    </TableCard>
+      rows={grants}
+      columns={grantColumns(scope)}
+      rowId={(grant) => grant.id}
+      bare
+      className="border-t"
+    />
   )
 }
