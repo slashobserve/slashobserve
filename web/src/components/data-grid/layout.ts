@@ -8,9 +8,9 @@ export function gridLayout(rowCount: number): GridLayout {
   return rowCount > virtualiseAbove ? "normal" : "autoHeight"
 }
 
-export function fillHeight(viewportHeight: number, top: number): number {
+export function fillHeight(visibleHeight: number, top: number): number {
   return Math.max(
     minGridHeight,
-    Math.floor(viewportHeight - top - pageBottomGap)
+    Math.floor(visibleHeight - Math.max(0, top) - pageBottomGap)
   )
 }
