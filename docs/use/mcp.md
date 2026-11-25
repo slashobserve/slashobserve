@@ -696,7 +696,7 @@ Each datasource type answers these discovery tools:
   - `list_labels` and `list_label_values` for stream labels, narrowed by a stream selector in `metric`.
   - `sample_rows` for up to 20 lines of the last 15 minutes, from every stream or from a stream selector in `table`.
   - `list_metrics` with a stream selector as `scope`.
-- Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`.
+- Tempo: `list_labels` and `list_label_values` for TraceQL attributes, and `get_schema` for every service with its span names as `columns` and `rows`, plus `attributes`, read over the last hour; `list_labels` and `list_label_values` read the same hour unless you pass `from` and `to`.
 - Jaeger: `list_label_values` for the services, or for the operations of one service with `service=checkout` as `metric`, and `get_schema` for every service with its span names as `columns` and `rows`.
   Tags are free-form and are not listed.
 - Elasticsearch and OpenSearch:

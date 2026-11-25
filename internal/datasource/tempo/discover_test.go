@@ -162,12 +162,6 @@ func TestDiscoverTagsSendTheRange(t *testing.T) {
 			t.Fatalf("%s: sent start %q end %q, want unix seconds with the end rounded up", req.Kind, got.Get("start"), got.Get("end"))
 		}
 	}
-	if _, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverLabels}); err != nil {
-		t.Fatal(err)
-	}
-	if got := fake.last(t).params; got.Has("start") || got.Has("end") {
-		t.Fatalf("a request without a range sent start %q end %q", got.Get("start"), got.Get("end"))
-	}
 }
 
 func TestDiscoverSpansKeepsServiceOrderAndRunsAtMostFourAtOnce(t *testing.T) {
@@ -235,5 +229,57 @@ func TestDiscoverKeepsTheUnsupportedKinds(t *testing.T) {
 		if _, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: kind}); err == nil || !strings.Contains(err.Error(), "not supported by tempo") {
 			t.Errorf("%s: err = %v", kind, err)
 		}
+	}
+}
+
+func recentOnlyTempo(t *testing.T) *tempo.Datasource {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !r.URL.Query().Has("start") || !r.URL.Query().Has("end") {
+			_, _ = w.Write([]byte(`{"tagValues":[],"scopes":[]}`))
+			return
+		}
+		switch r.URL.Path {
+		case tagsPath:
+			_, _ = w.Write([]byte(tagsBody))
+		case servicesPath:
+			_, _ = w.Write([]byte(tagValuesBody("checkout", "frontend")))
+		case spanNamePath:
+			_, _ = w.Write([]byte(tagValuesBody("charge")))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := tempo.New(tempo.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	return ds
+}
+
+func TestDiscoverWithoutARangeReadsTheLastHour(t *testing.T) {
+	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	ctx := datasource.WithNow(context.Background(), now)
+	ds, fake := serve(t, map[string]reply{tagsPath: {0, tagsBody}, servicesPath: {0, tagValuesBody("checkout")}})
+	for _, kind := range []datasource.DiscoverKind{datasource.DiscoverLabels, datasource.DiscoverLabelValues} {
+		if _, err := ds.Discover(ctx, datasource.DiscoverRequest{Kind: kind, Label: "resource.service.name"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := fake.last(t).params; got.Get("start") != "1793962800" || got.Get("end") != "1793966400" {
+			t.Fatalf("%s: sent start %q end %q, want the hour before now", kind, got.Get("start"), got.Get("end"))
+		}
+	}
+}
+
+func TestDiscoverSpansWithoutARangeFindsServicesThatHaveLeftTheIngesters(t *testing.T) {
+	ds := recentOnlyTempo(t)
+	got, err := ds.Discover(context.Background(), datasource.DiscoverRequest{Kind: datasource.DiscoverTables})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []any{"checkout", "frontend"}; !reflect.DeepEqual(got.Sample.Fields[0].Values, want) {
+		t.Fatalf("services = %v, want %v", got.Sample.Fields[0].Values, want)
 	}
 }

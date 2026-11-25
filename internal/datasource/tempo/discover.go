@@ -16,6 +16,7 @@ import (
 
 const (
 	discoverTimeout        = 10 * time.Second
+	defaultDiscoverWindow  = time.Hour
 	intrinsicScope         = "intrinsic"
 	serviceTag             = "resource.service.name"
 	maxSchemaServices      = 30
@@ -47,17 +48,22 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 	ctx, cancel := bound(ctx, discoverTimeout)
 	defer cancel()
 	limit := req.EffectiveLimit()
+	rng := req.Range
+	if rng.From.IsZero() {
+		now := datasource.Now(ctx)
+		rng = datasource.TimeRange{From: now.Add(-defaultDiscoverWindow), To: now}
+	}
 	switch req.Kind {
 	case datasource.DiscoverTables:
-		return d.discoverSpans(ctx, req.Range)
+		return d.discoverSpans(ctx, rng)
 	case datasource.DiscoverLabels:
-		names, err := d.tagNames(ctx, req.Metric, req.Range)
+		names, err := d.tagNames(ctx, req.Metric, rng)
 		if err != nil {
 			return nil, err
 		}
 		return &datasource.Catalog{Labels: filterSortLimit(names, req.Search, limit)}, nil
 	}
-	values, err := d.tagValues(ctx, req.Label, req.Metric, req.Range)
+	values, err := d.tagValues(ctx, req.Label, req.Metric, rng)
 	if err != nil {
 		return nil, err
 	}
