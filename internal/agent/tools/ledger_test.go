@@ -82,6 +82,18 @@ func TestTheLedgerToolIsRefusedOutsideAnInvestigation(t *testing.T) {
 	}
 }
 
+func TestTheLedgerToolOutsideARunIsRefusedWithItsOwnHint(t *testing.T) {
+	ctx := auth.WithPrincipal(context.Background(), auth.Principal{Kind: auth.KindUser, Role: auth.RoleViewer})
+	res, err := ledgerRegistry().Call(ctx, nameNoteHypotheses, json.RawMessage(`{"hypotheses":[]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := toJSON(t, res.Content)
+	if !res.IsError || !strings.Contains(text, "note_hypotheses runs inside the agent; outside an investigate run, keep the hypotheses in your own notes") {
+		t.Fatalf("result = %s", text)
+	}
+}
+
 func toJSON(t *testing.T, v any) string {
 	t.Helper()
 	raw, err := json.Marshal(v)
