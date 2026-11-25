@@ -32,26 +32,31 @@ function Beside() {
 
 function Probe() {
   return (
-    <div className="@container" data-testid="shell">
+    <div
+      className="@container"
+      data-testid="shell"
+      style={{ paddingLeft: 24, paddingRight: 24 }}
+    >
       <Beside />
     </div>
   )
 }
 
 describe("useBesideDetail", () => {
-  it("follows the shell container's width across the breakpoint", () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+  it("compares the shell's content width, without its padding, to the breakpoint", () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
       function (this: HTMLElement) {
-        return {
-          width: this.dataset.testid === "shell" ? shellWidth : 0,
-        } as DOMRect
+        return this.dataset.testid === "shell" ? shellWidth : 0
       }
     )
-    shellWidth = besideDetailMinWidth - 1
+    shellWidth = besideDetailMinWidth + 47
     render(<Probe />)
     expect(screen.getByRole("status")).toHaveTextContent("false")
-    shellWidth = besideDetailMinWidth
+    shellWidth = besideDetailMinWidth + 48
     act(() => resize())
     expect(screen.getByRole("status")).toHaveTextContent("true")
+    shellWidth = besideDetailMinWidth + 47
+    act(() => resize())
+    expect(screen.getByRole("status")).toHaveTextContent("false")
   })
 })

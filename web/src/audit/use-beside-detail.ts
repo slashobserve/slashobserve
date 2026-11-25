@@ -6,6 +6,15 @@ function shellOf(element: HTMLElement): HTMLElement {
   return element.closest<HTMLElement>("[class~='@container']") ?? element
 }
 
+function contentWidth(element: HTMLElement): number {
+  const style = getComputedStyle(element)
+  return (
+    element.clientWidth -
+    parseFloat(style.paddingLeft || "0") -
+    parseFloat(style.paddingRight || "0")
+  )
+}
+
 export function useBesideDetail(ref: RefObject<HTMLElement | null>): boolean {
   const [beside, setBeside] = useState(false)
   useLayoutEffect(() => {
@@ -13,7 +22,7 @@ export function useBesideDetail(ref: RefObject<HTMLElement | null>): boolean {
     if (element === null) return
     const shell = shellOf(element)
     function measure() {
-      setBeside(shell.getBoundingClientRect().width >= besideDetailMinWidth)
+      setBeside(contentWidth(shell) >= besideDetailMinWidth)
     }
     measure()
     if (typeof ResizeObserver === "undefined") return
