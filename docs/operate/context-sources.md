@@ -16,7 +16,7 @@ The agent's use of approved tools is a separate step and is not covered here.
 2. Choose **Add source** and fill in the form:
    - **Id**, which names the source in the CLI and the audit log and cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
-   - **Name**, shown in lists, at most 100 characters.
+   - **Name**, shown in lists, at most 100 characters without control or format characters.
      It defaults to the id.
    - **Address**, the server's `https` MCP address with a domain name, no login, no query and no fragment.
    - **Who can use its tools**, either **Everyone** or **Admins only**.
@@ -68,7 +68,7 @@ Changing the address to another host needs the secret again, or removes it, so a
 **Discover** asks the server for its tools and compares them with what is stored.
 It never approves anything.
 The result lists how many tools were found, new, changed, gone or ignored.
-A tool whose name is empty, longer than 128 bytes, uses characters outside letters, digits, `_`, `.` and `-`, or repeats another tool's name is ignored.
+A tool whose name is empty, longer than 128 bytes, uses characters outside letters, digits, `_`, `.` and `-`, has no letter or digit, or repeats another tool's name is ignored.
 A server that lists more than 200 tools fails the discovery with `too_many_tools`.
 
 Each tool is in one state:
@@ -98,6 +98,8 @@ A source is `unchecked` until its first discovery, `unreachable` when the last d
 A failed discovery answers `200` with the failure code in `failure`: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
 Changing the address or the secret resets the check.
 Changing the address also deletes the stored tools, so approvals never carry over to another server.
+A change cannot send an empty `secret`, or an empty `secret_header` while a secret is stored; both answer `422 invalid_context_source`.
+Send `clear_secret` to remove the secret, with an empty `secret_header` to remove the header too.
 
 ## Provision sources from a file
 
