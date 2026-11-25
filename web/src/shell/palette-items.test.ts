@@ -26,7 +26,6 @@ describe("paletteGroups", () => {
     ])
     expect(groups[0]?.items.map((entry) => entry.label)).toEqual([
       "Home",
-      "Inbox",
       "Observations",
       "Dashboards",
       "Logs",
@@ -38,6 +37,7 @@ describe("paletteGroups", () => {
       "People",
       "Audit",
       "Settings",
+      "Inbox",
     ])
     expect(groups[1]?.items.map((entry) => entry.id)).toEqual(
       thirty.slice(0, 8).map((dashboard) => dashboard.id)
@@ -135,7 +135,6 @@ describe("paletteGroups", () => {
     )
     expect(labels).toEqual([
       "Home",
-      "Inbox",
       "Observations",
       "Dashboards",
       "Logs",
@@ -143,6 +142,7 @@ describe("paletteGroups", () => {
       "Metrics",
       "Agents",
       "Settings",
+      "Inbox",
     ])
     expect(paletteGroups("people", [], [], "viewer", [])).toEqual([])
     expect(paletteGroups("api keys", [], [], "editor", [])).toEqual([])

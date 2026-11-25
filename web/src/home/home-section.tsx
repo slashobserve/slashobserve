@@ -58,6 +58,15 @@ export function SectionLink({
   return <Link className={cn(textLinkClass, className)} {...props} />
 }
 
+export function SectionButton({
+  className,
+  ...props
+}: ComponentProps<"button">) {
+  return (
+    <button type="button" className={cn(textLinkClass, className)} {...props} />
+  )
+}
+
 function Note({ children }: { children: ReactNode }) {
   return <div className="rounded-card border bg-card px-4 py-3">{children}</div>
 }

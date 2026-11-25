@@ -1,13 +1,10 @@
 import {
-  memo,
   useCallback,
-  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactElement,
 } from "react"
 import {
@@ -23,15 +20,14 @@ import {
   TypeIcon,
 } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
+import { drawnColumns, drawnRows } from "@/components/data-grid/grid-dom"
 import {
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  PanelGrid,
+  footerRowId,
+  type PanelGridColumn,
+  type PanelGridHandle,
+} from "@/components/data-grid/panel-grid"
+import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
@@ -63,7 +59,6 @@ import { LinksCell } from "./cells/links"
 import { MarkdownCell } from "./cells/markdown"
 import { PillCell } from "./cells/pill"
 import { SparklineCell } from "./cells/sparkline"
-import { useRowReveal } from "./row-reveal"
 import { TextCell } from "./cells/text"
 import {
   clearFilter,
@@ -74,18 +69,18 @@ import {
 import { CellTooltip } from "./cell-tooltip"
 import { ColumnFilterMenu } from "./column-filter-menu"
 import { InspectCell } from "./inspect-cell"
-import { rowWindow, windows } from "./row-window"
 import {
   alignOf,
   columnWidths,
+  footerRowPx,
   frozenCount,
+  headerPx,
   initialSort,
   pageRows,
   pageSizeFor,
   rowHeightOf,
   rowHeightPx,
   rowSizing,
-  stickyOffsets,
   tooltipSideOf,
   typeWord,
   type Align,
@@ -106,6 +101,7 @@ import {
   sparklineAt,
   tableModel,
   type Cell,
+  type FooterRow,
   type NestedRows,
   type TableColumn,
   type TableRow as ModelRow,
@@ -113,7 +109,8 @@ import {
 
 const maxRows = 1000
 const expandWidth = 32
-const overscanRows = 10
+const expandColumnId = "expand"
+const nestedRowPx = 25
 
 const typeIcons = {
   number: HashIcon,
@@ -149,11 +146,6 @@ type ColumnView = {
   hideHeader: boolean
   wrapHeader: boolean
   description: string | undefined
-  left: number | null
-}
-
-function stickyStyle(left: number | null): CSSProperties | undefined {
-  return left === null ? undefined : { position: "sticky", left }
 }
 
 function compareValues(a: unknown, b: unknown): number {
@@ -164,26 +156,56 @@ function compareValues(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "en", { numeric: true })
 }
 
+function cellFill(
+  fields: FieldResolver,
+  views: readonly ColumnView[],
+  column: TableColumn,
+  row: ModelRow
+): string | null {
+  const whole = rowFill(
+    fields,
+    views.map((view) => view.column),
+    row
+  )
+  if (whole !== null) return whole
+  const spec = cellSpecAt(fields, column, row)
+  return spec.type === "background" ? cellOf(fields, column, row).color : null
+}
+
+function useFillText(fill: string | null): string | undefined {
+  useTheme()
+  return fillTextColor(fill, (value) => cssColorToRgb(resolveColor(value)))
+}
+
+function oneRowPerSource(rows: readonly ModelRow[]): ModelRow[] {
+  const seen = new Set<unknown>()
+  return rows.filter((row) => {
+    if (seen.has(row.source.frame)) return false
+    seen.add(row.source.frame)
+    return true
+  })
+}
+
+function growsWith(
+  fields: FieldResolver,
+  display: Record<string, unknown>,
+  column: TableColumn,
+  samples: readonly ModelRow[]
+): boolean {
+  return samples.some((row) => {
+    const spec = cellSpecAt(fields, column, row)
+    return (
+      rowSizing(display, spec.dynamicHeight).grows ||
+      spec.wrap ||
+      spec.type === "json"
+    )
+  })
+}
+
 type CellProps = {
   row: ModelRow
   fields: FieldResolver
   scope: LinkScope
-}
-
-type RowShared = CellProps & {
-  display: Record<string, unknown>
-  fixed: boolean
-  runner: StableActionRunner
-}
-
-type CellFrame = { fill: string | null; text: string | undefined }
-
-function useFrame(color: string | null): CellFrame {
-  useTheme()
-  return {
-    fill: color,
-    text: fillTextColor(color, (value) => cssColorToRgb(resolveColor(value))),
-  }
 }
 
 function CellContent({
@@ -259,16 +281,19 @@ function CellContent({
 
 function BodyCell({
   view,
+  views,
   row,
   fields,
   scope,
-  rowColor,
   display,
-  fixed,
+  autoHeight,
   runner,
-}: RowShared & {
+}: CellProps & {
   view: ColumnView
-  rowColor: string | null
+  views: readonly ColumnView[]
+  display: Record<string, unknown>
+  autoHeight: boolean
+  runner: StableActionRunner
 }) {
   const { column } = view
   const value = row.values[column.key]
@@ -276,9 +301,9 @@ function BodyCell({
   const spec = cellSpecAt(fields, column, row)
   const sizing = rowSizing(display, spec.dynamicHeight)
   const tooltip = cellTooltipAt(fields, column, row)
-  const ownFill = spec.type === "background" ? cell.color : null
-  const frame = useFrame(rowColor ?? ownFill)
-  const filled = frame.fill !== null
+  const fill = cellFill(fields, views, column, row)
+  const filled = fill !== null
+  const fillText = useFillText(fill)
   const links = cellLinks(fields, column, row, cell, scope)
   const actions = cellActions(fields, column, row, cell, scope)
   function runAction(action: FieldAction) {
@@ -316,46 +341,49 @@ function BodyCell({
   ) : (
     content
   )
+  const wraps = spec.wrap || sizing.grows
   return (
-    <TableCell
+    <div
       data-column={column.label}
       data-cell={spec.type}
       {...oneClick}
       data-threshold={cell.level ?? undefined}
       title={cell.word || undefined}
-      style={{
-        ...stickyStyle(view.left),
-        ...(filled
-          ? { backgroundColor: frame.fill ?? undefined, color: frame.text }
-          : undefined),
-      }}
+      style={fillText === undefined ? undefined : { color: fillText }}
       className={cn(
-        "px-2 data-one-click:cursor-pointer",
-        bodyPadding[sizing.padding],
+        "flex w-full min-w-0 items-center px-2 data-one-click:cursor-pointer",
+        autoHeight ? bodyPadding[sizing.padding] : "h-full",
+        justifyClasses[view.align],
         alignClasses[view.align],
         column.type === "number" && "tabular-nums",
-        (spec.wrap || sizing.grows) && "break-words whitespace-normal",
-        fixed && !spec.wrap && !sizing.grows && "overflow-hidden text-ellipsis",
-        view.left !== null && !filled && "bg-card",
         value === null && !filled && "text-muted-foreground"
       )}
     >
-      <CellTooltip
-        text={tooltip?.text ?? null}
-        side={tooltipSideOf(tooltip?.placement ?? "auto")}
-      >
-        {sizing.maxHeight === null ? (
-          inner
-        ) : (
-          <div
-            className="overflow-hidden"
-            style={{ maxHeight: sizing.maxHeight }}
-          >
-            {inner}
-          </div>
+      <div
+        className={cn(
+          "min-w-0",
+          wraps
+            ? "break-words whitespace-normal"
+            : "overflow-hidden text-ellipsis whitespace-nowrap"
         )}
-      </CellTooltip>
-    </TableCell>
+      >
+        <CellTooltip
+          text={tooltip?.text ?? null}
+          side={tooltipSideOf(tooltip?.placement ?? "auto")}
+        >
+          {sizing.maxHeight === null ? (
+            inner
+          ) : (
+            <div
+              className="overflow-hidden"
+              style={{ maxHeight: sizing.maxHeight }}
+            >
+              {inner}
+            </div>
+          )}
+        </CellTooltip>
+      </div>
+    </div>
   )
 }
 
@@ -374,143 +402,77 @@ function NestedTable({
     () => tableModel([nested.frame], fields, zone),
     [nested.frame, fields, zone]
   )
+  const rows = useMemo(() => model.rows.slice(0, maxRows), [model.rows])
+  const columns = useMemo(
+    () =>
+      model.columns.map((column): PanelGridColumn<ModelRow> => ({
+        id: column.key,
+        label: column.label,
+        header: () => (
+          <span
+            className={cn(
+              "w-full truncate px-2 font-medium",
+              column.type === "number" ? "text-right" : "text-left"
+            )}
+          >
+            {column.label}
+          </span>
+        ),
+        cell: (row) => (
+          <span
+            className={cn(
+              "flex h-full w-full items-center truncate px-2",
+              column.type === "number" && "justify-end tabular-nums"
+            )}
+          >
+            {cellOf(fields, column, row).text}
+          </span>
+        ),
+      })),
+    [model.columns, fields]
+  )
   return (
-    <table className="w-full" aria-label={label}>
-      {nested.headers ? (
-        <thead>
-          <tr className="border-b border-border">
-            {model.columns.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                className={cn(
-                  "px-2 py-1 font-medium",
-                  column.type === "number" ? "text-right" : "text-left"
-                )}
-              >
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-      ) : null}
-      <tbody>
-        {model.rows.slice(0, maxRows).map((row) => (
-          <tr key={row.key} className="border-b border-border last:border-b-0">
-            {model.columns.map((column) => (
-              <td
-                key={column.key}
-                className={cn(
-                  "px-2 py-1",
-                  column.type === "number" && "text-right tabular-nums"
-                )}
-              >
-                {cellOf(fields, column, row).text}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <PanelGrid
+      label={label}
+      rows={rows}
+      columns={columns}
+      rowId={rowKey}
+      rowHeight={nestedRowPx}
+      headerHeight={nested.headers ? nestedRowPx : 0}
+      height="rows"
+    />
   )
 }
 
-type Expansion = {
-  expandable: boolean
-  expanded: boolean
-  detailId: string
-  frozen: boolean
-  onToggle: (key: string) => void
-}
-
-function ExpandCell({
+function ExpandButton({
   row,
   label,
-  expansion: { detailId, expanded, frozen, onToggle },
+  expanded,
+  detailId,
+  onToggle,
 }: {
   row: ModelRow
   label: string
-  expansion: Omit<Expansion, "expandable">
+  expanded: boolean
+  detailId: string
+  onToggle: (key: string) => void
 }) {
   const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon
   return (
-    <TableCell
-      style={frozen ? stickyStyle(0) : undefined}
-      className={cn("px-1", frozen && "z-[1] bg-card")}
-    >
-      {row.nested ? (
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls={detailId}
-          aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
-          onClick={() => onToggle(row.key)}
-          className="inline-flex size-6 items-center justify-center rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <Chevron className="size-4" aria-hidden="true" />
-        </button>
-      ) : null}
-    </TableCell>
+    <span className="flex h-full items-center px-1">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={detailId}
+        aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+        onClick={() => onToggle(row.key)}
+        className="inline-flex size-6 items-center justify-center rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Chevron className="size-4" aria-hidden="true" />
+      </button>
+    </span>
   )
 }
-
-const BodyRow = memo(function BodyRow({
-  views,
-  expandable,
-  zone,
-  ariaRowIndex,
-  ...rest
-}: RowShared &
-  Expansion & {
-    views: ColumnView[]
-    zone: string | undefined
-    ariaRowIndex: number | undefined
-  }) {
-  const { expanded, detailId, frozen, onToggle, ...shared } = rest
-  const expansion = { expanded, detailId, frozen, onToggle }
-  const rowColor = rowFill(
-    shared.fields,
-    views.map((view) => view.column),
-    shared.row
-  )
-  const label = views[0]
-    ? cellOf(shared.fields, views[0].column, shared.row).text
-    : "row"
-  const { nested } = shared.row
-  return (
-    <>
-      <TableRow
-        data-body-row=""
-        data-row-key={shared.row.key}
-        aria-rowindex={ariaRowIndex}
-      >
-        {expandable ? (
-          <ExpandCell row={shared.row} label={label} expansion={expansion} />
-        ) : null}
-        {views.map((view) => (
-          <BodyCell
-            key={view.column.key}
-            view={view}
-            rowColor={rowColor}
-            {...shared}
-          />
-        ))}
-      </TableRow>
-      {expanded && nested ? (
-        <TableRow id={detailId} className="hover:bg-transparent">
-          <TableCell colSpan={views.length + 1} className="p-2 pl-8">
-            <NestedTable
-              nested={nested}
-              fields={shared.fields}
-              zone={zone}
-              label={`${label} rows`}
-            />
-          </TableCell>
-        </TableRow>
-      ) : null}
-    </>
-  )
-})
 
 function HeaderTooltip({
   text,
@@ -530,7 +492,7 @@ function HeaderTooltip({
   )
 }
 
-function HeaderCell({
+function HeaderContent({
   view,
   sort,
   showHeader,
@@ -561,124 +523,98 @@ function HeaderCell({
     [fields, column]
   )
   return (
-    <TableHead
-      aria-sort={showHeader ? (active?.direction ?? "none") : undefined}
-      style={stickyStyle(view.left)}
+    <span
       className={cn(
-        "h-8 px-2",
-        view.wrapHeader && "h-auto min-h-8 py-1 whitespace-normal",
+        "flex w-full min-w-0 items-center gap-1 px-2",
+        justifyClasses[view.align],
         alignClasses[view.align],
-        view.left !== null && "z-[1] bg-card"
+        view.align === "right" && "flex-row-reverse",
+        view.wrapHeader && "py-1"
       )}
     >
-      <span
-        className={cn(
-          "flex items-center gap-1",
-          justifyClasses[view.align],
-          view.align === "right" && "flex-row-reverse"
-        )}
-      >
-        {showHeader ? (
-          <HeaderTooltip text={view.description}>
-            <button
-              type="button"
-              onClick={() => onSort(column.key)}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-                view.align === "right" && "flex-row-reverse",
-                view.wrapHeader && "text-left break-words whitespace-normal"
-              )}
-            >
-              {showTypeIcons ? (
-                <TypeMark
-                  className="size-3 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              ) : null}
-              <span className={view.hideHeader ? "sr-only" : undefined}>
-                {column.label}
-              </span>
-              {showTypeIcons ? (
-                <span className="sr-only">, {typeWord(column.type)}</span>
-              ) : null}
-              {active?.direction === "ascending" ? (
-                <ArrowUpIcon className="size-3 shrink-0" aria-hidden="true" />
-              ) : null}
-              {active?.direction === "descending" ? (
-                <ArrowDownIcon className="size-3 shrink-0" aria-hidden="true" />
-              ) : null}
-            </button>
-          </HeaderTooltip>
-        ) : (
-          column.label
-        )}
-        {showHeader && view.filterable ? (
-          <ColumnFilterMenu
-            label={column.label}
-            rows={rows}
-            textOf={textOf}
-            kept={kept}
-            onToggle={(value) => onToggle(column.key, value)}
-            onClear={() => onClear(column.key)}
-          />
-        ) : null}
-      </span>
-    </TableHead>
+      {showHeader ? (
+        <HeaderTooltip text={view.description}>
+          <button
+            type="button"
+            onClick={() => onSort(column.key)}
+            className={cn(
+              "inline-flex min-w-0 items-center gap-1 rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+              view.align === "right" && "flex-row-reverse",
+              view.wrapHeader
+                ? "text-left break-words whitespace-normal"
+                : "truncate"
+            )}
+          >
+            {showTypeIcons ? (
+              <TypeMark
+                className="size-3 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+            ) : null}
+            <span className={view.hideHeader ? "sr-only" : undefined}>
+              {column.label}
+            </span>
+            {showTypeIcons ? (
+              <span className="sr-only">, {typeWord(column.type)}</span>
+            ) : null}
+            {active?.direction === "ascending" ? (
+              <ArrowUpIcon className="size-3 shrink-0" aria-hidden="true" />
+            ) : null}
+            {active?.direction === "descending" ? (
+              <ArrowDownIcon className="size-3 shrink-0" aria-hidden="true" />
+            ) : null}
+          </button>
+        </HeaderTooltip>
+      ) : (
+        column.label
+      )}
+      {showHeader && view.filterable ? (
+        <ColumnFilterMenu
+          label={column.label}
+          rows={rows}
+          textOf={textOf}
+          kept={kept}
+          onToggle={(value) => onToggle(column.key, value)}
+          onClear={() => onClear(column.key)}
+        />
+      ) : null}
+    </span>
+  )
+}
+
+function FooterCell({
+  footer,
+  index,
+  view,
+}: {
+  footer: FooterRow
+  index: number
+  view: ColumnView
+}) {
+  const className = cn(
+    "flex h-full w-full items-center px-2",
+    justifyClasses[view.align],
+    view.column.type === "number" && "tabular-nums"
+  )
+  if (index > 0) {
+    return <span className={className}>{footer.cells[index]}</span>
+  }
+  return (
+    <span
+      className={cn(className, "justify-between gap-2 font-medium")}
+      data-footer-label={footer.label}
+    >
+      <span>{footer.label}</span>
+      {footer.cells[0] !== null ? (
+        <span className="tabular-nums">{footer.cells[0]}</span>
+      ) : null}
+    </span>
   )
 }
 
 const noKept: ReadonlySet<string> = new Set()
 
-function SpacerRow({ height, columns }: { height: number; columns: number }) {
-  if (height <= 0) return null
-  return (
-    <tr aria-hidden="true" style={{ height }}>
-      <td colSpan={columns} className="p-0" />
-    </tr>
-  )
-}
-
-function useWindowScroll(
-  windowed: boolean,
-  rows: ModelRow[],
-  rowHeight: RowHeight
-) {
-  const regionRef = useRef<HTMLDivElement>(null)
-  const pendingFrame = useRef<number | null>(null)
-  const [scrollTop, setScrollTop] = useState(0)
-  const [measuredRowHeight, setMeasuredRowHeight] = useState<number | null>(
-    null
-  )
-
-  useEffect(
-    () => () => {
-      if (pendingFrame.current !== null) {
-        cancelAnimationFrame(pendingFrame.current)
-      }
-    },
-    []
-  )
-
-  useLayoutEffect(() => {
-    const region = regionRef.current
-    if (!windowed || region === null) return
-    setScrollTop(region.scrollTop)
-    const first = region.querySelector<HTMLElement>("[data-body-row]")
-    if (first && first.offsetHeight > 0) {
-      setMeasuredRowHeight(first.offsetHeight)
-    }
-  }, [windowed, rows, rowHeight])
-
-  const onScroll = useCallback(() => {
-    if (!windowed || pendingFrame.current !== null) return
-    pendingFrame.current = requestAnimationFrame(() => {
-      pendingFrame.current = null
-      setScrollTop(regionRef.current?.scrollTop ?? 0)
-    })
-  }, [windowed])
-
-  return { regionRef, scrollTop, measuredRowHeight, onScroll }
-}
+const rowKey = (row: ModelRow) => row.key
 
 const TablePanel: PanelRenderer = ({
   panel,
@@ -703,8 +639,10 @@ const TablePanel: PanelRenderer = ({
     null
   )
   const [filters, setFilters] = useState<ColumnFilters>(new Map())
-  const [requestedPage, setPage] = useState(0)
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  const [requestedPage, setPage] = useState(0)
+  const gridRef = useRef<PanelGridHandle>(null)
+  const regionRef = useRef<HTMLDivElement>(null)
   const { runner, dialog } = useStableActionRunner(panel.id, meta)
   const baseId = useId()
   const expandable = useMemo(
@@ -737,20 +675,19 @@ const TablePanel: PanelRenderer = ({
     [model.columns, width, frozen]
   )
 
-  const views = useMemo(() => {
-    const offsets = layout ? stickyOffsets(layout.widths, frozen) : []
-    const shift = expandable ? expandWidth : 0
-    return model.columns.map((column, index): ColumnView => ({
-      column,
-      align: alignOf(column.config.align, column.type),
-      inspect: column.config.inspect,
-      filterable: column.config.filterable,
-      hideHeader: column.config.hideHeader,
-      wrapHeader: column.config.wrapHeader,
-      description: column.config.fieldDescription,
-      left: offsets[index] === undefined ? null : offsets[index] + shift,
-    }))
-  }, [model.columns, layout, frozen, expandable])
+  const views = useMemo(
+    () =>
+      model.columns.map((column): ColumnView => ({
+        column,
+        align: alignOf(column.config.align, column.type),
+        inspect: column.config.inspect,
+        filterable: column.config.filterable,
+        hideHeader: column.config.hideHeader,
+        wrapHeader: column.config.wrapHeader,
+        description: column.config.fieldDescription,
+      })),
+    [model.columns]
+  )
 
   const filtered = useMemo(() => {
     const byKey = new Map(model.columns.map((column) => [column.key, column]))
@@ -777,62 +714,36 @@ const TablePanel: PanelRenderer = ({
     [model.columns, filtered, display]
   )
 
-  const pageSize = pageSizeFor(height, rowHeight, {
-    header: showHeader,
-    footerRows: footer.length,
-  })
-  const paged = useMemo(
+  const footerCount = footer.length
+  const pageSize = useMemo(
+    () =>
+      pageSizeFor(height, rowHeight, {
+        header: showHeader,
+        footerRows: footerCount,
+      }),
+    [height, rowHeight, showHeader, footerCount]
+  )
+  const page = useMemo(
     () => pageRows(sorted, requestedPage, pageSize),
     [sorted, requestedPage, pageSize]
   )
   const rows = useMemo(
-    () => (paginate ? paged.rows : sorted.slice(0, maxRows)),
-    [paginate, paged, sorted]
+    () => (paginate ? page.rows : sorted.slice(0, maxRows)),
+    [paginate, page, sorted]
   )
 
-  const columnsFixed = useMemo(
-    () =>
-      rows.length > 0 &&
-      views.every(({ column }) => {
-        const spec = cellSpecAt(fields, column, rows[0])
-        return !spec.wrap && !spec.dynamicHeight && spec.type !== "image"
-      }),
-    [rows, views, fields]
+  const toggleSort = useCallback(
+    (key: string) => {
+      let next: Sort | null = null
+      if (sort?.key !== key) next = { key, direction: "ascending" }
+      else if (sort.direction === "ascending") {
+        next = { key, direction: "descending" }
+      }
+      setPick({ from: initialId, sort: next })
+      setPage(0)
+    },
+    [sort, initialId]
   )
-  const windowed = windows({
-    paginate,
-    count: rows.length,
-    expandedCount: open.size,
-    grows: rowSizing(display, false).grows,
-    columnsFixed,
-  })
-  const { regionRef, scrollTop, measuredRowHeight, onScroll } = useWindowScroll(
-    windowed,
-    rows,
-    rowHeight
-  )
-  const range = windowed
-    ? rowWindow({
-        scrollTop,
-        viewport: height,
-        rowHeight: measuredRowHeight ?? rowHeightPx(rowHeight),
-        count: rows.length,
-        overscan: overscanRows,
-      })
-    : null
-  const shown = range ? rows.slice(range.start, range.end) : rows
-  const firstShown = range?.start ?? 0
-  const columnCount = views.length + (expandable ? 1 : 0)
-
-  function toggleSort(key: string) {
-    let next: Sort | null = null
-    if (sort?.key !== key) next = { key, direction: "ascending" }
-    else if (sort.direction === "ascending") {
-      next = { key, direction: "descending" }
-    }
-    setPick({ from: initialId, sort: next })
-    setPage(0)
-  }
 
   const toggleOpen = useCallback((key: string) => {
     setOpen((current) => {
@@ -842,12 +753,137 @@ const TablePanel: PanelRenderer = ({
     })
   }, [])
 
-  function changeFilters(next: ColumnFilters) {
+  const changeFilters = useCallback((next: ColumnFilters) => {
     setFilters(next)
     setPage(0)
-  }
+  }, [])
 
-  const fixed = layout !== null
+  const samples = useMemo(() => oneRowPerSource(model.rows), [model.rows])
+  const columns = useMemo(() => {
+    const firstView = views[0]
+    const labelOf = (row: ModelRow) =>
+      firstView ? cellOf(fields, firstView.column, row).text : "row"
+    const expand: PanelGridColumn<ModelRow>[] = expandable
+      ? [
+          {
+            id: expandColumnId,
+            label: "Details",
+            header: () => <span className="sr-only">Details</span>,
+            width: expandWidth,
+            pinned: frozen > 0,
+            cell: (row) =>
+              row.nested ? (
+                <ExpandButton
+                  row={row}
+                  label={labelOf(row)}
+                  expanded={open.has(row.key)}
+                  detailId={`${baseId}-${row.key}`}
+                  onToggle={toggleOpen}
+                />
+              ) : null,
+          },
+        ]
+      : []
+    return [
+      ...expand,
+      ...views.map((view, index): PanelGridColumn<ModelRow> => {
+        const key = view.column.key
+        const autoHeight = growsWith(fields, display, view.column, samples)
+        return {
+          id: key,
+          label: view.column.label,
+          header: () => (
+            <HeaderContent
+              view={view}
+              sort={sort}
+              showHeader={showHeader}
+              showTypeIcons={showTypeIcons}
+              rows={model.rows}
+              fields={fields}
+              kept={filters.get(key) ?? noKept}
+              onSort={toggleSort}
+              onToggle={(column, value) =>
+                changeFilters(toggleValue(filters, column, value))
+              }
+              onClear={(column) => changeFilters(clearFilter(filters, column))}
+            />
+          ),
+          sort: showHeader
+            ? sort?.key === key
+              ? sort.direction
+              : "none"
+            : undefined,
+          onSort: showHeader ? () => toggleSort(key) : undefined,
+          cell: (row) => (
+            <BodyCell
+              view={view}
+              views={views}
+              row={row}
+              fields={fields}
+              scope={links}
+              display={display}
+              autoHeight={autoHeight}
+              runner={runner}
+            />
+          ),
+          cellStyle: (row) => ({
+            backgroundColor: cellFill(fields, views, view.column, row) ?? "",
+          }),
+          footer: (row) => (
+            <FooterCell footer={footer[row]} index={index} view={view} />
+          ),
+          width: layout?.widths[index],
+          pinned: index < frozen,
+          autoHeight,
+          wrapHeader: showHeader && view.wrapHeader,
+        }
+      }),
+    ]
+  }, [
+    views,
+    expandable,
+    frozen,
+    open,
+    baseId,
+    toggleOpen,
+    fields,
+    display,
+    samples,
+    sort,
+    showHeader,
+    showTypeIcons,
+    model.rows,
+    filters,
+    toggleSort,
+    changeFilters,
+    links,
+    runner,
+    footer,
+    layout,
+  ])
+
+  const details = useMemo(
+    () => ({
+      open,
+      render: (row: ModelRow) => {
+        if (row.nested === null) return null
+        const label = views[0]
+          ? cellOf(fields, views[0].column, row).text
+          : "row"
+        return (
+          <div id={`${baseId}-${row.key}`} className="pl-[18px]">
+            <NestedTable
+              nested={row.nested}
+              fields={fields}
+              zone={zone}
+              label={`${label} rows`}
+            />
+          </div>
+        )
+      },
+    }),
+    [open, views, fields, baseId, zone]
+  )
 
   const rowCells = useMemo(
     () =>
@@ -859,63 +895,29 @@ const TablePanel: PanelRenderer = ({
       ),
     [paginate, sorted, rows, views, fields]
   )
-  const revealRow = useRowReveal(regionRef, paginate ? sorted : rows)
   const reveal = useCallback(
     (key: string) => {
-      const region = regionRef.current
-      if (region === null) return
-      const index = rows.findIndex((row) => row.key === key)
-      if (index < 0) {
-        const at = sorted.findIndex((row) => row.key === key)
-        if (paginate && at >= 0) setPage(Math.floor(at / pageSize))
-      } else if (windowed) {
-        const height = measuredRowHeight ?? rowHeightPx(rowHeight)
-        region.scrollTop = Math.max(0, index * height - region.clientHeight / 2)
-      }
-      revealRow(key)
+      const at = sorted.findIndex((row) => row.key === key)
+      if (paginate && at >= 0) setPage(Math.floor(at / pageSize))
+      gridRef.current?.reveal(key)
     },
-    [
-      regionRef,
-      rows,
-      sorted,
-      paginate,
-      pageSize,
-      windowed,
-      measuredRowHeight,
-      rowHeight,
-      revealRow,
-    ]
+    [sorted, paginate, pageSize]
   )
   const publish = useAnchorPublisher("table")
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     const region = regionRef.current
     if (region === null) return
-    const measure = () =>
-      publish(
-        tableAnchorLayout(region, {
-          body: { width, height },
-          views,
-          showHeader,
-          skipFirst: expandable,
-          rowCells,
-          reveal,
-        })
-      )
-    measure()
-    region.addEventListener("scroll", measure, { passive: true })
-    return () => region.removeEventListener("scroll", measure)
-  }, [
-    publish,
-    regionRef,
-    width,
-    height,
-    views,
-    showHeader,
-    expandable,
-    rowCells,
-    reveal,
-    shown,
-  ])
+    publish(
+      tableAnchorLayout(region, {
+        body: { width, height },
+        views,
+        showHeader,
+        rowCells,
+        reveal,
+      })
+    )
+  }, [publish, width, height, views, showHeader, rowCells, reveal])
+  useLayoutEffect(measure, [measure])
 
   return (
     <div className="flex flex-col text-xs" style={{ width, height }}>
@@ -923,156 +925,40 @@ const TablePanel: PanelRenderer = ({
         ref={regionRef}
         role="region"
         aria-label={`${panel.title} table`}
-        tabIndex={0}
-        onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="min-h-0 flex-1"
       >
-        <table
-          data-slot="table"
-          aria-rowcount={range ? rows.length + 1 : undefined}
-          className={cn("caption-bottom", !fixed && "w-full")}
-          style={
-            layout
-              ? {
-                  tableLayout: "fixed",
-                  width: layout.total + (expandable ? expandWidth : 0),
-                }
-              : undefined
-          }
-        >
-          {layout ? (
-            <colgroup>
-              {expandable ? <col style={{ width: expandWidth }} /> : null}
-              {layout.widths.map((columnWidth, index) => (
-                <col
-                  key={views[index].column.key}
-                  style={{ width: columnWidth }}
-                />
-              ))}
-            </colgroup>
-          ) : null}
-          <TableHeader
-            className={
-              showHeader
-                ? "sticky top-0 z-10 bg-card shadow-[0_1px_0_var(--border)]"
-                : "sr-only"
-            }
-          >
-            <TableRow className="hover:bg-transparent">
-              {expandable ? (
-                <TableHead
-                  style={frozen > 0 ? stickyStyle(0) : undefined}
-                  className={cn("h-8 px-1", frozen > 0 && "z-[1] bg-card")}
-                >
-                  <span className="sr-only">Details</span>
-                </TableHead>
-              ) : null}
-              {views.map((view) => (
-                <HeaderCell
-                  key={view.column.key}
-                  view={view}
-                  sort={sort}
-                  showHeader={showHeader}
-                  showTypeIcons={showTypeIcons}
-                  rows={model.rows}
-                  fields={fields}
-                  kept={filters.get(view.column.key) ?? noKept}
-                  onSort={toggleSort}
-                  onToggle={(key, value) =>
-                    changeFilters(toggleValue(filters, key, value))
-                  }
-                  onClear={(key) => changeFilters(clearFilter(filters, key))}
-                />
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <SpacerRow height={range?.before ?? 0} columns={columnCount} />
-            {shown.map((row, index) => (
-              <BodyRow
-                key={row.key}
-                ariaRowIndex={range ? firstShown + index + 2 : undefined}
-                views={views}
-                row={row}
-                fields={fields}
-                scope={links}
-                display={display}
-                fixed={fixed}
-                runner={runner}
-                expandable={expandable}
-                zone={zone}
-                expanded={open.has(row.key)}
-                detailId={`${baseId}-${row.key}`}
-                frozen={frozen > 0}
-                onToggle={toggleOpen}
-              />
-            ))}
-            <SpacerRow height={range?.after ?? 0} columns={columnCount} />
-          </TableBody>
-          {footer.length > 0 ? (
-            <TableFooter className="sticky bottom-0 z-10 border-t-0 bg-card shadow-[0_-1px_0_var(--border)]">
-              {footer.map((footerRow) => (
-                <TableRow
-                  key={footerRow.label}
-                  className="hover:bg-transparent"
-                >
-                  {expandable ? <TableCell className="px-1" /> : null}
-                  {views.map((view, index) => {
-                    const className = cn(
-                      "px-2 py-1",
-                      alignClasses[view.align],
-                      view.column.type === "number" && "tabular-nums",
-                      view.left !== null && "z-[1] bg-card"
-                    )
-                    return index === 0 ? (
-                      <TableHead
-                        key={view.column.key}
-                        scope="row"
-                        style={stickyStyle(view.left)}
-                        className={cn(className, "h-auto")}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span>{footerRow.label}</span>
-                          {footerRow.cells[0] !== null ? (
-                            <span className="tabular-nums">
-                              {footerRow.cells[0]}
-                            </span>
-                          ) : null}
-                        </span>
-                      </TableHead>
-                    ) : (
-                      <TableCell
-                        key={view.column.key}
-                        style={stickyStyle(view.left)}
-                        className={className}
-                      >
-                        {footerRow.cells[index]}
-                      </TableCell>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableFooter>
-          ) : null}
-        </table>
-        {!paginate && sorted.length > maxRows ? (
-          <p className="px-2 py-1.5 text-muted-foreground">
-            Showing {maxRows.toLocaleString("en")} of{" "}
-            {sorted.length.toLocaleString("en")} rows
-          </p>
-        ) : null}
+        <PanelGrid
+          ref={gridRef}
+          label={panel.title}
+          rows={rows}
+          columns={columns}
+          rowId={rowKey}
+          rowHeight={rowHeightPx(rowHeight)}
+          headerHeight={showHeader ? headerPx : 0}
+          footerRows={footer.length}
+          footerHeight={footerRowPx}
+          details={expandable ? details : undefined}
+          sizeToContent={layout === null}
+          onLayout={measure}
+        />
       </div>
+      {!paginate && sorted.length > maxRows ? (
+        <p className="shrink-0 px-2 py-1.5 text-muted-foreground">
+          Showing {maxRows.toLocaleString("en")} of{" "}
+          {sorted.length.toLocaleString("en")} rows
+        </p>
+      ) : null}
       {paginate ? (
         <div className="flex h-10 shrink-0 items-center justify-end gap-2 border-t border-border px-2">
           <p role="status" className="text-muted-foreground tabular-nums">
-            Page {paged.page + 1} of {paged.pageCount}
+            Page {page.page + 1} of {page.pageCount}
           </p>
           <Button
             variant="ghost"
             size="icon-xs"
             aria-label="Previous page"
-            disabled={paged.page === 0}
-            onClick={() => setPage(paged.page - 1)}
+            disabled={page.page === 0}
+            onClick={() => setPage(page.page - 1)}
           >
             <ChevronLeftIcon aria-hidden="true" />
           </Button>
@@ -1080,8 +966,8 @@ const TablePanel: PanelRenderer = ({
             variant="ghost"
             size="icon-xs"
             aria-label="Next page"
-            disabled={paged.page >= paged.pageCount - 1}
-            onClick={() => setPage(paged.page + 1)}
+            disabled={page.page >= page.pageCount - 1}
+            onClick={() => setPage(page.page + 1)}
           >
             <ChevronRightIcon aria-hidden="true" />
           </Button>
@@ -1097,67 +983,67 @@ function visibleIn(rect: Rect, top: number, bottom: number): boolean {
   return middle >= top && middle <= bottom
 }
 
+function spanOf(rects: readonly Rect[]): Pick<Rect, "y" | "height"> | null {
+  if (rects.length === 0) return null
+  const top = Math.min(...rects.map((rect) => rect.y))
+  const bottom = Math.max(...rects.map((rect) => rect.y + rect.height))
+  return { y: top, height: bottom - top }
+}
+
 function tableAnchorLayout(
   region: HTMLElement,
   {
     body,
     views,
     showHeader,
-    skipFirst,
     rowCells,
     reveal,
   }: {
     body: { width: number; height: number }
     views: readonly ColumnView[]
     showHeader: boolean
-    skipFirst: boolean
     rowCells: ReadonlyMap<string, readonly string[]>
     reveal: (key: string) => void
   }
 ): TableAnchorLayout {
   const root = surfaceOf(region)
   const area = rectWithin(region, root)
-  const head = region.querySelector("thead")
-  const header = showHeader && head !== null ? rectWithin(head, root) : null
-  const widthsFrom = showHeader
-    ? region.querySelector("thead > tr")
-    : region.querySelector("[data-row-key]")
-  const headCells = Array.from(widthsFrom?.children ?? []).slice(
-    skipFirst ? 1 : 0
-  )
-  const columns: AnchorColumn[] = views.flatMap(({ column }, index) => {
-    const cell = headCells[index]
-    if (cell === undefined) return []
-    const rect = rectWithin(cell, root)
-    return [
-      {
-        name: column.label,
-        left: rect.x,
-        width: rect.width,
-        dimension: column.type !== "number",
-      },
-    ]
+  const headerCells = drawnColumns(region)
+  const columnRects = views.flatMap(({ column }) => {
+    const cell = headerCells.get(column.key)
+    return cell === undefined ? [] : [{ column, rect: rectWithin(cell, root) }]
   })
+  const columns: AnchorColumn[] = columnRects.map(({ column, rect }) => ({
+    name: column.label,
+    left: rect.x,
+    width: rect.width,
+    dimension: column.type !== "number",
+  }))
+  const header = showHeader ? spanOf(columnRects.map(({ rect }) => rect)) : null
+  const drawnRowElements = drawnRows(region)
+  const footerRow = drawnRowElements.get(footerRowId(0))
   const top = header === null ? area.y : header.y + header.height
-  const bottom = area.y + area.height
+  const bottom =
+    footerRow === undefined
+      ? area.y + area.height
+      : rectWithin(footerRow, root).y
   const rows: AnchorRow[] = []
   const drawn = new Set<string>()
-  for (const element of region.querySelectorAll<HTMLElement>(
-    "[data-row-key]"
-  )) {
-    const key = element.dataset.rowKey ?? ""
+  for (const [key, element] of drawnRowElements) {
     const cells = rowCells.get(key)
+    if (cells === undefined) continue
     const rect = rectWithin(element, root)
-    if (cells === undefined || !visibleIn(rect, top, bottom)) continue
+    if (!visibleIn(rect, top, bottom)) continue
     drawn.add(key)
     rows.push({ top: rect.y, height: rect.height, cells })
   }
+  rows.sort((a, b) => a.top - b.top)
   const elsewhere = Array.from(rowCells).flatMap(([key, cells]) =>
     drawn.has(key) ? [] : [{ key, cells }]
   )
   return {
     body,
-    header: header === null ? null : { y: header.y, height: header.height },
+    header,
     columns,
     rows,
     elsewhere,

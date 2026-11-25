@@ -1,14 +1,22 @@
-import { screen, waitFor } from "@testing-library/react"
+import { act, screen, waitFor } from "@testing-library/react"
+import { onlineManager } from "@tanstack/react-query"
+import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { ObserveRequest } from "@/observe/queries"
 import { renderWithProviders, testQueryClient } from "@/test/render"
 
-import { Composer } from "./composer"
+import { Composer, holdingText } from "./composer"
 import { ungated } from "./delivery"
 import type { Subject } from "./send-plan"
-import { useComposer, type SentResult } from "./use-composer"
+import {
+  agentFailedText,
+  agentWaitMs,
+  nothingSentText,
+  useComposer,
+  type SentResult,
+} from "./use-composer"
 
 const session = vi.hoisted(() => ({ role: "editor" }))
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -37,18 +45,23 @@ function stubCreate() {
 }
 
 function ChatComposer({
-  subject = null,
+  subject: initialSubject = null,
+  removableSubject = false,
+  layout = "page",
   chatId = null,
   initialText,
   runningRequestId,
   onSent,
 }: {
   subject?: Subject | null
+  removableSubject?: boolean
+  layout?: "page" | "docked"
   chatId?: string | null
   initialText?: string
   runningRequestId?: string
   onSent: (sent: SentResult) => void
 }) {
+  const [subject, setSubject] = useState(initialSubject)
   const model = useComposer({
     subject,
     place: { kind: "chat", chatId },
@@ -58,7 +71,19 @@ function ChatComposer({
     onSent,
   })
   return (
-    <Composer model={model} layout="page" placeholder="Describe a dashboard" />
+    <>
+      <Composer
+        model={model}
+        layout={layout}
+        label="Message the agent"
+        placeholder="Describe a dashboard"
+      />
+      {removableSubject ? (
+        <button type="button" onClick={() => setSubject(null)}>
+          Remove chip
+        </button>
+      ) : null}
+    </>
   )
 }
 
@@ -282,17 +307,225 @@ describe("Composer in a chat", () => {
     ).toBeInTheDocument()
   })
 
-  it("says so when Enter is pressed before the agent is known", async () => {
-    const fetch = vi.fn(() => new Promise<Response>(() => undefined))
-    vi.stubGlobal("fetch", fetch)
-    const { user, onSent } = renderComposer(
-      { initialText: "Why is it slow?" },
-      false
-    )
-    await user.type(await box(), "{Enter}")
-    expect(toasts.message).toHaveBeenCalledWith(
-      "Still connecting to the agent. Send again in a moment."
-    )
-    expect(onSent).not.toHaveBeenCalled()
+  describe("before the agent is known", () => {
+    type AgentReply = (request: Request) => Promise<Response>
+
+    function renderLoading(
+      props: Parameters<typeof renderComposer>[0] = {
+        initialText: "Why is it slow?",
+      }
+    ) {
+      const posts: Record<string, unknown>[] = []
+      const agentCalls: number[] = []
+      const waiting: Array<(response: Response) => void> = []
+      let reply: AgentReply = () =>
+        new Promise<Response>((resolve) => {
+          waiting.push(resolve)
+        })
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<(request: Request) => Promise<Response>>(async (request) => {
+          if (request.method === "POST") {
+            const body = (await request.clone().json()) as {
+              prompt: string
+            }
+            posts.push(body)
+            return json({ request: { id: "r1", prompt: body.prompt } }, 202)
+          }
+          if (new URL(request.url).pathname.endsWith("/agent")) {
+            agentCalls.push(agentCalls.length)
+            return reply(request)
+          }
+          return json({})
+        })
+      )
+      const view = renderComposer(props, false)
+      return {
+        ...view,
+        posts,
+        agentCalls,
+        resolveAgent: (response: Response) => waiting.shift()?.(response),
+        answerNext: (next: AgentReply) => {
+          reply = next
+        },
+      }
+    }
+
+    function json(body: unknown, status = 200) {
+      return new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    const agentOk = () =>
+      json({
+        available: true,
+        provider: "anthropic",
+        model: "claude-haiku-5-5",
+        effort: "medium",
+      })
+
+    afterEach(() => {
+      vi.useRealTimers()
+      onlineManager.setOnline(true)
+    })
+
+    it("holds Enter, keeps the field editable and sends the latest text once", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      expect(await screen.findByText(holdingText)).toBeVisible()
+      expect(field).not.toHaveAttribute("readonly")
+      await user.type(field, " Edited")
+      await user.keyboard("{Enter}")
+      expect(posts).toEqual([])
+      resolveAgent(agentOk())
+      await waitFor(() => expect(posts).toHaveLength(1))
+      expect(posts[0]).toMatchObject({ prompt: "Why is it slow? Edited" })
+      await waitFor(() => expect(screen.queryByText(holdingText)).toBeNull())
+      expect(posts).toHaveLength(1)
+      expect(toasts.message).not.toHaveBeenCalled()
+    })
+
+    it("shows the hold, the failure and the escape in a docked composer too", async () => {
+      const { user, posts, resolveAgent } = renderLoading({
+        initialText: "Why is it slow?",
+        layout: "docked",
+      })
+      const field = await box()
+      await user.type(field, "{Enter}")
+      expect(await screen.findByText(holdingText)).toBeVisible()
+      await user.keyboard("{Escape}")
+      expect(screen.queryByText(holdingText)).toBeNull()
+      await user.type(field, "{Enter}")
+      await screen.findByText(holdingText)
+      resolveAgent(json({}, 500))
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(posts).toEqual([])
+    })
+
+    it("holds a click on Send the same way", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      await box()
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      expect(await screen.findByText(holdingText)).toBeVisible()
+      resolveAgent(agentOk())
+      await waitFor(() => expect(posts).toHaveLength(1))
+    })
+
+    it("sends what the composer holds when the agent is ready, not when Enter was pressed", async () => {
+      const { user, posts, resolveAgent } = renderLoading({
+        initialText: "Why is it slow?",
+        subject: { kind: "dashboard", id: dashboardId },
+        removableSubject: true,
+      })
+      await box()
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      await screen.findByText(holdingText)
+      await user.click(screen.getByRole("button", { name: "Remove chip" }))
+      resolveAgent(agentOk())
+      await waitFor(() => expect(posts).toHaveLength(1))
+      expect(posts[0]).not.toHaveProperty("dashboard_id")
+    })
+
+    it("cancels the hold on Escape", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      await screen.findByText(holdingText)
+      await user.keyboard("{Escape}")
+      expect(screen.queryByText(holdingText)).toBeNull()
+      resolveAgent(agentOk())
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      })
+      expect(posts).toEqual([])
+    })
+
+    it("cancels the hold when the text is cleared", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      await screen.findByText(holdingText)
+      await user.clear(field)
+      expect(screen.queryByText(holdingText)).toBeNull()
+      resolveAgent(agentOk())
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      })
+      expect(posts).toEqual([])
+    })
+
+    it("never holds an empty prompt and says so at once", async () => {
+      const { user, posts } = renderLoading({})
+      await box()
+      await user.click(screen.getByRole("button", { name: "Send" }))
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Ask a question or describe a dashboard first."
+      )
+      expect(screen.queryByText(holdingText)).toBeNull()
+      expect(posts).toEqual([])
+    })
+
+    it("sends nothing and keeps the text when the agent cannot be reached, then holds again on the next send", async () => {
+      const { user, posts, agentCalls, resolveAgent, answerNext } =
+        renderLoading()
+      const field = await box()
+      await user.type(field, "{Enter}")
+      await screen.findByText(holdingText)
+      answerNext(async () => json({}, 500))
+      resolveAgent(json({}, 500))
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(posts).toEqual([])
+      expect(field).toHaveValue("Why is it slow?")
+      const before = agentCalls.length
+      let release: (response: Response) => void = () => undefined
+      answerNext(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve
+          })
+      )
+      await user.type(field, "{Enter}")
+      expect(await screen.findByText(holdingText)).toBeVisible()
+      await waitFor(() => expect(agentCalls.length).toBe(before + 1))
+      expect(posts).toEqual([])
+      release(agentOk())
+      await waitFor(() => expect(posts).toHaveLength(1))
+    })
+
+    it("fails the hold after the wait limit", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      const { user, posts } = renderLoading()
+      await user.type(await box(), "{Enter}")
+      await screen.findByText(holdingText)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(agentWaitMs)
+      })
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(screen.queryByText(holdingText)).toBeNull()
+      expect(posts).toEqual([])
+    })
+
+    it("fails at once while offline", async () => {
+      onlineManager.setOnline(false)
+      const { user, posts } = renderLoading()
+      await user.type(await box(), "{Enter}")
+      expect(await screen.findByText(agentFailedText)).toBeVisible()
+      expect(posts).toEqual([])
+    })
+
+    it("says nothing was sent, with the no-model note, when the agent is off", async () => {
+      const { user, posts, resolveAgent } = renderLoading()
+      await user.type(await box(), "{Enter}")
+      await screen.findByText(holdingText)
+      resolveAgent(json({ available: false }))
+      expect(await screen.findByText(nothingSentText)).toBeVisible()
+      expect(
+        screen.getByText("No model is connected to this server.")
+      ).toBeVisible()
+      expect(posts).toEqual([])
+    })
   })
 })

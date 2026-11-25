@@ -49,6 +49,8 @@ import { ActionProvider } from "@/panels/actions/action-context"
 import { createSharedCursor, type CursorSync } from "@/panels/shared-cursor"
 import { PinToggle } from "@/pins/pin-toggle"
 import { ShareToggle } from "@/share/share-pane"
+import { InboxPanel } from "@/inbox/inbox-panel"
+import { closeInboxIfOpen } from "@/inbox/inbox-panel-store"
 import { CommandPalette } from "@/shell/command-palette"
 import { PhoneBar } from "@/shell/phone-bar"
 import { Sidebar } from "@/shell/sidebar"
@@ -728,6 +730,7 @@ function DashboardView({
     inspect: () => {
       const panel = inspectablePanelOf(spec, shortcutPanelId() ?? undefined)
       if (!panel || editing) return
+      if (closeInboxIfOpen() && panel.id === search.inspect) return
       if (panel.id === search.inspect) return closeInspect()
       setSearch((state) => ({
         ...state,
@@ -1199,11 +1202,9 @@ function DashboardView({
                     onClose={closeInspect}
                   />
                 ) : null}
-                <div
-                  ref={setPanelHost}
-                  data-panel-host=""
-                  className="contents"
-                />
+                <div ref={setPanelHost} data-panel-host="" className="contents">
+                  {kiosk ? null : <InboxPanel />}
+                </div>
                 {specOpen ? (
                   <SpecJsonPane
                     dashboardId={dashboardId}

@@ -1,27 +1,51 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useState } from "react"
 import {
   infiniteQueryOptions,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { inboxKeys, type InboxFilter, type InboxView } from "@/api/keys"
+import { throttle } from "@/lib/throttle"
 import {
-  useActivityStream,
-  useDocumentVisible,
-} from "@/live/use-activity-stream"
+  useActivitySubscription,
+  useHasActivityStream,
+} from "@/live/activity-stream"
+import { useDocumentVisible } from "@/live/use-activity-stream"
+
+import {
+  applyInboxChange,
+  unreadAfter,
+  type InboxChange,
+  type InboxPages,
+} from "./inbox-cache"
+import { useInboxPanelStore } from "./inbox-panel-store"
 
 const pageSize = 50
 const countStaleTime = 30_000
-const liveDebounceMs = 1000
+const liveWindowMs = 1000
+const pollMs = 15_000
 
-export function inboxInfiniteQuery(
-  view: InboxView,
-  filter: InboxFilter = "open"
-) {
+export function inboxPollInterval(
+  streamed: boolean,
+  visible: boolean
+): number | false {
+  return !streamed && visible ? pollMs : false
+}
+
+function useInboxPollInterval(): number | false {
+  return inboxPollInterval(useHasActivityStream(), useDocumentVisible())
+}
+
+function isForYou(view: InboxView, filter: InboxFilter): boolean {
+  return view === "for_you" && filter === "open"
+}
+
+function inboxInfiniteQuery(view: InboxView, filter: InboxFilter = "open") {
   return infiniteQueryOptions({
     queryKey: inboxKeys.list(view, filter),
     queryFn: ({ pageParam, signal }) =>
@@ -38,10 +62,36 @@ export function inboxInfiniteQuery(
   })
 }
 
+export function keepInboxHead(
+  queryClient: QueryClient,
+  view: InboxView,
+  filter: InboxFilter
+): void {
+  queryClient.setQueryData<InboxPages>(
+    inboxKeys.list(view, filter),
+    (current) =>
+      current === undefined || current.pages.length <= 1
+        ? current
+        : {
+            pages: current.pages.slice(0, 1),
+            pageParams: current.pageParams.slice(0, 1),
+          }
+  )
+}
+
+export function usePanelInboxList(view: InboxView, filter: InboxFilter) {
+  const interval = useInboxPollInterval()
+  return useInfiniteQuery({
+    ...inboxInfiniteQuery(view, filter),
+    refetchInterval: isForYou(view, filter) ? false : interval,
+  })
+}
+
 export function useInboxForYou() {
   return useInfiniteQuery({
     ...inboxInfiniteQuery("for_you"),
     staleTime: countStaleTime,
+    refetchInterval: useInboxPollInterval(),
   })
 }
 
@@ -50,63 +100,91 @@ export function useInboxCount(): number | null {
   return first === undefined ? null : first.unread_count
 }
 
-export function useMarkInboxRead() {
+function useInboxMutation<Input>(
+  send: (input: Input) => Promise<unknown>,
+  changeOf: (input: Input) => InboxChange
+) {
   const queryClient = useQueryClient()
   return useMutation({
     networkMode: "always",
-    mutationFn: (seq: number) =>
-      api.POST("/inbox/read", { body: { seq } }).then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
+    mutationFn: send,
+    onMutate: async (input: Input) => {
+      await queryClient.cancelQueries({ queryKey: inboxKeys.all })
+      const before = queryClient.getQueriesData<InboxPages>({
+        queryKey: inboxKeys.all,
+      })
+      const lists = before.flatMap(([, data]) => (data ? [data] : []))
+      const forYou = queryClient.getQueryData<InboxPages>(
+        inboxKeys.list("for_you", "open")
+      )
+      const count = forYou?.pages[0]?.unread_count
+      if (count === undefined) return { before }
+      const change = changeOf(input)
+      const unread = unreadAfter(count, lists, change)
+      queryClient.setQueriesData<InboxPages>(
+        { queryKey: inboxKeys.all },
+        (data) => (data ? applyInboxChange(data, change, unread) : data)
+      )
+      return { before }
+    },
+    onError: (_error, _input, context) => {
+      for (const [key, data] of context?.before ?? [])
+        queryClient.setQueryData(key, data)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
   })
 }
 
+export function useMarkInboxRead() {
+  return useInboxMutation(
+    (seq: number) => api.POST("/inbox/read", { body: { seq } }).then(unwrap),
+    (seq): InboxChange => ({ kind: "readThrough", seq })
+  )
+}
+
 export function useSetInboxItemUnread() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    networkMode: "always",
-    mutationFn: (input: { seq: number; unread: boolean }) =>
+  return useInboxMutation(
+    (input: { seq: number; unread: boolean }) =>
       api
         .PUT("/inbox/items/{seq}", {
           params: { path: { seq: input.seq } },
           body: { unread: input.unread },
         })
         .then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
-  })
+    (input): InboxChange => ({ kind: "unread", ...input })
+  )
 }
 
 export function useSetInboxItemDone() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    networkMode: "always",
-    mutationFn: (input: { seq: number; done: boolean }) =>
+  return useInboxMutation(
+    (input: { seq: number; done: boolean }) =>
       api
         .PUT("/inbox/items/{seq}", {
           params: { path: { seq: input.seq } },
           body: { done: input.done },
         })
         .then(unwrap),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: inboxKeys.all }),
-  })
+    (input): InboxChange => ({ kind: "done", ...input })
+  )
 }
 
 export function useInboxLive() {
   const queryClient = useQueryClient()
-  const visible = useDocumentVisible()
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  function refresh() {
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      void queryClient.invalidateQueries({ queryKey: inboxKeys.all })
-    }, liveDebounceMs)
-  }
-
-  useEffect(() => () => clearTimeout(timer.current), [])
-
-  useActivityStream({
-    enabled: visible,
-    onEvent: refresh,
-    onGap: refresh,
-  })
+  const [refresh] = useState(() =>
+    throttle(() => {
+      const { open, view, filter } = useInboxPanelStore.getState()
+      void queryClient.invalidateQueries({
+        queryKey: inboxKeys.list("for_you", "open"),
+        exact: true,
+      })
+      if (open && !isForYou(view, filter)) {
+        void queryClient.invalidateQueries({
+          queryKey: inboxKeys.list(view, filter),
+          exact: true,
+        })
+      }
+    }, liveWindowMs)
+  )
+  useEffect(() => () => refresh.cancel(), [refresh])
+  useActivitySubscription({ onEvent: refresh.call, onGap: refresh.call })
 }

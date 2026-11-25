@@ -345,28 +345,6 @@ export function groupItems(items: readonly InboxItem[]): ItemGroup[] {
   return groups.filter((group) => group.items.length > 0)
 }
 
-export function groupByTarget(items: readonly InboxItem[]): ItemGroup[] {
-  const groups = new Map<string, ItemGroup>()
-  for (const item of items) {
-    const ref = objectRef(item) ?? item.target
-    const key = `${ref.kind}:${ref.id}`
-    const group = groups.get(key)
-    if (group === undefined) {
-      groups.set(key, {
-        key,
-        label: titleOf(item) ?? kindWords[ref.kind],
-        items: [item],
-      })
-    } else {
-      group.items.push(item)
-      if (group.label === kindWords[ref.kind]) {
-        group.label = titleOf(item) ?? group.label
-      }
-    }
-  }
-  return [...groups.values()]
-}
-
 function observationOf(item: InboxItem): string | null {
   if (item.target.kind === "observation") return item.target.id
   const ref = objectRef(item)

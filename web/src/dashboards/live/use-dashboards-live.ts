@@ -2,10 +2,7 @@ import { useEffect, useRef } from "react"
 import { useQueryClient, type QueryKey } from "@tanstack/react-query"
 
 import { dashboardKeys } from "@/api/keys"
-import {
-  useActivityStream,
-  useDocumentVisible,
-} from "@/live/use-activity-stream"
+import { useActivitySubscription } from "@/live/activity-stream"
 
 const debounceMs = 1000
 
@@ -22,7 +19,6 @@ function useLiveInvalidation(
   keys: readonly QueryKey[]
 ) {
   const queryClient = useQueryClient()
-  const visible = useDocumentVisible()
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const keysRef = useRef(keys)
   useEffect(() => {
@@ -38,9 +34,8 @@ function useLiveInvalidation(
       }
     }, debounceMs)
   }
-  useActivityStream({
+  useActivitySubscription({
     types,
-    enabled: visible,
     onEvent: refresh,
     onGap: refresh,
   })
