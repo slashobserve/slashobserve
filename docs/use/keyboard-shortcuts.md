@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts
-description: The keys that view, edit and inspect a panel, move the time range, refresh a dashboard and start TV mode, where to see them in the app, and the keys of the logs page and the trace search.
+description: The keys that view, edit and inspect a panel, move the time range, refresh a dashboard, start TV mode and open the Inbox, where to see them in the app, and the keys of the logs page and the trace search.
 ---
 
 A dashboard answers a few keys, the same ones Grafana uses.
@@ -67,6 +67,11 @@ A pane that was already open when the page loaded does not take the focus.
 Escape closes the pane when the focus is inside it or on the button that opened it.
 The focus returns to the button that opened the pane, which on a phone is the Controls button, and so does the pane's Close button.
 A pane that was already open when the page loaded returns the focus to its own button in the header: Activity for the Activity and Chat panes, Share for Share, and More for Dashboard JSON.
+
+## Open the Inbox
+
+On every page after sign-in, press `g` then `i` within one second to open the [Inbox](inbox.md) panel, and again to close it.
+On a dashboard, `i` after `g` opens the Inbox rather than Inspect.
 
 ## Observation page keys
 
@@ -151,6 +156,7 @@ The waterfall of a trace answers keys of its own while a span row has the focus,
 | `d` then `r` | Refresh every panel. |
 | `d` then `k` | Enter TV mode in full screen. |
 | `f` | Go full screen in TV mode opened from a link. |
+| `g` then `i` | Open or close the Inbox. |
 | `?` | Show the keyboard shortcuts. |
 | `⌘O` or `Ctrl+O` | Change how chart hover is shared between panels. |
 | `⌘K` or `Ctrl+K` | Open the command palette, which searches the workspace as you type. |
