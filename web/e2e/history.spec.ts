@@ -395,9 +395,7 @@ test("a save that lands while the dialog is open still gets the conflict flow", 
     3,
     "Concurrent change"
   )
-  const saved = versionsGrid(page)
-    .getByRole("row")
-    .filter({ hasText: "Concurrent change" })
+  const saved = page.locator('[role="row"]', { hasText: "Concurrent change" })
   await expect(saved).toContainText("Latest")
   await expect(dialog(page)).toContainText("This saves a new version 4")
 
@@ -649,12 +647,13 @@ test("keeps the version actions in fixed columns", async ({
   )
   expect(new Set(compares).size).toBe(1)
 
-  const header = page.getByRole("columnheader", { name: "Actions" })
   for (const version of [3, 2, 1]) {
-    const view = versionRow(page, version).getByRole("link", {
-      name: `View version ${version}`,
-    })
-    expect(await textLeft(view)).toBeCloseTo(await textLeft(header), 0)
+    const row = versionRow(page, version)
+    const view = row.getByRole("link", { name: `View version ${version}` })
+    expect(await textLeft(view)).toBeCloseTo(
+      await textLeft(row.locator('[col-id="actions"]')),
+      0
+    )
   }
 })
 

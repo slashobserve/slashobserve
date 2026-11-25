@@ -184,6 +184,7 @@ for (const scheme of ["light", "dark"] as const) {
       expect(body.dashboards).toHaveLength(1)
       const maker = body.dashboards[0].creator.author.name
 
+      await page.setViewportSize({ width: 1600, height: 900 })
       await page.goto("/dashboards")
       await filterByTitle(page, title)
       const cells = rowFor(page, title).getByRole("gridcell")
