@@ -474,3 +474,62 @@ func TestACallerWithoutDatasourceAccessIsRefused(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestArgumentsWithASecretNameOrASecretInTheirTextAreMaskedInTheRecord(t *testing.T) {
+	got := loggedArguments(json.RawMessage(searchSchema), json.RawMessage(`{"api_key":"sk-live-abc","query":"password=hunter2","note":"fine"}`))
+	raw, _ := json.Marshal(got)
+	for _, leaked := range []string{"sk-live-abc", "hunter2"} {
+		if strings.Contains(string(raw), leaked) {
+			t.Errorf("%s is in %s", leaked, raw)
+		}
+	}
+	if got["api_key"] != maskedValue || got["note"] != "fine" {
+		t.Fatalf("logged = %v", got)
+	}
+}
+
+func TestAResultIsCutByItsEscapedSize(t *testing.T) {
+	r := newCallRig(t, Limits{ResultBytes: 100})
+	quotes := strings.Repeat(`"`, 200)
+	r.connector.answer = func(context.Context, Target, string, map[string]any) (Called, error) {
+		return Called{Text: quotes}, nil
+	}
+	got, err := r.dispatch(t.Context(), personAccess(auth.RoleViewer), `{"query":"x"}`, approvedSearch(t, ToolApproved))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(got.Text)
+	if !got.Cut || len(encoded)-2 > 100 || len(got.Text) != 50 {
+		t.Fatalf("cut = %v text = %d bytes, escaped = %d", got.Cut, len(got.Text), len(encoded)-2)
+	}
+}
+
+func TestARefusedOrFailedCallDoesNotMarkTheRunRestricted(t *testing.T) {
+	cases := map[string]struct {
+		arguments string
+		stored    Tool
+		answer    func(context.Context, Target, string, map[string]any) (Called, error)
+	}{
+		"unapproved":        {`{"query":"x"}`, approvedSearch(t, ToolOffered), nil},
+		"invalid arguments": {`{"query":3}`, approvedSearch(t, ToolApproved), nil},
+		"down source": {`{"query":"x"}`, approvedSearch(t, ToolApproved), func(context.Context, Target, string, map[string]any) (Called, error) {
+			return Called{}, errors.New("refused")
+		}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := newCallRig(t, Limits{})
+			r.row.Audience = string(datasource.AudienceAdmins)
+			r.attempt.row = r.row
+			r.connector.answer = c.answer
+			private := datasource.Access{By: auth.Principal{Kind: auth.KindUser, ID: "a", Role: auth.RoleAdmin}}
+			ctx, restricted := datasource.NotingRestrictedReads(datasource.WithAccess(t.Context(), private))
+			if _, err := r.dispatch(ctx, private, c.arguments, c.stored); err == nil {
+				t.Fatal("the call succeeded")
+			}
+			if restricted() {
+				t.Error("the run was marked restricted although nothing was read")
+			}
+		})
+	}
+}
