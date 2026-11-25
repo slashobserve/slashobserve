@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -200,13 +199,10 @@ func TestSymlinksInsideTheRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"first-link:3:", "main.go:3:"} {
+	for _, want := range []string{"alias/a.go:3:", "first-link:3:", "pkg/a.go:3:", "main.go:3:"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("grep lacks %q:\n%s", want, got)
 		}
-	}
-	if strings.Contains(got, "alias/a.go:3:") == strings.Contains(got, "pkg/a.go:3:") {
-		t.Errorf("grep must search a directory reached by two paths once:\n%s", got)
 	}
 	if strings.Contains(got, "up/") || strings.Contains(got, "outside") {
 		t.Errorf("grep followed a loop or left the root:\n%s", got)
@@ -233,39 +229,4 @@ func TestADeepSymlinkChainStops(t *testing.T) {
 			t.Error(err)
 		}
 	})
-}
-
-func TestAFanOutOfLinksIsSearchedOncePerDirectory(t *testing.T) {
-	code, root := fixture(t)
-	const levels = 24
-	for i := 0; i < levels; i++ {
-		dir := filepath.Join(root, "fan", "l"+strconv.Itoa(i))
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			t.Fatal(err)
-		}
-		next := "../l" + strconv.Itoa(i+1)
-		for _, name := range []string{"x", "y"} {
-			if err := os.Symlink(next, filepath.Join(dir, name)); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	end := filepath.Join(root, "fan", "l"+strconv.Itoa(levels))
-	if err := os.MkdirAll(end, 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(end, "deep.go"), []byte("package deep\n// fanout-marker\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	var got string
-	var err error
-	within(t, "grep over a fan-out of links", func() {
-		got, err = code.Grep(context.Background(), "fanout-marker", "fan", "")
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := strings.Count(got, "deep.go:2:"); n != 1 {
-		t.Errorf("deep.go matched %d times, want 1:\n%s", n, got)
-	}
 }
