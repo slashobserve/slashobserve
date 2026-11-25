@@ -1,0 +1,21 @@
+[project]
+name = "slashobserve-bench-orca"
+version = "0.1.0"
+description = "Harbor 0.20.0 environment that runs the SlashObserve Observe Agent on ORCA-bench tasks"
+requires-python = ">=3.12"
+dependencies = [
+    "harbor==0.20.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".."]
+
+[tool.uv]
+package = false
+exclude-newer = "2026-11-09T00:00:00Z"
