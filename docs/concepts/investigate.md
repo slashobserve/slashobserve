@@ -116,10 +116,10 @@ Details of the stages:
 With `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`, the server checks each finding against what the run read before it is saved.
 It looks at the figures in the Markdown and the impact, the root cause component and the onset.
 
-- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234.
+- A figure passes when the run read it, rounded, within 2% or within the precision it was written with, such as `0.52 s` for a read value of 0.5234, and never more than 10% away.
 - A figure also passes when it is the difference, sum, ratio or percentage change of two numbers the run read, such as `+82%` from 287 ms to 523 ms.
 - `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
-- Times, dates, counts of 10 or less, code spans and links are never checked.
+- Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
 - The root cause component passes when it is a name the run saw in a result or a discovery.
 - The onset passes when it falls inside a time range the run queried, give or take a minute.
 

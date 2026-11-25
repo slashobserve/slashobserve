@@ -52,8 +52,8 @@ var (
 	isoTime  = regexp.MustCompile(`\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?`)
 	slashDay = regexp.MustCompile(`\b\d{1,2}/\d{1,2}/\d{2,4}\b`)
 	clock    = regexp.MustCompile(`(?i)\b\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:\s?[ap]\.?m\.?\b)?`)
-	months   = `(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`
-	monthDay = regexp.MustCompile(`(?i)\b` + months + `\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b|\b\d{1,2}(?:st|nd|rd|th)?\s+` + months + `(?:,?\s+\d{4})?\b`)
+	months   = `(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\.|\b)`
+	monthDay = regexp.MustCompile(`(?i)\b` + months + `\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b|\b\d{1,2}(?:st|nd|rd|th)?\s+` + months + `(?:,?\s+\d{4}\b)?`)
 	duration = regexp.MustCompile(`(?i:\b\d+(?:\.\d+)?\s?(?:minutes?|mins?|hours?|hrs?|days?|weeks?|months?|years?)\b)|\b\d+(?:\.\d+)?[mhdw]\b`)
 )
 

@@ -364,8 +364,8 @@ The cost cap `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` and the run timeout still end
 
 With `report` or `enforce`, the server keeps a bounded record of what an investigation read, and checks the finding against it when the agent saves.
 The record holds up to 2,000 numbers, rounded to 3 significant figures, the names the run saw and the time ranges it queried.
-A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with, or when it is the difference, sum, ratio or percentage change of two numbers the run read.
-Times, dates, counts of 10 or less, code spans and links are not checked, and `ms` and `s` and `K` and `M` are read as units.
+A figure in the Markdown or the impact passes when it is within 2% of a number the run read, or within the precision it was written with but never more than 10% away, or when it is the difference, sum, ratio or percentage change of two numbers the run read.
+Times, dates, whole numbers of 10 or less with no unit, code spans and links are not checked, a small number with a unit such as `3 s` is, and `ms` and `s` and `K` and `M` are read as units.
 `root_cause.component` passes when it is a name the run saw, and `onset` passes when it falls inside a time range the run queried, give or take a minute.
 
 - `off` records nothing and checks nothing, so a run is the same as it was before the setting existed.

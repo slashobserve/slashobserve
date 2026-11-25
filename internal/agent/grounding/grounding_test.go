@@ -211,3 +211,31 @@ func TestParseMode(t *testing.T) {
 		t.Error("ParseMode accepted on")
 	}
 }
+
+func TestOnlyRealMonthNamesMakeADate(t *testing.T) {
+	text := "Orders declined 37% and errors decreased 45, marginally 80 above, across 12 separate pods, since Dec 3 and 4 Sept. 2026."
+	if got, want := figureTexts(text), []string{"37%", "45", "80", "12"}; !slices.Equal(got, want) {
+		t.Errorf("Figures = %q, want %q", got, want)
+	}
+}
+
+func TestTheToleranceIsAtMostATenthOfTheFigure(t *testing.T) {
+	cases := []struct {
+		read float64
+		text string
+		ok   bool
+	}{
+		{0.62, "100% of requests", false},
+		{500, "1,000 errors", false},
+		{1000, "1,000 errors", true},
+		{940, "1,000 errors", true},
+	}
+	for _, c := range cases {
+		r := NewRecord(Report)
+		raw, _ := json.Marshal(map[string]float64{"v": c.read})
+		r.AddRead(raw, nil, nil)
+		if got := len(r.Check(finding(c.text, nil))) == 0; got != c.ok {
+			t.Errorf("%q on a read of %v verified = %t, want %t", c.text, c.read, got, c.ok)
+		}
+	}
+}

@@ -15,6 +15,7 @@ import (
 
 const (
 	tolerance    = 0.02
+	maxTolerance = 0.1
 	onsetSlack   = time.Minute
 	minNameRunes = 3
 	maxItemRunes = 120
@@ -80,7 +81,7 @@ type interval struct{ lo, hi float64 }
 var unitless = map[string]bool{"": true, "%": true, "x": true}
 
 func intervalsOf(f Figure) []interval {
-	spread := max(tolerance*f.Value, f.Step/2)
+	spread := min(max(tolerance*f.Value, f.Step/2), maxTolerance*f.Value)
 	scales := scalesOf(f.Unit)
 	out := make([]interval, 0, len(scales))
 	for _, scale := range scales {
@@ -118,7 +119,7 @@ func derived(values []float64, in interval) bool {
 	}
 	lo := max(in.lo, 0)
 	for _, a := range values {
-		if anyIn(values, a-in.hi, a-lo) || a <= in.hi && anyIn(values, lo-a, in.hi-a) {
+		if otherIn(values, a, a-in.hi, a-lo) || a <= in.hi && otherIn(values, a, lo-a, in.hi-a) {
 			return true
 		}
 	}
@@ -134,7 +135,7 @@ func ratioIn(values []float64, in interval) bool {
 		upper = 1 / in.lo
 	}
 	for _, a := range values {
-		if a > 0 && anyIn(values, a/in.hi, a*upper) {
+		if a > 0 && otherIn(values, a, a/in.hi, a*upper) {
 			return true
 		}
 	}
@@ -144,6 +145,15 @@ func ratioIn(values []float64, in interval) bool {
 func anyIn(sorted []float64, lo, hi float64) bool {
 	i := sort.SearchFloat64s(sorted, lo)
 	return i < len(sorted) && sorted[i] <= hi
+}
+
+func otherIn(sorted []float64, self, lo, hi float64) bool {
+	for i := sort.SearchFloat64s(sorted, lo); i < len(sorted) && sorted[i] <= hi; i++ {
+		if sorted[i] != self {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *Record) sawName(component string) bool {
