@@ -332,3 +332,46 @@ func TestAnOnsetPassesOnATimeAResultShowed(t *testing.T) {
 		}
 	}
 }
+
+func TestOnlyLabelValuesServicesAndDiscoveryAreNames(t *testing.T) {
+	r := recordOf(`{"resultType":"range","status":"error","note":"service","series":[{"labels":{"service_name":"payment","pod":"checkout-7f9c"},"last":3}],"services":[{"name":"cart","spans":4}],"slowest":[{"name":"GET /api","service":"ad"}]}`)
+	r.AddRead(nil, []string{"frontend-proxy"}, nil)
+	got := append(slices.Clone(r.Names), r.Discovered...)
+	slices.Sort(got)
+	if want := []string{"ad", "cart", "checkout-7f9c", "frontend-proxy", "payment"}; !slices.Equal(got, want) {
+		t.Errorf("names = %q, want %q", got, want)
+	}
+}
+
+func TestAComponentMatchesAWholeNameOrItsTokens(t *testing.T) {
+	r := recordOf(`{"series":[{"labels":{"service_name":"payment","pod":"checkout-7f9c"}}]}`)
+	r.AddRead(nil, []string{"frontend-proxy"}, nil)
+	for component, ok := range map[string]bool{
+		"payment-error-handler": false,
+		"payment service":       true,
+		"checkout":              true,
+		"frontend proxy":        true,
+		"pay":                   false,
+		"cartservice":           false,
+	} {
+		in := finding("Nothing numeric.", map[string]any{"root_cause": map[string]any{"component": component, "kind": "dependency", "summary": "s"}})
+		if got := len(r.Check(in)) == 0; got != ok {
+			t.Errorf("component %q verified = %t, want %t", component, got, ok)
+		}
+	}
+}
+
+func TestDiscoveredNamesAreNeverEvicted(t *testing.T) {
+	r := NewRecord(Report)
+	r.AddRead(nil, []string{"flagd"}, nil)
+	labels := make([]map[string]any, 600)
+	for i := range labels {
+		labels[i] = map[string]any{"labels": map[string]string{"pod": fmt.Sprintf("pod-%d", i)}}
+	}
+	raw, _ := json.Marshal(labels)
+	r.AddRead(raw, nil, nil)
+	in := finding("Nothing numeric.", map[string]any{"root_cause": map[string]any{"component": "flagd", "kind": "config_or_flag", "summary": "s"}})
+	if got := r.Check(in); len(got) != 0 {
+		t.Errorf("unverified = %+v, want the discovered name kept", got)
+	}
+}

@@ -121,7 +121,7 @@ It looks at the figures in the Markdown and the impact, the root cause component
 - Times in a result are not numbers for this check.
 - `ms` and `s` are converted into each other, and `K` and `M` multiply a number.
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
-- The root cause component passes when it is a name the run saw in a result or a discovery.
+- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
 
 With `report`, the items that did not pass are stored with the finding and nothing else changes.

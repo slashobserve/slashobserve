@@ -16,6 +16,7 @@ const (
 	MaxValues       = 2000
 	maxValuesOfRead = 500
 	maxNames        = 400
+	maxDiscovered   = 1000
 	maxNameBytes    = 64
 	maxRanges       = 64
 	maxInstants     = 256
@@ -23,10 +24,7 @@ const (
 	sigFigs         = 3
 )
 
-var (
-	identifier  = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.:/-]*$`)
-	quotedValue = regexp.MustCompile(`=\s*"([^"]{1,64})"`)
-)
+var quotedValue = regexp.MustCompile(`=\s*"([^"]{1,64})"`)
 
 type Range struct {
 	From time.Time `json:"from"`
@@ -34,11 +32,12 @@ type Range struct {
 }
 
 type Record struct {
-	Mode     Mode        `json:"mode"`
-	Reads    [][]float64 `json:"reads,omitempty"`
-	Names    []string    `json:"names,omitempty"`
-	Ranges   []Range     `json:"ranges,omitempty"`
-	Instants []time.Time `json:"instants,omitempty"`
+	Mode       Mode        `json:"mode"`
+	Reads      [][]float64 `json:"reads,omitempty"`
+	Names      []string    `json:"names,omitempty"`
+	Discovered []string    `json:"discovered,omitempty"`
+	Ranges     []Range     `json:"ranges,omitempty"`
+	Instants   []time.Time `json:"instants,omitempty"`
 }
 
 func NewRecord(mode Mode) *Record {
@@ -68,7 +67,7 @@ func (r *Record) AddRead(content []byte, names []string, ranges []Range) {
 		r.keepValues()
 	}
 	for _, name := range names {
-		r.addName(name)
+		r.addDiscovered(name)
 	}
 	for _, rng := range ranges {
 		r.addRange(rng)
@@ -92,6 +91,24 @@ func (r *Record) keepValues() {
 type slot struct {
 	key  string
 	time bool
+	name bool
+}
+
+func childOf(parent, key string) slot {
+	return slot{key: key, time: timeKey(key), name: nameHolders[normalName(parent)] || nameKey(key) || key == "name" && normalName(parent) == "services"}
+}
+
+var nameHolders = map[string]bool{"labels": true, "attributes": true, "resource": true}
+
+var nameKeys = map[string]bool{
+	"service": true, "job": true, "pod": true, "podname": true, "namespace": true,
+	"container": true, "containername": true, "deployment": true, "host": true, "hostname": true,
+	"node": true, "nodename": true, "instance": true, "app": true, "component": true,
+}
+
+func nameKey(key string) bool {
+	k := normalName(key)
+	return nameKeys[k] || strings.HasSuffix(k, "servicename")
 }
 
 type reading struct {
@@ -107,7 +124,7 @@ func (rd *reading) walk(v any, at slot) {
 			return
 		}
 		for _, key := range sortedKeys(v) {
-			rd.walk(v[key], slot{key: key, time: timeKey(key)})
+			rd.walk(v[key], childOf(at.key, key))
 		}
 	case []any:
 		for _, child := range v {
@@ -143,9 +160,9 @@ func (rd *reading) table(m map[string]any) bool {
 		case map[string]any:
 			name, _ := c["name"].(string)
 			kind, _ := c["type"].(string)
-			cells[i] = slot{key: name, time: kind == "time" || timeKey(name)}
+			cells[i] = slot{key: name, time: kind == "time" || timeKey(name), name: nameKey(name)}
 		case string:
-			cells[i] = slot{key: c, time: timeKey(c)}
+			cells[i] = slot{key: c, time: timeKey(c), name: nameKey(c)}
 		}
 	}
 	for _, row := range rows {
@@ -182,7 +199,7 @@ func (rd *reading) text(s string, at slot) {
 		rd.record.addInstant(t)
 		return
 	}
-	if identifier.MatchString(s) {
+	if at.name {
 		rd.record.addName(s)
 	}
 	for _, m := range quotedValue.FindAllStringSubmatch(s, -1) {
@@ -237,6 +254,14 @@ func (r *Record) addName(name string) {
 	if over := len(r.Names) - maxNames; over > 0 {
 		r.Names = slices.Delete(r.Names, 0, over)
 	}
+}
+
+func (r *Record) addDiscovered(name string) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > maxNameBytes || len(r.Discovered) >= maxDiscovered || slices.Contains(r.Discovered, name) {
+		return
+	}
+	r.Discovered = append(r.Discovered, name)
 }
 
 func (r *Record) addRange(rng Range) {

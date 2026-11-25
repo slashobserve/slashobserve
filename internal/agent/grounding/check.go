@@ -174,17 +174,39 @@ func otherIn(sorted []float64, self, lo, hi float64) bool {
 	return false
 }
 
+var genericTokens = map[string]bool{
+	"the": true, "service": true, "svc": true, "server": true, "api": true, "app": true,
+	"pod": true, "pods": true, "deployment": true, "container": true,
+}
+
 func (r *Record) sawName(component string) bool {
-	want := normalName(component)
-	if len([]rune(want)) == 0 {
+	want := tokensOf(component)
+	if specific := slices.DeleteFunc(slices.Clone(want), func(t string) bool { return genericTokens[t] }); len(specific) > 0 {
+		want = specific
+	}
+	whole := strings.Join(want, "")
+	if whole == "" {
 		return true
 	}
-	for _, name := range r.Names {
-		seen := normalName(name)
-		if len([]rune(seen)) < minNameRunes {
-			continue
+	byTokens := len([]rune(whole)) >= minNameRunes
+	for _, name := range slices.Concat(r.Discovered, r.Names) {
+		seen := tokensOf(name)
+		if strings.Join(seen, "") == whole || byTokens && containsRun(seen, want) {
+			return true
 		}
-		if seen == want || strings.Contains(want, seen) || strings.Contains(seen, want) {
+	}
+	return false
+}
+
+func tokensOf(name string) []string {
+	return strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+}
+
+func containsRun(seen, want []string) bool {
+	for i := 0; i+len(want) <= len(seen); i++ {
+		if slices.Equal(seen[i:i+len(want)], want) {
 			return true
 		}
 	}
