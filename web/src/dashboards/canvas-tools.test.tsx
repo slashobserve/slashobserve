@@ -341,6 +341,13 @@ describe("CanvasTools", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 
+  it("reserves room in the page flow for the floating toolbar so it never covers the last content", async () => {
+    await renderTools({ comment: true, edit: false }, false)
+    const box = screen.getByRole("toolbar").parentElement?.parentElement
+    expect(box).toHaveClass("sticky", "h-18", "flex-none")
+    expect(box).not.toHaveClass("h-0")
+  })
+
   it("keeps the tool button and its focus when the hint docks beside the toolbar", async () => {
     const user = userEvent.setup()
     await renderTools({ comment: true, edit: false }, false)

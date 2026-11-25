@@ -351,7 +351,7 @@ function ToolBar({
         "sticky bottom-0 z-30 narrow:hidden",
         docked
           ? "flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t bg-background px-4 py-2"
-          : "h-0"
+          : "h-18 flex-none"
       )}
     >
       <div
