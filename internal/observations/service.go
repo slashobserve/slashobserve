@@ -97,8 +97,11 @@ func placedForRun(ctx context.Context, fn writeFunc) writeFunc {
 	}
 }
 
+func (s *Service) writeContent(ctx context.Context, by auth.Principal, id, runID pgtype.UUID, fn writeFunc) error {
+	return s.write(ctx, by, id, runID, placedForRun(ctx, fn))
+}
+
 func (s *Service) write(ctx context.Context, by auth.Principal, id, runID pgtype.UUID, fn writeFunc) error {
-	fn = placedForRun(ctx, fn)
 	for range maxFolderRetries {
 		seen, _, abilities, err := s.open(ctx, by, id)
 		if err != nil {
@@ -421,7 +424,7 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, id pgtype.UUID,
 		return Observation{}, err
 	}
 	var chat revisions.SharedTitle
-	err = s.write(ctx, by, id, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
+	err = s.writeContent(ctx, by, id, in.RunID, func(q *dbsqlc.Queries, row dbsqlc.Observation, abilities folders.Abilities, who actor.Actor) error {
 		if err := permit(Machine, State(row.State), ActionUpdate, can(abilities, false)); err != nil {
 			return err
 		}
