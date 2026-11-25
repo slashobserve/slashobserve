@@ -219,6 +219,15 @@ describe("DataGrid", () => {
     expect(pressed).toHaveBeenCalledTimes(1)
     fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
     expect(copy).toHaveFocus()
+    fireEvent.keyDown(copy, { key: "Tab" })
+    fireEvent.keyDown(remove, { key: "Tab" })
+    await waitFor(() =>
+      expect(document.activeElement).toHaveAttribute("col-id", "name")
+    )
+    expect(document.activeElement?.closest("[row-id]")).toHaveAttribute(
+      "row-id",
+      "b"
+    )
     cell.focus()
     fireEvent.keyDown(cell, { key: "ArrowDown" })
     await waitFor(() =>
@@ -248,6 +257,21 @@ describe("DataGrid", () => {
     expect(
       await screen.findByRole("gridcell", { name: "Search v2" })
     ).toBeInTheDocument()
+  })
+
+  it("follows a new rowId on the same rows", async () => {
+    const props = { label: "Services", rows, columns }
+    const { container, rerender } = render(
+      <DataGrid {...props} rowId={(row) => row.id} />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    const ids = () =>
+      [...container.querySelectorAll("[role=row][row-id]")].map((row) =>
+        row.getAttribute("row-id")
+      )
+    expect(ids()).toEqual(["a", "b"])
+    rerender(<DataGrid {...props} rowId={(row) => `service-${row.id}`} />)
+    await waitFor(() => expect(ids()).toEqual(["service-a", "service-b"]))
   })
 
   it("reports the hovered row and paints the highlighted one", async () => {

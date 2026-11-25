@@ -4,7 +4,6 @@ const controlSelector =
   "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])"
 const keyStopSelector = ".ag-cell, .ag-full-width-row"
 const controlKeys = new Set([
-  "Tab",
   "Enter",
   " ",
   "ArrowUp",
