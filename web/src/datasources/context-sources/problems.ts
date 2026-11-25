@@ -229,7 +229,7 @@ export function sourceStatus(source: ContextSource): SourceStatus {
     case "unchecked":
       return {
         tone: "none",
-        label: "Not checked",
+        label: "Unchecked",
         detail: "Discover the tools to check the server.",
       }
     case "unreachable":
@@ -265,7 +265,7 @@ export function toolStatus(tool: ContextTool): ToolStatus {
     case "offered":
       return {
         tone: "none",
-        label: "To review",
+        label: "Offered",
         detail: "The server marks it read-only. The agent cannot call it yet.",
       }
     case "changed":
