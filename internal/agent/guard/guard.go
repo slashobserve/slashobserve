@@ -271,6 +271,9 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 			s.Absence.Asked = true
 			return s.reject(c, adm, reason)
 		}
+		if reason := s.takeAnswerFaults(c.Input); reason != "" {
+			return s.reject(c, adm, reason)
+		}
 	}
 	s.Turn.SaveSeen = true
 	if s.noteSave(adm.Key) {

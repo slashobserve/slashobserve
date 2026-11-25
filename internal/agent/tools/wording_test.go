@@ -461,14 +461,20 @@ func TestSaveFindingOffersAskOnDashboardOnlyToAHomeRun(t *testing.T) {
 	}
 }
 
-func TestTraceStatsTextNamesTheClickHouseErrorStatus(t *testing.T) {
-	tool, ok := toolsByName(t)[nameTraceStats]
-	if !ok {
-		t.Fatalf("%s is not registered", nameTraceStats)
-	}
-	for surface, offered := range map[string]Tool{"mcp": tool, "agent": tool.ForAgent()} {
-		if !strings.Contains(offered.Description, "StatusCode = 'Error' (StatusCode is Unset, Ok or Error)") {
-			t.Errorf("%s trace_stats description lacks the error status", surface)
+func TestToolTextNamesTheEvidenceRuleAndTheClickHouseErrorStatus(t *testing.T) {
+	byName := toolsByName(t)
+	for name, want := range map[string]string{
+		nameSaveFinding: "with counts, 1 to 4 evidence panels",
+		nameTraceStats:  "StatusCode = 'Error' (StatusCode is Unset, Ok or Error)",
+	} {
+		tool, ok := byName[name]
+		if !ok {
+			t.Fatalf("%s is not registered", name)
+		}
+		for surface, offered := range map[string]Tool{"mcp": tool, "agent": tool.ForAgent()} {
+			if !strings.Contains(offered.Description, want) {
+				t.Errorf("%s %s description lacks %q", surface, name, want)
+			}
 		}
 	}
 }

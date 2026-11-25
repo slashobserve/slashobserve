@@ -1057,3 +1057,63 @@ func TestTheStoppedReasonNamesTheLimitThatWasHit(t *testing.T) {
 		t.Fatalf("stop = %+v, want %q", stop, want)
 	}
 }
+
+func TestAFindingWithCountsAndNoEvidenceIsSentBackOnce(t *testing.T) {
+	counts := `{"markdown": "Checkout had 46 error spans in the last hour."}`
+	withPanel := `{"markdown": "Checkout had 46 error spans in the last hour.", "evidence": [{"id": "p1"}]}`
+	words := `{"markdown": "Checkout is healthy."}`
+	tests := []struct {
+		name  string
+		query bool
+		body  string
+		want  string
+	}{
+		{"counts after a query and no panel", true, counts, "no evidence panel"},
+		{"counts after a query and a panel", true, withPanel, ""},
+		{"counts with no query read", false, counts, ""},
+		{"an answer with no numbers", true, words, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(tools.ModeInvestigate)
+			if tt.query {
+				settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+			}
+			s.BeginTurn(false)
+			adm := s.Admit(0, jsonCall("save_finding", tt.body))
+			if tt.want == "" {
+				if adm.Verdict != Dispatch {
+					t.Fatalf("admission = %+v, want the finding saved", adm)
+				}
+				return
+			}
+			if adm.Verdict != Refuse || !strings.Contains(string(adm.Content), tt.want) {
+				t.Fatalf("admission = %+v, want refused with %q", adm, tt.want)
+			}
+			s.BeginTurn(false)
+			if again := s.Admit(0, jsonCall("save_finding", tt.body)); again.Verdict != Dispatch {
+				t.Fatalf("second save = %+v, want it let through after one refusal", again)
+			}
+		})
+	}
+}
+
+func TestAQueryThatFailedDoesNotAskForEvidence(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{IsError: true})
+	s.BeginTurn(false)
+	if adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "Checkout had 46 error spans."}`)); adm.Verdict != Dispatch {
+		t.Fatalf("admission = %+v, want the finding saved", adm)
+	}
+}
+
+func TestARestartForgetsWhatWasAskedOfTheAnswer(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall("save_finding", `{"markdown": "46 error spans."}`))
+	s.Restart()
+	if s.Answer != (Answer{}) {
+		t.Fatalf("answer state = %+v after a restart", s.Answer)
+	}
+}

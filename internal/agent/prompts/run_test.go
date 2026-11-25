@@ -260,3 +260,14 @@ func TestInvestigateNamesTheWindowItQueriedFromTheContextTime(t *testing.T) {
 		}
 	}
 }
+
+func TestInvestigateAsksForEvidencePanelsWhenTheAnswerGivesCounts(t *testing.T) {
+	system := Investigate()
+	for _, want := range []string{
+		"When the answer gives counts, add 1 to 4 evidence panels",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
