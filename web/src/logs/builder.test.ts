@@ -130,6 +130,11 @@ describe("equivalentField", () => {
     ).toBe("service.name")
   })
 
+  it("finds the mapped field that differs only in capitals", () => {
+    expect(equivalentField("Body", ["body", "message"])).toBe("body")
+    expect(equivalentField("body", ["body", "message"])).toBeNull()
+  })
+
   it("ignores keyword shadows and stays silent when two fields fit", () => {
     expect(equivalentField("name", ["a.name", "b.name"])).toBeNull()
     expect(

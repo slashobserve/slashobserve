@@ -190,8 +190,11 @@ export function equivalentField(
 ): string | null {
   const matches = names.filter(
     (name) =>
+      name !== field &&
       !name.endsWith(".keyword") &&
-      (name.endsWith(`.${field}`) || field.endsWith(`.${name}`))
+      (name.toLowerCase() === field.toLowerCase() ||
+        name.endsWith(`.${field}`) ||
+        field.endsWith(`.${name}`))
   )
   return matches.length === 1 ? matches[0] : null
 }
