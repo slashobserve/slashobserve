@@ -1,5 +1,6 @@
 export type GridLine<T> = {
   id: string
+  rowId: string
   row: T
   detail: boolean
 }
@@ -13,9 +14,9 @@ export function gridLines<T>(
 ): GridLine<T>[] {
   return rows.flatMap((row) => {
     const id = rowId(row)
-    const line = { id, row, detail: false }
+    const line = { id, rowId: id, row, detail: false }
     return open?.has(id)
-      ? [line, { id: `${id}${detailSuffix}`, row, detail: true }]
+      ? [line, { id: `${id}${detailSuffix}`, rowId: id, row, detail: true }]
       : [line]
   })
 }

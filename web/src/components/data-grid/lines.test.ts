@@ -8,8 +8,8 @@ const rowId = (row: { id: string }) => row.id
 describe("gridLines", () => {
   it("is one line per row when no detail is open", () => {
     expect(gridLines(rows, rowId, undefined)).toEqual([
-      { id: "a", row: rows[0], detail: false },
-      { id: "b", row: rows[1], detail: false },
+      { id: "a", rowId: "a", row: rows[0], detail: false },
+      { id: "b", rowId: "b", row: rows[1], detail: false },
     ])
   })
 
