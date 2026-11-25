@@ -209,6 +209,27 @@ describe("table panel", () => {
     expect(capped?.style.maxHeight).toBe("60px")
   })
 
+  it("lets rows grow when only a later frame's field wraps", async () => {
+    const merged: PreparedFrame[] = [
+      { ref: "A", fields: [text("route", ["/cart"])] },
+      { ref: "B", fields: [text("route", ["/a long route that wraps"])] },
+    ]
+    show(
+      tableOf({}, {
+        overrides: [{ match: { query: "B" }, cell: { wrap: true } }],
+      } as Partial<DataPanel>),
+      merged
+    )
+    await waitFor(() => expect(cellsOf("route")).toHaveLength(2))
+    const [first, second] = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-column="route"]')
+    )
+    expect(first).not.toHaveClass("h-full")
+    expect(second).not.toHaveClass("h-full")
+    expect(second.firstElementChild).toHaveClass("whitespace-normal")
+    expect(first.firstElementChild).toHaveClass("whitespace-nowrap")
+  })
+
   it("keeps fixed rows at full height without a cap", async () => {
     show(tableOf({ maxRowHeight: 60 }))
     await waitFor(() => expect(cellsOf("route")).toHaveLength(3))

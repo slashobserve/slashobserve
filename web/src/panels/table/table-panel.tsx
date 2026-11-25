@@ -177,19 +177,29 @@ function useFillText(fill: string | null): string | undefined {
   return fillTextColor(fill, (value) => cssColorToRgb(resolveColor(value)))
 }
 
+function oneRowPerSource(rows: readonly ModelRow[]): ModelRow[] {
+  const seen = new Set<unknown>()
+  return rows.filter((row) => {
+    if (seen.has(row.source.frame)) return false
+    seen.add(row.source.frame)
+    return true
+  })
+}
+
 function growsWith(
   fields: FieldResolver,
   display: Record<string, unknown>,
   column: TableColumn,
-  row: ModelRow | undefined
+  samples: readonly ModelRow[]
 ): boolean {
-  if (row === undefined) return false
-  const spec = cellSpecAt(fields, column, row)
-  return (
-    rowSizing(display, spec.dynamicHeight).grows ||
-    spec.wrap ||
-    spec.type === "json"
-  )
+  return samples.some((row) => {
+    const spec = cellSpecAt(fields, column, row)
+    return (
+      rowSizing(display, spec.dynamicHeight).grows ||
+      spec.wrap ||
+      spec.type === "json"
+    )
+  })
 }
 
 type CellProps = {
@@ -739,7 +749,7 @@ const TablePanel: PanelRenderer = ({
     gridRef.current?.goToPage(0)
   }, [])
 
-  const firstRow = rows[0]
+  const samples = useMemo(() => oneRowPerSource(model.rows), [model.rows])
   const columns = useMemo(() => {
     const firstView = views[0]
     const labelOf = (row: ModelRow) =>
@@ -769,7 +779,7 @@ const TablePanel: PanelRenderer = ({
       ...expand,
       ...views.map((view, index): PanelGridColumn<ModelRow> => {
         const key = view.column.key
-        const autoHeight = growsWith(fields, display, view.column, firstRow)
+        const autoHeight = growsWith(fields, display, view.column, samples)
         return {
           id: key,
           label: view.column.label,
@@ -829,7 +839,7 @@ const TablePanel: PanelRenderer = ({
     toggleOpen,
     fields,
     display,
-    firstRow,
+    samples,
     sort,
     showHeader,
     showTypeIcons,
