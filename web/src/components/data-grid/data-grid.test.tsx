@@ -220,6 +220,15 @@ describe("DataGrid", () => {
     expect(pressed).toHaveBeenCalledTimes(1)
     fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
     expect(copy).toHaveFocus()
+    fireEvent.keyDown(copy, { key: "Tab" })
+    fireEvent.keyDown(remove, { key: "Tab" })
+    await waitFor(() =>
+      expect(document.activeElement).toHaveAttribute("col-id", "name")
+    )
+    expect(document.activeElement?.closest("[row-id]")).toHaveAttribute(
+      "row-id",
+      "b"
+    )
     cell.focus()
     fireEvent.keyDown(cell, { key: "ArrowDown" })
     await waitFor(() =>
