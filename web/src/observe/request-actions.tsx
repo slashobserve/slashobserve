@@ -56,11 +56,31 @@ export function CancelRequestButton({
   )
 }
 
-export function StopRequestButton({ requestId }: { requestId: string }) {
+export function StopRequestButton({
+  requestId,
+  variant = "icon",
+}: {
+  requestId: string
+  variant?: "icon" | "text"
+}) {
   const request = useQuery(observeRequestQuery(requestId)).data
   const cancel = useCancelRun(requestId)
   if (request === undefined || !request.can_cancel) return null
   const stopping = request.state === "canceling" || cancel.pending
+  if (variant === "text") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        disabled={stopping}
+        aria-busy={cancel.pending}
+        onClick={cancel.run}
+      >
+        {stopping ? "Stopping" : "Stop"}
+      </Button>
+    )
+  }
   return (
     <Button
       type="button"
