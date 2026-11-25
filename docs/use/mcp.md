@@ -1068,6 +1068,9 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
 
 - It takes `datasource`, `query`, `from` and `to` (default `now-1h` and `now`, at most 31 days apart), `max_data_points` (10 to 1000, default 200) and `format` (`timeseries`, `table`, `heatmap` or `logs`; default `timeseries`).
 - It takes `variables`, an object of variable name to a list of values for each `$variable` the query uses, and `dashboard_title` for `$__dashboard`.
+- It returns `step_ms`, the step the query ran at, which is the larger of window divided by `max_data_points` and the datasource's scrape interval.
+  The `min`, `max` and `last` of a series are of those sampled points.
+  On a Prometheus datasource, when the step is longer than the scrape interval, the `note` says an extreme between samples is not shown and suggests `max_over_time` or `min_over_time` over the window as a `query_instant`.
 - It returns `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource.
   That shows what a `$job` or a `$__rate_interval` became.
 - A Loki log query comes back as one table of lines, newest first across every stream, with a `labels` column naming each line's stream.
