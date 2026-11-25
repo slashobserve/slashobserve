@@ -11,6 +11,38 @@ const swatchRem = 1
 const swatchGapRem = 0.375
 const nameMinRem = 4
 
+function widest(
+  texts: readonly string[],
+  weight: 400 | 500,
+  measure: TextMeasure
+): number {
+  return Math.max(0, ...texts.map((text) => measure(text, weight)))
+}
+
+export function legendNameMinWidth(rem: number): number {
+  return nameMinRem * rem
+}
+
+export function legendValueWidths(
+  headers: readonly string[],
+  cells: readonly (readonly string[])[],
+  measure: TextMeasure,
+  rem: number
+): number[] {
+  return headers.map(
+    (header, column) =>
+      cellPadRem * rem +
+      Math.max(
+        measure(header, 500),
+        widest(
+          cells.map((row) => row[column]),
+          400,
+          measure
+        )
+      )
+  )
+}
+
 export function legendTableWidth(
   labels: readonly string[],
   headers: readonly string[],
@@ -18,23 +50,12 @@ export function legendTableWidth(
   measure: TextMeasure,
   rem: number
 ): number {
-  const widest = (texts: readonly string[], weight: 400 | 500) =>
-    Math.max(0, ...texts.map((text) => measure(text, weight)))
   const name = Math.max(
-    nameMinRem * rem,
-    (cellPadRem + swatchRem + swatchGapRem) * rem + widest(labels, 400)
+    legendNameMinWidth(rem),
+    (cellPadRem + swatchRem + swatchGapRem) * rem + widest(labels, 400, measure)
   )
-  const values = headers.reduce(
-    (sum, header, column) =>
-      sum +
-      cellPadRem * rem +
-      Math.max(
-        measure(header, 500),
-        widest(
-          cells.map((row) => row[column]),
-          400
-        )
-      ),
+  const values = legendValueWidths(headers, cells, measure, rem).reduce(
+    (sum, width) => sum + width,
     0
   )
   return Math.ceil(containerPadRem * rem + name + values)

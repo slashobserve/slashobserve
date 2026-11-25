@@ -92,7 +92,6 @@ const notTables = [
 ]
 
 const waitingForDataGrid = [
-  "src/audit/audit-table.tsx",
   "src/chat/chats-page.tsx",
   "src/components/table-card.test.tsx",
   "src/components/table-card.tsx",
@@ -104,10 +103,7 @@ const waitingForDataGrid = [
   "src/folders/folder-saved-searches.tsx",
   "src/history/version-list.tsx",
   "src/import/repair/repair-page.tsx",
-  "src/inspect/data-tab.tsx",
   "src/observations/observation-list.tsx",
-  "src/panels/legend/legend-table.tsx",
-  "src/panels/table/table-panel.tsx",
   "src/saved-searches/saved-search-table.tsx",
 ]
 
