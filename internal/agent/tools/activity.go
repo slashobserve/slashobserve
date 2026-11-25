@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/folders"
 )
 
@@ -58,6 +60,7 @@ type listActivityInput struct {
 type activityListOut struct {
 	Activity   []activity.EventJSON `json:"activity"`
 	NextCursor *string              `json:"next_cursor"`
+	leftOutOut
 }
 
 func (r *Registry) listActivity(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -80,28 +83,68 @@ func (r *Registry) listActivity(ctx context.Context, input json.RawMessage) (Res
 		return res, nil
 	}
 	principal, _ := auth.FromContext(ctx)
-	audience, err := r.deps.Activity.Audience(ctx, principal)
+	audience, err := r.activityAudience(ctx, principal)
 	if err != nil {
 		return activityFailure(err)
+	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
 	}
 	for {
 		page, next, err := r.deps.Activity.List(ctx, audience, filter, in.Cursor, limit)
 		if err != nil {
 			return activityFailure(err)
 		}
-		out := activityListOut{Activity: make([]activity.EventJSON, 0, len(page))}
-		for _, e := range page {
-			out.Activity = append(out.Activity, activity.JSONOf(e))
-		}
+		events := keepActivity(titles, activityEvents(page))
+		out := activityListOut{Activity: events, leftOutOut: titles.report("event", "events")}
 		if next != "" {
 			out.NextCursor = &next
 		}
 		kept, cut := fit(out.Activity, listBudget-jsonSize(activityListOut{Activity: []activity.EventJSON{}, NextCursor: out.NextCursor}))
 		if !cut || len(out.Activity) == 1 {
+			titles.done(ctx)
 			return success("Listed "+plural(len(out.Activity), "event", "events"), out), nil
 		}
 		limit = max(len(kept), 1)
 	}
+}
+
+func (r *Registry) activityAudience(ctx context.Context, principal auth.Principal) (folders.Audience, error) {
+	audience, err := r.deps.Activity.Audience(ctx, principal)
+	if a, ok := datasource.AccessFrom(ctx); ok && !a.Reads(datasource.AudienceAdmins) {
+		audience.Admin = false
+	}
+	return audience, err
+}
+
+func activityEvents(page []activity.Event) []activity.EventJSON {
+	events := make([]activity.EventJSON, 0, len(page))
+	for _, e := range page {
+		events = append(events, activity.JSONOf(e))
+	}
+	return events
+}
+
+func keepActivity(titles *restrictedTitles, events []activity.EventJSON) []activity.EventJSON {
+	titles.restart()
+	return slices.DeleteFunc(events, func(e activity.EventJSON) bool {
+		if activity.IsAdminType(e.Type) {
+			return !titles.keepAdminsOnly()
+		}
+		folderID := ""
+		if e.FolderID != nil {
+			folderID = *e.FolderID
+		}
+		return !titles.keepIn(folderID, activitySubject(e))
+	})
+}
+
+func activitySubject(e activity.EventJSON) string {
+	if e.DashboardID != nil {
+		return *e.DashboardID
+	}
+	return e.Target.ID
 }
 
 func activityValues(in listActivityInput) url.Values {

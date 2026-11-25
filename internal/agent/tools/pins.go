@@ -50,6 +50,7 @@ type pinnedItemOut struct {
 type pinnedListOut struct {
 	Dashboards []pinnedItemOut `json:"dashboards"`
 	Truncated  bool            `json:"truncated,omitempty"`
+	leftOutOut
 }
 
 func (r *Registry) pinner(ctx context.Context) (auth.Principal, Result, bool, error) {
@@ -112,14 +113,20 @@ func (r *Registry) listPinnedDashboards(ctx context.Context, input json.RawMessa
 	if err != nil || !ok {
 		return res, err
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
+	}
 	list, err := r.deps.Stars.List(ctx, principal)
 	if err != nil {
 		return Result{}, err
 	}
+	list = keepReadable(titles, list, func(s stars.Star) (string, string) { return s.FolderID, s.DashboardID })
 	items := make([]pinnedItemOut, len(list))
 	for i, s := range list {
 		items[i] = pinnedItemOut{ID: s.DashboardID, Title: s.Title, FolderID: s.FolderID, FolderTitle: s.FolderTitle, PinnedAt: s.StarredAt.UTC().Format(time.RFC3339)}
 	}
 	kept, cut := fit(items, listBudget-jsonSize(pinnedListOut{Dashboards: []pinnedItemOut{}, Truncated: true}))
-	return success("Listed "+plural(len(kept), "pinned dashboard", "pinned dashboards"), pinnedListOut{Dashboards: kept, Truncated: cut}), nil
+	titles.done(ctx)
+	return success("Listed "+plural(len(kept), "pinned dashboard", "pinned dashboards"), pinnedListOut{Dashboards: kept, Truncated: cut, leftOutOut: titles.report("pinned dashboard", "pinned dashboards")}), nil
 }

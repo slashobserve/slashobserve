@@ -12,11 +12,13 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/anchor"
+	"github.com/slashobserve/slashobserve/internal/annotations"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
+	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/threads"
 )
 
@@ -255,7 +257,7 @@ func commentFailure(err error) (Result, error) {
 		return invalid("%s", bad.Message), nil
 	case errors.Is(err, dashboards.ErrInvalidCursor):
 		return invalid("cursor is not valid"), nil
-	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
+	case errors.Is(err, threads.ErrNotFound), errors.Is(err, threads.ErrTargetNotFound), errors.Is(err, dashboards.ErrNotFound), errors.Is(err, annotations.ErrNotFound), errors.Is(err, proposals.ErrNotFound), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeNotFound, commentNotFoundNotice), nil
 	case errors.Is(err, folders.ErrForbidden):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
@@ -360,6 +362,9 @@ func (r *Registry) listComments(ctx context.Context, input json.RawMessage) (Res
 	q, res, ok := parseCommentQuery(input)
 	if !ok {
 		return res, nil
+	}
+	if err := r.readCommentTarget(ctx, principal, q.target); err != nil {
+		return commentFailure(err)
 	}
 	for {
 		page, err := r.deps.Threads.List(ctx, principal, threads.ListQuery{Target: q.target, Status: q.status, PanelID: q.panelID, Limit: q.limit, Cursor: q.cursor, WithAnswers: true})

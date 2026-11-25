@@ -120,6 +120,7 @@ type healthListOut struct {
 	NextCursor *string           `json:"next_cursor"`
 	Summary    *healthSummaryOut `json:"summary,omitempty"`
 	Job        healthJobOut      `json:"job"`
+	leftOutOut
 }
 
 func (r *Registry) listDashboardHealth(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -134,6 +135,10 @@ func (r *Registry) listDashboardHealth(ctx context.Context, input json.RawMessag
 	if !ok {
 		return res, nil
 	}
+	titles, res, ok, err := r.restrictedTitles(ctx, false)
+	if err != nil || !ok {
+		return res, err
+	}
 	principal, _ := auth.FromContext(ctx)
 	for {
 		page, err := r.deps.Health.List(ctx, principal, params)
@@ -145,8 +150,11 @@ func (r *Registry) listDashboardHealth(ctx context.Context, input json.RawMessag
 		case err != nil:
 			return Result{}, err
 		}
+		page.Items = keepReadable(titles, page.Items, func(it health.Item) (string, string) { return it.Folder.ID.String(), it.ID })
 		out, smaller, retry := healthPage(page)
+		out.leftOutOut = titles.report("dashboard", "dashboards")
 		if !retry {
+			titles.done(ctx)
 			return success("Listed "+listedHealth(len(out.Dashboards), params), out), nil
 		}
 		params.Limit = smaller
