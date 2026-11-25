@@ -436,6 +436,7 @@ type Finding struct {
 	RuledOut           []string
 	NextSteps          []string
 	NoIncident         pgtype.Bool
+	Unverified         []byte
 }
 
 type Folder struct {

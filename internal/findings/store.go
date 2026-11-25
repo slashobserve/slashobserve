@@ -36,6 +36,10 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 		return Finding{}, false, fmt.Errorf("encode evidence: %w", err)
 	}
 	cause := rootCauseColumns(in.Structured.RootCause)
+	unverified, err := encodeUnverified(in.Unverified)
+	if err != nil {
+		return Finding{}, false, err
+	}
 	var row dbsqlc.Finding
 	err = s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
 		observationID, created, err := conclude(q)
@@ -76,6 +80,7 @@ func (s *store) insert(ctx context.Context, by actor.Actor, in SaveInput, conclu
 			RuledOut:           in.Structured.RuledOut,
 			NextSteps:          in.Structured.NextSteps,
 			NoIncident:         pgtype.Bool{Bool: true, Valid: in.Structured.NoIncident},
+			Unverified:         unverified,
 		})
 		if err != nil {
 			return err
@@ -342,6 +347,7 @@ func findingOf(r dbsqlc.Finding, observationFolder pgtype.UUID, requestTo pgtype
 		SuggestedChange: r.SuggestedChange.String,
 		ObserveWorthy:   r.ObserveWorthy,
 		Structured:      StructuredOf(r),
+		Unverified:      UnverifiedOf(r.Unverified),
 		Actor: actor.FromColumns(actor.Columns{
 			Kind: r.CreatedByKind, ID: r.CreatedByID, Name: r.CreatedByName,
 			Origin: r.Origin, Client: r.OriginClient, RunID: r.AgentRequestID,
