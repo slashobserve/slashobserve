@@ -186,13 +186,14 @@ describe("useCanvasTool", () => {
 function placeBoxes(initial: {
   left?: number
   width?: number
+  areaTop?: number
   areaBottom: number
 }) {
-  const boxes = { left: 0, width: 0, ...initial }
+  const boxes = { left: 0, width: 0, areaTop: 0, ...initial }
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
       if (this.dataset.testid === "area") {
-        return { bottom: boxes.areaBottom } as DOMRect
+        return { top: boxes.areaTop, bottom: boxes.areaBottom } as DOMRect
       }
       return { left: boxes.left, width: boxes.width } as DOMRect
     }
@@ -366,6 +367,7 @@ describe("CanvasTools", () => {
   })
 
   it("reserves room in the page flow and fixes the toolbar to the viewport bottom only when asked", async () => {
+    placeBoxes({ areaBottom: window.innerHeight })
     await renderTools({ comment: true, edit: false }, false, true, true)
     const bar = screen.getByRole("toolbar")
     const slot = bar.parentElement?.parentElement
@@ -387,6 +389,7 @@ describe("CanvasTools", () => {
   })
 
   it("docks the hint as a strip fixed to the viewport bottom in a page footer", async () => {
+    placeBoxes({ areaBottom: window.innerHeight })
     const user = userEvent.setup()
     await renderTools({ comment: true, edit: false }, false, true, true)
     await user.click(screen.getByRole("button", { name: "Comment" }))
@@ -403,25 +406,33 @@ describe("CanvasTools", () => {
     expect(fixed).toHaveStyle({ left: "240px", width: "612px" })
   })
 
-  it("hides the page footer once the scroll area ends above it", async () => {
+  it("rides at the bottom of a short column instead of the viewport bottom", async () => {
     placeBoxes({ areaBottom: window.innerHeight - 400 })
     await renderTools({ comment: true, edit: false }, false, true, true)
-    expect(screen.getByRole("toolbar").parentElement).toHaveClass("invisible")
+    const fixed = screen.getByRole("toolbar").parentElement
+    expect(fixed).toHaveStyle({ bottom: "416px" })
+    expect(fixed).not.toHaveClass("invisible")
   })
 
-  it("shows the page footer while the scroll area reaches the viewport bottom", async () => {
+  it("sits at its own inset while the column reaches the viewport bottom", async () => {
     placeBoxes({ areaBottom: window.innerHeight })
     await renderTools({ comment: true, edit: false }, false, true, true)
-    expect(screen.getByRole("toolbar").parentElement).not.toHaveClass(
-      "invisible"
-    )
+    const fixed = screen.getByRole("toolbar").parentElement
+    expect(fixed).toHaveStyle({ bottom: "16px" })
+    expect(fixed).not.toHaveClass("invisible")
   })
 
-  it("hides and shows the page footer as the page scrolls", async () => {
+  it("follows the column bottom as the page scrolls and hides once the column is out of view", async () => {
     const boxes = placeBoxes({ areaBottom: window.innerHeight })
     await renderTools({ comment: true, edit: false }, false, true, true)
     const fixed = screen.getByRole("toolbar").parentElement
     boxes.areaBottom = window.innerHeight - 300
+    act(() => {
+      window.dispatchEvent(new Event("scroll"))
+    })
+    expect(fixed).toHaveStyle({ bottom: "316px" })
+    expect(fixed).not.toHaveClass("invisible")
+    boxes.areaBottom = 0
     act(() => {
       window.dispatchEvent(new Event("scroll"))
     })
@@ -431,17 +442,26 @@ describe("CanvasTools", () => {
       window.dispatchEvent(new Event("scroll"))
     })
     expect(fixed).not.toHaveClass("invisible")
+    expect(fixed).toHaveStyle({ bottom: "16px" })
   })
 
-  it("keeps the floating toolbar over its own inset and clips the docked strip sooner", async () => {
-    const user = userEvent.setup()
-    placeBoxes({ areaBottom: window.innerHeight - 8 })
+  it("hides the page footer when the column starts below the viewport", async () => {
+    placeBoxes({
+      areaTop: window.innerHeight + 10,
+      areaBottom: window.innerHeight + 900,
+    })
     await renderTools({ comment: true, edit: false }, false, true, true)
-    expect(screen.getByRole("toolbar").parentElement).not.toHaveClass(
-      "invisible"
-    )
-    await user.click(screen.getByRole("button", { name: "Comment" }))
     expect(screen.getByRole("toolbar").parentElement).toHaveClass("invisible")
+  })
+
+  it("docks the strip to the column bottom with no inset", async () => {
+    const user = userEvent.setup()
+    placeBoxes({ areaBottom: window.innerHeight - 100 })
+    await renderTools({ comment: true, edit: false }, false, true, true)
+    await user.click(screen.getByRole("button", { name: "Comment" }))
+    expect(screen.getByRole("toolbar").parentElement).toHaveStyle({
+      bottom: "100px",
+    })
   })
 
   it("lets clicks through the floating strip and keeps the toolbar clickable", async () => {

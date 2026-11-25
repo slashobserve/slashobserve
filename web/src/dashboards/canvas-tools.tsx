@@ -396,8 +396,10 @@ function PageFooter({
   children: ReactNode
 }) {
   const [slot, setSlot] = useState<HTMLDivElement | null>(null)
-  const bottom = docked ? 0 : floatingBottomInset
-  const { left, width, clipped } = useSlotBox(slot, bottom)
+  const { left, width, bottom, hidden } = useSlotBox(
+    slot,
+    docked ? 0 : floatingBottomInset
+  )
   return (
     <div ref={setSlot} data-page-footer="" className="-mt-8 h-24 narrow:hidden">
       <div
@@ -405,7 +407,7 @@ function PageFooter({
         className={cn(
           "fixed z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1",
           docked ? "border-t bg-background px-4 py-2" : "pointer-events-none",
-          clipped && "invisible"
+          hidden && "invisible"
         )}
       >
         {bar}

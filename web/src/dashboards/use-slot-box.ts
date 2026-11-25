@@ -1,8 +1,11 @@
 import { useLayoutEffect, useState } from "react"
 
-export type SlotBox = { left: number; width: number; clipped: boolean }
-
-const unmeasured: SlotBox = { left: 0, width: 0, clipped: false }
+export type SlotBox = {
+  left: number
+  width: number
+  bottom: number
+  hidden: boolean
+}
 
 const scrolling = new Set(["auto", "scroll"])
 
@@ -21,23 +24,31 @@ export function useSlotBox(
   node: HTMLElement | null,
   bottomInset: number
 ): SlotBox {
-  const [box, setBox] = useState(unmeasured)
+  const [box, setBox] = useState<SlotBox>({
+    left: 0,
+    width: 0,
+    bottom: bottomInset,
+    hidden: false,
+  })
 
   useLayoutEffect(() => {
     if (node === null) return
     const area = scroller(node)
     const measure = () => {
       const { left, width } = node.getBoundingClientRect()
-      const clipped =
-        area !== null &&
-        area.getBoundingClientRect().bottom <
-          window.innerHeight - bottomInset - 1
+      const edges = area?.getBoundingClientRect()
+      const lift = edges ? Math.max(0, window.innerHeight - edges.bottom) : 0
+      const bottom = bottomInset + lift
+      const hidden =
+        edges !== undefined &&
+        (edges.bottom <= 0 || edges.top >= window.innerHeight)
       setBox((current) =>
         current.left === left &&
         current.width === width &&
-        current.clipped === clipped
+        current.bottom === bottom &&
+        current.hidden === hidden
           ? current
-          : { left, width, clipped }
+          : { left, width, bottom, hidden }
       )
     }
     measure()
