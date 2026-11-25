@@ -313,7 +313,6 @@ const LogRow = memo(function LogRow({
         data-logs-message=""
         className={cn(
           "min-w-0 flex-1 font-mono leading-5 text-foreground",
-          columns === undefined && "@max-xl:basis-full",
           wraps ? "[overflow-wrap:anywhere] whitespace-pre-wrap" : "truncate"
         )}
       >
@@ -337,7 +336,9 @@ const LogRow = memo(function LogRow({
         {timeCell}
         {labelsCell}
         {levelCell}
-        {messageCells}
+        <span className="flex min-w-0 flex-1 items-start gap-2 @max-xl:basis-full">
+          {messageCells}
+        </span>
       </>
     ) : (
       <>

@@ -143,7 +143,7 @@ describe("log lines in a narrow list", () => {
     const list = screen.getByRole("list", { name: "Live tail log lines" })
     expect(list).toHaveClass("@container")
     const message = list.querySelector("[data-logs-message]")
-    expect(message).toHaveClass("@max-xl:basis-full")
+    expect(message?.parentElement).toHaveClass("@max-xl:basis-full")
     expect(message?.closest("button")).toHaveClass("@max-xl:flex-wrap")
   })
 
@@ -152,6 +152,6 @@ describe("log lines in a narrow list", () => {
     const message = screen
       .getByRole("list", { name: "Live tail log lines" })
       .querySelector("[data-logs-message]")
-    expect(message).not.toHaveClass("@max-xl:basis-full")
+    expect(message?.parentElement).not.toHaveClass("@max-xl:basis-full")
   })
 })
