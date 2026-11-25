@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type RefObject,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -55,6 +56,16 @@ const viewsWithMarkAllRead: readonly InboxView[] = ["for_you", "everything"]
 const filterEmptyText: Record<Exclude<InboxFilter, "open">, string> = {
   unread: "Nothing unread.",
   done: "Nothing marked done.",
+}
+
+function opensInThisTab(event: MouseEvent): boolean {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  )
 }
 
 function isSignedInOnly(error: unknown): boolean {
@@ -150,6 +161,22 @@ function InboxCard() {
     titleRef.current?.focus()
   }, [])
 
+  const seekingTarget =
+    target !== null &&
+    query.data !== undefined &&
+    !items.some((item) => item.seq === target)
+  useEffect(() => {
+    if (!seekingTarget || revealed.current) return
+    if (hasNextPage && !isFetchingNextPage && !isFetchNextPageError) loadMore()
+  }, [
+    seekingTarget,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+    loadMore,
+  ])
+  const targetMissing = seekingTarget && !hasNextPage && !revealed.current
+
   useEffect(() => {
     if (revealed.current || target === null) return
     const row = listRef.current?.querySelector<HTMLElement>(
@@ -162,8 +189,8 @@ function InboxCard() {
   })
 
   function closeToOpener() {
-    returnFocusFromInbox(opener)
     close()
+    returnFocusFromInbox(opener)
   }
 
   function toggleExpanded(item: InboxItem) {
@@ -180,9 +207,9 @@ function InboxCard() {
     if (item.unread) setUnread.mutate({ seq: item.seq, unread: false })
   }
 
-  function openItem(item: InboxItem) {
+  function openItem(item: InboxItem, event: MouseEvent) {
     markOpened(item)
-    close()
+    if (opensInThisTab(event)) close()
   }
 
   function toggleUnread(item: InboxItem) {
@@ -396,6 +423,14 @@ function InboxCard() {
         </Select>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-auto px-2 pb-4">
+        {targetMissing ? (
+          <p
+            role="status"
+            className="px-3 pt-3 text-[13px] text-muted-foreground"
+          >
+            The item this link points to is not in this list any more.
+          </p>
+        ) : null}
         {body()}
       </div>
     </DockPanel>

@@ -296,6 +296,33 @@ describe("itemText", () => {
       text: { actor: "", verb: "Your run failed on", object: "a request" },
     },
     {
+      name: "a failed run names its question",
+      over: {
+        type: "run.failed",
+        target: { kind: "run", id },
+        question: "why did checkout slow down?",
+      },
+      text: {
+        actor: "",
+        verb: "Your run failed on",
+        object: "why did checkout slow down?",
+      },
+    },
+    {
+      name: "a failed run names its dashboard and question",
+      over: {
+        type: "run.failed",
+        target: { kind: "run", id },
+        target_title: "Checkout",
+        question: "why did checkout slow down?",
+      },
+      text: {
+        actor: "",
+        verb: "Your run failed on",
+        object: "Checkout: why did checkout slow down?",
+      },
+    },
+    {
       name: "a repair names its panels and dashboard",
       over: {
         type: "run.succeeded",

@@ -60,6 +60,12 @@ export const useInboxPanelStore = create<InboxPanelState>()((set, get) => ({
   setFilter: (filter) => set({ filter }),
 }))
 
+export function closeInboxIfOpen(): boolean {
+  const { open, close } = useInboxPanelStore.getState()
+  if (open) close()
+  return open
+}
+
 export function useInboxPanelOpen(): boolean {
   return useInboxPanelStore((state) => state.open)
 }
@@ -80,7 +86,10 @@ export function followNavigationWithInbox(router: AnyRouter) {
 }
 
 function shown(element: HTMLElement): boolean {
-  return element.isConnected && element.checkVisibility()
+  return (
+    element.isConnected &&
+    (element.checkVisibility?.() ?? element.offsetParent !== null)
+  )
 }
 
 export function returnFocusFromInbox(opener: HTMLElement | null): void {

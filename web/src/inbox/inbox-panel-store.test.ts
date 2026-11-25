@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import {
+  closeInboxIfOpen,
   inboxAfterNavigation,
   returnFocusFromInbox,
   useInboxPanelStore,
@@ -104,5 +105,39 @@ describe("returnFocusFromInbox", () => {
 
     expect(hidden).not.toHaveFocus()
     expect(shown).toHaveFocus()
+  })
+
+  it("falls back to offsetParent where checkVisibility is missing", () => {
+    const opener = button()
+    Object.defineProperty(opener, "checkVisibility", { value: undefined })
+    Object.defineProperty(opener, "offsetParent", { value: document.body })
+
+    returnFocusFromInbox(opener)
+
+    expect(opener).toHaveFocus()
+  })
+
+  it("treats an element with no offsetParent as hidden where checkVisibility is missing", () => {
+    const bell = button({ "data-inbox-bell": "" })
+    const opener = button()
+    Object.defineProperty(opener, "checkVisibility", { value: undefined })
+    Object.defineProperty(opener, "offsetParent", { value: null })
+
+    returnFocusFromInbox(opener)
+
+    expect(bell).toHaveFocus()
+  })
+})
+
+describe("closeInboxIfOpen", () => {
+  it("closes an open Inbox and says it did", () => {
+    useInboxPanelStore.getState().show()
+
+    expect(closeInboxIfOpen()).toBe(true)
+    expect(useInboxPanelStore.getState().open).toBe(false)
+  })
+
+  it("does nothing while the Inbox is closed", () => {
+    expect(closeInboxIfOpen()).toBe(false)
   })
 })

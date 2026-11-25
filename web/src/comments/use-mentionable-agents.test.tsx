@@ -64,6 +64,7 @@ const stats = {
   runs: 0,
   failed: 0,
   cost_usd: null,
+  unpriced_runs: 0,
   median_queue_wait_seconds: null,
 }
 

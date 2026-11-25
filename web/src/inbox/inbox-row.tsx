@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react"
 import { Link } from "@tanstack/react-router"
 import { CheckIcon, MailIcon, MailOpenIcon, UndoIcon } from "lucide-react"
 
@@ -22,7 +23,7 @@ type Props = {
   tabStop: boolean
   asLink: boolean
   onSelect: (item: InboxItem) => void
-  onOpen?: (item: InboxItem) => void
+  onOpen?: (item: InboxItem, event: MouseEvent) => void
   onToggleUnread?: (item: InboxItem) => void
   onToggleDone?: (item: InboxItem) => void
   done?: boolean
@@ -124,7 +125,7 @@ export function InboxRow({
           tabIndex={tabStop ? 0 : -1}
           aria-current={selected ? "true" : undefined}
           className={className}
-          onClick={() => onOpen?.(item)}
+          onClick={(event) => onOpen?.(item, event)}
         >
           <RowBody item={item} full={false} />
         </Link>
