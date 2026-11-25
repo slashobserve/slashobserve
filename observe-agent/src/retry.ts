@@ -6,8 +6,8 @@ export type RetryPolicy = {
 }
 
 export const startRetry: RetryPolicy = {
-  waitsMs: [250, 1_000, 2_000, 4_000],
-  budgetMs: 30_000,
+  waitsMs: [250],
+  budgetMs: 65_000,
 }
 
 function pause(ms: number, signal: AbortSignal): Promise<void> {
