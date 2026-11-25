@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { cellKeyAction, handleCellKey } from "./cell-keys"
+import {
+  cellKeyAction,
+  handleCellKey,
+  keepKeysOnFocusedControl,
+} from "./cell-keys"
 
 describe("cellKeyAction", () => {
   it("presses the only control of a focused cell on Enter", () => {
@@ -22,7 +26,7 @@ describe("cellKeyAction", () => {
     })
   })
 
-  it("tabs through the controls of a cell that holds several, then lets the grid move on", () => {
+  it("tabs through the controls of a cell that holds several, and stops acting after the last", () => {
     expect(cellKeyAction("Tab", false, 0, 2)).toEqual({
       kind: "focus",
       stop: 1,
@@ -34,7 +38,7 @@ describe("cellKeyAction", () => {
     expect(cellKeyAction("Tab", false, 2, 2)).toBeNull()
   })
 
-  it("tabs back through the controls to the cell, then lets the grid move on", () => {
+  it("tabs back through the controls to the cell, and stops acting there", () => {
     expect(cellKeyAction("Tab", true, 2, 2)).toEqual({ kind: "focus", stop: 1 })
     expect(cellKeyAction("Tab", true, 1, 2)).toEqual({ kind: "focus", stop: 0 })
     expect(cellKeyAction("Tab", true, 0, 2)).toBeNull()
@@ -68,5 +72,42 @@ describe("handleCellKey", () => {
     handleCellKey(event, grid)
     expect(event.defaultPrevented).toBe(false)
     grid.remove()
+  })
+})
+
+describe("keepKeysOnFocusedControl", () => {
+  function keyOn(target: HTMLElement, key: string) {
+    const event = new KeyboardEvent("keydown", { key })
+    Object.defineProperty(event, "target", { value: target })
+    return keepKeysOnFocusedControl({ event })
+  }
+
+  const cell = document.createElement("div")
+  cell.className = "ag-cell"
+  const button = document.createElement("button")
+  cell.append(button)
+
+  it("keeps navigation, paging, Space and Enter from the grid while a control in the cell has focus", () => {
+    for (const key of [
+      "Tab",
+      "Enter",
+      " ",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+      "PageUp",
+      "PageDown",
+    ]) {
+      expect(keyOn(button, key)).toBe(true)
+    }
+  })
+
+  it("lets the grid handle keys on the cell itself and other keys on a control", () => {
+    expect(keyOn(cell, "ArrowDown")).toBe(false)
+    expect(keyOn(cell, "Tab")).toBe(false)
+    expect(keyOn(button, "a")).toBe(false)
   })
 })

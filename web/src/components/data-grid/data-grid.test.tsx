@@ -169,9 +169,8 @@ describe("DataGrid", () => {
     expect(clicked).toHaveBeenCalledTimes(1)
   })
 
-  it("tabs between the controls of a cell that holds several, and Enter presses the focused one", async () => {
-    const edit = vi.fn()
-    const remove = vi.fn()
+  it("tabs between the controls of a cell that holds several, keeps arrows on the focused one, and Enter presses it", async () => {
+    const pressed = vi.fn()
     const withActions: DataGridColumn<Row>[] = [
       columns[0] as DataGridColumn<Row>,
       {
@@ -180,12 +179,15 @@ describe("DataGrid", () => {
         action: true,
         cell: (row) => (
           <>
-            <button type="button" onClick={() => edit(row.id)}>
-              Edit {row.name}
-            </button>
-            <button type="button" onClick={() => remove(row.id)}>
-              Remove {row.name}
-            </button>
+            {["Edit", "Copy", "Remove"].map((verb) => (
+              <button
+                key={verb}
+                type="button"
+                onClick={() => pressed(verb, row.id)}
+              >
+                {verb} {row.name}
+              </button>
+            ))}
           </>
         ),
       },
@@ -198,21 +200,34 @@ describe("DataGrid", () => {
         rowId={(row) => row.id}
       />
     )
-    const first = await screen.findByRole("button", { name: "Edit Checkout" })
-    const second = screen.getByRole("button", { name: "Remove Checkout" })
-    const cell = first.closest<HTMLElement>("[role=gridcell]") as HTMLElement
+    const edit = await screen.findByRole("button", { name: "Edit Checkout" })
+    const copy = screen.getByRole("button", { name: "Copy Checkout" })
+    const remove = screen.getByRole("button", { name: "Remove Checkout" })
+    const cell = edit.closest<HTMLElement>("[role=gridcell]") as HTMLElement
     cell.focus()
     fireEvent.keyDown(cell, { key: "Enter" })
-    expect(edit).not.toHaveBeenCalled()
+    expect(pressed).not.toHaveBeenCalled()
     fireEvent.keyDown(cell, { key: "Tab" })
-    expect(first).toHaveFocus()
-    fireEvent.keyDown(first, { key: "Tab" })
-    expect(second).toHaveFocus()
-    fireEvent.keyDown(second, { key: "Enter" })
-    expect(remove).toHaveBeenCalledWith("a")
-    expect(edit).not.toHaveBeenCalled()
-    fireEvent.keyDown(second, { key: "Tab", shiftKey: true })
-    expect(first).toHaveFocus()
+    expect(edit).toHaveFocus()
+    fireEvent.keyDown(edit, { key: "Tab" })
+    expect(copy).toHaveFocus()
+    fireEvent.keyDown(copy, { key: "Tab" })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: "ArrowDown" })
+    expect(remove).toHaveFocus()
+    fireEvent.keyDown(remove, { key: "Enter" })
+    expect(pressed).toHaveBeenLastCalledWith("Remove", "a")
+    expect(pressed).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(remove, { key: "Tab", shiftKey: true })
+    expect(copy).toHaveFocus()
+    cell.focus()
+    fireEvent.keyDown(cell, { key: "ArrowDown" })
+    await waitFor(() =>
+      expect(document.activeElement?.closest("[row-id]")).toHaveAttribute(
+        "row-id",
+        "b"
+      )
+    )
   })
 
   it("redraws a row whose content changes under the same id", async () => {
@@ -425,6 +440,21 @@ describe("DataGrid", () => {
           rowId={(row) => row.id}
         />
       )
+      await screen.findByRole("columnheader", { name: "Name" })
+      expect(screen.queryByRole("columnheader", { name: "Owner" })).toBeNull()
+    })
+
+    it("measures the grid once rows replace the empty state", async () => {
+      widthOfGrid(800)
+      const props = {
+        label: "Services",
+        columns: hiding,
+        rowId: (row: (typeof rows)[number]) => row.id,
+        empty: <p>No services</p>,
+      }
+      const { rerender } = render(<DataGrid {...props} rows={[]} />)
+      expect(screen.getByText("No services")).toBeInTheDocument()
+      rerender(<DataGrid {...props} rows={rows} />)
       await screen.findByRole("columnheader", { name: "Name" })
       expect(screen.queryByRole("columnheader", { name: "Owner" })).toBeNull()
     })

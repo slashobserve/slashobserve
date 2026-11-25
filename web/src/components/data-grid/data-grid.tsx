@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
-import { handleCellKey } from "./cell-keys"
+import { handleCellKey, keepKeysOnFocusedControl } from "./cell-keys"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
 import {
@@ -211,7 +211,8 @@ export function DataGrid<T>({
   const narrow = useNarrow()
   const containerRef = useRef<HTMLDivElement>(null)
   const hides = allColumns.some((column) => column.hideBelow !== undefined)
-  const width = useWidth(containerRef, hides && !narrow)
+  const showsEmpty = rows.length === 0 && empty !== undefined
+  const width = useWidth(containerRef, hides && !narrow && !showsEmpty)
   const columns = useMemo(
     () =>
       width === 0
@@ -309,6 +310,7 @@ export function DataGrid<T>({
         colId: column.id,
         headerName: column.header,
         sortable: false,
+        suppressKeyboardEvent: keepKeysOnFocusedControl,
         cellRenderer: GridCell,
         cellRendererParams: { column },
         headerComponent: SortHeader,
@@ -347,7 +349,7 @@ export function DataGrid<T>({
   }, [])
   useEffect(labelGrid, [label, labelledBy, labelGrid])
 
-  if (rows.length === 0 && empty !== undefined) return <>{empty}</>
+  if (showsEmpty) return <>{empty}</>
 
   return (
     <div

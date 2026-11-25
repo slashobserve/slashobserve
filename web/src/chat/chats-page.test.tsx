@@ -288,6 +288,31 @@ describe("ChatsPage rows", () => {
     })
   })
 
+  it("keeps caret keys in the rename field instead of moving the grid focus", async () => {
+    stub([chat("c1", "Checkout health", { turns: 2 })])
+    const user = await openMenu("Checkout health")
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    const field = await screen.findByRole("textbox", { name: "Chat title" })
+    await user.type(field, "x")
+    for (const key of [
+      "{ArrowLeft}",
+      "{ArrowRight}",
+      "{Home}",
+      "{End}",
+      "{PageUp}",
+      "{PageDown}",
+    ]) {
+      const press = new KeyboardEvent("keydown", {
+        key: key.slice(1, -1),
+        bubbles: true,
+        cancelable: true,
+      })
+      field.dispatchEvent(press)
+      expect(press.defaultPrevented).toBe(false)
+      expect(field).toHaveFocus()
+    }
+  })
+
   it("says when the observation made from the chat keeps its title", async () => {
     const info = vi.spyOn(toast, "info")
     stub([chat("c1", "Checkout health")], {
