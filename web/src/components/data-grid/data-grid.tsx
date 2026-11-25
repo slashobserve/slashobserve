@@ -8,6 +8,7 @@ import {
   type GetRowIdParams,
   type ICellRendererParams,
   type IHeaderParams,
+  type ProcessRowParams,
   type RowClassRules,
   type SuppressKeyboardEventParams,
 } from "ag-grid-community"
@@ -162,6 +163,7 @@ export function DataGrid<T>({
   highlightedRowId = null,
   onHighlightRow,
   compact = false,
+  rowAttributes,
   empty,
   className,
 }: {
@@ -174,6 +176,7 @@ export function DataGrid<T>({
   highlightedRowId?: string | null
   onHighlightRow?: (rowId: string | null) => void
   compact?: boolean
+  rowAttributes?: (row: T) => Readonly<Record<string, string>>
   empty?: ReactNode
   className?: string
 }) {
@@ -182,12 +185,14 @@ export function DataGrid<T>({
   const rowIdRef = useRef(rowId)
   const highlightRef = useRef(onHighlightRow)
   const sortRef = useRef(onSort)
+  const rowAttributesRef = useRef(rowAttributes)
   const labelRef = useRef(label)
   useLayoutEffect(() => {
     labelRef.current = label
     rowIdRef.current = rowId
     highlightRef.current = onHighlightRow
     sortRef.current = onSort
+    rowAttributesRef.current = rowAttributes
   })
   const sorts = onSort !== undefined
   const sortKey = sort?.key ?? null
@@ -202,6 +207,16 @@ export function DataGrid<T>({
         highlightedRowId !== null && node.id === highlightedRowId,
     }),
     [highlightedRowId]
+  )
+  const processRowPostCreate = useCallback(
+    ({ eRow, node }: ProcessRowParams<T>) => {
+      const attributes =
+        node.data === undefined ? undefined : rowAttributesRef.current?.(node.data)
+      for (const [name, value] of Object.entries(attributes ?? {})) {
+        eRow.setAttribute(name, value)
+      }
+    },
+    []
   )
   const highlight = useCallback(
     (id: string | null) => highlightRef.current?.(id),
@@ -284,6 +299,7 @@ export function DataGrid<T>({
           fullWidthCellRenderer={NarrowRow}
           getRowHeight={narrow ? estimateNarrowRow : undefined}
           rowClassRules={rowClassRules}
+          processRowPostCreate={processRowPostCreate}
           onCellMouseOver={onCellMouseOver}
           onGridReady={labelGrid}
         />

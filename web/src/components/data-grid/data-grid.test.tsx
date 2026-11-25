@@ -247,6 +247,40 @@ describe("DataGrid", () => {
     expect(box.style.height).toBe("")
   })
 
+  it("sets the attributes a row asks for on the row itself, wide and narrow", async () => {
+    const rowAttributes = (row: Row) => ({ "data-row-key": row.id })
+    const { container, unmount } = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await screen.findByRole("gridcell", { name: "Checkout" })
+    expect(
+      container.querySelector('[role=row][data-row-key="b"]')
+    ).toHaveAttribute("row-id", "b")
+    unmount()
+
+    vi.mocked(useNarrow).mockReturnValue(true)
+    const narrow = render(
+      <DataGrid
+        label="Services"
+        rows={rows}
+        columns={columns}
+        rowId={(row) => row.id}
+        rowAttributes={rowAttributes}
+      />
+    )
+    await waitFor(() =>
+      expect(
+        narrow.container.querySelector('[data-row-key="a"] [data-narrow-row]')
+      ).not.toBeNull()
+    )
+  })
+
   it("shows the empty state instead of an empty grid", () => {
     render(
       <DataGrid
