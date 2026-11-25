@@ -238,6 +238,39 @@ type Chat struct {
 	LastTurnAt    pgtype.Timestamptz
 }
 
+type ContextSource struct {
+	ID           pgtype.UUID
+	Uid          string
+	Name         string
+	Description  pgtype.Text
+	Url          string
+	Audience     string
+	SecretHeader pgtype.Text
+	Secret       []byte
+	Provisioned  bool
+	CheckedAt    pgtype.Timestamptz
+	Failure      pgtype.Text
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type ContextSourceTool struct {
+	SourceID        pgtype.UUID
+	Name            string
+	State           string
+	Refusal         pgtype.Text
+	Description     string
+	InputSchema     []byte
+	Hash            string
+	SeenDescription pgtype.Text
+	SeenInputSchema []byte
+	SeenHash        pgtype.Text
+	ApprovedBy      pgtype.UUID
+	ApprovedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type Dashboard struct {
 	ID                     pgtype.UUID
 	Title                  string

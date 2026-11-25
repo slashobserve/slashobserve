@@ -27,6 +27,8 @@ UNION ALL
 SELECT 'grafana_connection'::text AS kind, name, url FROM grafana_connections
 UNION ALL
 SELECT 'datasource'::text AS kind, name, CASE WHEN type = 'clickhouse' THEN 'tcp://' || (config->>'address') ELSE config->>'address' END AS url FROM datasources
+UNION ALL
+SELECT 'context_source'::text AS kind, name, url FROM context_sources
 ORDER BY kind, name;
 
 -- name: ClaimConnectionOutboundDomain :one

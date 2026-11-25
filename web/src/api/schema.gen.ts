@@ -1597,6 +1597,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/context-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the registered context sources.
+         * @description Only Admins can call this endpoint. A response never carries a secret; `secret_set` says whether one is stored.
+         */
+        get: operations["listContextSources"];
+        put?: never;
+        /**
+         * Register an MCP server whose tools the agent may use.
+         * @description Only Admins can call this endpoint. The URL must be https with a domain name, no login, query or fragment; the server is reached over MCP streamable HTTP. The host is added to the outbound allowlist when it is not allowed yet, unless `SLASHOBSERVE_OUTBOUND_DOMAINS` is set. The optional secret is sent in the header named by `secret_header`, is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned. Registering a source asks the server nothing: call the discover endpoint, then approve tools.
+         */
+        post: operations["createContextSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/context-sources/{uid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Read one context source.
+         * @description Only Admins can call this endpoint.
+         */
+        get: operations["getContextSource"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a context source, its approved tools and its stored secret.
+         * @description Only Admins can call this endpoint. The host's outbound allowlist entry, when a source added it, is removed unless a webhook, a datasource, a Grafana connection or another source still uses the host. A source from the context sources file answers 409 `provisioned`.
+         */
+        delete: operations["deleteContextSource"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a context source's name, audience, address or secret.
+         * @description Only Admins can call this endpoint. A new URL forgets the tools found so far, because they belong to another server, and clears the last discovery. A URL with a new host needs the secret again (`secret`) or `clear_secret`, so a stored secret never reaches another host. A source from the context sources file answers 409 `provisioned`.
+         */
+        patch: operations["updateContextSource"];
+        trace?: never;
+    };
+    "/context-sources/{uid}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the server for its tools and compare them with what was approved.
+         * @description Only Admins can call this endpoint. The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools. A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason. A new read-only tool is stored as `offered`; nothing is approved automatically. An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again. An approved tool the server no longer lists becomes `gone`. A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+         */
+        post: operations["discoverContextSourceTools"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/context-sources/{uid}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * List what discovery found on a context source.
+         * @description Only Admins can call this endpoint. Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+         */
+        get: operations["listContextSourceTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/context-sources/{uid}/tools/approve-read-only": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve every offered tool of a context source at once.
+         * @description Only Admins can call this endpoint. Every `offered` tool is approved as it is pinned now; the server marks each of them read-only. `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
+         */
+        post: operations["approveReadOnlyContextSourceTools"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/context-sources/{uid}/tools/{name}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve one tool as it is described now.
+         * @description Only Admins can call this endpoint. The body is optional. With `hash`, the approval applies only when the tool's current definition has that hash, so an Admin approves what they read; otherwise it answers 409 `tool_changed`. An `offered` tool is approved as pinned; a `changed` tool is approved as the server describes it now, which replaces the pinned definition. A `refused` tool answers 409 `tool_refused` with the reason.
+         */
+        post: operations["approveContextSourceTool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/context-sources/{uid}/tools/{name}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw the approval of a tool.
+         * @description Only Admins can call this endpoint. An `approved` or `changed` tool returns to `offered`, and the agent stops being offered it.
+         */
+        post: operations["revokeContextSourceTool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/datasources/test": {
         parameters: {
             query?: never;
@@ -4789,12 +4955,12 @@ export interface components {
         OutboundDomain: {
             /** @description A host name, or `*.` followed by a host name for its subdomains only, in lower case ASCII. */
             domain: string;
-            /** @description True when saving a Grafana connection or a datasource added the entry; it is removed with the last webhook, connection or datasource that uses that host. */
+            /** @description True when saving a Grafana connection, a datasource or a context source added the entry; it is removed with the last webhook, connection, datasource or context source that uses that host. */
             from_connection: boolean;
-            /** @description The webhooks, Grafana connections and datasources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
+            /** @description The webhooks, Grafana connections, datasources and context sources whose address this entry allows, so removing it would stop them; empty for anyone but an Admin, because those objects are Admin only. */
             used_by: {
                 /** @enum {string} */
-                kind: "webhook" | "grafana_connection" | "datasource";
+                kind: "webhook" | "grafana_connection" | "datasource" | "context_source";
                 name: string;
             }[];
             /**
@@ -5111,6 +5277,153 @@ export interface components {
                 field: string;
                 message: string;
             }[];
+        };
+        /** @description How many of the source's tools are in each state; see `docs/reference/states.md`. */
+        ContextSourceToolCounts: {
+            offered: number;
+            approved: number;
+            changed: number;
+            gone: number;
+            refused: number;
+        };
+        ContextSource: {
+            uid: string;
+            name: string;
+            /** @description What the source is for, on one line; null when none was set. */
+            description: string | null;
+            /** @description The MCP endpoint, https, as stored. */
+            url: string;
+            /**
+             * @description Who may use the approved tools of this source; Admins manage every source whatever the audience.
+             * @enum {string}
+             */
+            audience: "everyone" | "admins";
+            /** @description The header that carries the secret, when there is one. */
+            secret_header: string | null;
+            /** @description True when a secret is stored; the secret itself is never returned. */
+            secret_set: boolean;
+            /** @description True when the source comes from the context sources file and cannot be changed or deleted here. */
+            provisioned: boolean;
+            /**
+             * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
+             * @enum {string}
+             */
+            state: "unchecked" | "unreachable" | "ready";
+            /** @description Why the last discovery failed, as a code such as `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`. */
+            failure: string | null;
+            /** Format: date-time */
+            checked_at: string | null;
+            tools: components["schemas"]["ContextSourceToolCounts"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ContextSourceList: {
+            context_sources: components["schemas"]["ContextSource"][];
+        };
+        CreateContextSourceRequest: {
+            uid: string;
+            /** @description The display name; the uid when empty. */
+            name?: string;
+            /** @description What the source is for, on one line without control or format characters; none when empty. */
+            description?: string;
+            /** @description An https URL with a domain name and no login, query or fragment. */
+            url: string;
+            /** @enum {string} */
+            audience?: "everyone" | "admins";
+            /** @description The header that carries the secret; required with `secret`. */
+            secret_header?: string;
+            secret?: string;
+        };
+        UpdateContextSourceRequest: {
+            name?: string;
+            /** @description What the source is for; an empty string removes it. */
+            description?: string;
+            /** @description A URL with a new host needs `secret` or `clear_secret` in the same request when a secret is stored. */
+            url?: string;
+            /** @enum {string} */
+            audience?: "everyone" | "admins";
+            secret_header?: string;
+            secret?: string;
+            /** @description Delete the stored secret; cannot be combined with `secret`. */
+            clear_secret?: boolean;
+        };
+        InvalidContextSourceError: {
+            error: string;
+            /** @enum {string} */
+            code: "invalid_context_source";
+            fields: {
+                field: string;
+                message: string;
+            }[];
+        };
+        ToolRefusedError: {
+            error: string;
+            /** @enum {string} */
+            code: "tool_refused";
+            /** @description Why the tool cannot be approved. */
+            refusal: string;
+        };
+        ContextSourceDefinition: {
+            description: string;
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** @description SHA-256 over the tool's name, description and input schema, as 64 hex characters. */
+            hash: string;
+        };
+        ContextSourceTool: {
+            name: string;
+            /** @enum {string} */
+            state: "offered" | "approved" | "changed" | "gone" | "refused";
+            /** @description Why a `refused` tool cannot be approved. */
+            refusal: string | null;
+            /** @description The pinned description; for an `offered` tool, the one the server gave last. */
+            description: string;
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** @description SHA-256 over the pinned name, description and input schema, as 64 hex characters. */
+            hash: string;
+            /** @description What the server describes now, for a `changed` tool; null otherwise. */
+            seen: components["schemas"]["ContextSourceDefinition"] | null;
+            /**
+             * Format: uuid
+             * @description The person who approved the tool; null for a tool not approved, or approved by a key.
+             */
+            approved_by: string | null;
+            /** Format: date-time */
+            approved_at: string | null;
+            /** Format: date-time */
+            updated_at: string;
+            allowed_actions: ("approve" | "revoke")[];
+        };
+        ContextSourceToolList: {
+            tools: components["schemas"]["ContextSourceTool"][];
+        };
+        ContextSourceApproved: {
+            approved: components["schemas"]["ContextSourceTool"][];
+        };
+        ContextSourceDiscovery: {
+            source: components["schemas"]["ContextSource"];
+            /** @description What this discovery found; all zero when it failed. */
+            tally: {
+                /** @description Tools the server listed that can be kept. */
+                found: number;
+                /** @description Tools seen for the first time, offered or refused. */
+                new: number;
+                /** @description Approved tools the server now describes differently. */
+                changed: number;
+                /** @description Approved tools the server no longer lists. */
+                gone: number;
+                /** @description Tools left out because their name is not 1 to 128 letters, digits, dots, hyphens or underscores, or is repeated. */
+                ignored: number;
+            };
+        };
+        ApproveContextSourceToolRequest: {
+            /** @description The hash of the definition that was read; the approval is refused when the tool no longer has it. */
+            hash?: string;
         };
         RestrictedContentError: {
             /** @description Names the datasource and says to use a folder only Admins can read. */
@@ -12865,6 +13178,368 @@ export interface operations {
             500: components["responses"]["Internal"];
             502: components["responses"]["QueryBadGateway"];
             504: components["responses"]["QueryTimeout"];
+        };
+    };
+    listContextSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The context sources, sorted by uid. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    createContextSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContextSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description The context source is stored. */
+            201: {
+                headers: {
+                    Location: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSource"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and a secret was sent (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The definition is not valid (`invalid_context_source`, with the fields to fix), 50 context sources exist (`too_many_context_sources`), or the outbound allowlist is full (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidContextSourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    getContextSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The context source. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSource"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    deleteContextSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The context source is deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The source comes from the context sources file (`provisioned`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    updateContextSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContextSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description The changed context source. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSource"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description The source comes from the context sources file (`provisioned`), changed while the request ran (`source_changed`), or a secret was sent without `SLASHOBSERVE_SECRET_KEY` (`secret_key_missing`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            /** @description The change is not valid (`invalid_context_source`, with the fields to fix), or the outbound allowlist is full (`too_many_domains`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidContextSourceError"] | components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    discoverContextSourceTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The source as discovery left it, and what discovery found. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceDiscovery"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The source changed while the server was being asked (`source_changed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["Internal"];
+        };
+    };
+    listContextSourceTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tools, sorted by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceToolList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    approveReadOnlyContextSourceTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tools approved by this call; empty when none was offered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceApproved"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    approveContextSourceTool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApproveContextSourceToolRequest"];
+            };
+        };
+        responses: {
+            /** @description The approved tool. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceTool"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The tool changed since it was read (`tool_changed`), is refused (`tool_refused`), or is not in a state that can be approved (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["ToolRefusedError"] | components["schemas"]["InvalidTransition"];
+                };
+            };
+            413: components["responses"]["TooLarge"];
+            500: components["responses"]["Internal"];
+        };
+    };
+    revokeContextSourceTool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uid: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tool as it is now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContextSourceTool"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description The tool is not approved (`invalid_transition`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidTransition"];
+                };
+            };
+            500: components["responses"]["Internal"];
         };
     };
     testDatasource: {

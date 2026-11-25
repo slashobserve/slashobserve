@@ -36,6 +36,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/contextsources"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
@@ -235,6 +236,15 @@ func serviceAccountsExit(err error) error {
 	return exit
 }
 
+func contextSourcesExit(err error) error {
+	var invalid *contextsources.InvalidError
+	switch {
+	case errors.As(err, &invalid), errors.Is(err, contextsources.ErrUIDTaken), errors.Is(err, contextsources.ErrNoSecretKey), errors.Is(err, contextsources.ErrTooMany):
+		return described("context_sources_failed", err)
+	}
+	return withheld("context_sources_failed", err)
+}
+
 func migrationExit(err error) error {
 	exit := &exitError{code: "migration_failed", cause: err}
 	if version, ok := db.FailedMigrationVersion(err); ok {
@@ -270,7 +280,7 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
-func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
 	if err := authService.ReconcileRoles(ctx); err != nil {
 		return withheld("role_reconcile_failed", err)
 	}
@@ -278,6 +288,11 @@ func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Ser
 		return authService.EnsureProvisioned(ctx, fileAccounts(cfg.ServiceAccounts))
 	}); err != nil {
 		return serviceAccountsExit(err)
+	}
+	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+		return contextsources.New(contextsources.Deps{DB: database, Key: sealed.Key(cfg.SecretKey.Reveal())}).Provision(ctx, cfg.ContextSources)
+	}); err != nil {
+		return contextSourcesExit(err)
 	}
 	return nil
 }
@@ -404,7 +419,7 @@ func run() error {
 	folderAccess := folders.NewAccess(database)
 	accessRequests := accessrequests.New(database, folderAccess)
 	authService.RecordChanges(database, accessrequests.ChangeLog{ChangeLog: activity.AuthChanges{}, Requests: accessRequests})
-	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+	if err := reconcileStartup(ctx, database, authService, cfg); err != nil {
 		return err
 	}
 
@@ -587,6 +602,11 @@ func run() error {
 	defer grafanaService.Wait()
 	defer stopGrafana()
 
+	contextSourcesService := contextsources.New(contextsources.Deps{
+		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+	})
+
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
 	})
@@ -647,6 +667,7 @@ func run() error {
 			drafthttp.NewHandler(toolRegistry, logger),
 			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
+			contextsources.NewHandler(contextSourcesService, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},

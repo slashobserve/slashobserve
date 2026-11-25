@@ -73,6 +73,9 @@ var (
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
+	contextKeys  = []string{"name", "host", "audience", "changes", "url_changed", "credential_changed"}
+	probeKeys    = []string{"host", "found", "new", "changed", "gone", "ignored"}
+	toolKeys     = []string{"host", "tool", "hash"}
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
@@ -242,6 +245,12 @@ var catalog = map[Action]Spec{
 	"datasource.test":                    change(CategoryAdmin, testKeys),
 	"grafana_connection.test":            change(CategoryAdmin, connTestKeys),
 	"grafana_connection.fetch_dashboard": change(CategoryAdmin, fetchKeys),
+	"context_source.create":              change(CategoryAdmin, contextKeys),
+	"context_source.update":              change(CategoryAdmin, contextKeys),
+	"context_source.delete":              change(CategoryAdmin, contextKeys),
+	"context_source.discover":            change(CategoryAdmin, probeKeys),
+	"context_source.approve":             change(CategoryAdmin, toolKeys),
+	"context_source.revoke":              change(CategoryAdmin, toolKeys),
 	"public_link.create":                 change(CategoryAdmin, linkKeys),
 	"public_link.revoke":                 change(CategoryAdmin, linkKeys),
 	"access_request.open":                change(CategoryAdmin, accessKeys),
