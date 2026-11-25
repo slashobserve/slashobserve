@@ -6,7 +6,6 @@ import {
   ChartLineIcon,
   DatabaseIcon,
   HouseIcon,
-  InboxIcon,
   KeyIcon,
   LayoutDashboardIcon,
   LogsIcon,
@@ -21,17 +20,14 @@ import {
 import { Mark } from "@/components/brand/mark"
 import { SourceFlyoutItems } from "@/datasources/source-menu"
 import { useBrowsableSources } from "@/datasources/use-sources"
-import { useInboxCount } from "@/inbox/queries"
 import { modChordLabel } from "@/lib/shortcuts"
 import { DashboardsFlyoutItems } from "@/pins/pinned-dashboards"
 
 import { AccountMenu } from "./account-menu"
 import { AuditFlyoutItems } from "./audit-list"
-import { CountBadge } from "./count-badge"
 import {
   countLabel,
   isNavItemActive,
-  unreadBadge,
   visibleNavItems,
   type NavItem,
   type NavPath,
@@ -48,7 +44,6 @@ import { useSidebarStore } from "./sidebar-store"
 
 export const navIcons: Record<NavPath, LucideIcon> = {
   "/": HouseIcon,
-  "/inbox": InboxIcon,
   "/observations": NotebookTextIcon,
   "/dashboards": LayoutDashboardIcon,
   "/logs": LogsIcon,
@@ -94,25 +89,11 @@ function RailLink({
 }
 
 function useRailBadges(): Partial<Record<NavPath, RailBadge>> {
-  const unread = unreadBadge(useInboxCount())
   const open = useOpenObservationsPage()
   const openCount = countLabel(open.observations.length, open.more)
   const unreadOpen = useUnreadOpenCount(open.observations)
   const unreadNote = unreadOpen > 0 ? `, ${unreadOpen} unread` : ""
   return {
-    "/inbox":
-      unread === null
-        ? undefined
-        : {
-            hint: `${unread} unread`,
-            ariaLabel: `Inbox, ${unread} unread`,
-            decoration: (
-              <CountBadge
-                count={unread}
-                className="top-0.5 right-0 border-chrome"
-              />
-            ),
-          },
     "/observations":
       openCount === null
         ? undefined

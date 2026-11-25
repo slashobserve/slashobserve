@@ -12,6 +12,7 @@ import { DashboardChat, type OpenChat } from "@/chat/dashboard-chat"
 import { DockHeader } from "@/components/dock/dock-header"
 import { DockPanel } from "@/components/dock/dock-panel"
 import { useDockFocus } from "@/components/dock/dock-focus"
+import { useInboxPanelOpen } from "@/inbox/inbox-panel-store"
 import { activityCardId, paneOpener } from "@/dashboards/pane-openers"
 import {
   useDashboardSearch,
@@ -56,7 +57,7 @@ type Props = {
 
 export function ActivityCard({
   view: cardView,
-  hidden = false,
+  hidden: hiddenByPage = false,
   dashboardId,
   apiId,
   spec,
@@ -75,6 +76,7 @@ export function ActivityCard({
   onSelectPanel,
   onClose,
 }: Props) {
+  const hidden = useInboxPanelOpen() || hiddenByPage
   const search = useDashboardSearch()
   const setSearch = useSetDashboardSearch()
   const setOpen = useActivityStore((state) => state.setOpen)

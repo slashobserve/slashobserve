@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
+import { InboxPanel } from "@/inbox/inbox-panel"
+import { useInboxLive } from "@/inbox/queries"
 import { isModChord } from "@/lib/shortcuts"
 
 import { CommandPalette } from "./command-palette"
@@ -45,6 +47,7 @@ function useSidebarShortcut() {
 
 export function AppShell() {
   useSidebarShortcut()
+  useInboxLive()
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   const [titleHost, setTitleHost] = useState<HTMLSpanElement | null>(null)
@@ -69,6 +72,7 @@ export function AppShell() {
                   </div>
                 </main>
                 <div ref={setPanelHost} className="contents" />
+                <InboxPanel />
               </div>
               <CommandPalette />
             </div>

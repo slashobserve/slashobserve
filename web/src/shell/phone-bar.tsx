@@ -1,16 +1,13 @@
 import { useRef, useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { InboxIcon, MenuIcon } from "lucide-react"
+import { MenuIcon } from "lucide-react"
 
 import { Wordmark } from "@/components/brand/wordmark"
 import { PhoneSourceTitle } from "@/datasources/source-menu"
 import { useRouteSource } from "@/datasources/use-sources"
-import { useInboxCount } from "@/inbox/queries"
-import { cn } from "@/lib/utils"
 
 import { useCrumbs } from "./crumbs"
-import { CountBadge } from "./count-badge"
-import { unreadBadge } from "./nav"
+import { InboxBell } from "./inbox-bell"
 import { PaletteButton } from "./palette-button"
 import { phoneTitle } from "./phone-title"
 import { SidebarSheet } from "./sidebar-sheet"
@@ -32,7 +29,6 @@ export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
       ? "metrics"
       : "logs"
   const source = useRouteSource(exploreKind).current
-  const unread = unreadBadge(useInboxCount())
   return (
     <header className="sticky top-0 z-10 hidden h-14 flex-none items-center gap-0.5 border-b bg-background px-1 narrow:flex">
       <button
@@ -75,19 +71,11 @@ export function PhoneBar({ title: pageTitle }: { title?: string } = {}) {
         )}
       </div>
       <PaletteButton variant="phone" />
-      <Link
-        to="/inbox"
-        aria-label={unread === null ? "Inbox" : `Inbox, ${unread} unread`}
-        className={cn(iconButton, "relative no-underline")}
-      >
-        <InboxIcon aria-hidden="true" className="size-5" />
-        {unread === null ? null : (
-          <CountBadge
-            count={unread}
-            className="top-1.5 right-1 border-background"
-          />
-        )}
-      </Link>
+      <InboxBell
+        place="phone"
+        className={`${iconButton} [&_svg]:size-5`}
+        badgeClassName="top-1.5 right-1 border-background"
+      />
     </header>
   )
 }
