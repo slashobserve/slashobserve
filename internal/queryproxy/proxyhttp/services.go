@@ -76,8 +76,8 @@ func servicesRequest(rawQuery string) (req queryproxy.ServicesRequest, err error
 		return req, err
 	}
 	req.Signal = query.Get("signal")
-	if req.Signal != "" && req.Signal != datasource.SignalLogs && req.Signal != datasource.SignalTraces {
-		return req, invalidf("signal must be logs or traces")
+	if !slices.Contains([]string{"", datasource.SignalLogs, datasource.SignalTraces, datasource.SignalMetrics}, req.Signal) {
+		return req, invalidf("signal must be logs, traces or metrics")
 	}
 	if text := query.Get("window"); text != "" {
 		window, err := time.ParseDuration(text)

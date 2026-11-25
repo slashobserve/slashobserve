@@ -2,9 +2,7 @@ package tools
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -63,7 +61,7 @@ func TestListServicesAsksEverySourceThatHoldsOneAndSkipsTheRest(t *testing.T) {
 	r := newServicesRegistry(t,
 		datasource.Instance{UID: "loki", Datasource: loki},
 		datasource.Instance{UID: "tempo", Datasource: tempo},
-		datasource.Instance{UID: "prom", Datasource: &fakeDS{}},
+		datasource.Instance{UID: "pg", Datasource: &fakeDS{typ: "postgres"}},
 	)
 	res, err := call(t, r, nameListServices, `{}`)
 	if err != nil {
@@ -227,131 +225,9 @@ func TestListServicesSkipsAdminsOnlySourcesUntilOneIsNamed(t *testing.T) {
 	}
 }
 
-func metricStore(labels []string, values map[string][]string) *fakeDS {
-	return &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
-		switch req.Kind {
-		case datasource.DiscoverLabels:
-			return &datasource.Catalog{Labels: labels}, nil
-		case datasource.DiscoverLabelValues:
-			return &datasource.Catalog{Values: values[req.Label]}, nil
-		}
-		return nil, fmt.Errorf("discover kind %q", req.Kind)
-	}}
-}
-
-func TestListServicesNamesTheLabelAMetricStoreUsesForAService(t *testing.T) {
-	loki, tempo := twoSources()
-	prom := metricStore([]string{"instance", "job", "pod"}, map[string][]string{"job": {"checkout", "shop"}})
-	r := newServicesRegistry(t,
-		datasource.Instance{UID: "loki", Datasource: loki},
-		datasource.Instance{UID: "tempo", Datasource: tempo},
-		datasource.Instance{UID: "prom", Datasource: prom},
-	)
-	res, err := call(t, r, nameListServices, `{}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := servicesOf(t, res)
-	if len(out.Sources) != 3 {
-		t.Fatalf("out = %+v, want logs, traces and metrics", out)
-	}
-	bySource := map[string]serviceSourceOut{}
-	for _, source := range out.Sources {
-		bySource[source.Datasource] = source
-	}
-	got := bySource["prom"]
-	if got.Datasource != "prom" || got.Signal != "metrics" || got.Field != "job" || !slices.Equal(got.Services, []string{"checkout", "shop"}) {
-		t.Fatalf("prom = %+v", got)
-	}
-	res, err = call(t, r, nameListServices, `{"service":"shop"}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if out := servicesOf(t, res); len(out.Sources) != 2 || out.Sources[0].Field == "" {
-		t.Fatalf("out = %+v, want loki and prom to hold shop", out)
-	}
-}
-
-func TestListServicesPicksTheMostSpecificServiceLabelAMetricStoreHas(t *testing.T) {
-	tests := []struct {
-		name   string
-		labels []string
-		field  string
-	}{
-		{"service_name over the rest", []string{"app", "job", "service", "service_name"}, "service_name"},
-		{"service over job and app", []string{"app", "job", "service"}, "service"},
-		{"job over app", []string{"app", "job"}, "job"},
-		{"app alone", []string{"app", "pod"}, "app"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			prom := metricStore(tt.labels, map[string][]string{tt.field: {"shop"}})
-			r := newServicesRegistry(t, datasource.Instance{UID: "prom", Datasource: prom})
-			res, err := call(t, r, nameListServices, `{"datasource":"prom"}`)
-			if err != nil {
-				t.Fatal(err)
-			}
-			out := servicesOf(t, res)
-			if len(out.Sources) != 1 || out.Sources[0].Field != tt.field || len(out.Sources[0].Services) != 1 {
-				t.Fatalf("out = %+v, want field %s", out, tt.field)
-			}
-		})
-	}
-}
-
-func TestListServicesLeavesOutAMetricStoreWithoutAServiceLabelUnlessNamed(t *testing.T) {
-	prom := metricStore([]string{"instance", "pod"}, nil)
-	r := newServicesRegistry(t, datasource.Instance{UID: "prom", Datasource: prom})
-	res, err := call(t, r, nameListServices, `{}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if out := servicesOf(t, res); len(out.Sources) != 0 {
-		t.Fatalf("out = %+v, want no source", out)
-	}
-	res, err = call(t, r, nameListServices, `{"datasource":"prom"}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := servicesOf(t, res)
-	if len(out.Sources) != 1 || out.Sources[0].Field != "" || len(out.Sources[0].Services) != 0 || !strings.Contains(out.Sources[0].Note, "list_labels") {
-		t.Fatalf("out = %+v, want a note pointing at list_labels", out)
-	}
-}
-
-func TestListServicesSkipsMetricStoresForALogsOrTracesAsk(t *testing.T) {
-	prom := metricStore([]string{"job"}, map[string][]string{"job": {"shop"}})
-	r := newServicesRegistry(t, datasource.Instance{UID: "prom", Datasource: prom})
-	for _, signal := range []string{"logs", "traces"} {
-		res, err := call(t, r, nameListServices, `{"signal":"`+signal+`"}`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if out := servicesOf(t, res); len(out.Sources) != 0 {
-			t.Fatalf("%s: out = %+v, want no source", signal, out)
-		}
-		res, err = call(t, r, nameListServices, `{"datasource":"prom","signal":"`+signal+`"}`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if errorCode(t, res) != codeInvalidRequest {
-			t.Fatalf("%s: res = %#v", signal, res.Content)
-		}
-	}
-	res, err := call(t, r, nameListServices, `{"signal":"metrics"}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Field != "job" {
-		t.Fatalf("out = %+v", out)
-	}
-}
-
-func TestListServicesSaysAMetricStoreIsUnavailableAndStillAnswersTheOthers(t *testing.T) {
+func TestListServicesIncludesAMetricStoreAndNamesTheLabelItUses(t *testing.T) {
 	loki, _ := twoSources()
-	prom := &fakeDS{discoverFn: func(context.Context, datasource.DiscoverRequest) (*datasource.Catalog, error) {
-		return nil, datasource.Errorf(datasource.ErrTimeout, "timed out")
-	}}
+	prom := &fakeServiceDS{fakeDS: &fakeDS{}, field: "job", values: []string{"checkout", "shop"}}
 	r := newServicesRegistry(t,
 		datasource.Instance{UID: "loki", Datasource: loki},
 		datasource.Instance{UID: "prom", Datasource: prom},
@@ -361,14 +237,32 @@ func TestListServicesSaysAMetricStoreIsUnavailableAndStillAnswersTheOthers(t *te
 		t.Fatal(err)
 	}
 	out := servicesOf(t, res)
-	if len(out.Sources) != 2 {
-		t.Fatalf("out = %+v", out)
-	}
 	bySource := map[string]serviceSourceOut{}
 	for _, source := range out.Sources {
 		bySource[source.Datasource] = source
 	}
-	if bySource["prom"].Unavailable != "query_timeout" || len(bySource["loki"].Services) != 2 {
-		t.Fatalf("out = %+v", out)
+	if got := bySource["prom"]; len(out.Sources) != 2 || got.Signal != "metrics" || got.Type != "prometheus" || got.Field != "job" || len(got.Services) != 2 {
+		t.Fatalf("out = %+v, want loki and prom with the job label", out)
+	}
+	res, err = call(t, r, nameListServices, `{"service":"shop","signal":"metrics"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "prom" {
+		t.Fatalf("out = %+v, want only prom", out)
+	}
+	res, err = call(t, r, nameListServices, `{"signal":"logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "loki" {
+		t.Fatalf("out = %+v, want only loki", out)
+	}
+	res, err = call(t, r, nameListServices, `{"datasource":"prom","signal":"logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError {
+		t.Fatalf("res = %#v, want an error for logs on Prometheus", res.Content)
 	}
 }

@@ -1048,10 +1048,9 @@ Lists the services a log, trace or metric datasource has seen over a recent wind
   Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch and Prometheus source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
   A source only Admins can query is left out unless you name it with `datasource`, so a plain listing does not mark an Admin's run as one that read Admin-only data.
 - `signal` (`logs`, `traces` or `metrics`) picks one signal.
-- A Prometheus source lists the values of the first of `service_name`, `service`, `job` and `app` that its series carry, and names that label as `field`.
+- A Prometheus source lists the values of the first of `service_name`, `service`, `app` and `job` that its series carry in the window, and names that label as `field`, the same rule Loki follows.
   `service_name` comes first because OpenTelemetry names the service that way, `service` and `app` follow as the usual hand-written labels, and `job` comes last because every scraped series has it but it names a scrape job, which is often but not always a service.
-  A Prometheus source with none of them is left out of a plain listing, and answers a `note` when you name it with `datasource`.
-  It reads the datasource's own lookback, so `window` does not narrow it.
+  A Prometheus source with none of them answers an empty `field` and no services.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.
 - `service` keeps only the sources that hold a service whose name contains it, case-insensitive.

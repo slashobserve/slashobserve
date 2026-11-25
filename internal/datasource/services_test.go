@@ -21,7 +21,10 @@ func TestResolveServiceSignal(t *testing.T) {
 		{"clickhouse", "traces", "traces", false},
 		{"elasticsearch", "traces", "", true},
 		{"opensearch", "", "logs", false},
-		{"prometheus", "", "", true},
+		{"prometheus", "", "metrics", false},
+		{"prometheus", "metrics", "metrics", false},
+		{"prometheus", "logs", "", true},
+		{"mysql", "", "", true},
 	}
 	for _, tt := range tests {
 		got, err := datasource.ResolveServiceSignal(tt.dsType, tt.requested)

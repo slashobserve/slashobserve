@@ -8,7 +8,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-var ServiceLabels = []string{"service_name", "service", "app", "job"}
+var ServiceLabels = datasource.ServiceLabels
 
 var _ datasource.ServiceSource = (*Datasource)(nil)
 
