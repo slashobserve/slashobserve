@@ -1,6 +1,7 @@
 package guard
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -266,7 +267,9 @@ func (s *State) ForgetWrite(c Call) {
 
 func writeKey(c Call) string {
 	var parsed any
-	if json.Unmarshal(c.Input, &parsed) == nil {
+	decoder := json.NewDecoder(bytes.NewReader(c.Input))
+	decoder.UseNumber()
+	if decoder.Decode(&parsed) == nil {
 		if canonical, err := json.Marshal(parsed); err == nil {
 			return Key(c.Name, canonical)
 		}

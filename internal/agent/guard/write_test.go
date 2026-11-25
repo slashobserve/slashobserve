@@ -191,3 +191,14 @@ func TestForgetWriteLeavesAnotherWritesKeyAlone(t *testing.T) {
 		t.Fatalf("writes = %d", s.Writes)
 	}
 }
+
+func TestWriteKeysKeepLargeIntegersApart(t *testing.T) {
+	a := writeKey(writeCall("update_block", `{"version":9007199254740993}`))
+	b := writeKey(writeCall("update_block", `{"version":9007199254740992}`))
+	if a == b {
+		t.Fatal("two different integers made one key")
+	}
+	if writeKey(writeCall("update_block", `{"b":1,"a":2}`)) != writeKey(writeCall("update_block", `{"a":2,"b":1}`)) {
+		t.Fatal("key order changed the key")
+	}
+}
