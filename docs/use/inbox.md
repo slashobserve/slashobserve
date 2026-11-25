@@ -33,6 +33,7 @@ With `item=<seq>` the panel also scrolls to that item, focuses and highlights it
 One right panel shows at a time, and the newest one wins.
 Opening the Inbox hides the page's own panel, such as a dashboard's Chat and Activity, Inspect or a History panel, and it comes back as it was when the Inbox closes.
 Opening another panel while the Inbox is open closes the Inbox, and so does moving to another page.
+While the Inbox hides a page's panel, that panel's button, such as **Activity** or the discussion button, shows as not pressed, and pressing it, or choosing **Inspect** again, closes the Inbox and shows the panel as it was.
 
 Each row names who did what and the real title of the dashboard, observation or proposal.
 It shows the start of the comment for a mention or a reply, and has a dot while it is unread.

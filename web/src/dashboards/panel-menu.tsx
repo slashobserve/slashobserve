@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
+import { closeInboxIfOpen } from "@/inbox/inbox-panel-store"
 import { focusMovedOutOfMenu } from "@/lib/focus"
 import { isEditablePanel } from "@/panel-editor/draft"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
@@ -250,6 +251,7 @@ export function PanelMenu({
       disabled: !idle,
       onSelect: () => {
         focusAfterClose = "none"
+        closeInboxIfOpen()
         if (block?.onInspect !== undefined) {
           block.onInspect()
           return
