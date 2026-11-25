@@ -42,6 +42,7 @@ type Props = {
   canEdit: boolean
   hidden: boolean
   headingRef: RefObject<HTMLHeadingElement | null>
+  focusedThreadId?: string
   onClose: () => void
   onShowBlock: (blockId: string) => void
   onAdded: (blockId: string) => void
@@ -112,6 +113,7 @@ export function DiscussionPane({
   canEdit,
   hidden,
   headingRef,
+  focusedThreadId,
   onClose,
   onShowBlock,
   onAdded,
@@ -164,6 +166,12 @@ export function DiscussionPane({
     setFilterBlock(noFilter.blockId)
   }
 
+  const [filteredFor, setFilteredFor] = useState(focusedThreadId)
+  if (filteredFor !== focusedThreadId) {
+    setFilteredFor(focusedThreadId)
+    if (focusedThreadId !== undefined) clearFilter()
+  }
+
   if (!host) return null
   return createPortal(
     <DockPanel
@@ -212,6 +220,7 @@ export function DiscussionPane({
           onShow: onShowBlock,
         }}
         view={{ filter, onClear: clearFilter }}
+        focusedThreadId={hidden ? undefined : focusedThreadId}
         readOnlyAction={
           <RequestCommentAccess
             object={{ kind: "observation", id: observation.id }}
