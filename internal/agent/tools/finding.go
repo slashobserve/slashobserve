@@ -35,7 +35,8 @@ const (
 
 	descFindingBase     = "Save your answer as a finding and end the run: markdown of at most 400 words answering with the names and numbers that show it, plus, with counts, 1 to 4 evidence panels whose queries return data. Call it once, after checking each evidence query. Open with a plain sentence, no query jargon. Write times in the context's time zone with its label, else in UTC; never mention another product. Give only counts you read; say what you did not check unless the request names a length or a form; before saying a signal is missing, list its metrics scoped to the service; a failed read is not empty. Reads are refused once the run's model-call limit passes without a save, so batch reads and name a refused read in the finding as not read. Cite an observation as a titled /o/<id> link."
 	descFindingAskOn    = " A request on Home to change an existing dashboard is made from its own chat: find it with list_dashboards; when exactly one matches, say so and pass its id as ask_on_dashboard_id, else list the candidates by title."
-	descSaveFinding     = descFindingBase + descFindingAskOn
+	descFindingFields   = " For an investigation also fill root_cause, onset (absolute time), impact (with numbers), confidence, ruled_out and next_steps, each in one or two sentences, or set no_incident when nothing was wrong; they must agree with the markdown."
+	descSaveFinding     = descFindingBase + descFindingFields + descFindingAskOn
 	propFindingMarkdown = `"markdown":{"type":"string","minLength":1,"maxLength":4000,"description":"The finding as Markdown, at most 400 words: a one-sentence answer first, then the evidence unless the request names a length or form."}`
 	propFindingTitle    = `"title":{"type":"string","maxLength":120,"description":"Three to eight words naming the answer's subject, such as Checkout 5xx errors by pod; not the question."}`
 	propFindingEvidence = `"evidence":{"type":"array","maxItems":4,"items":{"type":"object"},"description":"1 to 4 data panels in ObserveSpec form whose queries returned data; gridPos and ids are set for you."}`
@@ -47,10 +48,18 @@ const (
 	propFindingSuggestedChange = `"suggested_change":{"type":"string","maxLength":500,"description":"Asked about a dashboard only: the change the person asked for, in their terms, or the nearest safe one; omitted when none is needed, never repeated in markdown; a person with Comment applies it with Revise the dashboard, an agent over MCP."}`
 	propFindingObserveWorthy   = `"observe_worthy":{"type":"boolean","description":"True when the answer shows a jump, drop or error spike."}`
 
+	propFindingRootCause = `"root_cause":{"type":"object","properties":{"component":{"type":"string","maxLength":120,"description":"Service, datastore, host or flag as named in the telemetry."},"kind":{"type":"string","enum":["deploy","config_or_flag","dependency","resource","data","traffic","infrastructure","unknown"]},"summary":{"type":"string","maxLength":300}},"required":["component","kind","summary"],"additionalProperties":false}`
+	propFindingOnset     = `"onset":{"type":"string","description":"Absolute RFC 3339 time."}`
+	propFindingImpact    = `"impact":{"type":"string","maxLength":300}`
+	propFindingConf      = `"confidence":{"type":"string","enum":["high","medium","low"]}`
+	propFindingRuledOut  = `"ruled_out":{"type":"array","maxItems":5,"items":{"type":"string","maxLength":200}}`
+	propFindingNext      = `"next_steps":{"type":"array","maxItems":3,"items":{"type":"string","maxLength":200}}`
+	propFindingNoInc     = `"no_incident":{"type":"boolean"}`
+
 	maxSuggestedChangeRunes = 500
 
 	schemaFindingHead = `{"type":"object","properties":{` + propFindingTitle + `,` + propFindingMarkdown + `,` + propFindingEvidence + `,` + propFindingFrom + `,` + propFindingTo + `,`
-	schemaFindingTail = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `},"required":["markdown"],"additionalProperties":false}`
+	schemaFindingTail = propFindingSuggestedChange + `,` + propFindingObserveWorthy + `,` + propFindingRootCause + `,` + propFindingOnset + `,` + propFindingImpact + `,` + propFindingConf + `,` + propFindingRuledOut + `,` + propFindingNext + `,` + propFindingNoInc + `},"required":["markdown"],"additionalProperties":false}`
 
 	schemaSaveFinding        = schemaFindingHead + propFindingAskOn + `,` + schemaFindingTail
 	schemaSaveFindingNoAskOn = schemaFindingHead + schemaFindingTail
@@ -62,7 +71,7 @@ func init() { registerEntries((*Registry).findingEntries) }
 
 func findingForRun(t Tool, mode Mode) Tool {
 	if mode != ModeCreate {
-		t.Description, t.InputSchema = descFindingBase, json.RawMessage(schemaSaveFindingNoAskOn)
+		t.Description, t.InputSchema = descFindingBase+descFindingFields, json.RawMessage(schemaSaveFindingNoAskOn)
 	}
 	return t
 }
@@ -83,6 +92,8 @@ type findingInput struct {
 
 	SuggestedChange string `json:"suggested_change"`
 	ObserveWorthy   bool   `json:"observe_worthy"`
+
+	findings.StructuredInput
 }
 
 type findingSavedOut struct {
@@ -123,6 +134,10 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if !ok {
 		return res, nil
 	}
+	structured, err := in.StructuredInput.Check()
+	if err != nil {
+		return invalid("%s", err), nil
+	}
 	in.Markdown = markdownWithoutSuggestedChange(in.Markdown, suggested)
 	save, res, ok, err := r.checkFinding(ctx, principal, in, from, to, findings.TitleFrom(in.Title, run.Investigation))
 	if err != nil || !ok {
@@ -133,6 +148,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	}
 	save.AgentRequestID, save.DashboardID, save.AskDashboardID = requestID, dashboardID, askOn
 	save.SuggestedChange, save.ObserveWorthy = suggested, in.ObserveWorthy
+	save.Structured = structured
 	save.AsOf = run.asOf()
 	f, replayed, err := r.deps.Findings.Save(ctx, principal, save)
 	if errors.Is(err, findings.ErrNotFound) {
