@@ -45,6 +45,7 @@ function Page() {
   return (
     <>
       <DockPanel
+        panelKey="discussion"
         labelledBy="discussion"
         width={420}
         bounds={panelWidth}
