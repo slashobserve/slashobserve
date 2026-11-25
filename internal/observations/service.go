@@ -117,7 +117,7 @@ func (s *Service) write(ctx context.Context, by auth.Principal, id, runID pgtype
 			case locked.FolderID != seen.FolderID:
 				return errFolderMoved
 			}
-			return fn(q, locked, abilities, actor.Of(by, origin.From(ctx), runID.String()))
+			return fn(q, locked, abilities, actor.In(ctx, by, runID.String()))
 		})
 		if !errors.Is(err, errFolderMoved) {
 			return err
@@ -149,7 +149,7 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, in CreateInput)
 	case err != nil:
 		return Observation{}, err
 	}
-	who := actor.Of(by, origin.From(ctx), in.RunID.String())
+	who := actor.In(ctx, by, in.RunID.String())
 	cols, err := who.Columns()
 	if err != nil {
 		return Observation{}, err

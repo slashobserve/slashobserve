@@ -1,11 +1,14 @@
 import { useEffect, useState, type Ref } from "react"
 
+import { cn } from "@/lib/utils"
+
 import {
   LegendSwatch,
   hoverHandlers,
-  legendMaxHeight,
+  legendTableFit,
   rootFontSize,
   rowButtonClass,
+  padRem,
   rowRem,
   type LegendHover,
   type LegendItem,
@@ -80,19 +83,22 @@ export function LegendTable({
   const sorted = sortDesc ? "descending" : "ascending"
   const bottom = placement === "bottom"
   const rem = rootFontSize()
-  const header = rowRem * rem
+  const total = items.length + more
+  const fit = legendTableFit(available, rem, items.length + (more > 0 ? 1 : 0))
+  const scrolls = bottom && fit.scrolls
+  const footer = bottom && fit.footer
   const names = legendHeaders(reducers, headers)
   return (
     <div
       ref={ref}
       role="group"
       aria-label="Series"
-      className="shrink-0 overflow-auto px-1 pb-1.5"
-      style={
-        bottom
-          ? { maxHeight: legendMaxHeight(available - header, rem) + header }
-          : { width }
-      }
+      className={cn(
+        "shrink-0 px-1",
+        bottom ? "overflow-x-hidden overflow-y-auto" : "overflow-auto",
+        !scrolls && "pb-1.5"
+      )}
+      style={bottom ? { maxHeight: fit.maxHeight } : { width }}
     >
       <table className="w-full border-separate border-spacing-0 text-xs">
         <thead>
@@ -167,6 +173,16 @@ export function LegendTable({
           ) : null}
         </tbody>
       </table>
+      {footer ? (
+        <p
+          className="sticky bottom-0 bg-background px-1.5 pt-0.5 text-xs text-muted-foreground"
+          style={{ height: `${rowRem + padRem}rem` }}
+        >
+          {more > 0
+            ? `${total} series, ${more} not listed`
+            : `${total} series, scroll for all`}
+        </p>
+      ) : null}
     </div>
   )
 }

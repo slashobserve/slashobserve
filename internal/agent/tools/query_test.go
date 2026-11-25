@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -271,6 +272,23 @@ func TestQueryInstantExplainsAnEmptyResultWithTheDatasourceHint(t *testing.T) {
 	}
 	if summary := res.Content.(querySummary); !summary.Empty || summary.Hint != hint {
 		t.Fatalf("summary = %+v", summary)
+	}
+}
+
+func TestQueryRangeNamesTheHintBesideAnAllZeroSeries(t *testing.T) {
+	hint := `Field "Body" is not in the mapping; text fields to try: message.`
+	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+		f := timeNumberFrame(nil, 0, 0)
+		f.Meta = &datasource.FrameMeta{Hint: hint}
+		return []datasource.Frame{f}, nil
+	}}
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameQueryRange, `{"datasource":"fake","query":"Body:error"}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if want := "Ran a query on fake: 1 series (" + hint + ")"; res.Step != want {
+		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
 
@@ -678,8 +696,8 @@ func TestQueryInstantPagesAndKeepsTheSummaryCompact(t *testing.T) {
 	if !ok {
 		t.Fatalf("content is %T", res.Content)
 	}
-	if summary.Table == nil || len(summary.Table.Rows) != maxTableRows || summary.Table.TotalRows != 300 || !summary.Truncated {
-		t.Fatalf("table = %+v, want %d rows shown of 300", summary.Table, maxTableRows)
+	if summary.Table == nil || len(summary.Table.Rows) != 300 || summary.Table.TotalRows != 300 || summary.Truncated {
+		t.Fatalf("table = %+v, want the whole page of 300 rows", summary.Table)
 	}
 	if summary.Page == nil || summary.Page.Page != 1 || summary.Page.PageSize != 300 || summary.Page.Total == nil || *summary.Page.Total != 1234 || summary.Page.TotalRelation != "gte" || !summary.Page.HasNext || summary.Page.Next == "" {
 		t.Fatalf("page = %+v", summary.Page)
@@ -828,5 +846,186 @@ func TestSummarizeReportsTheExpandedQueryText(t *testing.T) {
 	}})
 	if len(got.Executed) != 1 || got.Executed[0].Ref != "A" || got.Executed[0].Text != `rate(up{job="api"}[5m])` {
 		t.Fatalf("executed = %+v", got.Executed)
+	}
+}
+
+func lokiStreamFrame(labels map[string]string, base time.Time, offsets ...int) datasource.Frame {
+	times := make([]any, len(offsets))
+	bodies := make([]any, len(offsets))
+	for i, off := range offsets {
+		times[i] = base.Add(-time.Duration(off) * time.Second)
+		bodies[i] = fmt.Sprintf("error %s %d", labels["pod"], off)
+	}
+	return datasource.Frame{Labels: labels, Fields: []datasource.Field{
+		{Name: "Time", Type: datasource.FieldTime, Values: times},
+		{Name: "Body", Type: datasource.FieldString, Values: bodies},
+		datasource.TimeNsField(times),
+	}}
+}
+
+func TestSummarizeMergesLogStreamsIntoOneNewestFirstTable(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	frames := []datasource.Frame{
+		lokiStreamFrame(map[string]string{"pod": "a"}, base, 9),
+		lokiStreamFrame(map[string]string{"pod": "b"}, base, 1, 4, 7),
+		lokiStreamFrame(map[string]string{"pod": "c"}, base, 2, 3, 5, 6, 8),
+	}
+	summary := summarize(queryproxy.Result{Kind: queryproxy.KindInstant, Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}})
+	if summary.Table == nil || summary.Table.TotalRows != 9 || len(summary.Table.Rows) != maxTableRows-1 {
+		t.Fatalf("table = %+v, want 9 rows from 3 streams", summary.Table)
+	}
+	names := make([]string, len(summary.Table.Columns))
+	for i, c := range summary.Table.Columns {
+		names[i] = c.Name
+	}
+	if want := []string{"Time", "Body", "TimeNs", "labels"}; !slices.Equal(names, want) {
+		t.Fatalf("columns = %v, want %v", names, want)
+	}
+	for i, row := range summary.Table.Rows {
+		wantPod := map[int]string{1: "b", 2: "c", 3: "c", 4: "b", 5: "c", 6: "c", 7: "b", 8: "c", 9: "a"}[i+1]
+		if row[3] != "pod="+wantPod || row[1] != fmt.Sprintf("error %s %d", wantPod, i+1) {
+			t.Fatalf("row %d = %v, want newest first from pod %s", i, row, wantPod)
+		}
+	}
+}
+
+func TestSummarizeFitsTenLongLogLines(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	long := strings.Repeat("x", 300)
+	f := lokiStreamFrame(map[string]string{"namespace": "kafka-system", "pod": "kafka-broker-0", "container": "kafka", "service_name": "kafka"}, base, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+	for i := range f.Fields[1].Values {
+		f.Fields[1].Values[i] = long
+	}
+	other := lokiStreamFrame(map[string]string{"pod": "z"}, base, 13)
+	summary := summarize(queryproxy.Result{Kind: queryproxy.KindInstant, Queries: []queryproxy.QueryResult{{Ref: "A", Frames: []datasource.Frame{other, f}}}})
+	if summary.Table == nil || len(summary.Table.Rows) != maxTableRows {
+		t.Fatalf("rows = %d, want %d", len(summary.Table.Rows), maxTableRows)
+	}
+}
+
+func framesSummary(frames ...datasource.Frame) querySummary {
+	return summarize(queryproxy.Result{Kind: queryproxy.KindInstant, Queries: []queryproxy.QueryResult{{Ref: "A", Frames: frames}}})
+}
+
+func columnNames(t *testing.T, s querySummary) []string {
+	t.Helper()
+	if s.Table == nil {
+		t.Fatalf("no table in %+v", s)
+	}
+	names := make([]string, len(s.Table.Columns))
+	for i, c := range s.Table.Columns {
+		names[i] = c.Name
+	}
+	return names
+}
+
+func TestSummarizeGivesOneLogStreamTheLabelsColumnNewestFirst(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	summary := framesSummary(lokiStreamFrame(map[string]string{"pod": "a", "app": "x"}, base, 5, 1, 3))
+	if got, want := columnNames(t, summary), []string{"Time", "Body", "TimeNs", "labels"}; !slices.Equal(got, want) {
+		t.Fatalf("columns = %v, want %v", got, want)
+	}
+	var bodies []any
+	for _, row := range summary.Table.Rows {
+		if row[3] != "app=x,pod=a" {
+			t.Fatalf("labels = %v", row[3])
+		}
+		bodies = append(bodies, row[1])
+	}
+	if want := []any{"error a 1", "error a 3", "error a 5"}; !slices.Equal(bodies, want) {
+		t.Fatalf("bodies = %v, want %v", bodies, want)
+	}
+}
+
+func TestSummarizeLeavesATableWithTimeNsButNoStreamLabelsAlone(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	f := lokiStreamFrame(nil, base, 5, 1, 3)
+	summary := framesSummary(f)
+	if got, want := columnNames(t, summary), []string{"Time", "Body", "TimeNs"}; !slices.Equal(got, want) {
+		t.Fatalf("columns = %v, want %v", got, want)
+	}
+	if summary.Table.Rows[0][1] != "error  5" || summary.Table.Rows[2][1] != "error  3" {
+		t.Fatalf("rows = %v, want the frame's own order", summary.Table.Rows)
+	}
+}
+
+func TestSummarizeKeepsFrameOrderBetweenLogStreamsAndTables(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	stream := lokiStreamFrame(map[string]string{"pod": "a"}, base, 1, 2)
+	table := logTableFrame()
+
+	logsFirst := framesSummary(stream, table)
+	if got := columnNames(t, logsFirst); !slices.Contains(got, "labels") || !logsFirst.Truncated {
+		t.Fatalf("logs first: columns = %v truncated = %v, want the log table and truncated", got, logsFirst.Truncated)
+	}
+	tableFirst := framesSummary(table, stream)
+	if got := columnNames(t, tableFirst); slices.Contains(got, "labels") || !tableFirst.Truncated {
+		t.Fatalf("table first: columns = %v truncated = %v, want the plain table and truncated", got, tableFirst.Truncated)
+	}
+	if only := framesSummary(stream); only.Truncated {
+		t.Fatalf("a lone stream is truncated: %+v", only)
+	}
+}
+
+func TestSummarizeSortsALineWithoutTimeNsByItsTimeOrKeepsItsPlace(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	a := lokiStreamFrame(map[string]string{"pod": "a"}, base, 2, 6)
+	a.Fields[2].Values[0] = nil
+	b := lokiStreamFrame(map[string]string{"pod": "b"}, base, 4, 8, 9)
+	b.Fields[0].Values[1], b.Fields[2].Values[1] = nil, nil
+	summary := framesSummary(a, b)
+	var bodies []any
+	for _, row := range summary.Table.Rows {
+		bodies = append(bodies, row[1])
+	}
+	want := []any{"error a 2", "error b 4", "error b 8", "error a 6", "error b 9"}
+	if !slices.Equal(bodies, want) {
+		t.Fatalf("bodies = %v, want %v", bodies, want)
+	}
+}
+
+func TestSummarizeBudgetsLogTablesAboveOtherTables(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	long := strings.Repeat("x", 300)
+	stream := lokiStreamFrame(map[string]string{"pod": "a"}, base, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	plain := lokiStreamFrame(nil, base, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	for _, f := range []datasource.Frame{stream, plain} {
+		for i := range f.Fields[1].Values {
+			f.Fields[1].Values[i] = long
+		}
+	}
+	plain.Fields = append(plain.Fields, plain.Fields[1], plain.Fields[1])
+	if got := len(framesSummary(stream).Table.Rows); got != maxTableRows {
+		t.Fatalf("log rows = %d, want %d", got, maxTableRows)
+	}
+	if got := len(framesSummary(plain).Table.Rows); got >= maxTableRows {
+		t.Fatalf("plain rows = %d, want fewer than %d within the 4 KiB budget", got, maxTableRows)
+	}
+	if tableRowsBudget != 4<<10 {
+		t.Fatalf("tableRowsBudget = %d, want 4096 for log_context and plain tables", tableRowsBudget)
+	}
+}
+
+func TestQueryInstantShowsTheWholePageOfLogLines(t *testing.T) {
+	base := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	long := strings.Repeat("x", 300)
+	offsets := make([]int, 50)
+	for i := range offsets {
+		offsets[i] = i + 1
+	}
+	frame := lokiStreamFrame(map[string]string{"pod": "a", "namespace": "kafka"}, base, offsets...)
+	for i := range frame.Fields[1].Values {
+		frame.Fields[1].Values[i] = long
+	}
+	ds := &fakePageDS{fakeDS: &fakeDS{typ: "loki"}, onPage: func(req datasource.PageRequest) ([]datasource.Frame, datasource.PageInfo, error) {
+		return []datasource.Frame{frame}, datasource.PageInfo{Page: req.Page, PageSize: req.PageSize, TotalRelation: datasource.TotalUnknown}, nil
+	}}
+	res, err := call(t, newPageRegistry(t, ds), nameQueryInstant, `{"datasource":"fake","query":"{a=\"b\"}","page_size":50}`)
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	summary := res.Content.(querySummary)
+	if summary.Table == nil || len(summary.Table.Rows) != 50 || summary.Truncated {
+		t.Fatalf("rows = %v truncated = %v, want all 50 lines of the page", summary.Table, summary.Truncated)
 	}
 }

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { Message, Thread } from "@/comments/thread-queries"
@@ -87,6 +87,7 @@ type Server = {
   messages: () => Message[]
   canComment?: boolean
   sent?: Partial<Message>
+  observe?: (method: string) => Record<string, unknown>
 }
 
 function mockServer({
@@ -94,10 +95,14 @@ function mockServer({
   messages,
   canComment = true,
   sent = {},
+  observe,
 }: Server) {
   const posts: { path: string; body: unknown }[] = []
   const fetch = vi.fn(async (request: Request) => {
     const { pathname } = new URL(request.url)
+    if (observe !== undefined && pathname.startsWith("/api/v1/observe/")) {
+      return json({ request: observe(request.method) })
+    }
     if (request.method === "POST") {
       posts.push({ path: pathname, body: await request.clone().json() })
       return json({ thread, message: { ...later, ...sent } }, 201)
@@ -177,6 +182,7 @@ describe("Discussion", () => {
           body: {
             body: "Rolling back now",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -197,6 +203,7 @@ describe("Discussion", () => {
             target,
             body: "First",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -275,6 +282,7 @@ describe("Discussion", () => {
           body: {
             body: "@observe why did latency rise",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
           },
         },
       ])
@@ -322,6 +330,7 @@ describe("Discussion", () => {
     expect(posts[0].body).toEqual({
       body: "@[Grace](user:2f1f0d1e-9a3b-4c2d-8e5f-6a7b8c9d0e1f) look",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 })
@@ -464,6 +473,28 @@ describe("Discussion with a run", () => {
     expect(
       within(list).getByRole("link", { name: "View the run" })
     ).toHaveAttribute("href", `/c/${runId}`)
+  })
+
+  it("offers Stop under the working line and shows Stopped. after it", async () => {
+    let canceled = false
+    mockServer({
+      threads: [thread],
+      messages: () => [asked],
+      observe: (method) => {
+        if (method === "POST") canceled = true
+        return {
+          id: runId,
+          status: canceled ? "failed" : "running",
+          state: canceled ? "canceled" : "running",
+          can_cancel: !canceled,
+        }
+      },
+    })
+    renderDiscussion({ route: { path: "/", url: "/" } })
+    const list = await screen.findByRole("list", { name: "Discussion" })
+    fireEvent.click(await within(list).findByRole("button", { name: "Stop" }))
+    await waitFor(() => expect(within(list).getByText(/Stopped/)).toBeVisible())
+    expect(within(list).queryByRole("button", { name: "Stop" })).toBeNull()
   })
 
   it("shows one working line while the sent run is in flight", async () => {
@@ -617,6 +648,7 @@ describe("DiscussionFeed on an observation", () => {
           body: {
             body: "Yes",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
             reply_to_id: "m1",
           },
         },
@@ -639,6 +671,7 @@ describe("DiscussionFeed on an observation", () => {
     expect(posts[0].body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 
@@ -659,6 +692,7 @@ describe("DiscussionFeed on an observation", () => {
             target,
             body: "Why",
             client_id: expect.any(String),
+            time_zone: expect.any(String),
             block_id: "b1",
           },
         },
@@ -679,6 +713,7 @@ describe("DiscussionFeed on an observation", () => {
     expect(posts[0].body).toEqual({
       body: "Hi",
       client_id: expect.any(String),
+      time_zone: expect.any(String),
     })
   })
 })

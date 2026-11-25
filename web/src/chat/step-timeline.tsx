@@ -16,6 +16,7 @@ export const phaseLabels: Record<Step["phase"], string> = {
   lint: "Checking queries",
   query: "Running queries",
   save: "Saving",
+  write: "Changing",
   repair: "Repairing",
 }
 

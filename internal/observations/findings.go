@@ -15,7 +15,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/findings"
 	"github.com/slashobserve/slashobserve/internal/folders"
-	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 var _ findings.Observations = (*Service)(nil)
@@ -30,7 +29,7 @@ func (s *Service) WriteConclusion(ctx context.Context, q *dbsqlc.Queries, by aut
 		evidence[i] = raw
 	}
 	in := conclusion{runID: c.RunID, title: c.Title, markdown: c.Markdown, evidence: evidence, from: c.From, to: c.To}
-	who := actor.Of(by, origin.From(ctx), c.RunID.String())
+	who := actor.In(ctx, by, c.RunID.String())
 	if c.Into.Valid {
 		return c.Into, false, s.writeIntoObservation(ctx, q, by, who, c.Into, in)
 	}

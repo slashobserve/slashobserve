@@ -16,6 +16,7 @@ import {
   type HistoryCursor,
 } from "@/chat/prompt-history"
 
+import { askActionLabel } from "./input-mode"
 import type { DraftSignal } from "./draft-query"
 
 const recentShown = 5
@@ -141,7 +142,7 @@ export function AskField({
               className="motion-safe:animate-spin"
             />
           ) : null}
-          {pending ? "Writing query" : "Ask"}
+          {pending ? "Writing query" : askActionLabel}
         </Button>
       </div>
       {recentOpen ? (

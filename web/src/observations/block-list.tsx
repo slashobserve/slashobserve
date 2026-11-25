@@ -157,7 +157,7 @@ function BlockMenu({
               variant="ghost"
               size="icon-sm"
               aria-label="Block actions"
-              className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+              className="absolute -top-6 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
             />
           }
         >

@@ -81,7 +81,9 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 	if err != nil {
 		return Result{}, err
 	}
-	return success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed}), nil
+	res := success("Saved the answer of run "+in.RunID+" as observation "+f.ObservationID, runAnswerSavedOut{ObservationID: f.ObservationID, URL: links.Observation(r.deps.PublicURL, f.ObservationID), Replayed: replayed})
+	res.Created = []string{f.ObservationID}
+	return res, nil
 }
 
 func (r *Registry) shareAnswer(ctx context.Context, input json.RawMessage) (Result, error) {

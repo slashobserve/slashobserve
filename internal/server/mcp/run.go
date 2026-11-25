@@ -13,6 +13,7 @@ import (
 	mcplib "github.com/mark3labs/mcp-go/mcp"
 	mcpserver "github.com/mark3labs/mcp-go/server"
 
+	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
@@ -38,6 +39,9 @@ var (
 type runRequestKey struct{}
 
 func withRunRequest(ctx context.Context, req revisions.Request) context.Context {
+	if req.Assignee != revisions.AssignBuiltin {
+		ctx = actor.AsConnectedAgent(ctx)
+	}
 	return context.WithValue(ctx, runRequestKey{}, req)
 }
 

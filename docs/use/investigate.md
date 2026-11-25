@@ -67,6 +67,7 @@ Each finding about the dashboard appears there as "Agent found" with the same ca
 
 The page is the observation at `/o/<id>`, with the conclusion and the evidence panels as blocks, the discussion and who wrote what; see [Observations](observations.md#open-an-observation).
 The evidence panels always show the finding's own window, not the dashboard's current range.
+In an evidence table, a trace id in a `TraceId` cell opens that trace over the finding's window, and a Tempo, Jaeger or ClickHouse `Duration` column shows its time unit.
 
 ## Comment on a finding
 

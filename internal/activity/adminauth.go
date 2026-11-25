@@ -10,7 +10,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type Change[T any] struct {
@@ -26,7 +25,7 @@ func Changed[T comparable](from, to T) *Change[T] {
 }
 
 func By(ctx context.Context, p auth.Principal) actor.Actor {
-	return actor.Of(p, origin.From(ctx), "")
+	return actor.In(ctx, p, "")
 }
 
 type AuthChanges struct{}

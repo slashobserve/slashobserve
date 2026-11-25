@@ -13,6 +13,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/anchor"
+	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/llm/pricing"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -228,5 +229,111 @@ func TestBriefTaskPointsAtTheAnchorOfTheRequest(t *testing.T) {
 	}
 	if none := briefTask(revisions.Request{}, tools.ModeInvestigate); none.Pointer != (brief.Pointer{}) {
 		t.Fatalf("pointer = %+v", none.Pointer)
+	}
+}
+
+func TestBriefTaskMarksOnlyAThreadAskAsAskedOnItsObservation(t *testing.T) {
+	chat := revisions.Request{SubjectObservationID: "o1"}
+	if got := briefTask(chat, tools.ModeInvestigate).Pointer; got.ThreadAsk || got.ObservationID != "o1" {
+		t.Fatalf("chat turn pointer = %+v", got)
+	}
+	thread := revisions.Request{SubjectObservationID: "o1", ThreadAsk: true}
+	if got := briefTask(thread, tools.ModeInvestigate).Pointer; !got.ThreadAsk || got.ObservationID != "o1" {
+		t.Fatalf("thread ask pointer = %+v", got)
+	}
+}
+
+func TestCreatedIDsAreKeptOnceAndWithinTheirCap(t *testing.T) {
+	var s State
+	s.noteCreated([]string{"a", "", "b", "a"})
+	if len(s.Created) != 2 || s.Created[0] != "a" || s.Created[1] != "b" {
+		t.Fatalf("created = %v", s.Created)
+	}
+	for i := range tools.MaxCreatedIDs * 2 {
+		s.noteCreated([]string{strconv.Itoa(i)})
+	}
+	if len(s.Created) != tools.MaxCreatedIDs {
+		t.Fatalf("created = %d ids", len(s.Created))
+	}
+}
+
+func TestWriteScopeIsACopyOfTheStoredState(t *testing.T) {
+	s := State{Created: []string{"a"}, Committed: "d"}
+	scope := s.writeScope()
+	scope.Created[0] = "changed"
+	if s.Created[0] != "a" || scope.Committed != "d" {
+		t.Fatalf("state = %+v scope = %+v", s, scope)
+	}
+}
+
+func TestACommitRecordsTheDashboardTheRunMayStillWriteTo(t *testing.T) {
+	sess := &session{}
+	sess.settleByCommit(dashboards.Commit{Dashboard: dashboards.Dashboard{ID: "d1"}, Version: dashboards.Version{Number: 3}})
+	if sess.state.Settled != (Settled{Kind: settledSaved, Version: 3}) || sess.state.Committed != "d1" {
+		t.Fatalf("state = %+v", sess.state)
+	}
+	proposed := &session{}
+	proposed.settleByCommit(dashboards.Commit{Dashboard: dashboards.Dashboard{ID: "d2"}, Proposal: &dashboards.ProposalRef{}})
+	if proposed.state.Settled.Kind != settledProposed || proposed.state.Committed != "" {
+		t.Fatalf("proposed = %+v", proposed.state)
+	}
+}
+
+func TestCreatedAndCommittedSurviveAStoredStateRoundTrip(t *testing.T) {
+	raw, err := json.Marshal(State{Created: []string{"a"}, Committed: "d"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back State
+	if err := json.Unmarshal(raw, &back); err != nil || back.Committed != "d" || len(back.Created) != 1 {
+		t.Fatalf("back = %+v, err = %v", back, err)
+	}
+}
+
+func TestAWriteThatCreatedObjectsLetsTheNextCallWriteOnThem(t *testing.T) {
+	sess := &session{}
+	call := guard.Call{Name: "create_observation", Input: json.RawMessage(`{"title":"t"}`)}
+	done := dispatched{res: tools.Result{Created: []string{"obs", "blk"}}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, done, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := sess.state.writeScope().Created; len(got) != 2 || got[0] != "obs" || got[1] != "blk" {
+		t.Fatalf("created = %v", got)
+	}
+	failed := dispatched{res: tools.Result{IsError: true, Created: []string{"nope"}}, content: []byte(`{}`)}
+	if _, err := sess.settleOutcome(context.Background(), call, failed, &Answer{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sess.state.Created) != 2 {
+		t.Fatalf("a failed write recorded ids: %v", sess.state.Created)
+	}
+}
+
+func TestAWriteInTheTurnOfAnUnsettledReadIsRefusedUntilTheReadSettles(t *testing.T) {
+	ctx := context.Background()
+	sess := &session{state: State{Guard: guard.New(tools.ModeCreate)}}
+	turn := &Turn{ID: "turn", Calls: 3}
+	read := guard.Call{Name: "list_datasources", Input: json.RawMessage(`{}`)}
+	write := guard.Call{Name: "add_block", Input: json.RawMessage(`{"observation_id":"o"}`)}
+
+	first, err := sess.admit(ctx, read, turn)
+	if err != nil || first.adm.Verdict != guard.Dispatch {
+		t.Fatalf("read = %+v, %v", first.adm, err)
+	}
+	refused, err := sess.admit(ctx, write, turn)
+	if err != nil || refused.answer == nil || !refused.answer.IsError || !strings.Contains(string(refused.answer.Content), "read_in_flight") {
+		t.Fatalf("write beside the read = %+v, %v", refused.answer, err)
+	}
+	if sess.state.Guard.Writes != 0 {
+		t.Fatalf("the refused write used the cap: %d", sess.state.Guard.Writes)
+	}
+
+	done := dispatched{res: tools.Result{}, content: []byte(`{}`), start: time.Now()}
+	if _, err := sess.settle(ctx, read, first, done); err != nil {
+		t.Fatal(err)
+	}
+	retried, err := sess.admit(ctx, write, turn)
+	if err != nil || retried.answer != nil || retried.adm.Verdict != guard.Dispatch {
+		t.Fatalf("write after the read settled = %+v, %v", retried.adm, err)
 	}
 }

@@ -83,7 +83,7 @@ func Withheld(a datasource.Access) bool {
 }
 
 func RunFor(req revisions.Request) (Run, error) {
-	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Investigation: req.Investigation}
+	run := Run{RequestID: req.ID, Attempt: req.Attempt, Prompt: req.Prompt, TimeZone: req.TimeZone, Investigation: req.Investigation, ChatID: req.ChatID, ThreadAsk: req.ThreadAsk}
 	switch {
 	case req.Intent == revisions.IntentSuggest:
 		run = Run{Mode: ModeSuggest, RequestID: req.ID, PanelID: req.PanelID}

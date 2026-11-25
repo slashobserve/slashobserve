@@ -1067,6 +1067,8 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
 - It takes `variables`, an object of variable name to a list of values for each `$variable` the query uses, and `dashboard_title` for `$__dashboard`.
 - It returns `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource.
   That shows what a `$job` or a `$__rate_interval` became.
+- A Loki log query comes back as one table of lines, newest first across every stream, with a `labels` column naming each line's stream.
+  The summary shows up to ten lines; `query_instant` with `page_size` shows the whole page.
 - On any ClickHouse table, `query_range` refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`.
   A macro inside a comment does not count.
 
@@ -1358,6 +1360,9 @@ Returns the observation with `allowed_actions` and its blocks in order.
 
 - Each block has its `kind`, `state`, `position`, `width`, `height`, `version` and a short view.
 - The short view is Markdown clipped to 2,000 characters (`markdown_truncated`), a panel block's `title`, `type`, datasources, `variables` (the values it runs with) and its full `panel`, in the shape `update_block` takes, or a snapshot's `snapshot_id`.
+- A snapshot block also has its frozen panel's `title`, `type` and `unit`, its `from` and `to`, and a `data` summary of at most 10 series within 1.5 KiB, each with its `name`, the `labels` that differ between the series (at most 5), `points`, `min`, `max` and `last` and the times `min_at` and `max_at`; `series_total` counts them all and `other_frames` counts the frames that are not series.
+  A snapshot never carries query text, so none is shown.
+  When the snapshot cannot be read, the block has `data_error` instead of the summary.
 - `blocks_truncated` says the rest did not fit.
 - A block's `allowed_actions` never lists `remove`, because no MCP tool removes a block.
 - The built-in agent also has this tool, and only reads with it.
