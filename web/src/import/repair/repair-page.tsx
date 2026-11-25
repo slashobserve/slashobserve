@@ -1,13 +1,13 @@
-import { useId, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -174,48 +174,7 @@ function RepairAll({
   )
 }
 
-function RepairTable({
-  items,
-  agentAvailable,
-  pendingId,
-  onRepair,
-}: {
-  items: RepairItem[]
-  agentAvailable: boolean
-  pendingId: string | null
-  onRepair: (dashboardId: string) => void
-}) {
-  return (
-    <TableCard label="Dashboards to repair" minWidth={960}>
-      <thead>
-        <tr>
-          <HeaderCell>Dashboard</HeaderCell>
-          <HeaderCell>Folder</HeaderCell>
-          <HeaderCell>Unverified</HeaderCell>
-          <HeaderCell>Placeholders</HeaderCell>
-          <HeaderCell>Imported</HeaderCell>
-          <HeaderCell>Repair</HeaderCell>
-          <HeaderCell>
-            <span className="sr-only">Actions</span>
-          </HeaderCell>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item) => (
-          <RepairRow
-            key={item.id}
-            item={item}
-            agentAvailable={agentAvailable}
-            pending={pendingId === item.id}
-            onRepair={() => onRepair(item.id)}
-          />
-        ))}
-      </tbody>
-    </TableCard>
-  )
-}
-
-function RepairRow({
+function RepairAction({
   item,
   agentAvailable,
   pending,
@@ -229,26 +188,103 @@ function RepairRow({
   const reasonId = useId()
   const state = repairState(item, agentAvailable)
   return (
-    <tr>
-      <Cell className="wrap-anywhere">
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!state.canRepair || pending}
+        focusableWhenDisabled
+        aria-busy={pending}
+        aria-describedby={state.reason === null ? undefined : reasonId}
+        title={state.reason ?? undefined}
+        onClick={onRepair}
+      >
+        {pending ? (
+          <LoaderCircleIcon
+            aria-hidden="true"
+            className="motion-safe:animate-spin"
+          />
+        ) : null}
+        Repair with the agent
+      </Button>
+      {state.reason === null ? null : (
+        <span id={reasonId} className="sr-only">
+          {state.reason}
+        </span>
+      )}
+    </>
+  )
+}
+
+function repairColumns({
+  agentAvailable,
+  pendingId,
+  onRepair,
+}: {
+  agentAvailable: boolean
+  pendingId: string | null
+  onRepair: (dashboardId: string) => void
+}): DataGridColumn<RepairItem>[] {
+  return [
+    {
+      id: "dashboard",
+      header: "Dashboard",
+      minWidth: 200,
+      flex: 2,
+      autoHeight: true,
+      cell: (item) => (
         <Link
           {...dashboardLink(item.id, item.title)}
-          className="font-medium underline-offset-2 hover:underline"
+          className="font-medium wrap-anywhere underline-offset-2 hover:underline"
         >
           {item.title}
         </Link>
-      </Cell>
-      <Cell className="wrap-anywhere">{item.folder.title}</Cell>
-      <Cell>{unverifiedText(item)}</Cell>
-      <Cell>{item.placeholder_panels}</Cell>
-      <Cell className="whitespace-nowrap">
-        <RelativeTime iso={item.last_import_at} fallback="Not imported" />
-      </Cell>
-      <Cell>
-        {state.tone === null || state.label === null ? (
+      ),
+    },
+    {
+      id: "folder",
+      header: "Folder",
+      minWidth: 120,
+      flex: 1,
+      autoHeight: true,
+      cell: (item) => (
+        <span className="wrap-anywhere">{item.folder.title}</span>
+      ),
+    },
+    {
+      id: "unverified",
+      header: "Unverified",
+      width: 130,
+      cell: (item) => unverifiedText(item),
+    },
+    {
+      id: "placeholders",
+      header: "Placeholders",
+      width: 130,
+      cell: (item) => item.placeholder_panels,
+    },
+    {
+      id: "imported",
+      header: "Imported",
+      width: 120,
+      cell: (item) => (
+        <span className="whitespace-nowrap">
+          <RelativeTime iso={item.last_import_at} fallback="Not imported" />
+        </span>
+      ),
+    },
+    {
+      id: "repair",
+      header: "Repair",
+      minWidth: 140,
+      flex: 1,
+      autoHeight: true,
+      cell: (item) => {
+        const state = repairState(item, agentAvailable)
+        return state.tone === null || state.label === null ? (
           <span className="text-muted-foreground">Not requested</span>
         ) : (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 py-1.5">
             <StatusLabel tone={state.tone}>{state.label}</StatusLabel>
             {item.repair?.finished_at ? (
               <span className="text-xs text-muted-foreground">
@@ -256,33 +292,50 @@ function RepairRow({
               </span>
             ) : null}
           </div>
-        )}
-      </Cell>
-      <Cell className="text-right">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!state.canRepair || pending}
-          focusableWhenDisabled
-          aria-busy={pending}
-          aria-describedby={state.reason === null ? undefined : reasonId}
-          title={state.reason ?? undefined}
-          onClick={onRepair}
-        >
-          {pending ? (
-            <LoaderCircleIcon
-              aria-hidden="true"
-              className="motion-safe:animate-spin"
-            />
-          ) : null}
-          Repair with the agent
-        </Button>
-        {state.reason === null ? null : (
-          <span id={reasonId} className="sr-only">
-            {state.reason}
-          </span>
-        )}
-      </Cell>
-    </tr>
+        )
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      headerCell: <span className="sr-only">Actions</span>,
+      width: 190,
+      action: true,
+      cell: (item) => (
+        <RepairAction
+          item={item}
+          agentAvailable={agentAvailable}
+          pending={pendingId === item.id}
+          onRepair={() => onRepair(item.id)}
+        />
+      ),
+    },
+  ]
+}
+
+const repairItemId = (item: RepairItem) => item.id
+
+function RepairTable({
+  items,
+  agentAvailable,
+  pendingId,
+  onRepair,
+}: {
+  items: RepairItem[]
+  agentAvailable: boolean
+  pendingId: string | null
+  onRepair: (dashboardId: string) => void
+}) {
+  const columns = useMemo(
+    () => repairColumns({ agentAvailable, pendingId, onRepair }),
+    [agentAvailable, pendingId, onRepair]
+  )
+  return (
+    <DataGrid
+      label="Dashboards to repair"
+      rows={items}
+      columns={columns}
+      rowId={repairItemId}
+    />
   )
 }
