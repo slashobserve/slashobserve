@@ -44,7 +44,7 @@ Use Ask when you know what you want to see but not the PromQL.
    Shift+Enter adds a line, and Esc cancels a question that is still running.
 4. The page runs the answer at once and shows its explanation and any warnings, such as "No series in the last 15 minutes."
 
-Editing the query switches to the PromQL segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+Editing the query switches to the PromQL segment, with a "From: <question>" line and **Write again**, which brings the question back.
 **Edit as PromQL** switches without changing the query.
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the PromQL segment.
 Without a model the Write a query segment is disabled and says "Add a model key to ask in plain language"; [LLM providers](../connect/llm-providers.md) describes how to configure one.

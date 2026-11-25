@@ -709,7 +709,7 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
                   className="narrow:h-11"
                   onClick={askAgain}
                 >
-                  Ask again
+                  Write again
                 </Button>
               </>
             ) : null}

@@ -59,7 +59,7 @@ The page starts as soon as it opens, with a query for the datasource.
 - On Loki it runs `{service_name=~".+"}`, which reads every stream that has a `service_name` label.
   A Loki whose streams carry no `service_name` answers no lines until you pick a label.
 
-With a model configured on the server, the query box opens in Ask mode instead, as [Ask in plain language](#ask-in-plain-language) describes.
+With a model configured on the server, the query box opens in Write a query mode instead, as [Ask in plain language](#ask-in-plain-language) describes.
 
 ### Query modes
 
@@ -149,7 +149,7 @@ It puts a caret under the offending character, says the problem in plain words a
 
 - A missing closing parenthesis is closed before the next top-level `and`, or at the end.
 - A query that reads as Lucene, such as one with `+`, `-` or `~` operators, offers **Switch to Lucene**, which adds the `lucene:` prefix and runs the text as written.
-- **Fix it with Ask** asks the model to repair the text.
+- **Rewrite with a query** asks the model to repair the text.
 - **Open in the builder** shows it as chips when it can.
 - **KQL reference** opens this section.
 
@@ -552,9 +552,9 @@ Without one, the Write a query segment is disabled and says "Add a model key to 
 
 On Elasticsearch and OpenSearch the model answers in KQL, and the Builder then shows the answer as chips when it can.
 Ctrl+I or Cmd+I steps through the modes the datasource offers from anywhere on the page, the editor included, and skips a mode that is not available.
-The page remembers the mode you last chose with the switch, the shortcut or **Ask again**, and opens in the query when the address carries one.
+The page remembers the mode you last chose with the switch, the shortcut or **Write again**, and opens in the query when the address carries one.
 
-Editing the query switches to the query segment, with a "From: <question>" line and **Ask again**, which brings the question back.
+Editing the query switches to the query segment, with a "From: <question>" line and **Write again**, which brings the question back.
 A label from the label browser also switches to the query segment.
 When the model cannot turn the question into a query, the page says "I could not turn that into a query." with the reason, and switches to the query segment.
 
@@ -577,7 +577,7 @@ A duration the form cannot read is left empty.
 
 The explanation, the fields the answer filled as chips, such as **Service** with its value or **Min span duration** with `500ms`, and any warnings show under the question.
 **Edit the query** switches to Query with the answer's values in the form.
-The row under the form then shows a "From: <question>" line and **Ask again**, which brings the question back.
+The row under the form then shows a "From: <question>" line and **Write again**, which brings the question back.
 The address keeps the question as `ask` until you change a field and search again, which drops it because the fields are then your own query.
 
 The mode you last chose on either page is the one both pages open in.
@@ -824,7 +824,7 @@ The limit is named in days when it is a whole number of days, in hours when it i
 
 ### SQL on ClickHouse
 
-On ClickHouse the query card has a **Search** and **SQL** switch beside **Ask**, and Ctrl+I or Cmd+I moves through them.
+On ClickHouse the query card has a **Search** and **SQL** switch beside **Write a query**, and Ctrl+I or Cmd+I moves through them.
 **SQL** opens an editor with the search of the fields written as SQL over `otel_traces`, so you can start from it.
 Ctrl+Space completes the columns of `otel_traces` and the SQL keywords.
 Press **Run query**, or Ctrl+Enter or Cmd+Enter, to run it.

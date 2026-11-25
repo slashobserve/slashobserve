@@ -116,7 +116,7 @@ The trace search answers keys of its own too, described in [Logs and traces](log
 | --- | --- |
 | `⌘I` or `Ctrl+I` | Switch between Write a query and Query, from anywhere on the page. |
 | `⌘Enter` or `Ctrl+Enter` | Run the search, from the Service, Span name and duration fields or from the SQL editor. |
-| `Enter` | Ask the question, or run the search from Service, Span name or a duration field. |
+| `Enter` | Write the query from the question, or run the search from Service, Span name or a duration field. |
 | `Shift+Enter` | Add a line to the question. |
 
 ## Trace view keys

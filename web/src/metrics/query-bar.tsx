@@ -244,7 +244,7 @@ export function QueryBar() {
                   switchMode("ask")
                 }}
               >
-                Ask again
+                Write again
               </Button>
             </>
           ) : null}
