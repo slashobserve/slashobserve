@@ -12208,6 +12208,8 @@ export interface operations {
                      * @description A UUID the caller makes for this message, so a resend returns the message already posted.
                      */
                     client_id?: string | null;
+                    /** @description The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`. */
+                    time_zone?: string;
                 };
             };
         };
@@ -12313,6 +12315,8 @@ export interface operations {
                      * @description A UUID the caller makes for this message, so a resend returns the message already posted.
                      */
                     client_id?: string | null;
+                    /** @description The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`. */
+                    time_zone?: string;
                 };
             };
         };

@@ -146,6 +146,10 @@ threads:
                 format: uuid
                 nullable: true
                 description: A UUID the caller makes for this message, so a resend returns the message already posted.
+              time_zone:
+                type: string
+                maxLength: 64
+                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.
@@ -228,6 +232,10 @@ threads-threadid-messages:
                 format: uuid
                 nullable: true
                 description: A UUID the caller makes for this message, so a resend returns the message already posted.
+              time_zone:
+                type: string
+                maxLength: 64
+                description: The IANA time zone the person reads times in, such as `Asia/Kolkata`; a run this message starts writes its times in it, labelled. Without it, or with `UTC`, they are UTC; an unknown zone answers 400 `invalid_request`.
     responses:
       "200":
         description: The message `client_id` names was already posted; it is returned as it was, with `replayed` true.

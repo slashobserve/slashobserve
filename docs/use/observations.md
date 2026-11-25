@@ -317,6 +317,8 @@ The run writes nothing on the page, for an Editor as for a Commenter.
 When it ends, the server posts one status reply in the discussion, whose text is "Answered." when the run saved an answer.
 The web page shows the answer card in its place, and everyone who can read the observation reads that answer in the discussion.
 The reply is not the model's text, and it never resolves the discussion.
+The web app sends your browser's time zone with each message, so the agent writes the times in its answer in that zone with its label, such as 19:52 IST.
+Over the API a message can name a zone with `time_zone`; the CLI and MCP name none, so times are written in UTC.
 [Give an agent a run](agents.md#give-an-agent-a-run) describes who you can mention and what happens to the run.
 
 ### Messages over the API

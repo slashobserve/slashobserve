@@ -172,6 +172,7 @@ describe("ActivityComposer", () => {
         target: "dashboard:dashboard",
         body: "Raise the threshold",
         client_id: expect.any(String),
+        time_zone: expect.any(String),
         panel_id: "latency",
       },
     })
