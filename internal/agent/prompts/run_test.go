@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 23903
-	fullSystemTextBudget = 28625
+	systemTextBudget     = 24095
+	fullSystemTextBudget = 28817
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -276,6 +276,18 @@ func TestInvestigateKeepsTheTitleWithinWhatTheTextConfirms(t *testing.T) {
 	system := Investigate()
 	for _, want := range []string{
 		"never claim a cause there that the markdown calls likely or unconfirmed",
+	} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system text lacks %q", want)
+		}
+	}
+}
+
+func TestBuildClosesWithTheSummaryOfItsLastSave(t *testing.T) {
+	system := Build(demoTypes)
+	for _, want := range []string{
+		"Your last save's `summary` is the closing line the person reads",
+		"how many panels are still unverified or empty",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
