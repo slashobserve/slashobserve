@@ -38,6 +38,7 @@ const tempo = datasource("tempo", "tempo")
 const loki = datasource("loki", "loki")
 const clickhouse = datasource("ch", "clickhouse")
 const otherLoki = datasource("loki-2", "loki")
+const audit = datasource("slashobserve-audit", "opensearch")
 
 describe("logsDatasourceFor", () => {
   beforeEach(() => localStorage.clear())
@@ -53,6 +54,16 @@ describe("logsDatasourceFor", () => {
       expect(logsDatasourceFor("tempo", [tempo, search])).toBe(search)
     }
   )
+
+  it("never offers the audit datasource", () => {
+    expect(logsDatasourceFor("tempo", [tempo, audit])).toBeNull()
+    expect(logsDatasourceFor("tempo", [tempo, audit, loki])).toBe(loki)
+  })
+
+  it("never returns the audit datasource when it is remembered", () => {
+    rememberLogsDatasource("slashobserve-audit")
+    expect(logsDatasourceFor("tempo", [tempo, audit, loki])).toBe(loki)
+  })
 
   it("returns the only logs datasource whatever its family", () => {
     expect(logsDatasourceFor("tempo", [tempo, clickhouse])).toBe(clickhouse)

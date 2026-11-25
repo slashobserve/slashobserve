@@ -18,6 +18,8 @@ type State struct {
 	ChurnedInRow       int             `json:"churned_in_row,omitempty"`
 	Reads              map[string]Read `json:"reads,omitempty"`
 	Saves              map[string]bool `json:"saves,omitempty"`
+	WriteKeys          map[string]bool `json:"write_keys,omitempty"`
+	Writes             int             `json:"writes,omitempty"`
 	Unchecked          []Unchecked     `json:"unchecked,omitempty"`
 	Absence            Absence         `json:"absence,omitzero"`
 	Answer             Answer          `json:"answer,omitzero"`
@@ -46,12 +48,14 @@ type Read struct {
 }
 
 type Turn struct {
-	ReadGuard string             `json:"read_guard,omitempty"`
-	SaveSeen  bool               `json:"save_seen,omitempty"`
-	Answered  int                `json:"answered"`
-	Progress  bool               `json:"progress,omitempty"`
-	Rejected  bool               `json:"rejected,omitempty"`
-	Keys      map[string]TurnKey `json:"keys,omitempty"`
+	ReadGuard string `json:"read_guard,omitempty"`
+	SaveSeen  bool   `json:"save_seen,omitempty"`
+	Answered  int    `json:"answered"`
+	Progress  bool   `json:"progress,omitempty"`
+	Rejected  bool   `json:"rejected,omitempty"`
+
+	ReadsInFlight int                `json:"reads_in_flight,omitempty"`
+	Keys          map[string]TurnKey `json:"keys,omitempty"`
 }
 
 type TurnKey struct {

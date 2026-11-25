@@ -280,6 +280,46 @@ describe("AnswerCard", () => {
     expect(onRevise).toHaveBeenCalledOnce()
   })
 
+  it("shows a refused revision under the button and clears it on the next try", async () => {
+    const refusal = "This answer read data only Admins can read."
+    const onRevise = vi
+      .fn<() => Promise<boolean | string>>()
+      .mockResolvedValueOnce(refusal)
+      .mockResolvedValueOnce(true)
+    const { user } = renderCard({
+      finding: finding({ suggested_change: "Add a p99 latency panel" }),
+      revise: { onRevise, pending: false, blocked: null, dashboardId: "d1" },
+    })
+    const button = await screen.findByRole("button", {
+      name: "Revise the dashboard",
+    })
+    await user.click(button)
+    expect(await screen.findByRole("alert")).toHaveTextContent(refusal)
+    expect(button).toHaveAccessibleDescription(refusal)
+    expect(toasts.error).not.toHaveBeenCalled()
+    await user.click(button)
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
+  })
+
+  it("treats an empty refusal as no refusal", async () => {
+    const { user } = renderCard({
+      finding: finding({ suggested_change: "Add a p99 latency panel" }),
+      revise: {
+        onRevise: vi.fn(async () => ""),
+        pending: false,
+        blocked: null,
+        dashboardId: "d1",
+      },
+    })
+    await user.click(
+      await screen.findByRole("button", { name: "Revise the dashboard" })
+    )
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Revise the dashboard" })
+    ).toBeInTheDocument()
+  })
+
   it("keeps focus on the button and announces it once the revision is asked for", async () => {
     const { user } = renderCard({
       finding: finding({ suggested_change: "Add a p99 latency panel" }),

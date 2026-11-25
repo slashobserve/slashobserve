@@ -157,7 +157,7 @@ function BlockMenu({
               variant="ghost"
               size="icon-sm"
               aria-label="Block actions"
-              className="absolute -top-3 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+              className="absolute -top-6 right-0 z-10 bg-background opacity-0 group-focus-within/block:opacity-100 group-hover/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
             />
           }
         >
@@ -378,38 +378,41 @@ export function BlockList({
 
   return (
     <CanvasHostProvider value={canvasHost}>
-      <ol
-        id={blocksListId}
-        ref={listRef}
-        aria-label="Blocks"
-        tabIndex={-1}
-        className="flex flex-col gap-6 outline-none"
-      >
-        {blockRows(shown).map((row) => (
-          <li key={row.key} className="@container">
-            <div className={rowGridClass}>
-              {row.blocks.map((block) => (
-                <BlockSection
-                  key={block.id}
-                  observation={observation}
-                  block={block}
-                  blocks={shown}
-                  arrange={arrange}
-                  canAdd={canAdd}
-                  onCanvas={takesBlockComments(block, canComment)}
-                  onAdded={onAdded}
-                />
-              ))}
-            </div>
-          </li>
-        ))}
-      </ol>
-      {arrange === null ? null : <ArrangeAnnouncer arrange={arrange} />}
-      <CanvasTools
-        permissions={{ comment: canComment, edit: false }}
-        idle={!arranging.arranging}
-        modeTexts={observationModeTexts}
-      />
+      <div>
+        <ol
+          id={blocksListId}
+          ref={listRef}
+          aria-label="Blocks"
+          tabIndex={-1}
+          className="flex flex-col gap-6 outline-none"
+        >
+          {blockRows(shown).map((row) => (
+            <li key={row.key} className="@container">
+              <div className={rowGridClass}>
+                {row.blocks.map((block) => (
+                  <BlockSection
+                    key={block.id}
+                    observation={observation}
+                    block={block}
+                    blocks={shown}
+                    arrange={arrange}
+                    canAdd={canAdd}
+                    onCanvas={takesBlockComments(block, canComment)}
+                    onAdded={onAdded}
+                  />
+                ))}
+              </div>
+            </li>
+          ))}
+        </ol>
+        {arrange === null ? null : <ArrangeAnnouncer arrange={arrange} />}
+        <CanvasTools
+          permissions={{ comment: canComment, edit: false }}
+          idle={!arranging.arranging}
+          modeTexts={observationModeTexts}
+          reserve
+        />
+      </div>
     </CanvasHostProvider>
   )
 }

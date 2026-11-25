@@ -1,6 +1,4 @@
 import type { RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
 import {
   BookmarkIcon,
   FolderSearchIcon,
@@ -23,10 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import { cn } from "@/lib/utils"
-import { savedSearchLocation } from "@/saved-searches/links"
-import { savedSearchesQuery } from "@/saved-searches/queries"
+import { SavedSearchItems } from "@/saved-searches/saved-search-items"
 import { SavedSearchesMenu } from "@/saved-searches/saved-searches-menu"
-import { loadProblemText } from "@/service-accounts/queries"
 import type { logsDraft } from "@/saved-searches/draft"
 import { TopRowActions } from "@/shell/top-row-actions"
 
@@ -61,33 +57,6 @@ async function copyLink() {
   } catch {
     toast.error("Could not copy. Select the text and press Ctrl+C or Cmd+C.")
   }
-}
-
-function SavedSearchItems() {
-  const navigate = useNavigate()
-  const query = useQuery(savedSearchesQuery({ kind: "logs" }))
-  const items = query.data?.saved_searches ?? []
-  if (query.isPending) {
-    return <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-  }
-  if (query.isError) {
-    return (
-      <DropdownMenuItem disabled>
-        {loadProblemText(query.error)}
-      </DropdownMenuItem>
-    )
-  }
-  if (items.length === 0) {
-    return <DropdownMenuItem disabled>No saved searches yet.</DropdownMenuItem>
-  }
-  return items.map((saved) => (
-    <DropdownMenuItem
-      key={saved.id}
-      onClick={() => void navigate(savedSearchLocation(saved))}
-    >
-      <span className="min-w-0 flex-1 truncate">{saved.title}</span>
-    </DropdownMenuItem>
-  ))
 }
 
 function MoreActions({
@@ -131,7 +100,7 @@ function MoreActions({
             Saved searches
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-64">
-            <SavedSearchItems />
+            <SavedSearchItems kind="logs" />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuItem className="min-h-11" onClick={() => void copyLink()}>

@@ -185,7 +185,7 @@ func TestASaveFailureStepNamesTheFirstIssuePath(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := saveFailure(&dashboards.InvalidSpecError{Issues: tt.issues})
+			res, err := saveFailure(t.Context(), &dashboards.InvalidSpecError{Issues: tt.issues})
 			if err != nil || res.Step != tt.want {
 				t.Fatalf("step = %q err = %v, want %q", res.Step, err, tt.want)
 			}

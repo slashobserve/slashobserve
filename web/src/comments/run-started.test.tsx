@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { ObserveRequest } from "@/observe/queries"
@@ -68,6 +68,78 @@ describe("RunStarted", () => {
       ).toHaveAttribute("href", `/c/${runId}`)
     }
   )
+
+  it("offers Stop while the run can be canceled and cancels it", async () => {
+    const fetchMock = vi.fn(async (input: Request | string | URL) => {
+      const request = input instanceof Request ? input : new Request(input)
+      const canceled = request.method === "POST"
+      return new Response(
+        JSON.stringify({
+          request: {
+            id: runId,
+            status: canceled ? "failed" : "running",
+            state: canceled ? "canceled" : "running",
+            can_cancel: !canceled,
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    renderLine({
+      run: { id: runId, status: "queued", assigned_kind: "builtin" },
+      refusal: null,
+      agentName: "Observe Agent",
+    })
+    fireEvent.click(await screen.findByRole("button", { name: "Stop" }))
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Stopped.")
+    )
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) =>
+          input instanceof Request &&
+          input.method === "POST" &&
+          input.url.endsWith(`/observe/${runId}/cancel`)
+      )
+    ).toBe(true)
+  })
+
+  it("shows Stopped. for a run that was canceled", async () => {
+    stubRequest({
+      id: runId,
+      status: "failed",
+      state: "canceled",
+      can_cancel: false,
+    })
+    renderLine({
+      run: { id: runId, status: "queued", assigned_kind: "builtin" },
+      refusal: null,
+      agentName: "Observe Agent",
+    })
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Stopped.")
+    )
+    expect(screen.queryByRole("button")).toBeNull()
+    expect(screen.getByRole("link", { name: "View the run" })).toHaveAttribute(
+      "href",
+      `/c/${runId}`
+    )
+  })
+
+  it("offers no Stop for a run that cannot be canceled", async () => {
+    stubRequest({ id: runId, status: "succeeded", can_cancel: false })
+    renderLine({
+      run: { id: runId, status: "queued", assigned_kind: "builtin" },
+      refusal: null,
+      agentName: "Observe Agent",
+    })
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("finished")
+    )
+    expect(screen.queryByRole("button")).toBeNull()
+  })
 
   it.each(["grant", "service_account"] as const)(
     "names a %s agent and offers no link",

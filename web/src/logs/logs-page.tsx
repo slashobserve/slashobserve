@@ -24,6 +24,7 @@ import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
 import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
+import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
 import { loadProblemText } from "@/service-accounts/queries"
 
@@ -224,6 +225,7 @@ function LogsWorkspaceView({
     hasQuery: q !== undefined,
     hasAsk: search.ask !== undefined,
   })
+  useLeaveAskOnSavedOpen(mode, setMode)
 
   const { results, paging } = useLogsResults({
     datasource,

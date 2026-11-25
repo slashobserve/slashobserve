@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { WireFrame } from "@/dashboards/queries"
 import { createFieldResolver } from "@/panels/field-config"
-import type { PreparedFrame } from "@/panels/transforms"
+import { prepareFrames, type PreparedFrame } from "@/panels/transforms"
 import type { DataPanel } from "@/spec"
 
 import { initialSort } from "./table-layout"
@@ -106,6 +106,26 @@ const podFrames = (ref: string, values: number[]) =>
   )
 
 describe("table columns", () => {
+  it("heads a table query's value by its legend and keeps field names for range frames", () => {
+    const legended = panel({
+      queries: [
+        { query: "a", format: "table", legend: "placed" },
+        { query: "b", ref: "B", legend: "{{pod}} rate" },
+      ],
+    } as Partial<DataPanel>)
+    const wire = [
+      frame([time, number([5, 6])], { ref: "A" }),
+      frame([time, number([7, 8])], { ref: "B", labels: { pod: "x" } }),
+    ]
+    const frames = prepareFrames(legended, wire)
+    const fields = createFieldResolver(legended)
+    const [table, range] = frames.map((one) =>
+      tableModel([one], fields, undefined)
+    )
+    expect(labels(table)).toEqual(["Time", "placed"])
+    expect(range.columns.map((column) => column.label)).toContain("Value")
+  })
+
   it("drops hidden columns", () => {
     const { model } = build(
       [frame([text(["x"], "route"), number([1], "n"), number([2], "m")])],
