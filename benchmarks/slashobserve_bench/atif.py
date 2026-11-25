@@ -32,10 +32,27 @@ class Usage:
         return self.input_tokens + self.cache_read_tokens + self.cache_write_tokens
 
 
+def structured_lines(finding: dict[str, Any]) -> list[str]:
+    lines = []
+    cause = finding.get("root_cause")
+    if cause:
+        lines.append(f'Root cause: {cause["component"]} ({cause["kind"]}) - {cause["summary"]}')
+    if finding.get("no_incident"):
+        lines.append("No incident found.")
+    for label, key in (("Onset", "onset"), ("Impact", "impact"), ("Confidence", "confidence")):
+        if finding.get(key):
+            lines.append(f"{label}: {finding[key]}")
+    for label, key in (("Ruled out", "ruled_out"), ("Next steps", "next_steps")):
+        if finding.get(key):
+            lines.append(f'{label}: {"; ".join(finding[key])}')
+    return lines
+
+
 def answer_text(request: dict[str, Any]) -> str:
     finding = request.get("finding")
     if finding:
-        return finding["markdown"]
+        header = structured_lines(finding)
+        return "\n".join([*header, "", finding["markdown"]]) if header else finding["markdown"]
     state = request.get("state", "unknown")
     if state == "succeeded":
         return "The run finished without saving a finding."
