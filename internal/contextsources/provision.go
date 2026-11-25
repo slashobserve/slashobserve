@@ -10,57 +10,66 @@ import (
 
 func (s *Service) Provision(ctx context.Context, entries []config.ContextSource) error {
 	return s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
+		if err := q.LockContextSourceCount(ctx); err != nil {
+			return err
+		}
 		rows, err := q.ListContextSources(ctx)
 		if err != nil {
 			return err
 		}
-		stored := make(map[string]dbsqlc.ContextSource, len(rows))
-		for _, r := range rows {
-			stored[r.Uid] = r
-		}
 		wanted := make(map[string]bool, len(entries))
 		for _, e := range entries {
 			wanted[e.UID] = true
-			if err := s.provisionOne(ctx, q, e, stored[e.UID], len(rows)); err != nil {
-				return fmt.Errorf("context source %q: %w", e.UID, err)
-			}
 		}
+		stored := make(map[string]dbsqlc.ContextSource, len(rows))
+		count := len(rows)
 		for _, r := range rows {
-			if wanted[r.Uid] || !r.Provisioned {
+			if r.Provisioned && !wanted[r.Uid] {
+				if _, err := q.DeleteContextSource(ctx, r.Uid); err != nil {
+					return err
+				}
+				if err := recordDeleted(ctx, q, r); err != nil {
+					return err
+				}
+				count--
 				continue
 			}
-			if _, err := q.DeleteContextSource(ctx, r.Uid); err != nil {
-				return err
+			stored[r.Uid] = r
+		}
+		for _, e := range entries {
+			created, err := s.provisionOne(ctx, q, e, stored[e.UID], count)
+			if err != nil {
+				return fmt.Errorf("context source %q: %w", e.UID, err)
 			}
-			if err := recordDeleted(ctx, q, r); err != nil {
-				return err
+			if created {
+				count++
 			}
 		}
 		return nil
 	})
 }
 
-func (s *Service) provisionOne(ctx context.Context, q *dbsqlc.Queries, e config.ContextSource, row dbsqlc.ContextSource, total int) error {
-	in := Input{UID: e.UID, Name: e.Name, URL: e.URL, Audience: e.Audience, SecretHeader: e.SecretHeader, Secret: e.Secret.Reveal()}.normalized()
+func (s *Service) provisionOne(ctx context.Context, q *dbsqlc.Queries, e config.ContextSource, row dbsqlc.ContextSource, count int) (bool, error) {
+	in := Input{UID: e.UID, Name: e.Name, Description: e.Description, URL: e.URL, Audience: e.Audience, SecretHeader: e.SecretHeader, Secret: e.Secret.Reveal()}.normalized()
 	host, err := in.check()
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch {
 	case row.ID.Valid && !row.Provisioned:
-		return ErrUIDTaken
+		return false, ErrUIDTaken
 	case !row.ID.Valid:
-		return s.provisionNew(ctx, q, in, host, total)
+		return true, s.provisionNew(ctx, q, in, host, count)
 	}
-	return s.provisionExisting(ctx, q, in, host, row)
+	return false, s.provisionExisting(ctx, q, in, host, row)
 }
 
-func (s *Service) provisionNew(ctx context.Context, q *dbsqlc.Queries, in Input, host string, total int) error {
-	if total >= MaxSources {
+func (s *Service) provisionNew(ctx context.Context, q *dbsqlc.Queries, in Input, host string, count int) error {
+	if count >= MaxSources {
 		return ErrTooMany
 	}
 	id := newID()
-	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: true}
+	params := dbsqlc.InsertContextSourceParams{ID: id, Uid: in.UID, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Provisioned: true}
 	if in.Secret != "" {
 		var err error
 		if params.Secret, err = s.seal(id, in.Secret); err != nil {
@@ -78,7 +87,7 @@ func (s *Service) provisionExisting(ctx context.Context, q *dbsqlc.Queries, in I
 	current, _ := s.open(row)
 	credentials := current.Reveal() != in.Secret || row.SecretHeader.String != in.SecretHeader
 	next := revision{host: host, credentials: credentials, params: dbsqlc.UpdateContextSourceParams{
-		Uid: row.Uid, Name: in.Name, Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret, Provisioned: true,
+		Uid: row.Uid, Name: in.Name, Description: text(in.Description), Url: in.URL, Audience: string(in.Audience), SecretHeader: text(in.SecretHeader), Secret: row.Secret, Provisioned: true,
 	}}
 	if credentials {
 		next.params.Secret = nil
@@ -89,7 +98,7 @@ func (s *Service) provisionExisting(ctx context.Context, q *dbsqlc.Queries, in I
 			}
 		}
 	}
-	unchanged := !credentials && in.Name == row.Name && in.URL == row.Url && string(in.Audience) == row.Audience && row.Provisioned
+	unchanged := !credentials && in.Name == row.Name && in.Description == row.Description.String && in.URL == row.Url && string(in.Audience) == row.Audience && row.Provisioned
 	if unchanged {
 		return nil
 	}

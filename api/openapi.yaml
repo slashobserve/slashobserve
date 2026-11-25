@@ -1754,6 +1754,10 @@ components:
           type: string
           maxLength: 100
           description: The display name; the uid when empty.
+        description:
+          type: string
+          maxLength: 300
+          description: What the source is for, on one line without control or format characters; none when empty.
         audience:
           type: string
           enum: [everyone, admins]
@@ -1910,12 +1914,16 @@ components:
     ContextSource:
       type: object
       additionalProperties: false
-      required: [uid, name, url, audience, secret_header, secret_set, provisioned, state, failure, checked_at, tools, created_at, updated_at]
+      required: [uid, name, description, url, audience, secret_header, secret_set, provisioned, state, failure, checked_at, tools, created_at, updated_at]
       properties:
         uid:
           type: string
         name:
           type: string
+        description:
+          type: string
+          nullable: true
+          description: What the source is for, on one line; null when none was set.
         url:
           type: string
           description: The MCP endpoint, https, as stored.
@@ -1997,6 +2005,10 @@ components:
         name:
           type: string
           maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+          description: What the source is for; an empty string removes it.
         url:
           type: string
           minLength: 1

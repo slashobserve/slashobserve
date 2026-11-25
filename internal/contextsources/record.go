@@ -40,6 +40,9 @@ func recordUpdated(ctx context.Context, q *dbsqlc.Queries, before, after dbsqlc.
 	if c := activity.Changed(before.Name, after.Name); c != nil {
 		changes["name"] = c
 	}
+	if c := activity.Changed(before.Description.String, after.Description.String); c != nil {
+		changes["description"] = c
+	}
 	if c := activity.Changed(beforeHost, next.host); c != nil {
 		changes["host"] = c
 	}

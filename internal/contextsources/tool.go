@@ -107,7 +107,11 @@ func refusalOf(f Found, schema json.RawMessage) string {
 }
 
 func usableName(name string) bool {
-	return len(name) <= maxToolNameBytes && toolNamePattern.MatchString(name)
+	return len(name) <= maxToolNameBytes && toolNamePattern.MatchString(name) && strings.ContainsFunc(name, isLetterOrDigit)
+}
+
+func isLetterOrDigit(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
 }
 
 type listing struct {

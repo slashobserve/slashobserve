@@ -1808,9 +1808,10 @@ observe context revoke docs search
 - `list [uid]` prints every source with its state, audience and tool counts, or one source in full.
   It never prints a secret, only whether one is set and the header that carries it.
 - `add <uid> --url <address>` registers a source and asks the server nothing.
-  `--name`, `--audience` (`everyone` or `admins`), `--secret-header` and `--secret-stdin` complete it.
+  `--name`, `--description` (one line, at most 300 characters), `--audience` (`everyone` or `admins`), `--secret-header` and `--secret-stdin` complete it.
   The secret comes from standard input and needs `--secret-header`, which needs `--secret-stdin` in turn.
 - `edit <uid>` changes the flags you pass, takes `--clear-secret`, and needs at least one flag.
+  `--description ""` removes the description.
   A new host needs `--secret-stdin` again, or `--clear-secret`.
 - `remove <uid>` deletes the source, its tools and its secret.
 - `discover <uid>` lists the server's tools and prints how many are new, changed, gone or ignored.
