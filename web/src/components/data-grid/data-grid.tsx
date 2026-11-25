@@ -324,7 +324,11 @@ export function DataGrid<T>({
   }, [])
   useEffect(reveal, [revealRowId, reveal])
 
-  const anchorRef = useRef<{ id: string; offset: number } | null>(null)
+  const anchorRef = useRef<{
+    id: string
+    offset: number
+    rowTop: number
+  } | null>(null)
   const keepRef = useRef(keepScrollOnPrepend)
   useLayoutEffect(() => {
     keepRef.current = keepScrollOnPrepend
@@ -341,7 +345,11 @@ export function DataGrid<T>({
     const top = api.getVerticalPixelRange().top
     const node = api.getDisplayedRowAtIndex(api.getFirstDisplayedRowIndex())
     if (top <= 0 || node?.id == null || node.rowTop === null) return
-    anchorRef.current = { id: node.id, offset: node.rowTop - top }
+    anchorRef.current = {
+      id: node.id,
+      offset: node.rowTop - top,
+      rowTop: node.rowTop,
+    }
   }, [])
   const restoreAnchor = useCallback(() => {
     const api = apiRef.current
@@ -349,7 +357,11 @@ export function DataGrid<T>({
     if (anchor === null || api === null || api.isDestroyed()) return
     const node = api.getRowNode(anchor.id)
     const viewport = bodyViewport()
-    if (node?.rowTop == null || viewport == null) return
+    if (node?.rowTop == null || node.rowTop <= anchor.rowTop) {
+      anchorRef.current = null
+      return
+    }
+    if (viewport == null) return
     viewport.scrollTop = node.rowTop - anchor.offset
     viewport.dispatchEvent(new Event("scroll"))
   }, [bodyViewport])
