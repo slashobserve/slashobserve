@@ -475,11 +475,17 @@ func (s *Service) patched(row dbsqlc.ContextSource, p Patch) (revision, error) {
 	if p.ClearSecret && p.Secret != nil {
 		return revision{}, invalid("secret", "cannot be set and cleared in one change")
 	}
+	if p.Secret != nil && *p.Secret == "" {
+		return revision{}, invalid("secret", "cannot be empty; clear the secret to remove it")
+	}
 	host, err := in.check()
 	if err != nil {
 		return revision{}, err
 	}
 	stored := len(row.Secret) > 0
+	if stored && !p.ClearSecret && in.SecretHeader == "" {
+		return revision{}, invalid("secret_header", "cannot be empty while a secret is stored; clear the secret to remove both")
+	}
 	if hostOfURL(row.Url) != host && stored && p.Secret == nil && !p.ClearSecret {
 		return revision{}, invalid("secret", "a new host needs the secret again; send it, or clear it")
 	}
