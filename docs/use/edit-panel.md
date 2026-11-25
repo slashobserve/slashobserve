@@ -237,7 +237,7 @@ A panel that was already unverified and still fails is kept, marked "Unverified"
 ### A refused save
 
 A refused save lists "This panel was rejected:" with each query and its problem, and "Other problems in this dashboard:" for panels you did not touch.
-A panel you did not touch that only times out is not refused: it is saved as "Unverified" with the timeout as its reason.
+A panel you did not touch that only times out is not refused: it is saved as "Unverified" with the timeout as its reason, and so is one that returns no data after the default time range grew.
 Your draft stays in place after any refusal.
 
 When the check cannot finish, the editor says "The panel could not be checked right now."

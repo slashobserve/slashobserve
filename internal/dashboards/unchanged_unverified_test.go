@@ -13,7 +13,7 @@ func timeoutAt(path string) spec.Issue {
 
 func TestAcceptTimeoutsTurnsAnUnchangedPanelsTimeoutIntoUnverified(t *testing.T) {
 	base := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "slow"}, testPanel{id: "b", title: "B", datasource: "prom", query: "up"})
-	blocking, accepted := acceptTimeouts(base, base, []spec.Issue{timeoutAt("/panels/0/queries/0/query")})
+	blocking, accepted := acceptUnchangedFailures(base, base, []spec.Issue{timeoutAt("/panels/0/queries/0/query")})
 	if len(blocking) != 0 {
 		t.Fatalf("blocking %v, want none", blocking)
 	}
@@ -39,7 +39,7 @@ func TestAcceptTimeoutsKeepsBlockingWhatItMustNotAccept(t *testing.T) {
 		{"an unattributed timeout", base, base, []spec.Issue{timeoutAt("/time")}},
 	}
 	for _, c := range cases {
-		blocking, accepted := acceptTimeouts(c.prev, c.next, c.issues)
+		blocking, accepted := acceptUnchangedFailures(c.prev, c.next, c.issues)
 		if !accepted.Empty() || len(blocking) != len(c.issues) {
 			t.Errorf("%s: accepted %v, blocking %v, want nothing accepted", c.name, panelIDs(accepted), blocking)
 		}
@@ -49,7 +49,7 @@ func TestAcceptTimeoutsKeepsBlockingWhatItMustNotAccept(t *testing.T) {
 func TestAcceptTimeoutsLeavesOtherPanelsIssuesBlocking(t *testing.T) {
 	base := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "slow"}, testPanel{id: "b", title: "B", datasource: "prom", query: "bad"})
 	empty := issueAt("/panels/1/queries")
-	blocking, accepted := acceptTimeouts(base, base, []spec.Issue{timeoutAt("/panels/0/queries/0/query"), empty})
+	blocking, accepted := acceptUnchangedFailures(base, base, []spec.Issue{timeoutAt("/panels/0/queries/0/query"), empty})
 	if len(blocking) != 1 || blocking[0] != empty {
 		t.Fatalf("blocking %v, want only the other panel's issue", blocking)
 	}
@@ -66,7 +66,7 @@ func variableUnresolvedAt(path string) spec.Issue {
 
 func TestAcceptTimeoutsAcceptsAnUnchangedSlowVariableAndItsDependents(t *testing.T) {
 	base := testDashboard(t, instVariable, testPanel{id: "a", title: "A", datasource: "prom", query: `up{instance="$inst"}`}, testPanel{id: "b", title: "B", datasource: "prom", query: "up"})
-	blocking, accepted := acceptTimeouts(base, base, []spec.Issue{timeoutAt("/variables/0"), variableUnresolvedAt("/panels/0/queries/0/query")})
+	blocking, accepted := acceptUnchangedFailures(base, base, []spec.Issue{timeoutAt("/variables/0"), variableUnresolvedAt("/panels/0/queries/0/query")})
 	if len(blocking) != 0 {
 		t.Fatalf("blocking %v, want none", blocking)
 	}
@@ -93,7 +93,7 @@ func TestAcceptTimeoutsKeepsBlockingWhatASlowVariableDoesNotExplain(t *testing.T
 		{"a dependent panel without a slow variable", base, base, []spec.Issue{unresolved}},
 	}
 	for _, c := range cases {
-		blocking, accepted := acceptTimeouts(c.prev, c.next, c.issues)
+		blocking, accepted := acceptUnchangedFailures(c.prev, c.next, c.issues)
 		if !accepted.Empty() || len(blocking) != len(c.issues) {
 			t.Errorf("%s: accepted %v, blocking %v, want nothing accepted", c.name, accepted, blocking)
 		}
@@ -103,7 +103,7 @@ func TestAcceptTimeoutsKeepsBlockingWhatASlowVariableDoesNotExplain(t *testing.T
 func TestAcceptTimeoutsKeepsAPanelBlockingThatDoesNotReachTheSlowVariable(t *testing.T) {
 	base := testDashboard(t, instVariable, testPanel{id: "a", title: "A", datasource: "prom", query: "up"})
 	unresolved := variableUnresolvedAt("/panels/0/queries/0/query")
-	blocking, accepted := acceptTimeouts(base, base, []spec.Issue{timeoutAt("/variables/0"), unresolved})
+	blocking, accepted := acceptUnchangedFailures(base, base, []spec.Issue{timeoutAt("/variables/0"), unresolved})
 	if len(blocking) != 1 || blocking[0] != unresolved || len(accepted.Variables) != 1 || len(accepted.Panels) != 0 {
 		t.Fatalf("blocking %v, accepted %v, want only the panel issue blocking", blocking, accepted)
 	}
@@ -123,5 +123,51 @@ func TestUnverifiedWithMergesTheIssuesOfAPanelAndAVariableBothSidesAccepted(t *t
 	}
 	if len(a.Panels[0].Issues) != 1 || len(a.Variables[0].Issues) != 1 {
 		t.Fatalf("with changed its receiver: %v", a)
+	}
+}
+
+func withRange(d *spec.Dashboard, from string) *spec.Dashboard {
+	moved := *d
+	moved.Time = spec.TimeRange{From: from, To: "now"}
+	return &moved
+}
+
+func TestAcceptUnchangedFailuresAcceptsAnUnchangedEmptyPanelOnlyWhenTheRangeGrew(t *testing.T) {
+	base := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "up"})
+	empty := []spec.Issue{issueAt("/panels/0/queries")}
+	cases := []struct {
+		name string
+		next *spec.Dashboard
+		want bool
+	}{
+		{"a longer range", withRange(base, "now-24h"), true},
+		{"the same range", base, false},
+		{"a shorter range", withRange(base, "now-5m"), false},
+	}
+	for _, c := range cases {
+		blocking, accepted := acceptUnchangedFailures(base, c.next, empty)
+		if got := !accepted.Empty() && len(blocking) == 0; got != c.want {
+			t.Errorf("%s: accepted %v, blocking %v, want accepted %t", c.name, panelIDs(accepted), blocking, c.want)
+		}
+	}
+}
+
+func TestAcceptUnchangedFailuresKeepsBlockingAnEmptyPanelTheLongerRangeDoesNotExplain(t *testing.T) {
+	base := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "up"})
+	edited := testDashboard(t, ``, testPanel{id: "a", title: "A", datasource: "prom", query: "down"})
+	invalid := spec.Issue{Path: "/panels/0/queries/0/query", Code: queryproxy.CodeQueryInvalid, Message: "bad"}
+	cases := []struct {
+		name   string
+		next   *spec.Dashboard
+		issues []spec.Issue
+	}{
+		{"a panel whose query changed", withRange(edited, "now-24h"), []spec.Issue{issueAt("/panels/0/queries")}},
+		{"a panel with another failure", withRange(base, "now-24h"), []spec.Issue{issueAt("/panels/0/queries"), invalid}},
+	}
+	for _, c := range cases {
+		blocking, accepted := acceptUnchangedFailures(base, c.next, c.issues)
+		if !accepted.Empty() || len(blocking) != len(c.issues) {
+			t.Errorf("%s: accepted %v, blocking %v, want nothing accepted", c.name, panelIDs(accepted), blocking)
+		}
 	}
 }

@@ -372,6 +372,7 @@ The save is rejected when:
 
 A panel or variable the save did not change is not rejected when it only times out, for instance a heavy panel over a longer time range.
 It is saved as "Unverified" with the timeout as its reason, and so are the panels that read a variable that timed out.
+A panel the save did not change is also saved as "Unverified" when it returns no data after the save lengthened the default time range, because the longer range did not empty it.
 A panel the save changed still has to pass.
 
 The rejection lists each problem with the path of the panel or variable and a code.

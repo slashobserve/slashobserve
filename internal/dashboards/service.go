@@ -748,7 +748,7 @@ func (s *Service) verify(ctx context.Context, by auth.Principal, prev *spec.Dash
 		return Unverified{}, err
 	}
 	blocking, accepted := acceptEmpty(ctx, next, issues)
-	blocking, timedOut := acceptTimeouts(prev, next, blocking)
+	blocking, timedOut := acceptUnchangedFailures(prev, next, blocking)
 	accepted = accepted.with(timedOut)
 	if prev == nil || prevUnverified.Empty() {
 		if len(blocking) > 0 {

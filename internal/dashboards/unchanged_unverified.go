@@ -2,19 +2,24 @@ package dashboards
 
 import (
 	"slices"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
-func acceptTimeouts(prev, next *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, Unverified) {
+func acceptUnchangedFailures(prev, next *spec.Dashboard, issues []spec.Issue) ([]spec.Issue, Unverified) {
 	if prev == nil {
 		return issues, Unverified{}
 	}
 	failing, _ := UnverifiedOf(next, issues)
 	accepted, slow := acceptedVariables(prev, next, failing.Variables)
+	explained := []spec.IssueCode{queryproxy.CodeQueryTimeout}
+	if rangeGrew(prev, next) {
+		explained = append(explained, queryproxy.CodeQueryEmpty)
+	}
 	for _, p := range failing.Panels {
-		if panelUnchanged(prev, next, p.PanelID) && timeoutsOrSlowVariables(next, p, slow) {
+		if panelUnchanged(prev, next, p.PanelID) && explainedOrSlowVariables(next, p, slow, explained) {
 			accepted.Panels = append(accepted.Panels, p)
 		}
 	}
@@ -58,8 +63,23 @@ func withoutAccepted(next *spec.Dashboard, issues []spec.Issue, accepted Unverif
 	})
 }
 
-func timeoutsOrSlowVariables(next *spec.Dashboard, p UnverifiedPanel, slow map[string]bool) bool {
-	if onlyCodes(p.Issues, queryproxy.CodeQueryTimeout) {
+func rangeGrew(prev, next *spec.Dashboard) bool {
+	now := time.Now()
+	span := func(d *spec.Dashboard) (time.Duration, bool) {
+		opts, err := spec.TimeOptionsFor(d, "")
+		if err != nil {
+			return 0, false
+		}
+		from, to, err := spec.ResolveTimeRange(d.Time, now, opts)
+		return to.Sub(from), err == nil
+	}
+	before, okBefore := span(prev)
+	after, okAfter := span(next)
+	return okBefore && okAfter && after > before
+}
+
+func explainedOrSlowVariables(next *spec.Dashboard, p UnverifiedPanel, slow map[string]bool, explained []spec.IssueCode) bool {
+	if onlyCodes(p.Issues, explained...) {
 		return true
 	}
 	if !onlyCodes(p.Issues, queryproxy.CodeQueryTimeout, queryproxy.CodeVariableUnresolved, queryproxy.CodeVariableFailed) {

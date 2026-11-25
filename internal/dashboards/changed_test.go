@@ -483,6 +483,23 @@ func TestTimeChangeBlocksOnAVerifiedPanelThatIsEmptyOverTheNewRange(t *testing.T
 	}
 }
 
+func TestTimeChangeToALongerRangeSavesAnUnchangedEmptyPanelAsUnverified(t *testing.T) {
+	r, p := newProbeRig(t)
+	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
+	p.setEmptyBelow("m1", 1000*time.Hour)
+
+	ver, err := r.saveChanged(t, id, 1, dashboardFields(`{"time":{"from":"now-24h","to":"now"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ids := panelIDs(ver.Unverified); len(ids) != 1 || ids[0] != "p1" {
+		t.Fatalf("unverified %v, want only p1", ids)
+	}
+	if issues := ver.Unverified.Panels[0].Issues; len(issues) != 1 || issues[0].Code != queryproxy.CodeQueryEmpty {
+		t.Fatalf("issues %v, want one query_empty", issues)
+	}
+}
+
 func TestTimeChangeSavesAnUnchangedPanelThatTimesOutAsUnverified(t *testing.T) {
 	r, p := newProbeRig(t)
 	id := r.createSpec(t, specDef{panels: numberedPanels(3)})
