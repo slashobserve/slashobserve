@@ -1,9 +1,15 @@
 import { Link } from "@tanstack/react-router"
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { ChevronDownIcon } from "lucide-react"
 import { useMemo, useState, type ReactNode } from "react"
 
+import {
+  barColumnMinWidth,
+  barShare,
+  textWidthCh,
+} from "@/components/data-grid/bar"
+import { BarCell } from "@/components/data-grid/bar-cell"
+import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { StatusLabel } from "@/components/status-label"
-import { Cell, HeaderCell, TableCard } from "@/components/table-card"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -70,169 +76,132 @@ function TraceStatus({ errors }: { errors: number }) {
   )
 }
 
-function SortHeader({
-  column,
-  sort,
-  onSort,
-}: {
-  column: Column
-  sort: TraceSort | null
-  onSort: (key: TraceSortKey) => void
-}) {
-  const active = sort?.key === column.key ? sort : null
-  const Arrow =
-    active?.direction === "ascending" ? ChevronUpIcon : ChevronDownIcon
-  return (
-    <HeaderCell
-      aria-sort={active?.direction ?? "none"}
-      className={cn(
-        "h-8 bg-canvas p-0 text-xs",
-        column.align === "right" && "text-right"
-      )}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(column.key)}
-        className={cn(
-          "flex h-full w-full items-center gap-1 px-3.5 text-left hover:text-foreground",
-          column.align === "right" && "flex-row-reverse text-right",
-          active !== null && "text-foreground"
-        )}
-      >
-        {column.label}
-        {active !== null ? (
-          <Arrow className="size-3" aria-hidden="true" />
-        ) : null}
-      </button>
-    </HeaderCell>
-  )
-}
-
-function DurationBar({
+function StartedLink({
   row,
-  slowest,
-  p95,
-}: {
-  row: TraceRow
-  slowest: number
-  p95: number | null
-}) {
-  const scaled = (ms: number) => `${(ms / slowest) * 100}%`
-  const failed = row.errors !== null && row.errors > 0
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="w-18 shrink-0 text-right whitespace-nowrap tabular-nums">
-        {durationText(row.durationMs)}
-      </span>
-      <div
-        aria-hidden="true"
-        className="relative h-1.5 min-w-10 flex-1 rounded-full bg-muted"
-      >
-        <div
-          className={cn(
-            "h-full rounded-full",
-            failed ? "bg-status-critical" : "bg-series-1"
-          )}
-          style={{
-            width:
-              row.durationMs !== null && slowest > 0
-                ? scaled(row.durationMs)
-                : 0,
-          }}
-        />
-        {p95 !== null && slowest > 0 ? (
-          <div
-            className="absolute inset-y-0 w-px -translate-x-1/2 bg-foreground"
-            style={{ left: scaled(p95) }}
-          />
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-function TraceCell({
-  column,
-  row,
-  slot,
-  slowest,
-  p95,
   datasourceUid,
   range,
 }: {
-  column: Column
   row: TraceRow
-  slot: number
-  slowest: number
-  p95: number | null
   datasourceUid: string
   range: TraceRange
 }) {
   const observation = useObservationOrigin()
+  return (
+    <Link
+      {...traceLink(row.traceId, datasourceUid, range, undefined, observation)}
+      aria-label={openTraceLabel(row)}
+      title={row.start === null ? undefined : new Date(row.start).toISOString()}
+      className="font-medium whitespace-nowrap tabular-nums underline-offset-3 hover:underline"
+    >
+      {row.start === null ? (
+        <span className="font-mono">{row.traceId.slice(0, 8)}</span>
+      ) : (
+        zonedDateTimeMs(row.start, undefined)
+      )}
+    </Link>
+  )
+}
+
+type TraceColumnContext = {
+  slots: ReadonlyMap<string, number>
+  slowest: number
+  p95: number | null
+  durationWidthCh: number
+  datasourceUid: string
+  range: TraceRange
+}
+
+function traceGridColumn(
+  column: Column,
+  context: TraceColumnContext
+): DataGridColumn<TraceRow> {
+  const base = {
+    id: column.key,
+    header: column.label,
+    align: column.align,
+    sortable: true,
+  }
   switch (column.key) {
     case "service":
-      return (
-        <Cell className="py-1">
-          <span className="inline-flex items-center gap-1.5">
+      return {
+        ...base,
+        minWidth: 140,
+        cell: (row) => (
+          <span className="inline-flex min-w-0 items-center gap-1.5">
             <span
               aria-hidden="true"
               className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: styleForSlot(slot).color }}
+              style={{
+                backgroundColor: styleForSlot(
+                  context.slots.get(row.service) ?? 0
+                ).color,
+              }}
             />
-            {row.service || "-"}
+            <span className="truncate">{row.service || "-"}</span>
           </span>
-        </Cell>
-      )
+        ),
+      }
     case "span":
-      return <Cell className="max-w-80 truncate py-1">{row.span || "-"}</Cell>
+      return {
+        ...base,
+        minWidth: 160,
+        flex: 1.5,
+        cell: (row) => <span className="truncate">{row.span || "-"}</span>,
+      }
     case "duration":
-      return (
-        <Cell className="py-1">
-          <DurationBar row={row} slowest={slowest} p95={p95} />
-        </Cell>
-      )
-    case "spans":
-      return (
-        <Cell className="py-1 text-right tabular-nums">
-          {row.spans === null ? "-" : row.spans.toLocaleString("en")}
-          {row.matching == null || row.matching === row.spans ? null : (
-            <span className="block text-xs text-muted-foreground">
-              {row.matching.toLocaleString("en")} matching
-            </span>
-          )}
-        </Cell>
-      )
-    case "errors":
-      return (
-        <Cell className="py-1 whitespace-nowrap">
-          {row.errors === null ? "-" : <TraceStatus errors={row.errors} />}
-        </Cell>
-      )
-    case "start":
-      return (
-        <Cell className="py-1 whitespace-nowrap">
-          <Link
-            {...traceLink(
-              row.traceId,
-              datasourceUid,
-              range,
-              undefined,
-              observation
-            )}
-            aria-label={openTraceLabel(row)}
-            title={
-              row.start === null ? undefined : new Date(row.start).toISOString()
+      return {
+        ...base,
+        minWidth: barColumnMinWidth(context.durationWidthCh),
+        flex: 2,
+        cell: (row) => (
+          <BarCell
+            text={durationText(row.durationMs)}
+            widthCh={context.durationWidthCh}
+            share={barShare(row.durationMs, context.slowest)}
+            marker={
+              context.p95 === null || context.slowest <= 0
+                ? null
+                : barShare(context.p95, context.slowest)
             }
-            className="font-medium tabular-nums underline-offset-3 hover:underline"
-          >
-            {row.start === null ? (
-              <span className="font-mono">{row.traceId.slice(0, 8)}</span>
-            ) : (
-              zonedDateTimeMs(row.start, undefined)
+            critical={row.errors !== null && row.errors > 0}
+          />
+        ),
+      }
+    case "spans":
+      return {
+        ...base,
+        width: 110,
+        autoHeight: true,
+        cell: (row) => (
+          <span className="py-1 text-right leading-normal tabular-nums">
+            {row.spans === null ? "-" : row.spans.toLocaleString("en")}
+            {row.matching == null || row.matching === row.spans ? null : (
+              <span className="block text-xs text-muted-foreground">
+                {row.matching.toLocaleString("en")} matching
+              </span>
             )}
-          </Link>
-        </Cell>
-      )
+          </span>
+        ),
+      }
+    case "errors":
+      return {
+        ...base,
+        width: 170,
+        cell: (row) =>
+          row.errors === null ? "-" : <TraceStatus errors={row.errors} />,
+      }
+    case "start":
+      return {
+        ...base,
+        width: 200,
+        cell: (row) => (
+          <StartedLink
+            row={row}
+            datasourceUid={context.datasourceUid}
+            range={context.range}
+          />
+        ),
+      }
   }
 }
 
@@ -364,17 +333,35 @@ function SortedTraceTable({
   const p95 = p95Ms === undefined ? percentile(durations, 95) : p95Ms
   const spans = hasSpanCounts(rows)
   const status = hasErrorCounts(rows)
-  const shownColumns = columns.filter(
-    (column) =>
-      !hidden.has(column.key) &&
-      (column.key !== "spans" || spans) &&
-      (column.key !== "errors" || status)
+  const shownColumns = useMemo(
+    () =>
+      columns.filter(
+        (column) =>
+          !hidden.has(column.key) &&
+          (column.key !== "spans" || spans) &&
+          (column.key !== "errors" || status)
+      ),
+    [hidden, spans, status]
   )
   const footer =
     footerNote ??
     (p95 === null
       ? null
       : `The tick on each bar is the ${durationText(p95)} ${p95Label}.`)
+  const { from, to } = range
+  const gridColumns = useMemo(() => {
+    const context = {
+      slots,
+      slowest,
+      p95,
+      durationWidthCh: textWidthCh(
+        rows.map((row) => durationText(row.durationMs))
+      ),
+      datasourceUid,
+      range: { from, to },
+    }
+    return shownColumns.map((column) => traceGridColumn(column, context))
+  }, [shownColumns, slots, slowest, p95, rows, datasourceUid, from, to])
   const plotted =
     window !== null &&
     rows.some((row) => row.start !== null && row.durationMs !== null)
@@ -431,50 +418,20 @@ function SortedTraceTable({
         {headerActions}
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />
       </div>
-      <TableCard
+      <DataGrid
         label="Traces"
-        stackOnNarrow
-        minWidth={760}
-        className="bg-card"
-      >
-        <thead>
-          <tr>
-            {shownColumns.map((column) => (
-              <SortHeader
-                key={column.key}
-                column={column}
-                sort={sort}
-                onSort={(key) => setSort(nextSort(sort, key))}
-              />
-            ))}
-          </tr>
-        </thead>
-        <tbody onPointerLeave={() => setHighlighted(null)}>
-          {sorted.map((row) => (
-            <tr
-              key={row.traceId}
-              onPointerEnter={() => setHighlighted(row.traceId)}
-              className={cn(
-                "h-8 hover:bg-muted/40 narrow:h-auto",
-                highlighted === row.traceId && "bg-selection"
-              )}
-            >
-              {shownColumns.map((column) => (
-                <TraceCell
-                  key={column.key}
-                  column={column}
-                  row={row}
-                  slot={slots.get(row.service) ?? 0}
-                  slowest={slowest}
-                  p95={p95}
-                  datasourceUid={datasourceUid}
-                  range={range}
-                />
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
+        rows={sorted}
+        columns={gridColumns}
+        rowId={(row) => row.traceId}
+        sort={sort}
+        onSort={(key) => {
+          const column = shownColumns.find((shown) => shown.key === key)
+          if (column !== undefined) setSort(nextSort(sort, column.key))
+        }}
+        highlightedRowId={highlighted}
+        onHighlightRow={setHighlighted}
+        compact
+      />
       {footer !== null ? (
         <p className="text-xs text-muted-foreground">{footer}</p>
       ) : null}
