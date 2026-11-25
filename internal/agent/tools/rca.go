@@ -36,7 +36,7 @@ type rcaPublishedOut struct {
 	ObservationURL string `json:"observation_url"`
 }
 
-func (r *Registry) rcaFailure(err error) (Result, error) {
+func (r *Registry) rcaFailure(ctx context.Context, err error) (Result, error) {
 	var failed *observations.PanelFailedError
 	var unchanged *observations.RCAUnchangedError
 	switch {
@@ -52,7 +52,7 @@ func (r *Registry) rcaFailure(err error) (Result, error) {
 		issue := failed.Issue()
 		return toolError(observations.CodePanelFailed, fmt.Sprintf("the panel block %s at position %d could not be frozen (%s: %s); fix it with %s and publish again", failed.BlockID, failed.Position, issue.Code, issue.Message, nameUpdateBlock)), nil
 	}
-	return r.observationFailure("Published an observation", err)
+	return r.observationFailure(ctx, "Published an observation", err)
 }
 
 func (r *Registry) publishRCA(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -72,7 +72,7 @@ func (r *Registry) publishRCA(ctx context.Context, input json.RawMessage) (Resul
 	principal, _ := auth.FromContext(ctx)
 	rca, err := r.deps.Observations.Publish(ctx, principal, id)
 	if err != nil {
-		return r.rcaFailure(err)
+		return r.rcaFailure(ctx, err)
 	}
 	snapshots := 0
 	for _, b := range rca.Blocks {

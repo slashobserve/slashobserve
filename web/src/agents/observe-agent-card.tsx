@@ -70,6 +70,9 @@ export function ObserveAgentCard({
           <div key={cell.label} className="flex flex-col gap-0.5">
             <dt className="text-xs text-muted-foreground">{cell.label}</dt>
             <dd className="text-lg font-semibold">{cell.value}</dd>
+            {cell.note === undefined ? null : (
+              <dd className="text-xs text-muted-foreground">{cell.note}</dd>
+            )}
           </div>
         ))}
       </dl>

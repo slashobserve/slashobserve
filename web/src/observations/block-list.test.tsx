@@ -79,7 +79,7 @@ describe("arranging blocks from the keyboard", () => {
     const bodies = stubLayout([blocks[1], { ...blocks[0], position: 1 }])
     const { user } = show(blocks, ["update"])
     const handles = await screen.findAllByRole("button", {
-      name: "Move or resize Text",
+      name: /^Move or resize Text/,
     })
     handles[0].focus()
     await user.keyboard("{ArrowDown}")
@@ -117,7 +117,7 @@ describe("arranging blocks from the keyboard", () => {
     )
     const { user } = show(blocks, ["update"])
     const [handle] = await screen.findAllByRole("button", {
-      name: "Move or resize Text",
+      name: /^Move or resize Text/,
     })
     handle.focus()
     await user.keyboard("{ArrowDown}")
@@ -135,7 +135,7 @@ describe("arranging blocks from the keyboard", () => {
     const bodies = stubLayout(blocks)
     const { user } = show(blocks, ["update"])
     const [handle] = await screen.findAllByRole("button", {
-      name: "Move or resize Text",
+      name: /^Move or resize Text/,
     })
     handle.focus()
     await user.keyboard("{Shift>}{ArrowRight}{/Shift}")

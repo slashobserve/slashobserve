@@ -48,7 +48,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	frame.Meta = &datasource.FrameMeta{Partial: resp.partial()}
 	frames := []datasource.Frame{frame}
 	if page == 1 {
-		frames = d.withValueHint(ctx, prep, req.Range, frames)
+		frames = d.withHint(ctx, prep, req.Range, frames, false)
 	}
 	return frames, pageInfo(resp, page, req.PageSize, window), nil
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/folders"
 	"github.com/slashobserve/slashobserve/internal/httpapi"
-	"github.com/slashobserve/slashobserve/internal/origin"
 )
 
 type Chat struct {
@@ -249,7 +248,7 @@ func (s *Service) ArchiveChat(ctx context.Context, by auth.Principal, id pgtype.
 	if err != nil {
 		return fmt.Errorf("chat owner id: %w", err)
 	}
-	columns, err := actor.Of(by, origin.From(ctx), "").Columns()
+	columns, err := actor.In(ctx, by, "").Columns()
 	if err != nil {
 		return fmt.Errorf("chat owner: %w", err)
 	}

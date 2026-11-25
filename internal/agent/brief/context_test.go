@@ -317,3 +317,22 @@ func TestSystemForPassesTheDistinctTypesOfTheStatuses(t *testing.T) {
 		t.Fatal("systemFor is not the system text of prometheus and tempo")
 	}
 }
+
+func TestWriteSuggestRequestNamesTheDashboardVariables(t *testing.T) {
+	d, err := spec.Parse([]byte(`{"specVersion":"0","title":"t","time":{"from":"now-15m","to":"now"},"variables":[{"name":"service","type":"custom","options":["checkout"]},{"name":"env","type":"custom","options":["prod"]}],"panels":[{"id":"p1","type":"stat","title":"Errors","gridPos":{"x":0,"y":0,"w":6,"h":4},"datasource":"prom","queries":[{"query":"up"}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	writeSuggestRequest(&b, "p1", &Revision{DashboardID: "d", Number: 3, Spec: d})
+	want := "The dashboard has the variables service, env; when your change stops the panel using one, say so in summary."
+	if !strings.Contains(b.String(), want) {
+		t.Fatalf("request %q lacks %q", b.String(), want)
+	}
+
+	var plain strings.Builder
+	writeSuggestRequest(&plain, "p1", &Revision{DashboardID: "d", Number: 3, Spec: &spec.Dashboard{}})
+	if strings.Contains(plain.String(), "variables") {
+		t.Fatalf("a dashboard with no variables named some: %q", plain.String())
+	}
+}

@@ -68,7 +68,7 @@ func (r *Registry) pinObservation(ctx context.Context, input json.RawMessage) (R
 	principal, _ := auth.FromContext(ctx)
 	pin, created, err := r.deps.Observations.Pin(ctx, principal, id, dashboardID)
 	if err != nil {
-		return r.observationOutputFailure("Pinned an observation", err)
+		return r.observationOutputFailure(ctx, "Pinned an observation", err)
 	}
 	return success("Pinned observation "+in.ObservationID+" to dashboard "+pin.DashboardID, pinObservationOut{
 		ObservationID: in.ObservationID, DashboardID: pin.DashboardID, AnnotationID: pin.AnnotationID, Created: created,
@@ -100,13 +100,13 @@ func (r *Registry) makeDashboard(ctx context.Context, input json.RawMessage) (Re
 	principal, _ := auth.FromContext(ctx)
 	dash, ver, created, err := r.deps.Observations.MakeDashboard(ctx, principal, id, blockID, in.New)
 	if err != nil {
-		return r.observationOutputFailure("Made a dashboard from an observation", err)
+		return r.observationOutputFailure(ctx, "Made a dashboard from an observation", err)
 	}
 	existing := !created
 	return success("Made dashboard "+dash.ID, r.savedOut(dash, ver, &existing)), nil
 }
 
-func (r *Registry) observationOutputFailure(step string, err error) (Result, error) {
+func (r *Registry) observationOutputFailure(ctx context.Context, step string, err error) (Result, error) {
 	switch {
 	case errors.Is(err, observations.ErrNoDashboard):
 		return toolError(codeObservationHasNoDashboard, err.Error()), nil
@@ -115,8 +115,8 @@ func (r *Registry) observationOutputFailure(step string, err error) (Result, err
 	case errors.Is(err, observations.ErrNoPanels):
 		return toolError(codeObservationHasNoPanels, err.Error()), nil
 	}
-	if res, ok := observationRefusal(err); ok {
+	if res, ok := observationRefusal(ctx, err); ok {
 		return res, nil
 	}
-	return saveFailure(err)
+	return saveFailure(ctx, err)
 }

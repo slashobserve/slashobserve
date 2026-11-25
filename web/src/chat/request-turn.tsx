@@ -147,21 +147,26 @@ export function ChatAnswer({
 
   async function revise(): Promise<RevisionAsked> {
     const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
-    if ("error" in plan) {
-      toast.error(plan.error)
-      return false
-    }
+    if ("error" in plan) return plan.error || reviseFailureText(null)
+    let sent: Awaited<ReturnType<typeof deliver>>
     try {
-      const sent = await deliver(plan)
-      if (sent.via === "chat") await onRevised(sent.request)
-      return true
+      sent = await deliver(plan)
     } catch (error) {
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      toast.error(reviseFailureText(error))
-      return false
+      return reviseFailureText(error)
     }
+    if (sent.via === "chat") {
+      try {
+        await onRevised(sent.request)
+      } catch {
+        toast.error(
+          "The revision was asked for, but the chat could not open it. Reload the page to see it."
+        )
+      }
+    }
+    return true
   }
 
   return (

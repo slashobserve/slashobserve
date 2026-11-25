@@ -54,11 +54,22 @@ type Header = {
   status: ReactNode
 }
 
-function Stat({ label, children }: { label: string; children: ReactNode }) {
+function Stat({
+  label,
+  note,
+  children,
+}: {
+  label: string
+  note?: string
+  children: ReactNode
+}) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="text-lg font-semibold">{children}</dd>
+      {note === undefined ? null : (
+        <dd className="text-xs text-muted-foreground">{note}</dd>
+      )}
     </div>
   )
 }
@@ -75,7 +86,7 @@ function StatList({
   return (
     <dl className="grid grid-cols-2 gap-x-6 gap-y-3 @min-[560px]:grid-cols-4">
       {cells.map((cell) => (
-        <Stat key={cell.label} label={cell.label}>
+        <Stat key={cell.label} label={cell.label} note={cell.note}>
           {cell.value}
         </Stat>
       ))}

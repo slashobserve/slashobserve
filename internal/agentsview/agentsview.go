@@ -48,6 +48,7 @@ type statsJSON struct {
 	Runs                   int      `json:"runs"`
 	Failed                 int      `json:"failed"`
 	CostUSD                *float64 `json:"cost_usd"`
+	UnpricedRuns           int      `json:"unpriced_runs"`
 	MedianQueueWaitSeconds *float64 `json:"median_queue_wait_seconds"`
 }
 
@@ -195,8 +196,8 @@ func (h *Handler) stats(ctx context.Context, params dbsqlc.AgentRunStatsParams) 
 	if err != nil {
 		return statsJSON{}, fmt.Errorf("read run stats: %w", err)
 	}
-	out := statsJSON{Runs: int(row.Runs), Failed: int(row.Failed)}
-	if row.Unpriced == 0 {
+	out := statsJSON{Runs: int(row.Runs), Failed: int(row.Failed), UnpricedRuns: int(row.Unpriced)}
+	if row.Priced > 0 || row.Unpriced == 0 {
 		out.CostUSD = &row.CostUsd
 	}
 	if row.Started > 0 {

@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router"
 
+import { runLineText, runProgress, type Run } from "@/conversation/thread-state"
 import { sentence, useObserveRequest } from "@/observe/queries"
+import { StopRequestButton } from "@/observe/request-actions"
 
 import type { SentMessage } from "./thread-queries"
 
@@ -29,32 +31,28 @@ export function RunStarted({ run, refusal, agentName }: RunStartedProps) {
   return <BuiltinRun id={run.id} sentStatus={run.status} />
 }
 
-const runLines = {
-  queued: "Observe Agent is working on it.",
-  running: "Observe Agent is working on it.",
-  succeeded: "Observe Agent finished.",
-  failed: "Observe Agent could not finish.",
-}
-
 function BuiltinRun({
   id,
   sentStatus,
 }: {
   id: string
-  sentStatus: keyof typeof runLines
+  sentStatus: Run["status"]
 }) {
   const request = useObserveRequest(id)
-  const status = request.data?.status ?? sentStatus
+  const progress = runProgress(request.data, sentStatus)
   return (
-    <p role="status" className="text-xs text-muted-foreground">
-      {runLines[status]}{" "}
-      <Link
-        to="/c/$requestId"
-        params={{ requestId: id }}
-        className="underline underline-offset-2 hover:text-foreground"
-      >
-        View the run
-      </Link>
-    </p>
+    <div className="flex items-center gap-2">
+      <p role="status" className="text-xs text-muted-foreground">
+        {runLineText({ assigned_kind: "builtin" }, progress, "Observe Agent")}.{" "}
+        <Link
+          to="/c/$requestId"
+          params={{ requestId: id }}
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          View the run
+        </Link>
+      </p>
+      <StopRequestButton requestId={id} variant="text" />
+    </div>
   )
 }

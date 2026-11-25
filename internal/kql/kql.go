@@ -28,9 +28,16 @@ type Diagnostic struct {
 	End      int
 }
 
+type UnknownField struct {
+	Name       string
+	Suggestion string
+	Required   bool
+}
+
 type Compiled struct {
-	Query       map[string]any
-	Diagnostics []Diagnostic
+	Query         map[string]any
+	Diagnostics   []Diagnostic
+	UnknownFields []UnknownField
 }
 
 type Kind string
