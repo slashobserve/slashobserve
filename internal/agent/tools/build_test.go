@@ -98,8 +98,12 @@ func TestChangesOfSkipsPanelsOnlyAVariableEditReaches(t *testing.T) {
 	if changed, _ := dashboards.ChangedSince(prev, next); len(changed) != 3 {
 		t.Fatalf("setup: the variable edit marks %v for re-verification, want all three panels", changed)
 	}
-	if res, ok := onePanelPerSave(changesOf(prev, next)); !ok {
+	only := changesOf(prev, next)
+	if res, ok := onePanelPerSave(only); !ok {
 		t.Fatalf("a variable-only edit was refused: %#v", res.Content)
+	}
+	if got := strings.Join(only.reverified, ","); got != "a,b,c" || len(only.shown) != 0 {
+		t.Fatalf("a variable-only edit: reverified = %q, changed = %+v, want a,b,c and no changed panel", got, only.shown)
 	}
 	edited := withVariable(`{"name":"svc","type":"custom","options":["a","b"],"label":"Service"}`,
 		suggestStat("a", "A", `up{svc="$svc"}`, 0),
@@ -109,6 +113,23 @@ func TestChangesOfSkipsPanelsOnlyAVariableEditReaches(t *testing.T) {
 	changes := changesOf(prev, edited)
 	if changes.count != 1 || len(changes.shown) != 1 || changes.shown[0].ID != "b" {
 		t.Fatalf("a variable edit with one real panel edit = %+v, want only panel b", changes)
+	}
+	if got := strings.Join(changes.reverified, ","); got != "a,c" {
+		t.Fatalf("reverified = %q, want a,c", got)
+	}
+	raw, err := json.Marshal(buildAdvice(t.Context(), buildOut{ChangedPanels: changes.shown, Reverified: changes.reverified}, edited, changes.edits.Panels))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Changed    []panelOut `json:"changed_panels"`
+		Reverified []string   `json:"reverified"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Changed) != 1 || strings.Join(out.Reverified, ",") != "a,c" {
+		t.Fatalf("save result = %s, want changed_panels [b] and reverified [a c]", raw)
 	}
 }
 

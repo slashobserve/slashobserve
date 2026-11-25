@@ -53,6 +53,7 @@ type buildFields struct {
 type buildOut struct {
 	Build         buildStateOut `json:"build"`
 	ChangedPanels []panelOut    `json:"changed_panels"`
+	Reverified    []string      `json:"reverified,omitempty"`
 	Layout        *layoutOut    `json:"layout,omitempty"`
 	Message       string        `json:"message"`
 	advice
@@ -84,12 +85,13 @@ type addedPanel struct {
 }
 
 type panelChanges struct {
-	shown  []panelOut
-	count  int
-	added  *addedPanel
-	edited int
-	moved  []string
-	edits  Edits
+	shown      []panelOut
+	reverified []string
+	count      int
+	added      *addedPanel
+	edited     int
+	moved      []string
+	edits      Edits
 }
 
 type buildSave struct {
@@ -197,6 +199,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 	out := buildAdvice(ctx, buildOut{
 		Build:         buildStateOut{Saves: build.Saves, Panels: progress.Panels, PlannedPanels: progress.PlannedPanels},
 		ChangedPanels: in.changes.shown,
+		Reverified:    in.changes.reverified,
 		Layout:        layoutOf(build.Spec, in.changes.focus(), holes),
 		Message:       message,
 	}, build.Spec, in.changes.edits.Panels)
@@ -256,7 +259,11 @@ func changesOf(prev, next *spec.Dashboard) panelChanges {
 	changes := panelChanges{shown: []panelOut{}, edits: editsOf(prev, next)}
 	for _, e := range next.AllPanels() {
 		isNew := !known[e.Panel.ID]
-		if !isNew && (!slices.Contains(edited, e.Panel.ID) || !slices.Contains(changes.edits.Panels, e.Panel.ID)) {
+		if !isNew && !slices.Contains(edited, e.Panel.ID) {
+			continue
+		}
+		if !isNew && !slices.Contains(changes.edits.Panels, e.Panel.ID) {
+			changes.reverified = append(changes.reverified, e.Panel.ID)
 			continue
 		}
 		if len(changes.shown) < maxChangedPanels {
