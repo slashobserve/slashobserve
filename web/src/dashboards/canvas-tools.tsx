@@ -384,6 +384,8 @@ function ToolBar({
   )
 }
 
+const floatingBottomInset = 16
+
 function PageFooter({
   docked,
   bar,
@@ -394,16 +396,16 @@ function PageFooter({
   children: ReactNode
 }) {
   const [slot, setSlot] = useState<HTMLDivElement | null>(null)
-  const box = useSlotBox(slot)
+  const bottom = docked ? 0 : floatingBottomInset
+  const { left, width, clipped } = useSlotBox(slot, bottom)
   return (
     <div ref={setSlot} data-page-footer="" className="-mt-8 h-24 narrow:hidden">
       <div
-        style={box}
+        style={{ left, width, bottom }}
         className={cn(
           "fixed z-30 flex flex-wrap items-center justify-center gap-x-3 gap-y-1",
-          docked
-            ? "bottom-0 border-t bg-background px-4 py-2"
-            : "pointer-events-none bottom-4"
+          docked ? "border-t bg-background px-4 py-2" : "pointer-events-none",
+          clipped && "invisible"
         )}
       >
         {bar}
