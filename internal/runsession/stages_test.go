@@ -263,3 +263,39 @@ func TestTheStageLoopStartsOnlyWithANewSessionOfABuiltInInvestigationWithTheLoop
 		}
 	}
 }
+
+func TestAFindingSentBackOverAnOpenLedgerLetsTheStageAdvanceAndTheLimitGrowOnceTheLedgerMoves(t *testing.T) {
+	s := newStagesScript(t, 18)
+	turn := func(n int) *Turn { return &Turn{ID: "t" + strconv.Itoa(n), Calls: 2} }
+	loop := func() *guard.Loop { return s.sess.state.Guard.Loop }
+
+	s.noted(hypothesesJSON(0, "h1", "h2", "h3"), turn(1))
+	s.readCall(1, turn(1))
+	if got := s.sess.state.Guard.Stage(); got != guard.StageHypothesize || loop().Limit != 12 {
+		t.Fatalf("stage %q, limit %d", got, loop().Limit)
+	}
+
+	refused := s.save(`{"markdown":"m","root_cause":{"component":"checkout","kind":"resource","summary":"pool"},"ruled_out":["a","b","c"]}`, &Turn{ID: "t2", Calls: 1, Saves: 1})
+	if !refused.IsError || !strings.Contains(string(refused.Content), "note_hypotheses") {
+		t.Fatalf("the save over an open ledger = %s", refused.Content)
+	}
+	if got := s.sess.state.Guard.Counts.Nudges; got != 1 {
+		t.Fatalf("nudges = %d", got)
+	}
+	if loop().Limit != 12 {
+		t.Fatalf("limit grew on a refused save: %d", loop().Limit)
+	}
+
+	s.noted(hypothesesJSON(2, "h3"), turn(3))
+	s.readCall(2, turn(3))
+	if got := s.sess.state.Guard.Stage(); got != guard.StageTest || loop().Limit != 15 {
+		t.Fatalf("after ruling two out: stage %q, limit %d", got, loop().Limit)
+	}
+
+	supported := `{"hypotheses":[{"id":"r0","text":"cause r0","status":"ruled_out","evidence":["read r0 showed nothing"]},{"id":"r1","text":"cause r1","status":"ruled_out","evidence":["read r1 showed nothing"]},{"id":"h3","text":"cause h3","status":"supported","evidence":["read showed it"]}]}`
+	s.noted(supported, turn(4))
+	s.readCall(3, turn(4))
+	if got := s.sess.state.Guard.Stage(); got != guard.StageConclude || loop().Limit != 18 {
+		t.Fatalf("after supporting one: stage %q, limit %d", got, loop().Limit)
+	}
+}
