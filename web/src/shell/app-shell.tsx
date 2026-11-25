@@ -2,8 +2,9 @@ import { useEffect, useState } from "react"
 import { Outlet } from "@tanstack/react-router"
 
 import { InboxPanel } from "@/inbox/inbox-panel"
-import { InboxStreamContext, useInboxLive } from "@/inbox/queries"
+import { useInboxLive } from "@/inbox/queries"
 import { isModChord } from "@/lib/shortcuts"
+import { ActivityStreamProvider } from "@/live/activity-stream"
 
 import { CommandPalette } from "./command-palette"
 import { HideCrumbContext } from "./crumbs"
@@ -45,15 +46,20 @@ function useSidebarShortcut() {
   }, [forced])
 }
 
+function InboxLive() {
+  useInboxLive()
+  return null
+}
+
 export function AppShell() {
   useSidebarShortcut()
-  useInboxLive()
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   const [titleHost, setTitleHost] = useState<HTMLSpanElement | null>(null)
   const [crumbHidden, setCrumbHidden] = useState(false)
   return (
-    <InboxStreamContext value={true}>
+    <ActivityStreamProvider>
+      <InboxLive />
       <PanelHostContext value={panelHost}>
         <ActionsHostContext value={actionsHost}>
           <TitleHostContext value={titleHost}>
@@ -81,6 +87,6 @@ export function AppShell() {
           </TitleHostContext>
         </ActionsHostContext>
       </PanelHostContext>
-    </InboxStreamContext>
+    </ActivityStreamProvider>
   )
 }

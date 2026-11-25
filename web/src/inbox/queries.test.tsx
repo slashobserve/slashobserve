@@ -4,13 +4,11 @@ import { renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
 import { inboxKeys } from "@/api/keys"
+import { ActivityStreamProvider } from "@/live/activity-stream"
+import { FakeEventSource } from "@/test/fake-event-source"
 import { testQueryClient } from "@/test/render"
 
-import {
-  inboxPollInterval,
-  InboxStreamContext,
-  useInboxForYou,
-} from "./queries"
+import { inboxPollInterval, useInboxForYou } from "./queries"
 
 describe("inboxPollInterval", () => {
   test("polls every 15 s outside the shell while the page is visible", () => {
@@ -29,6 +27,7 @@ describe("inboxPollInterval", () => {
 
 describe("useInboxForYou", () => {
   beforeEach(() => {
+    vi.stubGlobal("EventSource", FakeEventSource)
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -46,7 +45,11 @@ describe("useInboxForYou", () => {
     const client = testQueryClient()
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
-        <InboxStreamContext value={streamed}>{children}</InboxStreamContext>
+        {streamed ? (
+          <ActivityStreamProvider>{children}</ActivityStreamProvider>
+        ) : (
+          children
+        )}
       </QueryClientProvider>
     )
     renderHook(() => useInboxForYou(), { wrapper })

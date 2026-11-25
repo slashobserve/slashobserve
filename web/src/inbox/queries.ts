@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import {
   infiniteQueryOptions,
   useInfiniteQuery,
@@ -10,16 +10,15 @@ import { api } from "@/api/client"
 import { unwrap } from "@/api/errors"
 import { inboxKeys, type InboxFilter, type InboxView } from "@/api/keys"
 import {
-  useActivityStream,
-  useDocumentVisible,
-} from "@/live/use-activity-stream"
+  useActivitySubscription,
+  useHasActivityStream,
+} from "@/live/activity-stream"
+import { useDocumentVisible } from "@/live/use-activity-stream"
 
 const pageSize = 50
 const countStaleTime = 30_000
 const liveDebounceMs = 1000
 const pollMs = 15_000
-
-export const InboxStreamContext = createContext(false)
 
 export function inboxPollInterval(
   streamed: boolean,
@@ -29,9 +28,7 @@ export function inboxPollInterval(
 }
 
 export function useInboxPollInterval(): number | false {
-  const streamed = useContext(InboxStreamContext)
-  const visible = useDocumentVisible()
-  return inboxPollInterval(streamed, visible)
+  return inboxPollInterval(useHasActivityStream(), useDocumentVisible())
 }
 
 export function inboxInfiniteQuery(
@@ -109,7 +106,6 @@ export function useSetInboxItemDone() {
 
 export function useInboxLive() {
   const queryClient = useQueryClient()
-  const visible = useDocumentVisible()
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   function refresh() {
@@ -121,8 +117,7 @@ export function useInboxLive() {
 
   useEffect(() => () => clearTimeout(timer.current), [])
 
-  useActivityStream({
-    enabled: visible,
+  useActivitySubscription({
     onEvent: refresh,
     onGap: refresh,
   })

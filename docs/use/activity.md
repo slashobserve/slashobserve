@@ -120,6 +120,7 @@ At every ping the server checks your credentials, role and folder access again.
 It ends the stream when the credential is gone.
 It also ends the stream after 30 minutes, so a client reconnects with `Last-Event-ID`.
 A person or key may hold 5 streams, and the server 500.
+The web app holds at most one activity stream per tab: the inbox badge, an open observation and the dashboards list share it.
 Beyond that the answer is 429 or 503 `too_many_streams`.
 
 ## Read the log over MCP

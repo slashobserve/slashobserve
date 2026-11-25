@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { act, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -9,7 +10,8 @@ import { renderWithProviders } from "@/test/render"
 import type { InboxItem } from "./inbox-item"
 import { InboxPanel } from "./inbox-panel"
 import { useInboxPanelStore } from "./inbox-panel-store"
-import { InboxStreamContext } from "./queries"
+import { ActivityStreamProvider } from "@/live/activity-stream"
+import { FakeEventSource } from "@/test/fake-event-source"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -124,6 +126,20 @@ function mockServer({
   return { reads, states, views, filters, cursors }
 }
 
+function Stream({
+  streamed,
+  children,
+}: {
+  streamed: boolean
+  children: ReactNode
+}) {
+  return streamed ? (
+    <ActivityStreamProvider>{children}</ActivityStreamProvider>
+  ) : (
+    children
+  )
+}
+
 function Harness({
   pagePanel = false,
   streamed = false,
@@ -132,7 +148,7 @@ function Harness({
   streamed?: boolean
 }) {
   return (
-    <InboxStreamContext value={streamed}>
+    <Stream streamed={streamed}>
       <button
         type="button"
         onClick={() => useInboxPanelStore.getState().show()}
@@ -148,7 +164,7 @@ function Harness({
         ) : null}
         <InboxPanel />
       </PanelHostContext.Provider>
-    </InboxStreamContext>
+    </Stream>
   )
 }
 
@@ -180,6 +196,7 @@ beforeEach(() => {
   intersecting.now = false
   useInboxPanelStore.setState({ open: false, view: "for_you", filter: "open" })
   toasts.success.mockReset()
+  vi.stubGlobal("EventSource", FakeEventSource)
   vi.stubGlobal(
     "IntersectionObserver",
     class {
