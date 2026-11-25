@@ -180,6 +180,7 @@ It carries up to four evidence panels, each a panel whose query the server ran a
 It covers one window of time, shown under the answer with when it was found.
 
 A finding starts with one plain sentence, names the window it used, and says what it did not check.
+When your request names a length or a form, such as one sentence, the finding is exactly that, with no evidence list and no link to the page you asked on.
 When two pods or services tie, it leads with the one with the most errors.
 
 The answer is saved into an observation, as a text block with the conclusion and one panel block for each evidence panel.
