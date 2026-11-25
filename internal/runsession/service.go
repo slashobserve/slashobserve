@@ -189,9 +189,6 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	if sess.state.Guard.InvestigationCalls == 0 {
 		sess.state.Guard.InvestigationCalls = s.investigationCalls
 	}
-	if s.investigationLoop && req.Assignee == revisions.AssignBuiltin {
-		sess.state.Guard.StartLoop(s.investigationMax)
-	}
 	return sess, nil
 }
 
@@ -226,7 +223,11 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 	if err != nil {
 		return State{}, err
 	}
-	state := State{Guard: guard.New(run.Mode)}
+	state := State{Guard: guard.New(run.Mode), Loop: s.investigationLoop && run.Mode == tools.ModeInvestigate && run.Investigation}
+	if state.Loop && req.Assignee == revisions.AssignBuiltin {
+		state.Guard.InvestigationCalls = s.investigationCalls
+		state.Guard.StartLoop(s.investigationMax)
+	}
 	parent := 0
 	switch {
 	case run.Mode == tools.ModeSuggest:

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 const toolNoteHypotheses = "note_hypotheses"
@@ -60,8 +61,26 @@ func TestTurnsOfOnlyLedgerCallsStallTheRun(t *testing.T) {
 		s.Admit(0, jsonCall(toolNoteHypotheses, `{"hypotheses":[]}`))
 		_, stop = s.EndTurn()
 	}
+	if stop == nil || stop.Failure != revisions.FailureNoProgress {
+		t.Fatalf("stop = %+v", stop)
+	}
+	if want := "Stopped: 2 turns in a row only updated the hypotheses"; stop.Step != want {
+		t.Fatalf("step = %q, want %q", stop.Step, want)
+	}
+}
+
+func TestALedgerTurnFollowedByARefusedTurnStallsWithTheRefusalReason(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.BeginTurn(false)
+	s.Admit(0, jsonCall(toolNoteHypotheses, `{"hypotheses":[]}`))
+	s.EndTurn()
+	s.BeginTurn(false)
+	_, stop := s.EndTurn()
 	if stop == nil {
 		t.Fatal("the run was not stopped")
+	}
+	if want := "Stopped: 2 turns in a row had every call refused"; stop.Step != want {
+		t.Fatalf("step = %q, want %q", stop.Step, want)
 	}
 }
 

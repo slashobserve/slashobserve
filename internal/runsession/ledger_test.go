@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
@@ -33,9 +35,9 @@ func newScript(t *testing.T, loop bool) *script {
 	return &script{
 		t: t, reg: tools.New(tools.Deps{LedgerTool: true}),
 		sess: &session{
-			s:     &Service{investigationLoop: loop},
-			req:   revisions.Request{ID: "run", Attempt: 1, Prompt: "why is checkout slow"},
-			state: State{Guard: guard.New(tools.ModeInvestigate)},
+			s:     &Service{},
+			req:   revisions.Request{ID: "run", Attempt: 1, Prompt: "why is checkout slow", Investigation: true},
+			state: State{Guard: guard.New(tools.ModeInvestigate), Loop: loop},
 		},
 	}
 }
@@ -184,5 +186,39 @@ func TestAnUnchangedLedgerIsNotAChange(t *testing.T) {
 	}
 	if !s.noteLedger([]revisions.Hypothesis{{ID: "a", Text: "t", Status: revisions.HypothesisSupport, Evidence: []string{"e"}}}) {
 		t.Fatal("a new status is not a change")
+	}
+}
+
+func TestOnlyAnInvestigationRunWithTheLoopOnStartsWithTheLoopState(t *testing.T) {
+	ask := revisions.Request{ID: "run", Attempt: 1, Intent: revisions.IntentAsk, Prompt: "why is checkout slow"}
+	investigation := ask
+	investigation.Investigation = true
+	cases := []struct {
+		name string
+		loop bool
+		req  revisions.Request
+		want bool
+	}{
+		{"an investigation with the loop on", true, investigation, true},
+		{"a plain ask with the loop on", true, ask, false},
+		{"an investigation with the loop off", false, investigation, false},
+	}
+	for _, c := range cases {
+		state, err := (&Service{investigationLoop: c.loop}).initial(context.Background(), c.req, pgtype.UUID{})
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if state.Loop != c.want {
+			t.Errorf("%s: loop = %t, want %t", c.name, state.Loop, c.want)
+		}
+	}
+}
+
+func TestAPlainAskGetsTheBriefARunWithNoLedgerGets(t *testing.T) {
+	plain := newScript(t, false)
+	plain.sess.state.Ledger = []revisions.Hypothesis{{ID: "pool", Text: "noted by a tool call", Status: revisions.HypothesisOpen}}
+	got := plain.brief(brief.NoFinding)
+	if got.System != prompts.Investigate() || strings.Contains(got.Message, "<hypotheses>") {
+		t.Fatal("the ledger reached a plain ask")
 	}
 }

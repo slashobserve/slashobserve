@@ -632,13 +632,23 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	case inRun && !t.OfferedIn(run.Mode) && t.OnlyIn != "":
 		message = t.Name + " works only in an " + string(t.OnlyIn) + " run"
 	case !inRun && t.AgentOnly:
-		message = nameSaveFinding + " runs inside the agent; MCP clients use " + nameCreateObservation
+		message = t.Name + " runs inside the agent; " + agentOnlyHint(t.Name)
 	default:
 		return Result{}, true
 	}
 	res := toolError(codeNotInThisRun, message)
 	res.Step = "Refused " + t.Name + ": " + codeNotInThisRun
 	return res, false
+}
+
+func agentOnlyHint(name string) string {
+	switch name {
+	case nameSaveFinding:
+		return "MCP clients use " + nameCreateObservation
+	case nameNoteHypotheses:
+		return "outside an investigate run, keep the hypotheses in your own notes"
+	}
+	return "MCP clients cannot call it"
 }
 
 func allowed(p auth.Principal, inRun bool, t Tool) bool {

@@ -339,12 +339,16 @@ A longer investigation costs more model calls, so `SLASHOBSERVE_AGENT_RUN_MAX_CO
 
 ### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`
 
-With `true`, the built-in agent gets the tool `note_hypotheses` in investigations and in questions asked on a dashboard or an observation, and its prompt gains a short section that tells it to keep a ledger of candidate causes.
+With `true`, the built-in agent gets the tool `note_hypotheses` in investigations and in questions asked on a dashboard or an observation, and the prompt of an investigation, a question that opens an observation, gains a short section that tells it to keep a ledger of candidate causes.
+A plain question gets the tool but not the section, and the server does not write a ledger back into its brief.
 The server keeps the latest ledger and writes it back into the agent's brief as a `<hypotheses>` block whenever the conversation is shortened.
-The finished run returns the last ledger as `usage.hypotheses`.
+The finished run returns the last ledger as `usage.hypotheses` to its requester and to Admins.
 With `false`, the tool is not offered, the prompt has no section and the brief has no block, so a run is the same as it was before the setting existed.
-The server also works out the investigation's stage, tells the agent after each turn, and lets the call limit grow when the ledger shows progress, up to `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
-Connected agents never get the tool or the stages, and changing the setting needs a server restart.
+A connected agent in an investigate run, started with a run token, gets the tool and the prompt section as well, through `get_run_brief`; a connected agent outside a run never gets the tool.
+
+The server also works out the built-in agent's stage, tells it after each turn, and lets its call limit grow when the ledger shows progress, up to `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`.
+A connected agent never sees stage lines and keeps the fixed limit.
+Changing the setting needs a server restart.
 
 ### Details of `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`
 

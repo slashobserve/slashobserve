@@ -316,7 +316,7 @@ func (sess *session) brief(ctx context.Context, why brief.Reason, health []datas
 	mode := sess.state.Guard.Mode
 	task := briefTask(sess.req, mode)
 	task.Withheld = tools.Withheld(sess.access)
-	if sess.s.investigationLoop {
+	if sess.state.Loop {
 		task.Loop, task.Hypotheses = true, brief.Hypotheses(sess.state.Ledger)
 	}
 	current, build, restarted, err := sess.settleBuildOnLatest(ctx)

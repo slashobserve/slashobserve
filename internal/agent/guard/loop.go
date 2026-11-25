@@ -86,15 +86,24 @@ func baseStage(ledger []revisions.Hypothesis) string {
 }
 
 func provedSomething(prev, next []revisions.Hypothesis) bool {
+	var known []string
+	for _, p := range prev {
+		known = append(known, p.Evidence...)
+	}
+	newLine := func(h revisions.Hypothesis) bool {
+		return slices.ContainsFunc(h.Evidence, func(line string) bool { return !slices.Contains(known, line) })
+	}
 	for _, h := range next {
 		if h.Status == revisions.HypothesisOpen {
 			continue
 		}
 		i := slices.IndexFunc(prev, func(p revisions.Hypothesis) bool { return p.ID == h.ID })
-		if i >= 0 && prev[i].Status == h.Status {
-			continue
-		}
-		if i < 0 || slices.ContainsFunc(h.Evidence, func(line string) bool { return !slices.Contains(prev[i].Evidence, line) }) {
+		switch {
+		case i < 0 && newLine(h):
+			return true
+		case i >= 0 && prev[i].Status == revisions.HypothesisOpen:
+			return true
+		case i >= 0 && prev[i].Status != h.Status && newLine(h):
 			return true
 		}
 	}
@@ -115,7 +124,7 @@ func (s *State) Stage() string {
 }
 
 func (s *State) StageLine() string {
-	if s.Loop == nil {
+	if s.Loop == nil || s.Turn.Progress {
 		return ""
 	}
 	return fmt.Sprintf("Stage: %s. Model call %d of %d.", s.Stage(), s.Window.Calls, s.Loop.Limit)
@@ -123,7 +132,7 @@ func (s *State) StageLine() string {
 
 func (s *State) StageChange() (stage string, changed bool) {
 	l := s.Loop
-	if l == nil || l.Shown == s.Stage() {
+	if l == nil || s.Turn.Progress || l.Shown == s.Stage() {
 		return "", false
 	}
 	l.Shown = s.Stage()
@@ -138,7 +147,7 @@ func (s *State) noteRead(res tools.Result) {
 
 func (s *State) loopNudge(limitNudge string) string {
 	l := s.Loop
-	if l == nil {
+	if l == nil || s.Turn.Progress {
 		return limitNudge
 	}
 	switch {

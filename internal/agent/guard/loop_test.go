@@ -217,6 +217,10 @@ func TestOnlyAMoveToSupportedOrRuledOutWithANewLineIsProgress(t *testing.T) {
 		{"a ruled out hypothesis gets another line", []revisions.Hypothesis{ruledOut("a", "e")}, []revisions.Hypothesis{ruledOut("a", "e", "f")}, false},
 		{"ruled out to supported on the same line", []revisions.Hypothesis{ruledOut("a", "e")}, []revisions.Hypothesis{supported("a", "e")}, false},
 		{"ruled out to supported on a new line", []revisions.Hypothesis{ruledOut("a", "e")}, []revisions.Hypothesis{supported("a", "f")}, true},
+		{"a rename with the same evidence", []revisions.Hypothesis{ruledOut("a", "e"), open("b")}, []revisions.Hypothesis{ruledOut("a2", "e"), open("b")}, false},
+		{"a renamed open hypothesis resolved on its old evidence", []revisions.Hypothesis{hyp("a", "open", "e")}, []revisions.Hypothesis{ruledOut("a2", "e")}, false},
+		{"a new id resolved on a line another hypothesis had", []revisions.Hypothesis{ruledOut("a", "e"), open("b")}, []revisions.Hypothesis{ruledOut("a", "e"), ruledOut("c", "e")}, false},
+		{"an open hypothesis that carried evidence is resolved", []revisions.Hypothesis{hyp("a", "open", "e")}, []revisions.Hypothesis{ruledOut("a", "e")}, true},
 		{"dropping a hypothesis", []revisions.Hypothesis{open("a"), open("b")}, []revisions.Hypothesis{open("a")}, false},
 	}
 	for _, tt := range tests {
@@ -494,5 +498,35 @@ func TestTheLimitMessagesNameTheGrownLimit(t *testing.T) {
 	d.turn([]revisions.Hypothesis{ruledOut("a", "e1")}, 1)
 	if got := d.s.rule(guardFindingNow).message; !strings.Contains(got, fmt.Sprintf("%d model calls", 15)) {
 		t.Fatalf("message = %q", got)
+	}
+}
+
+func TestRenamingHypothesesNeverGrowsTheLimit(t *testing.T) {
+	d := newDriver(t, true, 12, 30)
+	d.turn([]revisions.Hypothesis{ruledOut("a", "e1"), open("b")}, 1)
+	for i := range 6 {
+		ledger := []revisions.Hypothesis{ruledOut("a"+strconv.Itoa(i), "e1"), open("b")}
+		if out := d.turn(ledger, 1); out.limit > 15 {
+			t.Fatalf("rename %d: limit = %d", i, out.limit)
+		}
+	}
+}
+
+func TestTheTurnThatSavedAFindingGetsNoStageLineNoStepAndNoNudge(t *testing.T) {
+	d := newDriver(t, true, 12, 30)
+	d.turn([]revisions.Hypothesis{open("a"), open("b")}, 1)
+	d.turn([]revisions.Hypothesis{supported("a", "e1"), ruledOut("b", "e2")}, 0)
+	d.s.BeginTurn(true)
+	call := jsonCall("save_finding", `{"title":"t","markdown":"m"}`)
+	d.s.Admit(0, call)
+	if _, err := d.s.Settle(call, tools.Result{}, []byte(`{"finding_id":"f1"}`)); err != nil {
+		t.Fatal(err)
+	}
+	nudge, stop := d.s.EndTurn()
+	if nudge != "" || stop != nil || d.s.StageLine() != "" {
+		t.Fatalf("nudge %q, stop %+v, line %q", nudge, stop, d.s.StageLine())
+	}
+	if stage, changed := d.s.StageChange(); changed {
+		t.Fatalf("stage change %q", stage)
 	}
 }

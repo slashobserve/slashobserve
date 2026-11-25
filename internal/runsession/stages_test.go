@@ -7,9 +7,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/auth"
+	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
 func hypothesesJSON(resolved int, open ...string) string {
@@ -226,5 +228,37 @@ func TestTheLoopStateSurvivesAStoredStateRoundTrip(t *testing.T) {
 	usage := back.usage()
 	if usage.CallLimit != 15 {
 		t.Fatalf("usage limit = %d", usage.CallLimit)
+	}
+}
+
+func TestTheStageLoopStartsOnlyWithANewSessionOfABuiltInInvestigationWithTheLoopOn(t *testing.T) {
+	investigation := revisions.Request{ID: "run", Attempt: 1, Intent: revisions.IntentAsk, Prompt: "why", Investigation: true, Assignee: revisions.AssignBuiltin}
+	connected := investigation
+	connected.Assignee = revisions.AssignGrant
+	ask := investigation
+	ask.Investigation = false
+	cases := []struct {
+		name string
+		on   bool
+		req  revisions.Request
+		want bool
+	}{
+		{"built-in with the loop on", true, investigation, true},
+		{"built-in with the loop off", false, investigation, false},
+		{"connected agent with the loop on", true, connected, false},
+		{"plain ask with the loop on", true, ask, false},
+	}
+	for _, c := range cases {
+		svc := &Service{investigationLoop: c.on, investigationCalls: 14, investigationMax: 30}
+		state, err := svc.initial(context.Background(), c.req, pgtype.UUID{})
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := state.Guard.Loop != nil; got != c.want {
+			t.Errorf("%s: guard loop = %t, want %t", c.name, got, c.want)
+		}
+		if c.want && (state.Guard.Loop.Limit != 14 || state.Guard.Loop.Max != 30) {
+			t.Errorf("%s: loop = %+v", c.name, state.Guard.Loop)
+		}
 	}
 }

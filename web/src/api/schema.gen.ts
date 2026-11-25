@@ -6511,7 +6511,7 @@ export interface components {
             nudges: number;
             /** @description Read calls refused because the run reached its limit of model calls without a save, which is 6 in a revision and once a build has saved a panel, the investigation limit (12 by default) in a chat question before its first save, and 12 without a proposal in a suggest run. */
             save_now_refusals: number;
-            /** @description Turns in which the agent answered no call because every call was refused. */
+            /** @description Turns in which the agent answered no call because every call was refused, or made only hypothesis ledger calls. */
             stalled_turns: number;
             /** @description Saves refused for adding or changing more than one panel. */
             one_panel_refusals: number;
@@ -6520,7 +6520,7 @@ export interface components {
              * @description Estimated cost in USD of the attempt that finished the request, from its tokens and the server's price table (see SLASHOBSERVE_LLM_PRICES_FILE). Null when the model has no complete price, and for requests that finished before costs were recorded.
              */
             cost_usd: number | null;
-            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`). */
+            /** @description The investigation's last hypothesis ledger, present only when the agent kept one (`SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`) and only for the requester and Admins, because it quotes data the run read. */
             hypotheses?: components["schemas"]["AgentHypothesis"][];
             /** @description The investigation's model-call limit when it ended, after any growth, present only with `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`. */
             call_limit?: number;

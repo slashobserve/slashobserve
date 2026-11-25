@@ -46,4 +46,5 @@ Send the whole updated ledger in the same call as each batch of reads, so it cos
 Mark a hypothesis `ruled_out` only after a read that shows it, and add an evidence line saying what you read and what it showed.
 Mark one `supported` the same way, and give each open one the `next_check` that would settle it.
 When the conversation is shortened, the ledger comes back in `<hypotheses>`: continue from it and do not repeat a read it already answers.
+Unlike your other text, the ledger is kept with the run and shown to the person who asked, so put only what you read in it.
 Call `save_finding` when one hypothesis is supported and the rest are ruled out, or when the call limit is near, and say in the finding what is still open.
