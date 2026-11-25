@@ -361,3 +361,50 @@ func TestGrepStopsWhenTheCallIsCancelled(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestMissingPathsNameWhatExists(t *testing.T) {
+	code, _ := fixture(t)
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		call func() error
+		want string
+	}{
+		{"list under missing dir", func() error { _, err := code.ListDir("src/pkg"); return err }, `not found: "src/pkg"; the root has: `},
+		{"grep under missing dir", func() error { _, err := code.Grep(ctx, "x", "src/pkg", ""); return err }, `the root has: `},
+		{"read typo in existing dir", func() error { _, err := code.ReadFile(ctx, "pkg/z.go", 1, 10); return err }, `not found: "pkg/z.go"; pkg has: a.go, b.txt, sub/`},
+		{"read below a missing dir", func() error { _, err := code.ReadFile(ctx, "pkg/nope/x.go", 1, 10); return err }, `pkg has: a.go, b.txt, sub/`},
+	}
+	for _, tc := range cases {
+		err := tc.call()
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: got %v, want it to contain %q", tc.name, err, tc.want)
+		}
+		var r refusal
+		if !errors.As(err, &r) {
+			t.Errorf("%s: %v is not a refusal the caller sees", tc.name, err)
+		}
+	}
+}
+
+func TestMissingPathHintIsCutAndNamesNoServerPath(t *testing.T) {
+	code, root := fixture(t)
+	if err := os.MkdirAll(filepath.Join(root, "many"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxHintNames + 5 {
+		if err := os.WriteFile(filepath.Join(root, "many", fmt.Sprintf("f%03d", i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := code.ListDir("many/missing")
+	if err == nil || !strings.Contains(err.Error(), "many has: f000") || !strings.Contains(err.Error(), ", and 5 more") {
+		t.Fatalf("got %v", err)
+	}
+	if strings.Contains(err.Error(), root) {
+		t.Fatalf("leaks the server path: %v", err)
+	}
+	if _, err := code.ListDir("../nope"); !errors.Is(err, errOutside) {
+		t.Fatalf("an escape was explained instead of refused: %v", err)
+	}
+}

@@ -18,6 +18,8 @@ const (
 	maxReadLines   = 2000
 	maxReadBytes   = 64 << 10
 	maxReadFile    = 8 << 20
+	maxHintNames   = 40
+	maxHintPath    = 120
 	maxLineBytes   = 4096
 	maxGrepMatches = 100
 	maxGrepBytes   = 24 << 10
@@ -34,7 +36,7 @@ type Code struct {
 func (c *Code) ListDir(rel string) (string, error) {
 	entries, err := c.root.ReadDir(rel)
 	if err != nil {
-		return "", err
+		return "", c.explain(rel, err)
 	}
 	if len(entries) == 0 {
 		return "(empty directory)", nil
@@ -54,6 +56,44 @@ func (c *Code) ListDir(rel string) (string, error) {
 	return out.String(), nil
 }
 
+func (c *Code) explain(rel string, err error) error {
+	if !errors.Is(err, errNotFound) {
+		return err
+	}
+	name, cleanErr := c.root.clean(rel)
+	if cleanErr != nil {
+		return err
+	}
+	dir := path.Dir(name)
+	for dir != "." {
+		if info, statErr := c.root.Stat(dir); statErr == nil && info.IsDir() {
+			break
+		}
+		dir = path.Dir(dir)
+	}
+	entries, readErr := c.root.ReadDir(dir)
+	if readErr != nil {
+		return err
+	}
+	where := "the root"
+	if dir != "." {
+		where = clip(dir, maxHintPath)
+	}
+	shown := entries[:min(len(entries), maxHintNames)]
+	names := make([]string, len(shown))
+	for i, e := range shown {
+		names[i] = e.Name()
+		if c.isDir(dir, e) {
+			names[i] += "/"
+		}
+	}
+	more := ""
+	if len(entries) > len(shown) {
+		more = fmt.Sprintf(", and %d more", len(entries)-len(shown))
+	}
+	return refusal(fmt.Sprintf("not found: %q; %s has: %s%s", clip(name, maxHintPath), where, strings.Join(names, ", "), more))
+}
+
 func (c *Code) isDir(rel string, e fs.DirEntry) bool {
 	if e.Type()&fs.ModeSymlink == 0 {
 		return e.IsDir()
@@ -65,7 +105,7 @@ func (c *Code) isDir(rel string, e fs.DirEntry) bool {
 func (c *Code) ReadFile(ctx context.Context, rel string, offset, limit int) (string, error) {
 	f, info, err := c.root.OpenRegular(rel)
 	if err != nil {
-		return "", err
+		return "", c.explain(rel, err)
 	}
 	defer func() { _ = f.Close() }()
 	if info.Size() > maxReadFile {
