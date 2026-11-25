@@ -346,11 +346,11 @@ export function DataGrid<T>({
     if (anchor === null || api === null || api.isDestroyed()) return
     const node = api.getRowNode(anchor.id)
     const viewport = bodyViewport()
-    if (node?.rowTop == null || node.rowTop <= anchor.rowTop) {
+    if (node?.rowTop == null || node.rowTop < anchor.rowTop) {
       anchorRef.current = null
       return
     }
-    if (viewport == null) return
+    if (node.rowTop === anchor.rowTop || viewport == null) return
     viewport.scrollTop = node.rowTop - anchor.offset
     viewport.dispatchEvent(new Event("scroll"))
   }, [bodyViewport])
