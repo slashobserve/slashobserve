@@ -186,7 +186,7 @@ func (r *Registry) saveToBuild(ctx context.Context, in buildSave) (Result, error
 		return res, nil
 	}
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	progress := build.Progress()
 	holes := gaps(build.Spec)
@@ -212,7 +212,7 @@ func (r *Registry) commitBuild(ctx context.Context, in buildSave, saveStep strin
 		return res, nil
 	}
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	if commit.Proposal != nil {
 		return r.proposed(dashboards.SaveResult{Dashboard: commit.Dashboard, Proposal: commit.Proposal}), nil
@@ -515,7 +515,7 @@ func (r *Registry) buildCreate(ctx context.Context, principal auth.Principal, ru
 	}
 	prev, plannedBefore, err := r.buildBase(ctx, run)
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	if prev != nil {
 		return invalid("%s", hasBuildAlready), nil
@@ -590,7 +590,7 @@ func (r *Registry) buildUpdate(ctx context.Context, principal auth.Principal, ru
 	}
 	base, plannedBefore, err := r.buildBase(ctx, run)
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	if base == nil {
 		return invalid("%s", noBuildYet), nil
@@ -757,7 +757,7 @@ func (r *Registry) buildPatch(ctx context.Context, principal auth.Principal, run
 	}
 	base, plannedBefore, err := r.buildBase(ctx, run)
 	if err != nil {
-		return saveFailure(err)
+		return saveFailure(ctx, err)
 	}
 	if base == nil {
 		return invalid("%s", noBuildYet), nil

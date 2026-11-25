@@ -75,7 +75,7 @@ func (r *Registry) saveRunAnswer(ctx context.Context, input json.RawMessage) (Re
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeForbiddenRole, roleDeniedMessage), nil
 	}
-	if res, ok := restrictedRefusal(err); ok {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if err != nil {
@@ -109,7 +109,7 @@ func (r *Registry) shareAnswer(ctx context.Context, input json.RawMessage) (Resu
 	}
 	principal, _ := auth.FromContext(ctx)
 	shared, err := r.deps.Threads.ShareRun(ctx, principal, share)
-	if res, ok := shareRefusal(err); ok {
+	if res, ok := shareRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if err != nil {
@@ -119,7 +119,7 @@ func (r *Registry) shareAnswer(ctx context.Context, input json.RawMessage) (Resu
 	return success("Shared the answer of run "+in.RunID+" in thread "+out.ThreadID, out), nil
 }
 
-func shareRefusal(err error) (Result, bool) {
+func shareRefusal(ctx context.Context, err error) (Result, bool) {
 	var wrong *threads.InvalidInputError
 	switch {
 	case err == nil:
@@ -137,5 +137,5 @@ func shareRefusal(err error) (Result, bool) {
 	case errors.Is(err, folders.ErrForbidden), errors.Is(err, folders.ErrNoAccess):
 		return toolError(codeForbiddenRole, roleDeniedMessage), true
 	}
-	return restrictedRefusal(err)
+	return restrictedRefusal(ctx, err)
 }

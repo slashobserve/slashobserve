@@ -52,7 +52,7 @@ func (r *Registry) applySuggestedChange(ctx context.Context, input json.RawMessa
 		return invalid("finding_id must be a UUID"), nil
 	}
 	sent, err := r.deps.Asks.Apply(ctx, principal, threadID, findingID)
-	if res, ok := applyRefusal(err); ok {
+	if res, ok := applyRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if err != nil {
@@ -65,7 +65,7 @@ func (r *Registry) applySuggestedChange(ctx context.Context, input json.RawMessa
 	return success(step, commentResult(commentRef{sent.Thread, sent.Message}, sent)), nil
 }
 
-func applyRefusal(err error) (Result, bool) {
+func applyRefusal(ctx context.Context, err error) (Result, bool) {
 	switch {
 	case err == nil:
 		return Result{}, false
@@ -73,7 +73,7 @@ func applyRefusal(err error) (Result, bool) {
 		return toolError(codeNotFound, "finding_id must be an answer given in this thread"), true
 	case errors.Is(err, revisions.ErrUnavailable), errors.Is(err, revisions.ErrTooManyRevisions), errors.Is(err, revisions.ErrAssigneeUnavailable), errors.Is(err, revisions.ErrForbidden), errors.Is(err, revisions.ErrFindingApplied),
 		errors.Is(err, folders.ErrRestrictedAnswer), errors.Is(err, folders.ErrProvisioned):
-		res, _ := runFailure(err)
+		res, _ := runFailure(ctx, err)
 		return res, true
 	}
 	return Result{}, false

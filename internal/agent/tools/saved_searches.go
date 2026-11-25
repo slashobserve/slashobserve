@@ -140,14 +140,14 @@ func (r *Registry) saveSearch(ctx context.Context, input json.RawMessage) (Resul
 	principal, _ := auth.FromContext(ctx)
 	existing, err := r.GuardSavedSearch(ctx, principal, create)
 	if err != nil {
-		return savedSearchFailure(err)
+		return savedSearchFailure(ctx, err)
 	}
 	if existing != nil {
 		return success("Found the search already saved as "+existing.ID, savedSearchReplayOut{SavedSearchJSON: savedsearches.JSONOf(*existing), Replayed: true}), nil
 	}
 	saved, err := r.deps.SavedSearches.Create(ctx, principal, create)
 	if err != nil {
-		return savedSearchFailure(err)
+		return savedSearchFailure(ctx, err)
 	}
 	res = success("Saved search "+saved.ID, savedsearches.JSONOf(saved))
 	res.Created = []string{saved.ID}
@@ -175,7 +175,7 @@ func (r *Registry) updateSavedSearch(ctx context.Context, input json.RawMessage)
 		return invalid("give at least one of query, filters, from or to"), nil
 	}
 	if err != nil {
-		return savedSearchFailure(err)
+		return savedSearchFailure(ctx, err)
 	}
 	return success("Updated saved search "+saved.ID, savedsearches.JSONOf(saved)), nil
 }
@@ -312,7 +312,7 @@ func (r *Registry) listSavedSearches(ctx context.Context, input json.RawMessage)
 	for {
 		list, next, err := r.deps.SavedSearches.List(ctx, principal, filter, limit, in.Cursor)
 		if err != nil {
-			return savedSearchFailure(err)
+			return savedSearchFailure(ctx, err)
 		}
 		out := savedSearchListOut{SavedSearches: make([]savedSearchItemOut, len(list))}
 		for i, s := range list {
@@ -352,8 +352,8 @@ func rejectInRun(ctx context.Context, name string) (Result, bool) {
 	return Result{}, false
 }
 
-func savedSearchFailure(err error) (Result, error) {
-	if res, ok := restrictedRefusal(err); ok {
+func savedSearchFailure(ctx context.Context, err error) (Result, error) {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	var invalidInput *savedsearches.InvalidInputError

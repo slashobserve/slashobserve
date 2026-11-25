@@ -211,7 +211,7 @@ func TestClaimErrorsBecomeToolErrors(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			res, err := claimFailure(tc.err)
+			res, err := claimFailure(t.Context(), tc.err)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -221,14 +221,14 @@ func TestClaimErrorsBecomeToolErrors(t *testing.T) {
 		})
 	}
 	boom := errors.New("boom")
-	if _, err := claimFailure(boom); !errors.Is(err, boom) {
+	if _, err := claimFailure(t.Context(), boom); !errors.Is(err, boom) {
 		t.Fatalf("an unknown error must be returned, got %v", err)
 	}
 }
 
 func TestAFinishRefusedForRemovalsInProposeModeIsAToolErrorNamingThem(t *testing.T) {
 	refusal := &dashboards.ProposalRequiredError{Removed: []spec.UnitChange{{Kind: spec.UnitPanel, ID: "a"}}}
-	res, err := claimFailure(fmt.Errorf("finish: %w", refusal))
+	res, err := claimFailure(t.Context(), fmt.Errorf("finish: %w", refusal))
 	if err != nil {
 		t.Fatal(err)
 	}

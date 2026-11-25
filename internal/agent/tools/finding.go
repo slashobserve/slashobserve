@@ -138,7 +138,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if errors.Is(err, findings.ErrNotFound) {
 		return toolError(codeNotFound, "dashboard not found"), nil
 	}
-	if res, ok := restrictedRefusal(err); ok {
+	if res, ok := restrictedRefusal(ctx, err); ok {
 		return res, nil
 	}
 	if err != nil {

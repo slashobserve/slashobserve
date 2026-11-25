@@ -104,6 +104,30 @@ SELECT (observation_holds_restricted_answer(o.id) OR observation_holds_restricte
   (f.admins_only AND observation_has_run_in_flight(o.id))::boolean AS in_flight
 FROM observations o JOIN folders f ON f.id = o.folder_id WHERE o.id = @id;
 
+-- name: DashboardRestrictedRun :one
+SELECT r.id, r.prompt, r.requested_by_kind, r.requested_by_id FROM agent_requests r
+WHERE r.id IN (
+    SELECT v.agent_request_id FROM dashboard_versions v WHERE v.dashboard_id = @id::uuid
+    UNION SELECT d.created_run_id FROM dashboards d WHERE d.id = @id::uuid
+    UNION SELECT f.agent_request_id FROM findings f WHERE f.dashboard_id = @id::uuid AND f.annotation_id IS NOT NULL
+    UNION SELECT p.run_id FROM proposals p WHERE p.dashboard_id = @id::uuid
+    UNION SELECT m.run_id FROM threads t JOIN thread_messages m ON m.thread_id = t.id WHERE t.dashboard_id = @id::uuid
+    UNION SELECT m.run_id FROM annotations n JOIN threads t ON t.annotation_id = n.id JOIN thread_messages m ON m.thread_id = t.id WHERE n.dashboard_id = @id::uuid
+    UNION SELECT m.run_id FROM proposals p JOIN threads t ON t.proposal_id = p.id JOIN thread_messages m ON m.thread_id = t.id WHERE p.dashboard_id = @id::uuid
+    UNION SELECT a.id FROM agent_requests a WHERE a.dashboard_id = @id::uuid)
+  AND run_answer_kept_with_admins(r.id, ARRAY[@id::uuid])
+ORDER BY r.created_at, r.id LIMIT 1;
+
+-- name: ObservationRestrictedRun :one
+SELECT r.id, r.prompt, r.requested_by_kind, r.requested_by_id FROM agent_requests r
+WHERE r.id IN (
+    SELECT b.run_id FROM observation_blocks b WHERE b.observation_id = @id::uuid
+    UNION SELECT f.agent_request_id FROM findings f WHERE f.observation_id = @id::uuid
+    UNION SELECT m.run_id FROM threads t JOIN thread_messages m ON m.thread_id = t.id WHERE t.observation_id = @id::uuid
+    UNION SELECT a.id FROM agent_requests a WHERE a.observation_id = @id::uuid OR a.subject_observation_id = @id::uuid)
+  AND run_answer_kept_with_admins(r.id, ARRAY[@id::uuid])
+ORDER BY r.created_at, r.id LIMIT 1;
+
 -- name: RestrictedAnswerHolders :many
 SELECT kind, id, title, restricted FROM (
   SELECT 'dashboard'::text AS kind, d.id, d.title, (dashboard_holds_restricted_answer(d.id) OR dashboard_holds_restricted_run(d.id))::boolean AS restricted, dashboard_has_run_in_flight(d.id) AS in_flight
