@@ -9,9 +9,10 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 
 FROM gcr.io/distroless/base-nossl-debian13:nonroot@sha256:89815d620ac01d8de13cdaf04d19ed874447ca2296d4985b14b818f6e5e47854
 COPY --from=build /out/codeserver /usr/local/bin/codeserver
+ENV CODESERVER_ADDR=:8080
 EXPOSE 8080
 USER nonroot:nonroot
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=12 \
-    CMD ["/usr/local/bin/codeserver", "-healthcheck", "-addr", ":8080"]
+    CMD ["/usr/local/bin/codeserver", "-healthcheck"]
 ENTRYPOINT ["/usr/local/bin/codeserver"]
-CMD ["-root", "/code", "-addr", ":8080"]
+CMD ["-root", "/code"]
