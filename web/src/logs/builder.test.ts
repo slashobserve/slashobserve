@@ -135,6 +135,16 @@ describe("equivalentField", () => {
     expect(equivalentField("body", ["body", "message"])).toBeNull()
   })
 
+  it("matches a dotted ending without regard to case", () => {
+    expect(
+      equivalentField("Service.Name", ["resource.service.name", "message"])
+    ).toBe("resource.service.name")
+    expect(equivalentField("resource.Service.name", ["service.NAME"])).toBe(
+      "service.NAME"
+    )
+    expect(equivalentField("Name", ["a.name", "b.NAME"])).toBeNull()
+  })
+
   it("ignores keyword shadows and stays silent when two fields fit", () => {
     expect(equivalentField("name", ["a.name", "b.name"])).toBeNull()
     expect(
