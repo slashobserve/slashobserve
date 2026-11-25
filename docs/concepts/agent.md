@@ -262,7 +262,7 @@ Details of shortening:
 - It keeps the last 4 turns of the conversation, up to 32 KiB, and cuts their older tool results to 2 KiB.
 - It puts the build, the reason and a list of up to 4 KiB of the metric, label and table names the agent found in front of them, so the agent does not discover them again.
 - The names are sent to the model and never written to the server's logs.
-- With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigation's hypothesis ledger goes in front of them as well, in a `<hypotheses>` block of at most 4 KiB.
+- With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigation's hypothesis ledger goes in front of them as well, in a `<hypotheses>` block whose ledger text is at most 4 KiB.
 - Older read results are also left out of what is sent once they add up to 64 KiB, while the last 4 turns stay in full.
 - Only the model's view is shortened: the run keeps everything it read.
 - A shortened conversation is not a fresh session, and neither has a count of its own that ends the run.
@@ -514,6 +514,7 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
 A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 111 tools, MCP clients outside a run still get 109 and an investigation offers 86.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
