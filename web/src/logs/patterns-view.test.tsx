@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
 import { exploreKeys } from "@/api/keys"
@@ -133,6 +133,36 @@ describe("PatternsView", () => {
       screen.getByRole("button", { name: "Hide a sample line of this pattern" })
     )
     await waitFor(() => expect(screen.queryByText("paid order 7")).toBeNull())
+  })
+
+  it("reaches Filter, Filter out and Samples from the Actions cell by Tab", async () => {
+    setup(
+      [
+        pattern({
+          pattern: "paid order <*>",
+          count: 5,
+          sample: "paid order 7",
+        }),
+      ],
+      5
+    )
+    const filter = await screen.findByRole("button", {
+      name: "Filter to this pattern",
+    })
+    const cell = filter.closest<HTMLElement>("[role=gridcell]")
+    expect(cell).not.toBeNull()
+    cell?.focus()
+    const stops = [
+      filter,
+      screen.getByRole("button", { name: "Filter out this pattern" }),
+      screen.getByRole("button", {
+        name: "Show a sample line of this pattern",
+      }),
+    ]
+    for (const stop of stops) {
+      fireEvent.keyDown(document.activeElement as Element, { key: "Tab" })
+      expect(document.activeElement).toBe(stop)
+    }
   })
 
   it("folds the patterns under 1% until Show all", async () => {

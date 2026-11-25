@@ -376,6 +376,29 @@ describe("DataGrid", () => {
       )
     })
 
+    it("keeps the row highlighted over its detail row and clears it over the header", async () => {
+      const onHighlightRow = vi.fn()
+      const { container } = render(
+        <DataGrid
+          label="Services"
+          rows={rows}
+          columns={columns}
+          rowId={(row) => row.id}
+          detail={detail(["b"])}
+          onHighlightRow={onHighlightRow}
+        />
+      )
+      await screen.findByText("Detail of Search")
+      fireEvent.pointerEnter(
+        container.querySelector(
+          '[row-id="b#detail"] [data-detail-row]'
+        ) as Element
+      )
+      expect(onHighlightRow).toHaveBeenLastCalledWith("b")
+      fireEvent.pointerOver(screen.getByRole("columnheader", { name: "Owner" }))
+      expect(onHighlightRow).toHaveBeenLastCalledWith(null)
+    })
+
     it("keeps the cards of the other rows when narrow", async () => {
       vi.mocked(useNarrow).mockReturnValue(true)
       const { container } = render(

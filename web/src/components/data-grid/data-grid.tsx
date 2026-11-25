@@ -378,6 +378,13 @@ export function DataGrid<T>({
       data-dom-layout={layout}
       className={cn("w-full text-[13px]", className)}
       style={layout === "normal" ? { height } : undefined}
+      onPointerOver={(event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest(".ag-header") !== null
+        )
+          highlight(null)
+      }}
       onPointerLeave={() => onHighlightRow?.(null)}
       onKeyDownCapture={(event) =>
         handleCellKey(event.nativeEvent, event.currentTarget)
