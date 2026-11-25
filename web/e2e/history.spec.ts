@@ -395,7 +395,9 @@ test("a save that lands while the dialog is open still gets the conflict flow", 
     3,
     "Concurrent change"
   )
-  const saved = page.locator("tr", { hasText: "Concurrent change" })
+  const saved = versionsGrid(page)
+    .getByRole("row")
+    .filter({ hasText: "Concurrent change" })
   await expect(saved).toContainText("Latest")
   await expect(dialog(page)).toContainText("This saves a new version 4")
 
