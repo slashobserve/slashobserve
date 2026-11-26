@@ -5,6 +5,10 @@ import { validateLogsEntrySearch } from "@/logs/search"
 export const Route = createFileRoute("/_authed/_shell/explore/logs/")({
   validateSearch: validateLogsEntrySearch,
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/logs", search, replace: true })
+    throw redirect({
+      to: "/logs",
+      search: validateLogsEntrySearch(search),
+      replace: true,
+    })
   },
 })

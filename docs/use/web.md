@@ -553,6 +553,7 @@ The button is missing on an older version and while a layout or panel is being e
 
 The server answers these with `301 Moved Permanently`.
 The web app also sends `/health` to `/dashboards?kind=any` and `/import/repair` to `/dashboards?kind=imported`, keeping `kind` and `folder`; these are not server redirects.
+It also sends `/explore/logs`, `/explore/logs/<uid>`, `/explore/traces` and `/explore/traces/<uid>` to `/logs` and `/traces`, and `/metrics/<uid>` to `/explore/metrics/<uid>`, keeping only the query string keys the page you land on reads, as listed under Details of query strings; `/metrics` itself is the server's Prometheus endpoint.
 
 ### Details of a row's More menu
 

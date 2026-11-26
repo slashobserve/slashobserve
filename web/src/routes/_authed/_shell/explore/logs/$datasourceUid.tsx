@@ -10,7 +10,7 @@ export const Route = createFileRoute(
     throw redirect({
       to: "/logs/$datasourceUid",
       params,
-      search,
+      search: validateLogsSearch(search),
       replace: true,
     })
   },

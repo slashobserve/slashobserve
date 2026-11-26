@@ -10,7 +10,7 @@ export const Route = createFileRoute(
     throw redirect({
       to: "/traces/$datasourceUid",
       params,
-      search,
+      search: validateTraceSearch(search),
       replace: true,
     })
   },
