@@ -144,8 +144,8 @@ export function PanelChrome({
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1 @max-[15rem]/panel:gap-1",
-          dragHandle || arrangeable ? "pl-1" : "pl-3",
+          "relative flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1 @max-[15rem]/panel:gap-1",
+          dragHandle ? "pl-1" : "pl-3",
           dragHandle && "touch-none",
           grabbable &&
             "group/header panel-drag-handle cursor-grab active:cursor-grabbing"
@@ -186,23 +186,6 @@ export function PanelChrome({
             title
           )}
         </h2>
-        {panel.description ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`About ${title}`}
-                  title={grabbable ? "" : undefined}
-                />
-              }
-            >
-              <InfoIcon />
-            </TooltipTrigger>
-            <TooltipContent>{panel.description}</TooltipContent>
-          </Tooltip>
-        ) : null}
         {datasourceLabel ? (
           <span className="min-w-0 flex-1 basis-0 truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
             {datasourceLabel}
@@ -229,7 +212,7 @@ export function PanelChrome({
           <span className="text-xs font-medium text-foreground">Editing</span>
         ) : null}
         <div
-          className="ml-auto flex items-center gap-0.5"
+          className="relative ml-auto flex items-center gap-0.5"
           title={grabbable ? "" : undefined}
         >
           {refreshing ? (
@@ -282,6 +265,23 @@ export function PanelChrome({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : null}
+          {panel.description ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`About ${title}`}
+                    title={grabbable ? "" : undefined}
+                  />
+                }
+              >
+                <InfoIcon />
+              </TooltipTrigger>
+              <TooltipContent>{panel.description}</TooltipContent>
+            </Tooltip>
           ) : null}
           {menu}
         </div>

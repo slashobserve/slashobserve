@@ -108,6 +108,45 @@ describe("PanelChrome", () => {
     expect(await screen.findByText("Requests that took over 2s")).toBeVisible()
   })
 
+  it("keeps the info button beside the menu, clear of the hover actions that overlay the title", () => {
+    const described = { ...panel, description: "Requests that took over 2s" }
+    renderWithProviders(
+      <PanelChrome
+        panel={described}
+        state="ready"
+        datasourceLabel="prom"
+        menu={<button type="button">Panel menu</button>}
+      />
+    )
+    const info = screen.getByRole("button", { name: "About Checkout latency" })
+    const menu = screen.getByRole("button", { name: "Panel menu" })
+    expect(info.parentElement).toBe(menu.parentElement)
+    expect(info.nextElementSibling).toBe(menu)
+    expect(info.parentElement).toHaveClass("relative", "ml-auto")
+  })
+
+  it("shows no info button for a panel without a description", () => {
+    renderWithProviders(<PanelChrome panel={panel} state="ready" />)
+    expect(
+      screen.queryByRole("button", { name: /^About / })
+    ).not.toBeInTheDocument()
+  })
+
+  it("puts an arrangeable panel's move hint in the header padding, taking no width", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" onSelect={vi.fn()} arrangeable />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).toHaveClass("relative", "pl-3")
+    expect(header?.querySelector("[data-panel-move-hint]")).toHaveClass(
+      "absolute",
+      "left-0",
+      "w-3"
+    )
+  })
+
   it("marks the selected panel with data-selected and aria-current", () => {
     const { rerender } = renderWithProviders(
       <PanelChrome panel={panel} state="ready" selected />

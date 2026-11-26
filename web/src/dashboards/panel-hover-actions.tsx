@@ -18,15 +18,31 @@ import {
 } from "./panel-actions"
 import { useSetDashboardSearch } from "./search"
 
-const finePointer = "[@media(hover:hover)_and_(pointer:fine)]"
-
 const hoverFadeClass = cn(
-  `${finePointer}:opacity-0`,
+  "[@media(hover:hover)_and_(pointer:fine)]:opacity-0",
   "motion-safe:transition-opacity",
   "motion-safe:duration-100",
   "motion-safe:ease-[var(--ease-out)]",
-  `${finePointer}:group-hover/panel:opacity-100`,
-  `${finePointer}:group-focus-within/panel:opacity-100`
+  "[@media(hover:hover)_and_(pointer:fine)]:group-hover/panel:opacity-100",
+  "[@media(hover:hover)_and_(pointer:fine)]:group-focus-within/panel:opacity-100"
+)
+
+const overlayOnFinePointer = cn(
+  "[@media(hover:hover)_and_(pointer:fine)]:absolute",
+  "[@media(hover:hover)_and_(pointer:fine)]:inset-y-0",
+  "[@media(hover:hover)_and_(pointer:fine)]:right-full",
+  "[@media(hover:hover)_and_(pointer:fine)]:mr-0.5",
+  "[@media(hover:hover)_and_(pointer:fine)]:bg-card",
+  "[@media(hover:hover)_and_(pointer:fine)]:pointer-events-none",
+  "[@media(hover:hover)_and_(pointer:fine)]:group-hover/panel:pointer-events-auto",
+  "[@media(hover:hover)_and_(pointer:fine)]:group-focus-within/panel:pointer-events-auto",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:absolute",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:inset-y-0",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:right-full",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:w-3",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:bg-linear-to-r",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:from-transparent",
+  "[@media(hover:hover)_and_(pointer:fine)]:before:to-card"
 )
 
 const hiddenWhileToolbarShown = "group-data-[selected]/panel:hidden"
@@ -95,6 +111,7 @@ export function PanelHoverActions({
       className={cn(
         "flex items-center gap-0.5 @max-[15rem]/panel:hidden",
         hoverFadeClass,
+        overlayOnFinePointer,
         !viewing && hiddenWhileToolbarShown
       )}
     >
