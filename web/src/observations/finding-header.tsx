@@ -1,5 +1,5 @@
 import type { Block, Observation } from "./queries"
-import { formatDateTime } from "@/lib/time"
+import { describeInstant } from "@/lib/time"
 
 export type RunFinding = NonNullable<Observation["findings"]>[number]
 
@@ -78,6 +78,14 @@ export function headerBlocks(
   return headers
 }
 
+export function joinItems(items: readonly string[]): string {
+  return items
+    .map((item, index) =>
+      index < items.length - 1 ? item.trim().replace(/\.$/, "") : item.trim()
+    )
+    .join("; ")
+}
+
 function Row({ label, children }: { label: string; children: string }) {
   return (
     <div className="flex gap-2">
@@ -124,7 +132,7 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
       )}
       <dl className="flex flex-col gap-0.5">
         {finding.onset === null ? null : (
-          <Row label="Started">{formatDateTime(finding.onset)}</Row>
+          <Row label="Started">{describeInstant(finding.onset)}</Row>
         )}
         {finding.impact === null ? null : (
           <Row label="Impact">{finding.impact}</Row>
@@ -133,10 +141,10 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
           <Row label="Confidence">{finding.confidence}</Row>
         )}
         {finding.ruled_out.length === 0 ? null : (
-          <Row label="Ruled out">{finding.ruled_out.join("; ")}</Row>
+          <Row label="Ruled out">{joinItems(finding.ruled_out)}</Row>
         )}
         {finding.next_steps.length === 0 ? null : (
-          <Row label="Next steps">{finding.next_steps.join("; ")}</Row>
+          <Row label="Next steps">{joinItems(finding.next_steps)}</Row>
         )}
       </dl>
     </section>
