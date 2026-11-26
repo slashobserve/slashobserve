@@ -154,6 +154,10 @@ func TestBuildLokiAndTempoSendTheirConnectionSettings(t *testing.T) {
 	seen := map[string]http.Header{}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen[r.Header.Get("X-Source")] = r.Header.Clone()
+		if r.URL.Path == "/loki/api/v1/query" {
+			_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[]}}`))
+			return
+		}
 		_, _ = w.Write([]byte("ready"))
 	}))
 	defer upstream.Close()

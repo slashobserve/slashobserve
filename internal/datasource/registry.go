@@ -369,10 +369,35 @@ func (r *Registry) fresh(uid string, maxAge time.Duration) (Status, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	e, ok := r.cached[uid]
-	if !ok || time.Since(e.at) >= maxAge {
+	if !ok {
+		return Status{}, false
+	}
+	if !e.status.Healthy {
+		maxAge = min(maxAge, recheckInterval)
+	}
+	if time.Since(e.at) >= maxAge {
 		return Status{}, false
 	}
 	return e.status, true
+}
+
+func (r *Registry) Answered(uid string) {
+	r.instancesMu.RLock()
+	in, ok := r.instances[uid]
+	r.instancesMu.RUnlock()
+	if !ok {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, cached := r.cached[uid]
+	if !cached || e.status.Healthy || !r.current(in) {
+		return
+	}
+	s := statusFor(in)
+	s.Healthy = true
+	s.CheckedAt = time.Now().UTC()
+	r.cached[uid] = cacheEntry{status: s, at: time.Now()}
 }
 
 func (r *Registry) check(ctx context.Context, in Instance) Status {

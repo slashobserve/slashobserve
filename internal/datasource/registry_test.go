@@ -454,3 +454,62 @@ func TestHealthHasNoRowForADatasourceTheCallerCannotQuery(t *testing.T) {
 		t.Fatalf("admin health rows = %v, want both", got)
 	}
 }
+
+func TestAnAnsweredQueryClearsACachedFailure(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := registry.Health(everything(t))[0]; first.Healthy {
+		t.Fatalf("first status = %+v", first)
+	}
+	calls := ds.calls.Load()
+
+	registry.Answered("loki")
+
+	got := registry.Health(everything(t))[0]
+	if !got.Healthy || got.Message != "" || got.Detail != "" {
+		t.Fatalf("status after an answered query = %+v", got)
+	}
+	if ds.calls.Load() != calls {
+		t.Errorf("clearing the failure ran another check: calls %d -> %d", calls, ds.calls.Load())
+	}
+}
+
+func TestAnAnsweredQueryLeavesUnknownAndHealthyDatasourcesAlone(t *testing.T) {
+	ds := &flippingHealth{}
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry.Answered("loki")
+	registry.Answered("missing")
+	if ds.calls.Load() != 0 {
+		t.Fatalf("Answered ran a check: %d", ds.calls.Load())
+	}
+	if got := registry.Health(everything(t))[0]; !got.Healthy || ds.calls.Load() != 1 {
+		t.Fatalf("status = %+v, checks = %d", got, ds.calls.Load())
+	}
+}
+
+func TestAFailureIsCheckedAgainAfterTheThrottleNotAfterTheHealthyWindow(t *testing.T) {
+	ds := &flippingHealth{}
+	slow := datasource.Errorf(datasource.ErrTimeout, "slow")
+	ds.err.Store(&slow)
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first := registry.Health(everything(t))[0]; first.Healthy {
+		t.Fatalf("first status = %+v", first)
+	}
+	var recovered *error
+	ds.err.Store(recovered)
+	time.Sleep(2100 * time.Millisecond)
+	if got := registry.Health(everything(t))[0]; !got.Healthy {
+		t.Fatalf("a failure outlived the recheck interval: %+v", got)
+	}
+}

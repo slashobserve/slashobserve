@@ -139,5 +139,5 @@ func (d *Datasource) Close() error {
 func (d *Datasource) CheckHealth(ctx context.Context) error {
 	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
-	return d.ready(ctx)
+	return d.answersQueries(ctx)
 }
