@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +49,7 @@ func statsReplies(filter, errorsFilter string) map[string]reply {
 	}
 }
 
-func TestTraceStatsRunsFourMetricsQueries(t *testing.T) {
+func TestTraceStatsRunsTheMetricsQueries(t *testing.T) {
 	filter, errorsFilter := `{ resource.service.name = "checkout" }`, `{ resource.service.name = "checkout" && status = error }`
 	ds, fake := serve(t, nil)
 	fake.byQuery = statsReplies(filter, errorsFilter)
@@ -60,13 +62,20 @@ func TestTraceStatsRunsFourMetricsQueries(t *testing.T) {
 		filter + " | count_over_time()",
 		filter + " | histogram_over_time(duration)",
 		filter + " | quantile_over_time(duration, 0.5, 0.95, 0.99)",
+		filter + " | quantile_over_time(duration, 0.5, 0.95, 0.99)",
 	}
 	if got := fake.queries(); !slices.Equal(got, want) {
 		t.Fatalf("queries = %q, want %q", got, want)
 	}
-	req := fake.last(t)
-	if req.path != "/api/metrics/query_range" || req.params.Get("start") != "1793962800000000000" || req.params.Get("end") != "1793966400000000000" || req.params.Get("step") != "60s" {
-		t.Fatalf("request = %s %v", req.path, req.params)
+	steps := map[string]int{}
+	for _, req := range fake.requests {
+		if !strings.HasPrefix(req.path, "/api/metrics/query") || req.params.Get("start") != "1793962800000000000" || req.params.Get("end") != "1793966400000000000" {
+			t.Fatalf("request = %s %v", req.path, req.params)
+		}
+		steps[req.params.Get("step")]++
+	}
+	if want := map[string]int{"60s": 4, "": 1}; !maps.Equal(steps, want) {
+		t.Fatalf("steps = %v, want %v", steps, want)
 	}
 	if stats.Step != time.Minute || !stats.Partial || stats.Spans != 8 || stats.Errors != 1 || len(stats.Buckets) != 60 {
 		t.Fatalf("stats = %+v", stats)
@@ -114,7 +123,7 @@ func TestTraceStatsErrorsQueryInsertsStatusError(t *testing.T) {
 	}
 	for q, want := range cases {
 		t.Run(q, func(t *testing.T) {
-			ds, fake := serve(t, map[string]reply{"/api/metrics/query_range": {0, `{"series":[]}`}})
+			ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
 			if _, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: q, Range: statsRange, Step: time.Minute}); err != nil {
 				t.Fatal(err)
 			}
@@ -126,7 +135,7 @@ func TestTraceStatsErrorsQueryInsertsStatusError(t *testing.T) {
 }
 
 func TestTraceStatsWithNoSeriesIsEmptyButFilled(t *testing.T) {
-	ds, _ := serve(t, map[string]reply{"/api/metrics/query_range": {0, `{"series":[],"metrics":{}}`}})
+	ds, _ := serve(t, bothPaths(reply{0, `{"series":[],"metrics":{}}`}))
 	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{}", Range: datasource.TimeRange{From: statsFrom, To: statsFrom.Add(150 * time.Second)}, Step: time.Minute})
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +146,7 @@ func TestTraceStatsWithNoSeriesIsEmptyButFilled(t *testing.T) {
 }
 
 func TestTraceStatsKeepsUpstreamErrorKinds(t *testing.T) {
-	ds, _ := serve(t, map[string]reply{"/api/metrics/query_range": {400, "invalid TraceQL query: parse error at line 1"}})
+	ds, _ := serve(t, bothPaths(reply{400, "invalid TraceQL query: parse error at line 1"}))
 	_, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{ nope", Range: statsRange, Step: time.Minute})
 	if !errors.Is(err, datasource.ErrInvalidQuery) {
 		t.Fatalf("err = %v, want invalid query", err)
@@ -169,5 +178,224 @@ func TestTraceStatsCountsIgnoreSamplesThatAreNotCounts(t *testing.T) {
 	}
 	if want := []datasource.DurationBucket{{LeMS: 0.131072, Count: 3}}; !slices.Equal(stats.Histogram, want) {
 		t.Fatalf("histogram = %+v, want %+v", stats.Histogram, want)
+	}
+}
+
+func bothPaths(r reply) map[string]reply {
+	return map[string]reply{"/api/metrics/query_range": r, "/api/metrics/query": r}
+}
+
+const quantiles = " | quantile_over_time(duration, 0.5, 0.95, 0.99)"
+
+func quantileSeries(p, value string) string {
+	return `{"labels":[{"key":"p","value":{"doubleValue":` + p + `}}],"value":` + value + `}`
+}
+
+func TestTraceStatsReturnsWholeWindowQuantiles(t *testing.T) {
+	filter := `{ resource.service.name = "checkout" }`
+	ds, fake := serve(t, nil)
+	fake.byQuery = statsReplies(filter, `{ resource.service.name = "checkout" && status = error }`)
+	fake.byStep = map[string]reply{
+		filter + quantiles + "@": {0, metricsBody(quantileSeries("0.5", "0.05"), quantileSeries("0.95", "2.275"), quantileSeries("0.99", "13.6357"))},
+	}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := stats.Window
+	if w == nil || !is(w.P50, 50) || !is(w.P95, 2275) || !is(w.P99, 13635.7) {
+		t.Fatalf("window = %+v, want 50, 2275 and 13635.7 ms", w)
+	}
+	if stats.GroupBy != "" || len(stats.Groups) != 0 {
+		t.Fatalf("groups = %q %+v, want none without group_by", stats.GroupBy, stats.Groups)
+	}
+	if got := fake.queries(); len(got) != 5 {
+		t.Fatalf("%d queries, want 5", len(got))
+	}
+}
+
+func TestTraceStatsWindowIsEmptyWhenTempoHasNoSeries(t *testing.T) {
+	ds, _ := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{}", Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Window == nil || stats.Window.P50 != nil || stats.Window.P95 != nil || stats.Window.P99 != nil {
+		t.Fatalf("window = %+v, want a block with null quantiles", stats.Window)
+	}
+}
+
+func groupLabels(attribute, value string) string {
+	return `{"key":"` + attribute + `","value":{"stringValue":"` + value + `"}}`
+}
+
+func TestTraceStatsGroupsByAnAttribute(t *testing.T) {
+	filter, by := `{ span.http.route = "/pay" }`, " by (resource.service.name)"
+	const attr = "resource.service.name"
+	ds, fake := serve(t, nil)
+	fake.byQuery = statsReplies(filter, `{ span.http.route = "/pay" && status = error }`)
+	fake.byStep = map[string]reply{
+		filter + " | count_over_time()" + by + "@": {0, metricsBody(
+			`{"labels":[`+groupLabels(attr, "cart")+`],"value":`+"3"+`}`,
+			`{"labels":[`+groupLabels(attr, "checkout")+`],"value":`+"7"+`}`,
+			`{"labels":[`+groupLabels(attr, "")+`],"value":`+"99"+`}`)},
+		`{ span.http.route = "/pay" && status = error } | count_over_time()` + by + "@": {0, metricsBody(
+			`{"labels":[` + groupLabels(attr, "checkout") + `],"samples":[` + sample(statsFrom, "2") + `]}`)},
+		filter + quantiles + by + "@": {0, metricsBody(
+			`{"labels":[`+groupLabels(attr, "checkout")+`,{"key":"p","value":{"doubleValue":0.99}}],"value":`+"13.6357"+`}`,
+			`{"labels":[`+groupLabels(attr, "cart")+`,{"key":"p","value":{"doubleValue":0.99}}],"value":`+`"NaN"`+`}`,
+			`{"labels":[`+groupLabels(attr, "cart")+`,{"key":"p","value":{"doubleValue":0.5}}],"value":`+"0.02"+`}`)},
+		filter + quantiles + "@": {0, metricsBody()},
+	}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, GroupBy: " " + attr + " ", Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.GroupBy != attr || stats.GroupsTruncated || len(stats.Groups) != 2 {
+		t.Fatalf("stats = %+v, want two groups", stats)
+	}
+	checkout, cart := stats.Groups[0], stats.Groups[1]
+	if checkout.Value != "checkout" || checkout.Spans != 7 || checkout.Errors != 2 || !is(checkout.P99, 13635.7) || checkout.P50 != nil {
+		t.Fatalf("checkout = %+v", checkout)
+	}
+	if cart.Value != "cart" || cart.Spans != 3 || cart.Errors != 0 || !is(cart.P50, 20) || cart.P99 != nil {
+		t.Fatalf("cart = %+v, want a null p99 for the NaN sample", cart)
+	}
+	if got := fake.queries(); len(got) != 8 {
+		t.Fatalf("%d queries, want 8 with group_by", len(got))
+	}
+}
+
+func TestTraceStatsCapsTheGroups(t *testing.T) {
+	filter := "{}"
+	var series []string
+	for i := range 25 {
+		series = append(series, `{"labels":[`+groupLabels("name", fmt.Sprintf("op-%02d", i))+`],"value":`+fmt.Sprint(i+1)+`}`)
+	}
+	ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	fake.byStep = map[string]reply{filter + " | count_over_time() by (name)@": {0, metricsBody(series...)}}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, GroupBy: "name", Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stats.GroupsTruncated || len(stats.Groups) != 20 || stats.Groups[0].Value != "op-24" || stats.Groups[19].Value != "op-05" {
+		t.Fatalf("groups = %d truncated %v first %q last %q", len(stats.Groups), stats.GroupsTruncated, stats.Groups[0].Value, stats.Groups[len(stats.Groups)-1].Value)
+	}
+}
+
+func TestTraceStatsRefusesAnUnsafeGroupBy(t *testing.T) {
+	ds, fake := serve(t, nil)
+	bad := []string{
+		"resource.service.name) | rate() by (x",
+		`resource.service.name"`,
+		"resource.service.name, span.http.route",
+		"service.name",
+		"resource.",
+		".",
+		"span.a b",
+		"{ status = error }",
+		"span.x;",
+		"span.x\n| count()",
+		"duration",
+		"span." + strings.Repeat("a", 200),
+	}
+	for _, attribute := range bad {
+		_, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{}", GroupBy: attribute, Range: statsRange, Step: time.Minute})
+		if !errors.Is(err, datasource.ErrInvalidQuery) || !strings.Contains(err.Error(), "group_by must be one TraceQL attribute") {
+			t.Fatalf("%q: err = %v, want an invalid group_by", attribute, err)
+		}
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if len(fake.requests) != 0 {
+		t.Fatalf("%d requests reached Tempo for refused group_by", len(fake.requests))
+	}
+}
+
+func TestTraceStatsAcceptsTraceQLAttributeNames(t *testing.T) {
+	ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	for _, attribute := range []string{"resource.service.name", "span.http.route", ".http.method", "span.http.status_code", "resource.k8s.pod-name", "name", "status", "kind", "statusMessage"} {
+		if _, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{}", GroupBy: attribute, Range: statsRange, Step: time.Minute}); err != nil {
+			t.Fatalf("%q: %v", attribute, err)
+		}
+	}
+	if got := fake.queries(); !slices.Contains(got, "{} | count_over_time() by (.http.method)") {
+		t.Fatalf("queries = %q", got)
+	}
+}
+
+func TestTraceStatsAsksTempoForTheExactRangeOnTheInstantEndpoint(t *testing.T) {
+	filter := "{}"
+	from := statsFrom.Add(30 * time.Second)
+	rng := datasource.TimeRange{From: from, To: from.Add(37 * time.Minute)}
+	ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	fake.byStep = map[string]reply{filter + quantiles + "@": {0, `{"series":[` + quantileSeries("0.99", "1.5") + `],"metrics":{"completedJobs":1,"totalJobs":3}}`}}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, Range: rng, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Window == nil || !is(stats.Window.P99, 1500) || !stats.Partial {
+		t.Fatalf("stats = %+v, want the p99 read from the instant response and a partial flag", stats)
+	}
+	instants := 0
+	for _, req := range fake.requests {
+		if req.path != "/api/metrics/query" {
+			continue
+		}
+		instants++
+		if req.params.Get("start") != strconv.FormatInt(rng.From.UnixNano(), 10) || req.params.Get("end") != strconv.FormatInt(rng.To.UnixNano(), 10) || req.params.Has("step") {
+			t.Fatalf("instant request = %v, want the exact range and no step", req.params)
+		}
+	}
+	if instants != 1 {
+		t.Fatalf("%d instant requests, want 1", instants)
+	}
+}
+
+func TestTraceStatsRefusesARangeInTheFuture(t *testing.T) {
+	ds, fake := serve(t, nil)
+	future := time.Now().Add(time.Hour)
+	_, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: "{}", Range: datasource.TimeRange{From: future, To: future.Add(time.Hour)}, Step: time.Minute})
+	if !errors.Is(err, datasource.ErrInvalidQuery) {
+		t.Fatalf("err = %v, want an invalid query", err)
+	}
+	if len(fake.requests) != 0 {
+		t.Fatalf("%d requests reached Tempo", len(fake.requests))
+	}
+}
+
+func TestTraceStatsReadsTempoInstantSeriesWithTypedLabels(t *testing.T) {
+	filter := "{}"
+	service := func(name string) string {
+		return `{"key":"resource.service.name","value":{"stringValue":"` + name + `"}}`
+	}
+	quantile := func(p string) string { return `{"key":"p","value":{"doubleValue":` + p + `}}` }
+	ds, fake := serve(t, bothPaths(reply{0, `{"series":[]}`}))
+	fake.byStep = map[string]reply{
+		filter + quantiles + " by (resource.service.name)@": {0, `{"series":[` +
+			`{"labels":[` + service("cart") + `,` + quantile("0.99") + `],"value":0.001308969453645057},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.99") + `],"value":0.0005163615238064083},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.5") + `],"value":0.0002},` +
+			`{"labels":[` + service("ad") + `,` + quantile("0.95") + `],"value":0.0004}]}`},
+		filter + " | count_over_time() by (resource.service.name)@": {0, `{"series":[` +
+			`{"labels":[` + service("ad") + `],"value":12},{"labels":[` + service("cart") + `],"value":30}]}`},
+		filter + quantiles + "@": {0, `{"series":[` + quantileSeries("0.95", "0.0045") + `]}`},
+	}
+	stats, err := ds.TraceStats(context.Background(), datasource.TraceStatsRequest{Query: filter, GroupBy: "resource.service.name", Range: statsRange, Step: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stats.Groups) != 2 {
+		t.Fatalf("groups = %+v", stats.Groups)
+	}
+	cart, ad := stats.Groups[0], stats.Groups[1]
+	if cart.Value != "cart" || cart.Spans != 30 || !is(cart.P99, 1.308969) || cart.P50 != nil || cart.P95 != nil {
+		t.Fatalf("cart = %+v, want 30 spans and a p99 of 1.308969 ms", cart)
+	}
+	if ad.Value != "ad" || ad.Spans != 12 || !is(ad.P50, 0.2) || !is(ad.P95, 0.4) || !is(ad.P99, 0.516362) {
+		t.Fatalf("ad = %+v, want p50 0.2, p95 0.4 and p99 0.516362 ms picked by the p label", ad)
+	}
+	if stats.Window == nil || !is(stats.Window.P95, 4.5) || stats.Window.P50 != nil {
+		t.Fatalf("window = %+v, want only a p95 of 4.5 ms", stats.Window)
 	}
 }

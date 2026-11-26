@@ -128,6 +128,9 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		default:
 			outcome, reason = OutcomeFailed, cmp.Or(reason, "rolled_back")
 		}
+		if concluded == nil {
+			target = rolledBackTarget(action, target, inTx[0])
+		}
 		action = cmp.Or(action, inTx[0].action)
 	}
 	if action == "" {
@@ -146,6 +149,14 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 		Duration: o.took,
 	}
 	r.emitSettled(ctx, st, base, len(inTx) == 0 && concluded == nil)
+}
+
+func rolledBackTarget(declaredAction Action, declared Target, first written) Target {
+	sameAction := declaredAction == "" || declaredAction == first.action
+	if !sameAction || first.target.Kind == "" {
+		return declared
+	}
+	return first.target
 }
 
 func (r *Recorder) emitSettled(ctx context.Context, st *state, base Event, fold bool) {

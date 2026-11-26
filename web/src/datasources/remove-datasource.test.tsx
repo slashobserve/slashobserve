@@ -37,11 +37,11 @@ describe("RemoveDatasourceButton", () => {
   it("reports the removal after the list dropped its row", async () => {
     const { user } = renderWithProviders(
       <HeldMutationHost>
-        <RemoveDatasourceButton datasource={datasource} />
+        <RemoveDatasourceButton datasource={datasource} label="Prometheus" />
       </HeldMutationHost>
     )
 
-    await user.click(screen.getByRole("button", { name: "Remove prom" }))
+    await user.click(screen.getByRole("button", { name: "Remove Prometheus" }))
     await user.click(screen.getByRole("button", { name: "Remove" }))
     await waitFor(() => expect(calls.send).toHaveBeenCalledWith("prom"))
     await unmountHostThenSettle()

@@ -1540,3 +1540,56 @@ func TestRunPanelHoldsTheUpstreamSlotDuringTheExemplarCall(t *testing.T) {
 		t.Fatal("the datasource's slot was free during the exemplars call, want the query's slot held")
 	}
 }
+
+type healthCheckFails struct{ *fakeDatasource }
+
+func (healthCheckFails) CheckHealth(context.Context) error {
+	return datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP 503")
+}
+
+func TestASuccessfulPanelQueryClearsTheDatasourceFailure(t *testing.T) {
+	runner := newRunnerOf(t, discardLogger(), datasource.Instance{UID: "prom", Datasource: healthCheckFails{newFake("prometheus")}})
+	if got := runner.reg.Health(reading(t.Context()))[0]; got.Healthy {
+		t.Fatalf("status before the query = %+v", got)
+	}
+	d := dashboardOf([]spec.Panel{panelOf("p1", spec.Timeseries, "prom", "up")})
+	if _, err := runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()}); err != nil {
+		t.Fatalf("RunPanel: %v", err)
+	}
+	if got := runner.reg.Health(reading(t.Context()))[0]; !got.Healthy {
+		t.Fatalf("status after a successful query = %+v", got)
+	}
+}
+
+func TestAFailedPanelQueryKeepsTheDatasourceFailure(t *testing.T) {
+	fake := newFake("prometheus")
+	fake.onRange = failWith(datasource.Errorf(datasource.ErrUnavailable, "connection failed"))
+	runner := newRunnerOf(t, discardLogger(), datasource.Instance{UID: "prom", Datasource: healthCheckFails{fake}})
+	runner.reg.Health(reading(t.Context()))
+	d := dashboardOf([]spec.Panel{panelOf("p1", spec.Timeseries, "prom", "up")})
+	_, _ = runner.RunPanel(reading(t.Context()), Request{Dashboard: d, PanelID: "p1", Range: testRange()})
+	if got := runner.reg.Health(reading(t.Context()))[0]; got.Healthy {
+		t.Fatalf("status after a failed query = %+v", got)
+	}
+}
+
+func TestASuccessfulPageClearsTheDatasourceFailure(t *testing.T) {
+	source := &fakePageSource{fakeDatasource: newFake("loki")}
+	inst := datasource.Instance{UID: "logs", Datasource: unhealthyPage{source}}
+	r := newRunnerOf(t, discardLogger(), inst)
+	if got := r.reg.Health(reading(t.Context()))[0]; got.Healthy {
+		t.Fatalf("status before the page = %+v", got)
+	}
+	if _, err := r.RunPage(context.Background(), inst, pageParams(1, "")); err != nil {
+		t.Fatal(err)
+	}
+	if got := r.reg.Health(reading(t.Context()))[0]; !got.Healthy {
+		t.Fatalf("status after a page = %+v", got)
+	}
+}
+
+type unhealthyPage struct{ *fakePageSource }
+
+func (unhealthyPage) CheckHealth(context.Context) error {
+	return datasource.Errorf(datasource.ErrUnavailable, "upstream returned HTTP 503")
+}

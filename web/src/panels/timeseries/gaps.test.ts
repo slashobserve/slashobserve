@@ -292,3 +292,71 @@ describe("breakingGaps", () => {
     expect(shaped.series[1].values).toEqual([1, 2, 3, 4])
   })
 })
+
+describe("a series that stops for 35 minutes", () => {
+  const minute = 60
+  const minutes = Array.from({ length: 39 }, (_, at) => at)
+  const stopped = minutes.map((at) =>
+    at <= 2 || at >= 37 ? at + 1 : undefined
+  )
+  const aligned = (): AlignedFrames => ({
+    xs: minutes.map((at) => at * minute),
+    series: [
+      {
+        key: "A",
+        label: "A",
+        values: stopped,
+        frame: { ref: "A" },
+      } as AlignedFrames["series"][number],
+      {
+        key: "B",
+        label: "B",
+        values: minutes,
+        frame: { ref: "B" },
+      } as AlignedFrames["series"][number],
+    ],
+    ghosts: [],
+  })
+  const meta = { step_ms: 60_000, queries: [] }
+  const shape = (spanNulls: boolean) => {
+    const frames = aligned()
+    const configs = frames.series.map(() =>
+      breakingGaps({ spanNulls, nullAsZero: false })
+    )
+    return shapeNulls(frames, configs, meta)
+  }
+
+  it("is broken with a null after its last sample by default", () => {
+    const values = shape(false).series[0].values
+    expect(values[2]).toBe(3)
+    expect(values[3]).toBeNull()
+    expect(values.slice(4, 37).every((value) => value === undefined)).toBe(true)
+    expect(values[37]).toBe(38)
+  })
+
+  it("keeps the ramp when the panel connects nulls", () => {
+    expect(shape(true).series[0].values).toEqual(stopped)
+  })
+
+  it("breaks a lone series with a null point between the two samples", () => {
+    const lone: AlignedFrames = {
+      xs: [0, 38 * minute],
+      series: [
+        {
+          key: "A",
+          label: "A",
+          values: [1, 5],
+          frame: { ref: "A" },
+        } as AlignedFrames["series"][number],
+      ],
+      ghosts: [],
+    }
+    const shaped = shapeNulls(
+      lone,
+      [breakingGaps({ spanNulls: false, nullAsZero: false })],
+      meta
+    )
+    expect(shaped.xs).toEqual([0, 19 * minute, 38 * minute])
+    expect(shaped.series[0].values).toEqual([1, null, 5])
+  })
+})

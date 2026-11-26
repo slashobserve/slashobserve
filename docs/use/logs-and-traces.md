@@ -65,10 +65,10 @@ With a model configured on the server, the query box opens in Write a query mode
 
 The mode switch at the top left of the query card has up to three segments.
 
-- **Write a query** takes a question and writes the query; it does not explain the results.
-  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 - **Builder** edits the query as filter chips.
-- The last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- The next segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- **Write a query**, always last, takes a question and writes the query; it does not explain the results.
+  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 
 ClickHouse has no Builder segment, because its query is SQL.
 On Loki the Builder segment is the label browser.
@@ -516,7 +516,7 @@ The note under the table says which source applies.
 You need Edit on the target dashboard.
 The panel is full width and goes at the bottom of the dashboard, inside the last row when that row is collapsed, and the save makes a new version.
 The save runs the query over the dashboard's time range and refuses a panel that returns no lines there.
-The panel's menu offers the way back with **Open in Logs** or **Open in Traces**, which opens the explorer with the panel's query and the dashboard's time range.
+The panel's menu offers the way back with **Open in Logs**, **Open in Traces** or **Open in Metrics**, which opens the explorer with the panel's query and the dashboard's time range.
 
 ## Add to an observation
 
@@ -571,7 +571,7 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **Write a query** and **Query**, and on ClickHouse **Write a query**, **Search** and **SQL**.
+The toggle reads **TraceQL** and **Write a query** on Tempo, **Search** and **Write a query** on Jaeger, and on ClickHouse **Search**, **SQL** and **Write a query**.
 
 1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.
@@ -937,6 +937,7 @@ The scatter then plots only the times the found traces cover, so a full page tha
 #### Count spans over time
 
 The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo and ClickHouse.
+On Tempo it also returns whole-range p50, p95 and p99, and per-value counts and quantiles when `group_by` names an attribute.
 
 - On Tempo its query is TraceQL.
 - On ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
@@ -1249,7 +1250,7 @@ A cursor sent without it, or with another, is refused with a message naming the 
 
 #### List the services of a source
 
-`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen over a recent window, with the label, column or attribute that holds them:
+`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen over a recent window, with the label, column or attribute that holds them:
 
 ```sh
 curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=logs&window=1h" \
@@ -1259,11 +1260,11 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
 
 - `field` is the one the server reads as the service.
-  On Loki it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
+  On Loki and Prometheus it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
   On Tempo it is the `resource.service.name` attribute, and on Jaeger its list of services.
   On ClickHouse it is the `ServiceName` column.
   On Elasticsearch and OpenSearch it is the service field of the datasource, empty when its mapping has none.
-- `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
+- `signal` is `logs`, `traces` or `metrics` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
 - `window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
   Jaeger ignores it and lists every service it retains.
 - It lists at most 200 services and sets `truncated` when more exist.

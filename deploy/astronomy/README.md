@@ -11,7 +11,7 @@ make demo-fault FLAG=paymentFailure VARIANT=off
 make demo-down
 ```
 
-`scripts/astronomy.sh` runs all of it, and `make demo-search` adds Elasticsearch and OpenSearch.
+`scripts/astronomy.sh` runs all of it, `make demo-search` adds Elasticsearch and OpenSearch, and `make demo-code` adds the shop's source code as a context source.
 
 ## What it needs
 
@@ -31,6 +31,10 @@ Measured on an 8 CPU, 22 GB Linux host, with the shop running for a few minutes:
 - `otelcol/config.yaml` is loaded last by upstream's collector, in the place upstream calls the extras layer, and adds the exporters.
   `otelcol/config.search.yaml` adds the Elasticsearch and OpenSearch exporters when the stack starts with `--search`.
 - `compose.build.yaml` builds the server from this checkout; `compose.search.yaml` wires the collector to the search stores.
+- `compose.code.yaml` is the code layer, started by `up --code`: it builds `tools/codeserver` and serves `.upstream/src` read-only to the server at `codeserver.demo.internal`, a name with a dot because a context source must be a domain name on the outbound allowlist, which the layer fixes to that name.
+  `context-sources.yaml` provisions it as `shop-code` with `allowPrivate: true`, the file-only switch for a plain `http` address on the compose network.
+  Its `approve` list names the three read-only tools, which the server approves at start.
+  `.state/code-layer` marks a stack started with `--code`, and `make demo-check` checks the source only then.
 - `.state/` holds the service-account key and the flag file the make target edits, and Git ignores it.
 
 Nothing is forked.

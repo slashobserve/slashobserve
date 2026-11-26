@@ -80,7 +80,7 @@ export function hasPeopleFolders(folders: Folder[]): boolean {
 
 export function accessSummary(folder: Folder): string {
   if (folder.personal) return "Only you"
-  if (folder.admins_only) return "Only Admins"
+  if (folder.admins_only) return "Admins only"
   if (!folder.restricted) return "Everyone, by role"
   const names = folder.grantees.join(", ")
   const more = folder.grantee_count - folder.grantees.length

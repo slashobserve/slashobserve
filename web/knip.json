@@ -3,6 +3,7 @@
   "entry": [
     "src/panels/*/manifest.ts",
     "src/spec/index.ts",
+    "src/mcp-panel/main.tsx",
     "scripts/*.mjs",
     "e2e/*.setup.ts"
   ],

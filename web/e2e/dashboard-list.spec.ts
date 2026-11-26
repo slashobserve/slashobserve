@@ -102,9 +102,10 @@ function dashboardsCard(page: Page) {
 }
 
 function dashboardsSurface(page: Page) {
-  return dashboardsCard(page).locator(
-    "xpath=ancestor::div[contains(@class, 'ag-root-wrapper')]"
-  )
+  return page
+    .locator(".ag-root-wrapper")
+    .filter({ has: dashboardsCard(page) })
+    .last()
 }
 
 function filterBox(page: Page) {
@@ -184,6 +185,7 @@ for (const scheme of ["light", "dark"] as const) {
       expect(body.dashboards).toHaveLength(1)
       const maker = body.dashboards[0].creator.author.name
 
+      await page.setViewportSize({ width: 1600, height: 900 })
       await page.goto("/dashboards")
       await filterByTitle(page, title)
       const cells = rowFor(page, title).getByRole("gridcell")

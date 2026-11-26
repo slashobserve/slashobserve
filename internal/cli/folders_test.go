@@ -31,7 +31,7 @@ func TestFoldersList(t *testing.T) {
 		manageFolder + " My Dashboards (yours) 3 edit",
 		generalFolder + " General (General) 7 view",
 		manageCopy + " Payments 2 admin",
-		manageCopy + " Payroll (Only Admins) 0 admin",
+		manageCopy + " Payroll (Admins only) 0 admin",
 		manageCopy + " Trail (Audit folder) 4 admin",
 	} {
 		if !strings.Contains(stdout, want) {

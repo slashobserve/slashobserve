@@ -12,6 +12,7 @@ import { LoadProblem } from "@/components/load-problem"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
+import { UnknownSource } from "@/datasources/unknown-source"
 import { useExploreSources } from "@/datasources/use-sources"
 import { exploreKeys } from "@/api/keys"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -115,20 +116,7 @@ export function MetricsPage({ uid }: { uid: string }) {
     )
   }
   if (datasource === undefined) {
-    return (
-      <>
-        <h1 className="sr-only">Metrics</h1>
-        <p className="text-[13px] text-muted-foreground">
-          No metric source has the uid {uid}.
-        </p>
-        <Link
-          to="/explore/metrics"
-          className="mt-2 inline-block text-[13px] underline underline-offset-3"
-        >
-          Open Metrics
-        </Link>
-      </>
-    )
+    return <UnknownSource kind="metrics" uid={uid} />
   }
   return (
     <MetricsWorkspaceView

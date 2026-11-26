@@ -9,7 +9,7 @@ import {
   type MouseEvent,
 } from "react"
 
-import { axisDecimals, formatValue } from "@/lib/units"
+import { axisFormat } from "@/lib/units"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -28,12 +28,14 @@ import {
   barchartModel,
   categoryBand,
   hitTest,
+  categoryLabelFit,
+  chooseRotation,
   labelHeight,
   labelSpot,
-  labelStep,
   legendEntries,
   lineHeightFor,
   rotatedExtent,
+  rotatedOverhang,
   roundedBarPath,
   shareOf,
   showValuesOf,
@@ -60,12 +62,12 @@ const tickSpacing = 32
 const horizontalTickSpacing = 72
 const maxLabelWidth = 120
 const maxRotatedLabelWidth = 160
-const strideLabelWidth = 80
 const tooltipOffset = 12
 const sidebarShare = 0.4
 const edgeGap = 4
 const axisLabelThickness = 18
 const rotatedPad = 8
+const valueAxisEstimate = 56
 
 type Size = { width: number; height: number }
 type Pointer = Hit & { x: number; y: number }
@@ -337,27 +339,29 @@ function CategoryLabels({
   layout,
   labelWidth,
   gutter,
+  rotation,
   options,
 }: {
   model: BarchartModel
   layout: Layout
   labelWidth: number
   gutter: number
+  rotation: number
   options: Pick<BarOptions, "xTickRotation" | "xTickSpacing" | "xTickMaxLength">
 }) {
   const vertical = layout.orientation === "vertical"
   const across = vertical ? layout.plot.width : layout.plot.height
   const slot = across / layout.count
-  const rotation = vertical ? options.xTickRotation : 0
   const labels = model.categories.map((category) =>
     truncateLabel(category.label, options.xTickMaxLength)
   )
-  const widest = Math.max(0, ...labels.map(textWidth))
-  const step = labelStep(
+  const { step, lineHeight } = categoryLabelFit(
+    vertical,
     layout.count,
     across,
-    vertical ? Math.min(widest, strideLabelWidth) + 8 : labelHeight,
-    options.xTickSpacing
+    Math.max(0, ...labels.map(textWidth)),
+    rotation,
+    options
   )
   return (
     <>
@@ -372,8 +376,9 @@ function CategoryLabels({
               key={category.key}
               title={category.title}
               aria-hidden="true"
-              className="absolute text-xs leading-4 whitespace-nowrap text-muted-foreground"
+              className="absolute truncate text-xs leading-4 whitespace-nowrap text-muted-foreground"
               style={{
+                maxWidth: maxRotatedLabelWidth,
                 left: center,
                 top: layout.plot.height + rotatedPad,
                 transformOrigin: toRight ? "right top" : "left top",
@@ -407,7 +412,8 @@ function CategoryLabels({
                 : {
                     left: -labelWidth,
                     width: labelWidth,
-                    top: center - labelHeight / 2,
+                    top: center - lineHeight / 2,
+                    lineHeight: `${lineHeight}px`,
                   }
             }
           >
@@ -578,7 +584,23 @@ function Plot({
     [model.categories, options.xTickMaxLength]
   )
   const widest = Math.max(0, ...labels.map(textWidth))
-  const rotation = vertical ? options.xTickRotation : 0
+  const hiddenAxis = settings.side === "hidden"
+  const atEnd = settings.side === "end"
+  const axisLabel = settings.label && !hiddenAxis ? axisLabelThickness : 0
+  const estimatedValueExtent = hiddenAxis
+    ? 0
+    : (settings.width ?? (vertical ? valueAxisEstimate : axisThickness)) +
+      axisLabel
+  const estimatedAcross = vertical
+    ? size.width -
+      (atEnd || hiddenAxis ? padSide : estimatedValueExtent) -
+      (atEnd ? estimatedValueExtent : padRight)
+    : size.height -
+      (atEnd ? estimatedValueExtent : padTop) -
+      (hiddenAxis || atEnd ? padTop : estimatedValueExtent)
+  const rotation = vertical
+    ? chooseRotation(count, estimatedAcross, widest, options)
+    : 0
   const categoryExtent =
     rotation === 0
       ? axisThickness
@@ -591,9 +613,6 @@ function Plot({
     Math.min(widest, maxLabelWidth) + axisGap,
     size.width * sidebarShare
   )
-  const hiddenAxis = settings.side === "hidden"
-  const atEnd = settings.side === "end"
-  const axisLabel = settings.label && !hiddenAxis ? axisLabelThickness : 0
   const measureLength = vertical
     ? size.height - padTop - categoryExtent
     : size.width - labelWidth - padRight
@@ -617,19 +636,10 @@ function Plot({
     }
     return axisTicks(model.min, model.max, maxTicks)
   }, [model.min, model.max, model.scale, measureLength, vertical])
-  const decimals = axisDecimals(
-    scale.ticks,
-    model.axis.unit,
-    model.axis.decimals
-  )
-  const labelTexts = useMemo(
-    () =>
-      scale.ticks.map((tick) => ({
-        tick,
-        text: formatValue(tick, model.axis.unit, decimals),
-      })),
-    [scale.ticks, model.axis.unit, decimals]
-  )
+  const labelTexts = useMemo(() => {
+    const format = axisFormat(scale.ticks, model.axis.unit, model.axis.decimals)
+    return scale.ticks.map((tick) => ({ tick, text: format(tick) }))
+  }, [scale.ticks, model.axis.unit, model.axis.decimals])
   const marks = useMemo(
     () =>
       model.thresholds
@@ -643,12 +653,22 @@ function Plot({
   const valueExtent = hiddenAxis
     ? 0
     : (settings.width ?? naturalExtent) + axisLabel
+  const overhang = vertical
+    ? rotatedOverhang(
+        Math.min(widest, maxRotatedLabelWidth),
+        rotation,
+        estimatedAcross / Math.max(1, count)
+      )
+    : 0
   const left = vertical
-    ? atEnd || hiddenAxis
-      ? padSide
-      : valueExtent
+    ? Math.max(
+        atEnd || hiddenAxis ? padSide : valueExtent,
+        rotation > 0 ? overhang : 0
+      )
     : labelWidth
-  const right = vertical ? (atEnd ? valueExtent : padRight) : padRight
+  const right = vertical
+    ? Math.max(atEnd ? valueExtent : padRight, rotation < 0 ? overhang : 0)
+    : padRight
   const top = vertical ? padTop : atEnd ? valueExtent : padTop
   const bottom = vertical
     ? categoryExtent
@@ -761,6 +781,7 @@ function Plot({
         layout={layout}
         labelWidth={labelWidth}
         gutter={left}
+        rotation={rotation}
         options={options}
       />
       <ValueLabels

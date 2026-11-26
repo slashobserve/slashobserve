@@ -102,7 +102,7 @@ export function PanelMoveHint({ shown }: { shown: boolean }) {
       aria-hidden="true"
       data-panel-move-hint=""
       className={cn(
-        "flex size-6 shrink-0 items-center justify-center text-muted-foreground opacity-0",
+        "absolute inset-y-0 left-0 flex w-3 items-center justify-center pt-[9px] pb-1 text-muted-foreground opacity-0",
         shown &&
           "group-hover/header:opacity-60 motion-safe:transition-opacity motion-safe:duration-100 motion-safe:ease-out"
       )}

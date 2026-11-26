@@ -299,12 +299,12 @@ datasources-uid-services:
     x-surfaces:
       mcp: [list_services]
       cli: [observe datasources services]
-    summary: List the services a log or trace datasource has seen over a recent window.
+    summary: List the services a log, trace or metric datasource has seen over a recent window.
     description: >-
-      The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log or trace sources has `checkout` without opening each one.
-      Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, Jaeger its list of every retained service, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, and Elasticsearch and OpenSearch the service field of the mapping.
+      The browser's, the CLI's and the agent's path to the services a source holds, so a person can tell which of several log, trace or metric sources has `checkout` without opening each one.
+      Each adapter reads the field it already treats as the service with one cheap request over the window, which ends now: Loki the first of the labels `service_name`, `service`, `app` and `job` that has values, Tempo the tag `resource.service.name`, Jaeger its list of every retained service, ClickHouse the `ServiceName` column of `otel_logs` or `otel_traces`, Elasticsearch and OpenSearch the service field of the mapping, and Prometheus the first of the labels `service_name`, `service`, `app` and `job` that has values, with `field` empty when none does.
       `field` names that label, attribute, column or field, so a client can filter a query on it; it is empty on Elasticsearch and OpenSearch when the mapping has no service field.
-      `signal` is `logs` or `traces`; without it the answer is `logs`, and `traces` on Tempo, and a datasource that does not hold the signal answers 422 `query_invalid`.
+      `signal` is `logs`, `traces` or `metrics`; without it the answer is `logs`, `traces` on Tempo, and `metrics` on Prometheus, and a datasource that does not hold the signal answers 422 `query_invalid`.
       ClickHouse holds both, so a client that wants both asks twice.
       `window` is a duration such as `15m` or `1h`, from 1 minute to 6 hours, default 1 hour; a service quiet for longer is not listed, except on Jaeger, which lists every service it retains whatever the window.
       At most 200 services come back, sorted by name, with `truncated` true when there were more.
@@ -319,7 +319,7 @@ datasources-uid-services:
         description: Which signal to read.
         schema:
           type: string
-          enum: [logs, traces]
+          enum: [logs, traces, metrics]
       - name: window
         in: query
         description: How far back the window reaches from now, as a duration such as `15m` or `1h`.
@@ -342,7 +342,7 @@ datasources-uid-services:
                   type: string
                 signal:
                   type: string
-                  enum: [logs, traces]
+                  enum: [logs, traces, metrics]
                 field:
                   type: string
                 window_seconds:

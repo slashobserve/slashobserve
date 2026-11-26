@@ -116,6 +116,18 @@ layered="$(ASTRONOMY_COMPOSE_FILES="/one.yaml:/two.yaml" compose ps | tr '\n' ' 
 [[ "$layered" == *"compose.build.yaml -f /one.yaml -f /two.yaml ps "* ]] || fail "extra compose files follow the stack's own, in order, then the arguments: $layered"
 plain="$(ASTRONOMY_COMPOSE_FILES="" compose ps | tr '\n' ' ')"
 [[ "$plain" != *"/one.yaml"* ]] || fail "no extra files without ASTRONOMY_COMPOSE_FILES: $plain"
+CODE=1
+with_code="$(compose ps | tr '\n' ' ')"
+[[ "$with_code" == *"compose.build.yaml -f $ASTRONOMY_DIR/compose.code.yaml ps "* ]] || fail "the code layer follows the build layer when --code is given: $with_code"
+CODE=0
+without_code="$(compose ps | tr '\n' ' ')"
+[[ "$without_code" != *"compose.code.yaml"* ]] || fail "no code layer without --code: $without_code"
+parse_options --code --search
+[[ "$CODE" == 1 && "$SEARCH" == 1 ]] || fail "--code is an option of its own and combines with --search"
+parse_options
+[[ "$CODE" == 0 ]] || fail "the code layer is off by default"
+if message="$(parse_options --code --published 2>&1)"; then fail "--code with --published is refused"; fi
+[[ "$message" == *"--code cannot be combined with --published"* ]] || fail "the refusal says why: $message"
 unset -f docker
 [[ "$(ASTRONOMY_PROJECT=slashobserve-e2e bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-e2e ]] || fail "ASTRONOMY_PROJECT names the compose project"
 [[ "$(bash -c '. "$1"; printf %s "$COMPOSE_PROJECT_NAME"' _ "$here/astronomy.sh")" == slashobserve-astronomy ]] || fail "the compose project defaults to slashobserve-astronomy"
@@ -138,6 +150,37 @@ echo '{}' >"$tmp/down-state/flagd/demo.flagd.json"
 (UPSTREAM_DIR="$no_upstream" STATE_DIR="$tmp/down-state" PROJECT=leftover-project cmd_down)
 [[ "$(cat "$recorded")" == "compose --project-name leftover-project down --remove-orphans" ]] || fail "down without --volumes keeps the volumes: $(cat "$recorded")"
 unset -f docker
+
+CODE_SOURCE=shop-code
+CODE_TOOLS=(list_dir read_file grep)
+CHECK_WAIT=0
+mkdir -p "$tmp/marker"
+CODE_MARKER="$tmp/marker/code-layer"
+CODE=1
+mark_code_layer
+[[ -e "$CODE_MARKER" ]] || fail "starting with --code leaves a marker the check can see"
+CODE=0
+mark_code_layer
+[[ ! -e "$CODE_MARKER" ]] || fail "starting without --code removes the marker"
+
+offers_code_tools "grep list_dir read_file" || fail "a source offering exactly its three tools passes"
+if offers_code_tools ""; then fail "no answer for the source fails"; fi
+if offers_code_tools "list_dir read_file"; then fail "an answer missing a tool fails"; fi
+if offers_code_tools "grep list_dir read_file write_file"; then fail "an answer with a tool more fails"; fi
+if offers_code_tools "grep_all list_dir read_file"; then fail "a tool whose name only starts like a wanted one does not count"; fi
+
+selected="$(jq -r --arg source shop-code '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")' <<<'{"result":{"structuredContent":{"sources":[{"source":"other","tools":[{"name":"x"}]},{"source":"shop-code","tools":[{"name":"read_file"},{"name":"grep"},{"name":"list_dir"}]}]}}}')"
+[[ "$selected" == "grep list_dir read_file" ]] || fail "the source is picked by its id and its tool names are sorted: $selected"
+selected="$(jq -r --arg source shop-code '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")' <<<'{"result":{"content":[{"type":"text","text":"{\"sources\":[{\"source\":\"shop-code\",\"tools\":[{\"name\":\"grep\"}]}]}"}]}}')"
+[[ "$selected" == "grep" ]] || fail "the source is read from the text when there is no structured content: $selected"
+
+code_offers() { echo "$OFFERS"; }
+OFFERS="grep list_dir read_file"
+message="$(check_code)" || fail "a source offering its three tools passes"
+[[ "$message" == "ok   shop-code offers list_dir read_file grep" ]] || fail "the pass line names the tools: $message"
+OFFERS="list_dir"
+if message="$(check_code)"; then fail "a source offering fewer tools fails"; fi
+[[ "$message" == *"FAIL"*"does not offer list_dir read_file grep"* ]] || fail "the failure names the tools: $message"
 
 if [[ "$failures" -gt 0 ]]; then
   exit 1

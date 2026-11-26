@@ -55,8 +55,8 @@ func (a *app) servicesCommand() *cobra.Command {
 	var opts servicesOptions
 	cmd := &cobra.Command{
 		Use:   "services [datasource-uid]",
-		Short: "List the services a log or trace datasource has seen recently, or find which datasources hold one",
-		Long:  "services lists the services a datasource has seen over a recent window, one per line, with the label, column or attribute that holds them.\nWithout a datasource uid it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch datasource and prints one row per source and signal, and a source that cannot answer in time says why while the others still answer; ClickHouse answers once for logs and once for traces.\n--service keeps only the sources that hold a service whose name contains the text, case-insensitive, so `observe datasources services --service checkout` prints which sources hold checkout.\n--signal picks logs or traces, and --window (such as 15m, default 1h, at most 6h) sets how far back the window ends now, except on Jaeger, which lists every service it retains.\nThe server caches an answer for about a minute and lists at most 200 services per source.",
+		Short: "List the services a log, trace or metric datasource has seen recently, or find which datasources hold one",
+		Long:  "services lists the services a datasource has seen over a recent window, one per line, with the label, column or attribute that holds them.\nWithout a datasource uid it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch and Prometheus datasource and prints one row per source and signal, and a source that cannot answer in time says why while the others still answer; ClickHouse answers once for logs and once for traces.\n--service keeps only the sources that hold a service whose name contains the text, case-insensitive, so `observe datasources services --service checkout` prints which sources hold checkout.\n--signal picks logs, traces or metrics, and a Prometheus datasource lists the values of the first of service_name, service, app and job that it has, which is the label a metric selector uses.\n--window (such as 15m, default 1h, at most 6h) sets how far back the window ends now, except on Jaeger, which lists every service it retains.\nThe server caches an answer for about a minute and lists at most 200 services per source.",
 		Args:  rangeArgs(0, 1, "at most one datasource uid"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 1 {
@@ -65,7 +65,7 @@ func (a *app) servicesCommand() *cobra.Command {
 			return a.runServicesAll(cmd, opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.signal, "signal", "", "logs or traces; default is the datasource's own signal, and both for ClickHouse without a uid")
+	cmd.Flags().StringVar(&opts.signal, "signal", "", "logs, traces or metrics; default is the datasource's own signal, and both for ClickHouse without a uid")
 	cmd.Flags().StringVar(&opts.window, "window", "", "how far back to look, such as 15m or 1h (default 1h, at most 6h)")
 	cmd.Flags().StringVar(&opts.service, "service", "", "keep only services whose name contains this text, case-insensitive")
 	return cmd

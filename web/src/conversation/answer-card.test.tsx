@@ -515,6 +515,18 @@ describe("AnswerCard", () => {
     ).toBeNull()
   })
 
+  it("links to the observation next to Make a dashboard when the answer has evidence panels", async () => {
+    renderCard({
+      finding: finding({ dashboard_id: "d1", observation_id: "o9" }),
+    })
+    expect(
+      await screen.findByRole("link", { name: "Open the observation" })
+    ).toHaveAttribute("href", "/o/o9")
+    expect(
+      screen.getByRole("button", { name: "Make a dashboard" })
+    ).toBeVisible()
+  })
+
   it("offers Pin and Make a dashboard only once the answer is in an observation", async () => {
     const view = renderCard({ finding: finding({ dashboard_id: "d1" }) })
     await screen.findByText("doubled")

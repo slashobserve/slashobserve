@@ -21,6 +21,7 @@ import {
   displayZone,
   quickRanges as defaultQuickRanges,
   type QuickRange,
+  timeFormatHint,
   zonedTimeValue,
 } from "@/lib/time"
 import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
@@ -204,7 +205,7 @@ export function TimeRangeControl({
               onChange={setDraftTo}
             />
             <PopoverDescription className="text-xs">
-              Use now-6h, now/d or 2026-10-17 09:00
+              Use {timeFormatHint(typedZone)}
             </PopoverDescription>
             <Button
               type="button"

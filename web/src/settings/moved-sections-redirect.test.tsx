@@ -31,8 +31,13 @@ async function open(url: string) {
     path: "/audit",
     component: () => <p>audit page</p>,
   })
+  const contextSources: AnyRoute = createRoute({
+    getParentRoute: () => root,
+    path: "/datasources/context-sources",
+    component: () => <p>context sources page</p>,
+  })
   const router = createRouter({
-    routeTree: root.addChildren([settings, audit]),
+    routeTree: root.addChildren([settings, audit, contextSources]),
     history: createMemoryHistory({ initialEntries: [url] }),
     parseSearch,
     stringifySearch,
@@ -74,5 +79,15 @@ describe("the old Settings audit log address", () => {
 
     expect(router.state.location.pathname).toBe("/settings")
     expect(screen.getByText("settings page")).toBeInTheDocument()
+  })
+})
+
+describe("the old Settings context sources address", () => {
+  it("redirects #context-sources to the MCP sources on the Datasources page", async () => {
+    const router = await open("/settings#context-sources")
+
+    expect(router.state.location.pathname).toBe("/datasources/context-sources")
+    expect(router.state.location.hash).toBe("")
+    expect(screen.getByText("context sources page")).toBeInTheDocument()
   })
 })

@@ -147,6 +147,38 @@ See [Roles](../teams/roles.md).
 Unset means no datasources from a file.
 An Admin can still [add them in the app](../connect/datasources-in-the-app.md).
 
+## Context sources
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `SLASHOBSERVE_CONTEXT_SOURCES_FILE` | unset | Path to a YAML file of [context sources](../operate/context-sources.md#provision-sources-from-a-file) the server keeps in step with its entries. |
+
+Unset means no context sources from a file.
+An Admin can still add them in the app.
+
+The file holds one `contextSources` list:
+
+```yaml
+contextSources:
+  - uid: docs
+    name: Company docs
+    description: Runbooks and design notes
+    url: https://docs.example.com/mcp
+    audience: admins
+    secretHeader: Authorization
+    secretEnv: SLASHOBSERVE_DOCS_TOKEN
+```
+
+| Field | Rule |
+| --- | --- |
+| `uid` | Required. Starts with a letter or digit and has at most 40 letters, digits, `_` and `-`. |
+| `url` | Required. An `https` MCP address with a domain name. |
+| `name` | At most 100 characters without control or format characters. Defaults to the `uid`. |
+| `description` | Optional. At most 300 characters on one line, without control or format characters. |
+| `audience` | `everyone` (the default) or `admins`. |
+| `secretHeader` | Required with a secret, and refused without one. |
+| `secretEnv`, `secretFile` | One of them holds the secret. `secretEnv` names a variable that starts with `SLASHOBSERVE_`. |
+
 ## Service accounts
 
 | Variable | Default | What it does |

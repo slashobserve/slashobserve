@@ -321,7 +321,7 @@ describe("accessSummary", () => {
   it("marks a folder only Admins can read", () => {
     expect(
       accessSummary({ ...payments, restricted: true, admins_only: true })
-    ).toBe("Only Admins")
+    ).toBe("Admins only")
   })
 })
 

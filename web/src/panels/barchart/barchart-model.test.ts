@@ -14,6 +14,9 @@ import {
   categoryBand,
   labelSpot,
   legendEntries,
+  categoryLabelFit,
+  chooseRotation,
+  rotatedOverhang,
   labelStep,
   labelStride,
   maxCategories,
@@ -861,5 +864,63 @@ describe("barOptions", () => {
       valueSize: 20,
       barRadius: 0.3,
     })
+  })
+})
+
+describe("category label layout", () => {
+  const auto = { xTickRotation: 0, xTickSpacing: 0 }
+
+  it("keeps flat labels when they all fit", () => {
+    expect(chooseRotation(5, 500, 60, auto)).toBe(0)
+    expect(categoryLabelFit(true, 5, 500, 60, 0, auto)).toEqual({
+      step: 1,
+      lineHeight: 16,
+    })
+  })
+
+  it("slants vertical labels so that every category is labelled", () => {
+    const rotation = chooseRotation(15, 480, 90, auto)
+    expect(rotation).toBe(45)
+    expect(categoryLabelFit(true, 15, 480, 90, rotation, auto).step).toBe(1)
+  })
+
+  it("skips labels only when even slanted ones collide", () => {
+    expect(categoryLabelFit(true, 40, 400, 90, 45, auto).step).toBeGreaterThan(
+      1
+    )
+  })
+
+  it("takes the stride from the width the layout really has", () => {
+    expect(categoryLabelFit(true, 15, 480, 90, 45, auto).step).toBe(1)
+    expect(categoryLabelFit(true, 15, 240, 90, 45, auto).step).toBe(2)
+  })
+
+  it("tightens horizontal labels before skipping any", () => {
+    expect(categoryLabelFit(false, 15, 210, 90, 0, auto)).toEqual({
+      step: 1,
+      lineHeight: 13,
+    })
+    expect(categoryLabelFit(false, 15, 300, 90, 0, auto).lineHeight).toBe(16)
+  })
+
+  it("leaves a written rotation or spacing alone", () => {
+    expect(
+      chooseRotation(15, 480, 90, { xTickRotation: 0, xTickSpacing: 90 })
+    ).toBe(0)
+    expect(
+      categoryLabelFit(true, 15, 480, 90, 0, {
+        xTickRotation: 0,
+        xTickSpacing: 90,
+      }).step
+    ).toBe(3)
+    expect(
+      chooseRotation(15, 480, 90, { xTickRotation: 30, xTickSpacing: 0 })
+    ).toBe(30)
+  })
+
+  it("reserves room for the part of a slanted label that leaves the first slot", () => {
+    expect(rotatedOverhang(100, 0, 30)).toBe(0)
+    expect(rotatedOverhang(100, 45, 30)).toBeGreaterThan(60)
+    expect(rotatedOverhang(10, 45, 80)).toBe(0)
   })
 })

@@ -10,6 +10,7 @@ import {
   offersVariables,
   panelChoices,
   panelShareUrl,
+  sharedPanelId,
 } from "./share-links"
 
 const origin = "https://observe.example.com"
@@ -150,6 +151,31 @@ describe("panelChoices", () => {
 
   it("is empty for a dashboard of rows without children", () => {
     expect(panelChoices({ panels: [panel("row-a", "row", 0, 0)] })).toEqual([])
+  })
+})
+
+describe("sharedPanelId", () => {
+  const choices = [
+    { id: "a", title: "A" },
+    { id: "b", title: "B" },
+  ]
+
+  it("starts on the panel being viewed", () => {
+    expect(sharedPanelId(choices, undefined, "b")).toBe("b")
+  })
+
+  it("keeps the person's own choice over the viewed panel", () => {
+    expect(sharedPanelId(choices, "a", "b")).toBe("a")
+  })
+
+  it("falls back to the first panel when the viewed or chosen one is not linkable", () => {
+    expect(sharedPanelId(choices, undefined, undefined)).toBe("a")
+    expect(sharedPanelId(choices, undefined, "gone")).toBe("a")
+    expect(sharedPanelId(choices, "gone", "b")).toBe("b")
+  })
+
+  it("has no panel when there are none", () => {
+    expect(sharedPanelId([], undefined, "b")).toBe(undefined)
   })
 })
 

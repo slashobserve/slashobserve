@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   exploreTargets,
+  rowLabel,
   sourceLabel,
   statusOf,
   typeLabel,
@@ -105,5 +106,24 @@ describe("statusOf", () => {
       tone: "critical",
       text: "Unavailable",
     })
+  })
+})
+
+describe("rowLabel", () => {
+  const prod = { uid: "prom-prod", name: "Prometheus" }
+  const stage = { uid: "prom-stage", name: "Prometheus" }
+  const logs = { uid: "loki", name: "Logs" }
+
+  test("is the name when no other row shares it", () => {
+    expect(rowLabel(logs, [prod, stage, logs])).toBe("Logs")
+  })
+
+  test("adds the id when another row has the same name", () => {
+    expect(rowLabel(prod, [prod, stage, logs])).toBe("Prometheus (prom-prod)")
+    expect(rowLabel(stage, [prod, stage, logs])).toBe("Prometheus (prom-stage)")
+  })
+
+  test("is the name for a lone row", () => {
+    expect(rowLabel(prod, [prod])).toBe("Prometheus")
   })
 })

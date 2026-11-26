@@ -928,11 +928,11 @@ On ClickHouse, `labels` and `label-values` need `--table` or `--metric`.
 
 #### See which services a datasource has
 
-`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour.
+`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen in the last hour.
 For each it shows the label, column or attribute that holds them.
 
 - `--window` takes a duration such as 15m, from 1 minute up to 6h, and the default is 1h.
-- `--signal` picks `logs` or `traces`.
+- `--signal` picks `logs`, `traces` or `metrics`.
 - `--service checkout` keeps only the sources that hold a service whose name contains the text, without regard to case.
   That answers which source holds a service.
 
@@ -1629,7 +1629,7 @@ observe folders permissions admins-only <folder-id> --yes
 ```
 
 `list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see.
-It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Only Admins)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
+It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Admins only)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
 
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`.
 A title that another folder uses answers `folder_exists`.
@@ -1795,6 +1795,38 @@ At the end it prints how many dashboards were done, skipped and failed, a table 
 It exits 1 when any dashboard failed or the import failed or was canceled, and `--json` prints the final import.
 An interrupt stops the waiting while the import continues on the server.
 The server keeps a connection's last 20 imports.
+
+### Context sources
+
+An Admin registers MCP servers for the agent and approves their tools with `observe context`; see [Context sources](../operate/context-sources.md).
+
+```sh
+printf '%s' "$DOCS_TOKEN" | observe context add docs --url https://docs.example.com/mcp --secret-header Authorization --secret-stdin
+observe context discover docs
+observe context tools docs
+observe context approve docs search
+observe context approve docs --all-read-only
+observe context revoke docs search
+```
+
+- `list [uid]` prints every source with its state, audience and tool counts, or one source in full.
+  It never prints a secret, only whether one is set and the header that carries it.
+- `add <uid> --url <address>` registers a source and asks the server nothing.
+  `--name`, `--description` (one line, at most 300 characters), `--audience` (`everyone` or `admins`), `--secret-header` and `--secret-stdin` complete it.
+  The secret comes from standard input and needs `--secret-header`, which needs `--secret-stdin` in turn.
+- `edit <uid>` changes the flags you pass, takes `--clear-secret`, and needs at least one flag.
+  `--description ""` removes the description.
+  A new host needs `--secret-stdin` again, or `--clear-secret`.
+- `remove <uid>` deletes the source, its tools and its secret.
+- `discover <uid>` lists the server's tools and prints how many are new, changed, gone or ignored.
+  It exits 1 and prints the failure when the server could not be asked.
+- `tools <uid>` prints each tool with its state and its refusal.
+- `approve <uid> <tool>` approves one tool as it is listed now, and fails when the server changed it since.
+  `approve <uid> --all-read-only` approves every tool still to review.
+  A refused tool cannot be approved.
+- `revoke <uid> <tool>` withdraws an approval.
+
+Every command takes `--json` to print the API response, and needs an Admin key.
 
 ### Webhooks
 

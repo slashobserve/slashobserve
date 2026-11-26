@@ -48,6 +48,7 @@ import { TimeRangeControl } from "@/dashboards/time-range-picker"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
+import { UnknownSource } from "@/datasources/unknown-source"
 import { useExploreSources } from "@/datasources/use-sources"
 import { foldersQuery } from "@/folders/queries"
 import { useDocumentTitle } from "@/lib/document-title"
@@ -202,12 +203,8 @@ export function TracesPage({ uid }: { uid: string }) {
   }
   if (datasource === undefined) {
     return (
-      <>
-        <h1 className="sr-only">Traces</h1>
-        <p className="text-[13px] text-muted-foreground">
-          No trace source has the uid {uid}.
-        </p>
-        <ul className="mt-2 flex flex-col gap-1 text-[13px]">
+      <UnknownSource kind="traces" uid={uid}>
+        <ul className="mb-4 flex flex-col gap-1 text-[13px]">
           {sources.map((source) => (
             <li key={source.uid}>
               <Link
@@ -219,13 +216,7 @@ export function TracesPage({ uid }: { uid: string }) {
             </li>
           ))}
         </ul>
-        <Link
-          to="/traces"
-          className="mt-2 inline-block text-[13px] underline underline-offset-3"
-        >
-          Open Traces
-        </Link>
-      </>
+      </UnknownSource>
     )
   }
 
