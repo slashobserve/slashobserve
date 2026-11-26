@@ -29,7 +29,7 @@ export function AddToObservationAction({
         onClick={() => setOpen(true)}
       >
         <NotebookTextIcon aria-hidden="true" />
-        Add to observation
+        <span className="@max-[1100px]/top:sr-only">Add to observation</span>
       </Button>
       {open ? (
         <AddToObservationPanel

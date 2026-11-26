@@ -814,7 +814,9 @@ function TraceExplorer({
               onClick={openLogs}
             >
               <LogsIcon aria-hidden="true" data-icon="inline-start" />
-              Logs for this trace
+              <span className="@max-[1100px]/top:sr-only">
+                Logs for this trace
+              </span>
             </Button>
           ),
           keep: (

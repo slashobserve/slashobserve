@@ -28,7 +28,7 @@ export function AddToDashboardAction({
         onClick={() => setOpen(true)}
       >
         <LayoutDashboardIcon aria-hidden="true" />
-        Add to dashboard
+        <span className="@max-[1100px]/top:sr-only">Add to dashboard</span>
       </Button>
       {open ? (
         <AddPanelToDashboard
