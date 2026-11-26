@@ -37,7 +37,7 @@ describe("RemoveDatasourceButton", () => {
   it("reports the removal after the list dropped its row", async () => {
     const { user } = renderWithProviders(
       <HeldMutationHost>
-        <RemoveDatasourceButton datasource={datasource} />
+        <RemoveDatasourceButton datasource={datasource} label="Prometheus" />
       </HeldMutationHost>
     )
 

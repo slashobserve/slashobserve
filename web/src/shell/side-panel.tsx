@@ -18,6 +18,7 @@ export const PanelHostContext = createContext<HTMLElement | null>(null)
 
 type Props = {
   title: string
+  panelKey?: string
   description?: string
   onClose: () => void
   closeDisabled?: boolean
@@ -37,6 +38,7 @@ export function SidePanel(props: Props) {
 
 function PanelCard({
   title,
+  panelKey,
   description,
   onClose,
   closeDisabled = false,
@@ -85,7 +87,7 @@ function PanelCard({
 
   return (
     <DockPanel
-      panelKey={`side-panel:${title}`}
+      panelKey={panelKey ?? `side-panel:${title}`}
       ref={asideRef}
       hidden={hidden}
       labelledBy={titleId}

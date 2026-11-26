@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { datasourceKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,8 @@ import {
   type Problems,
   type SavedCredentials,
 } from "./draft"
+import { rowLabel } from "./format"
+import type { DatasourceStatus } from "./queries"
 import { saveProblemText } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
 
@@ -99,6 +102,7 @@ function EditLoader({
   return (
     <SidePanel
       title="Edit datasource"
+      panelKey={panelKeyOf(uid)}
       onClose={onClose}
       trigger={trigger}
       footer={
@@ -123,6 +127,12 @@ function EditLoader({
       )}
     </SidePanel>
   )
+}
+
+function panelKeyOf(uid: string) {
+  return uid === ""
+    ? "side-panel:datasource:new"
+    : `side-panel:datasource:${uid}`
 }
 
 type TestOutcome =
@@ -155,6 +165,14 @@ function Editor({
   const save = mode === "create" ? create : update
   const busy = save.isPending || test.isPending
   const feedback = useRef<HTMLDivElement>(null)
+  const listed =
+    useQueryClient().getQueryData<{ datasources: DatasourceStatus[] }>(
+      datasourceKeys.list()
+    )?.datasources ?? []
+  const label = rowLabel(
+    { uid, name: initial.name === "" ? uid : initial.name },
+    listed
+  )
 
   function change(next: Partial<FormValues>) {
     setValues((current) => ({ ...current, ...next }))
@@ -191,7 +209,7 @@ function Editor({
     const done = {
       onSuccess: () => {
         toast.success(
-          mode === "create" ? `Added ${values.uid.trim()}` : `Saved ${uid}`
+          mode === "create" ? `Added ${values.uid.trim()}` : `Saved ${label}`
         )
         onClose()
       },
@@ -247,11 +265,8 @@ function Editor({
 
   return (
     <SidePanel
-      title={
-        mode === "create"
-          ? createTitle(values.type)
-          : `Edit ${initial.name === "" ? uid : initial.name}`
-      }
+      title={mode === "create" ? createTitle(values.type) : `Edit ${label}`}
+      panelKey={panelKeyOf(mode === "edit" ? uid : "")}
       description={
         mode === "create"
           ? "The server connects to it with the address and credentials you give, and only an Admin can change them."

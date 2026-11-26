@@ -23,8 +23,10 @@ import type { DatasourceStatus } from "./queries"
 
 export function RemoveDatasourceButton({
   datasource,
+  label,
 }: {
   datasource: DatasourceStatus
+  label: string
 }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -46,7 +48,7 @@ export function RemoveDatasourceButton({
   function confirm() {
     remove.mutateAsync(datasource.uid).then(
       () => {
-        toast.success(`Removed ${datasource.name}`)
+        toast.success(`Removed ${label}`)
         setOpen(false)
       },
       (error) => {
@@ -63,7 +65,7 @@ export function RemoveDatasourceButton({
         ref={trigger}
         variant="outline"
         size="xs"
-        aria-label={`Remove ${datasource.name}`}
+        aria-label={`Remove ${label}`}
         onClick={() => setOpen(true)}
       >
         Remove
@@ -72,7 +74,7 @@ export function RemoveDatasourceButton({
         <AlertDialogContent finalFocus={trigger}>
           <AlertDialogHeader>
             <AlertDialogTitle className="wrap-anywhere">
-              Remove {datasource.name}?
+              Remove {label}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               Queries stop using it at once. Add it again to restore it; its

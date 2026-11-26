@@ -54,6 +54,15 @@ export function sourceLabel(source: DatasourceStatus["source"]): string {
   }
 }
 
+type Named = Pick<DatasourceStatus, "uid" | "name">
+
+export function rowLabel(datasource: Named, all: readonly Named[]): string {
+  const shared = all.some(
+    (other) => other.uid !== datasource.uid && other.name === datasource.name
+  )
+  return shared ? `${datasource.name} (${datasource.uid})` : datasource.name
+}
+
 export function usageLabel(count: number): string {
   if (count === 0) return "No dashboards"
   if (count === 1) return "1 dashboard"
