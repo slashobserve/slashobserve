@@ -26,7 +26,7 @@ const (
 
 	approximateQuantilesNote = "Tempo quantiles are interpolated from its log-scale duration buckets, so treat them as approximate. The histogram lists bucket upper bounds, not quantiles."
 
-	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, and slowest spans. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Also returns p50, p95 and p99 for the whole range (a window block), and with group_by on Tempo, the same per value of one attribute such as resource.service.name (top 20 by span count). Tempo quantiles are interpolated from log-scale duration buckets, so they are approximate, and the histogram holds bucket upper bounds, not quantiles. Use it to see whether latency or errors moved before reading single traces, or to compare services on one footing."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
@@ -66,8 +66,11 @@ type serviceOut struct {
 
 type spanRefOut struct {
 	SpanID        string `json:"span_id"`
+	ParentSpanID  string `json:"parent_span_id,omitempty"`
 	Name          string `json:"name"`
 	Service       string `json:"service"`
+	Depth         int    `json:"depth"`
+	Origin        bool   `json:"origin,omitempty"`
 	StatusMessage string `json:"status_message,omitempty"`
 }
 
@@ -76,6 +79,7 @@ type slowSpanOut struct {
 	Name       string  `json:"name"`
 	Service    string  `json:"service"`
 	DurationMS float64 `json:"duration_ms"`
+	SelfTimeMS float64 `json:"self_time_ms"`
 	Depth      int     `json:"depth"`
 }
 
@@ -156,6 +160,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	byID := make(map[string]*traceSpan, len(spans))
 	services := map[string]*serviceOut{}
 	var root *traceSpan
+	var failed []*traceSpan
 	start, end := spans[0].start, spans[0].start
 	for i := range spans {
 		s := &spans[i]
@@ -168,9 +173,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 		svc.Spans++
 		if datasource.IsErrorStatus(s.status) {
 			svc.Errors++
-			if len(out.Errors) < traceListLimit {
-				out.Errors = append(out.Errors, spanRefOut{SpanID: s.id, Name: s.name, Service: s.service, StatusMessage: s.statusMessage})
-			}
+			failed = append(failed, s)
 		}
 		if s.parent == "" && (root == nil || s.start.Before(root.start)) {
 			root = s
@@ -182,6 +185,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 		root = &spans[0]
 	}
 	out.Root = &spanRefOut{SpanID: root.id, Name: root.name, Service: root.service}
+	out.Errors = errorRefs(failed, byID, !out.Truncated)
 	out.DurationMS = millisOf(float64(end.Sub(start)))
 	for _, svc := range services {
 		out.Services = append(out.Services, *svc)
@@ -191,10 +195,73 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	})
 	slowest := slices.Clone(spans)
 	slices.SortStableFunc(slowest, func(a, b traceSpan) int { return cmp.Compare(b.duration, a.duration) })
+	children := childrenOf(spans)
 	for _, s := range slowest[:min(len(slowest), traceListLimit)] {
-		out.Slowest = append(out.Slowest, slowSpanOut{SpanID: s.id, Name: s.name, Service: s.service, DurationMS: millisOf(s.duration), Depth: depthOf(s, byID)})
+		out.Slowest = append(out.Slowest, slowSpanOut{SpanID: s.id, Name: s.name, Service: s.service, DurationMS: millisOf(s.duration), SelfTimeMS: millisOf(selfTime(s, children[s.id])), Depth: depthOf(s, byID)})
 	}
 	return out
+}
+
+func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
+	hasErrorBelow := map[string]bool{}
+	for _, s := range failed {
+		seen := map[string]bool{s.id: true}
+		for parent := s.parent; parent != "" && !seen[parent]; {
+			seen[parent] = true
+			p, ok := byID[parent]
+			if !ok {
+				break
+			}
+			hasErrorBelow[p.id] = true
+			parent = p.parent
+		}
+	}
+	origin := func(s *traceSpan) bool { return complete && !hasErrorBelow[s.id] }
+	listed := make([]*traceSpan, 0, min(len(failed), traceListLimit))
+	for _, wantOrigin := range []bool{true, false} {
+		for _, s := range failed {
+			if len(listed) < traceListLimit && origin(s) == wantOrigin {
+				listed = append(listed, s)
+			}
+		}
+	}
+	slices.SortStableFunc(listed, func(a, b *traceSpan) int { return slices.Index(failed, a) - slices.Index(failed, b) })
+	refs := make([]spanRefOut, 0, len(listed))
+	for _, s := range listed {
+		refs = append(refs, spanRefOut{SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID), Origin: origin(s), StatusMessage: s.statusMessage})
+	}
+	return refs
+}
+
+func childrenOf(spans []traceSpan) map[string][]traceSpan {
+	children := map[string][]traceSpan{}
+	for _, s := range spans {
+		if s.parent != "" && s.parent != s.id {
+			children[s.parent] = append(children[s.parent], s)
+		}
+	}
+	return children
+}
+
+func selfTime(s traceSpan, children []traceSpan) float64 {
+	end := s.start.Add(time.Duration(s.duration))
+	covered := time.Duration(0)
+	var cursor time.Time
+	for _, c := range sortedByStart(children) {
+		from, to := maxTime(c.start, s.start), minTime(c.start.Add(time.Duration(c.duration)), end)
+		from = maxTime(from, cursor)
+		if to.After(from) {
+			covered += to.Sub(from)
+			cursor = to
+		}
+	}
+	return max(s.duration-float64(covered), 0)
+}
+
+func sortedByStart(spans []traceSpan) []traceSpan {
+	sorted := slices.Clone(spans)
+	slices.SortStableFunc(sorted, func(a, b traceSpan) int { return a.start.Compare(b.start) })
+	return sorted
 }
 
 func spansOf(f datasource.Frame) []traceSpan {
