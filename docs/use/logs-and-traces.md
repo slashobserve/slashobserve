@@ -485,7 +485,7 @@ Each row shows these:
 - a dot for its level.
 
 The heading says how many patterns there are and what share of the lines they cover.
-When the page grouped a sample of the newest lines and the volume strip counts more, it says so, as in "a sample of 258 of 262 lines".
+When the patterns count fewer lines than the volume strip, the heading says what they count, as in "a sample of 258 of 262 lines" or "the 34,112 lines the pattern index covers, out of 75,026 lines".
 **Sort patterns** orders the rows by most lines or by newest.
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.

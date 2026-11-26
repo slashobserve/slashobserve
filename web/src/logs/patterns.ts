@@ -207,10 +207,13 @@ export function patternsHeading(
   const percent = covered < total ? Math.min(rounded, 99) : rounded
   const count = result.patterns.length
   const verb = count === 1 ? "pattern covers" : "patterns cover"
-  const partial = sampled && linesTotal !== undefined && linesTotal > total
-  const basis = partial
-    ? `a sample of ${total.toLocaleString("en")} of ${linesTotal.toLocaleString("en")} lines`
-    : `${total.toLocaleString("en")} lines`
+  const counted = total.toLocaleString("en")
+  const basis =
+    linesTotal === undefined || linesTotal <= total
+      ? `${counted} lines`
+      : sampled
+        ? `a sample of ${counted} of ${linesTotal.toLocaleString("en")} lines`
+        : `the ${counted} lines the ${result.source === "loki" ? "pattern index" : "aggregation"} covers, out of ${linesTotal.toLocaleString("en")} lines`
   return `${count} ${verb} ${percent}% of ${basis}. Numbers and ids become ${wildcard}.`
 }
 

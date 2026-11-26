@@ -287,7 +287,35 @@ describe("patternsHeading", () => {
     expect(patternsHeading(sampled)).toContain("100% of 258 lines.")
   })
 
-  it("never calls an index answer a sample", () => {
+  it("names what the Loki pattern index counted when the histogram counts more", () => {
+    expect(
+      patternsHeading(
+        result({
+          source: "loki",
+          lines_matched: 34112,
+          patterns: [pattern({ count: 27631 }), pattern({ count: 6481 })],
+        }),
+        75026
+      )
+    ).toBe(
+      "2 patterns cover 100% of the 34,112 lines the pattern index covers, out of 75,026 lines. Numbers and ids become <*>."
+    )
+  })
+
+  it("names the aggregation when Elasticsearch grouped fewer lines than the histogram", () => {
+    expect(
+      patternsHeading(
+        result({
+          source: "elasticsearch",
+          lines_matched: 100,
+          patterns: [pattern({ count: 100 })],
+        }),
+        500
+      )
+    ).toContain("the 100 lines the aggregation covers, out of 500 lines.")
+  })
+
+  it("reads plainly when an index answer matches the histogram", () => {
     expect(
       patternsHeading(
         result({
@@ -295,9 +323,9 @@ describe("patternsHeading", () => {
           lines_matched: 200,
           patterns: [pattern({ count: 200 })],
         }),
-        500
+        200
       )
-    ).toContain("of 200 lines.")
+    ).toContain("100% of 200 lines.")
   })
 
   it("never rounds a partial cover up to 100%", () => {
