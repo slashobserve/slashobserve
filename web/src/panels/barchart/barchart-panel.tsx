@@ -9,7 +9,7 @@ import {
   type MouseEvent,
 } from "react"
 
-import { axisDecimals, formatValue } from "@/lib/units"
+import { axisFormat } from "@/lib/units"
 import { useTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -636,19 +636,10 @@ function Plot({
     }
     return axisTicks(model.min, model.max, maxTicks)
   }, [model.min, model.max, model.scale, measureLength, vertical])
-  const decimals = axisDecimals(
-    scale.ticks,
-    model.axis.unit,
-    model.axis.decimals
-  )
-  const labelTexts = useMemo(
-    () =>
-      scale.ticks.map((tick) => ({
-        tick,
-        text: formatValue(tick, model.axis.unit, decimals),
-      })),
-    [scale.ticks, model.axis.unit, decimals]
-  )
+  const labelTexts = useMemo(() => {
+    const format = axisFormat(scale.ticks, model.axis.unit, model.axis.decimals)
+    return scale.ticks.map((tick) => ({ tick, text: format(tick) }))
+  }, [scale.ticks, model.axis.unit, model.axis.decimals])
   const marks = useMemo(
     () =>
       model.thresholds

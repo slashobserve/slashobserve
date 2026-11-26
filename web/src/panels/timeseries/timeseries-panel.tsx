@@ -15,7 +15,7 @@ import { stableJson } from "@/lib/json"
 import { zonedDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
-import { axisDecimals, formatValue } from "@/lib/units"
+import { axisFormat } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import type { DataPanel } from "@/spec"
 
@@ -418,10 +418,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         : {}),
       ticks: { show: false },
       values: (_u, splits) => {
-        const decimals = axisDecimals(splits, settings.unit, settings.decimals)
-        return splits.map((value) =>
-          formatValue(value, settings.unit, decimals)
-        )
+        return splits.map(axisFormat(splits, settings.unit, settings.decimals))
       },
       size:
         settings.width ??
