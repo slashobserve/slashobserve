@@ -297,6 +297,12 @@ func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Se
 	return nil
 }
 
+func approveListedTools(ctx context.Context, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
+	if err := service.ApproveListed(ctx, cfg.ContextSources); err != nil && ctx.Err() == nil {
+		logger.ErrorContext(ctx, "context source approvals from the provisioning file failed", slog.String("failure", err.Error()))
+	}
+}
+
 func fileAccounts(accounts []config.ServiceAccount) []auth.FileAccount {
 	out := make([]auth.FileAccount, len(accounts))
 	for i, a := range accounts {
@@ -505,7 +511,7 @@ func run() error {
 	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	contextSourcesService := contextsources.New(contextsources.Deps{
 		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
-		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), Version: version}, Logger: logger,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), PrivateTrip: egressClient.PrivateCallTripper(), Version: version}, Logger: logger,
 	})
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
@@ -606,6 +612,11 @@ func run() error {
 	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
+
+	stopApprovals := startBackground(ctx, "context source approvals", func(ctx context.Context) {
+		approveListedTools(ctx, contextSourcesService, cfg, logger)
+	}, logger)
+	defer stopApprovals()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,

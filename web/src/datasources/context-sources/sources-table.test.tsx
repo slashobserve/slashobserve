@@ -140,6 +140,14 @@ describe("McpSourcesSection", () => {
     expect(row).toHaveTextContent("2")
   })
 
+  it("marks a source that may use a private network address", async () => {
+    calls.sources = [source({ private: true })]
+    section()
+    expect(
+      await screen.findByText("Private network address allowed")
+    ).toBeVisible()
+  })
+
   it("keeps the tools collapsed until the chevron is used, and collapses them again", async () => {
     const { user } = section()
     const toggle = await screen.findByRole("button", {

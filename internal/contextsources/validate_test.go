@@ -15,9 +15,29 @@ func TestCheckAddressAcceptsAnHTTPSDomainAndReturnsItsHost(t *testing.T) {
 		"https://example.com":              "example.com",
 	}
 	for raw, want := range cases {
-		got, err := checkAddress(raw)
+		got, err := checkAddress(raw, false)
 		if err != nil || got != want {
-			t.Errorf("checkAddress(%q) = %q, %v; want %q", raw, got, err, want)
+			t.Errorf("checkAddress(%q, false) = %q, %v; want %q", raw, got, err, want)
+		}
+	}
+}
+
+func TestCheckAddressAcceptsHTTPOnlyForAPrivateSource(t *testing.T) {
+	for raw, want := range map[string]string{
+		"http://codeserver.demo.internal:8080/mcp": "codeserver.demo.internal",
+		"https://mcp.example.com/mcp":              "mcp.example.com",
+	} {
+		got, err := checkAddress(raw, true)
+		if err != nil || got != want {
+			t.Errorf("checkAddress(%q, true) = %q, %v; want %q", raw, got, err, want)
+		}
+		if _, err := checkAddress(raw, false); strings.HasPrefix(raw, "http:") && err == nil {
+			t.Errorf("checkAddress(%q, false) accepted an http address", raw)
+		}
+	}
+	for _, raw := range []string{"http://127.0.0.1:8080/mcp", "http://localhost/mcp", "http://codeserver:8080/mcp", "ftp://a.internal/mcp", "http://u:p@a.internal/mcp", "http://a.internal/mcp?k=v"} {
+		if _, err := checkAddress(raw, true); err == nil {
+			t.Errorf("checkAddress(%q, true) was accepted", raw)
 		}
 	}
 }
@@ -29,10 +49,10 @@ func TestCheckAddressRefusesWhatTheEgressWouldRefuse(t *testing.T) {
 		"https://user:pass@mcp.example.com/mcp", "https://mcp.example.com/mcp?key=abc", "https://mcp.example.com/mcp#frag",
 		"https://mcp.example.com/mcp?", "https:///mcp", "https://" + strings.Repeat("a", maxURLBytes) + ".com",
 	} {
-		_, err := checkAddress(raw)
+		_, err := checkAddress(raw, false)
 		var bad *InvalidError
 		if !errors.As(err, &bad) || bad.Fields[0].Field != "url" {
-			t.Errorf("checkAddress(%q) = %v, want an invalid url", raw, err)
+			t.Errorf("checkAddress(%q, false) = %v, want an invalid url", raw, err)
 		}
 	}
 }

@@ -8,10 +8,15 @@ import (
 const callHeaderTimeout = 60 * time.Second
 
 type callTripper struct {
-	c *Client
+	c         *Client
+	transport *http.Transport
 }
 
-func (c *Client) CallTripper() http.RoundTripper { return callTripper{c: c} }
+func (c *Client) CallTripper() http.RoundTripper { return callTripper{c: c, transport: c.calls} }
+
+func (c *Client) PrivateCallTripper() http.RoundTripper {
+	return callTripper{c: c, transport: c.privateCalls}
+}
 
 func (t callTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	host, err := anyPortHostOf(req.URL)
@@ -29,5 +34,5 @@ func (t callTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if out.Header.Get("User-Agent") == "" {
 		out.Header.Set("User-Agent", t.c.userAgent)
 	}
-	return t.c.calls.RoundTrip(out)
+	return t.transport.RoundTrip(out)
 }

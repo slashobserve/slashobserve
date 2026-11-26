@@ -127,6 +127,21 @@ contextSources:
 - `uid` and `url` are required, and `name` defaults to the uid.
 - `description` is optional and follows the same rules as in the app.
 - `audience` is `everyone` (the default) or `admins`.
+- `allowPrivate: true` lets the source be an `http` address on any port that resolves to a private network, such as another container on the same Compose network.
+  It follows the same rule as a [Grafana connection](../use/switch-from-grafana.md#who-can-connect-and-why-private-hosts-are-allowed): the host must still be a domain name with a dot, never an IP address or `localhost`, and it must still be on the outbound allowlist.
+  Only this file can set it.
+  The API, the CLI and the web app never accept it, and an `http` address without it is refused with `422 invalid_context_source`.
+  A source with it shows `private: true` in the API and the web app, and every audit event of the source carries `private: true`.
+  Removing the line makes the source public again, resets its check and refuses an `http` address.
+- `approve` is an optional list of tool names, such as `approve: [list_dir, read_file]`.
+  At every start, after it makes the entries match, the server runs a discovery for each source with a list, in the background, so the tools can be a few seconds behind the start.
+  It approves a listed tool the first time the server sees it, when the tool is `offered` and was not known before that discovery.
+  That is the only definition the file ever pins: a tool an Admin revoked, a tool an Admin or an earlier discovery already knew and left unapproved, and a tool that is `changed` stay as they are until an Admin approves them, so a revoke sticks across restarts and the file never approves a definition nobody read.
+  A tool the server marks destructive, or does not mark read-only, stays `refused`, as it does for an Admin.
+  A listed name the server does not offer, and any tool left as it is, is logged as a warning that names the tool and the reason.
+  Removing a name from the list does not revoke the tool; use **Revoke**.
+  The approval is recorded as `context_source.approve` by the system, with `provisioned: true` in its data.
+  A source that does not answer the discovery does not stop the server from starting, and one failing source does not stop the others: its tools wait for the next start or for an Admin.
 - A secret is never written in the file.
   Name an environment variable with `secretEnv`, whose name starts with `SLASHOBSERVE_`, or a file with `secretFile`.
   `secretHeader` is required with a secret.
@@ -136,6 +151,7 @@ contextSources:
 - Removing an entry from the file deletes its source at the next start.
 - The file does not touch the allowlist.
   Allow the server's domain yourself, or the first discovery reports `outbound_domain_not_allowed`.
+  With a `SLASHOBSERVE_OUTBOUND_DOMAINS` list, name the domain in it.
 - Approvals survive a restart and a rename.
   They are dropped only when the address changes.
 

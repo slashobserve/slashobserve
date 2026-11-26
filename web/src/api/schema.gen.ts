@@ -5291,7 +5291,7 @@ export interface components {
             name: string;
             /** @description What the source is for, on one line; null when none was set. */
             description: string | null;
-            /** @description The MCP endpoint, https, as stored. */
+            /** @description The MCP endpoint as stored; https, or http for a `private` source. */
             url: string;
             /**
              * @description Who may use the approved tools of this source; Admins manage every source whatever the audience.
@@ -5304,6 +5304,8 @@ export interface components {
             secret_set: boolean;
             /** @description True when the source comes from the context sources file and cannot be changed or deleted here. */
             provisioned: boolean;
+            /** @description True when the context sources file set `allowPrivate`, so the source may be an `http` address that resolves to a private network. Only the file can set it, and it is never writable through the API. */
+            private: boolean;
             /**
              * @description `unchecked` until discovery runs, `unreachable` when the last discovery failed, `ready` otherwise.
              * @enum {string}

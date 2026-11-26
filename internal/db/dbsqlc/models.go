@@ -253,6 +253,7 @@ type ContextSource struct {
 	CreatedBy    pgtype.UUID
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+	AllowPrivate bool
 }
 
 type ContextSourceTool struct {

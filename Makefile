@@ -17,7 +17,7 @@ WEB_AUDIT_IGNORE := GHSA-mrhx-c7xc-m3w5
 # hono and @hono/node-server under the MCP SDK's server transports, which observe-agent never loads; drop once hono 4.13.16 and @hono/node-server 2.1.6 are 14 days old (2026-11-16)
 AGENT_AUDIT_IGNORE := GHSA-qv5m-9pm6-hqp3 GHSA-jpvv-r467-5p4w GHSA-4m76-xfj5-7975 GHSA-h7mg-cq63-vhpq GHSA-3gg2-335m-rxc6 GHSA-46wx-v44x-9hh2 GHSA-4h7h-rv7c-7m2v
 
-.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
+.PHONY: build server cli agent agent-deps web web-deps generate test test-go test-web test-agent test-scripts test-benchmarks lint lint-go lint-web lint-web-types lint-web-eslint lint-web-knip lint-web-format lint-agent lint-deploy ci audit demo demo-build demo-search demo-code demo-down demo-reset demo-check demo-fault demo-fault-reset helm-kind helm-kind-down replicas-up replicas-down replicas-check loadtest e2e e2e-warm e2e-up e2e-browser e2e-all golden tidy-check clean
 
 build: web
 	$(MAKE) server cli agent
@@ -127,6 +127,9 @@ demo-build:
 
 demo-search:
 	VERSION=$(VERSION) COMMIT=$(COMMIT) scripts/astronomy.sh up --search
+
+demo-code:
+	VERSION=$(VERSION) COMMIT=$(COMMIT) scripts/astronomy.sh up --code
 
 demo-down:
 	scripts/astronomy.sh down

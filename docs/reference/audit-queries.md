@@ -226,11 +226,11 @@ The server keeps only the fields an action declares, and no event holds a messag
 | `saved_prompt.*` changes | `owner_id`, `changed`, `from_name` | A change to a shared prompt; see the details below |
 | `datasource.test`, `grafana_connection.test` | `type`, `host`, `healthy` | An Admin's connection test |
 | `grafana_connection.fetch_dashboard` | `host` | The connection used and its host |
-| `context_source.create`, `context_source.delete` | `name`, `host`, `audience` | A context source; never its secret |
-| `context_source.update` | `name`, `host`, `audience`, `changes`, `url_changed`, `credential_changed` | What changed in a context source; `credential_changed` says a secret or its header changed, never what it is |
-| `context_source.discover` | `host`, `found`, `new`, `changed`, `gone`, `ignored` | One discovery; a failed one carries the failure code as its reason instead of the counts |
-| `context_source.approve`, `context_source.revoke` | `host`, `tool`, `hash` | The tool and the SHA-256 of its pinned definition |
-| `context_source.call` | `host`, `tool`, `arguments`, `truncated` | One call of an approved tool; `arguments` are the values sent, cut short, with any named like a secret masked, and `truncated` says the result was cut. A refused or failed call carries its reason |
+| `context_source.create`, `context_source.delete` | `name`, `host`, `audience`, `private` | A context source; never its secret; `private` is true only for a source the context sources file allows to use a private address |
+| `context_source.update` | `name`, `host`, `audience`, `private`, `changes`, `url_changed`, `credential_changed` | What changed in a context source; `credential_changed` says a secret or its header changed, never what it is |
+| `context_source.discover` | `host`, `private`, `found`, `new`, `changed`, `gone`, `ignored` | One discovery; a failed one carries the failure code as its reason instead of the counts |
+| `context_source.approve`, `context_source.revoke` | `host`, `private`, `tool`, `hash`, `provisioned` | The tool and the SHA-256 of its pinned definition; `provisioned` is true only for an approval the context sources file made at start, which the system records as the actor |
+| `context_source.call` | `host`, `private`, `tool`, `arguments`, `truncated` | One call of an approved tool; `arguments` are the values sent, cut short, with any named like a secret masked, and `truncated` says the result was cut. A refused or failed call carries its reason |
 | any action that was denied | `needed_role`, `needed_access` | What the refusal said the request needed |
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model and tokens the run reported |
 | `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The message length in characters, and the anchor kind |

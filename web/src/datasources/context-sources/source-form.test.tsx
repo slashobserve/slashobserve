@@ -17,6 +17,7 @@ const stored: ContextSource = {
   secret_header: "X-Api-Key",
   secret_set: true,
   provisioned: false,
+  private: false,
   state: "ready",
   failure: null,
   checked_at: null,

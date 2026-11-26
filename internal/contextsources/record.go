@@ -23,8 +23,18 @@ func targetOf(row dbsqlc.ContextSource) audit.Target {
 	return audit.Target{Kind: targetKind, ID: row.Uid, Name: row.Name}
 }
 
+func hostData(row dbsqlc.ContextSource, host string) map[string]any {
+	data := map[string]any{"host": host}
+	if row.AllowPrivate {
+		data["private"] = true
+	}
+	return data
+}
+
 func identity(row dbsqlc.ContextSource, host string) map[string]any {
-	return map[string]any{"name": row.Name, "host": host, "audience": row.Audience}
+	data := hostData(row, host)
+	data["name"], data["audience"] = row.Name, row.Audience
+	return data
 }
 
 func recordCreated(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.ContextSource, host string) error {
@@ -49,6 +59,9 @@ func recordUpdated(ctx context.Context, q *dbsqlc.Queries, before, after dbsqlc.
 	if c := activity.Changed(before.Audience, after.Audience); c != nil {
 		changes["audience"] = c
 	}
+	if c := activity.Changed(before.AllowPrivate, after.AllowPrivate); c != nil {
+		changes["private"] = c
+	}
 	urlChanged := before.Url != after.Url
 	if len(changes) == 0 && !urlChanged && !next.credentials {
 		return nil
@@ -65,7 +78,7 @@ func recordUpdated(ctx context.Context, q *dbsqlc.Queries, before, after dbsqlc.
 }
 
 func recordDiscovered(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.ContextSource, tally Tally, failure string) error {
-	e := audit.Event{Action: actionDiscover, Target: targetOf(row), Data: map[string]any{"host": hostOfURL(row.Url)}}
+	e := audit.Event{Action: actionDiscover, Target: targetOf(row), Data: hostData(row, hostOfURL(row.Url))}
 	if failure != "" {
 		e.Outcome, e.Reason = audit.OutcomeFailed, failure
 	} else {
@@ -74,6 +87,18 @@ func recordDiscovered(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.Context
 	return audit.Record(ctx, q, e)
 }
 
+func toolData(row dbsqlc.ContextSource, t Tool) map[string]any {
+	data := hostData(row, hostOfURL(row.Url))
+	data["tool"], data["hash"] = t.Name, t.Pinned.Hash
+	return data
+}
+
 func recordTool(ctx context.Context, q *dbsqlc.Queries, action audit.Action, row dbsqlc.ContextSource, t Tool) error {
-	return audit.Record(ctx, q, audit.Event{Action: action, Target: targetOf(row), Data: map[string]any{"host": hostOfURL(row.Url), "tool": t.Name, "hash": t.Pinned.Hash}})
+	return audit.Record(ctx, q, audit.Event{Action: action, Target: targetOf(row), Data: toolData(row, t)})
+}
+
+func recordFileApproval(ctx context.Context, q *dbsqlc.Queries, row dbsqlc.ContextSource, t Tool) error {
+	data := toolData(row, t)
+	data["provisioned"] = true
+	return audit.Record(ctx, q, audit.Event{Action: actionApprove, Target: targetOf(row), Data: data})
 }

@@ -58,7 +58,7 @@ func (q *Queries) DeleteContextSourceTools(ctx context.Context, sourceID pgtype.
 }
 
 const getContextSource = `-- name: GetContextSource :one
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM context_sources WHERE uid = $1
 `
 
 func (q *Queries) GetContextSource(ctx context.Context, uid string) (ContextSource, error) {
@@ -79,6 +79,7 @@ func (q *Queries) GetContextSource(ctx context.Context, uid string) (ContextSour
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AllowPrivate,
 	)
 	return i, err
 }
@@ -114,9 +115,9 @@ func (q *Queries) GetContextSourceTool(ctx context.Context, arg GetContextSource
 }
 
 const insertContextSource = `-- name: InsertContextSource :one
-INSERT INTO context_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
+INSERT INTO context_sources (id, uid, name, description, url, audience, secret_header, secret, provisioned, allow_private, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private
 `
 
 type InsertContextSourceParams struct {
@@ -129,6 +130,7 @@ type InsertContextSourceParams struct {
 	SecretHeader pgtype.Text
 	Secret       []byte
 	Provisioned  bool
+	AllowPrivate bool
 	CreatedBy    pgtype.UUID
 }
 
@@ -143,6 +145,7 @@ func (q *Queries) InsertContextSource(ctx context.Context, arg InsertContextSour
 		arg.SecretHeader,
 		arg.Secret,
 		arg.Provisioned,
+		arg.AllowPrivate,
 		arg.CreatedBy,
 	)
 	var i ContextSource
@@ -161,6 +164,7 @@ func (q *Queries) InsertContextSource(ctx context.Context, arg InsertContextSour
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AllowPrivate,
 	)
 	return i, err
 }
@@ -234,7 +238,7 @@ func (q *Queries) ListContextSourceTools(ctx context.Context, sourceID pgtype.UU
 }
 
 const listContextSources = `-- name: ListContextSources :many
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources ORDER BY uid
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM context_sources ORDER BY uid
 `
 
 func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, error) {
@@ -261,6 +265,7 @@ func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, erro
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AllowPrivate,
 		); err != nil {
 			return nil, err
 		}
@@ -273,7 +278,7 @@ func (q *Queries) ListContextSources(ctx context.Context) ([]ContextSource, erro
 }
 
 const lockContextSource = `-- name: LockContextSource :one
-SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at FROM context_sources WHERE uid = $1 FOR UPDATE
+SELECT id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private FROM context_sources WHERE uid = $1 FOR UPDATE
 `
 
 func (q *Queries) LockContextSource(ctx context.Context, uid string) (ContextSource, error) {
@@ -294,6 +299,7 @@ func (q *Queries) LockContextSource(ctx context.Context, uid string) (ContextSou
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AllowPrivate,
 	)
 	return i, err
 }
@@ -377,12 +383,12 @@ func (q *Queries) PutContextSourceTool(ctx context.Context, arg PutContextSource
 const updateContextSource = `-- name: UpdateContextSource :one
 UPDATE context_sources
 SET name = $1, description = $2, url = $3, audience = $4, secret_header = $5, secret = $6,
-    provisioned = $7,
-    checked_at = CASE WHEN $8::boolean THEN NULL ELSE checked_at END,
-    failure = CASE WHEN $8::boolean THEN NULL ELSE failure END,
+    provisioned = $7, allow_private = $8,
+    checked_at = CASE WHEN $9::boolean THEN NULL ELSE checked_at END,
+    failure = CASE WHEN $9::boolean THEN NULL ELSE failure END,
     updated_at = clock_timestamp()
-WHERE uid = $9
-RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at
+WHERE uid = $10
+RETURNING id, uid, name, description, url, audience, secret_header, secret, provisioned, checked_at, failure, created_by, created_at, updated_at, allow_private
 `
 
 type UpdateContextSourceParams struct {
@@ -393,6 +399,7 @@ type UpdateContextSourceParams struct {
 	SecretHeader pgtype.Text
 	Secret       []byte
 	Provisioned  bool
+	AllowPrivate bool
 	ResetCheck   bool
 	Uid          string
 }
@@ -406,6 +413,7 @@ func (q *Queries) UpdateContextSource(ctx context.Context, arg UpdateContextSour
 		arg.SecretHeader,
 		arg.Secret,
 		arg.Provisioned,
+		arg.AllowPrivate,
 		arg.ResetCheck,
 		arg.Uid,
 	)
@@ -425,6 +433,7 @@ func (q *Queries) UpdateContextSource(ctx context.Context, arg UpdateContextSour
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AllowPrivate,
 	)
 	return i, err
 }

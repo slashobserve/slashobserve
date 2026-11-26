@@ -209,3 +209,45 @@ func TestFailureCodeDefaultsToUnreachable(t *testing.T) {
 		t.Errorf("failure = %q", got)
 	}
 }
+
+type refusingTripper struct{ called *bool }
+
+func (r refusingTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	*r.called = true
+	return nil, errors.New("the public tripper must not carry a private source")
+}
+
+func TestAPrivateTargetGoesThroughThePrivateTripperOnly(t *testing.T) {
+	f := &fakeMCP{secret: "s3cret-value", tools: []mcp.Tool{readOnlyTool("search", "Search things")}}
+	mux := http.NewServeMux()
+	mux.Handle("/mcp", f.handler())
+	c := egresstest.NewClient(t, listOf(t, fakeHost), mux, fakeHost)
+	var publicUsed bool
+	conn := MCPConnector{Trip: refusingTripper{called: &publicUsed}, PrivateTrip: c.PrivateCallTripper(), Version: "test"}
+	target := fakeTarget("s3cret-value")
+	target.Private = true
+	found, err := conn.Tools(t.Context(), target)
+	if err != nil || len(found) != 1 {
+		t.Fatalf("found %v, err %v", found, err)
+	}
+	if publicUsed {
+		t.Error("a private source used the public tripper")
+	}
+	if _, err := conn.Tools(t.Context(), fakeTarget("s3cret-value")); err == nil || !publicUsed {
+		t.Errorf("a public source must use the public tripper: %v", err)
+	}
+}
+
+func TestAPrivateTargetWithoutAPrivateTripperIsRefusedNotSentOverTheDefaultTransport(t *testing.T) {
+	var publicUsed bool
+	conn := MCPConnector{Trip: refusingTripper{called: &publicUsed}, Version: "test"}
+	target := fakeTarget("x")
+	target.Private = true
+	_, err := conn.Tools(t.Context(), target)
+	if err == nil || publicUsed {
+		t.Fatalf("err %v, public used %v", err, publicUsed)
+	}
+	if got := failureCode(err); got != FailureUnreachable {
+		t.Errorf("failure = %q", got)
+	}
+}

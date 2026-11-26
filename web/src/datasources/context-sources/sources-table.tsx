@@ -111,6 +111,11 @@ export function McpSourcesSection({
               Set by the context sources file
             </span>
           ) : null}
+          {source.private ? (
+            <span className="text-xs text-muted-foreground">
+              Private network address allowed
+            </span>
+          ) : null}
         </div>
       ),
     },
