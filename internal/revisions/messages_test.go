@@ -49,7 +49,7 @@ func TestIssuesSuffix(t *testing.T) {
 	if got := IssuesSuffix([]string{"a", "b"}); got != " (last issues: a, b)" {
 		t.Errorf("suffix = %q", got)
 	}
-	if got := IssuesSuffix([]string{"schema", "unknown_field"}); got != " (last issues: it did not match the required format, unknown field)" {
+	if got := IssuesSuffix([]string{"schema", "unknown_field"}); got != " (last issues: it did not match the required format (schema), unknown_field)" {
 		t.Errorf("suffix = %q", got)
 	}
 }
@@ -82,10 +82,10 @@ func TestValidationExhaustedMessageFitsWhatWasRejected(t *testing.T) {
 		r      Rejection
 		want   string
 	}{
-		{"dashboard", SourceObserve, Rejection{Panels: []string{"p1"}, Codes: []string{"query_empty"}}, "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1 (last issues: a query returned no data)"},
-		{"investigation with timed out evidence", SourceInvestigate, Rejection{Finding: true, Transient: true, Panels: []string{"evidence-1", "evidence-3"}, Codes: []string{"query_timeout"}}, "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-1, evidence-3 (last issues: a query timed out); a datasource did not answer in time, so ask again when it is healthy"},
-		{"question run with a finding", SourceObserve, Rejection{Finding: true, Codes: []string{"finding_too_long"}}, "the finding was rejected in 3 saves in a row (last issues: it was too long)"},
-		{"investigation with unfixable evidence", SourceInvestigate, Rejection{Panels: []string{"a", "b", "c", "d", "e"}, Other: 2, Codes: []string{"query_invalid"}}, "the finding was rejected in 3 saves in a row; its evidence that failed: a, b, c, d, e and 2 more (last issues: a query was not valid)"},
+		{"dashboard", SourceObserve, Rejection{Panels: []string{"p1"}, Codes: []string{"query_empty"}}, "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1 (last issues: a query returned no data (query_empty))"},
+		{"investigation with timed out evidence", SourceInvestigate, Rejection{Finding: true, Transient: true, Panels: []string{"evidence-1", "evidence-3"}, Codes: []string{"query_timeout"}}, "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-1, evidence-3 (last issues: a query timed out (query_timeout)); a datasource did not answer in time, so ask again when it is healthy"},
+		{"question run with a finding", SourceObserve, Rejection{Finding: true, Codes: []string{"finding_too_long"}}, "the finding was rejected in 3 saves in a row (last issues: it was too long (finding_too_long))"},
+		{"investigation with unfixable evidence", SourceInvestigate, Rejection{Panels: []string{"a", "b", "c", "d", "e"}, Other: 2, Codes: []string{"query_invalid"}}, "the finding was rejected in 3 saves in a row; its evidence that failed: a, b, c, d, e and 2 more (last issues: a query was not valid (query_invalid))"},
 	}
 	for _, tc := range cases {
 		if got := ValidationExhaustedMessage(tc.source, tc.r); got != tc.want {

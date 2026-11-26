@@ -19,6 +19,7 @@ const (
 	maxChangesPerPanel     = 4
 	maxChurnedSavesInRow   = 3
 	maxIssueCodes          = 3
+	maxReasonsShown        = 2
 	maxWritesPerAttempt    = 8
 
 	DefaultInvestigationCalls = 12
@@ -397,8 +398,15 @@ func (s *State) sendBack(c Call, adm Admission, faults []fault) Admission {
 		models[i], people[i] = f.model, f.people
 	}
 	adm = s.rejectWith(adm, codeInvalidRequest, strings.Join(models, "; and "))
-	adm.Step = sentBackStep + strings.Join(people, "; and ")
+	adm.Step = sentBackStep + peopleText(people)
 	return adm
+}
+
+func peopleText(reasons []string) string {
+	if len(reasons) <= maxReasonsShown {
+		return strings.Join(reasons, "; and ")
+	}
+	return fmt.Sprintf("%s; and %d more", strings.Join(reasons[:maxReasonsShown], "; "), len(reasons)-maxReasonsShown)
 }
 
 func (s *State) rejectWith(adm Admission, code, reason string) Admission {

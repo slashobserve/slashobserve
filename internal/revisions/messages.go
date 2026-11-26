@@ -143,7 +143,7 @@ var issuePhrases = map[string]string{
 
 func issuePhrase(code string) string {
 	if phrase, ok := issuePhrases[code]; ok {
-		return phrase
+		return phrase + " (" + code + ")"
 	}
-	return strings.NewReplacer("_", " ", ".", " ", ":", " ").Replace(code)
+	return code
 }

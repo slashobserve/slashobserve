@@ -1227,6 +1227,16 @@ func TestSentBackFaultsJoinIntoOnePlainStep(t *testing.T) {
 	}
 }
 
+func TestSentBackStepNamesAtMostTwoReasons(t *testing.T) {
+	got := peopleText([]string{"a", "b", "c", "d"})
+	if want := "a; b; and 2 more"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if got := peopleText([]string{"a", "b"}); got != "a; and b" {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestATitleCauseNeedsTheDoubtInASentenceAboutIt(t *testing.T) {
 	tests := []struct {
 		name  string
