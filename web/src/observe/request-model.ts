@@ -2,6 +2,18 @@ import type { ObserveRequest } from "@/observe/queries"
 
 export type Step = ObserveRequest["steps"][number]
 
+const legacySavedFinding = "Saved finding "
+
+export function isSavedAnswerStep(step: Step): boolean {
+  return step.tool === "save_finding" && step.status === "ok"
+}
+
+export function stepText(step: Step): string {
+  return step.message.startsWith(legacySavedFinding)
+    ? "Saved the answer"
+    : step.message
+}
+
 export type ToolCount = { tool: string; count: number }
 
 export type TimelinePhase = {

@@ -51,7 +51,7 @@ import { BuildCard } from "./build-card"
 import { PromptBubble } from "./prompt-bubble"
 import { ResultCard } from "./result-card"
 import { RunningFor } from "./run-duration"
-import { StepTimeline } from "./step-timeline"
+import { StepTimeline, type AnswerTarget } from "./step-timeline"
 import {
   RetryButton,
   Stalled,
@@ -293,6 +293,14 @@ export function RequestTurn({
   const detail = showLive ? live : undefined
   const build = request.build
   const answers = mayHaveFinding(request)
+  const answerElementId = `answer-${summary.id}`
+  const answerTarget: AnswerTarget | undefined =
+    detail?.finding == null
+      ? undefined
+      : {
+          observationId: detail.finding.observation_id,
+          elementId: answerElementId,
+        }
   const openNewRun = useOpenNewRun(request, onRetried, opensRunsIn)
   const mayReadBuild =
     request.requested_by.id === principal.id || live?.read_only === true
@@ -382,6 +390,7 @@ export function RequestTurn({
                 requestId={summary.id}
                 pane={inPane}
                 withMessages={words !== null}
+                answer={answerTarget}
               />
               {request.status === "running" ? (
                 <RunningFor startedAt={request.started_at} />
@@ -416,6 +425,7 @@ export function RequestTurn({
                     requestId={summary.id}
                     pane={inPane}
                     withMessages={words !== null}
+                    answer={answerTarget}
                   />
                 ) : query.isError ? (
                   <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted-foreground">
@@ -448,7 +458,11 @@ export function RequestTurn({
           ) : null}
           {answers && request.status === "succeeded" ? (
             detail?.finding != null ? (
-              <>
+              <div
+                id={answerElementId}
+                tabIndex={-1}
+                className="flex scroll-mt-4 flex-col gap-3 outline-none"
+              >
                 {!investigates ? (
                   <ChatAnswer
                     request={detail}
@@ -472,7 +486,7 @@ export function RequestTurn({
                     prompt={words}
                   />
                 ) : null}
-              </>
+              </div>
             ) : detail !== undefined &&
               (request.result_kind === "none" || !query.isFetching) ? (
               <p className="text-[13px] text-muted-foreground">
