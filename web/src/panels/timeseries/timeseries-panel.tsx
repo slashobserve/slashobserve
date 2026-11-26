@@ -95,6 +95,8 @@ const legendShare = 0.4
 const minSelectWidth = 5
 const axisFontSize = 12
 const axisLabelSize = 18
+const xAxisGap = 10
+const xAxisSize = 34
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const ghostDash = [2, 3]
 const noteHeight = 16
@@ -481,7 +483,8 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         show: model.xAxisShown,
         stroke: colors.muted,
         font,
-        size: model.xAxisShown ? 28 : 0,
+        gap: xAxisGap,
+        size: model.xAxisShown ? xAxisSize : 0,
         grid: { stroke: colors.grid, width: 1, filter: dropEdgeTicks },
         ticks: { show: false },
         filter: dropEdgeTicks,
