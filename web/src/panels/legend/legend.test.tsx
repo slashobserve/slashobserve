@@ -144,4 +144,23 @@ describe("Legend names", () => {
     render(legend(400))
     expect(shown()).toEqual(items.map((item) => item.label))
   })
+
+  it("keeps the measured spacing of inline values and never wraps them", () => {
+    render(
+      <Legend
+        items={items}
+        reducers={["lastNotNull"]}
+        headers={[""]}
+        cells={[["119"], ["1,107"], ["62,103"]]}
+        hidden={new Set()}
+        placement="right"
+        available={100}
+        width={160}
+        onToggle={() => undefined}
+      />
+    )
+    const value = screen.getByText("62,103")
+    expect(value).toHaveClass("whitespace-pre")
+    expect(value).not.toHaveClass("tabular-nums")
+  })
 })

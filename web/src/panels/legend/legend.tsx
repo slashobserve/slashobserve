@@ -5,7 +5,7 @@ import type { LineStyle } from "../colors"
 import type { DrawStyle } from "../timeseries/series-config"
 import { useLegendTextMeasure } from "./legend-measure"
 import { inlineValues, legendNames } from "./legend-model"
-import { legendNameRoom } from "./legend-width"
+import { inlineValuesWidth, legendNameRoom } from "./legend-width"
 
 export type LegendItem = {
   key: string
@@ -162,16 +162,11 @@ export function Legend({
   const measure = useLegendTextMeasure()
   const valuesPx =
     reducers.length > 0
-      ? Math.max(
-          0,
-          ...items.map((_, row) =>
-            measure(rootFontSize())(
-              inlineValues(reducers, cells[row], headers),
-              400
-            )
-          )
-        ) +
-        0.375 * rootFontSize()
+      ? inlineValuesWidth(
+          items.map((_, row) => inlineValues(reducers, cells[row], headers)),
+          measure(rootFontSize()),
+          rootFontSize()
+        )
       : 0
   const shownNames = useLegendNames(
     items,
@@ -216,7 +211,7 @@ export function Legend({
             />
             <LegendName label={item.label} text={shownNames[row]} />
             {reducers.length > 0 ? (
-              <span className="text-muted-foreground tabular-nums">
+              <span className="whitespace-pre text-muted-foreground">
                 {values}
               </span>
             ) : null}

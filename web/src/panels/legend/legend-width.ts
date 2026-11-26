@@ -35,6 +35,14 @@ export function legendNameRoom(
   )
 }
 
+export function inlineValuesWidth(
+  values: readonly string[],
+  measure: TextMeasure,
+  rem: number
+): number {
+  return widest(values, 400, measure) + swatchGapRem * rem
+}
+
 export function legendValueWidths(
   headers: readonly string[],
   cells: readonly (readonly string[])[],

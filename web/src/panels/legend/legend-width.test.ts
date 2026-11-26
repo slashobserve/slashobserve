@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  inlineValuesWidth,
   legendNameRoom,
   legendTableWidth,
   legendValueWidths,
@@ -101,5 +102,28 @@ describe("legendNameRoom", () => {
     const width = legendTableWidth(labels, headers, cells, tenPerCharacter, 16)
     const values = legendValueWidths(headers, cells, tenPerCharacter, 16)[0]
     expect(legendNameRoom(width, 16, values)).toBe(100)
+  })
+})
+
+describe("inlineValuesWidth", () => {
+  const liveDonut: Record<string, number> = {
+    "119  0.2%": 49.27,
+    "1,107  1.7%": 52.64,
+    "62,103  98.1%": 71.72,
+    UNSET: 38.89,
+  }
+  const measured = (text: string) => liveDonut[text]
+
+  it("leaves a right list legend row exactly the room its button has for the name", () => {
+    const values = inlineValuesWidth(
+      ["119  0.2%", "1,107  1.7%", "62,103  98.1%"],
+      measured,
+      16
+    )
+    const room = legendNameRoom(160, 16, values)
+    const rowContent = 160 - 2 * 4 - 2 * 6
+    const swatchAndGaps = 16 + 6 + 6
+    expect(room).toBeCloseTo(rowContent - swatchAndGaps - 71.72, 5)
+    expect(room).toBeGreaterThanOrEqual(measured("UNSET"))
   })
 })
