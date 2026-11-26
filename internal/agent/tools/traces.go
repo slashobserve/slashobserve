@@ -23,9 +23,12 @@ const (
 	traceSourcesMessage   = "get_trace reads Tempo, Jaeger and ClickHouse datasources"
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
+	minHTTPStatus         = 100
+	maxHTTPStatus         = 599
 	minServerErrorStatus  = 500
+	traceRelayLimit       = 5
 
-	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). A span with an HTTP status of 500 or more counts as an error even when its own status is unset, because it relays a failure from below. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Relays lists server spans with an HTTP status of 500 or more above a failing span: they passed the failure upstream and are not counted in errors. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
@@ -43,8 +46,6 @@ func (r *Registry) traceEntries() []entry {
 	}
 }
 
-var httpStatusKeys = []string{"http.response.status_code", "http.status_code"}
-
 type traceOut struct {
 	TraceID       string        `json:"trace_id"`
 	Spans         int           `json:"spans"`
@@ -54,6 +55,7 @@ type traceOut struct {
 	DurationMS    float64       `json:"duration_ms"`
 	Root          *spanRefOut   `json:"root"`
 	Errors        []spanRefOut  `json:"errors"`
+	Relays        []relayOut    `json:"relays,omitempty"`
 	Slowest       []slowSpanOut `json:"slowest"`
 	Links         int           `json:"links"`
 	LinkedTraces  []string      `json:"linked_traces,omitempty"`
@@ -76,6 +78,12 @@ type spanRefOut struct {
 	StatusMessage string `json:"status_message,omitempty"`
 }
 
+type relayOut struct {
+	Service    string `json:"service"`
+	Name       string `json:"name"`
+	HTTPStatus int    `json:"http_status"`
+}
+
 type slowSpanOut struct {
 	SpanID     string  `json:"span_id"`
 	Name       string  `json:"name"`
@@ -88,7 +96,7 @@ type slowSpanOut struct {
 
 type traceSpan struct {
 	id, parent, name, service, status string
-	statusMessage                     string
+	statusMessage, kind               string
 	httpStatus                        int
 	start                             time.Time
 	duration                          float64
@@ -175,7 +183,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 			services[s.service] = svc
 		}
 		svc.Spans++
-		if failing(s) {
+		if datasource.IsErrorStatus(s.status) {
 			svc.Errors++
 			failed = append(failed, s)
 		}
@@ -190,6 +198,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	}
 	out.Root = &spanRefOut{SpanID: root.id, Name: root.name, Service: root.service, HTTPStatus: root.httpStatus}
 	out.Errors = errorRefs(failed, byID, !out.Truncated)
+	out.Relays = relayRefs(spans, ancestorsOf(failed, byID))
 	out.DurationMS = millisOf(float64(end.Sub(start)))
 	for _, svc := range services {
 		out.Services = append(out.Services, *svc)
@@ -206,11 +215,19 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	return out
 }
 
-func failing(s *traceSpan) bool {
-	return datasource.IsErrorStatus(s.status) || s.httpStatus >= minServerErrorStatus
+func relayRefs(spans []traceSpan, aboveFailure map[string]bool) []relayOut {
+	var relays []relayOut
+	for _, s := range spans {
+		relay := aboveFailure[s.id] && datasource.SpanKindName(s.kind) == "Server" && !datasource.IsErrorStatus(s.status) &&
+			datasource.SpanStatusName(s.status) != "Ok" && s.httpStatus >= minServerErrorStatus && s.httpStatus <= maxHTTPStatus
+		if relay && len(relays) < traceRelayLimit {
+			relays = append(relays, relayOut{Service: s.service, Name: s.name, HTTPStatus: s.httpStatus})
+		}
+	}
+	return relays
 }
 
-func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
+func ancestorsOf(failed []*traceSpan, byID map[string]*traceSpan) map[string]bool {
 	hasErrorBelow := map[string]bool{}
 	for _, s := range failed {
 		seen := map[string]bool{s.id: true}
@@ -224,6 +241,11 @@ func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) [
 			parent = p.parent
 		}
 	}
+	return hasErrorBelow
+}
+
+func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
+	hasErrorBelow := ancestorsOf(failed, byID)
 	origin := func(s *traceSpan) bool { return complete && !hasErrorBelow[s.id] }
 	listed := make([]*traceSpan, 0, min(len(failed), traceListLimit))
 	for _, wantOrigin := range []bool{true, false} {
@@ -283,10 +305,10 @@ func spansOf(f datasource.Frame) []traceSpan {
 	}
 	ids, parents, names, services := column("SpanId"), column("ParentSpanId"), column("SpanName"), column("ServiceName")
 	starts, durations, statuses, links := column("StartTime"), column("Duration"), column("StatusCode"), column("SpanLinks")
-	messages, attributes := column("StatusMessage"), column("SpanAttributes")
+	messages, attributes, kinds := column("StatusMessage"), column("SpanAttributes"), column("SpanKind")
 	spans := make([]traceSpan, 0, len(ids))
 	for i := range ids {
-		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), statusMessage: stringAt(messages, i), httpStatus: httpStatusOf(stringAt(attributes, i)), duration: numberAt(durations, i)}
+		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), statusMessage: stringAt(messages, i), kind: stringAt(kinds, i), httpStatus: httpStatusOf(stringAt(attributes, i)), duration: numberAt(durations, i)}
 		if at, ok := valueAt(starts, i).(time.Time); ok {
 			s.start = at
 		}
@@ -303,18 +325,16 @@ func httpStatusOf(attributes string) int {
 	if !strings.Contains(attributes, "status_code") {
 		return 0
 	}
-	var attrs map[string]any
+	var attrs struct {
+		Response json.RawMessage `json:"http.response.status_code"`
+		Legacy   json.RawMessage `json:"http.status_code"`
+	}
 	if json.Unmarshal([]byte(attributes), &attrs) != nil {
 		return 0
 	}
-	for _, key := range httpStatusKeys {
-		switch v := attrs[key].(type) {
-		case float64:
-			return int(v)
-		case string:
-			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-				return n
-			}
+	for _, raw := range []json.RawMessage{attrs.Response, attrs.Legacy} {
+		if n, err := strconv.Atoi(strings.Trim(string(raw), `" `)); err == nil && n >= minHTTPStatus && n <= maxHTTPStatus {
+			return n
 		}
 	}
 	return 0
