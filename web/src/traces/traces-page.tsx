@@ -117,7 +117,7 @@ import {
   partialReason,
   traceStatsQuery,
 } from "./trace-stats"
-import { decodeSort, encodeSort } from "./trace-rows"
+import { decodeSort, encodeSort, listOrder } from "./trace-rows"
 import { TraceTable, type TraceSortControl } from "./trace-table"
 
 const skeletonRows = [0, 1, 2, 3, 4]
@@ -870,7 +870,11 @@ function TraceResults({
       ? undefined
       : histogramPercentile(stats.data.histogram, 95)
   const label = p95Label(search)
-  const covered = meta.partial ? partialNote(rows, undefined) : null
+  const limited = meta.partial || state.hasNext || state.page > 1
+  const order = listOrder(
+    datasource.type === "clickhouse" ? decodeSort(search.sort) : null
+  )
+  const covered = limited && order.newest ? partialNote(rows, undefined) : null
   return (
     <div className="flex flex-col gap-3">
       {failure}
@@ -887,14 +891,20 @@ function TraceResults({
           </StatusLabel>
         </p>
       ) : null}
-      {meta.partial ? (
+      {limited ? (
         <div
           role="status"
           className="flex flex-wrap items-center gap-3 rounded-card border py-2 pr-2 pl-3 text-[13px]"
         >
           <StatusLabel tone="warning">Partial</StatusLabel>
           <p className="min-w-0 flex-1">
-            {partialReason(rows.length, pageSize, state.hasNext)}
+            {partialReason({
+              order: order.text,
+              rowCount: rows.length,
+              pageSize,
+              hasNext: state.hasNext,
+              cut: meta.partial,
+            })}
             {covered !== null ? ` ${covered.text}` : null}
           </p>
           {covered !== null ? (
@@ -919,7 +929,7 @@ function TraceResults({
           rows={rows}
           p95={p95}
           label={label}
-          fitWindow={meta.partial}
+          fitWindow={limited && order.newest}
         />
         {pageBar}
       </div>

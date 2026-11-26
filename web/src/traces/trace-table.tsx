@@ -413,8 +413,7 @@ function SortedTraceTable({
           </p>
         ) : null}
         <p className="ml-auto text-xs text-muted-foreground">
-          {sortHint(sort)}
-          {sortControl === undefined ? " Sorting applies to this page." : ""}
+          {sortHint(sort, sortControl === undefined ? "page" : "all")}
         </p>
         {headerActions}
         <ColumnsMenu hidden={hidden} onToggle={onToggleColumn} />

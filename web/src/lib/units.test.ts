@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  abbreviateTimeUnits,
   axisFormat,
   commonDecimals,
   decimalsByUnit,
@@ -428,5 +429,19 @@ describe("custom unit forms", () => {
     for (const kind of ["time", "si", "count", "currency", "suffix"]) {
       expect(parseUnit(`${kind}: `), kind).toEqual({ kind: "id", id: "none" })
     }
+  })
+})
+
+describe("abbreviateTimeUnits", () => {
+  it.each([
+    ["2 hour", "2 h"],
+    ["10 day", "10 d"],
+    ["1.5 week", "1.5 w"],
+    ["3 year", "3 y"],
+    ["50.33 min", "50.33 min"],
+    ["2.44 s", "2.44 s"],
+    ["1 hour ago", "1 hour ago"],
+  ])("writes %s as %s", (text, short) => {
+    expect(abbreviateTimeUnits(text)).toBe(short)
   })
 })

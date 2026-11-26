@@ -1,4 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
+import { abbreviateTimeUnits, formatValue } from "@/lib/units"
 
 export type TraceRow = {
   traceId: string
@@ -83,9 +84,7 @@ export function countText(count: number, noun: string): string {
 }
 
 export function durationText(ms: number | null): string {
-  return ms === null
-    ? "-"
-    : `${ms.toLocaleString("en", { maximumFractionDigits: 1 })} ms`
+  return ms === null ? "-" : abbreviateTimeUnits(formatValue(ms, "ms"))
 }
 
 export function rowDurationText(row: TraceRow): string {
@@ -225,10 +224,31 @@ const sortHints: Record<TraceSortKey, [string, string]> = {
   errors: ["Fewest errors first.", "Most errors first."],
 }
 
-export function sortHint(sort: TraceSort | null): string {
-  if (sort === null) return "Click a column to sort."
+export type SortScope = "all" | "page"
+
+export function sortHint(sort: TraceSort | null, scope: SortScope): string {
+  const action = `Click a column to sort ${scope === "all" ? "all matching traces" : "this page"}.`
+  if (sort === null) return action
   const [ascending, descending] = sortHints[sort.key]
-  return `${sort.direction === "ascending" ? ascending : descending} Click a column to sort.`
+  return `${sort.direction === "ascending" ? ascending : descending} ${action}`
+}
+
+export type ListOrder = { text: string; newest: boolean }
+
+const newestSort: TraceSort = { key: "start", direction: "descending" }
+
+export function listOrder(sort: TraceSort | null): ListOrder {
+  const effective = sort ?? newestSort
+  const [ascending, descending] = sortHints[effective.key]
+  const hint = effective.direction === "ascending" ? ascending : descending
+  return {
+    text: lowerFirst(hint),
+    newest: effective.key === "start" && effective.direction === "descending",
+  }
+}
+
+function lowerFirst(hint: string): string {
+  return hint.slice(0, 1).toLowerCase() + hint.slice(1, -1)
 }
 
 export function percentile(

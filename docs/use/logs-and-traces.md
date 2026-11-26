@@ -915,13 +915,19 @@ That panel holds the TraceQL on Tempo, or on ClickHouse a query for the spans of
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats.
   When Tempo does not report those stats, both columns are left out.
 
+#### Full pages on every source
+
+Whenever a page of traces is full and more matches wait on the next pages, ClickHouse, Jaeger and Tempo show the same **Partial** note above the chart, naming the order of the list: newest first on Tempo and Jaeger, and the table's sort on ClickHouse, slowest first by default.
+The chart then spans the times of the traces shown instead of the whole range.
+The line above the table says what a click on a column sorts: all matching traces on ClickHouse, which sorts on the server, and only the page on the other sources.
+
 #### Partial results on Tempo
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them.
 There are two causes.
 
 - The page filled up.
-  The note says "Showing the newest 50 traces that match", because the server asks Tempo for the most recent matches first, and a reload shows the same traces.
+  The note says "This page shows 50 traces, newest first", because the server asks Tempo for the most recent matches first, and a reload shows the same traces.
   It adds `with (most_recent=true)` unless the TraceQL carries its own `with` hints.
 - Tempo stopped at its time limit, so some matching traces may be missing.
 

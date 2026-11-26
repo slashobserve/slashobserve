@@ -135,6 +135,20 @@ function placeDuration(value: number, unitNs: number): Placed {
   return { amount: ns / step.ns, suffix: ` ${step.label}` }
 }
 
+const longTimeUnits: Record<string, string> = {
+  hour: "h",
+  day: "d",
+  week: "w",
+  year: "y",
+}
+
+export function abbreviateTimeUnits(text: string): string {
+  return text.replace(
+    /(\d) (hour|day|week|year)$/,
+    (_, digit: string, unit: string) => `${digit} ${longTimeUnits[unit]}`
+  )
+}
+
 const humanDurationParts = [
   { label: "y", ms: 365 * 86_400_000 },
   { label: "d", ms: 86_400_000 },
