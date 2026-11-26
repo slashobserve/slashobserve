@@ -20,7 +20,7 @@ You send the sign-in link yourself.
 2. Enter the email, pick the **Role** the person should have, and confirm.
    The dialog shows the sign-in link, which is the `/login` page of your server.
 3. Choose **Copy** and send the link.
-   The invite appears under **Pending invites**, where you can change its role, choose **Copy sign-in link** again or choose **Withdraw**.
+   The invite appears under **Pending invites**, where you can change its role, choose **Copy sign-in link** again or choose **Withdraw** and confirm.
 
 From the CLI, `observe people invite <email> --role <role>` does the same, `observe people invites` lists pending invites, and `observe people uninvite <invite id>` withdraws one.
 See [`observe people`](../use/cli.md#people).

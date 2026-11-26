@@ -12,7 +12,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 )
 
-const rollbackTimeout = 5 * time.Second
+const (
+	rollbackTimeout = 5 * time.Second
+	commitTimeout   = 5 * time.Second
+)
 
 type Savepoint func(fn func(*dbsqlc.Queries) error) error
 
@@ -64,7 +67,10 @@ func (d *DB) InTxWithSavepoints(ctx context.Context, fn func(*dbsqlc.Queries, Sa
 		rollback()
 		return err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	// A caller that leaves during COMMIT must not leave its outcome unknown to whoever audits it.
+	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commitTimeout)
+	defer cancel()
+	if err := tx.Commit(cctx); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil

@@ -33,6 +33,11 @@ const addNote =
 const editNote =
   "A new address drops the approved tools, so approvals never carry over to another server. A new host needs the secret again, or removes it."
 
+function submitLabel(adding: boolean, pending: boolean) {
+  if (adding) return pending ? "Adding source..." : "Add source"
+  return pending ? "Saving..." : "Save changes"
+}
+
 export function SourcePanel({
   mode,
   onClose,
@@ -93,7 +98,7 @@ export function SourcePanel({
                 className="motion-safe:animate-spin"
               />
             ) : null}
-            {adding ? "Add source" : "Save changes"}
+            {submitLabel(adding, active.isPending)}
           </Button>
           <Button
             variant="outline"

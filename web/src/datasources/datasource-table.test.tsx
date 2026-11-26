@@ -34,20 +34,32 @@ describe("DatasourceTable audience", () => {
     renderTable([
       status({ uid: "open" }),
       status({ uid: "payroll", audience: "admins" }),
-      status({ uid: "audit", source: "file", audience: "admins" }),
+      status({
+        uid: "audit",
+        name: "audit",
+        source: "file",
+        audience: "admins",
+      }),
       status({ uid: "everyone", audience: "everyone" }),
     ])
-    expect(await screen.findAllByText("Only Admins")).toHaveLength(2)
+    expect(await screen.findAllByText("Admins only")).toHaveLength(2)
     const payroll = screen.getByText("payroll").closest("[data-uid]")
-    expect(payroll).toHaveTextContent("Only Admins")
+    expect(payroll).toHaveTextContent("Admins only")
     expect(
       screen.getByText("open").closest("[data-uid]")
-    ).not.toHaveTextContent("Only Admins")
+    ).not.toHaveTextContent("Admins only")
   })
 
   it("offers no Edit for an Admins-only datasource from the file", async () => {
-    renderTable([status({ uid: "audit", source: "file", audience: "admins" })])
-    await screen.findByText("Only Admins")
+    renderTable([
+      status({
+        uid: "audit",
+        name: "audit",
+        source: "file",
+        audience: "admins",
+      }),
+    ])
+    await screen.findByText("Admins only")
     expect(
       screen.queryByRole("button", { name: "Edit audit" })
     ).not.toBeInTheDocument()
@@ -83,6 +95,28 @@ describe("DatasourceTable rows", () => {
   })
 })
 
+describe("DatasourceTable row labels", () => {
+  it("names a row by its name, and adds the id only when names collide", async () => {
+    renderTable([
+      status({ uid: "prom-a", name: "Prometheus" }),
+      status({ uid: "prom-b", name: "Prometheus" }),
+      status({ uid: "loki", name: "Logs", type: "loki" }),
+    ])
+    expect(
+      await screen.findByRole("button", { name: "Edit Prometheus (prom-a)" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Recheck Prometheus (prom-b)" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Edit Logs" })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Recheck Logs" })
+    ).toBeInTheDocument()
+  })
+})
+
 describe("DatasourceTable built-in datasource", () => {
   const builtin = status({
     uid: "slashobserve-audit",
@@ -96,24 +130,24 @@ describe("DatasourceTable built-in datasource", () => {
     renderTable([builtin])
     const row = (await screen.findByText("Audit trail")).closest("[data-uid]")
     expect(row).toHaveTextContent("Built in")
-    expect(row).toHaveTextContent("Only Admins")
+    expect(row).toHaveTextContent("Admins only")
   })
 
   it("offers no Edit or Remove, only Recheck and the logs link", async () => {
     renderTable([builtin])
     await screen.findByText("Audit trail")
     expect(
-      screen.queryByRole("button", { name: "Edit slashobserve-audit" })
+      screen.queryByRole("button", { name: "Edit Audit trail" })
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole("button", { name: /Remove slashobserve-audit/ })
+      screen.queryByRole("button", { name: /Remove Audit trail/ })
     ).not.toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "Recheck slashobserve-audit" })
+      screen.getByRole("button", { name: "Recheck Audit trail" })
     ).toBeInTheDocument()
     expect(
       screen.getByRole("link", {
-        name: "Explore logs in slashobserve-audit",
+        name: "Explore logs in Audit trail",
       })
     ).toBeInTheDocument()
   })

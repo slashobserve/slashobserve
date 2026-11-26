@@ -17,13 +17,13 @@ This page covers registering a source, approving its tools and what the agent ma
    The page has this one **Add source** button, and the type list offers the datasource types and **MCP server** together.
    Fill in the form:
    - **Id**, which names the source in the CLI and the audit log and cannot change later.
-     It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
+     It starts with a letter or digit and has at most 40 letters, digits, hyphens or underscores.
    - **Name**, shown in lists, at most 100 characters without control or format characters.
      It defaults to the id.
    - **Description**, what the source is for, on one line of at most 300 characters.
      It is optional.
    - **Address**, the server's `https` MCP address with a domain name, no login, no query and no fragment.
-   - **Who can use its tools**, either **Everyone** or **Admins only**.
+   - **Who can use it**, either **Everyone** or **Admins only**.
      Admins manage every source whatever you choose.
    - **Secret header** and **Secret**, when the server needs a credential, such as `Authorization` with `Bearer ...`.
 3. Choose **Add source**.

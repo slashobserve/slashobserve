@@ -157,7 +157,7 @@ func TestTheBriefOfAnAdminsRunWritingForEveryoneSaysWhereAdminsOnlyDataCanBeRead
 			t.Fatal(err)
 		}
 		if strings.Contains(brief.Message, datasource.WithheldNote) == adminsOnly {
-			t.Fatalf("Only Admins folder %v: brief carries the withheld note %v", adminsOnly, !adminsOnly)
+			t.Fatalf("Admins only folder %v: brief carries the withheld note %v", adminsOnly, !adminsOnly)
 		}
 	}
 	r := newRig(t)

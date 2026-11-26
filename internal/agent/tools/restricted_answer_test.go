@@ -42,9 +42,9 @@ func TestRestrictedContentAdviceMatchesTheCaller(t *testing.T) {
 		want string
 		not  string
 	}{
-		"an Admin":  {auth.WithPrincipal(t.Context(), auth.Principal{Role: auth.RoleAdmin}), "or you can set a folder to Only Admins", "ask an Admin"},
-		"an Editor": {auth.WithPrincipal(t.Context(), auth.Principal{Role: auth.RoleEditor}), "or ask an Admin to set a folder to Only Admins", "you can set"},
-		"no caller": {t.Context(), "or ask an Admin to set a folder to Only Admins", "you can set"},
+		"an Admin":  {auth.WithPrincipal(t.Context(), auth.Principal{Role: auth.RoleAdmin}), "or you can set a folder to Admins only", "ask an Admin"},
+		"an Editor": {auth.WithPrincipal(t.Context(), auth.Principal{Role: auth.RoleEditor}), "or ask an Admin to set a folder to Admins only", "you can set"},
+		"no caller": {t.Context(), "or ask an Admin to set a folder to Admins only", "you can set"},
 	} {
 		res, ok := restrictedRefusal(tc.ctx, err)
 		if !ok {

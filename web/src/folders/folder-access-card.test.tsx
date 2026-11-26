@@ -153,7 +153,7 @@ describe("FolderAccessCard", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument()
   })
 
-  it("offers Only Admins to an Admin and sends it with an empty list", async () => {
+  it("offers Admins only to an Admin and sends it with an empty list", async () => {
     const sent: unknown[] = []
     const user = renderCard("admin", [], {
       put: (body) => {
@@ -161,7 +161,7 @@ describe("FolderAccessCard", () => {
         return json({ restricted: true, admins_only: true, entries: [] })
       },
     })
-    await user.click(await screen.findByRole("radio", { name: /Only Admins/ }))
+    await user.click(await screen.findByRole("radio", { name: /Admins only/ }))
     await user.click(
       await screen.findByRole("button", { name: "Make Admins only" })
     )
@@ -170,11 +170,11 @@ describe("FolderAccessCard", () => {
     )
   })
 
-  it("never offers Only Admins to someone who is not an Admin", async () => {
+  it("never offers Admins only to someone who is not an Admin", async () => {
     renderCard("editor")
     await screen.findByRole("radio", { name: /Everyone, by role/ })
     expect(
-      screen.queryByRole("radio", { name: /Only Admins/ })
+      screen.queryByRole("radio", { name: /Admins only/ })
     ).not.toBeInTheDocument()
   })
 
@@ -197,7 +197,7 @@ describe("FolderAccessCard", () => {
       },
     })
     expect(
-      await screen.findByRole("radio", { name: /Only Admins/ })
+      await screen.findByRole("radio", { name: /Admins only/ })
     ).toBeChecked()
     await user.click(screen.getByRole("radio", { name: /Everyone, by role/ }))
     await user.click(
