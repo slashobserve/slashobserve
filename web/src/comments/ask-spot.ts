@@ -106,6 +106,24 @@ export function spotTurnIds(
   return ids
 }
 
+type RunTurn = {
+  id: string
+  status: string
+  requested_by: { id: string }
+}
+
+export function runningOwnTurnId(
+  turns: readonly (RunTurn | undefined)[],
+  viewerId: string
+): string | undefined {
+  return turns.findLast(
+    (turn) =>
+      turn !== undefined &&
+      (turn.status === "queued" || turn.status === "running") &&
+      turn.requested_by.id === viewerId
+  )?.id
+}
+
 function panelName(panelTitle: string): string {
   return panelTitle === "" ? "Untitled panel" : panelTitle
 }

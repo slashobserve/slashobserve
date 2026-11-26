@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useId, useState, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+} from "react"
+import { useQueries, useQuery } from "@tanstack/react-query"
 import { useRouteContext, useSearch } from "@tanstack/react-router"
 import { LockIcon, XIcon } from "lucide-react"
 
 import { useActivityStore, useCurrentChat } from "@/activity/activity-store"
 import { keepFocusThroughPaneSwitch } from "@/components/dock/dock-focus"
+import { useChatScroll } from "@/chat/chat-scroll"
 import { useChat } from "@/chat/chats-queries"
 import { ContextChips } from "@/chat/context-chips"
 import { ChatAnswer } from "@/chat/request-turn"
@@ -35,6 +43,7 @@ import {
   askChips,
   askWorkingText,
   pinName,
+  runningOwnTurnId,
   spotLabel,
   spotTurnIds,
 } from "./ask-spot"
@@ -312,7 +321,10 @@ function AskTurn({
   const request = query.data
   if (request === undefined) {
     return (
-      <li className="text-[13px] text-muted-foreground">
+      <li
+        className="text-[13px] text-muted-foreground"
+        data-request={requestId}
+      >
         {query.isError ? "This question could not be loaded." : "Loading"}
       </li>
     )
@@ -365,14 +377,27 @@ function AskThread({
       current.includes(request.id) ? current : [...current, request.id]
     )
   }
+  const { principal } = useRouteContext({ from: "/_authed" })
+  const requests = useQueries({
+    queries: ids.map((id) => observeRequestQuery(id)),
+  })
+  const runningRequestId = runningOwnTurnId(
+    requests.map((request) => request.data),
+    principal.id
+  )
+  const list = useRef<HTMLOListElement>(null)
+  const pinToEnd = useChatScroll(list, turn.requestId)
   const model = useComposer({
     draft: useAskText(),
     subject,
     place: { kind: "canvas", tool: "ask", chatId: turn.chatId },
     target: spotTarget(subject, spot.ownerId, spot.anchor),
     gate,
+    runningRequestId,
     onSent: (sent) => {
-      if (sent.via === "chat") asked(sent.request)
+      if (sent.via !== "chat") return
+      pinToEnd()
+      asked(sent.request)
     },
   })
   useReportSending(model.pending)
@@ -397,17 +422,27 @@ function AskThread({
           <XIcon aria-hidden="true" />
         </Button>
       </div>
-      <ol
-        aria-label="Your chat on this spot"
+      <div
         className={cn(
-          "flex min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col gap-3.5 overflow-y-auto p-3",
+          "flex min-h-0 [scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent] flex-col overflow-y-auto",
           sized ? "flex-auto" : "max-h-[min(28rem,60vh)]"
         )}
       >
-        {ids.map((id) => (
-          <AskTurn key={id} requestId={id} subject={subject} onAsked={asked} />
-        ))}
-      </ol>
+        <ol
+          ref={list}
+          aria-label="Your chat on this spot"
+          className="flex flex-col gap-3.5 p-3"
+        >
+          {ids.map((id) => (
+            <AskTurn
+              key={id}
+              requestId={id}
+              subject={subject}
+              onAsked={asked}
+            />
+          ))}
+        </ol>
+      </div>
       <div className="px-3 pb-2.5">
         <Composer
           model={model}
