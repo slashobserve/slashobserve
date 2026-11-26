@@ -1,7 +1,9 @@
 import type { Chat } from "./chats-queries"
 
-export const noDashboardLabel = "No dashboard"
+export const noSubjectLabel = "No dashboard or observation"
 const unseenDashboardLabel = "A dashboard you cannot see"
+const unseenObservationLabel = "An observation you cannot see"
+const untitledObservationLabel = "An observation"
 const chosenDashboardLabel = "Chosen dashboard"
 
 export function turnsText(turns: number): string {
@@ -13,6 +15,28 @@ export function dashboardLabel(
 ): string | null {
   if (chat.dashboard_id === null) return null
   return chat.dashboard_title ?? unseenDashboardLabel
+}
+
+export type Subject = {
+  dashboard_id: string | null
+  dashboard_title: string | null
+  observation_id: string | null
+  observation_title?: string | null
+}
+
+export function subjectLabel(subject: Subject): string | null {
+  if (subject.dashboard_id !== null) {
+    return subject.dashboard_title ?? unseenDashboardLabel
+  }
+  if (subject.observation_id === null) return null
+  switch (subject.observation_title) {
+    case undefined:
+      return untitledObservationLabel
+    case null:
+      return unseenObservationLabel
+    default:
+      return subject.observation_title
+  }
 }
 
 export type DashboardChoice = { id: string; label: string }
