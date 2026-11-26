@@ -119,11 +119,11 @@ describe("readableCell", () => {
 
   it("shows a Duration number as a human unit and keeps the nanoseconds", () => {
     expect(readableCell("Duration", "number", 17_277_411)).toEqual({
-      text: "17.3 ms",
+      text: "17.28 ms",
       raw: "17277411 ns",
     })
     expect(readableCell("duration", "number", 2_500_000_000)?.text).toBe(
-      "2,500 ms"
+      "2.5 s"
     )
   })
 

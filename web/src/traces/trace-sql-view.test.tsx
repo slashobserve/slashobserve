@@ -178,7 +178,7 @@ describe("TraceSqlResults", () => {
       />,
       { route: { path: "/", url: "/" } }
     )
-    const duration = await screen.findByText("17.3 ms")
+    const duration = await screen.findByText("17.28 ms")
     expect(duration.getAttribute("title")).toBe("17277411 ns")
     expect(screen.getByTitle(`${at} ms`)).toBeTruthy()
     expect(screen.queryByText(String(at))).toBeNull()

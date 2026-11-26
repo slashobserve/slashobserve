@@ -79,20 +79,40 @@ describe("partialNote", () => {
 })
 
 describe("partialReason", () => {
-  it("says the page holds the newest matches when it is full", () => {
-    expect(partialReason(50, 50, true)).toBe(
-      "Showing the newest 50 traces that match; older matches are on the next pages."
+  const base = {
+    order: "newest first",
+    pageSize: 50,
+    hasNext: true,
+    cut: false,
+  }
+
+  it("says what order a full page is in and where the rest is", () => {
+    expect(partialReason({ ...base, rowCount: 50 })).toBe(
+      "This page shows 50 traces, newest first; more matches are on the next pages."
+    )
+    expect(
+      partialReason({ ...base, rowCount: 50, order: "slowest first" })
+    ).toBe(
+      "This page shows 50 traces, slowest first; more matches are on the next pages."
+    )
+  })
+
+  it("says the same for a full page that Tempo cut short", () => {
+    expect(partialReason({ ...base, rowCount: 50, cut: true })).toBe(
+      "This page shows 50 traces, newest first; more matches are on the next pages."
     )
   })
 
   it("blames the time limit when the page is not full", () => {
-    expect(partialReason(12, 50, false)).toBe(
+    expect(
+      partialReason({ ...base, rowCount: 12, hasNext: false, cut: true })
+    ).toBe(
       "Tempo stopped searching at its time limit, so some matching traces may be missing."
     )
   })
 
   it("points to the next page when the time limit cut a page short", () => {
-    expect(partialReason(12, 50, true)).toBe(
+    expect(partialReason({ ...base, rowCount: 12, cut: true })).toBe(
       "Tempo stopped searching at its time limit, so these are the newest matches it found; the next page searches further back."
     )
   })

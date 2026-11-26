@@ -1,6 +1,6 @@
 import { zonedTimeValue } from "@/lib/time"
 
-import { countText, type TraceRow } from "./trace-rows"
+import { countText, durationText, type TraceRow } from "./trace-rows"
 
 export type ScatterPoint = {
   traceId: string
@@ -36,16 +36,16 @@ export function durationScale(maxMs: number): DurationScale {
   }
 }
 
+const tickLadder = [
+  10, 100, 1000, 10_000, 60_000, 600_000, 3_600_000, 36_000_000, 86_400_000,
+  864_000_000,
+]
+
 export function durationTicks(maxMs: number): number[] {
   const top = durationScale(maxMs).maxMs
-  const decades: number[] = []
-  for (let tick = top; tick >= 10; tick /= 10) decades.push(tick)
-  const stride = Math.ceil(decades.length / 4)
-  return decades.filter((_, index) => index % stride === 0).reverse()
-}
-
-export function durationTickText(ms: number): string {
-  return ms < 1000 ? `${ms} ms` : `${ms / 1000} s`
+  const ticks = tickLadder.filter((tick) => tick <= top)
+  const stride = Math.ceil(ticks.length / 4)
+  return ticks.filter((_, index) => (ticks.length - 1 - index) % stride === 0)
 }
 
 export function scatterPoints(
@@ -228,16 +228,6 @@ export function nudgeSelection(
   }
 }
 
-function trimmed(value: number, decimals: number): string {
-  return Number(value.toFixed(decimals)).toLocaleString("en")
-}
-
-export function durationBoundText(ms: number): string {
-  return ms < 1000
-    ? `${trimmed(ms, ms < 10 ? 1 : 0)} ms`
-    : `${trimmed(ms / 1000, 2)} s`
-}
-
 export function selectionTimeText(
   ms: number,
   zone: string | undefined
@@ -252,7 +242,7 @@ export function selectionText(
 ): string {
   const bounds =
     selection.maxMs === null
-      ? `slower than ${durationBoundText(selection.minMs)}`
-      : `between ${durationBoundText(selection.minMs)} and ${durationBoundText(selection.maxMs)}`
+      ? `slower than ${durationText(selection.minMs)}`
+      : `between ${durationText(selection.minMs)} and ${durationText(selection.maxMs)}`
   return `${countText(count, "trace")} selected: ${selectionTimeText(selection.from, zone)} to ${selectionTimeText(selection.to, zone)}, ${bounds}`
 }

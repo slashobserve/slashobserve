@@ -15,6 +15,7 @@ import {
   pageSortParam,
   percentile,
   rowDurationText,
+  listOrder,
   sortHint,
   sortTraceRows,
   traceRows,
@@ -233,9 +234,18 @@ describe("countText", () => {
 })
 
 describe("durationText", () => {
-  it("formats milliseconds with one decimal at most", () => {
-    expect(durationText(12.54)).toBe("12.5 ms")
-    expect(durationText(2410)).toBe("2,410 ms")
+  it.each([
+    [0.87708, "877.08 µs"],
+    [1.27, "1.27 ms"],
+    [12.54, "12.54 ms"],
+    [2444, "2.44 s"],
+    [3_020_012.7, "50.33 min"],
+    [600_004.1, "10 min"],
+  ])("scales %s ms to %s", (ms, text) => {
+    expect(durationText(ms)).toBe(text)
+  })
+
+  it("writes a dash for a missing duration", () => {
     expect(durationText(null)).toBe("-")
   })
 })
@@ -330,14 +340,37 @@ describe("nextSort", () => {
 })
 
 describe("sortHint", () => {
-  it("names the active order before the sorting hint", () => {
-    expect(sortHint(defaultTraceSort)).toBe(
-      "Slowest first. Click a column to sort."
+  it("names the active order and what a click sorts", () => {
+    expect(sortHint(defaultTraceSort, "all")).toBe(
+      "Slowest first. Click a column to sort all matching traces."
     )
-    expect(sortHint({ key: "start", direction: "descending" })).toBe(
-      "Newest first. Click a column to sort."
+    expect(sortHint({ key: "start", direction: "descending" }, "page")).toBe(
+      "Newest first. Click a column to sort this page."
     )
-    expect(sortHint(null)).toBe("Click a column to sort.")
+    expect(sortHint(null, "page")).toBe("Click a column to sort this page.")
+  })
+})
+
+describe("listOrder", () => {
+  it("reads newest first when no sort applies", () => {
+    expect(listOrder(null)).toEqual({ text: "newest first", newest: true })
+    expect(listOrder({ key: "start", direction: "descending" }).newest).toBe(
+      true
+    )
+  })
+
+  it("names any other order in lower case", () => {
+    expect(listOrder(defaultTraceSort)).toEqual({
+      text: "slowest first",
+      newest: false,
+    })
+    expect(listOrder({ key: "start", direction: "ascending" })).toEqual({
+      text: "oldest first",
+      newest: false,
+    })
+    expect(listOrder({ key: "service", direction: "ascending" }).text).toBe(
+      "root service A to Z"
+    )
   })
 })
 
