@@ -40,6 +40,7 @@ import {
   nextSort,
   openTraceLabel,
   percentile,
+  rowDurationText,
   sortHint,
   sortTraceRows,
   type TraceRow,
@@ -158,7 +159,7 @@ export function traceGridColumn(
         flex: 1.6,
         cell: (row) => (
           <BarCell
-            text={durationText(row.durationMs)}
+            text={rowDurationText(row)}
             widthCh={context.durationWidthCh}
             share={barShare(row.durationMs, context.slowest)}
             marker={markerShare(context.p95, context.slowest)}
@@ -356,9 +357,7 @@ function SortedTraceTable({
       slots,
       slowest,
       p95,
-      durationWidthCh: textWidthCh(
-        rows.map((row) => durationText(row.durationMs))
-      ),
+      durationWidthCh: textWidthCh(rows.map(rowDurationText)),
       datasourceUid,
       range: { from, to },
     }
