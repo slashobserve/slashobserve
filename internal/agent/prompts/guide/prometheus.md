@@ -5,3 +5,5 @@
 - A ratio whose numerator may have no series yet (errors before any occurred): `(sum(rate(<errors>[$__rate_interval])) or vector(0)) / sum(rate(<all>[$__rate_interval]))`.
 - An earlier-period comparison goes in one query: `label_replace(<now>, "period", "now", "", "") or label_replace(<same with offset 1d>, "period", "1d ago", "", "")`, so the panel has data before the earlier period exists.
 - `ALERTS{alertstate="firing"}` lists firing alerts; a second query on `ALERTS_FOR_STATE` shows since when.
+- A peak, minimum, total or duration is an instant query, not a read of range points, which show only the sampled ones: `max_over_time(<series>[<window>])`, `increase(...)`, `timestamp()` of the extreme.
+- Read a store's label names before selecting by a service name; the service label may be `job`, not the key another store uses.
