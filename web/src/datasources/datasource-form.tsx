@@ -366,8 +366,8 @@ export function DatasourceForm({
         </RadioGroup>
         <p className="text-xs text-muted-foreground">
           Admins only means only Admins can query it, and dashboards, searches
-          and observations that read it must live in a folder set to Only
-          Admins.
+          and observations that read it must live in a folder set to Admins
+          only.
         </p>
       </fieldset>
 

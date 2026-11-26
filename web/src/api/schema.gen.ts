@@ -19498,7 +19498,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The dashboard is in My Dashboards (`personal_folder`; move it to a shared folder first) or in a folder only Admins can read (`admins_only_folder`; move it to a folder that is not Only Admins, unless it reads an Admins-only datasource, which the `datasource` field names and which keeps it where it is). */
+            /** @description The dashboard is in My Dashboards (`personal_folder`; move it to a shared folder first) or in a folder only Admins can read (`admins_only_folder`; move it to a folder that is not Admins only, unless it reads an Admins-only datasource, which the `datasource` field names and which keeps it where it is). */
             409: {
                 headers: {
                     [name: string]: unknown;

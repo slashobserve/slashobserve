@@ -79,7 +79,7 @@ func TestTheRefusalToLinkADashboardSaysWhereItCanGo(t *testing.T) {
 	foldertest.Move(t, r.db, audit, foldertest.AdminsOnly(t, r.db, "Salaries"))
 
 	_, err := r.service.Create(reading(t.Context()), admin, plain, CreateInput{Mode: ModeFrozen})
-	if !errors.Is(err, ErrAdminsOnly) || adminsOnlyDatasource(err) != "" || !strings.Contains(err.Error(), "not Only Admins") {
+	if !errors.Is(err, ErrAdminsOnly) || adminsOnlyDatasource(err) != "" || !strings.Contains(err.Error(), "not Admins only") {
 		t.Errorf("a dashboard that can move: %v", err)
 	}
 	_, err = r.service.Create(reading(t.Context()), admin, audit, CreateInput{Mode: ModeFrozen})
@@ -95,7 +95,7 @@ func TestTheRefusalToLinkAnRCASaysWhereItCanGo(t *testing.T) {
 	r.db.Exec(t, `UPDATE folders SET admins_only = true WHERE id = $1`, r.folder)
 
 	_, err := r.service.CreateRCALink(reading(t.Context()), admin, id, 1, CreateRCAInput{})
-	if !errors.Is(err, ErrRCAAdminsOnly) || adminsOnlyDatasource(err) != "" || !strings.Contains(err.Error(), "not Only Admins") {
+	if !errors.Is(err, ErrRCAAdminsOnly) || adminsOnlyDatasource(err) != "" || !strings.Contains(err.Error(), "not Admins only") {
 		t.Errorf("an observation that can move: %v", err)
 	}
 	r.db.Exec(t, `INSERT INTO datasources (uid, type, name, config, audience) VALUES ('prom', 'prometheus', 'Prom', '{}', 'admins')`)

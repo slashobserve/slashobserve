@@ -136,7 +136,7 @@ To limit it to Admins:
 1. Edit the datasource and choose **Admins only** under **Who can use it**.
 2. Move any dashboard, observation or saved search that reads it into a folder only Admins can read.
    The save is refused until you do.
-3. Save.
+3. Choose **Save changes**.
 
 From the CLI, `--audience admins` on `observe datasources add` or `edit`.
 Over HTTP, `"audience": "admins"` on `POST /api/v1/datasources` or `PATCH /api/v1/datasources/{uid}`.

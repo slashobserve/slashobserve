@@ -56,9 +56,9 @@ It offers no chat or import button, because those start dashboards in your My Da
 ## Make a folder Admins only
 
 An Admins-only folder has no list, and only Admins see it, the person who created it included.
-Only an Admin chooses **Only Admins** in the folder settings.
+Only an Admin chooses **Admins only** in the folder settings.
 General and My Dashboards cannot be made Admins only.
-Its row on the Dashboards page reads "Only Admins".
+Its row on the Dashboards page reads "Admins only".
 Listing someone or opening the folder ends it.
 
 From the CLI, an Admin key runs `observe folders admins-only <folder-id> --yes`.
@@ -150,7 +150,7 @@ The folder's settings page switches a folder between three kinds:
 | --- | --- |
 | Open (**Everyone, by role**) | Everyone, with the access their role gives. It has no list. |
 | Restricted (**Only the people and groups below**) | The people and groups on its list, the person who created it and Admins. The list holds at most 50 entries. |
-| Admins only (**Only Admins**) | Admins only, the person who created it included. It has no list. |
+| **Admins only** | Admins only, the person who created it included. It has no list. |
 
 In an open folder, Admins manage, Editors edit, Commenters comment and Viewers view.
 
@@ -291,7 +291,7 @@ While a run about a dashboard or observation in an Admins-only folder has not en
 What the run writes may still read Admin-only data.
 
 An Admins-only folder has no [public links](../use/public-links.md).
-Choosing **Only Admins** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder`.
+Choosing **Admins only** for a folder that holds a dashboard or an RCA with an unexpired public link, or moving such a dashboard or observation into it, is refused with `409 admins_only_folder`.
 Revoke the links first.
 
 ### Access request routes

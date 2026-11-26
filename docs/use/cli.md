@@ -1629,7 +1629,7 @@ observe folders permissions admins-only <folder-id> --yes
 ```
 
 `list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see.
-It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Only Admins)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
+It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Admins only)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
 
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`.
 A title that another folder uses answers `folder_exists`.

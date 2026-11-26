@@ -547,7 +547,7 @@ It shows who published it by name and by no id.
 
 An observation in My Dashboards cannot have a link, and the request answers 403 `forbidden_role`.
 One in a folder only Admins can read is refused with `409 admins_only_folder`.
-That answer says to move it to a folder that is not Only Admins, or it names the Admins-only datasource the observation reads, also in a `datasource` field, when it cannot leave.
+That answer says to move it to a folder that is not Admins only, or it names the Admins-only datasource the observation reads, also in a `datasource` field, when it cannot leave.
 A revision with a snapshot of data that depends on who is viewing, from `${__user.*}` in a query, cannot have a link, because nobody could read it on a public address.
 The request answers 422 `user_scoped`.
 

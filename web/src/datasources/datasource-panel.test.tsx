@@ -91,7 +91,7 @@ describe("DatasourcePanel audience", () => {
     expect(await screen.findByRole("radio", { name: "Everyone" })).toBeChecked()
     expect(screen.getByRole("radio", { name: "Admins only" })).not.toBeChecked()
     expect(
-      screen.getByText(/must live in a folder set to Only Admins/)
+      screen.getByText(/must live in a folder set to Admins only/)
     ).toBeInTheDocument()
   })
 
@@ -106,7 +106,7 @@ describe("DatasourcePanel audience", () => {
     expect(sent[0]).toMatchObject({ audience: "admins", name: "Payroll" })
   })
 
-  it("lists what blocks Only Admins and keeps the person's edits", async () => {
+  it("lists what blocks Admins only and keeps the person's edits", async () => {
     const { user } = renderEditor(() =>
       json(
         {
@@ -149,7 +149,7 @@ describe("DatasourcePanel audience", () => {
     expect(screen.getByText("and 4 more")).toBeInTheDocument()
     expect(screen.getByText("3 in personal folders")).toBeInTheDocument()
     expect(
-      screen.getByText(/Move them to an Only Admins folder/)
+      screen.getByText(/Move them to an Admins only folder/)
     ).toBeInTheDocument()
     expect(screen.getByLabelText("Name")).toHaveValue("Payroll")
     expect(screen.getByRole("radio", { name: "Admins only" })).toBeChecked()
