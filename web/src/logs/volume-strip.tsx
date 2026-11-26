@@ -53,7 +53,7 @@ const kindClasses: Record<LogLevelKind, string> = {
 }
 
 const chipClasses =
-  "border-transparent bg-transparent text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+  "border-transparent bg-transparent text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground data-[dimmed]:opacity-50"
 
 const cardClasses = "flex flex-col gap-2 rounded-card border bg-card px-4 py-3"
 
@@ -200,7 +200,7 @@ function VolumeBars({
   const describedBy = useId()
   const brushable = !useCoarsePointer()
   const {
-    levels: { hidden, setHidden },
+    levels: { shown: shownLevels, hidden, pick, clear },
   } = useLogsWorkspace()
   const [hover, setHover] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; to: number } | null>(null)
@@ -225,12 +225,6 @@ function VolumeBars({
         to: Math.max(drag.anchor, drag.to),
       }
     : selection
-
-  function toggle(kind: LogLevelKind) {
-    const next = new Set(hidden)
-    if (!next.delete(kind)) next.add(kind)
-    setHidden(next)
-  }
 
   function bucketUnder(event: PointerEvent<HTMLDivElement>): number {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -365,9 +359,9 @@ function VolumeBars({
             type="button"
             variant="outline"
             size="xs"
-            aria-pressed={hidden.size === 0}
+            aria-pressed={shownLevels === undefined}
             className={chipClasses}
-            onClick={() => setHidden(new Set())}
+            onClick={clear}
           >
             All
             <span className="tabular-nums">{count(total)}</span>
@@ -378,9 +372,17 @@ function VolumeBars({
               type="button"
               variant="outline"
               size="xs"
-              aria-pressed={!hidden.has(kind)}
+              aria-pressed={shownLevels?.includes(kind) ?? false}
+              data-dimmed={
+                shownLevels !== undefined && !shownLevels.includes(kind)
+                  ? ""
+                  : undefined
+              }
+              title="Click to show only this level, shift-click to add or remove it"
               className={chipClasses}
-              onClick={() => toggle(kind)}
+              onClick={(event) =>
+                pick(kind, event.shiftKey || event.metaKey || event.ctrlKey)
+              }
             >
               <KindSquare kind={kind} />
               {volumeKindNames[kind]}
