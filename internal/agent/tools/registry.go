@@ -710,34 +710,16 @@ func allowed(p auth.Principal, inRun bool, t Tool) bool {
 
 func errorStep(tool, code string) string {
 	if code == codeInvalidRequest {
-		return "Rejected " + tool + " input: " + code
+		return SentBackStep(tool, "")
 	}
 	return "Could not run " + tool + ": " + code
 }
 
 func callErrorStep(tool string, eb errorBody) string {
-	switch {
-	case eb.Code == codeInvalidRequest && eb.unknownField:
-		return "The " + tool + " call was sent back for a fix: it used an option the tool does not take"
-	case eb.Code == codeInvalidRequest && eb.Message != "":
-		return "Rejected " + tool + " input: " + clipAtWord(eb.Message, maxStepReasonBytes)
+	if eb.Code == codeInvalidRequest {
+		return SentBackStep(tool, rejectionReason(eb))
 	}
 	return errorStep(tool, eb.Code)
-}
-
-func clipAtWord(s string, n int) string {
-	clipped := clip(s, n)
-	if clipped == s {
-		return s
-	}
-	kept := strings.TrimSuffix(clipped, "...")
-	if s[len(kept)] == ' ' {
-		return kept + "..."
-	}
-	if i := strings.LastIndexByte(kept, ' '); i > len(kept)/2 {
-		kept = kept[:i]
-	}
-	return strings.TrimRight(kept, " ,;:.") + "..."
 }
 
 type errorBody struct {

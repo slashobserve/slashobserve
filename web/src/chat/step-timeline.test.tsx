@@ -282,7 +282,8 @@ describe("StepTimeline", () => {
             {
               ...saved[0],
               status: "error",
-              message: "Rejected save_finding input: only one save per turn",
+              message:
+                "The save_finding call was sent back for a fix: it was a second save in the same turn",
             },
           ]}
           working={false}

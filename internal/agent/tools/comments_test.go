@@ -61,7 +61,7 @@ func TestCommentWritesRejectAgentRunsAndCommentReadsReachTheThreads(t *testing.T
 				if errorCode(t, res) != codeInvalidRequest || res.Content.(errorBody).Message != commentRejection {
 					t.Fatalf("res = %#v", res.Content)
 				}
-				if res.Step != "Rejected "+tool+" input: "+commentRejection {
+				if res.Step != "The "+tool+" call was sent back for a fix" {
 					t.Fatalf("step = %q", res.Step)
 				}
 			})

@@ -350,11 +350,11 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	adm.Key = Key(c.Name, c.Input)
 	switch {
 	case s.Turn.SaveSeen:
-		return s.reject(c, adm, "only one save per turn", "only one save per turn")
+		return s.reject(c, adm, "only one save per turn", "it was a second save in the same turn")
 	case c.Name == toolSaveFinding && s.Building:
 		s.Turn.SaveSeen = true
 		const reason = "this run already saved panels; finish the dashboard instead of saving a finding"
-		return s.reject(c, adm, reason, reason)
+		return s.reject(c, adm, reason, "this run is building a dashboard, so it cannot save an answer")
 	case c.Name == toolSaveFinding:
 		if faults := s.unbackedFinding(c); len(faults) > 0 {
 			s.Turn.SaveSeen = true
@@ -387,7 +387,7 @@ func (s *State) noteSave(key string) (repeated bool) {
 
 func (s *State) reject(c Call, adm Admission, reason, people string) Admission {
 	adm = s.rejectWith(adm, codeInvalidRequest, reason)
-	adm.Step = "Rejected " + c.label() + " input: " + people
+	adm.Step = tools.SentBackStep(c.label(), people)
 	return adm
 }
 

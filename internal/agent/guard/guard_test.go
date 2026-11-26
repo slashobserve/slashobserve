@@ -299,7 +299,7 @@ func TestAdmitOrdersAThreeReadTurnWithADuplicateAndTwoSaves(t *testing.T) {
 		t.Fatalf("a save in a fresh turn = %v", extra.Verdict)
 	}
 	second := s.Admit(2, jsonCall("update_dashboard", `{}`))
-	if second.Verdict != Refuse || !strings.Contains(string(second.Content), "only one save per turn") || second.Step != "Rejected update_dashboard input: only one save per turn" {
+	if second.Verdict != Refuse || !strings.Contains(string(second.Content), "only one save per turn") || second.Step != "The update_dashboard call was sent back for a fix: it was a second save in the same turn" {
 		t.Fatalf("second save of a turn = %+v", second)
 	}
 	if string(second.Content) != `{"code":"invalid_request","message":"only one save per turn"}` {
@@ -331,7 +331,7 @@ func TestAdmitRefusesSaveFindingOnceBuilding(t *testing.T) {
 	s.BeginSession(true, 0)
 	s.BeginTurn(true)
 	adm := s.Admit(0, jsonCall("save_finding", `{}`))
-	if adm.Verdict != Refuse || adm.Step != "Rejected save_finding input: this run already saved panels; finish the dashboard instead of saving a finding" {
+	if adm.Verdict != Refuse || adm.Step != "The save_finding call was sent back for a fix: this run is building a dashboard, so it cannot save an answer" {
 		t.Fatalf("admission = %+v", adm)
 	}
 }
