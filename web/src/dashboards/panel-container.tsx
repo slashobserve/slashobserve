@@ -484,6 +484,12 @@ export const PanelContainer = memo(function PanelContainer({
     )
   }, [panelName])
 
+  const executed = useMemo(() => {
+    const ran = data?.meta.queries
+    return (queryRef: string) =>
+      ran?.find((entry) => entry.ref === queryRef)?.executed
+  }, [data])
+
   const panelMenu = (inToolbar: boolean) => (
     <PanelMenu
       panel={panel}
@@ -511,6 +517,7 @@ export const PanelContainer = memo(function PanelContainer({
       inToolbar={inToolbar}
       observationVariables={observationVariables}
       block={blockMenu}
+      executed={executed}
     />
   )
 

@@ -123,7 +123,7 @@ A panel block's caption names its datasource and its window: "Last hour, live", 
 A snapshot's caption says "Frozen" with the time range of its data.
 
 A panel block is drawn as a dashboard panel.
-Its panel menu has **View as table**, **Inspect**, **Download CSV** and **Save as PNG**, plus **Open in Logs** or **Open in Traces** on a logs or traces panel.
+Its panel menu has **View as table**, **Inspect**, **Download CSV** and **Save as PNG**, plus **Open in Logs**, **Open in Traces** or **Open in Metrics** on a data panel.
 **Inspect** opens the panel's data and query in the right pane in place of the discussion, and closing it brings the discussion back.
 
 A block that carries variables shows a picker above the panel for each one with stored options, starting at the values it was added with.

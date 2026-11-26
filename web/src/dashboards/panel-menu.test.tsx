@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { LayoutPanel } from "@/spec"
+import { DatasourceListProvider } from "@/datasources/queries"
 import { renderWithProviders } from "@/test/render"
 
 import { useCanvasTool } from "./canvas-tools"
@@ -317,6 +318,50 @@ describe("PanelMenu", () => {
       expect(router?.state.location.pathname).toBe("/logs/loki")
     )
     expect(router?.state.location.search).toMatchObject(dashboardRange)
+  })
+
+  it("opens Metrics with the panel's query over the dashboard's range", async () => {
+    const composer = createRef<HTMLTextAreaElement>()
+    const { user, router } = renderWithProviders(
+      <DatasourceListProvider value={[{ uid: "prom", type: "prometheus" }]}>
+        <PanelMenu
+          panel={panel}
+          range={dashboardRange}
+          selections={{}}
+          tableView={false}
+          onToggleTableView={() => {}}
+          idle
+          viewing={false}
+          onCanvas={false}
+          canComment
+          canEdit={false}
+          canPropose={false}
+          composerRef={composer}
+        />
+      </DatasourceListProvider>,
+      { route: { path: "/d/$dashboardId/{-$slug}", url: "/d/d1" } }
+    )
+    await openMenu(user, "Checkout latency")
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Open in Metrics" })
+    )
+    await waitFor(() =>
+      expect(router?.state.location.pathname).toBe("/explore/metrics/prom")
+    )
+    expect(router?.state.location.search).toMatchObject({
+      q: "up",
+      ...dashboardRange,
+    })
+  })
+
+  it("greys out Open in Explore with its reason when the datasource has no explorer", async () => {
+    const { user } = renderMenu()
+    await openMenu(user, "Checkout latency")
+    expect(
+      await screen.findByRole("menuitem", {
+        name: "Open in Explore (no explorer for this datasource)",
+      })
+    ).toHaveAttribute("aria-disabled", "true")
   })
 
   it("hands Add to observation the dashboard's own range when the address carries none", async () => {
