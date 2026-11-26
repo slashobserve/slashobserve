@@ -1,10 +1,11 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useId,
   useRef,
   useState,
+  type Dispatch,
+  type SetStateAction,
 } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
@@ -36,7 +37,6 @@ import {
   useWithdrawInvite,
   type Invite,
 } from "./invites"
-import { neighbourInviteId, withdrawButtonFor } from "./invite-focus"
 import { RoleSelect } from "./role-select"
 
 function inviteId(invite: Invite): string {
@@ -71,37 +71,38 @@ function InviteRole({ invite }: { invite: Invite }) {
   )
 }
 
-const FocusAfterWithdraw = createContext<(id: string | null) => void>(() => {})
+const SetWithdrawing = createContext<Dispatch<SetStateAction<string | null>>>(
+  () => {}
+)
 
 function WithdrawButton({ invite }: { invite: Invite }) {
   const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
   const withdraw = useWithdrawInvite()
-  const invites = useQuery(invitesQuery()).data
-  const focusAfterWithdraw = useContext(FocusAfterWithdraw)
-  const neighbourId = neighbourInviteId(
-    (invites ?? []).map(inviteId),
-    invite.id
-  )
+  const setWithdrawing = useContext(SetWithdrawing)
 
   function confirm() {
     setOpen(false)
+    setWithdrawing(invite.id)
     withdraw.mutateAsync(invite.id).then(
-      () => {
-        toast.success(`Withdrew the invite for ${invite.email}`)
-        focusAfterWithdraw(neighbourId)
-      },
-      (error) => toast.error(inviteProblemText(error))
+      () => toast.success(`Withdrew the invite for ${invite.email}`),
+      (error) => {
+        setWithdrawing((id) => (id === invite.id ? null : id))
+        toast.error(inviteProblemText(error))
+      }
     )
   }
 
   return (
     <>
       <Button
-        data-withdraw={invite.id}
+        ref={trigger}
+        data-withdraw=""
         variant="outline"
         size="sm"
         className="narrow:h-11"
         disabled={withdraw.isPending}
+        focusableWhenDisabled
         aria-busy={withdraw.isPending}
         aria-label={`Withdraw the invite for ${invite.email}`}
         onClick={() => setOpen(true)}
@@ -115,9 +116,7 @@ function WithdrawButton({ invite }: { invite: Invite }) {
         Withdraw
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent
-          finalFocus={() => withdrawButtonFor(neighbourId) ?? true}
-        >
+        <AlertDialogContent finalFocus={trigger}>
           <AlertDialogHeader>
             <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -199,20 +198,7 @@ const inviteColumns: DataGridColumn<Invite>[] = [
 export function InvitesTable() {
   const headingId = useId()
   const query = useQuery(invitesQuery())
-  const pendingFocus = useRef<string | null>(null)
-  const [requests, setRequests] = useState(0)
-
-  function focusAfterWithdraw(inviteId: string | null) {
-    pendingFocus.current = inviteId
-    setRequests((count) => count + 1)
-  }
-
-  useEffect(() => {
-    const button = withdrawButtonFor(pendingFocus.current)
-    if (button === null) return
-    button.focus()
-    pendingFocus.current = null
-  }, [requests, query.data])
+  const [withdrawing, setWithdrawing] = useState<string | null>(null)
 
   if (query.isPending) {
     return <Skeleton className="mb-6 h-10 w-full" aria-busy="true" />
@@ -238,15 +224,20 @@ export function InvitesTable() {
       <h2 id={headingId} className="text-sm font-semibold">
         Pending invites
       </h2>
-      <FocusAfterWithdraw value={focusAfterWithdraw}>
+      <SetWithdrawing value={setWithdrawing}>
         <DataGrid
           label="Pending invites"
           rows={query.data}
           columns={inviteColumns}
           rowId={inviteId}
           rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
+          focusAfterRemoving={
+            withdrawing === null
+              ? null
+              : { rowId: withdrawing, control: "[data-withdraw]" }
+          }
         />
-      </FocusAfterWithdraw>
+      </SetWithdrawing>
     </section>
   )
 }

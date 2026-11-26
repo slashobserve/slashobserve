@@ -71,50 +71,71 @@ describe("InvitesTable", () => {
     )
   })
 
-  it("moves focus to the next invite's Withdraw once the confirm closes", async () => {
+  function listInvites(emails: readonly string[]) {
     const queryClient = testQueryClient()
-    queryClient.setQueryData(invitesQuery().queryKey, [
-      invite,
-      { ...invite, id: "i2", email: "bob@example.com" },
-    ])
-    const { user } = renderWithProviders(
-      <HeldMutationHost>
-        <InvitesTable />
-      </HeldMutationHost>,
-      { queryClient }
-    )
+    const all = emails.map((name) => ({
+      ...invite,
+      id: `id-${name}`,
+      email: `${name}@example.com`,
+    }))
+    queryClient.setQueryData(invitesQuery().queryKey, all)
+    return { queryClient, all }
+  }
 
+  function withdrawButton(name: string) {
+    return screen.getByRole("button", {
+      name: `Withdraw the invite for ${name}@example.com`,
+    })
+  }
+
+  async function openWithdraw(
+    user: ReturnType<typeof renderWithProviders>["user"],
+    name: string
+  ) {
     await user.click(
       await screen.findByRole("button", {
-        name: "Withdraw the invite for ada@example.com",
+        name: `Withdraw the invite for ${name}@example.com`,
       })
     )
+  }
+
+  it("returns focus to the invite's own Withdraw when the confirm is cancelled", async () => {
+    const { queryClient } = listInvites(["ada", "bob"])
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+    await openWithdraw(user, "ada")
+    await user.click(await screen.findByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => expect(withdrawButton("ada")).toHaveFocus())
+    expect(calls.send).not.toHaveBeenCalled()
+  })
+
+  it("keeps focus on the invite's own Withdraw while it is withdrawn and after it fails", async () => {
+    const { queryClient } = listInvites(["ada", "bob"])
+    calls.send.mockRejectedValue(new Error("offline"))
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+    await openWithdraw(user, "ada")
     await user.click(
       await screen.findByRole("button", { name: "Withdraw invite" })
     )
+    await waitFor(() => expect(calls.send).toHaveBeenCalledWith("id-ada"))
+    await waitFor(() => expect(withdrawButton("ada")).toHaveFocus())
+    await releaseHeldMutation()
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", {
-          name: "Withdraw the invite for bob@example.com",
-        })
-      ).toHaveFocus()
-    )
+    await waitFor(() => expect(calls.toast.error).toHaveBeenCalled())
+    expect(withdrawButton("ada")).toHaveFocus()
+    expect(withdrawButton("ada")).toHaveAttribute("aria-disabled", "false")
   })
 
   it.each([
-    ["a middle invite", "b", "c"],
-    ["the last invite", "c", "b"],
+    ["a middle invite", "ada", "cy"],
+    ["the first invite", "zoe", "ada"],
+    ["the last invite", "bob", "cy"],
   ])(
-    "moves focus to the neighbour by id once %s is gone from the table",
+    "moves focus to the next invite in display order once %s is gone, or the previous one after the last",
     async (_, withdrawn, focused) => {
-      const queryClient = testQueryClient()
-      const all = ["a", "b", "c"].map((id) => ({
-        ...invite,
-        id,
-        email: `${id}@example.com`,
-      }))
-      queryClient.setQueryData(invitesQuery().queryKey, all)
+      const { queryClient, all } = listInvites(["zoe", "ada", "cy", "bob"])
       calls.send.mockImplementation(async (id: string) => {
         queryClient.setQueryData(
           invitesQuery().queryKey,
@@ -123,24 +144,17 @@ describe("InvitesTable", () => {
       })
       const { user } = renderWithProviders(<InvitesTable />, { queryClient })
 
-      await user.click(
-        await screen.findByRole("button", {
-          name: `Withdraw the invite for ${withdrawn}@example.com`,
-        })
-      )
+      await openWithdraw(user, withdrawn)
       await user.click(
         await screen.findByRole("button", { name: "Withdraw invite" })
       )
-      await waitFor(() => expect(calls.send).toHaveBeenCalledWith(withdrawn))
-      await releaseHeldMutation()
-
       await waitFor(() =>
-        expect(
-          screen.getByRole("button", {
-            name: `Withdraw the invite for ${focused}@example.com`,
-          })
-        ).toHaveFocus()
+        expect(screen.queryByText(`${withdrawn}@example.com`)).toBeNull()
       )
+
+      await waitFor(() => expect(withdrawButton(focused)).toHaveFocus())
+      await releaseHeldMutation()
+      expect(withdrawButton(focused)).toHaveFocus()
     }
   )
 })
