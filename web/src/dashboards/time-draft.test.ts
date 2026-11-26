@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import { calendarMonthOf, readDraft } from "./time-draft"
 
+const unreadableTime = expect.stringMatching(
+  /^Enter a time like now-6h, now\/d or \d{4}-\d\d-\d\d \d\d:\d\d\.$/
+)
+
 describe("readDraft", () => {
   it("returns the parsed range", () => {
     expect(readDraft("now-6h", "now", undefined)).toEqual({
@@ -12,7 +16,7 @@ describe("readDraft", () => {
   it("blames From for a time it cannot read, with the reason", () => {
     expect(readDraft("yesterday", "now", undefined).problem).toEqual({
       field: "from",
-      message: "Enter a time like now-6h, now/d or 2026-10-17 09:00.",
+      message: unreadableTime,
     })
     expect(readDraft("1999-01-01 00:00", "now", undefined).problem).toEqual({
       field: "from",

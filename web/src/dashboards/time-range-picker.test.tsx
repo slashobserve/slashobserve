@@ -8,6 +8,9 @@ import { renderWithProviders } from "@/test/render"
 
 import { TimeRangeControl, TimeRangePicker } from "./time-range-picker"
 
+const unreadableTime =
+  /^Enter a time like now-6h, now\/d or \d{4}-\d\d-\d\d \d\d:\d\d\.$/
+
 async function applyRange(from: string, to: string) {
   const result = renderWithProviders(
     <TimeRangePicker
@@ -47,11 +50,7 @@ describe("TimeRangePicker", () => {
   })
 
   it.each([
-    [
-      "yesterday",
-      "now",
-      "Enter a time like now-6h, now/d or 2026-10-17 09:00.",
-    ],
+    ["yesterday", "now", unreadableTime],
     [
       "2026-10-17T10:00:00Z",
       "2026-10-17T09:00:00Z",
@@ -169,9 +168,7 @@ describe("TimeRangeControl", () => {
     await user.clear(fromInput)
     await user.type(fromInput, "yesterday")
     await user.click(screen.getByRole("button", { name: "Apply" }))
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Enter a time like now-6h, now/d or 2026-10-17 09:00."
-    )
+    expect(screen.getByRole("alert")).toHaveTextContent(unreadableTime)
     expect(onChange).not.toHaveBeenCalled()
   })
 

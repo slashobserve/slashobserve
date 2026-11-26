@@ -9,7 +9,10 @@ export type TraceRow = {
   spans: number | null
   errors: number | null
   matching?: number | null
+  incomplete?: boolean
 }
+
+const missingRootName = "<root span not yet received>"
 
 function column(frame: WireFrame, name: string) {
   const wanted = name.toLowerCase()
@@ -47,12 +50,17 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
       const traceId = textAt(ids.values, row)
       if (traceId === "") continue
       const ns = numberAt(duration, row)
+      const rootService = textAt(service, row)
+      const rootSpan = textAt(span, row)
+      const incomplete =
+        rootService === missingRootName || rootSpan === missingRootName
       rows.push({
         traceId,
         start: numberAt(start, row),
-        service: textAt(service, row),
-        span: textAt(span, row),
-        durationMs: ns === null ? null : ns / 1e6,
+        service: rootService,
+        span: rootSpan,
+        durationMs: ns === null || incomplete ? null : ns / 1e6,
+        ...(incomplete && { incomplete }),
         spans: numberAt(spans, row),
         errors: numberAt(errors, row),
         matching: numberAt(matching, row),
@@ -80,11 +88,17 @@ export function durationText(ms: number | null): string {
     : `${ms.toLocaleString("en", { maximumFractionDigits: 1 })} ms`
 }
 
+export function rowDurationText(row: TraceRow): string {
+  return row.incomplete === true ? "Incomplete" : durationText(row.durationMs)
+}
+
 export function openTraceLabel(row: TraceRow): string {
   const parts = [`Open trace ${row.traceId.slice(0, 8)}`]
   if (row.span !== "") parts.push(row.span)
   if (row.durationMs !== null) {
     parts.push(`${(row.durationMs / 1000).toFixed(2)} seconds`)
+  } else if (row.incomplete === true) {
+    parts.push("incomplete trace")
   }
   return parts.join(", ")
 }
