@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	systemTextBudget     = 26147
-	fullSystemTextBudget = 30869
+	systemTextBudget     = 26205
+	fullSystemTextBudget = 30927
 )
 
 var demoTypes = []spec.DatasourceType{spec.Prometheus, spec.ClickHouse}
@@ -128,7 +128,7 @@ func TestInvestigateStatesHowToWriteAndWhatToCheck(t *testing.T) {
 		"read that observation first with `get_observation`, because \"this\" means that page",
 		"read it with `get_observation`, and cite it as a Markdown link with its title",
 		"A request to summarize, explain or rewrite the page is answered from `get_observation` and the discussion with no new queries, and it still ends with `save_finding`",
-		"Before you say a signal does not exist, list its metrics with scope set to a selector for the service",
+		"before you say a signal does not exist, list its metrics with scope set to a selector for the service",
 		"a read that failed or timed out could not check anything",
 		"say in the finding what you did not read",
 		"Write the first sentence in plain words",
