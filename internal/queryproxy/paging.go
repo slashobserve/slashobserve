@@ -113,6 +113,7 @@ func (r *Runner) RunPage(ctx context.Context, inst datasource.Instance, p PagePa
 	if err != nil {
 		return PageResult{}, err
 	}
+	r.reg.Answered(inst.UID)
 	if frames == nil {
 		frames = []datasource.Frame{}
 	}

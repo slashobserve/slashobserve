@@ -656,6 +656,9 @@ func upstream[T any](ctx context.Context, r *Runner, subject string, inst dataso
 	}()
 	start := time.Now()
 	out, err = call(ctx)
+	if err == nil {
+		r.reg.Answered(inst.UID)
+	}
 	if inst.Source != datasource.SourceBuiltin {
 		r.metrics.ProxyQuery(inst.Datasource.Type(), queryOutcome(err), time.Since(start))
 	}
