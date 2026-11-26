@@ -854,38 +854,67 @@ const compactLabelHeight = 13
 const slantedRotation = 45
 const flatLabelCap = 80
 
-export type CategoryLabelPlan = {
-  rotation: number
-  step: number
-  lineHeight: number
+export type CategoryLabelFit = { step: number; lineHeight: number }
+
+type LabelOptions = { xTickRotation: number; xTickSpacing: number }
+
+function slantedSpan(): number {
+  const radians = (slantedRotation * Math.PI) / 180
+  return Math.ceil(labelHeight / Math.sin(radians))
 }
 
-export function categoryLabelPlan(
+function flatSpan(widest: number): number {
+  return Math.min(widest, flatLabelCap) + 8
+}
+
+export function chooseRotation(
+  count: number,
+  across: number,
+  widest: number,
+  options: LabelOptions
+): number {
+  if (options.xTickSpacing > 0 || options.xTickRotation !== 0) {
+    return options.xTickRotation
+  }
+  return labelStride(count, across, flatSpan(widest)) === 1
+    ? 0
+    : slantedRotation
+}
+
+export function categoryLabelFit(
   vertical: boolean,
   count: number,
   across: number,
   widest: number,
-  options: { xTickRotation: number; xTickSpacing: number }
-): CategoryLabelPlan {
+  rotation: number,
+  options: LabelOptions
+): CategoryLabelFit {
   const { xTickSpacing } = options
-  const given = vertical ? options.xTickRotation : 0
-  const flat = vertical ? Math.min(widest, flatLabelCap) + 8 : labelHeight
-  const plan = (
-    rotation: number,
-    length: number,
-    lineHeight = labelHeight
-  ): CategoryLabelPlan => ({
-    rotation,
+  const fit = (length: number, lineHeight = labelHeight) => ({
     step: labelStep(count, across, length, xTickSpacing),
     lineHeight,
   })
-  if (xTickSpacing > 0 || given !== 0) return plan(given, flat)
-  if (labelStride(count, across, flat) === 1) return plan(0, flat)
   if (vertical) {
-    const radians = (slantedRotation * Math.PI) / 180
-    return plan(slantedRotation, Math.ceil(labelHeight / Math.sin(radians)))
+    const slanted = rotation !== 0 && options.xTickRotation === 0
+    return fit(slanted ? slantedSpan() : flatSpan(widest))
   }
-  return plan(0, compactLabelHeight, compactLabelHeight)
+  if (xTickSpacing === 0 && labelStride(count, across, labelHeight) > 1) {
+    return fit(compactLabelHeight, compactLabelHeight)
+  }
+  return fit(labelHeight)
+}
+
+export function rotatedOverhang(
+  textLength: number,
+  rotation: number,
+  slot: number
+): number {
+  if (rotation === 0) return 0
+  const radians = (Math.abs(rotation) * Math.PI) / 180
+  const reach = Math.ceil(
+    textLength * Math.cos(radians) + labelHeight * Math.sin(radians)
+  )
+  return Math.max(0, reach - Math.floor(slot / 2))
 }
 
 export function truncateLabel(label: string, maxLength?: number): string {

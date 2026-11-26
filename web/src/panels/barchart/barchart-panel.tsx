@@ -28,12 +28,14 @@ import {
   barchartModel,
   categoryBand,
   hitTest,
-  categoryLabelPlan,
+  categoryLabelFit,
+  chooseRotation,
   labelHeight,
   labelSpot,
   legendEntries,
   lineHeightFor,
   rotatedExtent,
+  rotatedOverhang,
   roundedBarPath,
   shareOf,
   showValuesOf,
@@ -43,7 +45,6 @@ import {
   truncateLabel,
   type BarOptions,
   type BarchartModel,
-  type CategoryLabelPlan,
   type Hit,
   type LabelSpot,
   type Layout,
@@ -338,22 +339,29 @@ function CategoryLabels({
   layout,
   labelWidth,
   gutter,
-  plan,
+  rotation,
   options,
 }: {
   model: BarchartModel
   layout: Layout
   labelWidth: number
   gutter: number
-  plan: CategoryLabelPlan
-  options: Pick<BarOptions, "xTickMaxLength">
+  rotation: number
+  options: Pick<BarOptions, "xTickRotation" | "xTickSpacing" | "xTickMaxLength">
 }) {
   const vertical = layout.orientation === "vertical"
   const across = vertical ? layout.plot.width : layout.plot.height
   const slot = across / layout.count
-  const { rotation, step, lineHeight } = plan
   const labels = model.categories.map((category) =>
     truncateLabel(category.label, options.xTickMaxLength)
+  )
+  const { step, lineHeight } = categoryLabelFit(
+    vertical,
+    layout.count,
+    across,
+    Math.max(0, ...labels.map(textWidth)),
+    rotation,
+    options
   )
   return (
     <>
@@ -576,16 +584,23 @@ function Plot({
     [model.categories, options.xTickMaxLength]
   )
   const widest = Math.max(0, ...labels.map(textWidth))
-  const plan = categoryLabelPlan(
-    vertical,
-    count,
-    vertical
-      ? size.width - padSide - padRight - valueAxisEstimate
-      : size.height - padTop - axisThickness,
-    widest,
-    options
-  )
-  const { rotation } = plan
+  const hiddenAxis = settings.side === "hidden"
+  const atEnd = settings.side === "end"
+  const axisLabel = settings.label && !hiddenAxis ? axisLabelThickness : 0
+  const estimatedValueExtent = hiddenAxis
+    ? 0
+    : (settings.width ?? (vertical ? valueAxisEstimate : axisThickness)) +
+      axisLabel
+  const estimatedAcross = vertical
+    ? size.width -
+      (atEnd || hiddenAxis ? padSide : estimatedValueExtent) -
+      (atEnd ? estimatedValueExtent : padRight)
+    : size.height -
+      (atEnd ? estimatedValueExtent : padTop) -
+      (hiddenAxis || atEnd ? padTop : estimatedValueExtent)
+  const rotation = vertical
+    ? chooseRotation(count, estimatedAcross, widest, options)
+    : 0
   const categoryExtent =
     rotation === 0
       ? axisThickness
@@ -598,9 +613,6 @@ function Plot({
     Math.min(widest, maxLabelWidth) + axisGap,
     size.width * sidebarShare
   )
-  const hiddenAxis = settings.side === "hidden"
-  const atEnd = settings.side === "end"
-  const axisLabel = settings.label && !hiddenAxis ? axisLabelThickness : 0
   const measureLength = vertical
     ? size.height - padTop - categoryExtent
     : size.width - labelWidth - padRight
@@ -650,12 +662,22 @@ function Plot({
   const valueExtent = hiddenAxis
     ? 0
     : (settings.width ?? naturalExtent) + axisLabel
+  const overhang = vertical
+    ? rotatedOverhang(
+        Math.min(widest, maxRotatedLabelWidth),
+        rotation,
+        estimatedAcross / Math.max(1, count)
+      )
+    : 0
   const left = vertical
-    ? atEnd || hiddenAxis
-      ? padSide
-      : valueExtent
+    ? Math.max(
+        atEnd || hiddenAxis ? padSide : valueExtent,
+        rotation > 0 ? overhang : 0
+      )
     : labelWidth
-  const right = vertical ? (atEnd ? valueExtent : padRight) : padRight
+  const right = vertical
+    ? Math.max(atEnd ? valueExtent : padRight, rotation < 0 ? overhang : 0)
+    : padRight
   const top = vertical ? padTop : atEnd ? valueExtent : padTop
   const bottom = vertical
     ? categoryExtent
@@ -768,7 +790,7 @@ function Plot({
         layout={layout}
         labelWidth={labelWidth}
         gutter={left}
-        plan={plan}
+        rotation={rotation}
         options={options}
       />
       <ValueLabels
