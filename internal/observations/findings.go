@@ -90,12 +90,8 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 		OriginClient:  cols.Client,
 		RunID:         cols.RunID,
 	}
-	if validateRange(&c.From, &c.To) == nil {
-		params.TimeFrom, params.TimeTo = timestamptz(&c.From), timestamptz(&c.To)
-	} else if c.RunID.Valid {
-		if params.TimeFrom, params.TimeTo, err = runWindow(ctx, q, c.RunID); err != nil {
-			return pgtype.UUID{}, err
-		}
+	if params.TimeFrom, params.TimeTo, err = conclusionWindow(ctx, q, c); err != nil {
+		return pgtype.UUID{}, err
 	}
 	created, err := q.CreateObservation(ctx, params)
 	if err != nil {
@@ -104,15 +100,8 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 	if err := appendEvent(ctx, q, activity.TypeObservationCreated, who, created.ID, eventData{Title: created.Title}); err != nil {
 		return pgtype.UUID{}, err
 	}
-	if c.RunID.Valid {
-		err := s.insertRunBlock(ctx, q, created, c.RunID, nil, state, who)
-		switch {
-		case errors.Is(err, ErrTooManyBlocks):
-			s.logger.WarnContext(ctx, "run block not added: the observation is full",
-				slog.String("agent_request_id", c.RunID.String()), slog.String("observation_id", created.ID.String()))
-		case err != nil:
-			return pgtype.UUID{}, err
-		}
+	if err := s.addConclusionRunBlock(ctx, q, created, c.RunID, state, who); err != nil {
+		return pgtype.UUID{}, err
 	}
 	if err := s.writeConclusionBlocks(ctx, q, created, place.abilities, who, in); err != nil {
 		return pgtype.UUID{}, err
@@ -123,6 +112,29 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 		}
 	}
 	return created.ID, nil
+}
+
+func conclusionWindow(ctx context.Context, q *dbsqlc.Queries, c findings.Conclusion) (from, to pgtype.Timestamptz, err error) {
+	if validateRange(&c.From, &c.To) == nil {
+		return timestamptz(&c.From), timestamptz(&c.To), nil
+	}
+	if !c.RunID.Valid {
+		return from, to, nil
+	}
+	return runWindow(ctx, q, c.RunID)
+}
+
+func (s *Service) addConclusionRunBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, runID pgtype.UUID, state BlockState, who actor.Actor) error {
+	if !runID.Valid {
+		return nil
+	}
+	err := s.insertRunBlock(ctx, q, parent, runID, nil, state, who)
+	if errors.Is(err, ErrTooManyBlocks) {
+		s.logger.WarnContext(ctx, "run block not added: the observation is full",
+			slog.String("agent_request_id", runID.String()), slog.String("observation_id", parent.ID.String()))
+		return nil
+	}
+	return err
 }
 
 func runWindow(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (from, to pgtype.Timestamptz, err error) {
