@@ -1,3 +1,5 @@
+import { legendNames } from "./legend-model"
+
 export type TextMeasure = (text: string, weight: 400 | 500) => number
 
 const plainMinPx = 160
@@ -21,6 +23,26 @@ function widest(
 
 export function legendNameMinWidth(rem: number): number {
   return nameMinRem * rem
+}
+
+export function legendNameRoom(
+  width: number,
+  rem: number,
+  valuesPx: number
+): number {
+  return (
+    width -
+    (containerPadRem + cellPadRem + swatchRem + swatchGapRem) * rem -
+    valuesPx
+  )
+}
+
+export function inlineValuesWidth(
+  values: readonly string[],
+  measure: TextMeasure,
+  rem: number
+): number {
+  return widest(values, 400, measure) + swatchGapRem * rem
 }
 
 export function legendValueWidths(
@@ -61,10 +83,33 @@ export function legendTableWidth(
   return Math.ceil(containerPadRem * rem + name + values)
 }
 
+export function legendListWidth(
+  labels: readonly string[],
+  values: readonly string[],
+  measure: TextMeasure,
+  rem: number,
+  panelWidth: number
+): number | null {
+  const shortest = legendNames(labels, {
+    px: 0,
+    measure: (text) => measure(text, 400),
+  })
+  for (const names of [labels, shortest]) {
+    const natural = Math.ceil(
+      (containerPadRem + cellPadRem + swatchRem + swatchGapRem) * rem +
+        widest(names, 400, measure) +
+        inlineValuesWidth(values, measure, rem)
+    )
+    if (natural + chartMinPx <= panelWidth) return natural
+  }
+  return null
+}
+
 export function rightLegendWidth(
   tableNaturalPx: number | null,
   panelWidth: number,
-  configuredPx?: number
+  configuredPx?: number,
+  listNaturalPx: number | null = null
 ): number {
   if (configuredPx !== undefined) {
     return Math.min(configuredPx, Math.max(0, panelWidth - chartMinPx))
@@ -72,5 +117,10 @@ export function rightLegendWidth(
   if (tableNaturalPx !== null) {
     return Math.min(tableNaturalPx, panelWidth * tableMaxShare)
   }
-  return Math.min(plainMaxPx, Math.max(plainMinPx, panelWidth * plainShare))
+  const plain = Math.min(
+    plainMaxPx,
+    Math.max(plainMinPx, panelWidth * plainShare)
+  )
+  if (listNaturalPx === null) return plain
+  return Math.max(plain, Math.min(listNaturalPx, panelWidth - chartMinPx))
 }

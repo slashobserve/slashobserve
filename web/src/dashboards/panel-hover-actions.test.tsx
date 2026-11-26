@@ -1,5 +1,6 @@
 import { createRef } from "react"
 import { screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { LayoutPanel } from "@/spec"
@@ -153,6 +154,46 @@ describe("PanelHoverActions", () => {
     expect(classes).toContain("motion-safe:transition-opacity")
     expect(classes).toContain("motion-safe:duration-100")
     expect(classes).not.toMatch(/translate|scale|transition-all/)
+  })
+
+  it("overlays the header on fine pointers without taking width, and stays in flow on touch", async () => {
+    serveAgent(true)
+    const { container } = renderActions({})
+    await screen.findByRole("button", { name: "Comment on Checkout latency" })
+    const classes = (
+      container.querySelector("[data-panel-hover-actions]")?.className ?? ""
+    ).split(" ")
+    for (const overlay of [
+      "absolute",
+      "right-full",
+      "bg-card",
+      "pointer-events-none",
+      "group-hover/panel:pointer-events-auto",
+      "group-focus-within/panel:pointer-events-auto",
+      "before:bg-linear-to-r",
+      "before:to-card",
+    ]) {
+      expect(classes).toContain(
+        `[@media(hover:hover)_and_(pointer:fine)]:${overlay}`
+      )
+    }
+    expect(classes).not.toContain("absolute")
+    expect(classes).not.toContain("pointer-events-none")
+  })
+
+  it("is reached from the keyboard by tabbing into the panel", async () => {
+    serveAgent(true)
+    renderActions({})
+    const ask = await screen.findByRole("button", {
+      name: "Ask about Checkout latency",
+    })
+    const user = userEvent.setup()
+    await user.tab()
+    expect(ask).toHaveFocus()
+    await user.tab()
+    expect(
+      screen.getByRole("button", { name: "Comment on Checkout latency" })
+    ).toHaveFocus()
   })
 
   it.each([

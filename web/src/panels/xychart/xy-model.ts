@@ -1,4 +1,4 @@
-import { axisDecimals, formatValue } from "@/lib/units"
+import { axisFormat, formatValue } from "@/lib/units"
 import { compileNamePattern, displayWithDefaults, type Reducer } from "@/spec"
 
 import { rangePosition } from "../color-scheme"
@@ -766,11 +766,8 @@ export function axisTicks(
 ): XyTick[] {
   if (!(range.max - range.min > 0) || count < 1) return []
   const values = tickValues(range, count, scale)
-  const decimals = axisDecimals(values, config?.unit, config?.decimals)
-  return values.map((value) => ({
-    value,
-    text: formatValue(value, config?.unit, decimals),
-  }))
+  const format = axisFormat(values, config?.unit, config?.decimals)
+  return values.map((value) => ({ value, text: format(value) }))
 }
 
 function channelText(channel: XyChannel, value: number): string {

@@ -22,7 +22,8 @@ import {
   legendOrder,
   legendWorthShowing,
 } from "./legend-model"
-import { LegendTable, useLegendTextMeasure } from "./legend-table"
+import { useLegendTextMeasure } from "./legend-measure"
+import { LegendTable } from "./legend-table"
 import { legendTableWidth, rightLegendWidth } from "./legend-width"
 
 export type SeriesLegendEntry = {
