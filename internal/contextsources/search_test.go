@@ -67,7 +67,7 @@ func fixtureSet(t *testing.T) []searchable {
 	return out
 }
 
-func names(hits []scored) []string {
+func hitNames(hits []scored) []string {
 	out := make([]string, len(hits))
 	for i, h := range hits {
 		out[i] = h.source.UID + "/" + h.tool.Name
@@ -106,8 +106,8 @@ func TestTheExpectedToolIsInTheFirstThreeForPlainWordQueries(t *testing.T) {
 	} {
 		t.Run(query, func(t *testing.T) {
 			hits := rank(query, set)
-			if !slices.Contains(names(hits[:min(3, len(hits))]), want) {
-				t.Errorf("first three = %v, want %s among them", names(hits[:min(3, len(hits))]), want)
+			if !slices.Contains(hitNames(hits[:min(3, len(hits))]), want) {
+				t.Errorf("first three = %v, want %s among them", hitNames(hits[:min(3, len(hits))]), want)
 			}
 		})
 	}
@@ -117,10 +117,10 @@ func TestRankingNeedsAWordOfTheToolAndIsStable(t *testing.T) {
 	set := fixtureSet(t)
 	for _, query := range []string{"", "   ", "the of and", "quantum entanglement", "!!!"} {
 		if hits := rank(query, set); len(hits) != 0 {
-			t.Errorf("%q matched %v", query, names(hits))
+			t.Errorf("%q matched %v", query, hitNames(hits))
 		}
 	}
-	first, second := names(rank("list namespace", set)), names(rank("list namespace", slices.Clone(set)))
+	first, second := hitNames(rank("list namespace", set)), hitNames(rank("list namespace", slices.Clone(set)))
 	if !slices.Equal(first, second) {
 		t.Errorf("ranking is not stable: %v vs %v", first, second)
 	}
@@ -129,7 +129,7 @@ func TestRankingNeedsAWordOfTheToolAndIsStable(t *testing.T) {
 func TestAParameterNameAloneFindsATool(t *testing.T) {
 	hits := rank("label selector", fixtureSet(t))
 	if len(hits) != 3 {
-		t.Errorf("hits = %v", names(hits))
+		t.Errorf("hits = %v", hitNames(hits))
 	}
 }
 
@@ -158,6 +158,6 @@ func TestTheWholeSetStaysUsableAt300Tools(t *testing.T) {
 	}
 	set = append(set, searchableOf(Source{UID: "big"}, Tool{Name: "pods_log", State: ToolApproved, Pinned: Definition{Description: "Get the logs of a pod", InputSchema: json.RawMessage(`{"type":"object"}`)}}))
 	if hits := rank("logs of a pod", set); len(hits) == 0 || hits[0].tool.Name != "pods_log" {
-		t.Errorf("hits = %v", names(hits[:min(3, len(hits))]))
+		t.Errorf("hits = %v", hitNames(hits[:min(3, len(hits))]))
 	}
 }
