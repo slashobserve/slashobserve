@@ -163,6 +163,14 @@ def test_options_refuse_an_unknown_name_and_a_cap_without_a_ledger():
     assert orca.Options(investigation_calls="30").investigation_calls == 30
 
 
+def test_options_take_the_loop_settings_and_refuse_values_the_server_refuses():
+    options = orca.Options(investigation_loop="false", investigation_calls_max="40", finding_grounding="enforce")
+    assert (options.investigation_loop, options.investigation_calls_max, options.finding_grounding) == (False, 40, "enforce")
+    for bad in ({"investigation_calls_max": 61}, {"finding_grounding": "strict"}, {"investigation_calls": 30, "investigation_calls_max": 20}):
+        with pytest.raises(ValueError):
+            orca.Options(**bad)
+
+
 def test_code_context_is_a_module_and_function():
     assert orca.load_code_context("json:dumps") is json.dumps
     with pytest.raises(ValueError):

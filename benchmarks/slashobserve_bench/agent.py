@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
+from typing import Literal
 
 from harbor.agents.base import BaseAgent
 from harbor.agents.capabilities import AgentCapabilities
@@ -31,15 +32,20 @@ class Options(AgentOptions):
     replay_dir: str | None = None
     llm_effort: str | None = None
     investigation_calls: int | None = Field(default=None, ge=6, le=60)
+    investigation_loop: bool | None = None
+    investigation_calls_max: int | None = Field(default=None, ge=6, le=60)
+    finding_grounding: Literal["off", "report", "enforce"] | None = None
     run_max_cost_usd: float | None = Field(default=None, gt=0)
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=540, ge=30)
 
     @model_validator(mode="after")
-    def _cap_needs_ledger(self) -> "Options":
+    def _settings_agree(self) -> "Options":
         if (self.spend_cap_usd is None) != (self.ledger_path is None):
             raise ValueError("spend_cap_usd and ledger_path go together")
+        if None not in (self.investigation_calls, self.investigation_calls_max) and self.investigation_calls_max < self.investigation_calls:
+            raise ValueError("investigation_calls_max must not be below investigation_calls")
         return self
 
 
@@ -120,6 +126,9 @@ class SlashObserveAgent(BaseAgent):
             llm_model=model,
             llm_effort=options.llm_effort,
             investigation_calls=options.investigation_calls,
+            investigation_loop=options.investigation_loop,
+            investigation_calls_max=options.investigation_calls_max,
+            finding_grounding=options.finding_grounding,
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
         )

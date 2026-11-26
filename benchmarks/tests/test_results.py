@@ -82,7 +82,15 @@ def test_one_attempt_per_task(tmp_path):
     assert run["server"] == {"version": "0.1.5", "commit": "abc1234"}
     assert run["model"] == "anthropic/claude-sonnet-5-5"
     assert run["judge"] == "claude-haiku-5-5@high"
-    assert run["settings"] == {"investigation_calls": None, "llm_effort": None, "run_max_cost_usd": 0.5, "wall_timeout_sec": None}
+    assert run["settings"] == {
+        "investigation_calls": None,
+        "investigation_loop": None,
+        "investigation_calls_max": None,
+        "finding_grounding": None,
+        "llm_effort": None,
+        "run_max_cost_usd": 0.5,
+        "wall_timeout_sec": None,
+    }
     assert [task["task"] for task in run["tasks"]] == ["task-a", "task-b"]
     attempt = run["tasks"][1]["attempts"][0]
     assert attempt["reward"] == 0.4
@@ -216,6 +224,20 @@ def test_trials_that_disagree_on_the_settings_or_server_are_refused(tmp_path):
     write_trial(other, "task-a", "AAA", 1.0)
     write_trial(other, "task-b", "BBB", 1.0, version="0.1.6")
     with pytest.raises(results.ResultsError, match="the server build"):
+        build_from([other])
+
+
+def test_loop_settings_are_recorded_and_must_agree(tmp_path):
+    kwargs = {"investigation_loop": True, "investigation_calls_max": 40, "finding_grounding": "report"}
+    job = write_job(tmp_path)
+    write_trial(job, "task-a", "AAA", 1.0, kwargs=kwargs)
+    write_trial(job, "task-b", "BBB", 1.0, kwargs=kwargs)
+    settings = build_from([job])["settings"]
+    assert (settings["investigation_loop"], settings["investigation_calls_max"], settings["finding_grounding"]) == (True, 40, "report")
+    other = write_job(tmp_path, "other")
+    write_trial(other, "task-a", "AAA", 1.0, kwargs=kwargs)
+    write_trial(other, "task-b", "BBB", 1.0, kwargs={**kwargs, "investigation_loop": False})
+    with pytest.raises(results.ResultsError, match="the settings"):
         build_from([other])
 
 

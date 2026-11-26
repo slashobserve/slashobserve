@@ -10,7 +10,15 @@ RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 README_TABLE_HEADING = "## Runs\n"
 
 CAUSES = ("adapter_fault", "missing_capability", "agent_mistake")
-SETTING_KEYS = ("investigation_calls", "llm_effort", "run_max_cost_usd", "wall_timeout_sec")
+SETTING_KEYS = (
+    "investigation_calls",
+    "investigation_loop",
+    "investigation_calls_max",
+    "finding_grounding",
+    "llm_effort",
+    "run_max_cost_usd",
+    "wall_timeout_sec",
+)
 SERVER_START_MESSAGE = "starting slashobserve-server"
 SKIPPED_EXCEPTION = "TaskSkipped"
 NO_AGENT_OUTPUT = {"cause": "adapter_fault", "summary": "The trial left no agent output folder, so the run never produced an answer."}
