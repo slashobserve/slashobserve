@@ -295,7 +295,7 @@ export function RequestTurn({
   const answers = mayHaveFinding(request)
   const answerElementId = `answer-${summary.id}`
   const answerTarget: AnswerTarget | undefined =
-    detail?.finding == null
+    !answers || request.status !== "succeeded" || detail?.finding == null
       ? undefined
       : {
           observationId: detail.finding.observation_id,

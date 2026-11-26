@@ -85,4 +85,13 @@ describe("EvidencePanel", () => {
       executedText
     )
   })
+
+  it("offers no link when the datasource is a variable it cannot resolve", async () => {
+    renderPanel({
+      ...panel("sum(rate(errors[5m]))"),
+      datasource: "${datasource}",
+    } as Panel)
+    await screen.findByRole("article", { name: "Error rate" })
+    expect(screen.queryByRole("link", { name: "Open in Explore" })).toBeNull()
+  })
 })

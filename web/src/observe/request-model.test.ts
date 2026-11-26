@@ -113,5 +113,14 @@ describe("stepText", () => {
     expect(isSavedAnswerStep(base)).toBe(true)
     expect(isSavedAnswerStep({ ...base, status: "error" })).toBe(false)
     expect(isSavedAnswerStep({ ...base, tool: "update_panels" })).toBe(false)
+    expect(
+      isSavedAnswerStep({
+        ...base,
+        message: "Reused the result of an identical call",
+      })
+    ).toBe(false)
+    expect(
+      isSavedAnswerStep({ ...base, message: "Saved finding 99a52b2f" })
+    ).toBe(true)
   })
 })

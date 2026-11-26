@@ -20,7 +20,12 @@ import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import type { PreparedFrame } from "@/panels/transforms"
-import { isDataPanel, isRowPanel, type Panel } from "@/spec"
+import {
+  isDataPanel,
+  isRowPanel,
+  resolveDatasourceRef,
+  type Panel,
+} from "@/spec"
 
 import { useFindingPanelData } from "./queries"
 import { traceColumnOverrides } from "./trace-columns"
@@ -29,8 +34,8 @@ const noVars = {}
 
 function ignoreRangeSelect() {}
 
-function sameRef(ref: string) {
-  return ref
+function noSelections(ref: string) {
+  return resolveDatasourceRef(ref, {})
 }
 
 type Props = {
@@ -71,7 +76,7 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
         ? undefined
         : exploreTarget(
             dataPanel,
-            sameRef,
+            noSelections,
             datasources === undefined
               ? undefined
               : (uid) => datasourceTypeOf(datasources, uid),
