@@ -66,11 +66,11 @@ Investigations therefore do not wait for other requests on the same dashboard.
 How the agent reads and answers:
 
 - The verdict follows the comparison the question asked for, and a short spike inside the window is a separate observation.
-- When the ratios the question asks for are near 1, the agent says that factor does not explain the change.
-- When a term has two plausible readings, the agent states the one it used and names the other in one line, and gives one figure per quantity.
+- When the ratios the question asks for are within about 10% of 1, the agent says that factor does not explain the change.
+- When a term has two plausible readings, the agent headlines one figure for the reading it used and names the other reading in a separate one-line note.
 - When the question names several services, routes or operations, it reads each one's slow tail or error set separately.
-- It reads durations and rates at the series' native step around the event.
-- It takes a baseline such as typical or normal from the whole window the question covers.
+- It reads durations and rates at the series' native step in a short range around the event.
+- It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
 
 ### The hypothesis ledger
 
