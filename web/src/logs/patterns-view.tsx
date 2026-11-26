@@ -37,6 +37,7 @@ import {
   type PatternMode,
   type PatternOrder,
 } from "./patterns"
+import { logVolumeQuery } from "./volume"
 import { useLogsWorkspace } from "./workspace"
 
 const orders: { value: PatternOrder; label: string }[] = [
@@ -313,7 +314,8 @@ function PatternsSkeleton() {
 }
 
 export function PatternsView() {
-  const { datasource, search, update, setDraft } = useLogsWorkspace()
+  const { datasource, search, update, setDraft, effectiveQuery, range } =
+    useLogsWorkspace()
   const [limit, setLimit] = useState(defaultPatternLimit)
   const [order, setOrder] = useState<PatternOrder>("count")
   const [showAll, setShowAll] = useState(false)
@@ -326,6 +328,14 @@ export function PatternsView() {
     })
   }, [])
   const patterns = useLogPatterns(true, limit)
+  const volume = useQuery({
+    ...logVolumeQuery(datasource.uid, {
+      query: effectiveQuery ?? "",
+      from: range.from,
+      to: range.to,
+    }),
+    enabled: false,
+  })
   const q = search.q
   const source = patterns.data?.source ?? "server"
   const datasourceType = datasource.type
@@ -391,7 +401,7 @@ export function PatternsView() {
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="m-0 text-[13px] text-muted-foreground">
-          {patternsHeading(result)}
+          {patternsHeading(result, volume.data?.total)}
         </p>
         <Select
           items={orders}

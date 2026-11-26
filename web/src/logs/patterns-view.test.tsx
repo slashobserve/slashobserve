@@ -24,7 +24,7 @@ function pattern(overrides: Partial<LogPattern>): LogPattern {
   }
 }
 
-function setup(patterns: LogPattern[], matched: number) {
+function setup(patterns: LogPattern[], matched: number, volumeTotal?: number) {
   const result: LogPatterns = {
     source: "server",
     lines_sampled: matched,
@@ -54,6 +54,13 @@ function setup(patterns: LogPattern[], matched: number) {
     exploreKeys.patterns("ds", { query, ...range, limit: 20 }),
     result
   )
+  if (volumeTotal !== undefined) {
+    queryClient.setQueryData(["explore", "ds", "volume", { query, ...range }], {
+      total: volumeTotal,
+      buckets: [],
+      step_ms: 1000,
+    })
+  }
   const view = renderWithProviders(
     <LogsWorkspaceContext value={workspace}>
       <PatternsView />
@@ -74,7 +81,7 @@ describe("PatternsView", () => {
     )
     expect(
       screen.getByText(
-        "2 patterns cover 100% of 100 documents. Numbers and ids become <*>."
+        "2 patterns cover 100% of 100 lines. Numbers and ids become <*>."
       )
     ).toBeTruthy()
     const grid = await screen.findByRole("grid")
@@ -83,6 +90,15 @@ describe("PatternsView", () => {
     expect(within(rows[1]).getByText("90")).toBeTruthy()
     expect(within(rows[1]).getByText("90%")).toBeTruthy()
     expect(within(rows[2]).getByText("10%")).toBeTruthy()
+  })
+
+  it("says the patterns cover a sample when the histogram counts more lines", () => {
+    setup([pattern({ pattern: "paid order <*>", count: 258 })], 258, 262)
+    expect(
+      screen.getByText(
+        "1 pattern covers 100% of a sample of 258 of 262 lines. Numbers and ids become <*>."
+      )
+    ).toBeTruthy()
   })
 
   it("filters to a pattern through the query and returns to the lines", async () => {

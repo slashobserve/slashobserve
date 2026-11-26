@@ -246,9 +246,7 @@ describe("patternsHeading", () => {
           patterns: [pattern({ count: 600 }), pattern({ count: 380 })],
         })
       )
-    ).toBe(
-      "2 patterns cover 98% of 1,000 documents. Numbers and ids become <*>."
-    )
+    ).toBe("2 patterns cover 98% of 1,000 lines. Numbers and ids become <*>.")
   })
 
   it("counts the share of the matched lines when the index answered", () => {
@@ -260,7 +258,46 @@ describe("patternsHeading", () => {
           patterns: [pattern({ count: 100 })],
         })
       )
-    ).toBe("1 pattern covers 50% of 200 documents. Numbers and ids become <*>.")
+    ).toBe("1 pattern covers 50% of 200 lines. Numbers and ids become <*>.")
+  })
+
+  it("says it is a sample when the histogram counts more lines", () => {
+    expect(
+      patternsHeading(
+        result({
+          source: "server",
+          lines_sampled: 258,
+          lines_matched: 258,
+          patterns: [pattern({ count: 200 }), pattern({ count: 58 })],
+        }),
+        262
+      )
+    ).toBe(
+      "2 patterns cover 100% of a sample of 258 of 262 lines. Numbers and ids become <*>."
+    )
+  })
+
+  it("does not call the lines a sample when the sample is every line", () => {
+    const sampled = result({
+      lines_sampled: 258,
+      lines_matched: 258,
+      patterns: [pattern({ count: 258 })],
+    })
+    expect(patternsHeading(sampled, 258)).toContain("100% of 258 lines.")
+    expect(patternsHeading(sampled)).toContain("100% of 258 lines.")
+  })
+
+  it("never calls an index answer a sample", () => {
+    expect(
+      patternsHeading(
+        result({
+          source: "loki",
+          lines_matched: 200,
+          patterns: [pattern({ count: 200 })],
+        }),
+        500
+      )
+    ).toContain("of 200 lines.")
   })
 
   it("never rounds a partial cover up to 100%", () => {
