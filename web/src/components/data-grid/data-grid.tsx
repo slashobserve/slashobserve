@@ -499,10 +499,13 @@ export function DataGrid<T>({
     const node = api.getDisplayedRowAtIndex(rowIndex)
     const row = node?.id == null ? undefined : drawnRows(container).get(node.id)
     const control = row?.querySelector<HTMLElement>(removing.control)
-    if (control == null) return
-    const column = control.closest("[col-id]")?.getAttribute("col-id")
-    if (column != null) api.setFocusedCell(rowIndex, column)
-    control.focus()
+    const column =
+      control?.closest("[col-id]")?.getAttribute("col-id") ??
+      api.getAllDisplayedColumns()[0]
+    if (column == null) return
+    api.ensureIndexVisible(rowIndex)
+    api.setFocusedCell(rowIndex, column)
+    control?.focus()
   }, [])
   const onRowDataUpdated = useCallback(() => {
     restoreAnchor()

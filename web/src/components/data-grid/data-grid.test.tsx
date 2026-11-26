@@ -1309,6 +1309,46 @@ describe("DataGrid focus after removing a row", () => {
     }
   )
 
+  it("focuses the first cell of the row that takes the removed row's place when that row has no such control", async () => {
+    const onlySome: DataGridColumn<Row>[] = [
+      withRemove[0],
+      {
+        ...withRemove[1],
+        cell: (row) =>
+          row.id === "d" ? null : (
+            <button type="button" data-remove="">
+              Remove {row.name}
+            </button>
+          ),
+      },
+    ]
+    const { rerender } = render(
+      <DataGrid {...props} columns={onlySome} rows={listed} />
+    )
+    ;(await screen.findByRole("button", { name: "Remove a" })).focus()
+    const removal = { rowId: "a", control: "[data-remove]" }
+    rerender(
+      <DataGrid
+        {...props}
+        columns={onlySome}
+        rows={listed}
+        focusAfterRemoving={removal}
+      />
+    )
+    rerender(
+      <DataGrid
+        {...props}
+        columns={onlySome}
+        rows={listed.filter((row) => row.id !== "a")}
+        focusAfterRemoving={removal}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole("gridcell", { name: "d" })).toHaveFocus()
+    )
+  })
+
   it("leaves focus alone once it has moved out of the grid", async () => {
     const outside = document.createElement("button")
     document.body.append(outside)
