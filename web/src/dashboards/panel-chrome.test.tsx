@@ -5,7 +5,7 @@ import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
 import { panelDragCancel } from "./edit/panel-move-handle"
-import { PanelChrome } from "./panel-chrome"
+import { PanelChrome, panelBodySize, staleRowHeight } from "./panel-chrome"
 
 const panel: LayoutPanel = {
   id: "p1",
@@ -27,6 +27,26 @@ describe("PanelChrome", () => {
     )
     expect(screen.getByRole("status")).toHaveTextContent(
       "Showing data from 09:05; the last refresh failed: upstream timed out"
+    )
+  })
+
+  it("puts the old-data line in its own row below the panel body", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" staleNotice="Showing data">
+        <div>chart</div>
+      </PanelChrome>
+    )
+    const body = screen.getByText("chart").closest("[data-panel-body]")
+    expect(body).not.toContainElement(screen.getByRole("status"))
+    expect(body?.nextElementSibling).toBe(screen.getByRole("status"))
+  })
+
+  it("takes the row's height off the body the chart is sized to", () => {
+    expect(
+      panelBodySize(400, 300).height - panelBodySize(400, 300, true).height
+    ).toBe(staleRowHeight)
+    expect(panelBodySize(400, 300, true).width).toBe(
+      panelBodySize(400, 300).width
     )
   })
 

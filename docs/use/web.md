@@ -301,10 +301,12 @@ They are absent when nothing was dropped.
 ### Open a panel in Logs or Traces
 
 **Open in Logs**, **Open in Traces** and **Open in Metrics** in a data panel's panel menu open the explorer that fits the panel's datasource, with the panel's query and the dashboard's time range.
-A Prometheus panel opens Metrics, in table mode for a table panel or an instant query, a Tempo or Jaeger panel opens Traces, and a Loki, ClickHouse, Elasticsearch or OpenSearch panel opens Logs.
+A Prometheus panel opens Metrics, in table mode for a table panel or an instant query, and a Loki panel opens Logs.
+A logs panel opens Logs and a traces panel opens Traces, on any datasource that has that explorer.
+A chart, stat or table on Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch does not open, because its query is not a log or trace search the explorers can run.
 A query that uses variables opens as it ran, with the variables replaced by their values.
-A panel with several queries opens its first visible query, and the item says so.
-The item is greyed, with the reason after it, when the datasource has no explorer, the panel has no datasource, the panel has not loaded yet and its query uses variables, or it is a ClickHouse SQL trace search.
+A panel with several visible queries opens the first one, and the item says so.
+The item is greyed, with the reason after it, when the panel has no query of its own to open, has no datasource, the datasource list has not loaded, the datasource has no explorer, the panel has not loaded yet and its query uses variables, or it is a ClickHouse SQL trace search.
 
 ### Duplicate or remove a panel
 

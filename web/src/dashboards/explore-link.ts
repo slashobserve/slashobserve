@@ -10,7 +10,13 @@ import { isPanelQuery, queryRef, type DataPanel, type PanelQuery } from "@/spec"
 type ExploreTarget = ReturnType<typeof exploreLink>
 
 export type ExploreProblem =
-  "no-explorer" | "no-datasource" | "uses-variables" | "clickhouse-traces-query"
+  | "no-query"
+  | "no-datasource"
+  | "datasources-not-loaded"
+  | "no-explorer"
+  | "not-a-search"
+  | "uses-variables"
+  | "clickhouse-traces-query"
 
 export type ExploreRange = { from?: string; to?: string }
 
@@ -23,6 +29,19 @@ const variableReference = /\$(?:[A-Za-z]|\{)/
 
 const spanStoreTypes = ["tempo", "jaeger"]
 
+const searchOnlyTypes = [
+  ...spanStoreTypes,
+  "elasticsearch",
+  "opensearch",
+  "clickhouse",
+]
+
+function isVisibleQuery(
+  query: DataPanel["queries"][number]
+): query is PanelQuery {
+  return isPanelQuery(query) && query.hide !== true
+}
+
 function kindOf(
   panel: DataPanel,
   datasourceType: string | undefined
@@ -32,7 +51,6 @@ function kindOf(
   if ((metricsDatasourceTypes as readonly string[]).includes(datasourceType)) {
     return "metrics"
   }
-  if (spanStoreTypes.includes(datasourceType)) return "traces"
   if ((logsDatasourceTypes as readonly string[]).includes(datasourceType)) {
     return "logs"
   }
@@ -55,21 +73,26 @@ function searchFor(
 export function exploreTarget(
   panel: DataPanel,
   resolve: (ref: string) => string | undefined,
-  datasourceType: (uid: string) => string | undefined,
+  datasourceType: ((uid: string) => string | undefined) | undefined,
   range: ExploreRange,
   executed: (ref: string) => string | undefined = () => undefined
 ): { opening: ExploreOpening } | { problem: ExploreProblem } {
-  const index = panel.queries.findIndex(
-    (query) => isPanelQuery(query) && query.hide !== true
-  )
+  const index = panel.queries.findIndex(isVisibleQuery)
   const query = panel.queries[index]
   if (query === undefined || !isPanelQuery(query)) {
-    return { problem: "no-datasource" }
+    return { problem: "no-query" }
   }
   const ref = query.datasource ?? panel.datasource
   const ds = ref === undefined ? undefined : resolve(ref)
   if (ds === undefined) return { problem: "no-datasource" }
-  const type = datasourceType(ds)
+  const searchPanel = panel.type === "logs" || panel.type === "traces"
+  if (!searchPanel && datasourceType === undefined) {
+    return { problem: "datasources-not-loaded" }
+  }
+  const type = datasourceType?.(ds)
+  if (!searchPanel && type !== undefined && searchOnlyTypes.includes(type)) {
+    return { problem: "not-a-search" }
+  }
   const kind = kindOf(panel, type)
   if (kind === undefined) return { problem: "no-explorer" }
   if (kind === "traces" && type === "clickhouse") {
@@ -79,7 +102,7 @@ export function exploreTarget(
     ? executed(queryRef(query, index))
     : query.query
   if (text === undefined || text === "") return { problem: "uses-variables" }
-  const queries = panel.queries.filter(isPanelQuery).length
+  const queries = panel.queries.filter(isVisibleQuery).length
   const page = exploreText[kind].page
   return {
     opening: {
@@ -91,8 +114,14 @@ export function exploreTarget(
 
 export function exploreProblemText(problem: ExploreProblem): string {
   switch (problem) {
+    case "no-query":
+      return "no query to open"
+    case "datasources-not-loaded":
+      return "datasources not loaded"
     case "no-explorer":
       return "no explorer for this datasource"
+    case "not-a-search":
+      return "its query is not a log or trace search"
     case "no-datasource":
       return "no datasource"
     case "uses-variables":

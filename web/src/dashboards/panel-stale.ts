@@ -1,16 +1,32 @@
 import { errorMessage } from "@/panels/panel-error"
 import { displayZone, zonedDateTime } from "@/lib/time"
 
+const dateLength = 10
 const clockStart = 11
 const clockEnd = 16
+
+function shownSince(
+  dataUpdatedAt: number,
+  zone: string | undefined,
+  now: number
+): string {
+  const at = zonedDateTime(dataUpdatedAt, zone)
+  const today = zonedDateTime(now, zone)
+  const clock = at.slice(clockStart, clockEnd)
+  return at.slice(0, dateLength) === today.slice(0, dateLength)
+    ? clock
+    : `${at.slice(0, dateLength)} ${clock}`
+}
 
 export function staleNotice(
   dataUpdatedAt: number,
   error: unknown,
-  zone: string | undefined
+  zone: string | undefined,
+  now = Date.now()
 ): string {
-  const clock = zonedDateTime(dataUpdatedAt, zone).slice(clockStart, clockEnd)
-  return `Showing data from ${clock}; the last refresh failed: ${errorMessage(error)}`
+  const reason = `the last refresh failed: ${errorMessage(error)}`
+  if (dataUpdatedAt <= 0) return `Showing earlier data; ${reason}`
+  return `Showing data from ${shownSince(dataUpdatedAt, zone, now)}; ${reason}`
 }
 
 export type FailingQuery = {

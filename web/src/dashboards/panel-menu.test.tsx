@@ -354,12 +354,12 @@ describe("PanelMenu", () => {
     })
   })
 
-  it("greys out Open in Explore with its reason when the datasource has no explorer", async () => {
+  it("greys out Open in Explore with its reason while the datasource list has not loaded", async () => {
     const { user } = renderMenu()
     await openMenu(user, "Checkout latency")
     expect(
       await screen.findByRole("menuitem", {
-        name: "Open in Explore (no explorer for this datasource)",
+        name: "Open in Explore (datasources not loaded)",
       })
     ).toHaveAttribute("aria-disabled", "true")
   })

@@ -36,12 +36,23 @@ export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
 const panelHeaderHeight = 39
 const panelBorderWidth = 1
+export const staleRowHeight = 24
 
-export function panelBodySize(width: number, height: number) {
+export function panelBodySize(width: number, height: number, stale = false) {
   return {
     width: Math.max(0, width - 2 * panelBorderWidth),
-    height: Math.max(0, height - panelHeaderHeight - 2 * panelBorderWidth),
+    height: Math.max(
+      0,
+      height -
+        panelHeaderHeight -
+        2 * panelBorderWidth -
+        (stale ? staleRowHeight : 0)
+    ),
   }
+}
+
+export function showsStaleRow(state: PanelState, notice: string | undefined) {
+  return notice !== undefined && (state === "ready" || state === "empty")
 }
 
 function PanelProblemState({
@@ -124,6 +135,7 @@ export function PanelChrome({
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
   const transparent = "transparent" in panel && panel.transparent === true
   const selectable = onSelect !== undefined && !titleHidden
+  const showsStale = showsStaleRow(state, staleNotice)
   return (
     <article
       aria-labelledby={titleId}
@@ -270,7 +282,7 @@ export function PanelChrome({
           {menu}
         </div>
       </header>
-      <div data-panel-body="" className="relative min-h-0 flex-1">
+      <div data-panel-body="" className="min-h-0 flex-1">
         {state === "loading" ? <PanelSkeleton /> : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
@@ -286,20 +298,21 @@ export function PanelChrome({
           </div>
         ) : null}
         {state === "ready" ? children : null}
-        {staleNotice && (state === "ready" || state === "empty") ? (
-          <p
-            role="status"
-            title={staleNotice}
-            className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 border-t bg-card px-3 py-1 text-xs text-muted-foreground"
-          >
-            <TriangleAlertIcon
-              aria-hidden="true"
-              className="size-3 shrink-0 text-threshold-warning"
-            />
-            <span className="truncate">{staleNotice}</span>
-          </p>
-        ) : null}
       </div>
+      {showsStale ? (
+        <p
+          role="status"
+          title={staleNotice}
+          style={{ height: staleRowHeight }}
+          className="flex shrink-0 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground"
+        >
+          <TriangleAlertIcon
+            aria-hidden="true"
+            className="size-3 shrink-0 text-threshold-warning"
+          />
+          <span className="truncate">{staleNotice}</span>
+        </p>
+      ) : null}
     </article>
   )
 }

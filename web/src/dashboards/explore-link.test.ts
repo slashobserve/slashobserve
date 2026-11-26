@@ -14,6 +14,7 @@ const types: Record<string, string> = {
   ch: "clickhouse",
   prom: "prometheus",
   pg: "postgres",
+  es: "elasticsearch",
 }
 
 const resolve = (ref: string) =>
@@ -99,17 +100,21 @@ describe("exploreTarget", () => {
     ).toMatchObject({ search: { mode: "table" } })
   })
 
-  it("sends a time series on Loki or ClickHouse to the logs explorer and one on Tempo to traces", () => {
+  it("sends a time series on Loki to the logs explorer", () => {
     expect(
       opening(panel("timeseries", [{ query: "rate({a=1}[1m])" }], "loki"))
         .target
     ).toMatchObject({ to: "/logs/$datasourceUid" })
-    expect(
-      opening(panel("timeseries", [{ query: "SELECT 1" }], "ch")).target
-    ).toMatchObject({ to: "/logs/$datasourceUid" })
-    expect(
-      opening(panel("timeseries", [{ query: "{}" }], "tempo")).target
-    ).toMatchObject({ to: "/traces/$datasourceUid" })
+  })
+
+  it("opens a logs panel whose datasource list has not loaded", () => {
+    const result = exploreTarget(
+      panel("logs", [{ query: "{a=1}" }], "loki"),
+      resolve,
+      undefined,
+      {}
+    )
+    expect(result).toMatchObject({ opening: { label: "Open in Logs" } })
   })
 
   it("takes the query's own datasource over the panel's and resolves a variable reference", () => {
@@ -140,6 +145,21 @@ describe("exploreTarget", () => {
     expect(result.target).toMatchObject({ search: { q: "second" } })
   })
 
+  it("counts only visible queries when it says the panel has several", () => {
+    const result = opening(
+      panel(
+        "timeseries",
+        [
+          { ref: "A", query: "up" },
+          { ref: "B", query: "hidden", hide: true },
+          { ref: "C", expression: { type: "math", math: "$A * 2" } },
+        ],
+        "prom"
+      )
+    )
+    expect(result.label).toBe("Open in Metrics")
+  })
+
   it("uses the query as it ran when the saved text has variables", () => {
     const asked: string[] = []
     const result = opening(
@@ -163,6 +183,17 @@ describe("exploreTarget", () => {
     expect(result.target).toMatchObject({ search: { q: "up" } })
   })
 
+  it("waits for the datasource list before choosing an explorer", () => {
+    expect(
+      exploreTarget(
+        panel("timeseries", [{ query: "up" }], "prom"),
+        resolve,
+        undefined,
+        {}
+      )
+    ).toEqual({ problem: "datasources-not-loaded" })
+  })
+
   const problems: [string, DataPanel, ExploreProblem][] = [
     [
       "a datasource with no explorer",
@@ -173,6 +204,33 @@ describe("exploreTarget", () => {
       "a datasource whose type is not known",
       panel("timeseries", [{ query: "up" }], "missing"),
       "no-explorer",
+    ],
+    [
+      "an expression and a reused panel only",
+      panel(
+        "timeseries",
+        [
+          { ref: "A", expression: { type: "math", math: "1" } },
+          { source: { panel: "p0" } },
+        ],
+        "prom"
+      ),
+      "no-query",
+    ],
+    [
+      "a time series on Tempo",
+      panel("timeseries", [{ query: "{}" }], "tempo"),
+      "not-a-search",
+    ],
+    [
+      "a time series on ClickHouse",
+      panel("timeseries", [{ query: "SELECT 1" }], "ch"),
+      "not-a-search",
+    ],
+    [
+      "a table on Elasticsearch",
+      panel("table", [{ query: "*" }], "es"),
+      "not-a-search",
     ],
     [
       "no datasource anywhere",
@@ -187,12 +245,12 @@ describe("exploreTarget", () => {
     [
       "a dashboard query instead of a panel query",
       panel("logs", [{ source: { panel: "p0" } }], "loki"),
-      "no-datasource",
+      "no-query",
     ],
     [
       "only hidden queries",
       panel("logs", [{ query: "{a=1}", hide: true }], "loki"),
-      "no-datasource",
+      "no-query",
     ],
     [
       "a $service variable in the query before the panel has loaded",
@@ -240,6 +298,9 @@ describe("exploreTarget", () => {
 
 describe("exploreProblemText", () => {
   it.each<[ExploreProblem, string]>([
+    ["no-query", "no query to open"],
+    ["datasources-not-loaded", "datasources not loaded"],
+    ["not-a-search", "its query is not a log or trace search"],
     ["no-explorer", "no explorer for this datasource"],
     ["no-datasource", "no datasource"],
     ["uses-variables", "variables not resolved yet"],

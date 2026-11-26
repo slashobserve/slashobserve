@@ -273,7 +273,9 @@ export function PanelMenu({
     const explore = exploreTarget(
       panel,
       (ref) => resolveDatasourceRef(ref, selections),
-      (uid) => datasourceTypeOf(datasources, uid),
+      datasources === undefined
+        ? undefined
+        : (uid) => datasourceTypeOf(datasources, uid),
       range,
       executed
     )

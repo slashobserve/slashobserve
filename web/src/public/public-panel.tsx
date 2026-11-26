@@ -4,6 +4,7 @@ import type { Selections } from "@/api/keys"
 import {
   panelBodySize,
   PanelChrome,
+  showsStaleRow,
   type PanelState,
 } from "@/dashboards/panel-chrome"
 import {
@@ -83,7 +84,7 @@ export const PublicPanel = memo(function PublicPanel({
   )
   const ref = useRef<HTMLDivElement>(null)
   const { seen, inView } = useInView(ref)
-  const body = panelBodySize(Math.floor(width), Math.floor(height))
+  const wholeBody = panelBodySize(Math.floor(width), Math.floor(height))
   const available = availableOnPublicLink(panel.type)
   const supported = available && isRenderable(panel.type)
   const dataPanel = useMemo(
@@ -109,7 +110,7 @@ export const PublicPanel = memo(function PublicPanel({
     to,
     timezone,
     vars: selections,
-    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, body.width),
+    maxDataPoints: maxDataPointsFor(dataPanel ?? panel, wholeBody.width),
     refreshMs,
     enabled: dataPanel !== undefined && supported && seen && selectionsReady,
     inView,
@@ -146,6 +147,13 @@ export const PublicPanel = memo(function PublicPanel({
   else if (blockedBy !== undefined) state = "error"
   else if (failedWithoutData(query)) state = "error"
 
+  const stale = staleNoticeOf(query, dataPanel?.timezone, timezone)
+  const body = panelBodySize(
+    Math.floor(width),
+    Math.floor(height),
+    showsStaleRow(state, stale)
+  )
+
   return (
     <div ref={ref} className="size-full">
       <PanelChrome
@@ -153,7 +161,7 @@ export const PublicPanel = memo(function PublicPanel({
         state={state}
         error={query.data ? query.error : (blockedError ?? failureOf(query))}
         refreshing={query.isFetching && query.data !== undefined}
-        staleNotice={staleNoticeOf(query, dataPanel?.timezone, timezone)}
+        staleNotice={stale}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
       >
         {available ? null : (
