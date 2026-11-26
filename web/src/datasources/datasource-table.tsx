@@ -142,7 +142,7 @@ export function DatasourceTable({ onEdit }: Props) {
     {
       id: "usedBy",
       header: "Used by",
-      minWidth: 90,
+      minWidth: 140,
       cell: (datasource) => (
         <span className="text-muted-foreground">
           {usageLabel(datasource.dashboard_count)}
@@ -153,7 +153,7 @@ export function DatasourceTable({ onEdit }: Props) {
       id: "checked",
       header: "Checked",
       align: "right",
-      minWidth: 90,
+      minWidth: 120,
       cell: (datasource) => (
         <span className="text-muted-foreground">
           <RelativeTime iso={datasource.checked_at} />
@@ -181,7 +181,7 @@ export function DatasourceTable({ onEdit }: Props) {
               <Button
                 variant="outline"
                 size="xs"
-                aria-label={`Edit ${datasource.uid}`}
+                aria-label={`Edit ${datasource.name}`}
                 onClick={(event) => onEdit(datasource.uid, event.currentTarget)}
               >
                 Edit

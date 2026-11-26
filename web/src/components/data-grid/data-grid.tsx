@@ -53,6 +53,7 @@ import { gridTheme } from "./theme"
 import { TruncatedText } from "./truncated-text"
 import { useFillHeight } from "./use-fill-height"
 import { useNarrow } from "./use-narrow"
+import { useRemeasureRows } from "./use-remeasure-rows"
 import { useWidth } from "./use-width"
 
 const modules = [
@@ -392,6 +393,11 @@ export function DataGrid<T>({
     revealRef.current = revealRowId
     layoutRef.current = layout
   })
+  useRemeasureRows(
+    containerRef,
+    apiRef,
+    !narrow && !hasDetail && fullWidthRow === undefined && !showsEmpty
+  )
   const reveal = useCallback(() => {
     const id = revealRef.current
     const api = apiRef.current
