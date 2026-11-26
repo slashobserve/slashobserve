@@ -25,8 +25,7 @@ import {
   walkBucket,
   type BucketSelection,
 } from "./brush"
-import { exploreErrorText } from "./explore"
-import { ExploreFailure } from "./explore-failure"
+import { exploreErrorText, failedNote } from "./explore"
 import {
   bucketTotal,
   logVolumeQuery,
@@ -95,11 +94,9 @@ export function VolumeStrip({
   if (slow) {
     return (
       <div className={cn(cardClasses, "min-h-[134px] justify-center")}>
-        <ExploreFailure
-          echo
-          text={exploreErrorText(results.error)}
-          onRetry={() => void results.refetch()}
-        />
+        <p role="status" className="text-[13px] text-muted-foreground">
+          {failedNote("below")}
+        </p>
       </div>
     )
   }
@@ -378,7 +375,7 @@ function VolumeBars({
                   ? ""
                   : undefined
               }
-              title="Click to show only this level, shift-click to add or remove it"
+              title="Click to show only this level. Shift-click or Cmd/Ctrl-click to add or remove it."
               className={chipClasses}
               onClick={(event) =>
                 pick(kind, event.shiftKey || event.metaKey || event.ctrlKey)

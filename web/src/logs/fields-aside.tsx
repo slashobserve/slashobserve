@@ -28,8 +28,7 @@ import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
-import { exploreErrorText } from "./explore"
-import { ExploreFailure } from "./explore-failure"
+import { failedNote } from "./explore"
 import {
   clampFieldsWidth,
   fieldsDefaultWidth,
@@ -425,11 +424,9 @@ function FieldsPanel({
           </Alert>
         )}
         {slow ? (
-          <ExploreFailure
-            echo
-            text={exploreErrorText(results.error)}
-            onRetry={() => void results.refetch()}
-          />
+          <p role="status" className="m-0 px-1.5 text-xs text-muted-foreground">
+            {failedNote("the results")}
+          </p>
         ) : loading ? (
           <div aria-busy="true" className="flex flex-col gap-1">
             {[0, 1, 2, 3, 4].map((item) => (

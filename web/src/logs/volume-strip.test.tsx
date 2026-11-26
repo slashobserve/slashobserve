@@ -32,7 +32,6 @@ function setup({
 }: { shown?: ShownLevels; timedOut?: boolean } = {}) {
   const pick = vi.fn()
   const clear = vi.fn()
-  const refetch = vi.fn()
   const workspace = {
     update: vi.fn(),
     results: {
@@ -42,7 +41,6 @@ function setup({
       error: timedOut
         ? new ApiError(504, "query_timeout", "Query timed out after 15s")
         : null,
-      refetch,
     },
     levels: { shown, hidden: new Set(), pick, clear },
   } as unknown as LogsWorkspace
@@ -57,7 +55,7 @@ function setup({
     </LogsWorkspaceContext>,
     { queryClient }
   )
-  return { pick, clear, refetch }
+  return { pick, clear }
 }
 
 describe("VolumeStrip level pills", () => {
@@ -112,11 +110,12 @@ describe("VolumeStrip level pills", () => {
 })
 
 describe("VolumeStrip after a failed query", () => {
-  it("shows the failure and Retry instead of waiting", async () => {
-    const { refetch } = setup({ timedOut: true })
-    expect(await screen.findByText("Query timed out after 15s")).toBeVisible()
+  it("points to the results card instead of waiting or offering a second Retry", async () => {
+    setup({ timedOut: true })
+    expect(
+      await screen.findByText("The query failed, see below.")
+    ).toBeVisible()
     expect(screen.queryByText(/when the query answers/)).toBeNull()
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }))
-    expect(refetch).toHaveBeenCalled()
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
   })
 })
