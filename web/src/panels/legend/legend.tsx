@@ -36,7 +36,7 @@ export function LegendName({
   )
 }
 
-export function legendButtonName(label: string, values: string): string {
+function legendButtonName(label: string, values: string): string {
   return values ? `${label} ${values}` : label
 }
 
