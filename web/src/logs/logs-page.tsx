@@ -331,8 +331,11 @@ function LogsWorkspaceView({
       shown: shownLevels,
       hidden: hiddenLevelSet,
       pick: (kind, additive) =>
-        update({ levels: levelsParam(pickLevel(shownLevels, kind, additive)) }),
-      clear: () => update({ levels: undefined }),
+        update(
+          { levels: levelsParam(pickLevel(shownLevels, kind, additive)) },
+          { replace: true }
+        ),
+      clear: () => update({ levels: undefined }, { replace: true }),
     },
     detail: {
       selection,
