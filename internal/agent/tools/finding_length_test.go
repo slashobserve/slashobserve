@@ -40,3 +40,15 @@ func TestTheLengthRejectionNamesTheLimitAndAsksForAShorterText(t *testing.T) {
 		t.Errorf("message %q points at panels", message)
 	}
 }
+
+func TestATableOfFiguresIsNotCountedAsPipesAndSeparators(t *testing.T) {
+	rows := strings.Repeat("| checkout | 42 | 8% |\n", 30)
+	table := "| Service | Errors | Share |\n|---|---|---|\n" + rows
+	text := strings.Repeat("word ", 300) + "\n\n" + table
+	if got := len(strings.Fields(text)); got <= 400 {
+		t.Fatalf("fixture has %d whitespace tokens, want more than 400", got)
+	}
+	if _, res, ok := findingMarkdown(text, 0, nil); !ok {
+		t.Fatalf("a 300 word answer with a 93 cell table was refused: %#v", res.Content)
+	}
+}

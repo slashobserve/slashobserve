@@ -79,6 +79,17 @@ func TestWordsCountsWhitespaceSeparatedWords(t *testing.T) {
 	}
 }
 
+func TestWordsIgnoresTableSyntax(t *testing.T) {
+	table := "| Service | Errors | Share |\n|---|:---:|---:|\n| checkout | 42 | 8% |\n|payments|7|1%|"
+	if got, want := findings.Words(table), 9; got != want {
+		t.Errorf("Words of a table = %d, want %d", got, want)
+	}
+	prose := "Checkout errors rose.\n\n" + table + "\n\n---\n\nSee the panel."
+	if got, want := findings.Words(prose), 9+3+3; got != want {
+		t.Errorf("Words of prose around a table = %d, want %d", got, want)
+	}
+}
+
 func TestPinTextEndsWithTheFindingPath(t *testing.T) {
 	f := findings.Finding{ID: "abc", Markdown: "# Checkout errors are up\ndetail"}
 	if got, want := findings.PinText(f), "Checkout errors are up /findings/abc"; got != want {
