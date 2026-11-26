@@ -57,7 +57,7 @@ func (sess *session) closeTurn(ctx context.Context) (notes []string, err error) 
 		notes = append(notes, nudge)
 	}
 	if stop != nil {
-		return notes, sess.end(ctx, endSpec{failure: stop.Failure, step: stop.Step})
+		return notes, sess.end(ctx, endSpec{failure: stop.Failure, step: stop.Step, message: stop.Message})
 	}
 	if line := sess.state.Guard.StageLine(); line != "" {
 		notes = append(notes, line)

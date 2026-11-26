@@ -10,6 +10,7 @@ type State struct {
 	Building           bool            `json:"building"`
 	Rejections         int             `json:"rejections"`
 	RestrictedRefusals int             `json:"restricted_refusals,omitempty"`
+	LengthRejections   int             `json:"length_rejections,omitempty"`
 	Window             Window          `json:"window"`
 	Saved              bool            `json:"saved,omitempty"`
 	LastGuard          string          `json:"last_guard,omitempty"`
@@ -92,7 +93,7 @@ func (s *State) BeginSession(building bool, parentVersion int) {
 }
 
 func (s *State) Restart() {
-	s.Rejections, s.RestrictedRefusals = 0, 0
+	s.Rejections, s.RestrictedRefusals, s.LengthRejections = 0, 0, 0
 	s.Window = Window{}
 	s.Churn, s.ChurnedInRow = nil, 0
 	s.Reads, s.Saves = nil, nil

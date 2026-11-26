@@ -1255,3 +1255,71 @@ func TestACountClaimIsANumberWithAUnitOrASuffix(t *testing.T) {
 		}
 	}
 }
+
+func rejectFinding(t *testing.T, s *State, n int, body string) *Stop {
+	t.Helper()
+	s.BeginTurn(true)
+	c := jsonCall("save_finding", `{"n":`+strconv.Itoa(n)+`}`)
+	s.Admit(0, c)
+	if _, err := s.Settle(c, tools.Result{IsError: true}, []byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	_, stop := s.EndTurn()
+	return stop
+}
+
+const (
+	tooLongBody = `{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}`
+	schemaBody  = `{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}`
+)
+
+func TestLengthOverrunsDoNotSpendTheThreeRejectionBudget(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	for i, body := range []string{tooLongBody, tooLongBody, schemaBody, schemaBody} {
+		if stop := rejectFinding(t, &s, i+1, body); stop != nil {
+			t.Fatalf("stopped after save %d: %+v", i+1, stop)
+		}
+	}
+	if s.Rejections != 2 || s.LengthRejections != 2 {
+		t.Fatalf("rejections %d, length rejections %d", s.Rejections, s.LengthRejections)
+	}
+	stop := rejectFinding(t, &s, 5, schemaBody)
+	if stop == nil || stop.Failure != revisions.FailureValidationExhausted || stop.Step != "Stopped: 3 findings in a row were rejected" || stop.Message != "" {
+		t.Fatalf("stop = %+v", stop)
+	}
+}
+
+func TestLengthOverrunsHaveTheirOwnHardBound(t *testing.T) {
+	s := New(tools.ModeCreate)
+	for i := range MaxLengthRejections {
+		stop := rejectFinding(t, &s, i+1, tooLongBody)
+		if s.Rejections != 0 {
+			t.Fatalf("rejections = %d after %d overruns", s.Rejections, i+1)
+		}
+		if i < MaxLengthRejections-1 && stop != nil {
+			t.Fatalf("stopped after %d overruns: %+v", i+1, stop)
+		}
+		if i == MaxLengthRejections-1 && (stop == nil || stop.Failure != revisions.FailureValidationExhausted || stop.Step != "Stopped: 5 findings in a row were over the word limit" || stop.Message != "the finding was still over the word limit after 5 saves") {
+			t.Fatalf("stop = %+v", stop)
+		}
+	}
+}
+
+func TestAnAcceptedFindingClearsTheLengthOverruns(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	for i := range MaxLengthRejections - 1 {
+		rejectFinding(t, &s, i+1, tooLongBody)
+	}
+	if got := s.Phase("save_finding"); got != PhaseRepair {
+		t.Fatalf("phase after overruns = %q", got)
+	}
+	s.BeginTurn(true)
+	c := jsonCall("save_finding", `{"n":9}`)
+	s.Admit(0, c)
+	if _, err := s.Settle(c, tools.Result{}, []byte(`{"finding_id":"f1"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if s.LengthRejections != 0 || s.Counts.Repairs != 1 {
+		t.Fatalf("length rejections %d, repairs %d", s.LengthRejections, s.Counts.Repairs)
+	}
+}

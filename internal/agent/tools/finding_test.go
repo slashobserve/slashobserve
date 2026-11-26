@@ -193,7 +193,7 @@ func TestSaveFindingRefusesWhatAFindingCannotHold(t *testing.T) {
 		name, input, code, message string
 	}{
 		{"no markdown", findingBody("  "), codeInvalidRequest, "markdown is required"},
-		{"401 words", findingBody(strings.Repeat("word ", 401)), codeTooLong, "the finding is 401 words; keep it to 400 words and move detail into evidence panels"},
+		{"401 words", findingBody(strings.Repeat("word ", 401)), CodeFindingTooLong, "the finding is 401 words and the limit is 400; shorten the text by 1 word, keeping every figure the question asks for"},
 		{"html", findingBody("checkout <script>x</script> failed"), codeInvalidRequest, "markdown must be plain Markdown without HTML"},
 		{"control character", findingBody("checkout\u0007 failed"), codeInvalidRequest, "markdown must not contain control characters other than line breaks and tabs; remove them"},
 		{"override character", findingBody("checkout\u202e failed"), codeInvalidRequest, "markdown must not contain bidirectional override characters (U+202A to U+202E, U+2066 to U+2069); remove them"},
@@ -610,7 +610,7 @@ func TestAFindingSaysWhichDatasourcesCouldNotBeChecked(t *testing.T) {
 	if !ok || got != want {
 		t.Fatalf("finding = %q, want %q", got, want)
 	}
-	if _, res, ok := findingMarkdown(strings.Repeat("word ", 390), 0, []Unchecked{{Datasource: "loki", Code: "query_timeout"}}); ok || errorCode(t, res) != codeTooLong {
+	if _, res, ok := findingMarkdown(strings.Repeat("word ", 390), 0, []Unchecked{{Datasource: "loki", Code: "query_timeout"}}); ok || errorCode(t, res) != CodeFindingTooLong {
 		t.Fatalf("390 words with the could-not-check note: ok %v, res %#v", ok, res.Content)
 	}
 }
@@ -676,7 +676,7 @@ func TestAFindingThatFitsOnlyWithoutTheReadsNoteIsSentBackNotLost(t *testing.T) 
 
 func TestTheReadsNoteIsCountedAgainstTheWordLimit(t *testing.T) {
 	_, res, ok := findingMarkdown(strings.Repeat("word ", 390), 2, nil)
-	if ok || errorCode(t, res) != codeTooLong {
+	if ok || errorCode(t, res) != CodeFindingTooLong {
 		t.Fatalf("390 words with a 34 word note: ok %v, res %#v", ok, res.Content)
 	}
 	if got, _, ok := findingMarkdown(strings.Repeat("word ", 300), 2, nil); !ok || !strings.Contains(got, "Reading stopped early") {

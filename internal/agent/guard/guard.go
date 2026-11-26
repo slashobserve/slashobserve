@@ -11,6 +11,7 @@ import (
 
 const (
 	MaxRejectionsInRow     = 3
+	MaxLengthRejections    = 5
 	maxIdenticalReads      = 3
 	maxCallsBeforeSave     = 6
 	maxCallsBeforeProposal = 12
@@ -176,6 +177,7 @@ type Admission struct {
 type Stop struct {
 	Failure revisions.FailureCode
 	Step    string
+	Message string
 }
 
 func isSave(name string) bool {
@@ -190,7 +192,11 @@ func PhaseFor(name string, repairing bool) string {
 }
 
 func (s *State) Phase(name string) string {
-	return PhaseFor(name, s.Rejections > 0)
+	return PhaseFor(name, s.repairing())
+}
+
+func (s *State) repairing() bool {
+	return s.Rejections > 0 || s.LengthRejections > 0
 }
 
 func (s *State) windowLimit() int {
@@ -427,6 +433,13 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 		return nudge, &Stop{
 			Failure: revisions.FailureRestrictedAnswer,
 			Step:    fmt.Sprintf("Stopped: %d %s in a row were refused because the run read data only Admins can read", MaxRejectionsInRow, rejectedThing(s.Mode)),
+		}
+	}
+	if s.Turn.Rejected && s.LengthRejections >= MaxLengthRejections {
+		return nudge, &Stop{
+			Failure: revisions.FailureValidationExhausted,
+			Step:    fmt.Sprintf("Stopped: %d findings in a row were over the word limit", MaxLengthRejections),
+			Message: fmt.Sprintf("the finding was still over the word limit after %d saves", MaxLengthRejections),
 		}
 	}
 	if s.Turn.Rejected && s.Rejections >= MaxRejectionsInRow {
