@@ -111,6 +111,8 @@ describe("traceModel columns", () => {
     expect(spans[1].operation).toBe("child")
     if (result.reason === null)
       expect(result.formatDuration(100)).toBe("100 ms")
+    if (result.reason === null)
+      expect(result.formatDuration(7_200_000)).toBe("2 h")
   })
 
   it("reads the status message the span set with its status", () => {

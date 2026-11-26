@@ -17,6 +17,12 @@ const (
 	secretName = `(?:password|passwd|pwd|secret[_-]?access[_-]?key|secret[_-]?key|secret|token|api[_-]?key|access[_-]?key)`
 )
 
+var secretNameRe = regexp.MustCompile(`(?i)` + secretName)
+
+func SecretName(name string) bool {
+	return secretNameRe.MatchString(name)
+}
+
 func valueOf(prefix, bare string) string {
 	return `(?:"` + prefix + `((?:[^"\\]|\\.)*)"|'` + prefix + `((?:[^'\\]|\\.|'')*)'|"` + prefix + `((?:[^"\\]|\\.)*)\\?$|'` + prefix + `((?:[^'\\]|\\.|'')*)\\?$|` + prefix + bare + `)`
 }

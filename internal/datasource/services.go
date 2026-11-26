@@ -6,9 +6,12 @@ import (
 )
 
 const (
-	SignalLogs   = "logs"
-	SignalTraces = "traces"
+	SignalLogs    = "logs"
+	SignalTraces  = "traces"
+	SignalMetrics = "metrics"
 )
+
+var ServiceLabels = []string{"service_name", "service", "app", "job"}
 
 type ServiceRequest struct {
 	Signal string
@@ -32,6 +35,8 @@ func ServiceSignals(datasourceType string) []string {
 		return []string{SignalLogs}
 	case "tempo", "jaeger":
 		return []string{SignalTraces}
+	case "prometheus":
+		return []string{SignalMetrics}
 	case "clickhouse":
 		return []string{SignalLogs, SignalTraces}
 	}

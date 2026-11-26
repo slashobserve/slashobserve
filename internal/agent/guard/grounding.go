@@ -12,11 +12,11 @@ func (s *State) WatchGrounding() {
 	}
 }
 
-func (s *State) groundingBehind(c Call) string {
+func (s *State) groundingBehind(c Call) (fault, bool) {
 	if s.Grounding == nil || s.Grounding.Asked || c.Ungrounded == "" {
-		return ""
+		return fault{}, false
 	}
 	s.Grounding.Asked = true
 	s.Turn.Rejected = true
-	return c.Ungrounded
+	return fault{c.Ungrounded, "it named a figure, service or time that the run never read"}, true
 }

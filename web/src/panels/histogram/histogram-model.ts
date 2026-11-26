@@ -1,4 +1,4 @@
-import { axisDecimals } from "@/lib/units"
+import { axisFormat } from "@/lib/units"
 import { displayWithDefaults, type Reducer } from "@/spec"
 
 import { styleForSlot } from "../colors"
@@ -63,7 +63,7 @@ export type HistogramModel = {
   bars: HistogramBar[][]
   total: number
   unit: string | undefined
-  decimals: number | undefined
+  format: (edge: number) => string
   stack: HistogramStack
   axis: HistogramAxis
   scale: ValueScale
@@ -345,7 +345,7 @@ export function histogramModel(
     bars: [] as HistogramBar[][],
     total: 0,
     unit,
-    decimals: configDecimals,
+    format: axisFormat([], unit, configDecimals),
     stack,
     axis,
     scale: linearScale,
@@ -392,7 +392,7 @@ export function histogramModel(
     bars,
     total,
     unit,
-    decimals: axisDecimals([...new Set(edges)], unit, configDecimals),
+    format: axisFormat([...new Set(edges)], unit, configDecimals),
     stack,
     axis,
     scale: scaleOf(settings),

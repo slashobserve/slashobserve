@@ -17,6 +17,7 @@ import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { exploreQuery } from "./explore"
+import type { ShownLevels } from "./levels"
 import type { LogsSearch } from "./search"
 import type { useLiveTail } from "./use-live-tail"
 
@@ -162,8 +163,10 @@ export type LogsWorkspace = {
   registerQueryFocus: (focus: () => void) => void
   labels: { open: boolean; setOpen: (open: boolean) => void }
   levels: {
+    shown: ShownLevels
     hidden: ReadonlySet<LogLevelKind>
-    setHidden: (next: ReadonlySet<LogLevelKind>) => void
+    pick: (kind: LogLevelKind, additive: boolean) => void
+    clear: () => void
   }
   detail: LogDetailState
 }

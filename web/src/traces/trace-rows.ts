@@ -1,4 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
+import { abbreviateTimeUnits, formatValue } from "@/lib/units"
 
 export type TraceRow = {
   traceId: string
@@ -9,7 +10,10 @@ export type TraceRow = {
   spans: number | null
   errors: number | null
   matching?: number | null
+  incomplete?: boolean
 }
+
+const missingRootName = "<root span not yet received>"
 
 function column(frame: WireFrame, name: string) {
   const wanted = name.toLowerCase()
@@ -47,12 +51,17 @@ export function traceRows(frames: readonly WireFrame[]): TraceRow[] {
       const traceId = textAt(ids.values, row)
       if (traceId === "") continue
       const ns = numberAt(duration, row)
+      const rootService = textAt(service, row)
+      const rootSpan = textAt(span, row)
+      const incomplete =
+        rootService === missingRootName || rootSpan === missingRootName
       rows.push({
         traceId,
         start: numberAt(start, row),
-        service: textAt(service, row),
-        span: textAt(span, row),
-        durationMs: ns === null ? null : ns / 1e6,
+        service: rootService,
+        span: rootSpan,
+        durationMs: ns === null || incomplete ? null : ns / 1e6,
+        ...(incomplete && { incomplete }),
         spans: numberAt(spans, row),
         errors: numberAt(errors, row),
         matching: numberAt(matching, row),
@@ -75,9 +84,11 @@ export function countText(count: number, noun: string): string {
 }
 
 export function durationText(ms: number | null): string {
-  return ms === null
-    ? "-"
-    : `${ms.toLocaleString("en", { maximumFractionDigits: 1 })} ms`
+  return ms === null ? "-" : abbreviateTimeUnits(formatValue(ms, "ms"))
+}
+
+export function rowDurationText(row: TraceRow): string {
+  return row.incomplete === true ? "Incomplete" : durationText(row.durationMs)
 }
 
 export function openTraceLabel(row: TraceRow): string {
@@ -85,6 +96,8 @@ export function openTraceLabel(row: TraceRow): string {
   if (row.span !== "") parts.push(row.span)
   if (row.durationMs !== null) {
     parts.push(`${(row.durationMs / 1000).toFixed(2)} seconds`)
+  } else if (row.incomplete === true) {
+    parts.push("incomplete trace")
   }
   return parts.join(", ")
 }
@@ -211,10 +224,31 @@ const sortHints: Record<TraceSortKey, [string, string]> = {
   errors: ["Fewest errors first.", "Most errors first."],
 }
 
-export function sortHint(sort: TraceSort | null): string {
-  if (sort === null) return "Click a column to sort."
+export type SortScope = "all" | "page"
+
+export function sortHint(sort: TraceSort | null, scope: SortScope): string {
+  const action = `Click a column to sort ${scope === "all" ? "all matching traces" : "this page"}.`
+  if (sort === null) return action
   const [ascending, descending] = sortHints[sort.key]
-  return `${sort.direction === "ascending" ? ascending : descending} Click a column to sort.`
+  return `${sort.direction === "ascending" ? ascending : descending} ${action}`
+}
+
+export type ListOrder = { text: string; newest: boolean }
+
+const newestSort: TraceSort = { key: "start", direction: "descending" }
+
+export function listOrder(sort: TraceSort | null): ListOrder {
+  const effective = sort ?? newestSort
+  const [ascending, descending] = sortHints[effective.key]
+  const hint = effective.direction === "ascending" ? ascending : descending
+  return {
+    text: lowerFirst(hint),
+    newest: effective.key === "start" && effective.direction === "descending",
+  }
+}
+
+function lowerFirst(hint: string): string {
+  return hint.slice(0, 1).toLowerCase() + hint.slice(1, -1)
 }
 
 export function percentile(

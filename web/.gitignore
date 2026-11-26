@@ -6,3 +6,4 @@ e2e/.auth/
 *.local
 *.tsbuildinfo
 coverage/
+dist-panel/

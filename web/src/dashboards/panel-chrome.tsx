@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useDraftTitle } from "@/panel-editor/draft-title"
 import type { ResolvedLink } from "@/panels/field-config"
-import { errorMessage, PanelErrorState } from "@/panels/panel-error"
+import { PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -36,12 +36,23 @@ export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
 const panelHeaderHeight = 39
 const panelBorderWidth = 1
+export const staleRowHeight = 24
 
-export function panelBodySize(width: number, height: number) {
+export function panelBodySize(width: number, height: number, stale = false) {
   return {
     width: Math.max(0, width - 2 * panelBorderWidth),
-    height: Math.max(0, height - panelHeaderHeight - 2 * panelBorderWidth),
+    height: Math.max(
+      0,
+      height -
+        panelHeaderHeight -
+        2 * panelBorderWidth -
+        (stale ? staleRowHeight : 0)
+    ),
   }
+}
+
+export function showsStaleRow(state: PanelState, notice: string | undefined) {
+  return notice !== undefined && (state === "ready" || state === "empty")
 }
 
 function PanelProblemState({
@@ -76,7 +87,7 @@ type Props = {
   state: PanelState
   error?: unknown
   refreshing?: boolean
-  staleError?: unknown
+  staleNotice?: string
   onRetry?: () => void
   badge?: ReactNode
   links?: ResolvedLink[]
@@ -99,7 +110,7 @@ export function PanelChrome({
   state,
   error,
   refreshing = false,
-  staleError,
+  staleNotice,
   onRetry,
   badge,
   links = [],
@@ -124,6 +135,7 @@ export function PanelChrome({
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
   const transparent = "transparent" in panel && panel.transparent === true
   const selectable = onSelect !== undefined && !titleHidden
+  const showsStale = showsStaleRow(state, staleNotice)
   return (
     <article
       aria-labelledby={titleId}
@@ -144,8 +156,8 @@ export function PanelChrome({
     >
       <header
         className={cn(
-          "flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1 @max-[15rem]/panel:gap-1",
-          dragHandle || arrangeable ? "pl-1" : "pl-3",
+          "relative flex shrink-0 items-center gap-2 pt-[9px] pr-2 pb-1 @max-[15rem]/panel:gap-1",
+          dragHandle ? "pl-1" : "pl-3",
           dragHandle && "touch-none",
           grabbable &&
             "group/header panel-drag-handle cursor-grab active:cursor-grabbing"
@@ -186,25 +198,8 @@ export function PanelChrome({
             title
           )}
         </h2>
-        {panel.description ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`About ${title}`}
-                  title={grabbable ? "" : undefined}
-                />
-              }
-            >
-              <InfoIcon />
-            </TooltipTrigger>
-            <TooltipContent>{panel.description}</TooltipContent>
-          </Tooltip>
-        ) : null}
         {datasourceLabel ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
+          <span className="min-w-0 flex-1 basis-0 truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
             {datasourceLabel}
           </span>
         ) : null}
@@ -229,7 +224,7 @@ export function PanelChrome({
           <span className="text-xs font-medium text-foreground">Editing</span>
         ) : null}
         <div
-          className="ml-auto flex items-center gap-0.5"
+          className="relative ml-auto flex items-center gap-0.5"
           title={grabbable ? "" : undefined}
         >
           {refreshing ? (
@@ -237,22 +232,6 @@ export function PanelChrome({
               <LoaderCircleIcon className="size-3 motion-safe:animate-spin" />
               <span className="sr-only">Refreshing</span>
             </span>
-          ) : null}
-          {staleError ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Showing older data: ${errorMessage(staleError)}`}
-                  />
-                }
-              >
-                <TriangleAlertIcon className="text-threshold-warning" />
-              </TooltipTrigger>
-              <TooltipContent>{errorMessage(staleError)}</TooltipContent>
-            </Tooltip>
           ) : null}
           {badge}
           {links.length > 0 ? (
@@ -283,6 +262,23 @@ export function PanelChrome({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
+          {panel.description ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`About ${title}`}
+                    title={grabbable ? "" : undefined}
+                  />
+                }
+              >
+                <InfoIcon />
+              </TooltipTrigger>
+              <TooltipContent>{panel.description}</TooltipContent>
+            </Tooltip>
+          ) : null}
           {menu}
         </div>
       </header>
@@ -303,6 +299,20 @@ export function PanelChrome({
         ) : null}
         {state === "ready" ? children : null}
       </div>
+      {showsStale ? (
+        <p
+          role="status"
+          title={staleNotice}
+          style={{ height: staleRowHeight }}
+          className="flex shrink-0 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground"
+        >
+          <TriangleAlertIcon
+            aria-hidden="true"
+            className="size-3 shrink-0 text-threshold-warning"
+          />
+          <span className="truncate">{staleNotice}</span>
+        </p>
+      ) : null}
     </article>
   )
 }

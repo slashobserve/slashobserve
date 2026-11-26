@@ -17,20 +17,22 @@ beforeEach(() => {
 })
 
 describe("useTraceInputMode", () => {
-  it("offers Ask and Query on Tempo", () => {
+  it("offers TraceQL then Ask on Tempo", () => {
     const { result } = setup("tempo", { service: "checkout" })
-    expect(result.current.modes).toEqual(["ask", "code"])
-    expect(result.current.labels.code).toBe("Query")
+    expect(result.current.modes).toEqual(["code", "ask"])
+    expect(
+      result.current.modes.map((mode) => result.current.labels[mode])
+    ).toEqual(["TraceQL", "Write a query"])
     expect(result.current.shown).toBe("code")
     expect(result.current.sqlShown).toBe(false)
   })
 
-  it("offers Ask, Search and SQL on ClickHouse", () => {
+  it("offers Search, SQL then Ask on ClickHouse", () => {
     const { result } = setup("clickhouse", { service: "checkout" })
-    expect(result.current.modes).toEqual(["ask", "builder", "code"])
+    expect(result.current.modes).toEqual(["builder", "code", "ask"])
     expect(
       result.current.modes.map((mode) => result.current.labels[mode])
-    ).toEqual(["Write a query", "Search", "SQL"])
+    ).toEqual(["Search", "SQL", "Write a query"])
     expect(result.current.shown).toBe("builder")
     expect(result.current.formMode).toBe("builder")
   })

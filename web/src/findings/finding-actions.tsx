@@ -7,6 +7,7 @@ import {
   useLatestPermissions,
   useLatestProvisioned,
 } from "@/dashboards/permissions"
+import { useOnDashboard } from "@/dashboards/use-on-dashboard"
 import { dashboardLink } from "@/lib/links"
 import { sentence } from "@/observe/queries"
 
@@ -32,6 +33,7 @@ function PinOnDashboard({
   dashboardId: string
 }) {
   const pin = usePinFinding(finding)
+  const onDashboard = useOnDashboard(dashboardId)
   const mayPin = mayEditBesidesContent(
     useLatestPermissions(dashboardId),
     useLatestProvisioned(dashboardId)
@@ -40,9 +42,11 @@ function PinOnDashboard({
     return (
       <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
         <span>Pinned to the dashboard</span>
-        <Link {...dashboardLink(dashboardId)} className={linkClass}>
-          Open dashboard
-        </Link>
+        {onDashboard ? null : (
+          <Link {...dashboardLink(dashboardId)} className={linkClass}>
+            Open dashboard
+          </Link>
+        )}
       </p>
     )
   }

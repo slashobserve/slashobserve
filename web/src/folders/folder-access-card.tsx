@@ -221,7 +221,7 @@ function AccessCard({
       {readOnly ? (
         <p className="border-b px-4 py-3 text-[13px]">
           {adminsOnly
-            ? "Only Admins"
+            ? "Admins only"
             : listed
               ? "Only the people and groups below"
               : "Everyone, by role"}
@@ -257,7 +257,7 @@ function AccessCard({
               <label className="flex items-start gap-2 text-[13px]">
                 <RadioGroupItem value="admins" className="mt-0.5" />
                 <span>
-                  Only Admins
+                  Admins only
                   <span className="block text-xs text-muted-foreground">
                     Hidden from everyone but Admins, the person who created it
                     included. Content that reads an Admins-only datasource can

@@ -1,20 +1,31 @@
-import { useMemo, useState } from "react"
+import { Link } from "@tanstack/react-router"
+import { CompassIcon } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
 import { useContainerWidth } from "react-grid-layout"
+
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 import {
   panelBodySize,
   PanelChrome,
   type PanelState,
 } from "@/dashboards/panel-chrome"
+import { exploreTarget } from "@/dashboards/explore-link"
 import { maxDataPointsFor } from "@/dashboards/use-panel-data"
-import { useDatasources } from "@/datasources/queries"
+import { datasourceTypeOf, useDatasources } from "@/datasources/queries"
 import { isRenderable, isStaticPanel } from "@/panels"
 import { createFieldResolver, type FieldResolver } from "@/panels/field-config"
 import { PanelBody, StaticPanelBody } from "@/panels/panel-body"
 import { panelHasData } from "@/panels/panel-has-data"
 import { createSharedCursor } from "@/panels/shared-cursor"
 import type { PreparedFrame } from "@/panels/transforms"
-import { isDataPanel, isRowPanel, type Panel } from "@/spec"
+import {
+  isDataPanel,
+  isRowPanel,
+  resolveDatasourceRef,
+  type Panel,
+} from "@/spec"
 
 import { useFindingPanelData } from "./queries"
 import { traceColumnOverrides } from "./trace-columns"
@@ -22,6 +33,10 @@ import { traceColumnOverrides } from "./trace-columns"
 const noVars = {}
 
 function ignoreRangeSelect() {}
+
+function noSelections(ref: string) {
+  return resolveDatasourceRef(ref, {})
+}
 
 type Props = {
   findingId: string
@@ -50,6 +65,26 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
     [dataPanel]
   )
   const datasources = useDatasources().data
+  const executed = useCallback(
+    (ref: string) =>
+      query.data?.meta.queries?.find((entry) => entry.ref === ref)?.executed,
+    [query.data]
+  )
+  const explore = useMemo(
+    () =>
+      dataPanel === undefined
+        ? undefined
+        : exploreTarget(
+            dataPanel,
+            noSelections,
+            datasources === undefined
+              ? undefined
+              : (uid) => datasourceTypeOf(datasources, uid),
+            { from, to },
+            executed
+          ),
+    [dataPanel, datasources, from, to, executed]
+  )
   const columnOverrides = useMemo(
     () =>
       dataPanel && datasources
@@ -84,6 +119,21 @@ export function EvidencePanel({ findingId, panel, from, to, height }: Props) {
           error={query.error}
           refreshing={query.isFetching && query.data !== undefined}
           onRetry={() => void query.refetch()}
+          menu={
+            explore !== undefined && "opening" in explore ? (
+              <Link
+                {...explore.opening.target}
+                title={explore.opening.label}
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "xs" }),
+                  "text-muted-foreground"
+                )}
+              >
+                <CompassIcon aria-hidden="true" />
+                Open in Explore
+              </Link>
+            ) : undefined
+          }
         >
           {dataPanel && query.data ? (
             <PanelBody

@@ -25,7 +25,7 @@ import { loadProblemText } from "@/service-accounts/queries"
 
 import { chatFooterText } from "./chat-footer"
 import { ChatRenameForm, ChatRowMenu, chatRowId } from "./chat-row-menu"
-import { dashboardChoices, dashboardLabel, noDashboardLabel } from "./chat-rows"
+import { dashboardChoices, noSubjectLabel, subjectLabel } from "./chat-rows"
 import { useChats, type Chat } from "./chats-queries"
 import type { ChatsSearch } from "./chats-search"
 
@@ -319,7 +319,7 @@ function ChatTable({
         flex: 2,
         cell: (chat) => (
           <span className="block max-w-[240px] truncate text-muted-foreground">
-            {dashboardLabel(chat) ?? noDashboardLabel}
+            {subjectLabel(chat) ?? noSubjectLabel}
           </span>
         ),
       },

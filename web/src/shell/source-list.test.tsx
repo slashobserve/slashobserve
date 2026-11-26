@@ -179,4 +179,104 @@ describe("SourceList", () => {
       within(list).getByRole("link", { name: "Alpha LogQL" })
     ).toBeVisible()
   })
+
+  describe("switching to another kind of source", () => {
+    function ListedSources({ kind }: { kind: "logs" | "traces" | "metrics" }) {
+      return (
+        <SourceList kind={kind} {...useListedSources(kind)} currentId={null} />
+      )
+    }
+
+    function renderFrom(
+      url: string,
+      kind: "logs" | "traces" | "metrics" = "traces"
+    ) {
+      const queryClient = testQueryClient()
+      queryClient.setQueryData(datasourceKeys.list(), {
+        datasources: [
+          source("loki", "Loki"),
+          source("tempo", "Tempo", { type: "tempo" }),
+          source("tempo2", "Tempo two", { type: "tempo" }),
+          source("prom", "Prometheus", { type: "prometheus" }),
+          source("prom2", "Prometheus two", { type: "prometheus" }),
+        ],
+      })
+      return renderWithProviders(<ListedSources kind={kind} />, {
+        queryClient,
+        route: { path: "/logs/$datasourceUid", url },
+      })
+    }
+
+    it("carries the relative range of the logs page to a trace source and drops the query", async () => {
+      renderFrom('/logs/loki?from=now-15m&to=now&q={app="x"}&view=patterns')
+      const list = await screen.findByRole("list", { name: "Trace sources" })
+      const href = within(list)
+        .getByRole("link", { name: /^Tempo TraceQL/ })
+        .getAttribute("href")
+      expect(href).toBe("/traces/tempo?from=now-15m&to=now")
+    })
+
+    it("carries an absolute range to a metric source", async () => {
+      renderFrom(
+        "/logs/loki?from=2026-11-20T10:00:00Z&to=2026-11-20T11:00:00Z",
+        "metrics"
+      )
+      const list = await screen.findByRole("list", { name: "Metric sources" })
+      const href = within(list)
+        .getByRole("link", { name: /^Prometheus PromQL/ })
+        .getAttribute("href")
+      expect(href).toContain("/explore/metrics/prom?")
+      expect(href).toContain("from=2026-11-20T10")
+      expect(href).toContain("to=2026-11-20T11")
+    })
+
+    it("keeps the same-kind switch search while the page's own source is not listed", async () => {
+      const queryClient = testQueryClient()
+      queryClient.setQueryData(datasourceKeys.list(), {
+        datasources: [source("loki", "Loki"), source("loki2", "Loki two")],
+      })
+      renderWithProviders(<ListedSources kind="logs" />, {
+        queryClient,
+        route: {
+          path: "/logs/$datasourceUid",
+          url: "/logs/gone?from=now-15m&to=now&view=patterns&q=x",
+        },
+      })
+      const list = await screen.findByRole("list", { name: "Log sources" })
+      const href = within(list)
+        .getByRole("link", { name: /^Loki LogQL/ })
+        .getAttribute("href")
+      expect(href).toBe("/logs/loki?from=now-15m&to=now&view=patterns")
+    })
+
+    it("carries nothing when the logs page has no range", async () => {
+      renderFrom("/logs/loki")
+      const list = await screen.findByRole("list", { name: "Trace sources" })
+      expect(
+        within(list)
+          .getByRole("link", { name: /^Tempo TraceQL/ })
+          .getAttribute("href")
+      ).toBe("/traces/tempo")
+    })
+
+    it("carries nothing from a page outside Explore", async () => {
+      const queryClient = testQueryClient()
+      queryClient.setQueryData(datasourceKeys.list(), {
+        datasources: [
+          source("tempo", "Tempo", { type: "tempo" }),
+          source("tempo2", "Tempo two", { type: "tempo" }),
+        ],
+      })
+      renderWithProviders(<ListedSources kind="traces" />, {
+        queryClient,
+        route: { path: "/dashboards", url: "/dashboards?from=now-15m&to=now" },
+      })
+      const list = await screen.findByRole("list", { name: "Trace sources" })
+      expect(
+        within(list)
+          .getByRole("link", { name: /^Tempo TraceQL/ })
+          .getAttribute("href")
+      ).toBe("/traces/tempo")
+    })
+  })
 })

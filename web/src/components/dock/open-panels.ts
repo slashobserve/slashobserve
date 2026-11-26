@@ -1,12 +1,33 @@
+import { useSyncExternalStore } from "react"
+
 import { useInboxPanelStore } from "@/inbox/inbox-panel-store"
 
 const logicallyOpen = new Set<string>()
 const shownInstances = new Map<string, number>()
+const listeners = new Set<() => void>()
+
+function changed(): void {
+  for (const listener of listeners) listener()
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+export function useDockPanelShown(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => shownInstances.size > 0,
+    () => false
+  )
+}
 
 export function panelShown(key: string): boolean {
   const fresh = !logicallyOpen.has(key)
   logicallyOpen.add(key)
   shownInstances.set(key, (shownInstances.get(key) ?? 0) + 1)
+  changed()
   return fresh
 }
 
@@ -16,6 +37,7 @@ export function panelLeft(key: string, unmounting: boolean): void {
   else shownInstances.delete(key)
   const mightRemount = unmounting && useInboxPanelStore.getState().open
   if (!mightRemount) logicallyOpen.delete(key)
+  changed()
 }
 
 function forgetPanelsThatNeverReturned(): void {
@@ -31,4 +53,5 @@ useInboxPanelStore.subscribe((state, previous) => {
 export function resetOpenPanels(): void {
   logicallyOpen.clear()
   shownInstances.clear()
+  changed()
 }

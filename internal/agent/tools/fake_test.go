@@ -16,6 +16,7 @@ const fakeUID = "fake"
 
 type fakeDS struct {
 	typ        string
+	minStep    time.Duration
 	rangeFn    func(ctx context.Context, q datasource.Query, r datasource.TimeRange, step time.Duration) ([]datasource.Frame, error)
 	instantFn  func(ctx context.Context, q datasource.Query, r datasource.TimeRange) ([]datasource.Frame, error)
 	discoverFn func(ctx context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error)
@@ -33,6 +34,7 @@ func (f *fakeDS) Type() string {
 	}
 	return f.typ
 }
+func (f *fakeDS) MinStep() time.Duration            { return f.minStep }
 func (f *fakeDS) CheckHealth(context.Context) error { return f.healthErr }
 func (f *fakeDS) Lint(ctx context.Context, query string) ([]datasource.Diagnostic, error) {
 	if f.lintFn != nil {

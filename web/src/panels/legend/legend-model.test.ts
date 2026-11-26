@@ -4,6 +4,7 @@ import {
   capLegend,
   effectiveLegendMode,
   inlineValues,
+  legendNames,
   legendOrder,
   legendWorthShowing,
   maxStateLegendEntries,
@@ -146,5 +147,47 @@ describe("capLegend", () => {
 
   it("leaves a short list alone", () => {
     expect(capLegend(["a", "b"], 12)).toEqual({ shown: ["a", "b"], more: 0 })
+  })
+})
+
+describe("legendNames", () => {
+  const tenPerCharacter = (text: string) => text.length * 10
+  const statuses = ["STATUS_CODE_UNSET", "STATUS_CODE_OK", "STATUS_CODE_ERROR"]
+
+  it("keeps whole labels without a room to fit them in", () => {
+    expect(legendNames(statuses)).toEqual(statuses)
+  })
+
+  it("keeps whole labels when the widest one fits", () => {
+    expect(
+      legendNames(statuses, { px: 170, measure: tenPerCharacter })
+    ).toEqual(statuses)
+  })
+
+  it("drops the shared prefix from every label at once when one does not fit", () => {
+    expect(
+      legendNames(statuses, { px: 169, measure: tenPerCharacter })
+    ).toEqual(["UNSET", "OK", "ERROR"])
+  })
+
+  it("cuts only at a word boundary", () => {
+    const room = { px: 1, measure: tenPerCharacter }
+    expect(legendNames(["checkout-a", "checkout-b"], room)).toEqual(["a", "b"])
+    expect(legendNames(["frontend", "frontproxy"], room)).toEqual([
+      "frontend",
+      "frontproxy",
+    ])
+  })
+
+  it("keeps whole labels when no useful prefix is shared", () => {
+    const room = { px: 1, measure: tenPerCharacter }
+    expect(legendNames(["a_1", "a_2"], room)).toEqual(["a_1", "a_2"])
+    expect(legendNames(["only"], room)).toEqual(["only"])
+  })
+
+  it("keeps every label when one is the prefix of another", () => {
+    expect(
+      legendNames(["svc_", "svc_x"], { px: 1, measure: tenPerCharacter })
+    ).toEqual(["svc_", "svc_x"])
   })
 })

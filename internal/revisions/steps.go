@@ -36,7 +36,7 @@ func (s *Steps) RecordStep(ctx context.Context, req Request, st Step) {
 		return
 	}
 	st.Tool = cleanStepText(st.Tool, maxStepToolRunes)
-	st.Message = cleanStepText(st.Message, MaxStepMessageRunes)
+	st.Message = cleanStepMessage(st.Message, MaxStepMessageRunes)
 	st.Attempt = req.Attempt
 	st.At = st.At.UTC()
 	st.DurationMS = max(st.DurationMS, 0)
@@ -63,10 +63,34 @@ func validPhase(phase string) bool {
 	return false
 }
 
+func validText(s string) string {
+	return strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "")
+}
+
 func cleanStepText(s string, maxRunes int) string {
-	s = strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "")
+	s = validText(s)
 	if r := []rune(s); len(r) > maxRunes {
 		return string(r[:maxRunes])
 	}
 	return s
+}
+
+func cleanStepMessage(s string, maxRunes int) string {
+	s = validText(s)
+	r := []rune(s)
+	if len(r) <= maxRunes {
+		return s
+	}
+	const ellipsis = "..."
+	if maxRunes <= len(ellipsis) {
+		return string(r[:maxRunes])
+	}
+	keep := maxRunes - len(ellipsis)
+	cut := string(r[:keep])
+	if r[keep] != ' ' {
+		if i := strings.LastIndexByte(cut, ' '); i > len(cut)/2 {
+			cut = cut[:i]
+		}
+	}
+	return strings.TrimRight(cut, " ,;:.") + ellipsis
 }

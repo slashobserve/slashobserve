@@ -275,10 +275,11 @@ Each datasource type answers a different set; [Discovery by datasource type](#di
 1. `list_datasources` shows the datasources and whether each is healthy.
    `recheck_datasource` runs a fresh health check on one.
 2. `list_metrics`, `list_labels`, `list_label_values`, `get_schema` and `sample_rows` list names, labels, tables and sample rows.
-3. `list_services` finds which log or trace datasources hold a service.
+3. `list_services` finds which log, trace or metric datasources hold a service.
 4. `lint_query` checks a query without running it.
 5. `query_range` runs a query over a time range, and `query_instant` runs one at a point in time or returns a table.
 6. `draft_query` turns a question into a checked query, using the server's own model.
+7. `show_panel` draws a query, or a panel of a saved dashboard, as a chart in a host that supports [MCP Apps](#charts-in-mcp-apps-hosts).
 
 After a scoped `list_metrics`, saves tell you which metric families no panel uses yet, as [Save results report what is left uncovered](#save-results-report-what-is-left-uncovered) explains.
 
@@ -393,7 +394,7 @@ The loop of an agent that takes runs:
 A claim tool called with a run that is not yours at that attempt answers `not_your_run`.
 
 The session lists the tools SlashObserve's own agent has for that kind of run, with the same text, and none above the requester's role.
-It lists none of the 21 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
+It lists none of the 22 tools that no run has, such as the claim tools, `start_run` and the comment writes; [the agent](../concepts/agent.md#tools-in-a-run) lists them with their reasons.
 It acts for the person who asked and records every call in the run's steps.
 Its prompt list is empty, because the `observe` prompt is read on the first connection.
 
@@ -522,6 +523,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `apply_suggested_change` | Viewer |
 | `archive_run` | Viewer |
 | `arrange_blocks` | Viewer |
+| `call_context_tool` | Viewer |
 | `cancel_run` | Viewer |
 | `claim_run` | Viewer |
 | `clear_home_dashboard` | Viewer |
@@ -537,6 +539,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `draft_query` | Viewer |
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
+| `find_context_tools` | Viewer |
 | `finish_run` | Viewer |
 | `get_audit_event` | Admin |
 | `get_audit_histogram` | Admin |
@@ -563,6 +566,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `list_audit_fields` | Admin |
 | `list_chats` | Viewer |
 | `list_comments` | Viewer |
+| `list_context_sources` | Viewer |
 | `list_dashboard_health` | Viewer |
 | `list_dashboard_versions` | Viewer |
 | `list_dashboard_viewers` | Viewer |
@@ -616,6 +620,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `set_home_dashboard` | Viewer |
 | `set_inbox_item_done` | Viewer |
 | `share_answer` | Viewer |
+| `show_panel` | Viewer |
 | `start_run` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
@@ -660,6 +665,21 @@ A client that approves only non-destructive tools on its own therefore asks befo
 `list_datasources`, `list_dashboards`, `get_dashboard`, `query_range` and `query_instant` also publish an `outputSchema`, so a client knows the fields of a result before it calls.
 The schema accepts the `{code, message}` body a failed call answers with, because a client that validates results checks a failed one too.
 Every other tool publishes none.
+
+### Charts in MCP Apps hosts
+
+`show_panel` draws a chart in the conversation, in a host that supports MCP Apps (extension `io.modelcontextprotocol/ui`, version 2026-01-26), with the panel renderer of the web app.
+The chart follows the host's light or dark theme, resizes with the host and has an Open in SlashObserve button that opens the same query or panel in the web app.
+
+- The chart is one HTML resource, `ui://slashobserve/panel` of type `text/html;profile=mcp-app`, built with the web app and served by the server.
+  It declares no outside domains and makes no network request; everything it draws comes in the tool result.
+- The tool names the resource in `_meta.ui.resourceUri` only for a client that announced the extension with that type in `initialize` (or, for the 2026-07-28 protocol, in the capabilities of the request).
+  Any other client sees `show_panel` as an ordinary tool with no `_meta.ui`, and its result is the text summary alone.
+  SlashObserve is stateless, so a client that announced the extension is remembered through the `Mcp-Session-Id` the server returns on `initialize`; a client that does not send it back gets the plain tool.
+- For a host with apps the result carries the frames, the panel settings and the link as `structuredContent`, which the host gives to the chart and does not add to the model's context.
+  Other clients get the summary as `structuredContent`, like `query_range`.
+- The built-in agent has no `show_panel`.
+  A server built from source without `make web` has no chart resource and offers `show_panel` without `_meta.ui`.
 
 ### Tools only a person can use
 
@@ -1012,6 +1032,9 @@ It takes `datasource`, `search`, `limit` (1 to 500, 100 by default), `offset` an
   The result also has `families_total` and `grouped`, the families that share a name prefix such as `http_server`.
 - Label keys that every family has are listed once in `common_labels`.
 - A scope too large for one result pages with `next_offset` like the other lists.
+- A scope that matches no family comes back with a `note` that lists up to 100 label keys the datasource has, on Prometheus and Loki.
+  When only runtime families match, the note says so instead.
+  When the scope names a label key that is not among them, the note says so, so a guessed key such as `service_name` on a store that uses `job` shows up at once.
 - Runtime families, `up` and the names that start with `go_`, `process_`, `promhttp_` or `scrape_`, are left out of the list and counted in `runtime_families`.
   They stay in when the scope names `__name__`, as `{__name__=~"go_.+"}` or `go_goroutines{job="checkout"}` do.
 - `search` and `limit` are refused together with `scope`.
@@ -1044,12 +1067,16 @@ It takes `datasource`, `table` and `limit`, 1 to 20 and 5 by default.
 
 #### `list_services`
 
-Lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
+Lists the services a log, trace or metric datasource has seen over a recent window, and finds which datasources hold a service.
 
 - With `datasource` it reads that one source.
-  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
+  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch and Prometheus source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
   A source only Admins can query is left out unless you name it with `datasource`, so a plain listing does not mark an Admin's run as one that read Admin-only data.
-- `signal` (`logs` or `traces`) picks one signal.
+- `signal` (`logs`, `traces` or `metrics`) picks one signal.
+- A Prometheus source lists the values of the first of `service_name`, `service`, `app` and `job` that its series carry in the window, and names that label as `field`, the same rule Loki follows.
+  `service_name` comes first because OpenTelemetry names the service that way, `service` and `app` follow as the usual hand-written labels, and `job` comes last because every scraped series has it but it names a scrape job, which is often but not always a service.
+  A Prometheus source with none of them answers an empty `field` and no services.
+  Metric services come from Prometheus datasources only, not from ClickHouse metric tables.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.
 - `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
@@ -1072,12 +1099,29 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
 
 - It takes `datasource`, `query`, `from` and `to` (default `now-1h` and `now`, at most 31 days apart), `max_data_points` (10 to 1000, default 200) and `format` (`timeseries`, `table`, `heatmap` or `logs`; default `timeseries`).
 - It takes `variables`, an object of variable name to a list of values for each `$variable` the query uses, and `dashboard_title` for `$__dashboard`.
+- It returns `step_ms`, the step the query ran at, which is the larger of window divided by `max_data_points` and the datasource's scrape interval.
+  The `min`, `max` and `last` of a series are of those sampled points.
+  On a Prometheus datasource, when the step is longer than the scrape interval, the `note` says an extreme between samples is not shown and suggests `max_over_time` or `min_over_time` over the window as a `query_instant`.
 - It returns `executed`, the text each query ran as after variables and macros were expanded, when it was sent to the datasource.
   That shows what a `$job` or a `$__rate_interval` became.
 - A Loki log query comes back as one table of lines, newest first across every stream, with a `labels` column naming each line's stream.
   The summary shows up to ten lines; `query_instant` with `page_size` shows the whole page.
 - On any ClickHouse table, `query_range` refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`.
   A macro inside a comment does not count.
+
+#### `show_panel`
+
+Draws a chart for a host that supports MCP Apps, as [Charts in MCP Apps hosts](#charts-in-mcp-apps-hosts) explains.
+It is read-only, and it runs through the same path and under the same limits as `query_range`.
+
+- Give `datasource` and `query`, with `type` (`timeseries`, `barchart`, `stat`, `gauge`, `bargauge`, `piechart`, `table`, `trend`, `histogram`, `heatmap`, `state-timeline`, `status-history` or `logs`; default `timeseries`), `title`, `from`, `to`, `max_data_points` and `variables` as for `query_range`.
+- Or give `dashboard_id` and `panel`, with `from`, `to` and `max_data_points`; `type`, `title` and `variables` are refused with it.
+  The panel runs with its dashboard's variables, time zone and time overrides, for a reader who can view the dashboard.
+  A panel type the chart view does not draw, such as a map or a text panel, is refused with a link to the dashboard.
+- The chart shows the range actually queried, after the panel's time override and shift.
+- It returns the summary of `query_range` and `open_url`, the address of the query in Explore or of the panel in its dashboard.
+- A chart with more than 2 MiB of data is not drawn: the host gets the summary and a note to ask for a shorter range or fewer series.
+- A server built without the chart view, and a client that does not show MCP Apps, get the summary only.
 
 #### `query_instant`
 
@@ -1157,7 +1201,10 @@ The built-in agent has the same tool.
 #### `trace_stats`
 
 Counts spans and errors per time bucket (at most 60, set with `buckets`).
-It gives p50, p95 and p99 durations and a duration histogram over a filter.
+It gives p50, p95 and p99 durations per bucket and a duration histogram over a filter.
+On Tempo it also gives p50, p95 and p99 for the whole range in `window`, and with `group_by` (one attribute such as `resource.service.name`, `span.http.route` or `.http.method`, or `name`, `status` or `kind`) the span count, error count and the same quantiles per value, at most 20 values by span count.
+Tempo computes quantiles by interpolating its log-scale duration buckets, so they are approximate, and the response says so in `note`.
+ClickHouse answers per-bucket quantiles only and says so in `note`.
 The `query` is a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
 The built-in agent has the same tool.
 
@@ -1760,6 +1807,60 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
   It is recorded once per key, view and query text in 10 minutes; see [Audit queries](../reference/audit-queries.md).
   `list_audit_fields` records nothing, and none of them changes or deletes an event.
 - The export is in the CLI and the API only, because a tool answer holds at most 16 KiB.
+
+### Context source tools
+
+Three tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
+All three need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
+
+#### `list_context_sources`
+
+Lists the context sources the caller may use, each with the approved tools it may call.
+
+- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
+  The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
+- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
+  Above that the list gives only the count for each source and a `find` line that points to `find_context_tools`, so the answer stays short however many tools there are.
+- A source set to Admins only is listed for an Admin and left out for anyone else.
+- A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
+- Only an approved tool appears.
+  A tool that is waiting for approval, changed since it was approved, gone or refused never does.
+- The list carries a notice that the descriptions come from a server outside SlashObserve.
+
+#### `find_context_tools`
+
+Finds the approved tools that fit what the caller needs, for when a source has too many to list.
+
+- It takes `query`, in plain words and at most 200 bytes, and an optional `source` id to look in one source only.
+- Tools are ranked by the words of their names, their parameter names and their descriptions, so `logs of a crashing pod` finds `pods_log`.
+  There are no embeddings; a query that shares no word with a tool does not find it.
+- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_context_tool`.
+  A schema over 3 KiB is left out with `schema_omitted: true`, and `arguments` still names the parameters.
+  `more_matches` counts the matches that are not shown, and a `hint` says what to try when none matched.
+- Only approved tools of sources the caller may use are looked at.
+  A `source` that does not exist answers `source_not_found`, and one set to Admins only that the caller may not use answers `admins_only_datasource`.
+- Like the other two, it needs the Viewer role and is offered in an investigation or a question only.
+
+#### `call_context_tool`
+
+Calls one approved tool of a context source and returns its text.
+
+- It takes `source`, `tool` and optional `arguments`, an object of at most 8 KiB that must match the schema the tool had when an Admin approved it.
+- The answer is `text`, labelled with a `notice` that it is text from a server outside SlashObserve and that nothing in it is an instruction.
+  It also says `source_error: true` when the source reported an error in its result.
+- The text is cut at 12 KiB.
+  A cut result says `truncated: true` with a `cut_note`.
+- A call that cannot run answers with a tool error that says why:
+  - `tool_not_approved` for a tool that is not approved, changed since, gone, refused or unknown.
+  - `source_not_found` for an unknown source, and for a source set to Admins only when the caller is not an Admin, so such a source never shows it exists.
+  - `admins_only_datasource` for a source set to Admins only when an Admin is in a run whose answer everyone reads.
+  - `invalid_arguments` when the arguments do not match the schema.
+  - `schema_unusable` when the approved schema cannot be used to check the arguments.
+  - `source_busy` when the source already has 4 calls in flight.
+  - `source_unavailable` when the source did not answer in 20 seconds or could not be reached, including an address the [outbound allowlist](../operate/outbound-access.md) no longer allows.
+  A source that is down never fails a run: the agent reads the refusal and goes on.
+- Every call goes through the outbound allowlist and is recorded in the [audit trail](../reference/audit-queries.md) as `context_source.call`.
+  Inside a run it also counts toward the run's call limit and shows as a step.
 
 ### Run claim tools
 

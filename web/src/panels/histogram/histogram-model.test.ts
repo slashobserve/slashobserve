@@ -205,7 +205,13 @@ describe("histogramModel", () => {
       }
     )
     expect(model.unit).toBe("percentunit")
-    expect(model.decimals).toBe(2)
+    expect(model.edges.map(model.format)).toEqual([
+      "0.00%",
+      "6.25%",
+      "12.50%",
+      "18.75%",
+      "25.00%",
+    ])
   })
 
   it("returns no buckets without values", () => {

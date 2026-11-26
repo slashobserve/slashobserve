@@ -17,6 +17,11 @@ const (
 
 const AnyProblem = "any"
 
+const (
+	CheckFrom   = "now-7d"
+	CheckWindow = "the last 7 days"
+)
+
 const UnopenedAfter = 90 * 24 * time.Hour
 
 const (

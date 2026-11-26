@@ -3,6 +3,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { StatusIcon } from "@/components/status-label"
+import { useOnDashboard } from "@/dashboards/use-on-dashboard"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -52,6 +53,8 @@ export function OpenDashboardLink({
   title?: string
   variant: "primary" | "outline"
 }) {
+  const onDashboard = useOnDashboard(dashboardId)
+  if (onDashboard) return null
   return (
     <Link
       {...dashboardLink(dashboardId, title)}
@@ -188,6 +191,9 @@ export function TurnFailure({
   const followedUp =
     request.continued_by !== null || request.retried_by !== null
   const stopped = request.failure_code === "canceled"
+  const onDashboard = useOnDashboard(request.dashboard_id ?? "")
+  const dashboardToOpen =
+    request.dashboard_id !== null && !onDashboard ? request.dashboard_id : null
 
   async function retry() {
     setRetrying(true)
@@ -230,7 +236,7 @@ export function TurnFailure({
           )}
           {explained !== null ? <p>{explained.next}</p> : null}
         </div>
-        {followedUp || canRetry || request.dashboard_id !== null ? (
+        {followedUp || canRetry || dashboardToOpen !== null ? (
           <div className="flex flex-wrap items-center gap-2">
             <NextRunNote
               origin={requestOrigin(request)}
@@ -249,9 +255,9 @@ export function TurnFailure({
                 Try again
               </RetryButton>
             ) : null}
-            {request.dashboard_id !== null ? (
+            {dashboardToOpen !== null ? (
               <OpenDashboardLink
-                dashboardId={request.dashboard_id}
+                dashboardId={dashboardToOpen}
                 variant="outline"
               />
             ) : null}

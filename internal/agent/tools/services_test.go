@@ -61,7 +61,7 @@ func TestListServicesAsksEverySourceThatHoldsOneAndSkipsTheRest(t *testing.T) {
 	r := newServicesRegistry(t,
 		datasource.Instance{UID: "loki", Datasource: loki},
 		datasource.Instance{UID: "tempo", Datasource: tempo},
-		datasource.Instance{UID: "prom", Datasource: &fakeDS{}},
+		datasource.Instance{UID: "pg", Datasource: &fakeDS{typ: "postgres"}},
 	)
 	res, err := call(t, r, nameListServices, `{}`)
 	if err != nil {
@@ -132,7 +132,7 @@ func TestListServicesWithOneDatasourceReportsItsFailureAndItsMismatches(t *testi
 	loki.failWith = datasource.Errorf(datasource.ErrUnavailable, "connection failed")
 	r := newServicesRegistry(t,
 		datasource.Instance{UID: "loki", Datasource: loki},
-		datasource.Instance{UID: "prom", Datasource: &fakeDS{}},
+		datasource.Instance{UID: "pg", Datasource: &fakeDS{typ: "postgres"}},
 	)
 	res, err := call(t, r, nameListServices, `{"datasource":"loki"}`)
 	if err != nil {
@@ -141,11 +141,11 @@ func TestListServicesWithOneDatasourceReportsItsFailureAndItsMismatches(t *testi
 	if got := errorCode(t, res); got != "datasource_unavailable" {
 		t.Fatalf("code = %q", got)
 	}
-	res, err = call(t, r, nameListServices, `{"datasource":"prom"}`)
+	res, err = call(t, r, nameListServices, `{"datasource":"pg"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, "prom is a prometheus datasource") {
+	if errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, "pg is a postgres datasource") {
 		t.Fatalf("res = %#v", res.Content)
 	}
 	res, err = call(t, r, nameListServices, `{"datasource":"loki","signal":"traces"}`)
@@ -181,7 +181,7 @@ func TestListServicesRejectsInvalidInput(t *testing.T) {
 	r := newServicesRegistry(t, datasource.Instance{UID: "loki", Datasource: loki})
 	for name, input := range map[string]string{
 		"unknown field":   `{"bogus":1}`,
-		"bad signal":      `{"signal":"metrics"}`,
+		"bad signal":      `{"signal":"events"}`,
 		"bad window":      `{"window":"soon"}`,
 		"window too long": `{"window":"48h"}`,
 		"unknown source":  `{"datasource":"nope"}`,
@@ -222,5 +222,71 @@ func TestListServicesSkipsAdminsOnlySourcesUntilOneIsNamed(t *testing.T) {
 	}
 	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "tempo" || !read() {
 		t.Fatalf("out = %+v, read = %t; want the named Admins-only source read and the run marked", out, read())
+	}
+}
+
+func TestListServicesIncludesAMetricStoreAndNamesTheLabelItUses(t *testing.T) {
+	loki, _ := twoSources()
+	prom := &fakeServiceDS{fakeDS: &fakeDS{}, field: "job", values: []string{"checkout", "shop"}}
+	r := newServicesRegistry(t,
+		datasource.Instance{UID: "loki", Datasource: loki},
+		datasource.Instance{UID: "prom", Datasource: prom},
+	)
+	res, err := call(t, r, nameListServices, `{}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := servicesOf(t, res)
+	bySource := map[string]serviceSourceOut{}
+	for _, source := range out.Sources {
+		bySource[source.Datasource] = source
+	}
+	if got := bySource["prom"]; len(out.Sources) != 2 || got.Signal != "metrics" || got.Type != "prometheus" || got.Field != "job" || len(got.Services) != 2 {
+		t.Fatalf("out = %+v, want loki and prom with the job label", out)
+	}
+	res, err = call(t, r, nameListServices, `{"service":"shop","signal":"metrics"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "prom" {
+		t.Fatalf("out = %+v, want only prom", out)
+	}
+	res, err = call(t, r, nameListServices, `{"signal":"logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 1 || out.Sources[0].Datasource != "loki" {
+		t.Fatalf("out = %+v, want only loki", out)
+	}
+	res, err = call(t, r, nameListServices, `{"datasource":"prom","signal":"logs"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError {
+		t.Fatalf("res = %#v, want an error for logs on Prometheus", res.Content)
+	}
+}
+
+func TestListServicesRefusesMetricsOnASourceThatHoldsOtherSignals(t *testing.T) {
+	loki, tempo := twoSources()
+	r := newServicesRegistry(t,
+		datasource.Instance{UID: "loki", Datasource: loki},
+		datasource.Instance{UID: "tempo", Datasource: tempo},
+	)
+	for _, uid := range []string{"loki", "tempo"} {
+		res, err := call(t, r, nameListServices, `{"datasource":"`+uid+`","signal":"metrics"}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.IsError {
+			t.Fatalf("%s: res = %#v, want an error for metrics", uid, res.Content)
+		}
+	}
+	res, err := call(t, r, nameListServices, `{"signal":"metrics"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := servicesOf(t, res); len(out.Sources) != 0 {
+		t.Fatalf("out = %+v, want no source for metrics", out)
 	}
 }

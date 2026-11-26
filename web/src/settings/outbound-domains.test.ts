@@ -30,11 +30,12 @@ describe("removeConsequence", () => {
           { kind: "webhook", name: "Deploys" },
           { kind: "grafana_connection", name: "Prod" },
           { kind: "datasource", name: "Metrics" },
+          { kind: "context_source", name: "Docs" },
         ],
       })
     )
     expect(text).toContain(
-      "Webhook Deploys, Grafana connection Prod, Datasource Metrics"
+      "Webhook Deploys, Grafana connection Prod, Datasource Metrics, Context source Docs"
     )
     expect(text).toContain("can no longer reach it")
   })

@@ -1,4 +1,12 @@
-import { useId } from "react"
+import {
+  createContext,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -7,6 +15,16 @@ import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels, type Role } from "@/lib/roles"
@@ -53,31 +71,79 @@ function InviteRole({ invite }: { invite: Invite }) {
   )
 }
 
+const SetWithdrawing = createContext<Dispatch<SetStateAction<string | null>>>(
+  () => {}
+)
+
 function WithdrawButton({ invite }: { invite: Invite }) {
+  const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
   const withdraw = useWithdrawInvite()
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="narrow:h-11"
-      disabled={withdraw.isPending}
-      aria-busy={withdraw.isPending}
-      aria-label={`Withdraw the invite for ${invite.email}`}
-      onClick={() =>
-        withdraw.mutateAsync(invite.id).then(
-          () => toast.success(`Withdrew the invite for ${invite.email}`),
-          (error) => toast.error(inviteProblemText(error))
-        )
+  const setWithdrawing = useContext(SetWithdrawing)
+  const confirmed = useRef(false)
+
+  function confirm() {
+    confirmed.current = true
+    setOpen(false)
+  }
+
+  function withdrawOnceClosed(stillOpen: boolean) {
+    if (stillOpen || !confirmed.current) return
+    confirmed.current = false
+    setWithdrawing(invite.id)
+    withdraw.mutateAsync(invite.id).then(
+      () => toast.success(`Withdrew the invite for ${invite.email}`),
+      (error) => {
+        setWithdrawing((id) => (id === invite.id ? null : id))
+        toast.error(inviteProblemText(error))
       }
-    >
-      {withdraw.isPending ? (
-        <LoaderCircleIcon
-          aria-hidden="true"
-          className="motion-safe:animate-spin"
-        />
-      ) : null}
-      Withdraw
-    </Button>
+    )
+  }
+
+  return (
+    <>
+      <Button
+        ref={trigger}
+        data-withdraw=""
+        variant="outline"
+        size="sm"
+        className="narrow:h-11"
+        disabled={withdraw.isPending}
+        focusableWhenDisabled
+        aria-busy={withdraw.isPending}
+        aria-label={`Withdraw the invite for ${invite.email}`}
+        onClick={() => setOpen(true)}
+      >
+        {withdraw.isPending ? (
+          <LoaderCircleIcon
+            aria-hidden="true"
+            className="motion-safe:animate-spin"
+          />
+        ) : null}
+        Withdraw
+      </Button>
+      <AlertDialog
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={withdrawOnceClosed}
+      >
+        <AlertDialogContent finalFocus={trigger}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {invite.email} will no longer be able to join with this invite.
+              You can invite them again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirm}>
+              Withdraw invite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -143,6 +209,7 @@ const inviteColumns: DataGridColumn<Invite>[] = [
 export function InvitesTable() {
   const headingId = useId()
   const query = useQuery(invitesQuery())
+  const [withdrawing, setWithdrawing] = useState<string | null>(null)
 
   if (query.isPending) {
     return <Skeleton className="mb-6 h-10 w-full" aria-busy="true" />
@@ -168,13 +235,20 @@ export function InvitesTable() {
       <h2 id={headingId} className="text-sm font-semibold">
         Pending invites
       </h2>
-      <DataGrid
-        label="Pending invites"
-        rows={query.data}
-        columns={inviteColumns}
-        rowId={inviteId}
-        rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
-      />
+      <SetWithdrawing value={setWithdrawing}>
+        <DataGrid
+          label="Pending invites"
+          rows={query.data}
+          columns={inviteColumns}
+          rowId={inviteId}
+          rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
+          focusAfterRemoving={
+            withdrawing === null
+              ? null
+              : { rowId: withdrawing, control: "[data-withdraw]" }
+          }
+        />
+      </SetWithdrawing>
     </section>
   )
 }

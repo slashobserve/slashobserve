@@ -89,11 +89,11 @@ describe("TraceTable", () => {
       (cell) => cell.firstElementChild as HTMLElement
     )
     expect(texts.map((text) => text.textContent)).toEqual([
-      "3,020,004.4 ms",
+      "50.33 min",
       "12.5 ms",
     ])
     for (const text of texts) {
-      expect(text.style.width).toBe("14ch")
+      expect(text.style.width).toBe("9ch")
       expect(text).toHaveClass("shrink-0", "overflow-hidden", "tabular-nums")
       expect(text.nextElementSibling).toHaveClass("flex-1")
     }
@@ -185,7 +185,7 @@ describe("TraceTable", () => {
       [...(card?.children ?? [])].map((cell) => cell.getAttribute("data-label"))
     ).toEqual([null, "Root span", "Duration", "Spans", "Errors", "Started"])
     expect(card?.querySelector('[data-cell="bar"]')).toHaveTextContent(
-      "3,020,004.4 ms"
+      "50.33 min"
     )
     expect(
       within(card as HTMLElement).getByRole("link", {

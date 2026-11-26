@@ -28,7 +28,7 @@ const maxLinksPerObservation = 20
 
 var (
 	ErrRCAPersonalFolder = errors.New("an observation in My Dashboards cannot have a public link")
-	ErrRCAAdminsOnly     = errors.New("an observation in a folder only Admins can read cannot have a public link; move it to a folder that is not Only Admins first")
+	ErrRCAAdminsOnly     = errors.New("an observation in a folder only Admins can read cannot have a public link; move it to a folder that is not Admins only first")
 	ErrRCAUserScoped     = errors.New("a snapshot in this RCA shows data that depends on who is viewing, so it cannot be shared publicly")
 	ErrTooManyRCALinks   = fmt.Errorf("an observation has at most %d public links; revoke one first", maxLinksPerObservation)
 )

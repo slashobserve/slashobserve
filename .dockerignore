@@ -16,9 +16,11 @@ Dockerfile
 **/.DS_Store
 e2e-compose.log
 internal/server/webdist
+internal/server/mcp/panelapp/panel.html
 web/node_modules
 observe-agent/node_modules
 web/dist
+web/dist-panel
 web/playwright-report
 web/test-results
 web/e2e

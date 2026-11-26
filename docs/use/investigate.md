@@ -67,6 +67,10 @@ Each finding about the dashboard appears there as "Agent found" with the same ca
 
 The page is the observation at `/o/<id>`, with the conclusion and the evidence panels as blocks, the discussion and who wrote what; see [Observations](observations.md#open-an-observation).
 The evidence panels always show the finding's own window, not the dashboard's current range.
+Each evidence panel has an **Open in Explore** link that opens its query on its datasource over that window in Metrics, Logs or Traces, with a query that uses variables opening as the server ran it; a panel whose datasource has no explorer for its query has no link.
+In the steps, the save reads "Saved the answer" and links to the observation, or scrolls to the answer when it is not in an observation yet.
+When the agent sends an answer back for a fix, the step says so in a sentence, such as "The answer was sent back for a fix: it said a metric is missing without checking for it", while the agent still receives the full guidance.
+A tool call whose input was refused reads "The <tool> call was sent back for a fix", with a plain reason when it is a known kind such as an option the tool does not take; the agent, MCP and the CLI still get the full message and its code.
 In an evidence table, a trace id in a `TraceId` cell opens that trace over the finding's window, and a Tempo, Jaeger or ClickHouse `Duration` column shows its time unit.
 
 ## Comment on a finding
@@ -201,6 +205,18 @@ It stays there when the dashboard moves.
   It cites the ones that fit with their times.
 - It reads earlier [observations](observations.md) in the folders you can open, as you.
   When one bears on the question, it cites it by title and `/o/<id>` link and says its numbers are from an earlier time.
+
+### Context sources
+
+A context source is an MCP server an Admin registered, such as a documentation index or a ticket system; see [Context sources](../operate/context-sources.md).
+In an investigation or a question the agent can list the sources you may use and call the tools an Admin approved.
+
+- It cannot call a tool that is not approved, changed since it was approved, or belongs to a source set to Admins only when you are not an Admin.
+- A call counts toward the run's call limit, stops after 20 seconds and shows as a step.
+- What comes back is text from a server outside SlashObserve.
+  The agent treats it as information and not as an instruction, and it is never shown as an evidence panel.
+  The finding may quote it and say where it came from.
+- A source that is down gives the agent a refusal, and the investigation goes on without it.
 
 ### Time zones
 

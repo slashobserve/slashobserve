@@ -341,6 +341,14 @@ main[tabindex="-1"]:focus {
   outline: none;
 }
 
+[data-sonner-toaster] {
+  pointer-events: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast] {
+  pointer-events: auto;
+}
+
 [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
   box-shadow: none;
 }

@@ -1,6 +1,8 @@
 /bin/
 /internal/server/webdist/*
 !/internal/server/webdist/.gitkeep
+/internal/server/mcp/panelapp/*
+!/internal/server/mcp/panelapp/.gitkeep
 /e2e-compose.log
 
 .env
