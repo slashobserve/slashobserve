@@ -94,9 +94,32 @@ func TestToolsLeftOutOfRuns(t *testing.T) {
 	}
 }
 
+func TestToolsOfferedInInvestigationsAndChatQuestionsOnly(t *testing.T) {
+	var got []string
+	registered := map[string]bool{}
+	for _, tool := range New(Deps{}).List() {
+		registered[tool.Name] = true
+		pinned := tool.OnlyIn == ModeInvestigate && !tool.AgentOnly
+		if pinned {
+			got = append(got, tool.Name)
+		}
+		if pinned != (contextReads[tool.Name] != "") || pinned != tool.AlsoInChats {
+			t.Errorf("%s: offered in investigations and chat questions only %v, in chats %v, reason %q", tool.Name, pinned, tool.AlsoInChats, contextReads[tool.Name])
+		}
+	}
+	if strings.Join(got, ",") != "call_context_tool,find_context_tools,list_context_sources" {
+		t.Fatalf("tools offered in investigations and chat questions only = %v", got)
+	}
+	for name := range contextReads {
+		if !registered[name] {
+			t.Errorf("contextReads names %s, which is not a registered tool", name)
+		}
+	}
+}
+
 func TestRunsOfferEveryToolNotLeftOut(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if tool.AgentOnly || tool.MCPOnly {
+		if tool.AgentOnly || tool.MCPOnly || tool.OnlyIn != "" {
 			continue
 		}
 		if !tool.OfferedIn(ModeCreate) {

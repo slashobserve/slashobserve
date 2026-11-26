@@ -87,6 +87,7 @@ const userKindText: Record<OutboundDomain["used_by"][number]["kind"], string> =
     webhook: "Webhook",
     grafana_connection: "Grafana connection",
     datasource: "Datasource",
+    context_source: "Context source",
   }
 
 function userText(user: OutboundDomain["used_by"][number]): string {

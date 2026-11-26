@@ -139,17 +139,17 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	h.claimTransport = h.newTransport(claim)
 	h.runTransports = map[runShape]http.Handler{}
 	for _, mode := range []tools.Mode{tools.ModeCreate, tools.ModeRevise, tools.ModeInvestigate, tools.ModeSuggest} {
-		for _, investigation := range []bool{false, true} {
+		for _, shape := range []runShape{{mode, false, false}, {mode, true, false}, {mode, false, true}} {
 			run := mcpserver.NewMCPServer(serverName, opts.Version,
 				mcpserver.WithToolCapabilities(false),
 				mcpserver.WithRecovery(),
 				mcpserver.WithToolFilter(listableRunTools(reg.List())))
 			for _, t := range reg.List() {
-				if t.OfferedIn(mode) {
-					run.AddTool(toolFor(t.ForRun(mode, investigation)), h.callRunTool(t.Name))
+				if t.OfferedInRun(shape.run()) {
+					run.AddTool(toolFor(t.ForRun(mode, shape.investigation)), h.callRunTool(t.Name))
 				}
 			}
-			h.runTransports[runShape{mode, investigation}] = h.newTransport(run)
+			h.runTransports[shape] = h.newTransport(run)
 		}
 	}
 	return h
@@ -158,6 +158,15 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 type runShape struct {
 	mode          tools.Mode
 	investigation bool
+	chat          bool
+}
+
+func (s runShape) run() tools.Run {
+	run := tools.Run{Mode: s.mode, Investigation: s.investigation}
+	if s.chat {
+		run.ChatID = "chat"
+	}
+	return run
 }
 
 // The library also runs the filter on a one-tool list before each call; that call must still reach the tool, which answers a key with user_session_required.

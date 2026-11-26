@@ -52,6 +52,7 @@ function renderEditor(patch: (body: unknown) => Response) {
         target={{ mode: "edit", uid: "payroll" }}
         onClose={() => undefined}
         trigger={createRef()}
+        onPickMcp={() => undefined}
       />
     </PanelHostContext.Provider>,
     { route: { path: "/", url: "/" } }

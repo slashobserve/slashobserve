@@ -73,6 +73,10 @@ var (
 	grafanaKeys  = []string{"name", "host", "changes", "token_changed"}
 	sourceKeys   = []string{"uid", "type", "name", "host", "changes", "address_changed", "settings_changed", "credentials_changed"}
 	audienceKeys = []string{"uid", "type", "name", "host", "from", "to"}
+	contextKeys  = []string{"name", "host", "private", "audience", "changes", "url_changed", "credential_changed"}
+	probeKeys    = []string{"host", "private", "found", "new", "changed", "gone", "ignored"}
+	toolKeys     = []string{"host", "private", "tool", "hash", "provisioned"}
+	callKeys     = []string{"host", "private", "tool", "arguments", "truncated"}
 	sharingKeys  = []string{"admins_only", "admins_only_before"}
 	gapKeys      = []string{"lost"}
 	pruneKeys    = []string{"partitions", "before"}
@@ -193,17 +197,18 @@ var catalog = map[Action]Spec{
 	"finding.apply":               change(CategoryConversation, []string{"run_id"}),
 	"finding.save_as_observation": change(CategoryConversation),
 
-	"run.queue":       change(CategoryAgent, runKeys),
-	"run.start":       change(CategoryAgent, runKeys),
-	"run.finish":      change(CategoryAgent, runKeys, usageKeys),
-	"run.cancel":      change(CategoryAgent, runKeys),
-	"run.release":     change(CategoryAgent, runKeys),
-	"run.keep":        change(CategoryAgent, runKeys),
-	"run.retry":       change(CategoryAgent),
-	"run.continue":    change(CategoryAgent),
-	"run.update":      change(CategoryAgent),
-	"run.archive":     change(CategoryAgent),
-	"agent.tool_call": access(CategoryAgent),
+	"run.queue":           change(CategoryAgent, runKeys),
+	"run.start":           change(CategoryAgent, runKeys),
+	"run.finish":          change(CategoryAgent, runKeys, usageKeys),
+	"run.cancel":          change(CategoryAgent, runKeys),
+	"run.release":         change(CategoryAgent, runKeys),
+	"run.keep":            change(CategoryAgent, runKeys),
+	"run.retry":           change(CategoryAgent),
+	"run.continue":        change(CategoryAgent),
+	"run.update":          change(CategoryAgent),
+	"run.archive":         change(CategoryAgent),
+	"agent.tool_call":     access(CategoryAgent),
+	"context_source.call": access(CategoryAgent, callKeys),
 
 	"query.run": access(CategoryQuery, streamKeys, windowKeys, queryKeys),
 
@@ -242,6 +247,12 @@ var catalog = map[Action]Spec{
 	"datasource.test":                    change(CategoryAdmin, testKeys),
 	"grafana_connection.test":            change(CategoryAdmin, connTestKeys),
 	"grafana_connection.fetch_dashboard": change(CategoryAdmin, fetchKeys),
+	"context_source.create":              change(CategoryAdmin, contextKeys),
+	"context_source.update":              change(CategoryAdmin, contextKeys),
+	"context_source.delete":              change(CategoryAdmin, contextKeys),
+	"context_source.discover":            change(CategoryAdmin, probeKeys),
+	"context_source.approve":             change(CategoryAdmin, toolKeys),
+	"context_source.revoke":              change(CategoryAdmin, toolKeys),
 	"public_link.create":                 change(CategoryAdmin, linkKeys),
 	"public_link.revoke":                 change(CategoryAdmin, linkKeys),
 	"access_request.open":                change(CategoryAdmin, accessKeys),

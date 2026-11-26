@@ -36,6 +36,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/config"
+	"github.com/slashobserve/slashobserve/internal/contextsources"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/auditsource"
@@ -235,6 +236,15 @@ func serviceAccountsExit(err error) error {
 	return exit
 }
 
+func contextSourcesExit(err error) error {
+	var invalid *contextsources.InvalidError
+	switch {
+	case errors.As(err, &invalid), errors.Is(err, contextsources.ErrUIDTaken), errors.Is(err, contextsources.ErrNoSecretKey), errors.Is(err, contextsources.ErrTooMany):
+		return described("context_sources_failed", err)
+	}
+	return withheld("context_sources_failed", err)
+}
+
 func migrationExit(err error) error {
 	exit := &exitError{code: "migration_failed", cause: err}
 	if version, ok := db.FailedMigrationVersion(err); ok {
@@ -270,7 +280,7 @@ func rolePolicyOf(cfg config.Config) (auth.RolePolicy, error) {
 	return policy, nil
 }
 
-func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
+func reconcileStartup(ctx context.Context, database *db.DB, authService *auth.Service, cfg config.Config) error {
 	if err := authService.ReconcileRoles(ctx); err != nil {
 		return withheld("role_reconcile_failed", err)
 	}
@@ -279,7 +289,18 @@ func reconcileAccess(ctx context.Context, database *db.DB, authService *auth.Ser
 	}); err != nil {
 		return serviceAccountsExit(err)
 	}
+	if err := database.WithSessionLock(ctx, "context_sources", func(ctx context.Context) error {
+		return contextsources.New(contextsources.Deps{DB: database, Key: sealed.Key(cfg.SecretKey.Reveal())}).Provision(ctx, cfg.ContextSources)
+	}); err != nil {
+		return contextSourcesExit(err)
+	}
 	return nil
+}
+
+func approveListedTools(ctx context.Context, service *contextsources.Service, cfg config.Config, logger *slog.Logger) {
+	if err := service.ApproveListed(ctx, cfg.ContextSources); err != nil && ctx.Err() == nil {
+		logger.ErrorContext(ctx, "context source approvals from the provisioning file failed", slog.String("failure", err.Error()))
+	}
 }
 
 func fileAccounts(accounts []config.ServiceAccount) []auth.FileAccount {
@@ -404,7 +425,7 @@ func run() error {
 	folderAccess := folders.NewAccess(database)
 	accessRequests := accessrequests.New(database, folderAccess)
 	authService.RecordChanges(database, accessrequests.ChangeLog{ChangeLog: activity.AuthChanges{}, Requests: accessRequests})
-	if err := reconcileAccess(ctx, database, authService, cfg); err != nil {
+	if err := reconcileStartup(ctx, database, authService, cfg); err != nil {
 		return err
 	}
 
@@ -486,6 +507,12 @@ func run() error {
 		Imports: importsService, Statuses: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, InvestigationLoop: cfg.Agent.InvestigationLoop, InvestigationCallsMax: cfg.Agent.InvestigationCallsMax, FindingGrounding: cfg.Agent.FindingGrounding, Logger: logger,
 	})
+	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
+	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
+	contextSourcesService := contextsources.New(contextsources.Deps{
+		DB: database, Key: sealed.Key(cfg.SecretKey.Reveal()), Domains: outbound,
+		Connector: contextsources.MCPConnector{Trip: egressClient.CallTripper(), PrivateTrip: egressClient.PrivateCallTripper(), Version: version}, Logger: logger,
+	})
 	var startHealthRun func(context.Context)
 	toolRegistry := tools.New(tools.Deps{
 		StartHealthRun: func(ctx context.Context) { startHealthRun(ctx) },
@@ -516,6 +543,7 @@ func run() error {
 		Provider:       llmProvider,
 		DraftBudget:    draftbudget.New(database),
 		PublicURL:      cfg.PublicURL,
+		ContextSources: contextSourcesService,
 		Logger:         logger,
 		LedgerTool:     cfg.Agent.InvestigationLoop,
 	})
@@ -564,8 +592,6 @@ func run() error {
 		<-provisionDone
 	}()
 
-	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)
-	egressClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger})
 	assetsClient := egress.New(outbound, egress.Options{UserAgent: "SlashObserve/" + version, Logger: logger, CacheTTL: time.Hour, CacheBytes: 64 << 20})
 
 	datasourceAdmin := datasourceadmin.New(datasourceadmin.Deps{
@@ -586,6 +612,11 @@ func run() error {
 	grafanaService.Start()
 	defer grafanaService.Wait()
 	defer stopGrafana()
+
+	stopApprovals := startBackground(ctx, "context source approvals", func(ctx context.Context) {
+		approveListedTools(ctx, contextSourcesService, cfg, logger)
+	}, logger)
+	defer stopApprovals()
 
 	webhooksService := webhooks.NewService(webhooks.Deps{
 		DB: database, Activity: activityStore, Principals: authService, Domains: outbound, Sender: egressClient, Key: sealed.Key(cfg.SecretKey.Reveal()), Logger: logger,
@@ -647,6 +678,7 @@ func run() error {
 			drafthttp.NewHandler(toolRegistry, logger),
 			discoveryhttp.NewHandler(toolRegistry, logger),
 			datasourceadmin.NewHandler(datasourceAdmin, logger),
+			contextsources.NewHandler(contextSourcesService, logger),
 			tailhttp.NewHandler(registry, proxyRunner, authService, logger),
 			oauthServer,
 		},

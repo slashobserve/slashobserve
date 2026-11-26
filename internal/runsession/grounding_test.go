@@ -183,6 +183,18 @@ func (s *script) readOf(name, content string, discovered *tools.Discovery) {
 	}, &Turn{ID: name, Calls: 1})
 }
 
+func TestAContextToolResultFeedsTheRecordButTheSourceListDoesNot(t *testing.T) {
+	s := groundingScript(t, grounding.Report)
+	s.readOf("list_context_sources", `{"sources":[{"name":"code","tools":3,"revision":7700}]}`, nil)
+	s.readOf("call_context_tool", `{"matches":[{"file":"checkout.go","line":4821}]}`, nil)
+
+	got := s.sess.state.Grounding.Check(json.RawMessage(`{"markdown":"The match is at line 4,821, not 7,700."}`))
+	want := []findings.Unverified{{Kind: findings.UnverifiedFigure, Text: "7,700"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("unverified = %+v\nwant %+v", got, want)
+	}
+}
+
 func TestOnlyDatasourceReadsFeedTheRecord(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
 	s.readOf("get_observation", `{"blocks":[{"text":"p99 reached 9.3 s for 2,950 orders"}],"value":4321}`, nil)

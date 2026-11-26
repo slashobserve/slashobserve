@@ -34,11 +34,10 @@ function datasourceId(datasource: DatasourceStatus): string {
 }
 
 type Props = {
-  onAdd: (trigger: HTMLElement) => void
   onEdit: (uid: string, trigger: HTMLElement) => void
 }
 
-export function DatasourceTable({ onAdd, onEdit }: Props) {
+export function DatasourceTable({ onEdit }: Props) {
   const datasources = useQuery({
     ...datasourcesQuery(),
     refetchInterval: 30_000,
@@ -86,12 +85,6 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
         <p className="text-[13px] text-muted-foreground">
           Add one to let dashboards and the agent query your data.
         </p>
-        <Button
-          className="mt-3"
-          onClick={(event) => onAdd(event.currentTarget)}
-        >
-          Add datasource
-        </Button>
       </div>
     )
   }
@@ -134,7 +127,7 @@ export function DatasourceTable({ onAdd, onEdit }: Props) {
           <div className="flex flex-col gap-0.5 py-2">
             <div className="flex">
               <StatusLabel tone={tone} title={text}>
-                <span className="max-w-[360px] truncate">{text}</span>
+                <span className="max-w-[360px] wrap-anywhere">{text}</span>
               </StatusLabel>
             </div>
             {datasource.detail ? (

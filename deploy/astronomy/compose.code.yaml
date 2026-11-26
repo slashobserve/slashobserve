@@ -1,0 +1,34 @@
+services:
+  codeserver:
+    build:
+      context: ${ASTRONOMY_DIR:?}/../..
+      dockerfile: tools/codeserver/Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+    image: slashobserve-astronomy-codeserver:local
+    pull_policy: build
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ${ASTRONOMY_DIR:?}/.upstream/src:/code:ro
+    networks:
+      default:
+        aliases:
+          - codeserver.demo.internal
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  server:
+    environment:
+      SLASHOBSERVE_CONTEXT_SOURCES_FILE: /etc/slashobserve/context-sources.yaml
+      SLASHOBSERVE_OUTBOUND_DOMAINS: codeserver.demo.internal
+    volumes:
+      - ${ASTRONOMY_DIR:?}/context-sources.yaml:/etc/slashobserve/context-sources.yaml:ro
+    depends_on:
+      codeserver:
+        condition: service_healthy
