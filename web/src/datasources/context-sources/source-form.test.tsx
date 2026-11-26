@@ -83,7 +83,7 @@ describe("SourceForm", () => {
   it("offers the audience as a select, not a native one", () => {
     renderForm()
     expect(
-      screen.getByRole("combobox", { name: "Who can use its tools" })
+      screen.getByRole("combobox", { name: "Who can use it" })
     ).toBeVisible()
     expect(document.querySelector("select")).toBeNull()
   })

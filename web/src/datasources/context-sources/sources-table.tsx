@@ -74,7 +74,7 @@ export function McpSourcesSection({
     if (deleting === null) return
     remove.mutateAsync(deleting.uid).then(
       () => {
-        toast.success(`Deleted ${deleting.name}`)
+        toast.success(`Removed ${deleting.name}`)
         setOpen(deleting.uid, false)
         setDeleting(null)
       },
@@ -121,7 +121,7 @@ export function McpSourcesSection({
     },
     {
       id: "audience",
-      header: "Who may use it",
+      header: "Who can use it",
       minWidth: 120,
       autoHeight: true,
       cell: (source) => (
@@ -192,10 +192,10 @@ export function McpSourcesSection({
             size="xs"
             variant="outline"
             disabled={source.provisioned}
-            aria-label={`Delete ${source.name}`}
+            aria-label={`Remove ${source.name}`}
             onClick={() => setDeleting(source)}
           >
-            Delete
+            Remove
           </Button>
         </div>
       ),
@@ -281,7 +281,7 @@ export function McpSourcesSection({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Remove {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
               The source, its approved tools and its stored secret are removed.
               The agent can no longer use its tools. Its domain stays on the
@@ -305,7 +305,7 @@ export function McpSourcesSection({
                 confirmDelete()
               }}
             >
-              Delete source
+              Remove source
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

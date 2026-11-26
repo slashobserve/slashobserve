@@ -41,7 +41,7 @@ describe("RemoveDatasourceButton", () => {
       </HeldMutationHost>
     )
 
-    await user.click(screen.getByRole("button", { name: "Remove prom" }))
+    await user.click(screen.getByRole("button", { name: "Remove Prometheus" }))
     await user.click(screen.getByRole("button", { name: "Remove" }))
     await waitFor(() => expect(calls.send).toHaveBeenCalledWith("prom"))
     await unmountHostThenSettle()

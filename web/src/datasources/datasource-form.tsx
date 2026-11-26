@@ -345,7 +345,9 @@ export function DatasourceForm({
       ) : null}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-[13px] font-semibold">Audience</legend>
+        <legend className="mb-1 text-[13px] font-semibold">
+          Who can use it
+        </legend>
         <RadioGroup
           value={values.audience}
           onValueChange={(pick) => {
@@ -363,7 +365,7 @@ export function DatasourceForm({
           ))}
         </RadioGroup>
         <p className="text-xs text-muted-foreground">
-          Only Admins means only Admins can query it, and dashboards, searches
+          Admins only means only Admins can query it, and dashboards, searches
           and observations that read it must live in a folder set to Only
           Admins.
         </p>

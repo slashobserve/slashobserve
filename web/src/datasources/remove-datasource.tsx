@@ -63,7 +63,7 @@ export function RemoveDatasourceButton({
         ref={trigger}
         variant="outline"
         size="xs"
-        aria-label={`Remove ${datasource.uid}`}
+        aria-label={`Remove ${datasource.name}`}
         onClick={() => setOpen(true)}
       >
         Remove
