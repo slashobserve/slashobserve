@@ -65,10 +65,10 @@ With a model configured on the server, the query box opens in Write a query mode
 
 The mode switch at the top left of the query card has up to three segments.
 
-- **Write a query** takes a question and writes the query; it does not explain the results.
-  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 - **Builder** edits the query as filter chips.
-- The last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- The next segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- **Write a query**, always last, takes a question and writes the query; it does not explain the results.
+  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 
 ClickHouse has no Builder segment, because its query is SQL.
 On Loki the Builder segment is the label browser.
@@ -571,7 +571,7 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **Write a query** and **Query**, and on ClickHouse **Write a query**, **Search** and **SQL**.
+The toggle reads **TraceQL** and **Write a query** on Tempo, and on ClickHouse **Search**, **SQL** and **Write a query**.
 
 1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.
