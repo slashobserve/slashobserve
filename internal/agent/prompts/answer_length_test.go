@@ -67,7 +67,19 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 		"name it as a stand-in",
 		"except the one-line note on another reading of a term below",
 		"several services, routes or operations",
+		"decide from the ratio of each over the same windows and state the ratios in the answer",
 		"When the ratios the question asks for are within about 10% of 1, say that factor does not explain the change",
+		"a ratio that moves against the change explains nothing",
+		"a mean over another span or a short spike does not overturn the windowed ratios",
+		"In your own reads, a current or right-now rate is a short window ending now, such as `rate(x[5m])`",
+		"the same expression and window with PromQL's `offset 1h` modifier",
+		"never compute a current rate or a point-in-time comparison as a longer increase divided by its length",
+		"use a wide window such as 1h or 24h for one only when the question asks for an average over that span, which does not apply to a baseline below",
+		"give every member the same metric, window and unit, including the ones that look fine",
+		"classify them as knock-on from the incident (on its call path, with the onset aligned), pre-existing background (present before the onset at a similar rate), or a separate incident (its own onset or burst)",
+		"never call background errors an independent failure without that before-onset rate",
+		"saved evidence panels keep `$__rate_interval` as the authoring guide says",
+		"Never state that something does not exist, is not happening, is not recurring or was not deployed unless a query checked it, say what was checked, and when nothing checked it, say it is unchecked; before you say a signal does not exist, list its metrics",
 		"the headline gives one figure, for the reading you used; name the other reading in words, with its figure only in a clearly separate one-line note",
 		"reading each one's slow tail or error set separately, never one combined top-N that one of them can crowd out",
 		"at the series' native step in a short range around the event, not a coarse step",
@@ -77,7 +89,7 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 			t.Errorf("system text lacks %q", want)
 		}
 	}
-	for _, gone := range []string{"say which one you trust in one clause", "lead with the verdict and the one number that decides it"} {
+	for _, gone := range []string{"say which one you trust in one clause", "lead with the verdict and the one number that decides it", "decide from the ratio of each over the same windows and state the ratios in the answer: when", "Never state that something is not happening, not recurring or not deployed", "is the same expression and window with `offset`;"} {
 		if strings.Contains(system, gone) {
 			t.Errorf("system text still has %q", gone)
 		}
