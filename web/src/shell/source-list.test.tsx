@@ -230,6 +230,25 @@ describe("SourceList", () => {
       expect(href).toContain("to=2026-11-20T11")
     })
 
+    it("keeps the same-kind switch search while the page's own source is not listed", async () => {
+      const queryClient = testQueryClient()
+      queryClient.setQueryData(datasourceKeys.list(), {
+        datasources: [source("loki", "Loki"), source("loki2", "Loki two")],
+      })
+      renderWithProviders(<ListedSources kind="logs" />, {
+        queryClient,
+        route: {
+          path: "/logs/$datasourceUid",
+          url: "/logs/gone?from=now-15m&to=now&view=patterns&q=x",
+        },
+      })
+      const list = await screen.findByRole("list", { name: "Log sources" })
+      const href = within(list)
+        .getByRole("link", { name: /^Loki LogQL/ })
+        .getAttribute("href")
+      expect(href).toBe("/logs/loki?from=now-15m&to=now&view=patterns")
+    })
+
     it("carries nothing when the logs page has no range", async () => {
       renderFrom("/logs/loki")
       const list = await screen.findByRole("list", { name: "Trace sources" })

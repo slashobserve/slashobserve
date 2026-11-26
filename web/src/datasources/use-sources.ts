@@ -64,11 +64,15 @@ export function useSourceSwitchSearch(
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
-  if (current === undefined) {
-    return exploreKindOfPath(pathname) === undefined ? {} : carriedRange(search)
-  }
+  const pageKind = exploreKindOfPath(pathname)
+  if (pageKind === undefined) return {}
+  if (pageKind !== kind) return carriedRange(search)
   if (kind === "logs") {
-    return logsSwitchSearch(search as LogsSearch, current.type, targetType)
+    return logsSwitchSearch(
+      search as LogsSearch,
+      current?.type ?? "",
+      targetType
+    )
   }
   if (kind === "traces") return tracesSwitchSearch(search as TraceSearch)
   return metricsSwitchSearch(search as MetricsSearch)
