@@ -8,10 +8,12 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from slashobserve_bench.loop_options import LoopOptions
 
 DATASET = "orca-bench/orca-bench"
 REPORT_PATH = "/app/report.md"
@@ -56,16 +58,12 @@ class UnsupportedTask(Exception):
     pass
 
 
-class Options(BaseModel):
+class Options(LoopOptions):
     model_config = ConfigDict(extra="forbid")
 
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
     replay_dir: str | None = None
     llm_effort: str | None = None
-    investigation_calls: int | None = Field(default=None, ge=6, le=60)
-    investigation_loop: bool | None = None
-    investigation_calls_max: int | None = Field(default=None, ge=6, le=60)
-    finding_grounding: Literal["off", "report", "enforce"] | None = None
     run_max_cost_usd: float | None = Field(default=None, gt=0)
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None
@@ -73,11 +71,9 @@ class Options(BaseModel):
     code_context: str | None = None
 
     @model_validator(mode="after")
-    def _settings_agree(self) -> "Options":
+    def _cap_needs_ledger(self) -> "Options":
         if (self.spend_cap_usd is None) != (self.ledger_path is None):
             raise ValueError("spend_cap_usd and ledger_path go together")
-        if None not in (self.investigation_calls, self.investigation_calls_max) and self.investigation_calls_max < self.investigation_calls:
-            raise ValueError("investigation_calls_max must not be below investigation_calls")
         return self
 
 

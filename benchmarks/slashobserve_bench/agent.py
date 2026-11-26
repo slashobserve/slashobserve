@@ -2,7 +2,6 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Literal
 
 from harbor.agents.base import BaseAgent
 from harbor.agents.capabilities import AgentCapabilities
@@ -14,6 +13,7 @@ from pydantic import Field, model_validator
 from slashobserve_bench import atif, o11y
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
+from slashobserve_bench.loop_options import LoopOptions
 from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, datasources_yaml, ensure_image
 
 AGENT_NAME = "slashobserve"
@@ -26,26 +26,20 @@ class TaskSkipped(Exception):
     pass
 
 
-class Options(AgentOptions):
+class Options(AgentOptions, LoopOptions):
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
     network: str = o11y.NETWORK
     replay_dir: str | None = None
     llm_effort: str | None = None
-    investigation_calls: int | None = Field(default=None, ge=6, le=60)
-    investigation_loop: bool | None = None
-    investigation_calls_max: int | None = Field(default=None, ge=6, le=60)
-    finding_grounding: Literal["off", "report", "enforce"] | None = None
     run_max_cost_usd: float | None = Field(default=None, gt=0)
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=540, ge=30)
 
     @model_validator(mode="after")
-    def _settings_agree(self) -> "Options":
+    def _cap_needs_ledger(self) -> "Options":
         if (self.spend_cap_usd is None) != (self.ledger_path is None):
             raise ValueError("spend_cap_usd and ledger_path go together")
-        if None not in (self.investigation_calls, self.investigation_calls_max) and self.investigation_calls_max < self.investigation_calls:
-            raise ValueError("investigation_calls_max must not be below investigation_calls")
         return self
 
 

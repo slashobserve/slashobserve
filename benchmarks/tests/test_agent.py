@@ -52,11 +52,16 @@ def test_loop_settings_are_accepted_from_the_command_line(tmp_path):
 
 @pytest.mark.parametrize(
     "kwargs",
-    [{"investigation_calls_max": 5}, {"investigation_calls_max": 61}, {"finding_grounding": "strict"}, {"investigation_loop": "maybe"}, {"investigation_calls": 30, "investigation_calls_max": 20}],
+    [{"investigation_calls_max": 11}, {"investigation_calls_max": 5}, {"investigation_calls_max": 61}, {"finding_grounding": "strict"}, {"investigation_loop": "maybe"}, {"investigation_calls": 30, "investigation_calls_max": 20}],
 )
 def test_loop_settings_outside_the_server_limits_are_refused(tmp_path, kwargs):
     with pytest.raises(ValueError):
         bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay", **kwargs)
+
+
+def test_calls_max_equal_to_the_default_calls_is_accepted(tmp_path):
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_calls_max=12)
+    assert instance._options.investigation_calls_max == 12
 
 
 def test_spend_cap_needs_a_ledger_and_the_other_way_round(tmp_path):
