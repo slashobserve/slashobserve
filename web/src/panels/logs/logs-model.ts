@@ -72,12 +72,14 @@ const trace: LogLevel = { word: "Trace", kind: "other" }
 const debug: LogLevel = { word: "Debug", kind: "other" }
 const info: LogLevel = { word: "Info", kind: "info" }
 const warning: LogLevel = { word: "Warning", kind: "warning" }
+const noLevel: LogLevel = { word: "Other", kind: "other" }
 const error: LogLevel = { word: "Error", kind: "error" }
 const critical: LogLevel = { word: "Critical", kind: "error" }
 
 const severityBands = [trace, debug, info, warning, error, critical]
 
 const levelsByAlias = new Map<string, LogLevel>([
+  ...["unknown"].map((alias): [string, LogLevel] => [alias, noLevel]),
   ...["trace"].map((alias): [string, LogLevel] => [alias, trace]),
   ...["dbug", "debug"].map((alias): [string, LogLevel] => [alias, debug]),
   ...["info", "information", "informational", "notice"].map(

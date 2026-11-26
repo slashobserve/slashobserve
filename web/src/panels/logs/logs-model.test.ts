@@ -474,6 +474,13 @@ describe("logLevel", () => {
     expect(logLevel(17)).toEqual({ word: "17", kind: "other" })
   })
 
+  it.each(["unknown", "Unknown", "UNKNOWN"])(
+    "words the level %s as Other, like the volume chip",
+    (text) => {
+      expect(logLevel(text)).toEqual({ word: "Other", kind: "other" })
+    }
+  )
+
   it.each([null, undefined, "", "   "])("has no level for %j", (value) => {
     expect(logLevel(value)).toBeNull()
   })
