@@ -1217,7 +1217,7 @@ func TestATitleCauseNeedsTheDoubtInASentenceAboutIt(t *testing.T) {
 }
 
 func TestDataReadsOtherThanQueriesCountAsHavingQueried(t *testing.T) {
-	for _, name := range []string{"trace_stats", "sample_rows", "get_trace", "compare_traces", "log_context", "log_patterns", "log_facets", "logs_for_trace"} {
+	for _, name := range []string{"trace_stats", "sample_rows", "get_trace", "compare_traces", "log_context", "log_patterns", "log_facets", "logs_for_trace", "call_context_tool"} {
 		s := New(tools.ModeInvestigate)
 		settleRead(&s, name, `{"datasource":"ch"}`, tools.Result{})
 		if !s.Answer.Queried {
@@ -1233,6 +1233,11 @@ func TestDataReadsOtherThanQueriesCountAsHavingQueried(t *testing.T) {
 	settleRead(&listing, "list_metrics", `{"datasource":"prom"}`, tools.Result{})
 	if listing.Answer.Queried {
 		t.Error("a discovery listing counted as a data read")
+	}
+	sources := New(tools.ModeInvestigate)
+	settleRead(&sources, "list_context_sources", `{}`, tools.Result{})
+	if sources.Answer.Queried {
+		t.Error("listing the context sources counted as a data read")
 	}
 }
 

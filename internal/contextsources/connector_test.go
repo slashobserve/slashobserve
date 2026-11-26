@@ -41,14 +41,19 @@ type fakeMCP struct {
 	tools   []mcp.Tool
 	headers []string
 	inner   http.Handler
+	answers map[string]server.ToolHandlerFunc
 }
 
 func (f *fakeMCP) rebuild() {
 	s := server.NewMCPServer("fake", "1.0.0")
 	for _, tool := range f.tools {
-		s.AddTool(tool, func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			return mcp.NewToolResultText("ok"), nil
-		})
+		answer := f.answers[tool.Name]
+		if answer == nil {
+			answer = func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				return mcp.NewToolResultText("ok"), nil
+			}
+		}
+		s.AddTool(tool, answer)
 	}
 	f.inner = server.NewStreamableHTTPServer(s, server.WithDisableLocalhostProtection(true))
 }

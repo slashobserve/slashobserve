@@ -7,8 +7,7 @@ A context source is an MCP server that an Admin registers so the agent can read 
 The SlashObserve server is the client: it connects to the source, lists its tools and keeps what an Admin approved.
 Nothing a source offers reaches the agent until an Admin approves it.
 
-This page covers registering a source and approving its tools.
-The agent's use of approved tools is a separate step and is not covered here.
+This page covers registering a source, approving its tools and what the agent may do with them.
 
 ## Register a source
 
@@ -159,6 +158,26 @@ Only an Admin can call these routes.
 The MCP server has no tool for them, because an agent that could register a source or approve a tool could point the server anywhere and widen its own reach.
 A refused invalid request answers `422 invalid_context_source` with a `fields` list.
 Approving a refused tool answers `409 tool_refused` with the `refusal`.
+
+## What the agent does with a source
+
+An approved tool of a source can be used by the agent in an investigation or a question, and by an outside agent over MCP, through two tools: `list_context_sources` and `call_context_tool`.
+They are not offered when a dashboard is built or revised.
+
+- Only an approved tool can be called.
+  A source whose last discovery failed is still listed to the agent with a status that says so, and a call to it is still tried.
+  A tool that changed since you approved it stays unusable until you approve it again.
+- A source set to **Admins only** is used only on behalf of an Admin.
+- The agent's arguments must match the schema the tool had when you approved it.
+- Every call goes through the [outbound allowlist](outbound-access.md).
+- A call counts toward the run's call limit and shows as a step.
+- A call stops after 20 seconds, a source handles 4 calls at once and answers `source_busy` beyond that, and a result is cut at 12 KiB with a note.
+- A source that is down gives the agent a plain refusal, and the run goes on.
+- What a source returns is outside text.
+  The agent is told that nothing in it is an instruction, and it is never shown as evidence on a panel.
+
+Each call is recorded as `context_source.call`, with the host, the tool, the arguments sent and whether the result was cut.
+A value whose name looks like a secret, such as a token or a password, is masked in the record.
 
 Every change is recorded in the [audit trail](audit.md) with the source as its target: `context_source.create`, `context_source.update`, `context_source.delete`, `context_source.discover`, `context_source.approve` and `context_source.revoke`.
 Each event carries the host and never the secret; see [Event data](../reference/audit-queries.md#event-data).

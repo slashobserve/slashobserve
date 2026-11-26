@@ -230,6 +230,7 @@ The server keeps only the fields an action declares, and no event holds a messag
 | `context_source.update` | `name`, `host`, `audience`, `changes`, `url_changed`, `credential_changed` | What changed in a context source; `credential_changed` says a secret or its header changed, never what it is |
 | `context_source.discover` | `host`, `found`, `new`, `changed`, `gone`, `ignored` | One discovery; a failed one carries the failure code as its reason instead of the counts |
 | `context_source.approve`, `context_source.revoke` | `host`, `tool`, `hash` | The tool and the SHA-256 of its pinned definition |
+| `context_source.call` | `host`, `tool`, `arguments`, `truncated` | One call of an approved tool; `arguments` are the values sent, cut short, with any named like a secret masked, and `truncated` says the result was cut. A refused or failed call carries its reason |
 | any action that was denied | `needed_role`, `needed_access` | What the refusal said the request needed |
 | `run.finish` | `model`, `input_tokens`, `output_tokens` | The model and tokens the run reported |
 | `thread.open`, `thread.message`, `chat.turn` | `body_length`, `anchor_kind` | The message length in characters, and the anchor kind |

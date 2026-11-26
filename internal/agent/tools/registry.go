@@ -111,6 +111,7 @@ type Tool struct {
 	MCPOnly     bool
 	AgentOnly   bool
 	OnlyIn      Mode
+	AlsoInChats bool
 	Claim       bool
 	MinRole     auth.Role
 	PersonOnly  bool
@@ -181,6 +182,7 @@ type Deps struct {
 	Home           *homedash.Service
 	Provider       llm.Provider
 	DraftBudget    DraftBudget
+	ContextSources ContextSources
 	PublicURL      *url.URL
 	Logger         *slog.Logger
 
@@ -209,6 +211,17 @@ func (t Tool) OfferedIn(mode Mode) bool {
 	default:
 		return true
 	}
+}
+
+func (t Tool) onlyInWords() string {
+	if t.AlsoInChats {
+		return "an investigation or a chat question, not when a dashboard is built or revised or a panel is suggested"
+	}
+	return "an " + string(t.OnlyIn) + " run"
+}
+
+func (t Tool) OfferedInRun(run Run) bool {
+	return t.OfferedIn(run.Mode) || t.AlsoInChats && run.Chat()
 }
 
 type Run struct {
@@ -410,6 +423,9 @@ func New(d Deps) *Registry {
 		}
 		e.tool.Destructive = destructiveTools[e.tool.Name]
 		e.tool.MCPOnly = leftOutOfRuns[e.tool.Name] != ""
+		if contextReads[e.tool.Name] != "" {
+			e.tool.OnlyIn, e.tool.AlsoInChats = ModeInvestigate, true
+		}
 		e.tool.OutputSchema = outputSchemas[e.tool.Name]
 		if _, dup := r.entries[e.tool.Name]; dup {
 			panic("tools: " + e.tool.Name + " registered twice")
@@ -610,6 +626,7 @@ var runEnding = []error{
 	errHealthNotConfigured,
 	errAnnotationsNotConfigured,
 	errClaimsNotConfigured,
+	errContextSourcesNotConfigured,
 }
 
 func endsRun(ctx context.Context, err error) bool {
@@ -660,12 +677,12 @@ func offered(t Tool, run Run, inRun bool) (Result, bool) {
 	switch {
 	case t.MCPOnly:
 		return Result{}, true
-	case inRun && run.Mode == ModeInvestigate && !t.OfferedIn(run.Mode):
+	case inRun && run.Mode == ModeInvestigate && !t.OfferedInRun(run):
 		message = "an investigate run never edits a dashboard's panels, variables or settings and ends with " + nameSaveFinding + "; it cannot use " + t.Name + ", so if the request asks for such a change, say in the finding that it has to be asked for as a change on the dashboard, not as an investigation"
-	case inRun && t.Answers && !t.OfferedIn(run.Mode):
+	case inRun && t.Answers && !t.OfferedInRun(run):
 		message = t.Name + " cannot end a suggest run; propose the panel instead"
-	case inRun && !t.OfferedIn(run.Mode) && t.OnlyIn != "":
-		message = t.Name + " works only in an " + string(t.OnlyIn) + " run"
+	case inRun && !t.OfferedInRun(run) && t.OnlyIn != "":
+		message = t.Name + " works only in " + t.onlyInWords()
 	case !inRun && t.AgentOnly:
 		message = t.Name + " runs inside the agent; " + agentOnlyHint(t.Name)
 	default:

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/client"
@@ -19,6 +20,7 @@ import (
 const (
 	discoverTimeout = 30 * time.Second
 	maxMessageBytes = 4 << 20
+	leftOutPart     = "[a part of the result that is not text was left out]"
 
 	FailureNotAllowed   = "outbound_domain_not_allowed"
 	FailureUnauthorized = "unauthorized"
@@ -36,8 +38,14 @@ type Target struct {
 	Secret datasource.Secret
 }
 
+type Called struct {
+	Text    string
+	IsError bool
+}
+
 type Connector interface {
 	Tools(ctx context.Context, target Target) ([]Found, error)
+	Call(ctx context.Context, target Target, name string, arguments map[string]any) (Called, error)
 }
 
 type Failure struct {
@@ -62,17 +70,11 @@ type MCPConnector struct {
 func (c MCPConnector) Tools(ctx context.Context, target Target) ([]Found, error) {
 	ctx, cancel := context.WithTimeout(ctx, discoverTimeout)
 	defer cancel()
-	mc, err := c.connect(ctx, target)
+	mc, err := c.open(ctx, target)
 	if err != nil {
 		return nil, classify(ctx, err)
 	}
 	defer func() { _ = mc.Close() }()
-	if _, err := mc.Initialize(ctx, mcp.InitializeRequest{Params: mcp.InitializeParams{
-		ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
-		ClientInfo:      mcp.Implementation{Name: "slashobserve", Version: c.Version},
-	}}); err != nil {
-		return nil, classify(ctx, err)
-	}
 	listed, err := mc.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, classify(ctx, err)
@@ -95,6 +97,51 @@ func (c MCPConnector) Tools(ctx context.Context, target Target) ([]Found, error)
 		}
 	}
 	return found, nil
+}
+
+func (c MCPConnector) Call(ctx context.Context, target Target, name string, arguments map[string]any) (Called, error) {
+	mc, err := c.open(ctx, target)
+	if err != nil {
+		return Called{}, classify(ctx, err)
+	}
+	defer func() { _ = mc.Close() }()
+	result, err := mc.CallTool(ctx, mcp.CallToolRequest{Params: mcp.CallToolParams{Name: name, Arguments: arguments}})
+	if err != nil {
+		return Called{}, classify(ctx, err)
+	}
+	return Called{Text: textOf(result), IsError: result.IsError}, nil
+}
+
+func textOf(result *mcp.CallToolResult) string {
+	var parts []string
+	for _, content := range result.Content {
+		if text, ok := mcp.AsTextContent(content); ok {
+			parts = append(parts, text.Text)
+			continue
+		}
+		parts = append(parts, leftOutPart)
+	}
+	if len(parts) == 0 && result.StructuredContent != nil {
+		if raw, err := json.Marshal(result.StructuredContent); err == nil {
+			parts = append(parts, string(raw))
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (c MCPConnector) open(ctx context.Context, target Target) (*client.Client, error) {
+	mc, err := c.connect(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := mc.Initialize(ctx, mcp.InitializeRequest{Params: mcp.InitializeParams{
+		ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
+		ClientInfo:      mcp.Implementation{Name: "slashobserve", Version: c.Version},
+	}}); err != nil {
+		_ = mc.Close()
+		return nil, err
+	}
+	return mc, nil
 }
 
 func (c MCPConnector) connect(ctx context.Context, target Target) (*client.Client, error) {
