@@ -121,6 +121,18 @@ describe("PublicLinksSection", () => {
     ])
   })
 
+  it("says there is no public link yet instead of leaving a blank area", async () => {
+    mockServer()
+    renderWithProviders(
+      <PublicLinksSection
+        dashboardId={dashboardId}
+        variables={variables}
+        vars={{}}
+      />
+    )
+    expect(await screen.findByText("No public link yet")).toBeVisible()
+  })
+
   it("sends no selections for a free link", async () => {
     const posted = mockServer()
     const { user } = renderWithProviders(

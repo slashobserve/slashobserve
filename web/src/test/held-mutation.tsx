@@ -20,6 +20,12 @@ export function resetHeldMutation() {
   hideHost = () => {}
 }
 
+export async function releaseHeldMutation() {
+  await act(async () => {
+    hold.release()
+  })
+}
+
 export function useHeldMutation<Variables, Result>(
   send: (variables: Variables) => Promise<Result>
 ) {

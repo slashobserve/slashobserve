@@ -5,7 +5,7 @@ import type { LayoutPanel } from "@/spec"
 import { renderWithProviders } from "@/test/render"
 
 import { panelDragCancel } from "./edit/panel-move-handle"
-import { PanelChrome } from "./panel-chrome"
+import { PanelChrome, panelBodySize, staleRowHeight } from "./panel-chrome"
 
 const panel: LayoutPanel = {
   id: "p1",
@@ -17,6 +17,46 @@ const panel: LayoutPanel = {
 }
 
 describe("PanelChrome", () => {
+  it("says on the panel that its data is old and why the refresh failed", () => {
+    renderWithProviders(
+      <PanelChrome
+        panel={panel}
+        state="ready"
+        staleNotice="Showing data from 09:05; the last refresh failed: upstream timed out"
+      />
+    )
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Showing data from 09:05; the last refresh failed: upstream timed out"
+    )
+  })
+
+  it("puts the old-data line in its own row below the panel body", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" staleNotice="Showing data">
+        <div>chart</div>
+      </PanelChrome>
+    )
+    const body = screen.getByText("chart").closest("[data-panel-body]")
+    expect(body).not.toContainElement(screen.getByRole("status"))
+    expect(body?.nextElementSibling).toBe(screen.getByRole("status"))
+  })
+
+  it("takes the row's height off the body the chart is sized to", () => {
+    expect(
+      panelBodySize(400, 300).height - panelBodySize(400, 300, true).height
+    ).toBe(staleRowHeight)
+    expect(panelBodySize(400, 300, true).width).toBe(
+      panelBodySize(400, 300).width
+    )
+  })
+
+  it("keeps the old-data line off a panel that shows an error instead", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="error" staleNotice="Showing data" />
+    )
+    expect(screen.queryByText("Showing data")).not.toBeInTheDocument()
+  })
+
   it("labels the panel with its title", () => {
     renderWithProviders(<PanelChrome panel={panel} state="ready" />)
     expect(
@@ -44,6 +84,18 @@ describe("PanelChrome", () => {
       else expect(screen.queryByText("Prometheus")).not.toBeInTheDocument()
     }
   )
+
+  it("gives the datasource badge only the width the title leaves free", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" datasourceLabel="Prometheus" />
+    )
+    const badge = screen.getByText("Prometheus")
+    expect(badge).toHaveClass("flex-1", "basis-0")
+    expect(badge).not.toHaveClass("shrink-[1000]")
+    expect(
+      screen.getByRole("heading", { name: "Checkout latency" })
+    ).not.toHaveClass("basis-0")
+  })
 
   it("opens the links menu on click", async () => {
     const { user } = renderWithProviders(
@@ -94,6 +146,45 @@ describe("PanelChrome", () => {
       screen.getByRole("button", { name: "About Checkout latency" })
     )
     expect(await screen.findByText("Requests that took over 2s")).toBeVisible()
+  })
+
+  it("keeps the info button beside the menu, clear of the hover actions that overlay the title", () => {
+    const described = { ...panel, description: "Requests that took over 2s" }
+    renderWithProviders(
+      <PanelChrome
+        panel={described}
+        state="ready"
+        datasourceLabel="prom"
+        menu={<button type="button">Panel menu</button>}
+      />
+    )
+    const info = screen.getByRole("button", { name: "About Checkout latency" })
+    const menu = screen.getByRole("button", { name: "Panel menu" })
+    expect(info.parentElement).toBe(menu.parentElement)
+    expect(info.nextElementSibling).toBe(menu)
+    expect(info.parentElement).toHaveClass("relative", "ml-auto")
+  })
+
+  it("shows no info button for a panel without a description", () => {
+    renderWithProviders(<PanelChrome panel={panel} state="ready" />)
+    expect(
+      screen.queryByRole("button", { name: /^About / })
+    ).not.toBeInTheDocument()
+  })
+
+  it("puts an arrangeable panel's move hint in the header padding, taking no width", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="ready" onSelect={vi.fn()} arrangeable />
+    )
+    const header = screen
+      .getByRole("heading", { name: "Checkout latency" })
+      .closest("header")
+    expect(header).toHaveClass("relative", "pl-3")
+    expect(header?.querySelector("[data-panel-move-hint]")).toHaveClass(
+      "absolute",
+      "left-0",
+      "w-3"
+    )
   })
 
   it("marks the selected panel with data-selected and aria-current", () => {

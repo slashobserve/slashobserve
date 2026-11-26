@@ -237,6 +237,17 @@ describe("entryJson", () => {
   })
 })
 
+describe("entryJson level", () => {
+  it("keeps the raw level of a line the chip counts as Other", () => {
+    const { entry, fields } = selection([])
+    const unknown = {
+      ...entry,
+      level: { word: "Other", kind: "other" as const, raw: "unknown" },
+    }
+    expect(entryJson(unknown, fields).level).toBe("unknown")
+  })
+})
+
 describe("DetailDrawer", () => {
   it("lists one term per detail on the Table tab", async () => {
     await open({

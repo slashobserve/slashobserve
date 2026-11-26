@@ -12,6 +12,7 @@ type written struct {
 	at     time.Time
 	id     uuid.UUID
 	action Action
+	target Target
 }
 
 type state struct {

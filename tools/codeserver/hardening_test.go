@@ -37,7 +37,7 @@ func TestAFifoIsRefusedAndNeverBlocks(t *testing.T) {
 		}
 	})
 	within(t, "list_dir", func() {
-		if _, err := code.ListDir("pipe"); !errors.Is(err, errNotDir) {
+		if _, err := code.ListDir(context.Background(), "pipe"); !errors.Is(err, errNotDir) {
 			t.Errorf("list_dir: %v", err)
 		}
 	})
@@ -156,14 +156,14 @@ func TestCallerMistakesAreRefusalsNotServerErrors(t *testing.T) {
 		if _, err := code.ReadFile(ctx, tc.path, 1, 10); !errors.Is(err, tc.want) {
 			t.Errorf("%s: read_file: %v, want %v", tc.name, err, tc.want)
 		}
-		if _, err := code.ListDir(tc.path); !errors.Is(err, tc.want) {
+		if _, err := code.ListDir(context.Background(), tc.path); !errors.Is(err, tc.want) {
 			t.Errorf("%s: list_dir: %v, want %v", tc.name, err, tc.want)
 		}
 		if _, err := code.Grep(ctx, "x", tc.path, ""); !errors.Is(err, tc.want) {
 			t.Errorf("%s: grep: %v, want %v", tc.name, err, tc.want)
 		}
 	}
-	if _, err := code.ListDir("main.go"); !errors.Is(err, errNotDir) {
+	if _, err := code.ListDir(context.Background(), "main.go"); !errors.Is(err, errNotDir) {
 		t.Errorf("list_dir on a file: %v", err)
 	}
 }
@@ -182,7 +182,7 @@ func TestSymlinksInsideTheRoot(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	listing, err := code.ListDir(".")
+	listing, err := code.ListDir(context.Background(), ".")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { timelinePhases, type Step } from "./request-model"
+import {
+  isSavedAnswerStep,
+  stepText,
+  timelinePhases,
+  type Step,
+} from "./request-model"
 
 function step(overrides: Partial<Step>): Step {
   return {
@@ -81,5 +86,41 @@ describe("timelinePhases", () => {
       ["repair", 1],
       ["query", 1],
     ])
+  })
+})
+
+describe("stepText", () => {
+  const base: Step = {
+    at: "2026-01-01T00:00:00Z",
+    attempt: 0,
+    phase: "save",
+    tool: "save_finding",
+    status: "ok",
+    message: "Saved the answer",
+    duration_ms: 1,
+  }
+
+  it("rewrites the stored id of a finding saved before the step read as a sentence", () => {
+    expect(
+      stepText({ ...base, message: "Saved finding 99a52b2f-9aca-4f4e" })
+    ).toBe("Saved the answer")
+    expect(stepText({ ...base, message: "Saved panel 1 of 2: Up" })).toBe(
+      "Saved panel 1 of 2: Up"
+    )
+  })
+
+  it("finds the step that saved the answer", () => {
+    expect(isSavedAnswerStep(base)).toBe(true)
+    expect(isSavedAnswerStep({ ...base, status: "error" })).toBe(false)
+    expect(isSavedAnswerStep({ ...base, tool: "update_panels" })).toBe(false)
+    expect(
+      isSavedAnswerStep({
+        ...base,
+        message: "Reused the result of an identical call",
+      })
+    ).toBe(false)
+    expect(
+      isSavedAnswerStep({ ...base, message: "Saved finding 99a52b2f" })
+    ).toBe(true)
   })
 })

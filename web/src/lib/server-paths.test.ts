@@ -12,6 +12,14 @@ const serverPaths = [
   "metrics",
 ]
 
+const exactServerPaths = ["metrics"]
+
+function clashes(route: string, serverPath: string): boolean {
+  const [, first, second] = route.split("/")
+  if (first !== serverPath) return false
+  return !(exactServerPaths.includes(serverPath) && second)
+}
+
 function webRoutePaths(): string[] {
   const block = /export interface FileRoutesByFullPath \{\n([\s\S]*?)\n\}/.exec(
     routeTree
@@ -28,8 +36,8 @@ describe("web routes", () => {
   test.each(serverPaths)(
     "none starts at the server's own path /%s",
     (serverPath) => {
-      const clashing = webRoutePaths().filter(
-        (route) => route.split("/")[1] === serverPath
+      const clashing = webRoutePaths().filter((route) =>
+        clashes(route, serverPath)
       )
       expect(clashing).toEqual([])
     }

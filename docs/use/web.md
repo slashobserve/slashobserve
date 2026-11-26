@@ -300,8 +300,13 @@ They are absent when nothing was dropped.
 
 ### Open a panel in Logs or Traces
 
-**Open in Logs** in a logs panel's menu, and **Open in Traces** in a traces panel's menu, open the explorer with the panel's query, its datasource and the dashboard's time range.
-The item is greyed, with the reason after it, when the panel has several queries, has no datasource, uses variables in its query, or is a ClickHouse SQL trace search.
+**Open in Logs**, **Open in Traces** and **Open in Metrics** in a data panel's panel menu open the explorer that fits the panel's datasource, with the panel's query and the dashboard's time range.
+A Prometheus panel opens Metrics, in table mode for a table panel or an instant query, and a Loki panel opens Logs.
+A logs panel opens Logs and a traces panel opens Traces, on any datasource that has that explorer.
+A chart, stat or table on Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch does not open, because its query is not a log or trace search the explorers can run.
+A query that uses variables opens as it ran, with the variables replaced by their values.
+A panel with several visible queries opens the first one, and the item says so.
+The item is greyed, with the reason after it, when the panel has no query of its own to open, has no datasource, the datasource list has not loaded, the datasource has no explorer, the panel has not loaded yet and its query uses variables, or it is a ClickHouse SQL trace search.
 
 ### Duplicate or remove a panel
 
@@ -518,7 +523,8 @@ The button is missing on an older version and while a layout or panel is being e
 | `/search?q=<words>` | The Search page. |
 | `/settings` | Settings; `#<section>` opens a section. |
 | `/audit` | The Audit pages, for Admins. |
-| `/datasources`, `/keys`, `/people` | Datasources, API keys and People, for Admins. |
+| `/datasources`, `/keys`, `/people` | Datasources, API keys and People, for Admins. The Datasources page lists the MCP sources below the datasources, one row per source with its tools under a chevron, and one **Add source** button in its header adds either kind. |
+| `/datasources/context-sources` | The Datasources page scrolled to the MCP sources table, with its heading focused; `/settings#context-sources` redirects here. |
 | `/p/<token>` | A dashboard opened through a public link, with no sign-in. |
 | `/rca/<token>` | A published RCA revision opened through its public link, with no sign-in; see [Share a revision](observations.md#share-a-revision). |
 | `/connect/<request id>` | Approve or deny an MCP client that asked to act as you. |
@@ -547,6 +553,7 @@ The button is missing on an older version and while a layout or panel is being e
 
 The server answers these with `301 Moved Permanently`.
 The web app also sends `/health` to `/dashboards?kind=any` and `/import/repair` to `/dashboards?kind=imported`, keeping `kind` and `folder`; these are not server redirects.
+It also sends `/explore/logs`, `/explore/logs/<uid>`, `/explore/traces` and `/explore/traces/<uid>` to `/logs` and `/traces`, and `/metrics/<uid>` to `/explore/metrics/<uid>`, keeping only the query string keys the page you land on reads, as listed under Details of query strings; `/metrics` itself is the server's Prometheus endpoint.
 
 ### Details of a row's More menu
 

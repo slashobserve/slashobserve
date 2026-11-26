@@ -70,3 +70,26 @@ describe("searchAfter", () => {
     ).toEqual({ q: "up", mode: undefined, from: "x" })
   })
 })
+
+describe("the keys a redirect carries to the metrics page", () => {
+  it("are the ones the page reads and no others", () => {
+    const kept = validateMetricsSearch({
+      foo: "1",
+      page: "2",
+      q: "up",
+      from: "now-1h",
+      to: "now",
+      mode: "table",
+      ds: "prom",
+    })
+    expect(Object.keys(kept)).not.toContain("foo")
+    expect(Object.keys(kept)).not.toContain("page")
+    expect(Object.keys(kept)).not.toContain("ds")
+    expect(kept).toMatchObject({
+      q: "up",
+      from: "now-1h",
+      to: "now",
+      mode: "table",
+    })
+  })
+})

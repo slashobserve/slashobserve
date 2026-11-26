@@ -150,6 +150,19 @@ export function sourceRows(
   return sources.map(({ uid }) => ({ id: uid, paths: [pathOf(uid)] }))
 }
 
+export function exploreKindOfPath(pathname: string): ExploreKind | undefined {
+  return exploreKinds.find((kind) => isSourcePage(kind, pathname))
+}
+
+export function carriedRange(search: {
+  from?: string
+  to?: string
+}): { from: string; to: string } | Record<string, never> {
+  return search.from !== undefined && search.to !== undefined
+    ? { from: search.from, to: search.to }
+    : {}
+}
+
 export function exploreLink(
   kind: ExploreKind,
   uid: string,

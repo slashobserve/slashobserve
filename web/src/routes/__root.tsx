@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useDockPanelShown } from "@/components/dock/open-panels"
 import { LiveToaster, Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -29,17 +30,21 @@ function Shell({ children }: { children: ReactNode }) {
   )
 }
 
+const dockFooterClearance = 80
+
 function RootLayout() {
   useFocusAfterNavigation()
+  const dockShown = useDockPanelShown()
+  const bottom = dockShown ? dockFooterClearance : 16
   return (
     <Shell>
       <TooltipProvider>
         <Outlet />
       </TooltipProvider>
       <Toaster
-        position="bottom-left"
-        offset={{ left: 56, bottom: 16 }}
-        mobileOffset={16}
+        position="bottom-right"
+        offset={{ right: 16, bottom }}
+        mobileOffset={{ right: 16, left: 16, bottom }}
         duration={5000}
         closeButton
       />

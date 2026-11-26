@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
-import type { RefObject } from "react"
 
 import { ApiError } from "@/api/errors"
 import { ScrollPane } from "@/components/scroll-pane"
@@ -10,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import { cn } from "@/lib/utils"
-import { orderTurns } from "@/observe/conversation"
+import { orderTurns, runningOwnTurnId } from "@/observe/conversation"
 import {
   sentence,
   useAgentInfo,
@@ -31,6 +30,7 @@ import { ExampleChips } from "@/home/task-card"
 import { AskAgainButton, useAskInChat } from "./ask-again"
 import { useChat } from "./chats-queries"
 import { useOpenSent } from "./open-sent"
+import { useChatScroll } from "./chat-scroll"
 import { RequestNotFound } from "./request-not-found"
 import { RequestTurn, type TurnSummary } from "./request-turn"
 import { offersFollowUps } from "./turn-model"
@@ -42,84 +42,11 @@ import {
   type ChatPanel,
 } from "./panel-target"
 
-const stickThreshold = 80
 const stepsLoadedTurns = 3
 const titlePromptLength = 60
 
 function isActiveStatus(status: TurnSummary["status"]): boolean {
   return status === "queued" || status === "running"
-}
-
-function scrollParent(element: HTMLElement): HTMLElement | null {
-  for (
-    let parent = element.parentElement;
-    parent !== null;
-    parent = parent.parentElement
-  ) {
-    const overflow = getComputedStyle(parent).overflowY
-    if (overflow === "auto" || overflow === "scroll") return parent
-  }
-  return null
-}
-
-function useChatScroll(
-  list: RefObject<HTMLDivElement | null>,
-  target: string | null
-) {
-  const pinned = useRef(false)
-  const scroller = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    const element = list.current
-    if (element === null || target === null) return
-    const parent = scrollParent(element)
-    if (parent === null) return
-    scroller.current = parent
-    const atEnd = () =>
-      parent.scrollHeight - parent.scrollTop - parent.clientHeight <=
-      stickThreshold
-    let lastTop = parent.scrollTop
-    const measure = () => {
-      const top = parent.scrollTop
-      if (atEnd()) pinned.current = true
-      else if (top < lastTop) pinned.current = false
-      lastTop = top
-    }
-    const section =
-      target === "" ? null : document.getElementById(`request-${target}`)
-    if (section === null) {
-      parent.scrollTop = parent.scrollHeight
-    } else {
-      section.scrollIntoView({ block: "start" })
-    }
-    lastTop = parent.scrollTop
-    pinned.current = atEnd()
-    parent.addEventListener("scroll", measure, { passive: true })
-    let lastTurn = element.lastElementChild
-    let lastHeight = lastTurn?.getBoundingClientRect().height ?? 0
-    const observer = new ResizeObserver(() => {
-      const last = element.lastElementChild
-      const height = last?.getBoundingClientRect().height ?? 0
-      const grew = last !== lastTurn || height > lastHeight
-      lastTurn = last
-      lastHeight = height
-      const busy = element.querySelector('[aria-busy="true"]') !== null
-      if (pinned.current && (grew || busy)) {
-        parent.scrollTop = parent.scrollHeight
-      }
-    })
-    observer.observe(element)
-    return () => {
-      parent.removeEventListener("scroll", measure)
-      observer.disconnect()
-    }
-  }, [list, target])
-
-  return function pinToEnd() {
-    pinned.current = true
-    const parent = scroller.current
-    if (parent !== null) parent.scrollTop = parent.scrollHeight
-  }
 }
 
 function TurnSkeleton() {
@@ -310,11 +237,10 @@ function ConversationView({
   const pageTitle = active
     ? "Observing - SlashObserve"
     : `${clipped} - SlashObserve`
-  const runningRequestId = turns.findLast(
-    (turn) =>
-      isActiveStatus(turn.summary.status) &&
-      turn.summary.requested_by.id === principal.id
-  )?.id
+  const runningRequestId = runningOwnTurnId(
+    turns.map((turn) => turn.summary),
+    principal.id
+  )
 
   function appended(request: ObserveRequest) {
     pinToEnd()

@@ -8,5 +8,5 @@ export function AudienceBadge({
   datasource: Pick<DatasourceStatus, "audience">
 }) {
   if (datasource.audience !== "admins") return null
-  return <Badge variant="outline">Only Admins</Badge>
+  return <Badge variant="outline">Admins only</Badge>
 }

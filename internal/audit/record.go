@@ -125,7 +125,7 @@ func (r *Recorder) Record(ctx context.Context, q *dbsqlc.Queries, e Event) error
 		return fmt.Errorf("insert audit event: %w", err)
 	}
 	if st := stateOf(ctx); st != nil {
-		st.wroteInTx(written{at: row.OccurredAt.Time, id: row.ID.Bytes, action: e.Action})
+		st.wroteInTx(written{at: row.OccurredAt.Time, id: row.ID.Bytes, action: e.Action, target: e.Target})
 	}
 	return nil
 }

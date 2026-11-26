@@ -254,3 +254,27 @@ describe("the trace sort", () => {
     expect(validateTraceSearch({ sort: "Duration; drop" }).sort).toBeUndefined()
   })
 })
+
+describe("the keys a redirect carries to the trace search", () => {
+  const raw = {
+    foo: "1",
+    service: "cart",
+    q: "{}",
+    from: "now-1h",
+    to: "now",
+    ds: "tempo",
+  }
+
+  it("are the ones the page reads, the time range pair included", () => {
+    const kept = validateTraceSearch(raw)
+    expect(Object.keys(kept)).not.toContain("foo")
+    expect(Object.keys(kept)).not.toContain("ds")
+    expect(kept).toMatchObject({ service: "cart", from: "now-1h", to: "now" })
+  })
+
+  it("add the source key on the index", () => {
+    const kept = validateTraceEntrySearch(raw)
+    expect(Object.keys(kept)).not.toContain("foo")
+    expect(kept.ds).toBe("tempo")
+  })
+})

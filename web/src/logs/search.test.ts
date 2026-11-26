@@ -304,3 +304,26 @@ describe("runPatch", () => {
     ).toEqual({ q: "a", ask: "new" })
   })
 })
+
+describe("the keys a redirect carries to the logs page", () => {
+  const raw = { foo: "1", q: "abc", from: "now-1h", to: "now", ds: "loki" }
+
+  it("are the ones the page reads, the time range pair included", () => {
+    const kept = validateLogsSearch(raw)
+    expect(Object.keys(kept)).not.toContain("foo")
+    expect(Object.keys(kept)).not.toContain("ds")
+    expect(kept).toMatchObject({ q: "abc", from: "now-1h", to: "now" })
+  })
+
+  it("add the source key on the index", () => {
+    const kept = validateLogsEntrySearch(raw)
+    expect(Object.keys(kept)).not.toContain("foo")
+    expect(kept).toMatchObject({ ds: "loki", q: "abc", from: "now-1h" })
+  })
+
+  it("leave out a lone from or to, which the page does not read", () => {
+    const kept = validateLogsSearch({ q: "abc", from: "now-1h" })
+    expect(kept.from).toBeUndefined()
+    expect(kept.to).toBeUndefined()
+  })
+})

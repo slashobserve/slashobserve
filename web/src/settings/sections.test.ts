@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest"
 
 import {
   isMovedAuditLog,
+  isMovedContextSources,
   sectionNotice,
   selectedSectionId,
   settingsGroups,
@@ -25,7 +26,10 @@ describe("settingsGroups", () => {
         label: "Workspace",
         ids: ["server", "sign-in", "outbound-access", "agent-access"],
       },
-      { label: "Integrations", ids: ["grafana", "webhooks"] },
+      {
+        label: "Integrations",
+        ids: ["grafana", "webhooks"],
+      },
     ])
   })
 
@@ -197,5 +201,14 @@ describe("isMovedAuditLog", () => {
     expect(isMovedAuditLog("")).toBe(false)
     expect(isMovedAuditLog("webhooks")).toBe(false)
     expect(isMovedAuditLog("Audit-log")).toBe(false)
+  })
+})
+
+describe("isMovedContextSources", () => {
+  test("names the section hash that now lives at /datasources/context-sources", () => {
+    expect(isMovedContextSources("context-sources")).toBe(true)
+    expect(isMovedContextSources("")).toBe(false)
+    expect(isMovedContextSources("webhooks")).toBe(false)
+    expect(isMovedContextSources("Context-sources")).toBe(false)
   })
 })

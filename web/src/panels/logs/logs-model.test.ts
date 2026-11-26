@@ -9,6 +9,7 @@ import {
   dedupKey,
   detailText,
   formatLogTime,
+  levelName,
   logLevel,
   logsModel,
   maxEntries,
@@ -473,6 +474,18 @@ describe("logLevel", () => {
     expect(logLevel("  error ")).toEqual({ word: "Error", kind: "error" })
     expect(logLevel(17)).toEqual({ word: "17", kind: "other" })
   })
+
+  it.each(["unknown", "Unknown", "UNKNOWN"])(
+    "words the level %s as Other, like the volume chip",
+    (text) => {
+      expect(logLevel(text)).toEqual({
+        word: "Other",
+        kind: "other",
+        raw: text,
+      })
+      expect(levelName(logLevel(text))).toBe(text)
+    }
+  )
 
   it.each([null, undefined, "", "   "])("has no level for %j", (value) => {
     expect(logLevel(value)).toBeNull()

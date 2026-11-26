@@ -82,6 +82,7 @@ type Registry struct {
 
 	mu     sync.Mutex
 	cached map[string]cacheEntry
+	now    func() time.Time
 }
 
 type retired struct {
@@ -90,8 +91,9 @@ type retired struct {
 }
 
 type cacheEntry struct {
-	status Status
-	at     time.Time
+	status   Status
+	at       time.Time
+	probeErr error
 }
 
 func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) {
@@ -103,6 +105,7 @@ func NewRegistry(logger *slog.Logger, instances ...Instance) (*Registry, error) 
 		instances: make(map[string]Instance, len(instances)),
 		cached:    make(map[string]cacheEntry, len(instances)),
 		retired:   map[*retired]struct{}{},
+		now:       time.Now,
 	}
 	for _, in := range instances {
 		in, err := normalized(in)
@@ -255,7 +258,7 @@ func (r *Registry) Describe(ctx context.Context, uid string) (Instance, error) {
 		return Instance{}, ErrNotVisible
 	}
 	if !access.Reads(in.Audience) {
-		return Instance{}, access.refusal(in.Audience)
+		return Instance{}, access.Refusal(in.Audience)
 	}
 	in.GrafanaUIDs = slices.Clone(in.GrafanaUIDs)
 	return in, nil
@@ -310,7 +313,7 @@ func (r *Registry) Health(ctx context.Context) []Status {
 	var wg sync.WaitGroup
 	for i, in := range list {
 		wg.Go(func() {
-			out[i] = r.status(ctx, in, healthTTL)
+			out[i] = r.listed(ctx, in)
 		})
 	}
 	wg.Wait()
@@ -344,6 +347,29 @@ func (r *Registry) Close() error {
 	return errors.Join(errs...)
 }
 
+func (r *Registry) listed(ctx context.Context, in Instance) Status {
+	if e, ok := r.entry(in.UID); ok && !e.status.Healthy {
+		if r.now().Sub(e.at) >= recheckInterval {
+			r.refreshInBackground(in)
+		}
+		return e.status
+	}
+	return r.status(ctx, in, healthTTL)
+}
+
+func (r *Registry) refreshInBackground(in Instance) {
+	r.group.DoChan(fmt.Sprintf("%s#%d", in.UID, in.generation), func() (any, error) {
+		return r.check(context.Background(), in), nil
+	})
+}
+
+func (r *Registry) entry(uid string) (cacheEntry, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, ok := r.cached[uid]
+	return e, ok
+}
+
 func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration) Status {
 	if s, ok := r.fresh(in.UID, maxAge); ok {
 		return s
@@ -360,29 +386,54 @@ func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration
 	case <-ctx.Done():
 		s := statusFor(in)
 		s.Message = healthMessage(ctx.Err())
-		s.CheckedAt = time.Now().UTC()
+		s.CheckedAt = r.now().UTC()
 		return s
 	}
 }
 
 func (r *Registry) fresh(uid string, maxAge time.Duration) (Status, bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	e, ok := r.cached[uid]
-	if !ok || time.Since(e.at) >= maxAge {
+	e, ok := r.entry(uid)
+	if !ok || r.now().Sub(e.at) >= maxAge {
 		return Status{}, false
 	}
 	return e.status, true
 }
 
+var transientKinds = []error{ErrUnavailable, ErrTimeout, ErrLimitExceeded}
+
+func transient(err error) bool {
+	return slices.ContainsFunc(transientKinds, func(kind error) bool { return errors.Is(err, kind) })
+}
+
+func (r *Registry) Answered(uid string) {
+	r.instancesMu.RLock()
+	in, ok := r.instances[uid]
+	r.instancesMu.RUnlock()
+	if !ok {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, cached := r.cached[uid]
+	if !cached || e.status.Healthy || !transient(e.probeErr) || !r.current(in) {
+		return
+	}
+	now := r.now()
+	s := statusFor(in)
+	s.Healthy = true
+	s.CheckedAt = now.UTC()
+	r.cached[uid] = cacheEntry{status: s, at: now, probeErr: e.probeErr}
+}
+
 func (r *Registry) check(ctx context.Context, in Instance) Status {
+	started := r.now()
 	checkCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), healthTimeout)
 	defer cancel()
 	err := r.safeCheckHealth(checkCtx, in)
 
 	s := statusFor(in)
 	s.Healthy = err == nil
-	s.CheckedAt = time.Now().UTC()
+	s.CheckedAt = r.now().UTC()
 	if err != nil {
 		s.Message = healthMessage(err)
 		s.Detail = healthDetail(err)
@@ -390,12 +441,16 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 
 	r.mu.Lock()
 	prev, seen := r.cached[in.UID]
-	if r.current(in) {
-		r.cached[in.UID] = cacheEntry{status: s, at: time.Now()}
+	answeredMeanwhile := err != nil && seen && prev.status.Healthy && prev.at.After(started)
+	if r.current(in) && !answeredMeanwhile {
+		r.cached[in.UID] = cacheEntry{status: s, at: r.now(), probeErr: err}
 	}
 	r.mu.Unlock()
 
-	if err != nil && (!seen || prev.status.Healthy) {
+	if answeredMeanwhile {
+		return prev.status
+	}
+	if err != nil && (!seen || prev.probeErr == nil) {
 		r.logger.Warn("datasource unhealthy", logattrs.Failure("datasource_unhealthy", err, slog.String("uid", in.UID), slog.String("type", s.Type))...)
 	}
 	return s

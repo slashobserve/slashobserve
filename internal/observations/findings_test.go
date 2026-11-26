@@ -56,7 +56,7 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	if got.From == nil || !got.From.Equal(windowTo.Add(-time.Hour)) || got.To == nil || !got.To.Equal(windowTo) {
 		t.Errorf("range %v to %v", got.From, got.To)
 	}
-	if len(got.Blocks) != 2 || got.Blocks[0].Kind != observations.KindText || got.Blocks[1].Kind != observations.KindPanel {
+	if len(got.Blocks) != 3 || got.Blocks[0].Kind != observations.KindRun || got.Blocks[1].Kind != observations.KindText || got.Blocks[2].Kind != observations.KindPanel {
 		t.Errorf("blocks %+v", got.Blocks)
 	}
 	var linked string
@@ -67,8 +67,27 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	if err != nil || createdAgain || again != id {
 		t.Errorf("a second conclusion: %v, created %v, %v", again, createdAgain, err)
 	}
-	if after, err := r.service.Get(reading(t.Context()), editor, id); err != nil || len(after.Blocks) != 2 {
+	if after, err := r.service.Get(reading(t.Context()), editor, id); err != nil || len(after.Blocks) != 3 {
 		t.Errorf("blocks after the second conclusion %d, %v", len(after.Blocks), err)
+	}
+}
+
+func TestAConclusionWithoutAValidRangeTakesTheRunsWindow(t *testing.T) {
+	r := newRig(t)
+	from, to := windowTo.Add(-3*time.Hour), windowTo.Add(-2*time.Hour)
+	run := r.run(t, editor, r.dashboardIn(t, r.shared), "Why?", &from, &to)
+	c := recordInput(t, run)
+	c.From, c.To = time.Time{}, time.Time{}
+	id, _, err := r.conclude(t, editor, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.service.Get(reading(t.Context()), editor, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.From == nil || got.To == nil || !got.From.Equal(from) || !got.To.Equal(to) {
+		t.Errorf("range %v to %v, want the run's %v to %v", got.From, got.To, from, to)
 	}
 }
 

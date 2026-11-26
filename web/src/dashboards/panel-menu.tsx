@@ -80,6 +80,7 @@ type Props = {
   inToolbar?: boolean
   observationVariables?: readonly Variable[]
   block?: BlockMenuHost
+  executed?: (ref: string) => string | undefined
 }
 
 // Only one panel menu is open at a time, and the choice must survive the render that closes it.
@@ -136,6 +137,7 @@ export function PanelMenu({
   inToolbar = false,
   observationVariables,
   block,
+  executed,
 }: Props) {
   const setSearch = useSetDashboardSearch()
   const navigate = useNavigate()
@@ -267,26 +269,28 @@ export function PanelMenu({
       shortcut: onDashboard ? shortcutText("inspect") : undefined,
     })
   }
-  if (data && (panel.type === "logs" || panel.type === "traces")) {
-    const explorer = panel.type === "logs" ? "Open in Logs" : "Open in Traces"
+  if (data) {
     const explore = exploreTarget(
       panel,
       (ref) => resolveDatasourceRef(ref, selections),
-      (uid) => datasourceTypeOf(datasources, uid),
-      range
+      datasources === undefined
+        ? undefined
+        : (uid) => datasourceTypeOf(datasources, uid),
+      range,
+      executed
     )
     items.push({
       id: "explore",
       label:
         "problem" in explore
-          ? `${explorer} (${exploreProblemText(explore.problem)})`
-          : explorer,
+          ? `Open in Explore (${exploreProblemText(explore.problem)})`
+          : explore.opening.label,
       icon: <CompassIcon aria-hidden="true" />,
       disabled: "problem" in explore,
       onSelect: () => {
         if ("problem" in explore) return
         focusAfterClose = "none"
-        void navigate(explore.target)
+        void navigate(explore.opening.target)
       },
     })
   }

@@ -7,6 +7,8 @@ import {
 } from "@/lib/paging"
 import { isTimeValue } from "@/lib/time"
 
+import { levelsParam, parseLevels } from "./levels"
+
 export type LogsSearch = {
   q?: string
   ask?: string
@@ -16,6 +18,7 @@ export type LogsSearch = {
   cols?: string
   line?: string
   view?: "patterns"
+  levels?: string
   tail?: "1"
   observation?: string
   saved?: string
@@ -170,6 +173,7 @@ export function validateLogsSearch(raw: Record<string, unknown>): LogsSearch {
     cols: validColumns(raw.cols),
     line: validLine(raw.line),
     view: firstString(raw.view) === "patterns" ? "patterns" : undefined,
+    levels: levelsParam(parseLevels(raw.levels)),
     tail: firstString(raw.tail) === "1" ? "1" : undefined,
     observation: validObservation(raw.observation),
     saved: validSaved(raw.saved),

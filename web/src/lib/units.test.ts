@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  axisDecimals,
+  abbreviateTimeUnits,
+  axisFormat,
   commonDecimals,
   decimalsByUnit,
   formatValue,
@@ -144,9 +145,9 @@ describe("formatValue", () => {
   })
 })
 
-describe("axisDecimals", () => {
+describe("axisFormat", () => {
   const labels = (splits: number[], unit?: Parameters<typeof f>[1]) =>
-    splits.map((split) => f(split, unit, axisDecimals(splits, unit)))
+    splits.map(axisFormat(splits, unit))
 
   it("keeps neighbouring splits distinguishable at large magnitude", () => {
     const gb = [15.425, 15.43, 15.435].map((value) => value * 1e9)
@@ -172,8 +173,23 @@ describe("axisDecimals", () => {
     ])
   })
 
+  it("shows every duration split exactly, with decimals shared per unit", () => {
+    expect(labels([0.75, 1, 1.25, 1.5, 1.75], "s")).toEqual([
+      "750 ms",
+      "1.00 s",
+      "1.25 s",
+      "1.50 s",
+      "1.75 s",
+    ])
+    expect(labels([0.0075, 0.01, 0.0125], "s")).toEqual([
+      "7.5 ms",
+      "10.0 ms",
+      "12.5 ms",
+    ])
+  })
+
   it("keeps explicit decimals", () => {
-    expect(axisDecimals([1000, 1000.2], undefined, 0)).toBe(0)
+    expect(axisFormat([1000, 1000.2], undefined, 0)(1000.2)).toBe("1,000")
   })
 })
 
@@ -291,11 +307,22 @@ describe("custom units", () => {
 
   it("derives axis decimals for custom units like plain ones", () => {
     const splits = [0, 0.5, 1, 1.5]
-    expect(axisDecimals(splits, "prefix:$")).toBe(axisDecimals(splits, "none"))
-    expect(axisDecimals(splits, "suffix:req")).toBe(
-      axisDecimals(splits, "none")
-    )
-    expect(axisDecimals([1000, 1000.2], "prefix:$")).toBe(1)
+    expect(splits.map(axisFormat(splits, "prefix:$"))).toEqual([
+      "$0.0",
+      "$0.5",
+      "$1.0",
+      "$1.5",
+    ])
+    expect(splits.map(axisFormat(splits, "suffix:req"))).toEqual([
+      "0.0 req",
+      "0.5 req",
+      "1.0 req",
+      "1.5 req",
+    ])
+    expect([1000, 1000.2].map(axisFormat([1000, 1000.2], "prefix:$"))).toEqual([
+      "$1,000.0",
+      "$1,000.2",
+    ])
   })
 
   it("derives own decimals and axis labels for custom units", () => {
@@ -402,5 +429,19 @@ describe("custom unit forms", () => {
     for (const kind of ["time", "si", "count", "currency", "suffix"]) {
       expect(parseUnit(`${kind}: `), kind).toEqual({ kind: "id", id: "none" })
     }
+  })
+})
+
+describe("abbreviateTimeUnits", () => {
+  it.each([
+    ["2 hour", "2 h"],
+    ["10 day", "10 d"],
+    ["1.5 week", "1.5 w"],
+    ["3 year", "3 y"],
+    ["50.33 min", "50.33 min"],
+    ["2.44 s", "2.44 s"],
+    ["1 hour ago", "1 hour ago"],
+  ])("writes %s as %s", (text, short) => {
+    expect(abbreviateTimeUnits(text)).toBe(short)
   })
 })

@@ -2059,7 +2059,7 @@ observe_suite() {
   [[ -n "$did" ]] || fail "the finished observe request has no dashboard ($(cat "$TMP/api.body"))"
   observe_expect "the finished observe request" '"status":"succeeded"' '"result_version":1' '"attempts":1' '"error":null' "\"url\":\"$BASE_URL/d/$did" \
     '"phase":"save","tool":"create_dashboard","status":"error"' '"phase":"repair","tool":"create_dashboard","status":"ok"' \
-    '"provider":"replay"' '"model_calls":6' '"repair_rounds":1'
+    '"provider":"replay"' '"model_calls":7' '"repair_rounds":1'
   pass "a new dashboard request repairs its broken query and finishes with steps, usage and the dashboard address"
 
   out="$(api GET "/dashboards/$did")"

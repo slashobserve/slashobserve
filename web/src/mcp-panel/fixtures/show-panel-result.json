@@ -1,0 +1,118 @@
+{
+  "content": [
+    {
+      "text": "{\"kind\":\"range\",\"from\":\"2026-11-25T14:31:43Z\",\"to\":\"2026-11-25T15:31:43Z\",\"step_ms\":18000,\"empty\":false,\"frames\":2,\"truncated\":false,\"series\":[{\"name\":\"Value\",\"labels\":{\"route\":\"/checkout\"},\"points\":24,\"non_null\":24,\"min\":1,\"max\":8,\"last\":8},{\"name\":\"Value\",\"labels\":{\"route\":\"/cart\"},\"points\":24,\"non_null\":24,\"min\":2,\"max\":8,\"last\":8}],\"open_url\":\"/explore/metrics/fake?from=now-1h\\u0026q=sum+by+%28route%29+%28rate%28http_requests_total%5B5m%5D%29%29\\u0026to=now\"}",
+      "type": "text"
+    }
+  ],
+  "structuredContent": {
+    "title": "Requests per second by route",
+    "panel": {
+      "id": "adhoc",
+      "type": "timeseries",
+      "title": "Requests per second by route",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "datasource": "fake",
+      "queries": [
+        {
+          "query": "sum by (route) (rate(http_requests_total[5m]))"
+        }
+      ]
+    },
+    "data": {
+      "frames": [
+        {
+          "ref": "A",
+          "labels": {
+            "route": "/checkout"
+          },
+          "fields": [
+            {
+              "name": "Time",
+              "type": "time",
+              "values": [
+                1795600800000, 1795600920000, 1795601040000, 1795601160000,
+                1795601280000, 1795601400000, 1795601520000, 1795601640000,
+                1795601760000, 1795601880000, 1795602000000, 1795602120000,
+                1795602240000, 1795602360000, 1795602480000, 1795602600000,
+                1795602720000, 1795602840000, 1795602960000, 1795603080000,
+                1795603200000, 1795603320000, 1795603440000, 1795603560000
+              ]
+            },
+            {
+              "name": "Value",
+              "type": "number",
+              "values": [
+                1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5,
+                6, 7, 8
+              ]
+            }
+          ]
+        },
+        {
+          "ref": "A",
+          "labels": {
+            "route": "/cart"
+          },
+          "fields": [
+            {
+              "name": "Time",
+              "type": "time",
+              "values": [
+                1795600800000, 1795600920000, 1795601040000, 1795601160000,
+                1795601280000, 1795601400000, 1795601520000, 1795601640000,
+                1795601760000, 1795601880000, 1795602000000, 1795602120000,
+                1795602240000, 1795602360000, 1795602480000, 1795602600000,
+                1795602720000, 1795602840000, 1795602960000, 1795603080000,
+                1795603200000, 1795603320000, 1795603440000, 1795603560000
+              ]
+            },
+            {
+              "name": "Value",
+              "type": "number",
+              "values": [
+                2, 5, 8, 4, 7, 3, 6, 2, 5, 8, 4, 7, 3, 6, 2, 5, 8, 4, 7, 3, 6,
+                2, 5, 8
+              ]
+            }
+          ]
+        }
+      ],
+      "meta": {
+        "kind": "range",
+        "from": "2026-11-25T14:31:43.643755Z",
+        "to": "2026-11-25T15:31:43.643755Z",
+        "step_ms": 18000,
+        "queries": [
+          {
+            "ref": "A",
+            "kind": "range",
+            "step_ms": 18000
+          }
+        ],
+        "cached": false,
+        "executed_at": "2026-11-25T15:31:43.644807Z",
+        "truncated": false,
+        "partial": false,
+        "rows": 0,
+        "oldest": "2026-11-25T10:00:00Z",
+        "newest": "2026-11-25T10:46:00Z"
+      }
+    },
+    "datasources": [
+      {
+        "uid": "fake",
+        "type": "prometheus"
+      }
+    ],
+    "variables": {},
+    "from": "now-1h",
+    "to": "now",
+    "open_url": "/explore/metrics/fake?from=now-1h\u0026q=sum+by+%28route%29+%28rate%28http_requests_total%5B5m%5D%29%29\u0026to=now"
+  }
+}

@@ -20,15 +20,21 @@ const base = {
   allowed_actions: ["retry" as const],
 }
 
-function renderFailure(failureCode: string, extra: object = {}) {
+function renderFailure(
+  failureCode: string,
+  extra: object = {},
+  route = { path: "/", url: "/" }
+) {
   return renderWithProviders(
     <TurnFailure
       request={{ ...base, failure_code: failureCode, ...extra }}
       onRetried={vi.fn()}
     />,
-    { route: { path: "/", url: "/" } }
+    { route }
   )
 }
+
+const dashboardId = "2f0f2c1e-6a53-4a35-8a0e-1d3b0d1f7a11"
 
 describe("TurnFailure", () => {
   it("shows a stopped run as a calm status, once", async () => {
@@ -84,6 +90,38 @@ describe("TurnFailure", () => {
       await screen.findByRole("link", { name: "Tried again in a new run" })
     ).toHaveAttribute("href", "/c/b11cc709-1b2c-4d3e-8f4a-5b6c7d8e9f02")
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull()
+  })
+
+  it("links to the dashboard from elsewhere and not from that dashboard", async () => {
+    const first = renderFailure("canceled", { dashboard_id: dashboardId })
+    expect(
+      await screen.findByRole("link", { name: "Open dashboard" })
+    ).toBeInTheDocument()
+    first.unmount()
+    renderFailure(
+      "canceled",
+      { dashboard_id: dashboardId },
+      {
+        path: "/d/$dashboardId/{-$slug}",
+        url: `/d/${dashboardId}`,
+      }
+    )
+    expect(await screen.findByRole("status")).toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "Open dashboard" })).toBeNull()
+  })
+
+  it("still links to the dashboard from its versions page", async () => {
+    renderFailure(
+      "canceled",
+      { dashboard_id: dashboardId },
+      {
+        path: "/d/$dashboardId/versions",
+        url: `/d/${dashboardId}/versions`,
+      }
+    )
+    expect(
+      await screen.findByRole("link", { name: "Open dashboard" })
+    ).toBeInTheDocument()
   })
 
   it("keeps a real failure as an alert with its reason", async () => {

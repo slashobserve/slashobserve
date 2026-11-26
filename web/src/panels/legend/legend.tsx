@@ -1,9 +1,11 @@
-import type { Ref } from "react"
+import { useMemo, type Ref } from "react"
 
 import { cn } from "@/lib/utils"
 import type { LineStyle } from "../colors"
 import type { DrawStyle } from "../timeseries/series-config"
-import { inlineValues } from "./legend-model"
+import { useLegendTextMeasure } from "./legend-measure"
+import { inlineValues, legendNames } from "./legend-model"
+import { inlineValuesWidth, legendNameRoom } from "./legend-width"
 
 export type LegendItem = {
   key: string
@@ -14,6 +16,34 @@ export type LegendItem = {
 }
 
 export type LegendPlacement = "bottom" | "right"
+
+export function LegendName({ label, text }: { label: string; text: string }) {
+  return (
+    <span title={label} className="min-w-0 truncate">
+      {text}
+    </span>
+  )
+}
+
+function legendButtonName(label: string, values: string): string {
+  return values ? `${label} ${values}` : label
+}
+
+export function useLegendNames(
+  items: readonly LegendItem[],
+  roomPx: number | null
+): string[] {
+  const measure = useLegendTextMeasure()
+  return useMemo(() => {
+    const measureName = measure(rootFontSize())
+    return legendNames(
+      items.map((item) => item.label),
+      roomPx === null
+        ? undefined
+        : { px: roomPx, measure: (text) => measureName(text, 400) }
+    )
+  }, [items, roomPx, measure])
+}
 
 export const rowRem = 1.25
 const gapRem = 0.125
@@ -129,6 +159,19 @@ export function Legend({
   more = 0,
 }: Props) {
   const bottom = placement === "bottom"
+  const measure = useLegendTextMeasure()
+  const valuesPx =
+    reducers.length > 0
+      ? inlineValuesWidth(
+          items.map((_, row) => inlineValues(reducers, cells[row], headers)),
+          measure(rootFontSize()),
+          rootFontSize()
+        )
+      : 0
+  const shownNames = useLegendNames(
+    items,
+    bottom ? null : legendNameRoom(width, rootFontSize(), valuesPx)
+  )
   return (
     <div
       ref={ref}
@@ -148,10 +191,13 @@ export function Legend({
     >
       {items.map((item, row) => {
         const visible = !hidden.has(item.key)
+        const values =
+          reducers.length > 0 ? inlineValues(reducers, cells[row], headers) : ""
         return (
           <button
             key={item.key}
             type="button"
+            aria-label={legendButtonName(item.label, values)}
             aria-pressed={visible}
             data-style={item.style}
             onClick={() => onToggle(item.key)}
@@ -163,10 +209,10 @@ export function Legend({
               line={item.line}
               style={item.style}
             />
-            <span className="truncate">{item.label}</span>
+            <LegendName label={item.label} text={shownNames[row]} />
             {reducers.length > 0 ? (
-              <span className="text-muted-foreground tabular-nums">
-                {inlineValues(reducers, cells[row], headers)}
+              <span className="whitespace-pre text-muted-foreground">
+                {values}
               </span>
             ) : null}
           </button>

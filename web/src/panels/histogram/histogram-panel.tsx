@@ -372,10 +372,7 @@ const HistogramPanel: PanelRenderer = ({
   const leftWidth = atEnd || hiddenAxis ? padLeft : axisWidth
   const rightWidth = atEnd ? axisWidth : 0
   const plotWidth = width - legend.width - leftWidth - rightWidth - padRight
-  const format = useMemo(
-    () => (edge: number) => formatValue(edge, model.unit, model.decimals),
-    [model.unit, model.decimals]
-  )
+  const format = model.format
   const edgeLabels = useMemo(
     () => model.edges.map(format),
     [model.edges, format]

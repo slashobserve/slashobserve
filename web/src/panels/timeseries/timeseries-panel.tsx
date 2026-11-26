@@ -15,7 +15,7 @@ import { stableJson } from "@/lib/json"
 import { zonedDateTime } from "@/lib/time"
 import { timeLabel } from "@/lib/time-ticks"
 import { useTheme } from "@/lib/theme"
-import { axisDecimals, formatValue } from "@/lib/units"
+import { axisFormat } from "@/lib/units"
 import { cn } from "@/lib/utils"
 import type { DataPanel } from "@/spec"
 
@@ -35,7 +35,8 @@ import {
   legendOrder,
   legendWorthShowing,
 } from "../legend/legend-model"
-import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
+import { useLegendTextMeasure } from "../legend/legend-measure"
+import { LegendTable } from "../legend/legend-table"
 import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
   chartSeries,
@@ -95,6 +96,8 @@ const legendShare = 0.4
 const minSelectWidth = 5
 const axisFontSize = 12
 const axisLabelSize = 18
+const xAxisGap = 10
+const xAxisSize = 34
 const noSelect = { left: 0, top: 0, width: 0, height: 0 }
 const ghostDash = [2, 3]
 const noteHeight = 16
@@ -416,10 +419,7 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         : {}),
       ticks: { show: false },
       values: (_u, splits) => {
-        const decimals = axisDecimals(splits, settings.unit, settings.decimals)
-        return splits.map((value) =>
-          formatValue(value, settings.unit, decimals)
-        )
+        return splits.map(axisFormat(splits, settings.unit, settings.decimals))
       },
       size:
         settings.width ??
@@ -481,7 +481,8 @@ function createPlot(container: HTMLElement, config: PlotConfig): uPlot {
         show: model.xAxisShown,
         stroke: colors.muted,
         font,
-        size: model.xAxisShown ? 28 : 0,
+        gap: xAxisGap,
+        size: model.xAxisShown ? xAxisSize : 0,
         grid: { stroke: colors.grid, width: 1, filter: dropEdgeTicks },
         ticks: { show: false },
         filter: dropEdgeTicks,
