@@ -50,7 +50,21 @@ describe("useRemeasureRows", () => {
     width = 500
     resize()
     resize()
-    vi.advanceTimersByTime(50)
+    vi.advanceTimersByTime(200)
+    expect(api.resetRowHeights).toHaveBeenCalledTimes(1)
+  })
+
+  it("waits until the resizing stops", () => {
+    const api = { resetRowHeights: vi.fn(), isDestroyed: () => false }
+    render(<Box api={api} active />)
+    width = 500
+    resize()
+    vi.advanceTimersByTime(100)
+    width = 450
+    resize()
+    vi.advanceTimersByTime(100)
+    expect(api.resetRowHeights).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(60)
     expect(api.resetRowHeights).toHaveBeenCalledTimes(1)
   })
 
@@ -58,7 +72,7 @@ describe("useRemeasureRows", () => {
     const api = { resetRowHeights: vi.fn(), isDestroyed: () => false }
     render(<Box api={api} active />)
     resize()
-    vi.advanceTimersByTime(50)
+    vi.advanceTimersByTime(200)
     expect(api.resetRowHeights).not.toHaveBeenCalled()
   })
 
@@ -73,7 +87,7 @@ describe("useRemeasureRows", () => {
     render(<Box api={api} active />)
     width = 500
     resize()
-    vi.advanceTimersByTime(50)
+    vi.advanceTimersByTime(200)
     expect(api.resetRowHeights).not.toHaveBeenCalled()
   })
 })
