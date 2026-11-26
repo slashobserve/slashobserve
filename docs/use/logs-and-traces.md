@@ -1250,7 +1250,7 @@ A cursor sent without it, or with another, is refused with a message naming the 
 
 #### List the services of a source
 
-`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen over a recent window, with the label, column or attribute that holds them:
+`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen over a recent window, with the label, column or attribute that holds them:
 
 ```sh
 curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=logs&window=1h" \
@@ -1260,11 +1260,11 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
 
 - `field` is the one the server reads as the service.
-  On Loki it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
+  On Loki and Prometheus it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
   On Tempo it is the `resource.service.name` attribute, and on Jaeger its list of services.
   On ClickHouse it is the `ServiceName` column.
   On Elasticsearch and OpenSearch it is the service field of the datasource, empty when its mapping has none.
-- `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
+- `signal` is `logs`, `traces` or `metrics` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
 - `window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
   Jaeger ignores it and lists every service it retains.
 - It lists at most 200 services and sets `truncated` when more exist.

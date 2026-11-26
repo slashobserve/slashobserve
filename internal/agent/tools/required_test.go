@@ -45,7 +45,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 			return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
 		},
 	}
-	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: ds})
+	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: fakeUID, Name: "Fake", Datasource: &fakeServiceDS{fakeDS: ds, field: "job", values: []string{"shop"}}})
 	if err != nil {
 		t.Fatal(err)
 	}

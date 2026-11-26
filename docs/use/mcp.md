@@ -275,7 +275,7 @@ Each datasource type answers a different set; [Discovery by datasource type](#di
 1. `list_datasources` shows the datasources and whether each is healthy.
    `recheck_datasource` runs a fresh health check on one.
 2. `list_metrics`, `list_labels`, `list_label_values`, `get_schema` and `sample_rows` list names, labels, tables and sample rows.
-3. `list_services` finds which log or trace datasources hold a service.
+3. `list_services` finds which log, trace or metric datasources hold a service.
 4. `lint_query` checks a query without running it.
 5. `query_range` runs a query over a time range, and `query_instant` runs one at a point in time or returns a table.
 6. `draft_query` turns a question into a checked query, using the server's own model.
@@ -1032,6 +1032,9 @@ It takes `datasource`, `search`, `limit` (1 to 500, 100 by default), `offset` an
   The result also has `families_total` and `grouped`, the families that share a name prefix such as `http_server`.
 - Label keys that every family has are listed once in `common_labels`.
 - A scope too large for one result pages with `next_offset` like the other lists.
+- A scope that matches no family comes back with a `note` that lists up to 100 label keys the datasource has, on Prometheus and Loki.
+  When only runtime families match, the note says so instead.
+  When the scope names a label key that is not among them, the note says so, so a guessed key such as `service_name` on a store that uses `job` shows up at once.
 - Runtime families, `up` and the names that start with `go_`, `process_`, `promhttp_` or `scrape_`, are left out of the list and counted in `runtime_families`.
   They stay in when the scope names `__name__`, as `{__name__=~"go_.+"}` or `go_goroutines{job="checkout"}` do.
 - `search` and `limit` are refused together with `scope`.
@@ -1064,12 +1067,16 @@ It takes `datasource`, `table` and `limit`, 1 to 20 and 5 by default.
 
 #### `list_services`
 
-Lists the services a log or trace datasource has seen over a recent window, and finds which datasources hold a service.
+Lists the services a log, trace or metric datasource has seen over a recent window, and finds which datasources hold a service.
 
 - With `datasource` it reads that one source.
-  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch and OpenSearch source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
+  Without it, it asks every Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch and Prometheus source that everyone can query, and ClickHouse answers once for its logs table and once for its traces table.
   A source only Admins can query is left out unless you name it with `datasource`, so a plain listing does not mark an Admin's run as one that read Admin-only data.
-- `signal` (`logs` or `traces`) picks one signal.
+- `signal` (`logs`, `traces` or `metrics`) picks one signal.
+- A Prometheus source lists the values of the first of `service_name`, `service`, `app` and `job` that its series carry in the window, and names that label as `field`, the same rule Loki follows.
+  `service_name` comes first because OpenTelemetry names the service that way, `service` and `app` follow as the usual hand-written labels, and `job` comes last because every scraped series has it but it names a scrape job, which is often but not always a service.
+  A Prometheus source with none of them answers an empty `field` and no services.
+  Metric services come from Prometheus datasources only, not from ClickHouse metric tables.
 - `window` (such as `15m`, default `1h`, at most `6h`) sets how far back the window ends now.
   Jaeger ignores it and lists every service it retains.
 - `service` keeps only the sources that hold a service whose name contains it, case-insensitive.
