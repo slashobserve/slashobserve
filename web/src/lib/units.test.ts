@@ -4,7 +4,6 @@ import {
   axisDecimals,
   commonDecimals,
   decimalsByUnit,
-  decimalsFor,
   formatValue,
   formatValue as f,
   formatValueParts,
@@ -403,36 +402,5 @@ describe("custom unit forms", () => {
     for (const kind of ["time", "si", "count", "currency", "suffix"]) {
       expect(parseUnit(`${kind}: `), kind).toEqual({ kind: "id", id: "none" })
     }
-  })
-})
-
-describe("decimalsFor", () => {
-  it("shows an unscaled integer count without decimals beside a scaled value", () => {
-    const shared = commonDecimals([195, 0, 7900], "short")
-    expect(shared).toBe(1)
-    expect(decimalsFor(195, "short", shared)).toBe(0)
-    expect(decimalsFor(0, undefined, shared)).toBe(0)
-    expect(formatValue(195, "short", decimalsFor(195, "short", shared))).toBe(
-      "195"
-    )
-    expect(formatValue(7900, "short", decimalsFor(7900, "short", shared))).toBe(
-      "7.9 K"
-    )
-  })
-
-  it("keeps the shared decimals for a fraction or a scaled integer", () => {
-    expect(decimalsFor(19.5, "short", 1)).toBe(1)
-    expect(decimalsFor(8000, "short", 1)).toBe(1)
-  })
-
-  it("keeps the shared decimals for a measured unit so its values read alike", () => {
-    expect(decimalsFor(38, "ms", 2)).toBe(2)
-    expect(decimalsFor(10, "reqps", 2)).toBe(2)
-    expect(decimalsFor(5, "percent", 1)).toBe(1)
-  })
-
-  it("passes an absent or zero shared count through", () => {
-    expect(decimalsFor(3, "short", undefined)).toBeUndefined()
-    expect(decimalsFor(3, "short", 0)).toBe(0)
   })
 })

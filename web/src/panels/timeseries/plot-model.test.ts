@@ -358,7 +358,7 @@ describe("legendCells", () => {
       series("a", [1], { fieldValues: ramp }),
       series("b", [1], { fieldValues: [10, 20] }),
     ]
-    expect(legendCells(rows, ["p95"])).toEqual([["95"], ["19.5"]])
+    expect(legendCells(rows, ["p95"])).toEqual([["95.0"], ["19.5"]])
   })
 
   it("writes true or false for a reducer that answers yes or no", () => {
