@@ -171,11 +171,16 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}, nil
 	}
 	f := traceFrame(rows)
+	meta := &datasource.FrameMeta{}
 	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {
-		f.Meta = searchMeta(metrics, truncated)
+		meta = searchMeta(metrics, truncated)
 	}
+	meta.Hint = SearchDurationHint
+	f.Meta = meta
 	return []datasource.Frame{f}, nil
 }
+
+const SearchDurationHint = "Duration is rounded to whole milliseconds by Tempo search, so it is approximate; open the trace with get_trace for the exact duration"
 
 func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
 	return &datasource.FrameMeta{

@@ -356,3 +356,41 @@ func TestTraceStatsRefusesBadInputAndOtherDatasources(t *testing.T) {
 		t.Fatalf("step = %q, want %q", res.Step, want)
 	}
 }
+
+func TestGetTraceReportsSubMillisecondDurations(t *testing.T) {
+	names := []string{"TraceId", "SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode"}
+	f := datasource.Frame{Fields: make([]datasource.Field, len(names))}
+	for i, name := range names {
+		f.Fields[i] = datasource.Field{Name: name, Type: datasource.FieldString}
+	}
+	add := func(id, parent string, offset, duration time.Duration) {
+		row := []any{fixtureTraceID, id, parent, id, "checkout", fixtureStart.Add(offset), int64(duration), "Unset"}
+		for c := range row {
+			f.Fields[c].Values = append(f.Fields[c].Values, row[c])
+		}
+	}
+	add("root000000000000", "", 0, 43900*time.Microsecond)
+	add("child00000000000", "root000000000000", 2*time.Millisecond, 1250*time.Microsecond)
+	out := summarizeTrace(fixtureTraceID, f)
+	if out.DurationMS != 43.9 {
+		t.Fatalf("trace duration = %v ms, want 43.9", out.DurationMS)
+	}
+	if len(out.Slowest) != 2 || out.Slowest[0].DurationMS != 43.9 || out.Slowest[1].DurationMS != 1.25 {
+		t.Fatalf("slowest = %+v, want 43.9 and 1.25 ms", out.Slowest)
+	}
+}
+
+func TestGetTraceTextSaysSearchDurationsAreRoundedAndItsOwnAreExact(t *testing.T) {
+	for _, tool := range New(Deps{}).List() {
+		if tool.Name != nameGetTrace {
+			continue
+		}
+		for _, want := range []string{"Durations are exact", "sub-millisecond", "rounded to whole milliseconds"} {
+			if !strings.Contains(tool.Description, want) {
+				t.Errorf("get_trace description lacks %q", want)
+			}
+		}
+		return
+	}
+	t.Fatal("get_trace is not listed")
+}

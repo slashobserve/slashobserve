@@ -241,8 +241,8 @@ func TestSearchReportsPartialAndTruncated(t *testing.T) {
 			if meta.Partial != tc.partial || meta.Truncated != tc.truncated || meta.RowsTotal != 0 {
 				t.Fatalf("meta = %+v, want partial %v and truncated %v", meta, tc.partial, tc.truncated)
 			}
-			if !tc.partial && !tc.truncated && frames[0].Meta != nil {
-				t.Fatalf("meta = %+v, want none", frames[0].Meta)
+			if !tc.partial && !tc.truncated && meta != (datasource.FrameMeta{Hint: tempo.SearchDurationHint}) {
+				t.Fatalf("meta = %+v, want only the duration hint", meta)
 			}
 		})
 	}
@@ -496,7 +496,7 @@ func TestSearchReportsJobsAndInspectedBytes(t *testing.T) {
 	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
 		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
 	}
-	want := datasource.FrameMeta{Partial: true, JobsDone: 1, JobsTotal: 6, InspectedBytes: 324888}
+	want := datasource.FrameMeta{Partial: true, JobsDone: 1, JobsTotal: 6, InspectedBytes: 324888, Hint: tempo.SearchDurationHint}
 	if got := *frames[0].Meta; got != want {
 		t.Fatalf("meta = %+v, want %+v", got, want)
 	}
@@ -506,7 +506,7 @@ func TestSearchReportsJobsAndInspectedBytes(t *testing.T) {
 	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
 		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
 	}
-	want = datasource.FrameMeta{JobsDone: 6, JobsTotal: 6, InspectedBytes: 324888}
+	want = datasource.FrameMeta{JobsDone: 6, JobsTotal: 6, InspectedBytes: 324888, Hint: tempo.SearchDurationHint}
 	if got := *frames[0].Meta; got != want {
 		t.Fatalf("meta = %+v, want every job done and not partial", got)
 	}
@@ -531,6 +531,19 @@ func TestSearchAsksTempoForTheNewestTracesUnlessTheQueryHasHints(t *testing.T) {
 		}
 		if got := fake.last(t).params.Get("q"); got != want {
 			t.Errorf("%s sent %s, want %s", text, got, want)
+		}
+	}
+}
+
+func TestSearchDurationsAreHintedAsWholeMilliseconds(t *testing.T) {
+	ds, _ := serve(t, map[string]reply{"/api/search": {0, searchBody}})
+	frames, err := ds.QueryInstant(context.Background(), datasource.Query{Text: `{}`, Limits: datasource.Limits{MaxRows: 20}}, lastHour)
+	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
+		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
+	}
+	for _, want := range []string{"whole milliseconds", "approximate", "get_trace", "exact duration"} {
+		if !strings.Contains(frames[0].Meta.Hint, want) {
+			t.Errorf("hint %q lacks %q", frames[0].Meta.Hint, want)
 		}
 	}
 }
