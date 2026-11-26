@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useDraftTitle } from "@/panel-editor/draft-title"
 import type { ResolvedLink } from "@/panels/field-config"
-import { errorMessage, PanelErrorState } from "@/panels/panel-error"
+import { PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -36,12 +36,23 @@ export type PanelState = "loading" | "ready" | "empty" | "error" | "unsupported"
 
 const panelHeaderHeight = 39
 const panelBorderWidth = 1
+export const staleRowHeight = 24
 
-export function panelBodySize(width: number, height: number) {
+export function panelBodySize(width: number, height: number, stale = false) {
   return {
     width: Math.max(0, width - 2 * panelBorderWidth),
-    height: Math.max(0, height - panelHeaderHeight - 2 * panelBorderWidth),
+    height: Math.max(
+      0,
+      height -
+        panelHeaderHeight -
+        2 * panelBorderWidth -
+        (stale ? staleRowHeight : 0)
+    ),
   }
+}
+
+export function showsStaleRow(state: PanelState, notice: string | undefined) {
+  return notice !== undefined && (state === "ready" || state === "empty")
 }
 
 function PanelProblemState({
@@ -76,7 +87,7 @@ type Props = {
   state: PanelState
   error?: unknown
   refreshing?: boolean
-  staleError?: unknown
+  staleNotice?: string
   onRetry?: () => void
   badge?: ReactNode
   links?: ResolvedLink[]
@@ -99,7 +110,7 @@ export function PanelChrome({
   state,
   error,
   refreshing = false,
-  staleError,
+  staleNotice,
   onRetry,
   badge,
   links = [],
@@ -124,6 +135,7 @@ export function PanelChrome({
   const titleHidden = isDataPanel(panel) && panel.titleHidden === true
   const transparent = "transparent" in panel && panel.transparent === true
   const selectable = onSelect !== undefined && !titleHidden
+  const showsStale = showsStaleRow(state, staleNotice)
   return (
     <article
       aria-labelledby={titleId}
@@ -238,22 +250,6 @@ export function PanelChrome({
               <span className="sr-only">Refreshing</span>
             </span>
           ) : null}
-          {staleError ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Showing older data: ${errorMessage(staleError)}`}
-                  />
-                }
-              >
-                <TriangleAlertIcon className="text-threshold-warning" />
-              </TooltipTrigger>
-              <TooltipContent>{errorMessage(staleError)}</TooltipContent>
-            </Tooltip>
-          ) : null}
           {badge}
           {links.length > 0 ? (
             <DropdownMenu>
@@ -303,6 +299,20 @@ export function PanelChrome({
         ) : null}
         {state === "ready" ? children : null}
       </div>
+      {showsStale ? (
+        <p
+          role="status"
+          title={staleNotice}
+          style={{ height: staleRowHeight }}
+          className="flex shrink-0 items-center gap-1.5 border-t px-3 text-xs text-muted-foreground"
+        >
+          <TriangleAlertIcon
+            aria-hidden="true"
+            className="size-3 shrink-0 text-threshold-warning"
+          />
+          <span className="truncate">{staleNotice}</span>
+        </p>
+      ) : null}
     </article>
   )
 }

@@ -73,8 +73,43 @@ describe("groupChats", () => {
       ])
     ).toEqual([
       { label: "Checkout", dashboardId: "a", ids: ["a1", "a2"] },
-      { label: "No dashboard", dashboardId: null, ids: ["n1", "n2"] },
+      {
+        label: "No dashboard or observation",
+        dashboardId: null,
+        ids: ["n1", "n2"],
+      },
       { label: "Payments", dashboardId: "b", ids: ["b1"] },
+    ])
+  })
+
+  test("groups a chat with no dashboard under the observation it was saved in", () => {
+    expect(
+      shape([
+        summary({
+          id: "o1",
+          observation_id: "obs",
+          observation_title: "Checkout errors",
+        }),
+        summary({ id: "n1" }),
+        summary({
+          id: "o2",
+          observation_id: "obs",
+          observation_title: "Checkout errors",
+        }),
+      ])
+    ).toEqual([
+      { label: "Checkout errors", dashboardId: null, ids: ["o1", "o2"] },
+      { label: "No dashboard or observation", dashboardId: null, ids: ["n1"] },
+    ])
+  })
+
+  test("names an observation whose title is hidden", () => {
+    expect(shape([summary({ id: "o1", observation_id: "obs" })])).toEqual([
+      {
+        label: "An observation you cannot see",
+        dashboardId: null,
+        ids: ["o1"],
+      },
     ])
   })
 

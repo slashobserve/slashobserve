@@ -258,6 +258,14 @@ const monthNames = [
   "Dec",
 ]
 
+function dayText(date: Date, withYear: boolean): string {
+  return `${monthNames[date.getMonth()]} ${date.getDate()}${withYear ? `, ${date.getFullYear()}` : ""}`
+}
+
+function clockText(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function describeInstantRange(from: string, to: string): string | null {
   if (!rfc3339.test(from) || !rfc3339.test(to)) return null
   const start = new Date(from)
@@ -265,13 +273,17 @@ function describeInstantRange(from: string, to: string): string | null {
   const thisYear = new Date().getFullYear()
   const withYear =
     start.getFullYear() !== thisYear || end.getFullYear() !== thisYear
-  const day = (date: Date) =>
-    `${monthNames[date.getMonth()]} ${date.getDate()}${withYear ? `, ${date.getFullYear()}` : ""}`
-  const clock = (date: Date) =>
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  const day = (date: Date) => dayText(date, withYear)
   const endText =
-    day(start) === day(end) ? clock(end) : `${day(end)}, ${clock(end)}`
-  return `${day(start)}, ${clock(start)} to ${endText} ${browserZoneName(end)}`
+    day(start) === day(end) ? clockText(end) : `${day(end)}, ${clockText(end)}`
+  return `${day(start)}, ${clockText(start)} to ${endText} ${browserZoneName(end)}`
+}
+
+export function describeInstant(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const withYear = date.getFullYear() !== new Date().getFullYear()
+  return `${dayText(date, withYear)}, ${clockText(date)} ${browserZoneName(date)}`
 }
 
 export function browserZoneName(at: Date): string {
