@@ -91,6 +91,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
   const removeButtons = useRef(new Map<string, HTMLButtonElement>())
   const input = useRef<HTMLInputElement>(null)
   const [chosen, setChosen] = useState<string | null>(null)
+  const [allowProblem, setAllowProblem] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const refreshing = useIsFetching({ queryKey: outboundDomainKeys.list() }) > 0
   const confirming =
@@ -107,6 +108,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
     remove.mutate(domain, {
       onSettled: () => setChosen(null),
       onSuccess: () => {
+        setAllowProblem(null)
         toast.success(`Removed ${domain}`)
         const next =
           neighbour === undefined
@@ -193,7 +195,11 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
           and restart.
         </p>
       ) : isAdmin ? (
-        <AllowDomainForm input={input} />
+        <AllowDomainForm
+          input={input}
+          problem={allowProblem}
+          onProblem={setAllowProblem}
+        />
       ) : (
         <RoleNote className="border-t px-4 py-3">
           Only Admins can change outbound access.
@@ -260,11 +266,14 @@ function DomainRow({
 
 function AllowDomainForm({
   input,
+  problem,
+  onProblem,
 }: {
   input: RefObject<HTMLInputElement | null>
+  problem: string | null
+  onProblem: (problem: string | null) => void
 }) {
   const [draft, setDraft] = useState("")
-  const [problem, setProblem] = useState<string | null>(null)
   const draftErrorId = useId()
   const allow = useAllowDomain()
   const draftError = domainDraftError(draft)
@@ -273,13 +282,13 @@ function AllowDomainForm({
   function submit(event: FormEvent) {
     event.preventDefault()
     if (empty || draftError !== null || allow.isPending) return
-    setProblem(null)
+    onProblem(null)
     allow.mutate(draft.trim(), {
       onSuccess: () => {
         setDraft("")
         input.current?.focus()
       },
-      onError: (error) => setProblem(domainProblemText(error)),
+      onError: (error) => onProblem(domainProblemText(error)),
     })
   }
 
@@ -300,7 +309,7 @@ function AllowDomainForm({
             aria-describedby={draftError === null ? undefined : draftErrorId}
             onChange={(event) => {
               setDraft(event.target.value)
-              setProblem(null)
+              onProblem(null)
             }}
           />
           {draftError === null ? null : (
@@ -324,7 +333,7 @@ function AllowDomainForm({
           Allow domain
         </Button>
       </div>
-      {problem === null ? null : (
+      {problem === null || empty ? null : (
         <Alert variant="destructive">
           <AlertDescription>{problem}</AlertDescription>
         </Alert>

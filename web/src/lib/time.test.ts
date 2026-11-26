@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import resolveCasesText from "../../../spec/examples/time/resolve-cases.json?raw"
 import {
   browserZoneName,
+  describeInstant,
   describeRange,
   displayZone,
   formatDateTime,
@@ -15,6 +16,7 @@ import {
   isSubMinuteOffset,
   isTimeValue,
   parseUserTime,
+  timeFormatHint,
   userTimeProblem,
   refreshToMs,
   relativeTickMs,
@@ -171,6 +173,14 @@ describe("formatting", () => {
     expect(zonedTimeValue(String(ms), undefined)).toBe(
       formatTimeValue(String(ms))
     )
+  })
+
+  it("describes an instant in local time with the zone name", () => {
+    const at = new Date(2020, 10, 26, 1, 25, 0)
+    expect(describeInstant(at.toISOString())).toBe(
+      `Nov 26, 2020, 01:25 ${browserZoneName(at)}`
+    )
+    expect(describeInstant("not a time")).toBe("not a time")
   })
 
   it("describes ranges", () => {
@@ -627,5 +637,27 @@ describe("zoneChoices", () => {
     const labels = zoneChoices().map(zoneChoiceLabel)
     expect(labels.filter((label) => label === "UTC")).toHaveLength(1)
     expect(labels).toContain("Africa/Abidjan")
+  })
+})
+
+describe("timeFormatHint", () => {
+  const now = Date.UTC(2027, 2, 4, 23, 45, 12)
+
+  it("shows the current minute in the zone it is given", () => {
+    expect(timeFormatHint("UTC", now)).toBe("now-6h, now/d or 2027-03-04 23:45")
+    expect(timeFormatHint("Asia/Kolkata", now)).toBe(
+      "now-6h, now/d or 2027-03-05 05:15"
+    )
+  })
+
+  it("is the example in the unreadable time message", () => {
+    vi.useFakeTimers({ now })
+    try {
+      expect(userTimeProblem("yesterday", "UTC")).toBe(
+        "Enter a time like now-6h, now/d or 2027-03-04 23:45."
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

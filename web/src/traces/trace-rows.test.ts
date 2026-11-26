@@ -14,6 +14,7 @@ import {
   openTraceLabel,
   pageSortParam,
   percentile,
+  rowDurationText,
   sortHint,
   sortTraceRows,
   traceRows,
@@ -49,6 +50,41 @@ describe("traceRows", () => {
         matching: null,
       },
     ])
+  })
+
+  it("reads a trace with no root span as an incomplete one of unknown duration", () => {
+    const frame: WireFrame = {
+      ref: "A",
+      fields: [
+        { name: "TraceId", type: "string", values: ["a", "b"] },
+        {
+          name: "SpanName",
+          type: "string",
+          values: ["<root span not yet received>", "GET /cart"],
+        },
+        {
+          name: "ServiceName",
+          type: "string",
+          values: ["<root span not yet received>", "cart"],
+        },
+        { name: "StartTime", type: "time", values: [1, 2] },
+        { name: "Duration", type: "number", values: [600_001_000_000, 5e6] },
+      ],
+    }
+    const [lost, whole] = traceRows([frame])
+    expect(lost).toMatchObject({ durationMs: null, incomplete: true })
+    expect(whole.durationMs).toBe(5)
+    expect(whole.incomplete).toBeUndefined()
+    expect(rowDurationText(lost)).toBe("Incomplete")
+    expect(rowDurationText(whole)).toBe("5 ms")
+    expect(openTraceLabel(lost)).toContain("incomplete trace")
+    const slowestFirst = sortTraceRows([lost, whole], defaultTraceSort)
+    expect(slowestFirst.map((row) => row.traceId)).toEqual(["b", "a"])
+    const fastestFirst = sortTraceRows([lost, whole], {
+      key: "duration",
+      direction: "ascending",
+    })
+    expect(fastestFirst.map((row) => row.traceId)).toEqual(["b", "a"])
   })
 
   it("reads a ClickHouse frame with span counts, whatever the name case", () => {

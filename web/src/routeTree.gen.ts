@@ -17,7 +17,6 @@ import { Route as RcaTokenRouteImport } from './routes/rca/$token'
 import { Route as AuthedShellSplatRouteImport } from './routes/_authed/_shell/$'
 import { Route as AuthedShellChatRouteImport } from './routes/_authed/_shell/_chat'
 import { Route as AuthedShellChatsRouteImport } from './routes/_authed/_shell/chats'
-import { Route as AuthedShellDatasourcesRouteImport } from './routes/_authed/_shell/datasources'
 import { Route as AuthedShellHealthRouteImport } from './routes/_authed/_shell/health'
 import { Route as AuthedShellInboxRouteImport } from './routes/_authed/_shell/inbox'
 import { Route as AuthedShellKeysRouteImport } from './routes/_authed/_shell/keys'
@@ -37,12 +36,15 @@ import { Route as AuthedShellAuditIndexRouteImport } from './routes/_authed/_she
 import { Route as AuthedShellAuditDashboardsRouteImport } from './routes/_authed/_shell/audit/dashboards'
 import { Route as AuthedShellAuditObservationsRouteImport } from './routes/_authed/_shell/audit/observations'
 import { Route as AuthedShellDashboardsIndexRouteImport } from './routes/_authed/_shell/dashboards/index'
+import { Route as AuthedShellDatasourcesIndexRouteImport } from './routes/_authed/_shell/datasources/index'
+import { Route as AuthedShellDatasourcesContextSourcesRouteImport } from './routes/_authed/_shell/datasources/context-sources'
 import { Route as AuthedShellFFolderIdRouteImport } from './routes/_authed/_shell/f/$folderId'
 import { Route as AuthedShellFindingsFindingIdRouteImport } from './routes/_authed/_shell/findings/$findingId'
 import { Route as AuthedShellImportIndexRouteImport } from './routes/_authed/_shell/import/index'
 import { Route as AuthedShellImportRepairRouteImport } from './routes/_authed/_shell/import/repair'
 import { Route as AuthedShellLogsIndexRouteImport } from './routes/_authed/_shell/logs/index'
 import { Route as AuthedShellLogsDatasourceUidRouteImport } from './routes/_authed/_shell/logs/$datasourceUid'
+import { Route as AuthedShellMetricsDatasourceUidRouteImport } from './routes/_authed/_shell/metrics/$datasourceUid'
 import { Route as AuthedShellOObservationIdRouteImport } from './routes/_authed/_shell/o/$observationId'
 import { Route as AuthedShellObservationsIndexRouteImport } from './routes/_authed/_shell/observations/index'
 import { Route as AuthedShellProposalsProposalIdRouteImport } from './routes/_authed/_shell/proposals/$proposalId'
@@ -57,8 +59,12 @@ import { Route as AuthedDDashboardIdChar123SlugChar125RouteImport } from './rout
 import { Route as AuthedDashboardsDashboardIdIndexRouteImport } from './routes/_authed/dashboards/$dashboardId/index'
 import { Route as AuthedDashboardsDashboardIdVersionsRouteImport } from './routes/_authed/dashboards/$dashboardId/versions'
 import { Route as AuthedShellChatCRequestIdRouteImport } from './routes/_authed/_shell/_chat/c/$requestId'
+import { Route as AuthedShellExploreLogsIndexRouteImport } from './routes/_authed/_shell/explore/logs/index'
+import { Route as AuthedShellExploreLogsDatasourceUidRouteImport } from './routes/_authed/_shell/explore/logs/$datasourceUid'
 import { Route as AuthedShellExploreMetricsIndexRouteImport } from './routes/_authed/_shell/explore/metrics/index'
 import { Route as AuthedShellExploreMetricsDatasourceUidRouteImport } from './routes/_authed/_shell/explore/metrics/$datasourceUid'
+import { Route as AuthedShellExploreTracesIndexRouteImport } from './routes/_authed/_shell/explore/traces/index'
+import { Route as AuthedShellExploreTracesDatasourceUidRouteImport } from './routes/_authed/_shell/explore/traces/$datasourceUid'
 import { Route as AuthedShellOObservationIdRcaRevisionRouteImport } from './routes/_authed/_shell/o/$observationId_.rca.$revision'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -96,11 +102,6 @@ const AuthedShellChatRoute = AuthedShellChatRouteImport.update({
 const AuthedShellChatsRoute = AuthedShellChatsRouteImport.update({
   id: '/chats',
   path: '/chats',
-  getParentRoute: () => AuthedShellRoute,
-} as any)
-const AuthedShellDatasourcesRoute = AuthedShellDatasourcesRouteImport.update({
-  id: '/datasources',
-  path: '/datasources',
   getParentRoute: () => AuthedShellRoute,
 } as any)
 const AuthedShellHealthRoute = AuthedShellHealthRouteImport.update({
@@ -202,6 +203,18 @@ const AuthedShellDashboardsIndexRoute =
     path: '/dashboards/',
     getParentRoute: () => AuthedShellRoute,
   } as any)
+const AuthedShellDatasourcesIndexRoute =
+  AuthedShellDatasourcesIndexRouteImport.update({
+    id: '/datasources/',
+    path: '/datasources/',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellDatasourcesContextSourcesRoute =
+  AuthedShellDatasourcesContextSourcesRouteImport.update({
+    id: '/datasources/context-sources',
+    path: '/datasources/context-sources',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellFFolderIdRoute = AuthedShellFFolderIdRouteImport.update({
   id: '/f/$folderId',
   path: '/f/$folderId',
@@ -232,6 +245,12 @@ const AuthedShellLogsDatasourceUidRoute =
   AuthedShellLogsDatasourceUidRouteImport.update({
     id: '/logs/$datasourceUid',
     path: '/logs/$datasourceUid',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellMetricsDatasourceUidRoute =
+  AuthedShellMetricsDatasourceUidRouteImport.update({
+    id: '/metrics/$datasourceUid',
+    path: '/metrics/$datasourceUid',
     getParentRoute: () => AuthedShellRoute,
   } as any)
 const AuthedShellOObservationIdRoute =
@@ -315,6 +334,18 @@ const AuthedShellChatCRequestIdRoute =
     path: '/c/$requestId',
     getParentRoute: () => AuthedShellChatRoute,
   } as any)
+const AuthedShellExploreLogsIndexRoute =
+  AuthedShellExploreLogsIndexRouteImport.update({
+    id: '/explore/logs/',
+    path: '/explore/logs/',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellExploreLogsDatasourceUidRoute =
+  AuthedShellExploreLogsDatasourceUidRouteImport.update({
+    id: '/explore/logs/$datasourceUid',
+    path: '/explore/logs/$datasourceUid',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
 const AuthedShellExploreMetricsIndexRoute =
   AuthedShellExploreMetricsIndexRouteImport.update({
     id: '/explore/metrics/',
@@ -325,6 +356,18 @@ const AuthedShellExploreMetricsDatasourceUidRoute =
   AuthedShellExploreMetricsDatasourceUidRouteImport.update({
     id: '/explore/metrics/$datasourceUid',
     path: '/explore/metrics/$datasourceUid',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellExploreTracesIndexRoute =
+  AuthedShellExploreTracesIndexRouteImport.update({
+    id: '/explore/traces/',
+    path: '/explore/traces/',
+    getParentRoute: () => AuthedShellRoute,
+  } as any)
+const AuthedShellExploreTracesDatasourceUidRoute =
+  AuthedShellExploreTracesDatasourceUidRouteImport.update({
+    id: '/explore/traces/$datasourceUid',
+    path: '/explore/traces/$datasourceUid',
     getParentRoute: () => AuthedShellRoute,
   } as any)
 const AuthedShellOObservationIdRcaRevisionRoute =
@@ -341,7 +384,6 @@ export interface FileRoutesByFullPath {
   '/rca/$token': typeof RcaTokenRoute
   '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
-  '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
@@ -357,10 +399,12 @@ export interface FileRoutesByFullPath {
   '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/audit/observations': typeof AuthedShellAuditObservationsRoute
+  '/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
   '/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -373,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/agents/': typeof AuthedShellAgentsIndexRoute
   '/audit/': typeof AuthedShellAuditIndexRoute
   '/dashboards/': typeof AuthedShellDashboardsIndexRoute
+  '/datasources/': typeof AuthedShellDatasourcesIndexRoute
   '/import/': typeof AuthedShellImportIndexRoute
   '/logs/': typeof AuthedShellLogsIndexRoute
   '/observations/': typeof AuthedShellObservationsIndexRoute
@@ -380,8 +425,12 @@ export interface FileRoutesByFullPath {
   '/traces/': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/explore/logs/$datasourceUid': typeof AuthedShellExploreLogsDatasourceUidRoute
   '/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/explore/traces/$datasourceUid': typeof AuthedShellExploreTracesDatasourceUidRoute
+  '/explore/logs/': typeof AuthedShellExploreLogsIndexRoute
   '/explore/metrics/': typeof AuthedShellExploreMetricsIndexRoute
+  '/explore/traces/': typeof AuthedShellExploreTracesIndexRoute
   '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesByTo {
@@ -391,7 +440,6 @@ export interface FileRoutesByTo {
   '/rca/$token': typeof RcaTokenRoute
   '/$': typeof AuthedShellSplatRoute
   '/chats': typeof AuthedShellChatsRoute
-  '/datasources': typeof AuthedShellDatasourcesRoute
   '/health': typeof AuthedShellHealthRoute
   '/inbox': typeof AuthedShellInboxRoute
   '/keys': typeof AuthedShellKeysRoute
@@ -407,10 +455,12 @@ export interface FileRoutesByTo {
   '/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/audit/observations': typeof AuthedShellAuditObservationsRoute
+  '/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
   '/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/import/repair': typeof AuthedShellImportRepairRoute
   '/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -423,6 +473,7 @@ export interface FileRoutesByTo {
   '/agents': typeof AuthedShellAgentsIndexRoute
   '/audit': typeof AuthedShellAuditIndexRoute
   '/dashboards': typeof AuthedShellDashboardsIndexRoute
+  '/datasources': typeof AuthedShellDatasourcesIndexRoute
   '/import': typeof AuthedShellImportIndexRoute
   '/logs': typeof AuthedShellLogsIndexRoute
   '/observations': typeof AuthedShellObservationsIndexRoute
@@ -430,8 +481,12 @@ export interface FileRoutesByTo {
   '/traces': typeof AuthedShellTracesIndexRoute
   '/dashboards/$dashboardId': typeof AuthedDashboardsDashboardIdIndexRoute
   '/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/explore/logs/$datasourceUid': typeof AuthedShellExploreLogsDatasourceUidRoute
   '/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/explore/traces/$datasourceUid': typeof AuthedShellExploreTracesDatasourceUidRoute
+  '/explore/logs': typeof AuthedShellExploreLogsIndexRoute
   '/explore/metrics': typeof AuthedShellExploreMetricsIndexRoute
+  '/explore/traces': typeof AuthedShellExploreTracesIndexRoute
   '/o/$observationId/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRoutesById {
@@ -444,7 +499,6 @@ export interface FileRoutesById {
   '/_authed/_shell/$': typeof AuthedShellSplatRoute
   '/_authed/_shell/_chat': typeof AuthedShellChatRouteWithChildren
   '/_authed/_shell/chats': typeof AuthedShellChatsRoute
-  '/_authed/_shell/datasources': typeof AuthedShellDatasourcesRoute
   '/_authed/_shell/health': typeof AuthedShellHealthRoute
   '/_authed/_shell/inbox': typeof AuthedShellInboxRoute
   '/_authed/_shell/keys': typeof AuthedShellKeysRoute
@@ -460,10 +514,12 @@ export interface FileRoutesById {
   '/_authed/_shell/agents/$agentRef': typeof AuthedShellAgentsAgentRefRoute
   '/_authed/_shell/audit/dashboards': typeof AuthedShellAuditDashboardsRoute
   '/_authed/_shell/audit/observations': typeof AuthedShellAuditObservationsRoute
+  '/_authed/_shell/datasources/context-sources': typeof AuthedShellDatasourcesContextSourcesRoute
   '/_authed/_shell/f/$folderId': typeof AuthedShellFFolderIdRoute
   '/_authed/_shell/findings/$findingId': typeof AuthedShellFindingsFindingIdRoute
   '/_authed/_shell/import/repair': typeof AuthedShellImportRepairRoute
   '/_authed/_shell/logs/$datasourceUid': typeof AuthedShellLogsDatasourceUidRoute
+  '/_authed/_shell/metrics/$datasourceUid': typeof AuthedShellMetricsDatasourceUidRoute
   '/_authed/_shell/o/$observationId': typeof AuthedShellOObservationIdRoute
   '/_authed/_shell/proposals/$proposalId': typeof AuthedShellProposalsProposalIdRoute
   '/_authed/_shell/settings/grafana': typeof AuthedShellSettingsGrafanaRoute
@@ -477,6 +533,7 @@ export interface FileRoutesById {
   '/_authed/_shell/agents/': typeof AuthedShellAgentsIndexRoute
   '/_authed/_shell/audit/': typeof AuthedShellAuditIndexRoute
   '/_authed/_shell/dashboards/': typeof AuthedShellDashboardsIndexRoute
+  '/_authed/_shell/datasources/': typeof AuthedShellDatasourcesIndexRoute
   '/_authed/_shell/import/': typeof AuthedShellImportIndexRoute
   '/_authed/_shell/logs/': typeof AuthedShellLogsIndexRoute
   '/_authed/_shell/observations/': typeof AuthedShellObservationsIndexRoute
@@ -484,8 +541,12 @@ export interface FileRoutesById {
   '/_authed/_shell/traces/': typeof AuthedShellTracesIndexRoute
   '/_authed/dashboards/$dashboardId/': typeof AuthedDashboardsDashboardIdIndexRoute
   '/_authed/_shell/_chat/c/$requestId': typeof AuthedShellChatCRequestIdRoute
+  '/_authed/_shell/explore/logs/$datasourceUid': typeof AuthedShellExploreLogsDatasourceUidRoute
   '/_authed/_shell/explore/metrics/$datasourceUid': typeof AuthedShellExploreMetricsDatasourceUidRoute
+  '/_authed/_shell/explore/traces/$datasourceUid': typeof AuthedShellExploreTracesDatasourceUidRoute
+  '/_authed/_shell/explore/logs/': typeof AuthedShellExploreLogsIndexRoute
   '/_authed/_shell/explore/metrics/': typeof AuthedShellExploreMetricsIndexRoute
+  '/_authed/_shell/explore/traces/': typeof AuthedShellExploreTracesIndexRoute
   '/_authed/_shell/o/$observationId_/rca/$revision': typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 export interface FileRouteTypes {
@@ -497,7 +558,6 @@ export interface FileRouteTypes {
     | '/rca/$token'
     | '/$'
     | '/chats'
-    | '/datasources'
     | '/health'
     | '/inbox'
     | '/keys'
@@ -513,10 +573,12 @@ export interface FileRouteTypes {
     | '/agents/$agentRef'
     | '/audit/dashboards'
     | '/audit/observations'
+    | '/datasources/context-sources'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
     | '/logs/$datasourceUid'
+    | '/metrics/$datasourceUid'
     | '/o/$observationId'
     | '/proposals/$proposalId'
     | '/settings/grafana'
@@ -529,6 +591,7 @@ export interface FileRouteTypes {
     | '/agents/'
     | '/audit/'
     | '/dashboards/'
+    | '/datasources/'
     | '/import/'
     | '/logs/'
     | '/observations/'
@@ -536,8 +599,12 @@ export interface FileRouteTypes {
     | '/traces/'
     | '/dashboards/$dashboardId/'
     | '/c/$requestId'
+    | '/explore/logs/$datasourceUid'
     | '/explore/metrics/$datasourceUid'
+    | '/explore/traces/$datasourceUid'
+    | '/explore/logs/'
     | '/explore/metrics/'
+    | '/explore/traces/'
     | '/o/$observationId/rca/$revision'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -547,7 +614,6 @@ export interface FileRouteTypes {
     | '/rca/$token'
     | '/$'
     | '/chats'
-    | '/datasources'
     | '/health'
     | '/inbox'
     | '/keys'
@@ -563,10 +629,12 @@ export interface FileRouteTypes {
     | '/agents/$agentRef'
     | '/audit/dashboards'
     | '/audit/observations'
+    | '/datasources/context-sources'
     | '/f/$folderId'
     | '/findings/$findingId'
     | '/import/repair'
     | '/logs/$datasourceUid'
+    | '/metrics/$datasourceUid'
     | '/o/$observationId'
     | '/proposals/$proposalId'
     | '/settings/grafana'
@@ -579,6 +647,7 @@ export interface FileRouteTypes {
     | '/agents'
     | '/audit'
     | '/dashboards'
+    | '/datasources'
     | '/import'
     | '/logs'
     | '/observations'
@@ -586,8 +655,12 @@ export interface FileRouteTypes {
     | '/traces'
     | '/dashboards/$dashboardId'
     | '/c/$requestId'
+    | '/explore/logs/$datasourceUid'
     | '/explore/metrics/$datasourceUid'
+    | '/explore/traces/$datasourceUid'
+    | '/explore/logs'
     | '/explore/metrics'
+    | '/explore/traces'
     | '/o/$observationId/rca/$revision'
   id:
     | '__root__'
@@ -599,7 +672,6 @@ export interface FileRouteTypes {
     | '/_authed/_shell/$'
     | '/_authed/_shell/_chat'
     | '/_authed/_shell/chats'
-    | '/_authed/_shell/datasources'
     | '/_authed/_shell/health'
     | '/_authed/_shell/inbox'
     | '/_authed/_shell/keys'
@@ -615,10 +687,12 @@ export interface FileRouteTypes {
     | '/_authed/_shell/agents/$agentRef'
     | '/_authed/_shell/audit/dashboards'
     | '/_authed/_shell/audit/observations'
+    | '/_authed/_shell/datasources/context-sources'
     | '/_authed/_shell/f/$folderId'
     | '/_authed/_shell/findings/$findingId'
     | '/_authed/_shell/import/repair'
     | '/_authed/_shell/logs/$datasourceUid'
+    | '/_authed/_shell/metrics/$datasourceUid'
     | '/_authed/_shell/o/$observationId'
     | '/_authed/_shell/proposals/$proposalId'
     | '/_authed/_shell/settings/grafana'
@@ -632,6 +706,7 @@ export interface FileRouteTypes {
     | '/_authed/_shell/agents/'
     | '/_authed/_shell/audit/'
     | '/_authed/_shell/dashboards/'
+    | '/_authed/_shell/datasources/'
     | '/_authed/_shell/import/'
     | '/_authed/_shell/logs/'
     | '/_authed/_shell/observations/'
@@ -639,8 +714,12 @@ export interface FileRouteTypes {
     | '/_authed/_shell/traces/'
     | '/_authed/dashboards/$dashboardId/'
     | '/_authed/_shell/_chat/c/$requestId'
+    | '/_authed/_shell/explore/logs/$datasourceUid'
     | '/_authed/_shell/explore/metrics/$datasourceUid'
+    | '/_authed/_shell/explore/traces/$datasourceUid'
+    | '/_authed/_shell/explore/logs/'
     | '/_authed/_shell/explore/metrics/'
+    | '/_authed/_shell/explore/traces/'
     | '/_authed/_shell/o/$observationId_/rca/$revision'
   fileRoutesById: FileRoutesById
 }
@@ -707,13 +786,6 @@ declare module '@tanstack/react-router' {
       path: '/chats'
       fullPath: '/chats'
       preLoaderRoute: typeof AuthedShellChatsRouteImport
-      parentRoute: typeof AuthedShellRoute
-    }
-    '/_authed/_shell/datasources': {
-      id: '/_authed/_shell/datasources'
-      path: '/datasources'
-      fullPath: '/datasources'
-      preLoaderRoute: typeof AuthedShellDatasourcesRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/health': {
@@ -849,6 +921,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellDashboardsIndexRouteImport
       parentRoute: typeof AuthedShellRoute
     }
+    '/_authed/_shell/datasources/': {
+      id: '/_authed/_shell/datasources/'
+      path: '/datasources'
+      fullPath: '/datasources/'
+      preLoaderRoute: typeof AuthedShellDatasourcesIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/datasources/context-sources': {
+      id: '/_authed/_shell/datasources/context-sources'
+      path: '/datasources/context-sources'
+      fullPath: '/datasources/context-sources'
+      preLoaderRoute: typeof AuthedShellDatasourcesContextSourcesRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/f/$folderId': {
       id: '/_authed/_shell/f/$folderId'
       path: '/f/$folderId'
@@ -889,6 +975,13 @@ declare module '@tanstack/react-router' {
       path: '/logs/$datasourceUid'
       fullPath: '/logs/$datasourceUid'
       preLoaderRoute: typeof AuthedShellLogsDatasourceUidRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/metrics/$datasourceUid': {
+      id: '/_authed/_shell/metrics/$datasourceUid'
+      path: '/metrics/$datasourceUid'
+      fullPath: '/metrics/$datasourceUid'
+      preLoaderRoute: typeof AuthedShellMetricsDatasourceUidRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/o/$observationId': {
@@ -989,6 +1082,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedShellChatCRequestIdRouteImport
       parentRoute: typeof AuthedShellChatRoute
     }
+    '/_authed/_shell/explore/logs/': {
+      id: '/_authed/_shell/explore/logs/'
+      path: '/explore/logs'
+      fullPath: '/explore/logs/'
+      preLoaderRoute: typeof AuthedShellExploreLogsIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/explore/logs/$datasourceUid': {
+      id: '/_authed/_shell/explore/logs/$datasourceUid'
+      path: '/explore/logs/$datasourceUid'
+      fullPath: '/explore/logs/$datasourceUid'
+      preLoaderRoute: typeof AuthedShellExploreLogsDatasourceUidRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
     '/_authed/_shell/explore/metrics/': {
       id: '/_authed/_shell/explore/metrics/'
       path: '/explore/metrics'
@@ -1001,6 +1108,20 @@ declare module '@tanstack/react-router' {
       path: '/explore/metrics/$datasourceUid'
       fullPath: '/explore/metrics/$datasourceUid'
       preLoaderRoute: typeof AuthedShellExploreMetricsDatasourceUidRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/explore/traces/': {
+      id: '/_authed/_shell/explore/traces/'
+      path: '/explore/traces'
+      fullPath: '/explore/traces/'
+      preLoaderRoute: typeof AuthedShellExploreTracesIndexRouteImport
+      parentRoute: typeof AuthedShellRoute
+    }
+    '/_authed/_shell/explore/traces/$datasourceUid': {
+      id: '/_authed/_shell/explore/traces/$datasourceUid'
+      path: '/explore/traces/$datasourceUid'
+      fullPath: '/explore/traces/$datasourceUid'
+      preLoaderRoute: typeof AuthedShellExploreTracesDatasourceUidRouteImport
       parentRoute: typeof AuthedShellRoute
     }
     '/_authed/_shell/o/$observationId_/rca/$revision': {
@@ -1033,7 +1154,6 @@ interface AuthedShellRouteChildren {
   AuthedShellSplatRoute: typeof AuthedShellSplatRoute
   AuthedShellChatRoute: typeof AuthedShellChatRouteWithChildren
   AuthedShellChatsRoute: typeof AuthedShellChatsRoute
-  AuthedShellDatasourcesRoute: typeof AuthedShellDatasourcesRoute
   AuthedShellHealthRoute: typeof AuthedShellHealthRoute
   AuthedShellInboxRoute: typeof AuthedShellInboxRoute
   AuthedShellKeysRoute: typeof AuthedShellKeysRoute
@@ -1042,10 +1162,12 @@ interface AuthedShellRouteChildren {
   AuthedShellAgentsAgentRefRoute: typeof AuthedShellAgentsAgentRefRoute
   AuthedShellAuditDashboardsRoute: typeof AuthedShellAuditDashboardsRoute
   AuthedShellAuditObservationsRoute: typeof AuthedShellAuditObservationsRoute
+  AuthedShellDatasourcesContextSourcesRoute: typeof AuthedShellDatasourcesContextSourcesRoute
   AuthedShellFFolderIdRoute: typeof AuthedShellFFolderIdRoute
   AuthedShellFindingsFindingIdRoute: typeof AuthedShellFindingsFindingIdRoute
   AuthedShellImportRepairRoute: typeof AuthedShellImportRepairRoute
   AuthedShellLogsDatasourceUidRoute: typeof AuthedShellLogsDatasourceUidRoute
+  AuthedShellMetricsDatasourceUidRoute: typeof AuthedShellMetricsDatasourceUidRoute
   AuthedShellOObservationIdRoute: typeof AuthedShellOObservationIdRoute
   AuthedShellProposalsProposalIdRoute: typeof AuthedShellProposalsProposalIdRoute
   AuthedShellSettingsGrafanaRoute: typeof AuthedShellSettingsGrafanaRoute
@@ -1055,13 +1177,18 @@ interface AuthedShellRouteChildren {
   AuthedShellAgentsIndexRoute: typeof AuthedShellAgentsIndexRoute
   AuthedShellAuditIndexRoute: typeof AuthedShellAuditIndexRoute
   AuthedShellDashboardsIndexRoute: typeof AuthedShellDashboardsIndexRoute
+  AuthedShellDatasourcesIndexRoute: typeof AuthedShellDatasourcesIndexRoute
   AuthedShellImportIndexRoute: typeof AuthedShellImportIndexRoute
   AuthedShellLogsIndexRoute: typeof AuthedShellLogsIndexRoute
   AuthedShellObservationsIndexRoute: typeof AuthedShellObservationsIndexRoute
   AuthedShellSettingsIndexRoute: typeof AuthedShellSettingsIndexRoute
   AuthedShellTracesIndexRoute: typeof AuthedShellTracesIndexRoute
+  AuthedShellExploreLogsDatasourceUidRoute: typeof AuthedShellExploreLogsDatasourceUidRoute
   AuthedShellExploreMetricsDatasourceUidRoute: typeof AuthedShellExploreMetricsDatasourceUidRoute
+  AuthedShellExploreTracesDatasourceUidRoute: typeof AuthedShellExploreTracesDatasourceUidRoute
+  AuthedShellExploreLogsIndexRoute: typeof AuthedShellExploreLogsIndexRoute
   AuthedShellExploreMetricsIndexRoute: typeof AuthedShellExploreMetricsIndexRoute
+  AuthedShellExploreTracesIndexRoute: typeof AuthedShellExploreTracesIndexRoute
   AuthedShellOObservationIdRcaRevisionRoute: typeof AuthedShellOObservationIdRcaRevisionRoute
 }
 
@@ -1069,7 +1196,6 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellSplatRoute: AuthedShellSplatRoute,
   AuthedShellChatRoute: AuthedShellChatRouteWithChildren,
   AuthedShellChatsRoute: AuthedShellChatsRoute,
-  AuthedShellDatasourcesRoute: AuthedShellDatasourcesRoute,
   AuthedShellHealthRoute: AuthedShellHealthRoute,
   AuthedShellInboxRoute: AuthedShellInboxRoute,
   AuthedShellKeysRoute: AuthedShellKeysRoute,
@@ -1078,10 +1204,13 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellAgentsAgentRefRoute: AuthedShellAgentsAgentRefRoute,
   AuthedShellAuditDashboardsRoute: AuthedShellAuditDashboardsRoute,
   AuthedShellAuditObservationsRoute: AuthedShellAuditObservationsRoute,
+  AuthedShellDatasourcesContextSourcesRoute:
+    AuthedShellDatasourcesContextSourcesRoute,
   AuthedShellFFolderIdRoute: AuthedShellFFolderIdRoute,
   AuthedShellFindingsFindingIdRoute: AuthedShellFindingsFindingIdRoute,
   AuthedShellImportRepairRoute: AuthedShellImportRepairRoute,
   AuthedShellLogsDatasourceUidRoute: AuthedShellLogsDatasourceUidRoute,
+  AuthedShellMetricsDatasourceUidRoute: AuthedShellMetricsDatasourceUidRoute,
   AuthedShellOObservationIdRoute: AuthedShellOObservationIdRoute,
   AuthedShellProposalsProposalIdRoute: AuthedShellProposalsProposalIdRoute,
   AuthedShellSettingsGrafanaRoute: AuthedShellSettingsGrafanaRoute,
@@ -1091,14 +1220,21 @@ const AuthedShellRouteChildren: AuthedShellRouteChildren = {
   AuthedShellAgentsIndexRoute: AuthedShellAgentsIndexRoute,
   AuthedShellAuditIndexRoute: AuthedShellAuditIndexRoute,
   AuthedShellDashboardsIndexRoute: AuthedShellDashboardsIndexRoute,
+  AuthedShellDatasourcesIndexRoute: AuthedShellDatasourcesIndexRoute,
   AuthedShellImportIndexRoute: AuthedShellImportIndexRoute,
   AuthedShellLogsIndexRoute: AuthedShellLogsIndexRoute,
   AuthedShellObservationsIndexRoute: AuthedShellObservationsIndexRoute,
   AuthedShellSettingsIndexRoute: AuthedShellSettingsIndexRoute,
   AuthedShellTracesIndexRoute: AuthedShellTracesIndexRoute,
+  AuthedShellExploreLogsDatasourceUidRoute:
+    AuthedShellExploreLogsDatasourceUidRoute,
   AuthedShellExploreMetricsDatasourceUidRoute:
     AuthedShellExploreMetricsDatasourceUidRoute,
+  AuthedShellExploreTracesDatasourceUidRoute:
+    AuthedShellExploreTracesDatasourceUidRoute,
+  AuthedShellExploreLogsIndexRoute: AuthedShellExploreLogsIndexRoute,
   AuthedShellExploreMetricsIndexRoute: AuthedShellExploreMetricsIndexRoute,
+  AuthedShellExploreTracesIndexRoute: AuthedShellExploreTracesIndexRoute,
   AuthedShellOObservationIdRcaRevisionRoute:
     AuthedShellOObservationIdRcaRevisionRoute,
 }

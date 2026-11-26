@@ -3,9 +3,11 @@ package repairprompt
 import (
 	"fmt"
 	"strings"
+
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 )
 
-const Prefix = "Repair the panels and variables the health check found failing so each query runs and returns data for the last 7 days; keep every other panel unchanged and never delete a panel."
+const Prefix = "Repair the panels and variables the health check found failing so each query runs and returns data for " + healthrule.CheckWindow + "; keep every other panel unchanged and never delete a panel."
 
 const panelLine = "- panel "
 

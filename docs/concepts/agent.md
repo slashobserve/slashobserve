@@ -109,7 +109,7 @@ Details of the Elasticsearch and OpenSearch tools:
 
 These tools work across datasources:
 
-- `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on.
+- `list_services` lists the services a log, trace or Prometheus datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on, which on a metric store is a label.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
   `logs_for_trace` reads the lines that carry a trace id.
 - On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.
@@ -512,14 +512,16 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 110 tools: MCP clients get 109, every one except `save_finding`, which only a run offers.
-A run offers 89 of them in a new-dashboard or revision request, 85 in an investigation and 58 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 111 tools, MCP clients outside a run still get 109 and an investigation offers 86.
+The server has 114 tools: MCP clients get 113, every one except `save_finding`, which only a run offers.
+A run offers 89 of them in a new-dashboard or revision request, 88 in an investigation and 58 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 115 tools, MCP clients outside a run still get 113 and an investigation offers 89.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
+- `list_context_sources`, `find_context_tools` and `call_context_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
+  A question asked from the home page starts as a new-dashboard run, so it offers 92 tools: the 89 and these three.
 
 The tools fall in five groups:
 
@@ -537,7 +539,7 @@ Anything else is refused with `out_of_scope` and a message that names where the 
 Reads of private or Admin-only content, such as another chat or the audit trail, keep what the run writes afterwards visible only to the requester and Admins.
 Such a run cannot create, rename or move a folder, an observation, a dashboard or a saved search into a place others read; that is refused with `restricted_answer`.
 
-The other 21 tools are left out of every run, each for a reason:
+The other 22 tools are left out of every run, each for a reason:
 
 - `claim_run`, `report_run`, `finish_run` and `get_run_brief`: a run token works a run and never claims one.
 - `create_comment`, `reply_to_comment`, `edit_comment`, `resolve_comment` and `reopen_comment`: the server answers and resolves threads after a run.
@@ -549,6 +551,7 @@ The other 21 tools are left out of every run, each for a reason:
 - `apply_suggested_change`: it posts in a thread and starts a run.
 - `save_run_answer`: a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer.
 - `run_dashboard_health`: it checks every dashboard of the workspace, far outside what one run is about.
+- `show_panel`: it draws a chart in an MCP Apps host, which a run does not have.
 
 [MCP](../use/mcp.md) lists each with its role.
 `list_observations` and `get_observation` are offered to the built-in agent in every run, so it can read the observations that earlier answers were saved into, as the person who asked and only the ones they may open.

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
+import { UnknownSource } from "@/datasources/unknown-source"
 import { useExploreSources } from "@/datasources/use-sources"
 import { useDocumentTitle } from "@/lib/document-title"
 import { liveRegionText } from "@/lib/live-region"
@@ -130,20 +131,7 @@ export function LogsPage({ uid }: { uid: string }) {
     )
   }
   if (datasource === undefined) {
-    return (
-      <>
-        <h1 className="sr-only">Logs</h1>
-        <p className="text-[13px] text-muted-foreground">
-          No log source has the uid {uid}.
-        </p>
-        <Link
-          to="/logs"
-          className="mt-2 inline-block text-[13px] underline underline-offset-3"
-        >
-          Open Logs
-        </Link>
-      </>
-    )
+    return <UnknownSource kind="logs" uid={uid} />
   }
   return (
     <LogsWorkspaceView

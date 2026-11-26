@@ -1,10 +1,10 @@
 import {
   isAbsoluteOrdered,
   isRangeTooLong,
-  maxRangeDays,
   parseUserTime,
+  maxRangeDays,
   resolveTime,
-  userTimeProblem,
+  readTimeInput,
   zonedDateTime,
 } from "@/lib/time"
 
@@ -16,30 +16,18 @@ export type DraftRead =
   | { range: { from: string; to: string }; problem?: undefined }
   | { range?: undefined; problem: DraftProblem }
 
-const fallback = "Enter a time like now-6h, now/d or 2026-10-17 09:00."
-
 export function readDraft(
   draftFrom: string,
   draftTo: string,
   zone: string | undefined
 ): DraftRead {
-  const from = parseUserTime(draftFrom, zone)
-  if (from === null) {
-    return {
-      problem: {
-        field: "from",
-        message: userTimeProblem(draftFrom, zone) ?? fallback,
-      },
-    }
+  const { value: from, problem: fromProblem } = readTimeInput(draftFrom, zone)
+  if (from === undefined) {
+    return { problem: { field: "from", message: fromProblem } }
   }
-  const to = parseUserTime(draftTo, zone)
-  if (to === null) {
-    return {
-      problem: {
-        field: "to",
-        message: userTimeProblem(draftTo, zone) ?? fallback,
-      },
-    }
+  const { value: to, problem: toProblem } = readTimeInput(draftTo, zone)
+  if (to === undefined) {
+    return { problem: { field: "to", message: toProblem } }
   }
   if (!isAbsoluteOrdered(from, to)) {
     return {

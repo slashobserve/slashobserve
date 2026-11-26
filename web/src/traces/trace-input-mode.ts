@@ -7,19 +7,24 @@ import {
   type InputMode,
 } from "@/ask/input-mode"
 
+import { sourceLanguage } from "@/datasources/sources"
+
 import type { TraceSearch } from "./search"
 
-const tempoModes: readonly InputMode[] = ["ask", "code"]
-const tempoLabels: Record<InputMode, string> = {
-  ask: askModeLabel,
-  builder: "Builder",
-  code: "Query",
-}
-const clickhouseModes: readonly InputMode[] = ["ask", "builder", "code"]
+const searchModes: readonly InputMode[] = ["code", "ask"]
+const clickhouseModes: readonly InputMode[] = ["builder", "code", "ask"]
 const clickhouseLabels: Record<InputMode, string> = {
   ask: askModeLabel,
   builder: "Search",
   code: "SQL",
+}
+
+function searchLabels(type: string): Record<InputMode, string> {
+  return {
+    ask: askModeLabel,
+    builder: "Builder",
+    code: sourceLanguage("traces", type),
+  }
 }
 
 function hasTraceFilters(search: TraceSearch): boolean {
@@ -72,8 +77,8 @@ export function useTraceInputMode({
     language: clickhouse
       ? clickhouseLabels[sqlShown ? "code" : "builder"]
       : undefined,
-    modes: clickhouse ? clickhouseModes : tempoModes,
-    labels: clickhouse ? clickhouseLabels : tempoLabels,
+    modes: clickhouse ? clickhouseModes : searchModes,
+    labels: clickhouse ? clickhouseLabels : searchLabels(type),
     following: () => nextMode(shown, agentAvailable, clickhouse),
     select,
   }

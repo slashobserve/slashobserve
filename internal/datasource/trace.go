@@ -79,11 +79,12 @@ type DependencySource interface {
 }
 
 type TraceStatsRequest struct {
-	Query  string
-	Range  TimeRange
-	Step   time.Duration
-	Limits Limits
-	User   QueryUser
+	Query   string
+	GroupBy string
+	Range   TimeRange
+	Step    time.Duration
+	Limits  Limits
+	User    QueryUser
 }
 
 type TraceBucket struct {
@@ -97,13 +98,28 @@ type DurationBucket struct {
 	Count int64
 }
 
+type TraceQuantiles struct {
+	P50, P95, P99 *float64
+}
+
+type TraceGroup struct {
+	Value         string
+	Spans, Errors int64
+	TraceQuantiles
+}
+
 type TraceStats struct {
-	Step      time.Duration
-	Partial   bool
-	Spans     int64
-	Errors    int64
-	Buckets   []TraceBucket
-	Histogram []DurationBucket
+	Step            time.Duration
+	Partial         bool
+	Spans           int64
+	Errors          int64
+	Buckets         []TraceBucket
+	Histogram       []DurationBucket
+	Window          *TraceQuantiles
+	GroupBy         string
+	Groups          []TraceGroup
+	GroupsTruncated bool
+	Note            string
 }
 
 type TraceStatsSource interface {

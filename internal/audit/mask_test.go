@@ -210,3 +210,11 @@ func TestAnUnterminatedValueCutBySlackLimitDoesNotSurvive(t *testing.T) {
 		t.Errorf("recorded %d bytes ending %q", len(got), got[len(got)-30:])
 	}
 }
+
+func TestSecretNameMatchesTheNamesTheMaskerKnows(t *testing.T) {
+	for name, want := range map[string]bool{"api_key": true, "apiKey": true, "API-KEY": true, "access_token": true, "Password": true, "client_secret": true, "query": false, "limit": false} {
+		if got := SecretName(name); got != want {
+			t.Errorf("SecretName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

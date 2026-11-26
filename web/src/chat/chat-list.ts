@@ -1,5 +1,7 @@
 import type { RequestSummary } from "@/observe/queries"
 
+import { noSubjectLabel, subjectLabel } from "./chat-rows"
+
 export type ChatGroup = {
   key: string
   label: string
@@ -7,25 +9,31 @@ export type ChatGroup = {
   requests: RequestSummary[]
 }
 
-function dashboardLabel(request: RequestSummary): string {
-  if (request.dashboard_id === null) return "No dashboard"
-  return request.dashboard_title ?? "A dashboard you cannot see"
+function groupOf(request: RequestSummary): { key: string; label: string } {
+  const label = subjectLabel(request) ?? noSubjectLabel
+  if (request.dashboard_id !== null) {
+    return { key: `dashboard:${request.dashboard_id}`, label }
+  }
+  if (request.observation_id !== null) {
+    return { key: `observation:${request.observation_id}`, label }
+  }
+  return { key: "dashboard:none", label }
 }
 
 export function groupChats(requests: readonly RequestSummary[]): ChatGroup[] {
   const pinned: RequestSummary[] = []
-  const byDashboard = new Map<string, ChatGroup>()
+  const byGroup = new Map<string, ChatGroup>()
   for (const request of requests) {
     if (request.pinned_at !== null) {
       pinned.push(request)
       continue
     }
-    const key = `dashboard:${request.dashboard_id ?? "none"}`
-    const group = byDashboard.get(key)
+    const { key, label } = groupOf(request)
+    const group = byGroup.get(key)
     if (group === undefined) {
-      byDashboard.set(key, {
+      byGroup.set(key, {
         key,
-        label: dashboardLabel(request),
+        label,
         dashboardId: request.dashboard_id,
         requests: [request],
       })
@@ -33,7 +41,7 @@ export function groupChats(requests: readonly RequestSummary[]): ChatGroup[] {
       group.requests.push(request)
     }
   }
-  const groups = [...byDashboard.values()]
+  const groups = [...byGroup.values()]
   if (pinned.length === 0) return groups
   return [
     { key: "pinned", label: "Pinned", dashboardId: null, requests: pinned },

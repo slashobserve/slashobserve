@@ -93,6 +93,9 @@ Every development run uses these ten, so results stay comparable; change the lis
 
 ### Options
 
+The three loop settings are sent to the server only when given, so one image can be measured with the loop off and then on.
+The results file records the settings under `settings` with the values the server ran with (loop `false`, `investigation_calls_max` equal to the effective calls and grounding `off` when unset), so a job that leaves them unset agrees with one that sets the defaults; a job whose trials disagree on them is refused.
+
 | `--ak` | Default | Meaning |
 | --- | --- | --- |
 | `server_image` | `ghcr.io/slashobserve/slashobserve:latest` | The server image, with its tag; use a local tag to test a build. |
@@ -100,6 +103,9 @@ Every development run uses these ten, so results stay comparable; change the lis
 | `replay_dir` | unset | A directory of replay fixtures, readable by everyone; needed with `--model replay/replay`. |
 | `llm_effort` | server default | `SLASHOBSERVE_LLM_EFFORT`. |
 | `investigation_calls` | server default (12) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
+| `investigation_loop` | server default (`false`) | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`. |
+| `investigation_calls_max` | server default (the value of `investigation_calls`) | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60; the adapter refuses a value below the effective `investigation_calls` (the given value or 12), as the server does. |
+| `finding_grounding` | server default (`off`) | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
 | `wall_timeout_sec` | 540 | How long a trial may take from the start of `run`, server start-up included, under Harbor's 600 second agent timeout. |

@@ -95,6 +95,11 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureWithPanel(t, nil)
+}
+
+func newFixtureWithPanel(t *testing.T, panel []byte) *fixture {
+	t.Helper()
 	logs := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(&syncWriter{w: logs}, nil))
 	datasources, err := datasource.NewRegistry(logger, datasource.Instance{UID: "logs", Name: "Logs", Datasource: fakeLoki{}})
@@ -108,7 +113,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	authn := &fakeAuth{}
 	return &fixture{
-		handler: NewHandler(reg, authn, Options{PublicURL: base, ResourceMetadataURL: metadataURL, Version: "test", Logger: logger}),
+		handler: NewHandler(reg, authn, Options{PublicURL: base, ResourceMetadataURL: metadataURL, Version: "test", Logger: logger, PanelApp: panel}),
 		authn:   authn,
 		logs:    logs,
 		tools:   offeredOverMCP(reg),
@@ -1254,7 +1259,7 @@ func TestSlowUploadsHoldOnlyThePrincipalSlot(t *testing.T) {
 
 func TestClientLabelIsNeverLogged(t *testing.T) {
 	const name = "leaky-client-name"
-	label := clientLabel(name)
+	label := clientLabel(name, false)
 	tests := []struct {
 		name string
 		send func(f *fixture) int
@@ -1301,7 +1306,7 @@ func TestClientLabelIsNeverLogged(t *testing.T) {
 
 func TestToolCallRecordsTheMCPClient(t *testing.T) {
 	const metaKey = "io.modelcontextprotocol/clientInfo"
-	label := clientLabel("from-label")
+	label := clientLabel("from-label", false)
 	tests := []struct {
 		name    string
 		meta    map[string]any
@@ -1391,7 +1396,7 @@ func TestOAuthCredentialRecordsItsRegisteredName(t *testing.T) {
 				gotPrincipal, _ = auth.FromContext(ctx)
 				return tools.Result{Content: map[string]string{"ok": "true"}}, nil
 			}
-			headers := map[string]string{"Authorization": tt.authorization, "Mcp-Session-Id": clientLabel("from-label")}
+			headers := map[string]string{"Authorization": tt.authorization, "Mcp-Session-Id": clientLabel("from-label", false)}
 			init := f.post(rpc(1, "initialize", map[string]any{
 				"protocolVersion": "2025-11-25",
 				"capabilities":    map[string]any{},
@@ -1460,7 +1465,7 @@ func TestInitializeLabelIsOnlyOnASuccessfulInitialize(t *testing.T) {
 }
 
 func TestClaimerReachesTheToolContext(t *testing.T) {
-	label := clientLabel("Codex")
+	label := clientLabel("Codex", false)
 	cases := map[string]struct {
 		token   string
 		session string

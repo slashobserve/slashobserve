@@ -6,7 +6,7 @@
   "packageManager": "bun@1.4.2",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && bun scripts/precompress.mjs && bun scripts/sync-dist.mjs",
+    "build": "vite build && bun scripts/precompress.mjs && bun scripts/sync-dist.mjs && bun scripts/build-panel-app.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings 0",

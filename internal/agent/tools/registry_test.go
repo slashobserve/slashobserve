@@ -471,6 +471,7 @@ func TestAResultOverItsLimitIsTooLargeWithANarrowingHint(t *testing.T) {
 	}{
 		{nameListMetrics, 20 << 10, maxContentBytes, "pass search, or a smaller limit and the next_offset as offset"},
 		{nameQueryRange, 20 << 10, maxContentBytes, "shorten from and to, lower max_data_points, or reduce the series with a label selector or an aggregation"},
+		{nameQueryInstant, 20 << 10, maxContentBytes, "shorten from and to, or reduce the series with a label selector or an aggregation; to read one extreme or total over a window, use a window function such as max_over_time, min_over_time or sum_over_time instead of raw samples"},
 		{nameGetDashboard, MaxModelSpecBytes + 1, MaxModelSpecBytes, "use get_panels with the panel ids you need"},
 		{nameLintQuery, 20 << 10, maxContentBytes, "narrow the request"},
 	}

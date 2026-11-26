@@ -57,6 +57,7 @@ export type RendererManifest =
   | {
       type: DataPanelType
       supported: boolean
+      mcpApp?: true
       minWidth?: number
       minHeight?: number
       anchors?: () => Promise<AnchorsModule>

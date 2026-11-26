@@ -74,15 +74,11 @@ func (s *Service) openForRun(ctx context.Context, q *dbsqlc.Queries, in RunOpen)
 	if err != nil {
 		return pgtype.UUID{}, err
 	}
-	body, err := json.Marshal(runBody{RunID: in.Run.ID.String(), Cites: []string{}})
-	if err != nil {
-		return pgtype.UUID{}, fmt.Errorf("encode run block: %w", err)
-	}
 	under, err := positionUnder(ctx, q, parent.ID, in.Run.BlockID)
 	if err != nil {
 		return pgtype.UUID{}, err
 	}
-	_, err = s.insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull, position: under}, state, who)
+	err = s.insertRunBlock(ctx, q, parent, in.Run.ID, under, state, who)
 	switch {
 	case errors.Is(err, ErrTooManyBlocks):
 		s.logger.WarnContext(ctx, "run block not added: the observation is full",
@@ -92,6 +88,15 @@ func (s *Service) openForRun(ctx context.Context, q *dbsqlc.Queries, in RunOpen)
 		return pgtype.UUID{}, err
 	}
 	return parent.ID, nil
+}
+
+func (s *Service) insertRunBlock(ctx context.Context, q *dbsqlc.Queries, parent dbsqlc.Observation, runID pgtype.UUID, under *int, state BlockState, who actor.Actor) error {
+	body, err := json.Marshal(runBody{RunID: runID.String(), Cites: []string{}})
+	if err != nil {
+		return fmt.Errorf("encode run block: %w", err)
+	}
+	_, err = s.insertBlock(ctx, q, parent, preparedBlock{kind: KindRun, body: body, width: WidthFull, position: under}, state, who)
+	return err
 }
 
 func (s *Service) placeRun(ctx context.Context, in RunOpen) (runPlace, bool, error) {

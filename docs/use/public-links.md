@@ -212,7 +212,7 @@ The answer is 201 with the link, its `token` and its `url`, and the `url` is the
 
 Details of `admins_only_folder`:
 
-- The message says to move the dashboard to a folder that is not Only Admins.
+- The message says to move the dashboard to a folder that is not Admins only.
 - When the dashboard reads an Admins-only datasource and so cannot leave, the message says public links are not available for it and names the datasource.
   The answer then also has a `datasource` field.
 

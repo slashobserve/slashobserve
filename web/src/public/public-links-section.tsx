@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
 import { formatDateTime } from "@/lib/time"
 import { loadProblemText } from "@/service-accounts/queries"
 import type { Variable } from "@/spec"
@@ -73,7 +72,9 @@ export function PublicLinksSection({ dashboardId, variables, vars }: Props) {
         vars={vars}
       />
       {links.data !== undefined ? (
-        links.data.length === 0 ? null : (
+        links.data.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No public link yet</p>
+        ) : (
           <ul className="rounded-card border">
             {links.data.map((link) => (
               <PublicLinkRow
@@ -92,7 +93,7 @@ export function PublicLinksSection({ dashboardId, variables, vars }: Props) {
           onRetry={() => void links.refetch()}
         />
       ) : (
-        <Skeleton className="h-16 w-full animate-none motion-safe:animate-pulse" />
+        <p className="text-xs text-muted-foreground">Loading public links</p>
       )}
     </section>
   )

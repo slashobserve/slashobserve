@@ -197,7 +197,9 @@ describe("ChatsPage rows", () => {
     const other = screen
       .getByRole("link", { name: "Card declines by issuer" })
       .closest('[role="row"]') as HTMLElement
-    expect(within(other).getByText("No dashboard")).toBeInTheDocument()
+    expect(
+      within(other).getByText("No dashboard or observation")
+    ).toBeInTheDocument()
     expect(screen.getByText("2 chats.")).toBeInTheDocument()
   })
 

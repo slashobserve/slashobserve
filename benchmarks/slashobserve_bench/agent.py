@@ -13,6 +13,7 @@ from pydantic import Field, model_validator
 from slashobserve_bench import atif, o11y
 from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
 from slashobserve_bench.ledger import SpendLedger
+from slashobserve_bench.loop_options import LoopOptions
 from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, datasources_yaml, ensure_image
 
 AGENT_NAME = "slashobserve"
@@ -25,12 +26,11 @@ class TaskSkipped(Exception):
     pass
 
 
-class Options(AgentOptions):
+class Options(AgentOptions, LoopOptions):
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
     network: str = o11y.NETWORK
     replay_dir: str | None = None
     llm_effort: str | None = None
-    investigation_calls: int | None = Field(default=None, ge=6, le=60)
     run_max_cost_usd: float | None = Field(default=None, gt=0)
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None
@@ -120,6 +120,9 @@ class SlashObserveAgent(BaseAgent):
             llm_model=model,
             llm_effort=options.llm_effort,
             investigation_calls=options.investigation_calls,
+            investigation_loop=options.investigation_loop,
+            investigation_calls_max=options.investigation_calls_max,
+            finding_grounding=options.finding_grounding,
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
         )

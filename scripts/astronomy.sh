@@ -23,24 +23,34 @@ export COMPOSE_PROJECT_NAME="$PROJECT"
 
 SERVER="http://localhost:${SLASHOBSERVE_HOST_PORT}"
 KEY_FILE="$STATE_DIR/keys/astronomy.key"
+CODE_MARKER="$STATE_DIR/code-layer"
+CODE_SOURCE=shop-code
+CODE_TOOLS=(list_dir read_file grep)
 FLAGS_FILE="$STATE_DIR/flagd/demo.flagd.json"
 FLAGS_FILE_MODE=644
 SEARCH_CONFIG_ARG="--config=/etc/otelcol-config-search.yml"
 PUBLISHED=0
+CODE=0
 
 usage() {
   cat <<EOF
 Usage: scripts/astronomy.sh <command>
 
-  up [--search] [--published]
+  up [--search] [--code] [--published]
                       fetch the pinned upstream release if needed, build the server image from
                       this checkout (or pull the published one with --published), then start the
                       shop and the SlashObserve stack and wait until everything is healthy;
-                      --search adds Elasticsearch and OpenSearch and feeds them the shop's logs
+                      --search adds Elasticsearch and OpenSearch and feeds them the shop's logs;
+                      --code adds a read-only code server over the shop's source and registers it as
+                      the context source shop-code, whose read-only tools the server approves at
+                      start; it needs the server built from this checkout, so it cannot be combined
+                      with --published
   down [--volumes]    stop the stack; --volumes also drops its data and the flag state
   status              list the containers
-  check [--search]    check the health of every datasource through the SlashObserve API and
-                      read one row of the shop's data from each
+  check [--search] [--code]
+                      check the health of every datasource through the SlashObserve API and
+                      read one row of the shop's data from each; when the stack was started with
+                      --code (or with --code here) check that shop-code offers its tools too
   flag [<name> [<variant>]]
                       without a name, list the feature flags and their variants;
                       with one, set it to <variant> (default 'on'); 'off' switches it off
@@ -133,6 +143,7 @@ compose() {
     files+=(-f "$ASTRONOMY_DIR/compose.search.yaml")
     profiles+=(--profile search)
   fi
+  if [[ "$CODE" == 1 ]]; then files+=(-f "$ASTRONOMY_DIR/compose.code.yaml"); fi
   IFS=: read -r -a extras <<<"${ASTRONOMY_COMPOSE_FILES:-}"
   for extra in ${extras[@]+"${extras[@]}"}; do
     files+=(-f "$extra")
@@ -143,17 +154,22 @@ compose() {
 
 parse_options() {
   SEARCH=0
+  CODE=0
   VOLUMES=0
   PUBLISHED=0
   local arg
   for arg in "$@"; do
     case "$arg" in
       --search) SEARCH=1 ;;
+      --code) CODE=1 ;;
       --volumes) VOLUMES=1 ;;
       --published) PUBLISHED=1 ;;
       *) die "unknown option $arg" ;;
     esac
   done
+  if [[ "$CODE" == 1 && "$PUBLISHED" == 1 ]]; then
+    die "--code cannot be combined with --published: a released server does not read allowPrivate or approve in the context sources file; build the server from this checkout instead"
+  fi
 }
 
 search_command_matches() {
@@ -194,8 +210,10 @@ cmd_up() {
     export SLASHOBSERVE_IMAGE="${SLASHOBSERVE_IMAGE:-slashobserve-astronomy-server:local}"
     compose build server
   fi
+  if [[ "$CODE" == 1 ]]; then compose build codeserver; fi
   compose up -d --no-build --remove-orphans --wait --wait-timeout "$WAIT_TIMEOUT"
   if [[ "$SEARCH" == 0 ]]; then remove_search_stores; fi
+  mark_code_layer
   cat <<EOF
 The Astronomy Shop is running at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}
 Its Jaeger UI is at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/jaeger/ui and its feature flags at http://localhost:${ASTRONOMY_SHOP_HOST_PORT}/feature/
@@ -203,6 +221,7 @@ SlashObserve is running at ${SERVER}
 Sign in as admin@example.com / password (Dex, development only)
 The service-account key is in ${KEY_FILE}
 EOF
+  if [[ "$CODE" == 1 ]]; then printf 'The shop source is the context source %s; the server approves its %s read-only tools at start, and make demo-check confirms it\n' "$CODE_SOURCE" "${#CODE_TOOLS[@]}"; fi
 }
 
 cmd_down() {
@@ -212,17 +231,20 @@ cmd_down() {
   if [[ "$VOLUMES" == 1 ]]; then args+=(--volumes); fi
   if [[ -d "$UPSTREAM_DIR/.git" ]]; then
     SEARCH=1
+    CODE=1
     prepare_state
     compose down "${args[@]}"
   else
     docker compose --project-name "$PROJECT" down "${args[@]}"
   fi
+  rm -f "$CODE_MARKER"
   if [[ "$VOLUMES" == 1 ]]; then rm -f "$FLAGS_FILE"; fi
 }
 
 cmd_status() {
   parse_options
   SEARCH=1
+  CODE=1
   check_tools
   [[ -d "$UPSTREAM_DIR/.git" ]] || die "nothing is running: no upstream checkout"
   prepare_state
@@ -231,6 +253,33 @@ cmd_status() {
 
 api() {
   curl -fsS --max-time 30 -H "Authorization: Bearer $(cat "$KEY_FILE")" "$@"
+}
+
+mark_code_layer() {
+  if [[ "$CODE" == 1 ]]; then : >"$CODE_MARKER"; else rm -f "$CODE_MARKER"; fi
+}
+
+code_offers() {
+  api -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_context_sources","arguments":{}}}' \
+    "$SERVER/mcp" | jq -r --arg source "$CODE_SOURCE" \
+    '(.result.structuredContent // (.result.content[0].text | fromjson? // empty)) | .sources[]? | select(.source == $source) | [.tools[].name] | sort | join(" ")'
+}
+
+offers_code_tools() {
+  [[ "$1" == "$(printf '%s\n' "${CODE_TOOLS[@]}" | sort | tr '\n' ' ' | sed 's/ $//')" ]]
+}
+
+check_code() {
+  local offers deadline=$((SECONDS + CHECK_WAIT))
+  until offers="$(code_offers 2>/dev/null)" && offers_code_tools "$offers"; do
+    if ((SECONDS >= deadline)); then
+      printf 'FAIL %-8s does not offer %s\n' "$CODE_SOURCE" "${CODE_TOOLS[*]}"
+      return 1
+    fi
+    sleep 3
+  done
+  printf 'ok   %-8s offers %s\n' "$CODE_SOURCE" "${CODE_TOOLS[*]}"
 }
 
 datasource_healthy() {
@@ -294,6 +343,7 @@ cmd_check() {
     check_datasource es "frontend log lines" 'service.name: "frontend"' || failed=1
     check_datasource os "frontend log lines" 'resource.service.name: "frontend"' || failed=1
   fi
+  if [[ "$CODE" == 1 || -f "$CODE_MARKER" ]]; then check_code || failed=1; fi
   return "$failed"
 }
 

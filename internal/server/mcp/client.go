@@ -15,26 +15,42 @@ const (
 	nonceBytes    = 16
 )
 
-func clientLabel(name string) string {
+const appsFlag = "ui"
+
+func clientLabel(name string, apps bool) string {
 	nonce := make([]byte, nonceBytes)
 	_, _ = rand.Read(nonce)
-	return labelPrefix + "." + hex.EncodeToString(nonce) + "." + base64.RawURLEncoding.EncodeToString([]byte(name))
+	label := labelPrefix + "." + hex.EncodeToString(nonce) + "." + base64.RawURLEncoding.EncodeToString([]byte(name))
+	if apps {
+		label += "." + appsFlag
+	}
+	return label
 }
 
-func labelClient(header string) string {
+type parsedLabel struct {
+	client string
+	apps   bool
+}
+
+func parseLabel(header string) parsedLabel {
 	if len(header) > maxLabelBytes {
-		return ""
+		return parsedLabel{}
 	}
-	parts := strings.SplitN(header, ".", 3)
-	if len(parts) != 3 || parts[0] != labelPrefix || !isLowerHex(parts[1], nonceBytes*2) {
-		return ""
+	parts := strings.Split(header, ".")
+	if len(parts) < 3 || len(parts) > 4 || parts[0] != labelPrefix || !isLowerHex(parts[1], nonceBytes*2) {
+		return parsedLabel{}
+	}
+	if len(parts) == 4 && parts[3] != appsFlag {
+		return parsedLabel{}
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
-		return ""
+		return parsedLabel{}
 	}
-	return origin.CleanClient(string(decoded))
+	return parsedLabel{client: origin.CleanClient(string(decoded)), apps: len(parts) == 4}
 }
+
+func labelClient(header string) string { return parseLabel(header).client }
 
 func isLowerHex(s string, n int) bool {
 	if len(s) != n {

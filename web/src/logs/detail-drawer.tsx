@@ -18,6 +18,7 @@ import { labelNamesQuery } from "@/panel-editor/queries"
 import type { FieldResolver } from "@/panels/field-config"
 import {
   detailText,
+  levelName,
   type LogDetail,
   type LogEntry,
 } from "@/panels/logs/logs-model"
@@ -78,7 +79,7 @@ export function entryJson(
 ): Record<string, unknown> {
   return {
     time: entry.time === null ? null : new Date(entry.time).toISOString(),
-    level: entry.level?.word ?? null,
+    level: levelName(entry.level) ?? null,
     message: entry.message,
     labels: entry.labels,
     fields: Object.fromEntries(
@@ -419,7 +420,7 @@ export function DetailDrawer({
   const description = [
     searchFamily ? indexName(selection) : undefined,
     entry.time === null ? undefined : zonedDateTimeMs(entry.time, undefined),
-    entry.level?.word,
+    levelName(entry.level),
   ]
     .filter((part) => part !== undefined)
     .join(", ")

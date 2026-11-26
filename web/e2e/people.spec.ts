@@ -1,4 +1,4 @@
-import type { Route } from "@playwright/test"
+import type { Locator, Route } from "@playwright/test"
 
 import {
   expect,
@@ -251,14 +251,63 @@ test("shows allow-all sign-in", async ({ page }) => {
   )
 })
 
+function focusedCell(page: Page) {
+  return page.evaluate(() => {
+    const focused = document.activeElement?.closest("[role=gridcell]")
+    return {
+      row: Number(focused?.closest("[row-index]")?.getAttribute("row-index")),
+      column: Number(focused?.getAttribute("aria-colindex")),
+    }
+  })
+}
+
+async function openFromGridCell(page: Page, trigger: Locator) {
+  const grid = page.getByRole("grid").filter({ has: trigger }).first()
+  const cell = grid.getByRole("gridcell").filter({ has: trigger }).first()
+  const target = await cell.evaluate((element) => ({
+    row: Number(element.closest("[row-index]")?.getAttribute("row-index")),
+    column: Number(element.getAttribute("aria-colindex")),
+  }))
+  const controls = await cell.locator("a[href], button:not(:disabled)").count()
+
+  const inGrid = () =>
+    grid.evaluate((element) => element.contains(document.activeElement))
+  for (let presses = 0; presses < 80 && !(await inGrid()); presses++) {
+    await page.keyboard.press("Tab")
+  }
+  expect(await inGrid(), "Tab never moved focus into the grid").toBe(true)
+
+  for (let presses = 0; presses < 40; presses++) {
+    const at = await focusedCell(page)
+    if (at.row === target.row && at.column === target.column) break
+    const key =
+      Number.isNaN(at.row) || at.row < target.row
+        ? "ArrowDown"
+        : at.row > target.row
+          ? "ArrowUp"
+          : at.column < target.column
+            ? "ArrowRight"
+            : "ArrowLeft"
+    await page.keyboard.press(key)
+  }
+  expect(await focusedCell(page), "the arrows never reached the cell").toEqual(
+    target
+  )
+
+  await page.keyboard.press("Enter")
+  if (controls > 1) {
+    await tabUntilFocused(page, trigger, controls)
+    await page.keyboard.press("Enter")
+  }
+}
+
 test("works with the keyboard", async ({ page }) => {
   await openPeople(page)
   const trigger = page
     .getByRole("button", { name: /^Sign out .+ everywhere$/ })
     .first()
-  await tabUntilFocused(page, trigger, 80)
+  await openFromGridCell(page, trigger)
 
-  await page.keyboard.press("Enter")
   const dialog = page.getByRole("alertdialog")
   await expect(dialog).toBeVisible()
   const cancel = dialog.getByRole("button", { name: "Cancel" })
@@ -288,9 +337,7 @@ test("signs a person out with the keyboard", async ({ page }) => {
   const trigger = page.getByRole("button", {
     name: "Sign out Priya everywhere",
   })
-  await tabUntilFocused(page, trigger, 80)
-
-  await page.keyboard.press("Enter")
+  await openFromGridCell(page, trigger)
   const dialog = page.getByRole("alertdialog")
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused()
   await page.keyboard.press("Tab")

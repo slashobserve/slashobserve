@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   HeldMutationHost,
+  releaseHeldMutation,
   resetHeldMutation,
   unmountHostThenSettle,
   useHeldMutation,
@@ -56,6 +57,10 @@ describe("InvitesTable", () => {
         name: "Withdraw the invite for ada@example.com",
       })
     )
+    expect(calls.send).not.toHaveBeenCalled()
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw invite" })
+    )
     await waitFor(() => expect(calls.send).toHaveBeenCalledWith("i1"))
     await unmountHostThenSettle()
 
@@ -65,4 +70,129 @@ describe("InvitesTable", () => {
       )
     )
   })
+
+  function listInvites(emails: readonly string[]) {
+    const queryClient = testQueryClient()
+    const all = emails.map((name) => ({
+      ...invite,
+      id: `id-${name}`,
+      email: `${name}@example.com`,
+    }))
+    queryClient.setQueryData(invitesQuery().queryKey, all)
+    return { queryClient, all }
+  }
+
+  function withdrawButton(name: string) {
+    return screen.getByRole("button", {
+      name: `Withdraw the invite for ${name}@example.com`,
+    })
+  }
+
+  async function openWithdraw(
+    user: ReturnType<typeof renderWithProviders>["user"],
+    name: string
+  ) {
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Withdraw the invite for ${name}@example.com`,
+      })
+    )
+  }
+
+  it("returns focus to the invite's own Withdraw when the confirm is cancelled", async () => {
+    const { queryClient } = listInvites(["ada", "bob"])
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+    await openWithdraw(user, "ada")
+    await user.click(await screen.findByRole("button", { name: "Cancel" }))
+
+    await waitFor(() => expect(withdrawButton("ada")).toHaveFocus())
+    expect(calls.send).not.toHaveBeenCalled()
+  })
+
+  it("keeps focus on the invite's own Withdraw while it is withdrawn and after it fails", async () => {
+    const { queryClient } = listInvites(["ada", "bob"])
+    calls.send.mockRejectedValue(new Error("offline"))
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+    await openWithdraw(user, "ada")
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw invite" })
+    )
+    await waitFor(() => expect(calls.send).toHaveBeenCalledWith("id-ada"))
+    await waitFor(() => expect(withdrawButton("ada")).toHaveFocus())
+    await releaseHeldMutation()
+
+    await waitFor(() => expect(calls.toast.error).toHaveBeenCalled())
+    expect(withdrawButton("ada")).toHaveFocus()
+    expect(withdrawButton("ada")).toHaveAttribute("aria-disabled", "false")
+  })
+
+  it("withdraws only once the confirm has closed, so an instant reply still moves focus to the neighbour", async () => {
+    const { queryClient, all } = listInvites(["zoe", "cy", "bob"])
+    calls.send.mockImplementation(async (id: string) => {
+      queryClient.setQueryData(
+        invitesQuery().queryKey,
+        all.filter((row) => row.id !== id)
+      )
+    })
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+    await openWithdraw(user, "zoe")
+    let endExit = () => {}
+    const closing = {
+      finished: new Promise<void>((resolve) => {
+        endExit = resolve
+      }),
+      effect: { getTiming: () => ({ duration: 150, iterations: 1 }) },
+    }
+    const animations = vi
+      .spyOn(HTMLElement.prototype, "getAnimations")
+      .mockReturnValue([closing as unknown as Animation])
+
+    try {
+      await user.click(
+        await screen.findByRole("button", { name: "Withdraw invite" })
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(calls.send).not.toHaveBeenCalled()
+      endExit()
+
+      await waitFor(() => expect(calls.send).toHaveBeenCalledWith("id-zoe"))
+      await waitFor(() => expect(withdrawButton("cy")).toHaveFocus())
+      await releaseHeldMutation()
+      expect(withdrawButton("cy")).toHaveFocus()
+    } finally {
+      animations.mockRestore()
+    }
+  })
+
+  it.each([
+    ["a middle invite", "ada", "cy"],
+    ["the first invite", "zoe", "ada"],
+    ["the last invite", "bob", "cy"],
+  ])(
+    "moves focus to the next invite in display order once %s is gone, or the previous one after the last",
+    async (_, withdrawn, focused) => {
+      const { queryClient, all } = listInvites(["zoe", "ada", "cy", "bob"])
+      calls.send.mockImplementation(async (id: string) => {
+        queryClient.setQueryData(
+          invitesQuery().queryKey,
+          all.filter((row) => row.id !== id)
+        )
+      })
+      const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+      await openWithdraw(user, withdrawn)
+      await user.click(
+        await screen.findByRole("button", { name: "Withdraw invite" })
+      )
+      await waitFor(() =>
+        expect(screen.queryByText(`${withdrawn}@example.com`)).toBeNull()
+      )
+
+      await waitFor(() => expect(withdrawButton(focused)).toHaveFocus())
+      await releaseHeldMutation()
+      expect(withdrawButton(focused)).toHaveFocus()
+    }
+  )
 })

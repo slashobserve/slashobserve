@@ -1,5 +1,7 @@
+import type { ReactNode } from "react"
+
 import type { Block, Observation } from "./queries"
-import { formatDateTime } from "@/lib/time"
+import { describeInstant } from "@/lib/time"
 
 export type RunFinding = NonNullable<Observation["findings"]>[number]
 
@@ -78,12 +80,30 @@ export function headerBlocks(
   return headers
 }
 
-function Row({ label, children }: { label: string; children: string }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex gap-2">
       <dt className="w-20 flex-none text-muted-foreground">{label}</dt>
       <dd className="min-w-0 flex-1 break-words">{children}</dd>
     </div>
+  )
+}
+
+function ItemsRow({
+  label,
+  items,
+}: {
+  label: string
+  items: readonly string[]
+}) {
+  return (
+    <Row label={label}>
+      <ul className="list-disc pl-4">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </Row>
   )
 }
 
@@ -124,7 +144,7 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
       )}
       <dl className="flex flex-col gap-0.5">
         {finding.onset === null ? null : (
-          <Row label="Started">{formatDateTime(finding.onset)}</Row>
+          <Row label="Started">{describeInstant(finding.onset)}</Row>
         )}
         {finding.impact === null ? null : (
           <Row label="Impact">{finding.impact}</Row>
@@ -133,10 +153,10 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
           <Row label="Confidence">{finding.confidence}</Row>
         )}
         {finding.ruled_out.length === 0 ? null : (
-          <Row label="Ruled out">{finding.ruled_out.join("; ")}</Row>
+          <ItemsRow label="Ruled out" items={finding.ruled_out} />
         )}
         {finding.next_steps.length === 0 ? null : (
-          <Row label="Next steps">{finding.next_steps.join("; ")}</Row>
+          <ItemsRow label="Next steps" items={finding.next_steps} />
         )}
       </dl>
     </section>
