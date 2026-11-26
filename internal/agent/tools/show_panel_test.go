@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -328,16 +330,30 @@ func TestTheChartTypesOfTheSchemaAreThoseOfTheViteRendererList(t *testing.T) {
 	if got := schema.Properties.Type.Enum; !slices.Equal(got, chartTypeNames()) {
 		t.Errorf("schema enum = %v, chart types = %v", got, chartTypeNames())
 	}
-	raw, err := os.ReadFile("../../../web/chart-types.json")
-	if err != nil {
-		t.Fatal(err)
+	manifests, err := filepath.Glob("../../../web/src/panels/*/manifest.ts")
+	if err != nil || len(manifests) == 0 {
+		t.Fatalf("manifests = %v (%v)", manifests, err)
 	}
+	typeLine := regexp.MustCompile(`(?m)^\s*type: "([^"]+)",`)
 	var built []string
-	if err := json.Unmarshal(raw, &built); err != nil {
-		t.Fatal(err)
+	for _, path := range manifests {
+		raw, err := os.ReadFile(path) //nolint:gosec // paths come from a glob of the repo
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !regexp.MustCompile(`(?m)^\s*mcpApp: true,`).Match(raw) {
+			continue
+		}
+		match := typeLine.FindSubmatch(raw)
+		if match == nil {
+			t.Fatalf("%s sets mcpApp without a type", path)
+		}
+		built = append(built, string(match[1]))
 	}
-	if !slices.Equal(built, chartTypeNames()) {
-		t.Errorf("web/chart-types.json = %v, chart types = %v", built, chartTypeNames())
+	slices.Sort(built)
+	want := slices.Sorted(slices.Values(chartTypeNames()))
+	if !slices.Equal(built, want) {
+		t.Errorf("manifests with mcpApp = %v, chart types = %v", built, want)
 	}
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GO_READS_FROM_WEB=(web/chart-types.json web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts observe-agent/src/protocol.ts)
+GO_READS_FROM_WEB=('web/src/panels/*/manifest.ts' web/src/mcp-panel/fixtures/show-panel-result.json web/src/spec/defaults.gen.ts observe-agent/src/protocol.ts)
 
 usage() {
   cat >&2 <<USAGE
