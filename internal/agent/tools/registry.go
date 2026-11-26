@@ -710,14 +710,14 @@ func allowed(p auth.Principal, inRun bool, t Tool) bool {
 
 func errorStep(tool, code string) string {
 	if code == codeInvalidRequest {
-		return "Rejected " + tool + " input: " + code
+		return SentBackStep(tool, "")
 	}
 	return "Could not run " + tool + ": " + code
 }
 
 func callErrorStep(tool string, eb errorBody) string {
-	if eb.Code == codeInvalidRequest && eb.Message != "" {
-		return "Rejected " + tool + " input: " + clip(eb.Message, maxStepReasonBytes)
+	if eb.Code == codeInvalidRequest {
+		return SentBackStep(tool, rejectionReason(eb))
 	}
 	return errorStep(tool, eb.Code)
 }

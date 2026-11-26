@@ -140,8 +140,8 @@ func TestCallRejectsLooseInputWithStep(t *testing.T) {
 			if errorCode(t, res) != codeInvalidRequest {
 				t.Fatalf("content = %#v", res.Content)
 			}
-			if !strings.HasPrefix(res.Step, "Rejected "+tt.tool+" input: ") || res.Step == "Rejected "+tt.tool+" input: invalid_request" {
-				t.Fatalf("step = %q, want it to carry the message", res.Step)
+			if !strings.HasPrefix(res.Step, "The "+tt.tool+" call was sent back for a fix") {
+				t.Fatalf("step = %q, want the plain sentence", res.Step)
 			}
 		})
 	}
@@ -190,16 +190,23 @@ func TestUnknownFieldNamesTheFieldsOfTheCallersSurface(t *testing.T) {
 	}
 }
 
-func TestAnInvalidRequestStepCarriesItsClippedMessage(t *testing.T) {
+func TestARejectedInputStepIsAPlainSentenceNeverTheHandlersMessage(t *testing.T) {
 	r := newTestRegistry(t, &fakeDS{}, nil)
 	tests := []struct {
 		name   string
 		result Result
 		want   string
 	}{
-		{"a short message", invalid("limit must be between 1 and 500"), "Rejected list_metrics input: limit must be between 1 and 500"},
-		{"a long message is clipped", invalid("%s", strings.Repeat("x", 300)), "Rejected list_metrics input: " + strings.Repeat("x", maxStepReasonBytes) + "..."},
-		{"no message", toolError(codeInvalidRequest, ""), "Rejected list_metrics input: invalid_request"},
+		{"an unknown field", Result{Content: errorBody{Code: codeInvalidRequest, Message: `unknown field "format"; list_metrics takes a and b`, unknownField: true}, IsError: true}, "The list_metrics call was sent back for a fix: it used an option the tool does not take"},
+		{"a missing value", invalid("datasource is required; call list_datasources"), "The list_metrics call was sent back for a fix: a required value was missing"},
+		{"a bad time range", invalid("to must not be before from"), "The list_metrics call was sent back for a fix: its time range was not valid"},
+		{"a wrong type", invalid("field %q must be a string, not a number", "query"), "The list_metrics call was sent back for a fix: a value had the wrong type"},
+		{"a bad id", invalid("dashboard_id must be a UUID from list_dashboards"), "The list_metrics call was sent back for a fix: a value was not in the allowed form"},
+		{"a value too long", invalid("%s must be at most %d bytes", "query", 4000), "The list_metrics call was sent back for a fix: a value was too long"},
+		{"input that is not JSON", invalid("input is not valid JSON"), "The list_metrics call was sent back for a fix: its input was not valid JSON"},
+		{"a run restriction", invalid("this run creates a new dashboard; call create_dashboard"), "The list_metrics call was sent back for a fix: that is not available in this kind of run"},
+		{"a message with no known kind", invalid("something only a handler would say"), "The list_metrics call was sent back for a fix"},
+		{"no message", toolError(codeInvalidRequest, ""), "The list_metrics call was sent back for a fix"},
 		{"another code", toolError(codeNotFound, "gone"), "Could not run list_metrics: not_found"},
 		{"a step the handler set", Result{Content: errorBody{Code: codeInvalidRequest, Message: "m"}, IsError: true, Step: "Own step"}, "Own step"},
 	}
@@ -209,6 +216,11 @@ func TestAnInvalidRequestStepCarriesItsClippedMessage(t *testing.T) {
 			res, err := call(t, r, nameListMetrics, `{}`)
 			if err != nil || res.Step != tt.want {
 				t.Fatalf("step = %q err = %v, want %q", res.Step, err, tt.want)
+			}
+			if eb, ok := res.Content.(errorBody); ok && tt.result.Step == "" && tt.want != "Could not run list_metrics: not_found" {
+				if eb.Code != codeInvalidRequest || !strings.HasPrefix(eb.Message, tt.result.Content.(errorBody).Message) {
+					t.Fatalf("the tool result changed: %#v", eb)
+				}
 			}
 		})
 	}

@@ -223,4 +223,76 @@ describe("StepTimeline", () => {
     render(<StepTimeline steps={steps} working={false} reconnecting={false} />)
     expect(screen.queryByText(/^Request /)).toBeNull()
   })
+
+  describe("a saved answer", () => {
+    const saved = [
+      step({
+        phase: "save",
+        tool: "save_finding",
+        message: "Saved finding 99a52b2f-9aca-4f4e-8a0a-0d3c0b0c0001",
+      }),
+    ]
+
+    it("reads as a sentence, never as a bare id", () => {
+      render(
+        <StepTimeline steps={saved} working={false} reconnecting={false} />
+      )
+      expect(screen.getByText("Saved the answer")).toBeVisible()
+      expect(screen.queryByText(/99a52b2f/)).toBeNull()
+    })
+
+    it("links to its observation when it has one", async () => {
+      renderWithProviders(
+        <StepTimeline
+          steps={saved}
+          working={false}
+          reconnecting={false}
+          answer={{ observationId: "o9", elementId: "answer-r1" }}
+        />,
+        { route: { path: "/", url: "/" } }
+      )
+      const link = await screen.findByRole("link", { name: "Saved the answer" })
+      expect(link).toHaveAttribute("href", "/o/o9")
+    })
+
+    it("scrolls to the answer on the page when it has no observation", async () => {
+      const scrollIntoView = vi.fn()
+      Element.prototype.scrollIntoView = scrollIntoView
+      const user = userEvent.setup()
+      render(
+        <>
+          <div id="answer-r1" tabIndex={-1} />
+          <StepTimeline
+            steps={saved}
+            working={false}
+            reconnecting={false}
+            answer={{ observationId: null, elementId: "answer-r1" }}
+          />
+        </>
+      )
+      await user.click(screen.getByRole("button", { name: "Saved the answer" }))
+      expect(scrollIntoView).toHaveBeenCalled()
+      expect(document.activeElement).toBe(document.getElementById("answer-r1"))
+    })
+
+    it("does not link a rejected save", () => {
+      render(
+        <StepTimeline
+          steps={[
+            {
+              ...saved[0],
+              status: "error",
+              message:
+                "The save_finding call was sent back for a fix: it was a second save in the same turn",
+            },
+          ]}
+          working={false}
+          reconnecting={false}
+          answer={{ observationId: "o9", elementId: "answer-r1" }}
+        />
+      )
+      expect(screen.queryByRole("link")).toBeNull()
+      expect(screen.queryByRole("button")).toBeNull()
+    })
+  })
 })

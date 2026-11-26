@@ -119,7 +119,7 @@ func TestSaveToolsRunScopeThroughCall(t *testing.T) {
 		if errorCode(t, res) != codeInvalidRequest || !strings.Contains(res.Content.(errorBody).Message, dashA) {
 			t.Fatalf("res = %#v", res.Content)
 		}
-		if !strings.HasPrefix(res.Step, "Rejected create_dashboard input: this run revises dashboard") {
+		if res.Step != "The create_dashboard call was sent back for a fix: that is not available in this kind of run" {
 			t.Fatalf("step = %q", res.Step)
 		}
 	})

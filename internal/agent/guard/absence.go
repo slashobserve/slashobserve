@@ -40,21 +40,27 @@ func (s *State) noteAbsenceRead(c Call, res tools.Result) {
 	}
 }
 
-func (s *State) unbackedAbsence(input json.RawMessage) string {
+func (s *State) unbackedAbsence(input json.RawMessage) (fault, bool) {
 	if s.Absence.Asked {
-		return ""
+		return fault{}, false
 	}
 	var in struct {
 		Markdown string `json:"markdown"`
 	}
 	if json.Unmarshal(input, &in) != nil {
-		return ""
+		return fault{}, false
 	}
 	switch {
 	case !s.Absence.ScopedMetrics && noMetricsClaim.MatchString(in.Markdown):
-		return "the finding says a metric is missing, but no list_metrics call in this run set scope: a service, job or pod is a label value, so list metrics with scope set to its selector, such as {service=\"checkout\"}, before saying so, or drop the claim"
+		return fault{
+			"the finding says a metric is missing, but no list_metrics call in this run set scope: a service, job or pod is a label value, so list metrics with scope set to its selector, such as {service=\"checkout\"}, before saying so, or drop the claim",
+			"it said a metric is missing without checking for it",
+		}, true
 	case !s.Absence.Annotations && noDeployClaim.MatchString(in.Markdown):
-		return "the finding says there was no deploy, but this run never read list_annotations, where deploy markers live: read it with tag deploy before saying so, or drop the claim"
+		return fault{
+			"the finding says there was no deploy, but this run never read list_annotations, where deploy markers live: read it with tag deploy before saying so, or drop the claim",
+			"it said there was no deploy without reading the deploy markers",
+		}, true
 	}
-	return ""
+	return fault{}, false
 }
