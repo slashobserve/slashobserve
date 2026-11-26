@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   HeldMutationHost,
+  releaseHeldMutation,
   resetHeldMutation,
   unmountHostThenSettle,
   useHeldMutation,
@@ -100,4 +101,46 @@ describe("InvitesTable", () => {
       ).toHaveFocus()
     )
   })
+
+  it.each([
+    ["a middle invite", "b", "c"],
+    ["the last invite", "c", "b"],
+  ])(
+    "moves focus to the neighbour by id once %s is gone from the table",
+    async (_, withdrawn, focused) => {
+      const queryClient = testQueryClient()
+      const all = ["a", "b", "c"].map((id) => ({
+        ...invite,
+        id,
+        email: `${id}@example.com`,
+      }))
+      queryClient.setQueryData(invitesQuery().queryKey, all)
+      calls.send.mockImplementation(async (id: string) => {
+        queryClient.setQueryData(
+          invitesQuery().queryKey,
+          all.filter((row) => row.id !== id)
+        )
+      })
+      const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: `Withdraw the invite for ${withdrawn}@example.com`,
+        })
+      )
+      await user.click(
+        await screen.findByRole("button", { name: "Withdraw invite" })
+      )
+      await waitFor(() => expect(calls.send).toHaveBeenCalledWith(withdrawn))
+      await releaseHeldMutation()
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", {
+            name: `Withdraw the invite for ${focused}@example.com`,
+          })
+        ).toHaveFocus()
+      )
+    }
+  )
 })

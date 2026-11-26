@@ -1,4 +1,11 @@
-import { useId, useRef, useState } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -29,6 +36,7 @@ import {
   useWithdrawInvite,
   type Invite,
 } from "./invites"
+import { neighbourInviteId, withdrawButtonFor } from "./invite-focus"
 import { RoleSelect } from "./role-select"
 
 function inviteId(invite: Invite): string {
@@ -63,28 +71,25 @@ function InviteRole({ invite }: { invite: Invite }) {
   )
 }
 
-function neighbourToFocus(trigger: HTMLElement | null): HTMLElement | null {
-  const section = trigger?.closest("section")
-  if (trigger === null || section === null || section === undefined) return null
-  const others = [
-    ...section.querySelectorAll<HTMLElement>("[data-withdraw]"),
-  ].filter((button) => button !== trigger)
-  const after = others.find(
-    (button) =>
-      trigger.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING
-  )
-  return after ?? others.at(-1) ?? section.querySelector<HTMLElement>("h2")
-}
+const FocusAfterWithdraw = createContext<(id: string | null) => void>(() => {})
 
 function WithdrawButton({ invite }: { invite: Invite }) {
   const [open, setOpen] = useState(false)
-  const trigger = useRef<HTMLButtonElement>(null)
   const withdraw = useWithdrawInvite()
+  const invites = useQuery(invitesQuery()).data
+  const focusAfterWithdraw = useContext(FocusAfterWithdraw)
+  const neighbourId = neighbourInviteId(
+    (invites ?? []).map(inviteId),
+    invite.id
+  )
 
   function confirm() {
     setOpen(false)
     withdraw.mutateAsync(invite.id).then(
-      () => toast.success(`Withdrew the invite for ${invite.email}`),
+      () => {
+        toast.success(`Withdrew the invite for ${invite.email}`)
+        focusAfterWithdraw(neighbourId)
+      },
       (error) => toast.error(inviteProblemText(error))
     )
   }
@@ -92,8 +97,7 @@ function WithdrawButton({ invite }: { invite: Invite }) {
   return (
     <>
       <Button
-        ref={trigger}
-        data-withdraw=""
+        data-withdraw={invite.id}
         variant="outline"
         size="sm"
         className="narrow:h-11"
@@ -112,9 +116,7 @@ function WithdrawButton({ invite }: { invite: Invite }) {
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent
-          finalFocus={() =>
-            neighbourToFocus(trigger.current) ?? trigger.current
-          }
+          finalFocus={() => withdrawButtonFor(neighbourId) ?? true}
         >
           <AlertDialogHeader>
             <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
@@ -197,6 +199,20 @@ const inviteColumns: DataGridColumn<Invite>[] = [
 export function InvitesTable() {
   const headingId = useId()
   const query = useQuery(invitesQuery())
+  const pendingFocus = useRef<string | null>(null)
+  const [requests, setRequests] = useState(0)
+
+  function focusAfterWithdraw(inviteId: string | null) {
+    pendingFocus.current = inviteId
+    setRequests((count) => count + 1)
+  }
+
+  useEffect(() => {
+    const button = withdrawButtonFor(pendingFocus.current)
+    if (button === null) return
+    button.focus()
+    pendingFocus.current = null
+  }, [requests, query.data])
 
   if (query.isPending) {
     return <Skeleton className="mb-6 h-10 w-full" aria-busy="true" />
@@ -219,16 +235,18 @@ export function InvitesTable() {
 
   return (
     <section aria-labelledby={headingId} className="mb-6 flex flex-col gap-2">
-      <h2 id={headingId} tabIndex={-1} className="text-sm font-semibold">
+      <h2 id={headingId} className="text-sm font-semibold">
         Pending invites
       </h2>
-      <DataGrid
-        label="Pending invites"
-        rows={query.data}
-        columns={inviteColumns}
-        rowId={inviteId}
-        rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
-      />
+      <FocusAfterWithdraw value={focusAfterWithdraw}>
+        <DataGrid
+          label="Pending invites"
+          rows={query.data}
+          columns={inviteColumns}
+          rowId={inviteId}
+          rowAttributes={(invite) => ({ "data-invite-id": invite.id })}
+        />
+      </FocusAfterWithdraw>
     </section>
   )
 }
