@@ -51,6 +51,11 @@ type Called struct {
 	IsError bool
 }
 
+type Called struct {
+	Text    string
+	IsError bool
+}
+
 type Connector interface {
 	Tools(ctx context.Context, target Target) ([]Found, error)
 	Call(ctx context.Context, target Target, name string, arguments map[string]any) (Called, error)
