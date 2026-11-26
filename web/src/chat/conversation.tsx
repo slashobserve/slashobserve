@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { latestDashboardQuery } from "@/dashboards/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import { cn } from "@/lib/utils"
-import { orderTurns } from "@/observe/conversation"
+import { orderTurns, runningOwnTurnId } from "@/observe/conversation"
 import {
   sentence,
   useAgentInfo,
@@ -237,11 +237,10 @@ function ConversationView({
   const pageTitle = active
     ? "Observing - SlashObserve"
     : `${clipped} - SlashObserve`
-  const runningRequestId = turns.findLast(
-    (turn) =>
-      isActiveStatus(turn.summary.status) &&
-      turn.summary.requested_by.id === principal.id
-  )?.id
+  const runningRequestId = runningOwnTurnId(
+    turns.map((turn) => turn.summary),
+    principal.id
+  )
 
   function appended(request: ObserveRequest) {
     pinToEnd()

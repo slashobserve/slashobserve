@@ -37,13 +37,13 @@ import {
   observeRequestQuery,
   type ObserveRequest,
 } from "@/observe/queries"
+import { runningOwnTurnId } from "@/observe/conversation"
 import type { Anchor, Point } from "@/panels/anchors"
 
 import {
   askChips,
   askWorkingText,
   pinName,
-  runningOwnTurnId,
   spotLabel,
   spotTurnIds,
 } from "./ask-spot"
@@ -386,7 +386,11 @@ function AskThread({
     principal.id
   )
   const list = useRef<HTMLOListElement>(null)
-  const pinToEnd = useChatScroll(list, turn.requestId)
+  const [initialTarget, setInitialTarget] = useState<string | null>(null)
+  if ((chat.data !== undefined || chat.isError) && initialTarget === null) {
+    setInitialTarget(ids.at(-1) === turn.requestId ? "" : turn.requestId)
+  }
+  const pinToEnd = useChatScroll(list, initialTarget)
   const model = useComposer({
     draft: useAskText(),
     subject,

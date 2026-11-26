@@ -7,7 +7,6 @@ import {
   askWorkingText,
   pinName,
   privatePins,
-  runningOwnTurnId,
   spotKey,
   spotLabel,
   spotTurnIds,
@@ -268,33 +267,5 @@ describe("askWorkingText", () => {
     expect(askWorkingText({ status: "running", intent: "apply" })).toBe(
       "Revising the dashboard"
     )
-  })
-})
-
-describe("runningOwnTurnId", () => {
-  const turn = (id: string, status: string, by: string) => ({
-    id,
-    status,
-    requested_by: { id: by },
-  })
-
-  it("picks the latest queued or running turn of the viewer", () => {
-    expect(
-      runningOwnTurnId(
-        [
-          turn("a", "running", "u1"),
-          turn("b", "succeeded", "u1"),
-          turn("c", "queued", "u1"),
-          turn("d", "running", "u2"),
-        ],
-        "u1"
-      )
-    ).toBe("c")
-  })
-
-  it("is undefined when nothing of the viewer runs or turns are unloaded", () => {
-    expect(
-      runningOwnTurnId([undefined, turn("a", "failed", "u1")], "u1")
-    ).toBeUndefined()
   })
 })

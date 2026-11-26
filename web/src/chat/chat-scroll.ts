@@ -38,11 +38,19 @@ export function useChatScroll(
       lastTop = top
     }
     const section =
-      target === "" ? null : element.querySelector(`[data-request="${target}"]`)
-    if (section === null) {
+      target === ""
+        ? undefined
+        : Array.from(
+            element.querySelectorAll<HTMLElement>("[data-request]")
+          ).find((each) => each.dataset.request === target)
+    if (section === undefined) {
       parent.scrollTop = parent.scrollHeight
     } else {
-      section.scrollIntoView({ block: "start" })
+      const margin = parseFloat(getComputedStyle(section).scrollMarginTop) || 0
+      parent.scrollTop +=
+        section.getBoundingClientRect().top -
+        parent.getBoundingClientRect().top -
+        margin
     }
     lastTop = parent.scrollTop
     pinned.current = atEnd()
