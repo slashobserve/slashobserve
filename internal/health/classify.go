@@ -34,7 +34,7 @@ type Problem struct {
 func classify(d *spec.Dashboard, issues []spec.Issue) []Problem {
 	panels := d.AllPanels()
 	problems := make([]Problem, 0, len(issues))
-	seen := map[Problem]bool{}
+	at := map[Problem]int{}
 	for _, issue := range issues {
 		p := locate(d, panels, issue.Path)
 		p.Code = string(issue.Code)
@@ -46,15 +46,19 @@ func classify(d *spec.Dashboard, issues []spec.Issue) []Problem {
 		default:
 			p.Kind = KindQueryFailed
 		}
-		key := Problem{Kind: p.Kind, PanelID: p.PanelID, Variable: p.Variable}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
 		p.Message = issue.Message
-		if issue.Code == queryproxy.CodeQueryTimeout {
+		timedOut := issue.Code == queryproxy.CodeQueryTimeout
+		if timedOut {
 			p.Message += timeoutWindow
 		}
+		key := Problem{Kind: p.Kind, PanelID: p.PanelID, Variable: p.Variable}
+		if i, seen := at[key]; seen {
+			if timedOut && problems[i].Code != string(queryproxy.CodeQueryTimeout) {
+				problems[i] = p
+			}
+			continue
+		}
+		at[key] = len(problems)
 		problems = append(problems, p)
 	}
 	return problems
