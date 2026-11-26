@@ -37,8 +37,8 @@ function RootLayout() {
         <Outlet />
       </TooltipProvider>
       <Toaster
-        position="bottom-left"
-        offset={{ left: 56, bottom: 16 }}
+        position="bottom-right"
+        offset={{ right: 16, bottom: 16 }}
         mobileOffset={16}
         duration={5000}
         closeButton
