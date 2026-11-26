@@ -140,7 +140,8 @@ func TestCallRejectsLooseInputWithStep(t *testing.T) {
 			if errorCode(t, res) != codeInvalidRequest {
 				t.Fatalf("content = %#v", res.Content)
 			}
-			if !strings.HasPrefix(res.Step, "Rejected "+tt.tool+" input: ") || res.Step == "Rejected "+tt.tool+" input: invalid_request" {
+			sentBack := "The " + tt.tool + " call was sent back for a fix: "
+			if !strings.HasPrefix(res.Step, "Rejected "+tt.tool+" input: ") && !strings.HasPrefix(res.Step, sentBack) || res.Step == "Rejected "+tt.tool+" input: invalid_request" {
 				t.Fatalf("step = %q, want it to carry the message", res.Step)
 			}
 		})
@@ -199,6 +200,8 @@ func TestAnInvalidRequestStepCarriesItsClippedMessage(t *testing.T) {
 	}{
 		{"a short message", invalid("limit must be between 1 and 500"), "Rejected list_metrics input: limit must be between 1 and 500"},
 		{"a long message is clipped", invalid("%s", strings.Repeat("x", 300)), "Rejected list_metrics input: " + strings.Repeat("x", maxStepReasonBytes) + "..."},
+		{"a long message is clipped at a word", invalid("%s", strings.Repeat("word ", 60)), "Rejected list_metrics input: " + strings.TrimSpace(strings.Repeat("word ", 24)) + "..."},
+		{"an unknown field reads as a sentence", Result{Content: errorBody{Code: codeInvalidRequest, Message: `unknown field "format"; list_metrics takes a and b`, unknownField: true}, IsError: true}, "The list_metrics call was sent back for a fix: it used an option the tool does not take"},
 		{"no message", toolError(codeInvalidRequest, ""), "Rejected list_metrics input: invalid_request"},
 		{"another code", toolError(codeNotFound, "gone"), "Could not run list_metrics: not_found"},
 		{"a step the handler set", Result{Content: errorBody{Code: codeInvalidRequest, Message: "m"}, IsError: true, Step: "Own step"}, "Own step"},
