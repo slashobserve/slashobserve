@@ -241,10 +241,11 @@ describe("PanelBlock", () => {
       await screen.findByRole("button", { name: "Panel menu: Error rate" })
     )
     const items = await screen.findAllByRole("menuitem")
-    expect(items).toHaveLength(4)
+    expect(items).toHaveLength(5)
     for (const name of [
       "View as table",
       "Inspect",
+      "Open in Metrics",
       "Download CSV",
       "Save as PNG",
     ]) {

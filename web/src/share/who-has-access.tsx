@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query"
 import { instanceQuery } from "@/api/instance"
 import { LoadProblem } from "@/components/load-problem"
 import { buttonVariants } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { folderPermissionsQuery, folderQuery } from "@/folders/queries"
 import { cn } from "@/lib/utils"
 import { loadProblemText } from "@/service-accounts/queries"
@@ -81,7 +80,9 @@ export function WhoHasAccess({ folder, canManage, headingId }: Props) {
           }}
         />
       ) : (
-        <Skeleton className="h-24 w-full animate-none motion-safe:animate-pulse" />
+        <p className="text-xs text-muted-foreground">
+          Loading who has access through the folder {folder.title}
+        </p>
       )}
       {canManageAccess(folder, canManage) ? (
         <Link
