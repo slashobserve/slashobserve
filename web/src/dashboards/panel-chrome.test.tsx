@@ -17,6 +17,26 @@ const panel: LayoutPanel = {
 }
 
 describe("PanelChrome", () => {
+  it("says on the panel that its data is old and why the refresh failed", () => {
+    renderWithProviders(
+      <PanelChrome
+        panel={panel}
+        state="ready"
+        staleNotice="Showing data from 09:05; the last refresh failed: upstream timed out"
+      />
+    )
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Showing data from 09:05; the last refresh failed: upstream timed out"
+    )
+  })
+
+  it("keeps the old-data line off a panel that shows an error instead", () => {
+    renderWithProviders(
+      <PanelChrome panel={panel} state="error" staleNotice="Showing data" />
+    )
+    expect(screen.queryByText("Showing data")).not.toBeInTheDocument()
+  })
+
   it("labels the panel with its title", () => {
     renderWithProviders(<PanelChrome panel={panel} state="ready" />)
     expect(

@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useDraftTitle } from "@/panel-editor/draft-title"
 import type { ResolvedLink } from "@/panels/field-config"
-import { errorMessage, PanelErrorState } from "@/panels/panel-error"
+import { PanelErrorState } from "@/panels/panel-error"
 import { PanelSkeleton } from "@/panels/panel-skeleton"
 import { isDataPanel, panelTitle, type LayoutPanel } from "@/spec"
 
@@ -76,7 +76,7 @@ type Props = {
   state: PanelState
   error?: unknown
   refreshing?: boolean
-  staleError?: unknown
+  staleNotice?: string
   onRetry?: () => void
   badge?: ReactNode
   links?: ResolvedLink[]
@@ -99,7 +99,7 @@ export function PanelChrome({
   state,
   error,
   refreshing = false,
-  staleError,
+  staleNotice,
   onRetry,
   badge,
   links = [],
@@ -238,22 +238,6 @@ export function PanelChrome({
               <span className="sr-only">Refreshing</span>
             </span>
           ) : null}
-          {staleError ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Showing older data: ${errorMessage(staleError)}`}
-                  />
-                }
-              >
-                <TriangleAlertIcon className="text-threshold-warning" />
-              </TooltipTrigger>
-              <TooltipContent>{errorMessage(staleError)}</TooltipContent>
-            </Tooltip>
-          ) : null}
           {badge}
           {links.length > 0 ? (
             <DropdownMenu>
@@ -286,7 +270,7 @@ export function PanelChrome({
           {menu}
         </div>
       </header>
-      <div data-panel-body="" className="min-h-0 flex-1">
+      <div data-panel-body="" className="relative min-h-0 flex-1">
         {state === "loading" ? <PanelSkeleton /> : null}
         {state === "empty" ? (
           <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
@@ -302,6 +286,19 @@ export function PanelChrome({
           </div>
         ) : null}
         {state === "ready" ? children : null}
+        {staleNotice && (state === "ready" || state === "empty") ? (
+          <p
+            role="status"
+            title={staleNotice}
+            className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 border-t bg-card px-3 py-1 text-xs text-muted-foreground"
+          >
+            <TriangleAlertIcon
+              aria-hidden="true"
+              className="size-3 shrink-0 text-threshold-warning"
+            />
+            <span className="truncate">{staleNotice}</span>
+          </p>
+        ) : null}
       </div>
     </article>
   )

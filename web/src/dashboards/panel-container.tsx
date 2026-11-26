@@ -59,6 +59,7 @@ import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
 import { PanelMenu, type BlockMenuHost } from "./panel-menu"
+import { failedWithoutData, failureOf, staleNoticeOf } from "./panel-stale"
 import { PanelToolbar } from "./panel-toolbar"
 import {
   panelDataKey,
@@ -410,7 +411,7 @@ export const PanelContainer = memo(function PanelContainer({
   else if (!dataPanel) state = "ready"
   else if (query.data) state = populated ? "ready" : "empty"
   else if (blockedBy !== undefined) state = "error"
-  else if (query.isError) state = "error"
+  else if (failedWithoutData(query)) state = "error"
 
   const blockedError = useMemo(
     () =>
@@ -484,6 +485,8 @@ export const PanelContainer = memo(function PanelContainer({
     )
   }, [panelName])
 
+  const stale = staleNoticeOf(query, dataPanel?.timezone, timezone)
+
   const executed = useMemo(() => {
     const ran = data?.meta.queries
     return (queryRef: string) =>
@@ -537,9 +540,9 @@ export const PanelContainer = memo(function PanelContainer({
       <PanelChrome
         panel={panel}
         state={state}
-        error={query.data ? query.error : (blockedError ?? query.error)}
+        error={query.data ? query.error : (blockedError ?? failureOf(query))}
         refreshing={query.isFetching && query.data !== undefined}
-        staleError={query.isError && query.data ? query.error : undefined}
+        staleNotice={stale}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
         arrangeable={arrangeable}

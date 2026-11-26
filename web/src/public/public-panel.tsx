@@ -6,6 +6,11 @@ import {
   PanelChrome,
   type PanelState,
 } from "@/dashboards/panel-chrome"
+import {
+  failedWithoutData,
+  failureOf,
+  staleNoticeOf,
+} from "@/dashboards/panel-stale"
 import { stateScope, type PanelSource } from "@/dashboards/panel-source"
 import { useInView } from "@/dashboards/use-in-view"
 import { maxDataPointsFor, usePanelData } from "@/dashboards/use-panel-data"
@@ -139,16 +144,16 @@ export const PublicPanel = memo(function PublicPanel({
   else if (!dataPanel) state = "ready"
   else if (query.data) state = populated ? "ready" : "empty"
   else if (blockedBy !== undefined) state = "error"
-  else if (query.isError) state = "error"
+  else if (failedWithoutData(query)) state = "error"
 
   return (
     <div ref={ref} className="size-full">
       <PanelChrome
         panel={panel}
         state={state}
-        error={query.data ? query.error : (blockedError ?? query.error)}
+        error={query.data ? query.error : (blockedError ?? failureOf(query))}
         refreshing={query.isFetching && query.data !== undefined}
-        staleError={query.isError && query.data ? query.error : undefined}
+        staleNotice={staleNoticeOf(query, dataPanel?.timezone, timezone)}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
       >
         {available ? null : (
