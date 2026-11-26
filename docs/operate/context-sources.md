@@ -161,7 +161,7 @@ Approving a refused tool answers `409 tool_refused` with the `refusal`.
 
 ## What the agent does with a source
 
-An approved tool of a source can be used by the agent in an investigation or a question, and by an outside agent over MCP, through two tools: `list_context_sources` and `call_context_tool`.
+An approved tool of a source can be used by the agent in an investigation or a question, and by an outside agent over MCP, through three tools: `list_context_sources`, `find_context_tools` and `call_context_tool`.
 They are not offered when a dashboard is built or revised.
 
 - Only an approved tool can be called.
@@ -169,6 +169,8 @@ They are not offered when a dashboard is built or revised.
   A tool that changed since you approved it stays unusable until you approve it again.
 - A source set to **Admins only** is used only on behalf of an Admin.
 - The agent's arguments must match the schema the tool had when you approved it.
+- A long tool list does not reach the model as tools of its own.
+  `list_context_sources` shows every approved tool while there are 20 or fewer, and above that only the count for each source; `find_context_tools` then returns the best 8 matches for a query in plain words, with their schemas, ranked by keywords over names, parameter names and descriptions.
 - Every call goes through the [outbound allowlist](outbound-access.md).
 - A call counts toward the run's call limit and shows as a step.
 - A call stops after 20 seconds, a source handles 4 calls at once and answers `source_busy` beyond that, and a result is cut at 12 KiB with a note.

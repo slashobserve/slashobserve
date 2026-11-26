@@ -58,6 +58,7 @@ var leftOutOfRuns = map[string]string{
 var contextReads = map[string]string{
 	nameListContextSources: reasonContext,
 	nameCallContextTool:    reasonContext,
+	nameFindContextTools:   reasonContext,
 }
 
 var creatingWrites = map[string]bool{

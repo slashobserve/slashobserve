@@ -107,7 +107,7 @@ func TestToolsOfferedInInvestigationsAndChatQuestionsOnly(t *testing.T) {
 			t.Errorf("%s: offered in investigations and chat questions only %v, in chats %v, reason %q", tool.Name, pinned, tool.AlsoInChats, contextReads[tool.Name])
 		}
 	}
-	if strings.Join(got, ",") != "call_context_tool,list_context_sources" {
+	if strings.Join(got, ",") != "call_context_tool,find_context_tools,list_context_sources" {
 		t.Fatalf("tools offered in investigations and chat questions only = %v", got)
 	}
 	for name := range contextReads {

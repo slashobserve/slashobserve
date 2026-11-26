@@ -538,6 +538,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `draft_query` | Viewer |
 | `duplicate_dashboard` | Viewer |
 | `edit_comment` | Viewer |
+| `find_context_tools` | Viewer |
 | `finish_run` | Viewer |
 | `get_audit_event` | Admin |
 | `get_audit_histogram` | Admin |
@@ -1765,21 +1766,36 @@ They are `search_audit_events`, `get_audit_event`, `list_audit_facets`, `get_aud
 
 ### Context source tools
 
-Two tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
-Both need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
+Three tools let an agent read from the [context sources](../operate/context-sources.md) an Admin registered.
+All three need the Viewer role, and a run offers them in an investigation or a question asked in a chat only, not when a dashboard is built or revised or a panel is suggested.
 
 #### `list_context_sources`
 
 Lists the context sources the caller may use, each with the approved tools it may call.
 
-- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its tools.
+- A source shows its `source` (the id to pass to `call_context_tool`), `name`, an `about` line, a `status` when its last check failed, and its `tool_count`.
   The line is the description an Admin gave the source, or "<name>, an MCP server at <host>" when it has none.
-  Each tool shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
+- While the caller may use 20 approved tools or fewer in all, each tool also shows its `name`, a one-line `description` and its `arguments`, such as `query (string, required), limit (integer)`.
+  Above that the list gives only the count for each source and a `find` line that points to `find_context_tools`, so the answer stays short however many tools there are.
 - A source set to Admins only is listed for an Admin and left out for anyone else.
 - A source whose last check failed is still listed, with a `status` that says so, and a call to it is still tried: it either works or answers `source_unavailable`.
 - Only an approved tool appears.
   A tool that is waiting for approval, changed since it was approved, gone or refused never does.
 - The list carries a notice that the descriptions come from a server outside SlashObserve.
+
+#### `find_context_tools`
+
+Finds the approved tools that fit what the caller needs, for when a source has too many to list.
+
+- It takes `query`, in plain words and at most 200 bytes, and an optional `source` id to look in one source only.
+- Tools are ranked by the words of their names, their parameter names and their descriptions, so `logs of a crashing pod` finds `pods_log`.
+  There are no embeddings; a query that shares no word with a tool does not find it.
+- The answer holds at most 8 `matches`, each with `source`, `source_name`, `tool`, `description`, `arguments` and the pinned `input_schema`, ready to pass to `call_context_tool`.
+  A schema over 3 KiB is left out with `schema_omitted: true`, and `arguments` still names the parameters.
+  `more_matches` counts the matches that are not shown, and a `hint` says what to try when none matched.
+- Only approved tools of sources the caller may use are looked at.
+  A `source` that does not exist answers `source_not_found`, and one set to Admins only that the caller may not use answers `admins_only_datasource`.
+- Like the other two, it needs the Viewer role and is offered in an investigation or a question only.
 
 #### `call_context_tool`
 

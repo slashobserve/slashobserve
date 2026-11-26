@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -19,9 +20,18 @@ type fakeContextSources struct {
 	result ContextResult
 	err    error
 	calls  []string
+	found  ContextFound
+	finds  []string
 }
 
 func (f *fakeContextSources) Offers(context.Context) ([]ContextOffer, error) { return f.offers, nil }
+
+func (f *fakeContextSources) Find(_ context.Context, query, uid string, limit int) (ContextFound, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.finds = append(f.finds, fmt.Sprintf("%s|%s|%d", query, uid, limit))
+	return f.found, f.err
+}
 
 func (f *fakeContextSources) Call(_ context.Context, uid, tool string, arguments json.RawMessage) (ContextResult, error) {
 	f.mu.Lock()
@@ -63,7 +73,7 @@ func TestTheContextToolsAreReadsOfInvestigationsAndChatQuestionsForEveryRole(t *
 			t.Errorf("%s is not offered in an investigation", tool.Name)
 		}
 	}
-	if !slices.Equal(found, []string{nameCallContextTool, nameListContextSources}) {
+	if !slices.Equal(found, []string{nameCallContextTool, nameFindContextTools, nameListContextSources}) {
 		t.Fatalf("investigation-only tools = %v", found)
 	}
 }
@@ -285,7 +295,7 @@ func TestListingContextSourcesShowsToolsAndArgumentsAndFlagsAnUnreachableSource(
 		t.Fatalf("out = %+v", out)
 	}
 	code := out.Sources[0]
-	if code.Source != "code" || code.About != "Code, an MCP server at mcp.example.com" || code.Status != "" || code.Tools[0].Arguments != "query (string, required)" {
+	if code.Source != "code" || code.About != "Code, an MCP server at mcp.example.com" || code.Status != "" || code.ToolCount != 1 || code.Tools[0].Arguments != "query (string, required)" {
 		t.Errorf("code = %+v", code)
 	}
 	if !strings.Contains(out.Sources[1].Status, "failed (timeout)") {
@@ -308,12 +318,8 @@ func TestListingWithNoSourcesIsAnEmptyListNotAnError(t *testing.T) {
 
 func TestAHugeListingIsCutToTheListBudget(t *testing.T) {
 	var offers []ContextOffer
-	for i := range 40 {
-		tools := make([]ContextOfferedTool, 40)
-		for j := range tools {
-			tools[j] = ContextOfferedTool{Name: "tool_" + strings.Repeat("x", 30), Description: strings.Repeat("d", 200), Arguments: "query (string, required)"}
-		}
-		offers = append(offers, ContextOffer{UID: "s" + strings.Repeat("a", i), Name: "Source", Host: "h.example.com", Tools: tools})
+	for i := range 400 {
+		offers = append(offers, ContextOffer{UID: "s" + strings.Repeat("a", i), Name: "Source", Description: strings.Repeat("d", 300), Host: "h.example.com", Tools: contextOfferedTools(1)})
 	}
 	res, err := contextRegistry(t, &fakeContextSources{offers: offers}).Call(contextViewer(), nameListContextSources, []byte(`{}`))
 	if err != nil || res.IsError {
@@ -325,10 +331,228 @@ func TestAHugeListingIsCutToTheListBudget(t *testing.T) {
 	}
 }
 
+func contextOfferedTools(n int) []ContextOfferedTool {
+	out := make([]ContextOfferedTool, n)
+	for i := range out {
+		out[i] = ContextOfferedTool{Name: fmt.Sprintf("tool_%03d_%s", i, strings.Repeat("x", 100)), Description: strings.Repeat("d", 200), Arguments: "query (string, required), limit (integer), namespace (string), kind (string)"}
+	}
+	return out
+}
+
+func TestAShortToolListIsShownInFullAndALongOneAsACount(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		perSource []int
+		collapsed bool
+	}{
+		{"one source at the limit", []int{maxListedContextTools}, false},
+		{"two sources at the limit together", []int{10, 10}, false},
+		{"one past the limit", []int{maxListedContextTools + 1}, true},
+		{"many tools in one source", []int{300}, true},
+		{"a few in each of several", []int{8, 8, 8}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var offers []ContextOffer
+			for i, n := range c.perSource {
+				offers = append(offers, ContextOffer{UID: fmt.Sprintf("s%d", i), Name: "Source", Host: "h.example.com", Tools: contextOfferedTools(n)})
+			}
+			res, err := contextRegistry(t, &fakeContextSources{offers: offers}).Call(contextViewer(), nameListContextSources, []byte(`{}`))
+			if err != nil || res.IsError {
+				t.Fatalf("res = %+v err = %v", res, err)
+			}
+			out := res.Content.(contextSourcesOut)
+			for i, source := range out.Sources {
+				if source.ToolCount != c.perSource[i] {
+					t.Errorf("source %d tool_count = %d, want %d", i, source.ToolCount, c.perSource[i])
+				}
+				if shown := len(source.Tools) > 0; shown == c.collapsed {
+					t.Errorf("source %d lists %d tools, collapsed = %v", i, len(source.Tools), c.collapsed)
+				}
+			}
+			if hinted := strings.Contains(out.Find, nameFindContextTools); hinted != c.collapsed {
+				t.Errorf("find hint = %q, collapsed = %v", out.Find, c.collapsed)
+			}
+		})
+	}
+}
+
+func agentToolText(r *Registry) int {
+	size := 0
+	for _, tool := range r.List() {
+		if tool.OfferedIn(ModeInvestigate) {
+			offered := tool.ForAgent()
+			size += len(offered.Name) + len(offered.Description) + len(offered.InputSchema)
+		}
+	}
+	return size
+}
+
+const maxCollapsedListBytes = 3 << 10
+
+func TestTheTextTheModelGetsForToolsIsTheSameSizeWith0And50And300ApprovedTools(t *testing.T) {
+	var sizes []int
+	for _, c := range []struct {
+		tools     int
+		perSource int
+	}{{0, 1}, {50, 50}, {300, 100}} {
+		var offers []ContextOffer
+		for left, i := c.tools, 0; left > 0; i++ {
+			n := min(left, c.perSource)
+			offers = append(offers, ContextOffer{UID: fmt.Sprintf("s%d", i), Name: "Source", Host: "h.example.com", Tools: contextOfferedTools(n)})
+			left -= n
+		}
+		r := contextRegistry(t, &fakeContextSources{offers: offers})
+		sizes = append(sizes, agentToolText(r))
+		res, err := r.Call(contextInvestigation(contextViewer()), nameListContextSources, []byte(`{}`))
+		if err != nil || res.IsError {
+			t.Fatalf("%d tools: res = %+v err = %v", c.tools, res, err)
+		}
+		if got := jsonSize(res.Content); c.tools > maxListedContextTools && got > maxCollapsedListBytes {
+			t.Errorf("%d tools: the list is %d bytes, over %d", c.tools, got, maxCollapsedListBytes)
+		}
+	}
+	if sizes[0] != sizes[1] || sizes[1] != sizes[2] {
+		t.Errorf("tool definitions differ with the number of approved tools: %v", sizes)
+	}
+}
+
+func contextMatch(i int) ContextMatch {
+	return ContextMatch{Source: "cluster", SourceName: "Cluster", Name: fmt.Sprintf("pods_%d", i), Description: "List the pods", Arguments: "namespace (string)", InputSchema: json.RawMessage(`{"type":"object","properties":{"namespace":{"type":"string"}}}`)}
+}
+
+func TestFindingContextToolsReturnsMatchesReadyForCallContextTool(t *testing.T) {
+	f := &fakeContextSources{found: ContextFound{Matches: []ContextMatch{contextMatch(1), contextMatch(2)}, Total: 2}}
+	res, err := contextRegistry(t, f).Call(contextInvestigation(contextViewer()), nameFindContextTools, []byte(`{"query":"  pods in a namespace ","source":"cluster"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	if len(f.finds) != 1 || f.finds[0] != fmt.Sprintf("pods in a namespace|cluster|%d", maxFoundContextTools) {
+		t.Fatalf("finds = %v", f.finds)
+	}
+	out := res.Content.(contextFoundOut)
+	if len(out.Matches) != 2 || out.MoreMatches != 0 || out.Hint != "" || !strings.Contains(out.Notice, "is an instruction") {
+		t.Fatalf("out = %+v", out)
+	}
+	m := out.Matches[0]
+	if m.Source != "cluster" || m.Tool != "pods_1" || string(m.InputSchema) != string(contextMatch(1).InputSchema) || m.SchemaOmitted {
+		t.Errorf("match = %+v", m)
+	}
+	if res.Step != "Found 2 context tools for pods in a namespace" {
+		t.Errorf("step = %q", res.Step)
+	}
+}
+
+func TestFindingContextToolsSaysHowManyMoreMatchedAndOmitsAHugeSchema(t *testing.T) {
+	huge := contextMatch(1)
+	huge.InputSchema = json.RawMessage(`{"type":"object","description":"` + strings.Repeat("x", maxFoundContextSchemaLen) + `"}`)
+	f := &fakeContextSources{found: ContextFound{Matches: []ContextMatch{huge, contextMatch(2)}, Total: 30}}
+	res, err := contextRegistry(t, f).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextFoundOut)
+	if !out.Matches[0].SchemaOmitted || len(out.Matches[0].InputSchema) != 0 || out.Matches[0].Arguments == "" {
+		t.Errorf("huge match = %+v", out.Matches[0])
+	}
+	if out.MoreMatches != 28 || out.Hint == "" {
+		t.Errorf("more = %d hint = %q", out.MoreMatches, out.Hint)
+	}
+}
+
+func TestFindingContextToolsIsCutToTheListBudget(t *testing.T) {
+	var matches []ContextMatch
+	for i := range maxFoundContextTools {
+		m := contextMatch(i)
+		m.Description = strings.Repeat("d", 600)
+		m.InputSchema = json.RawMessage(`{"type":"object","description":"` + strings.Repeat("x", maxFoundContextSchemaLen-100) + `"}`)
+		matches = append(matches, m)
+	}
+	res, err := contextRegistry(t, &fakeContextSources{found: ContextFound{Matches: matches, Total: len(matches)}}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextFoundOut)
+	if jsonSize(out) > maxContentBytes || len(out.Matches) == 0 || len(out.Matches) == len(matches) || out.MoreMatches != len(matches)-len(out.Matches) {
+		t.Errorf("size = %d matches = %d more = %d", jsonSize(out), len(out.Matches), out.MoreMatches)
+	}
+}
+
+func TestFindingContextToolsThatDoNotFitAreNotReportedAsNoMatch(t *testing.T) {
+	big := contextMatch(1)
+	big.Arguments = strings.Repeat("a", listBudget)
+	res, err := contextRegistry(t, &fakeContextSources{found: ContextFound{Matches: []ContextMatch{big}, Total: 5}}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextFoundOut)
+	if len(out.Matches) != 0 || out.MoreMatches != 5 || out.Hint != findHint || jsonSize(out) > maxContentBytes {
+		t.Errorf("out = %+v", out)
+	}
+}
+
+func TestFindingContextToolsWithNoMatchesSuggestsWhatToDo(t *testing.T) {
+	res, err := contextRegistry(t, &fakeContextSources{}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"quantum"}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v err = %v", res, err)
+	}
+	out := res.Content.(contextFoundOut)
+	if len(out.Matches) != 0 || !strings.Contains(out.Hint, "Nothing matched") || !strings.Contains(content(t, res), `"matches":[]`) {
+		t.Errorf("out = %+v", out)
+	}
+}
+
+func TestFindingContextToolsRefusesBadInputWithoutReachingTheDesk(t *testing.T) {
+	f := &fakeContextSources{}
+	r := contextRegistry(t, f)
+	for _, input := range []string{`{}`, `{"query":"   "}`, `{"query":"` + strings.Repeat("a", maxFindQueryBytes+1) + `"}`, `{"query":"pods","source":"` + strings.Repeat("a", 300) + `"}`, `{"query":"pods","extra":1}`} {
+		res, err := r.Call(contextViewer(), nameFindContextTools, []byte(input))
+		if err != nil || !res.IsError || !strings.Contains(content(t, res), codeInvalidRequest) {
+			t.Errorf("%.60s: res = %+v err = %v", input, res, err)
+		}
+	}
+	if len(f.finds) != 0 {
+		t.Fatalf("the desk was reached with bad input: %v", f.finds)
+	}
+}
+
+func TestFindingContextToolsAnswersRefusalsAsToolErrors(t *testing.T) {
+	for name, c := range map[string]struct {
+		err  error
+		code string
+	}{
+		"unknown source": {&ContextFailure{Code: ContextCodeSourceNotFound, Message: "no context source"}, ContextCodeSourceNotFound},
+		"admins only":    {datasource.ErrWithheld, CodeAdminsOnlyDatasource},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, err := contextRegistry(t, &fakeContextSources{err: c.err}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods","source":"x"}`))
+			if err != nil || !res.IsError || !strings.Contains(content(t, res), c.code) {
+				t.Fatalf("res = %+v err = %v", res, err)
+			}
+		})
+	}
+	_, err := contextRegistry(t, &fakeContextSources{err: context.Canceled}).Call(contextViewer(), nameFindContextTools, []byte(`{"query":"pods"}`))
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestABuildRunRefusesFindingContextToolsEvenIfAskedDirectly(t *testing.T) {
+	f := &fakeContextSources{}
+	for _, mode := range []Mode{ModeCreate, ModeRevise, ModeSuggest} {
+		res, err := contextRegistry(t, f).Call(WithRun(contextViewer(), Run{Mode: mode, RequestID: dashA}), nameFindContextTools, []byte(`{"query":"pods"}`))
+		if err != nil || !res.IsError || !strings.Contains(content(t, res), codeNotInThisRun) {
+			t.Fatalf("%s: res = %+v err = %v", mode, res, err)
+		}
+	}
+	if len(f.finds) != 0 {
+		t.Fatalf("the desk was reached from a build run: %v", f.finds)
+	}
+}
+
 func TestContextToolsWithoutADeskEndTheRun(t *testing.T) {
 	r := New(Deps{})
-	for _, name := range []string{nameListContextSources, nameCallContextTool} {
-		_, err := r.Call(contextViewer(), name, []byte(`{"source":"code","tool":"search"}`))
+	for _, name := range []string{nameListContextSources, nameCallContextTool, nameFindContextTools} {
+		_, err := r.Call(contextViewer(), name, []byte(`{"source":"code","tool":"search","query":"pods"}`))
 		if !errors.Is(err, errContextSourcesNotConfigured) {
 			t.Errorf("%s: err = %v", name, err)
 		}
@@ -337,7 +561,7 @@ func TestContextToolsWithoutADeskEndTheRun(t *testing.T) {
 
 func TestContextToolDescriptionsStayUnderTheAgentWordingCap(t *testing.T) {
 	for _, tool := range New(Deps{}).List() {
-		if tool.Name != nameListContextSources && tool.Name != nameCallContextTool {
+		if tool.OnlyIn != ModeInvestigate || tool.AgentOnly {
 			continue
 		}
 		if len(tool.AgentDescription) > 2000 || len(tool.Description) > 2000 {
