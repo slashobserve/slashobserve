@@ -69,4 +69,35 @@ describe("InvitesTable", () => {
       )
     )
   })
+
+  it("moves focus to the next invite's Withdraw once the confirm closes", async () => {
+    const queryClient = testQueryClient()
+    queryClient.setQueryData(invitesQuery().queryKey, [
+      invite,
+      { ...invite, id: "i2", email: "bob@example.com" },
+    ])
+    const { user } = renderWithProviders(
+      <HeldMutationHost>
+        <InvitesTable />
+      </HeldMutationHost>,
+      { queryClient }
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Withdraw the invite for ada@example.com",
+      })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw invite" })
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: "Withdraw the invite for bob@example.com",
+        })
+      ).toHaveFocus()
+    )
+  })
 })

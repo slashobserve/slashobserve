@@ -63,6 +63,19 @@ function InviteRole({ invite }: { invite: Invite }) {
   )
 }
 
+function neighbourToFocus(trigger: HTMLElement | null): HTMLElement | null {
+  const section = trigger?.closest("section")
+  if (trigger === null || section === null || section === undefined) return null
+  const others = [
+    ...section.querySelectorAll<HTMLElement>("[data-withdraw]"),
+  ].filter((button) => button !== trigger)
+  const after = others.find(
+    (button) =>
+      trigger.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING
+  )
+  return after ?? others.at(-1) ?? section.querySelector<HTMLElement>("h2")
+}
+
 function WithdrawButton({ invite }: { invite: Invite }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -80,6 +93,7 @@ function WithdrawButton({ invite }: { invite: Invite }) {
     <>
       <Button
         ref={trigger}
+        data-withdraw=""
         variant="outline"
         size="sm"
         className="narrow:h-11"
@@ -97,7 +111,11 @@ function WithdrawButton({ invite }: { invite: Invite }) {
         Withdraw
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent finalFocus={trigger}>
+        <AlertDialogContent
+          finalFocus={() =>
+            neighbourToFocus(trigger.current) ?? trigger.current
+          }
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -201,7 +219,7 @@ export function InvitesTable() {
 
   return (
     <section aria-labelledby={headingId} className="mb-6 flex flex-col gap-2">
-      <h2 id={headingId} className="text-sm font-semibold">
+      <h2 id={headingId} tabIndex={-1} className="text-sm font-semibold">
         Pending invites
       </h2>
       <DataGrid
