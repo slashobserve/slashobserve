@@ -72,6 +72,25 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	}
 }
 
+func TestAConclusionWithoutAValidRangeTakesTheRunsWindow(t *testing.T) {
+	r := newRig(t)
+	from, to := windowTo.Add(-3*time.Hour), windowTo.Add(-2*time.Hour)
+	run := r.run(t, editor, r.dashboardIn(t, r.shared), "Why?", &from, &to)
+	c := recordInput(t, run)
+	c.From, c.To = time.Time{}, time.Time{}
+	id, _, err := r.conclude(t, editor, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.service.Get(reading(t.Context()), editor, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.From == nil || got.To == nil || !got.From.Equal(from) || !got.To.Equal(to) {
+		t.Errorf("range %v to %v, want the run's %v to %v", got.From, got.To, from, to)
+	}
+}
+
 func TestAConclusionWithoutARunLandsWhereTheCallerAsksOrWhereTheyCreate(t *testing.T) {
 	r := newRig(t)
 	dashboard := r.dashboardIn(t, r.shared)

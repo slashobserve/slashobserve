@@ -232,15 +232,19 @@ func TestAReadOfAnUnsavedAnswerIsRecordedAsAReadOfItsRun(t *testing.T) {
 	}
 }
 
-func TestAnObservationMadeFromAnAnswerCarriesTheRunItsFindingAndItsWindow(t *testing.T) {
+func TestAnObservationMadeFromAnAnswerCarriesTheRunAndItsFindingAndKeepsTheAnswersWindow(t *testing.T) {
 	r := newRig(t)
 	request := r.request(t, editor, pgtype.UUID{})
 	onset := windowTo.Add(-30 * time.Minute)
+	answered := findings.SaveInput{
+		From: windowTo.Add(-24 * time.Hour),
+		To:   windowTo.Add(-23 * time.Hour),
+	}
 	r.save(t, editor, findings.SaveInput{
 		AgentRequestID: request,
 		Title:          "Checkout errors",
-		From:           windowTo.Add(-59 * time.Minute),
-		To:             windowTo.Add(time.Minute),
+		From:           answered.From,
+		To:             answered.To,
 		Structured:     findings.Structured{Onset: &onset, Impact: "12% of orders failed."},
 	})
 
@@ -252,8 +256,8 @@ func TestAnObservationMadeFromAnAnswerCarriesTheRunItsFindingAndItsWindow(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o.From == nil || o.To == nil || !o.From.Equal(windowTo.Add(-time.Hour)) || !o.To.Equal(windowTo) {
-		t.Errorf("observation window %v to %v, want the run's %v to %v", o.From, o.To, windowTo.Add(-time.Hour), windowTo)
+	if o.From == nil || o.To == nil || !o.From.Equal(answered.From) || !o.To.Equal(answered.To) {
+		t.Errorf("observation window %v to %v, want the answer's %v to %v", o.From, o.To, answered.From, answered.To)
 	}
 	var kinds []observations.Kind
 	for _, b := range o.Blocks {

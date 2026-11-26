@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -67,6 +68,10 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 	if err != nil {
 		return pgtype.UUID{}, err
 	}
+	state, ok := addedState(place.abilities)
+	if !ok {
+		return pgtype.UUID{}, folders.ErrForbidden
+	}
 	cols, err := who.Columns()
 	if err != nil {
 		return pgtype.UUID{}, err
@@ -87,14 +92,9 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 	}
 	if validateRange(&c.From, &c.To) == nil {
 		params.TimeFrom, params.TimeTo = timestamptz(&c.From), timestamptz(&c.To)
-	}
-	if c.RunID.Valid {
-		from, to, ok, err := runWindow(ctx, q, c.RunID)
-		if err != nil {
+	} else if c.RunID.Valid {
+		if params.TimeFrom, params.TimeTo, err = runWindow(ctx, q, c.RunID); err != nil {
 			return pgtype.UUID{}, err
-		}
-		if ok {
-			params.TimeFrom, params.TimeTo = from, to
 		}
 	}
 	created, err := q.CreateObservation(ctx, params)
@@ -105,10 +105,13 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 		return pgtype.UUID{}, err
 	}
 	if c.RunID.Valid {
-		if state, ok := addedState(place.abilities); ok {
-			if err := s.insertRunBlock(ctx, q, created, c.RunID, nil, state, who); err != nil {
-				return pgtype.UUID{}, err
-			}
+		err := s.insertRunBlock(ctx, q, created, c.RunID, nil, state, who)
+		switch {
+		case errors.Is(err, ErrTooManyBlocks):
+			s.logger.WarnContext(ctx, "run block not added: the observation is full",
+				slog.String("agent_request_id", c.RunID.String()), slog.String("observation_id", created.ID.String()))
+		case err != nil:
+			return pgtype.UUID{}, err
 		}
 	}
 	if err := s.writeConclusionBlocks(ctx, q, created, place.abilities, who, in); err != nil {
@@ -122,16 +125,18 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 	return created.ID, nil
 }
 
-func runWindow(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (from, to pgtype.Timestamptz, ok bool, err error) {
+func runWindow(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (from, to pgtype.Timestamptz, err error) {
 	run, err := q.GetAgentRequestByID(ctx, runID)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return from, to, false, nil
+		return from, to, nil
 	case err != nil:
-		return from, to, false, fmt.Errorf("read the run of the conclusion: %w", err)
+		return from, to, fmt.Errorf("read the run of the conclusion: %w", err)
 	}
-	start, end := timePtr(run.ContextFrom), timePtr(run.ContextTo)
-	return run.ContextFrom, run.ContextTo, start != nil && validateRange(start, end) == nil, nil
+	if validateRange(timePtr(run.ContextFrom), timePtr(run.ContextTo)) != nil {
+		return from, to, nil
+	}
+	return run.ContextFrom, run.ContextTo, nil
 }
 
 func (s *Service) conclusionPlace(ctx context.Context, by auth.Principal, c findings.Conclusion) (runPlace, error) {
