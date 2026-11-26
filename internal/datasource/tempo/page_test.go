@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/tempo"
 )
 
 const searchQuery = `{ resource.service.name = "checkout" }`
@@ -46,8 +47,8 @@ func TestTraceSearchPageSendsLimitPlusOne(t *testing.T) {
 	if info.Page != 1 || info.PageSize != 50 || info.HasNext || info.Next != nil || info.Total != 2 || info.TotalRelation != datasource.TotalExact {
 		t.Fatalf("info = %+v, want page 1 of exactly 2 traces", info)
 	}
-	if len(frames) != 1 || frames[0].Rows() != 2 || frames[0].Meta != nil {
-		t.Fatalf("frames = %+v, want one frame of 2 traces with no meta", frames)
+	if len(frames) != 1 || frames[0].Rows() != 2 || frames[0].Meta == nil || *frames[0].Meta != (datasource.FrameMeta{Hint: tempo.SearchDurationHint}) {
+		t.Fatalf("frames = %+v, want one frame of 2 traces with only the duration hint", frames)
 	}
 }
 

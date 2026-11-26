@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -118,7 +119,13 @@ func FirstLine(markdown string) string {
 }
 
 func Words(markdown string) int {
-	return len(strings.Fields(markdown))
+	n := 0
+	for _, token := range strings.FieldsFunc(markdown, func(r rune) bool { return r == '|' || unicode.IsSpace(r) }) {
+		if strings.Trim(token, "-:") != "" {
+			n++
+		}
+	}
+	return n
 }
 
 func PinText(f Finding) string {

@@ -29,8 +29,8 @@ const (
 	nameSaveFinding = "save_finding"
 	stepSavedAnswer = "Saved the answer"
 
-	codeTooLong      = "finding_too_long"
-	codeNotInThisRun = "not_in_this_run"
+	CodeFindingTooLong = "finding_too_long"
+	codeNotInThisRun   = "not_in_this_run"
 
 	defaultWindow = time.Hour
 
@@ -342,7 +342,7 @@ func findingMarkdown(raw string, refused int, unchecked []Unchecked) (string, Re
 	maxWords := findings.MaxWords - findings.Words(caveat)
 	maxRunes := findings.MaxMarkdownRunes - utf8.RuneCountInString(caveat)
 	if n := findings.Words(markdown); n > maxWords {
-		res := toolError(codeTooLong, fmt.Sprintf("the finding is %d words; keep it to %d words and move detail into evidence panels", n, maxWords))
+		res := toolError(CodeFindingTooLong, fmt.Sprintf("the finding is %d words and the limit is %d; shorten the text by %s, keeping every figure the question asks for", n, maxWords, plural(n-maxWords, "word", "words")))
 		res.Step = fmt.Sprintf("Finding was %d words, over the %d word limit; the agent must shorten it", n, maxWords)
 		return "", res, false
 	}
