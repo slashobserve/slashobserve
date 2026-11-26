@@ -103,7 +103,7 @@ describe("timelineModel", () => {
   it("clips samples outside the range", () => {
     const { rows } = build(
       [series("a", [1, 2, 3], "number", [-20, 40, 200])],
-      { spanNulls: true } as Partial<DataPanel>,
+      {},
       {}
     )
     expect(
@@ -115,9 +115,7 @@ describe("timelineModel", () => {
   })
 
   it("orders samples by time before cutting segments", () => {
-    const { rows } = build([series("a", [2, 1], "number", [50, 0])], {
-      spanNulls: true,
-    } as Partial<DataPanel>)
+    const { rows } = build([series("a", [2, 1], "number", [50, 0])])
     expect(
       rows[0].segments.map(({ from, to, text }) => [from, to, text])
     ).toEqual([
@@ -441,47 +439,6 @@ describe("withoutStates", () => {
     expect(shown.rows[0].segments.map(({ text }) => text)).toEqual(["1", "1"])
     expect(shown.states).toBe(model.states)
     expect(withoutStates(model, new Set())).toBe(model)
-  })
-})
-
-describe("a gap in the data", () => {
-  const sparse = () => [series("a", [1, 1, 2], "number", [0, 10, 50])]
-
-  it("is drawn as no data by default", () => {
-    const { rows } = build(sparse())
-    expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
-    ).toEqual([
-      [0, 20, "1"],
-      [50, 100, "2"],
-    ])
-  })
-
-  it("is drawn as no data in a status history too", () => {
-    const { rows } = build(sparse(), {}, {}, range, true)
-    expect(
-      rows[0].segments.map(({ from, to, text }) => [from, to, text])
-    ).toEqual([
-      [0, 10, "1"],
-      [10, 20, "1"],
-      [50, 100, "2"],
-    ])
-  })
-
-  it("keeps the last state when the panel connects nulls", () => {
-    const { rows } = build(sparse(), { spanNulls: true } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ from, to }) => [from, to])).toEqual([
-      [0, 50],
-      [50, 100],
-    ])
-  })
-
-  it("keeps the last state across a gap no longer than the connect limit", () => {
-    const { rows } = build(sparse(), { spanNulls: 40 } as Partial<DataPanel>)
-    expect(rows[0].segments.map(({ from, to }) => [from, to])).toEqual([
-      [0, 50],
-      [50, 100],
-    ])
   })
 })
 
