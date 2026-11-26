@@ -9,6 +9,8 @@ import { useSourceMemory } from "./datasource-memory"
 import { useDatasources, type DatasourceStatus } from "./queries"
 import {
   browsableSources,
+  carriedRange,
+  exploreKindOfPath,
   isSourcePage,
   listedSources,
   logsSwitchSearch,
@@ -59,7 +61,12 @@ export function useSourceSwitchSearch(
 ): LogsSearch | TraceSearch | MetricsSearch {
   const { current } = useRouteSource(kind)
   const search = useSearch({ strict: false })
-  if (current === undefined) return {}
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
+  if (current === undefined) {
+    return exploreKindOfPath(pathname) === undefined ? {} : carriedRange(search)
+  }
   if (kind === "logs") {
     return logsSwitchSearch(search as LogsSearch, current.type, targetType)
   }
