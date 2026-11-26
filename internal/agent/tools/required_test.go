@@ -81,6 +81,7 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		Provider:       &scriptedDraft{},
 		Runs:           revisions.NewRunDesk(queue, revisions.ObserveOptions{}),
 		Audit:          trail.NewReader(database.DB, logger),
+		ContextSources: &fakeContextSources{},
 		Logger:         logger,
 	})
 	ctx := auth.WithPrincipal(reading(context.Background()), placeholderUser)
@@ -140,9 +141,11 @@ func TestDeclaredRequiredFieldsMatchWhatHandlersReject(t *testing.T) {
 		"anchor":         json.RawMessage(`"1700000000000000000"`),
 		"json":           json.RawMessage(`"{\"title\":\"Imported\",\"schemaVersion\":39,\"panels\":[]}"`),
 		"field":          json.RawMessage(`"actor_name"`),
+		"source":         json.RawMessage(`"code"`),
+		"tool":           json.RawMessage(`"search"`),
 	}
 
-	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "height", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}, nameStartRun: {"prompt"}}
+	requiredOnlyForSomeDatasourceTypes := map[string][]string{nameSampleRows: {"table"}, nameListComments: {"target", "dashboard_id"}, nameSaveSearch: {"query"}, nameUpdateSavedSearch: {"query", "filters", "from", "to"}, nameAddBlock: {"panel"}, nameUpdateBlock: {"markdown", "panel", "width", "height", "position"}, nameUpdateObservation: {"title", "from", "to", "clear_range"}, nameUpdateAnnotation: {"text", "tags"}, nameStartRun: {"prompt"}, nameShowPanel: {"datasource", "query", "dashboard_id", "panel"}}
 	for _, tool := range registry.List() {
 		t.Run(tool.Name, func(t *testing.T) {
 			var schema struct {

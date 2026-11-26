@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -70,7 +71,23 @@ func (r *Root) Stat(rel string) (fs.FileInfo, error) {
 	return info, nil
 }
 
+func (r *Root) Lstat(rel string) (fs.FileInfo, error) {
+	name, err := r.clean(rel)
+	if err != nil {
+		return nil, err
+	}
+	info, err := r.os.Lstat(name)
+	if err != nil {
+		return nil, fsRefusal(err)
+	}
+	return info, nil
+}
+
 func (r *Root) ReadDir(rel string) ([]fs.DirEntry, error) {
+	return r.ReadDirN(rel, -1)
+}
+
+func (r *Root) ReadDirN(rel string, limit int) ([]fs.DirEntry, error) {
 	name, err := r.clean(rel)
 	if err != nil {
 		return nil, err
@@ -87,8 +104,8 @@ func (r *Root) ReadDir(rel string) ([]fs.DirEntry, error) {
 		return nil, fsRefusal(err)
 	}
 	defer func() { _ = f.Close() }()
-	entries, err := f.ReadDir(-1)
-	if err != nil {
+	entries, err := f.ReadDir(limit)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fsRefusal(err)
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })

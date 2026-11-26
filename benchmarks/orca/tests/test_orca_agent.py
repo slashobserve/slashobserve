@@ -121,6 +121,12 @@ def test_options_come_from_agent_kwargs(tmp_path):
     assert agent.extra_env == {"A": "b"}
 
 
+def test_loop_settings_come_from_agent_kwargs(tmp_path):
+    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="report")
+    assert agent.options.investigation_loop is True
+    assert agent.options.finding_grounding == "report"
+
+
 def test_unknown_option_is_refused(tmp_path):
     with pytest.raises(ValueError):
         orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", bogus="1")

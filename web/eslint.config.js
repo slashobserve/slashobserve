@@ -94,6 +94,7 @@ const notTables = [
 export default defineConfig([
   globalIgnores([
     "dist",
+    "dist-panel",
     "playwright-report",
     "test-results",
     "src/routeTree.gen.ts",
