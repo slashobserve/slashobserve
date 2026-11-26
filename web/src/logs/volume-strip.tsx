@@ -94,7 +94,7 @@ export function VolumeStrip({
   })
   if (slow) {
     return (
-      <div className={cn(cardClasses, "min-h-[134px]")}>
+      <div className={cn(cardClasses, "min-h-[134px] justify-center")}>
         <ExploreFailure
           echo
           text={exploreErrorText(results.error)}
