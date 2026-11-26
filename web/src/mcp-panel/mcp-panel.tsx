@@ -48,6 +48,7 @@ export function McpPanel({ target = window.parent, self = window }: Props) {
   const [view, setView] = useState<View>({ kind: "waiting" })
   const [context, setContext] = useState<HostContext>({})
   const [width, setWidth] = useState(self.innerWidth || fallbackWidth)
+  const [openFailed, setOpenFailed] = useState(false)
   const host = useRef<Host>(undefined)
   const body = useRef<HTMLDivElement>(null)
 
@@ -93,6 +94,13 @@ export function McpPanel({ target = window.parent, self = window }: Props) {
 
   const height = chartHeightFor(context.containerDimensions)
 
+  const open = (url: string) => {
+    setOpenFailed(false)
+    host.current?.openLink(url).catch(() => {
+      if (self.open(url, "_blank", "noopener") === null) setOpenFailed(true)
+    })
+  }
+
   return (
     <div ref={body} className="w-full p-1 text-foreground">
       {view.kind === "ready" ? (
@@ -100,13 +108,18 @@ export function McpPanel({ target = window.parent, self = window }: Props) {
           payload={view.payload}
           width={width - framePadding}
           height={height}
-          onOpen={(url) => void host.current?.openLink(url)}
+          onOpen={open}
         />
       ) : (
         <p className="p-3 text-sm text-muted-foreground" role="status">
           {view.kind === "waiting" ? "Waiting for the panel." : view.message}
         </p>
       )}
+      {openFailed ? (
+        <p className="px-1 text-xs text-muted-foreground" role="status">
+          The host did not open the link.
+        </p>
+      ) : null}
     </div>
   )
 }

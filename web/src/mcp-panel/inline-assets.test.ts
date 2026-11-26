@@ -22,6 +22,18 @@ describe("inlineAssets", () => {
     expect(html.indexOf("<script")).toBeGreaterThan(html.indexOf("<div"))
   })
 
+  it("escapes closers in any case and comment openers", () => {
+    const hostile: Record<string, string> = {
+      "/assets/a.css": "a{}/* </STYLE> */",
+      "/assets/a.js": 'const x = "</Script ><!--</SCRIPT>"; export {}',
+    }
+    const html = inlineAssets(page, (href) => hostile[href])
+    expect(html.match(/<\/script/gi)).toHaveLength(1)
+    expect(html.match(/<\/style/gi)).toHaveLength(1)
+    expect(html.match(/<!--/g)).toBeNull()
+    expect(html).toContain("<\\x21--")
+  })
+
   it("refuses a page with more than one module script", () => {
     const two = page.replace(
       "</head>",

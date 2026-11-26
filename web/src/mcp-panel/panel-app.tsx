@@ -4,9 +4,11 @@ import { ExternalLinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DatasourceListProvider } from "@/datasources/queries"
+import { displayZone } from "@/lib/time"
 import { PanelBody } from "@/panels/panel-body"
 import { createSharedCursor } from "@/panels/shared-cursor"
 
+import { rangeCaption } from "./range-caption"
 import type { PanelPayload } from "./payload"
 
 const headerHeight = 44
@@ -40,7 +42,10 @@ export function PanelApp({ payload, width, height, onOpen }: Props) {
             <div className="min-w-0">
               <h1 className="truncate text-sm font-medium">{payload.title}</h1>
               <p className="truncate text-xs text-muted-foreground">
-                {payload.from} to {payload.to}
+                {rangeCaption(
+                  payload,
+                  displayZone(payload.panel.timezone, payload.timezone)
+                )}
               </p>
             </div>
             <Button

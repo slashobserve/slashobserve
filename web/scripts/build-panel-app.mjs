@@ -7,11 +7,17 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const out = join(webRoot, "dist-panel")
 const target = resolve(webRoot, "../internal/server/mcp/panelapp")
 
+function closerSafe(text, closer) {
+  return text.replace(
+    new RegExp(`</${closer}`, "gi"),
+    (match) => `<\\/${match.slice(2)}`
+  )
+}
+
 export function inlineAssets(html, read) {
   const withStyles = html.replace(
     /<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g,
-    (_tag, href) =>
-      `<style>${read(href).replaceAll("</style", "<\\/style")}</style>`
+    (_tag, href) => `<style>${closerSafe(read(href), "style")}</style>`
   )
   const scripts = []
   const withoutScripts = withStyles.replace(
@@ -24,7 +30,10 @@ export function inlineAssets(html, read) {
   if (scripts.length !== 1) {
     throw new Error(`expected one module script, found ${scripts.length}`)
   }
-  const code = read(scripts[0]).replaceAll("</script", "<\\/script")
+  const code = closerSafe(read(scripts[0]), "script").replaceAll(
+    "<!--",
+    "<\\x21--"
+  )
   return withoutScripts.replace(
     "</body>",
     () => `<script type="module">${code}</script></body>`

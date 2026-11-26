@@ -33,6 +33,7 @@ const asStat = {
   ...recorded,
   structuredContent: {
     ...recorded.structuredContent,
+    timezone: "utc",
     panel: { ...recorded.structuredContent.panel, type: "stat" },
   },
 }
@@ -91,7 +92,9 @@ describe("McpPanel", () => {
         name: "Requests per second by route",
       })
     ).toBeInTheDocument()
-    expect(screen.getByText("now-1h to now")).toBeInTheDocument()
+    expect(
+      screen.getByText("2026-11-25 14:31:43 to 2026-11-25 15:31:43 UTC")
+    ).toBeInTheDocument()
     expect(await screen.findByText('{route="/checkout"}')).toBeInTheDocument()
     expect(screen.queryByText("Could not load this panel")).toBeNull()
     expect(container.querySelector("section")).toHaveAttribute(
@@ -116,6 +119,53 @@ describe("McpPanel", () => {
       method: "ui/open-link",
       params: { url: recorded.structuredContent.open_url },
     })
+  })
+
+  async function openedWith(answer: Record<string, unknown>) {
+    const fake = host()
+    render(<McpPanel target={fake.parent} />)
+    await fake.handshake("light")
+    fake.deliver({ method: "ui/notifications/tool-result", params: recorded })
+    const button = await screen.findByRole("button", {
+      name: /Open in SlashObserve/,
+    })
+    act(() => button.click())
+    fake.deliver({
+      id: fake.sent[fake.sent.length - 1].id as number,
+      ...answer,
+    })
+  }
+
+  it("opens the link itself when the host refuses it", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue({} as Window)
+    await openedWith({ error: { message: "denied" } })
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(
+        recorded.structuredContent.open_url,
+        "_blank",
+        "noopener"
+      )
+    )
+    expect(screen.queryByText("The host did not open the link.")).toBeNull()
+    open.mockRestore()
+  })
+
+  it("says so when neither the host nor the window opens the link", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null)
+    await openedWith({ error: { message: "denied" } })
+    expect(
+      await screen.findByText("The host did not open the link.")
+    ).toBeInTheDocument()
+    open.mockRestore()
+  })
+
+  it("stays quiet when the host opens the link", async () => {
+    const open = vi.spyOn(window, "open")
+    await openedWith({ result: {} })
+    await act(async () => {})
+    expect(open).not.toHaveBeenCalled()
+    expect(screen.queryByText("The host did not open the link.")).toBeNull()
+    open.mockRestore()
   })
 
   it("tells the person what went wrong when the tool failed", async () => {
