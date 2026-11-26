@@ -36,6 +36,10 @@ export function LegendName({
   )
 }
 
+export function legendButtonName(label: string, values: string): string {
+  return values ? `${label} ${values}` : label
+}
+
 export function useLegendLabelParts(
   items: readonly LegendItem[]
 ): LabelParts[] {
@@ -109,7 +113,7 @@ export function LegendSwatch({
       data-slot="legend-swatch"
       data-line={line}
       data-shape={style}
-
+      aria-hidden="true"
       className="series-swatch"
       style={{ color }}
     />
@@ -179,10 +183,13 @@ export function Legend({
     >
       {items.map((item, row) => {
         const visible = !hidden.has(item.key)
+        const values =
+          reducers.length > 0 ? inlineValues(reducers, cells[row], headers) : ""
         return (
           <button
             key={item.key}
             type="button"
+            aria-label={legendButtonName(item.label, values)}
             aria-pressed={visible}
             data-style={item.style}
             onClick={() => onToggle(item.key)}
@@ -197,7 +204,7 @@ export function Legend({
             <LegendName label={item.label} parts={parts[row]} />
             {reducers.length > 0 ? (
               <span className="text-muted-foreground tabular-nums">
-                {inlineValues(reducers, cells[row], headers)}
+                {values}
               </span>
             ) : null}
           </button>
