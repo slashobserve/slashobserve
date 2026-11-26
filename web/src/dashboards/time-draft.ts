@@ -4,6 +4,7 @@ import {
   maxRangeDays,
   parseUserTime,
   resolveTime,
+  timeFormatHint,
   userTimeProblem,
   zonedDateTime,
 } from "@/lib/time"
@@ -16,7 +17,9 @@ export type DraftRead =
   | { range: { from: string; to: string }; problem?: undefined }
   | { range?: undefined; problem: DraftProblem }
 
-const fallback = "Enter a time like now-6h, now/d or 2026-10-17 09:00."
+function unreadableTimeText(zone: string | undefined): string {
+  return `Enter a time like ${timeFormatHint(zone)}.`
+}
 
 export function readDraft(
   draftFrom: string,
@@ -28,7 +31,7 @@ export function readDraft(
     return {
       problem: {
         field: "from",
-        message: userTimeProblem(draftFrom, zone) ?? fallback,
+        message: userTimeProblem(draftFrom, zone) ?? unreadableTimeText(zone),
       },
     }
   }
@@ -37,7 +40,7 @@ export function readDraft(
     return {
       problem: {
         field: "to",
-        message: userTimeProblem(draftTo, zone) ?? fallback,
+        message: userTimeProblem(draftTo, zone) ?? unreadableTimeText(zone),
       },
     }
   }
