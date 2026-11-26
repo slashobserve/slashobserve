@@ -129,6 +129,9 @@ func (r *Recorder) settle(ctx context.Context, st *state, o outcomeOf) {
 			outcome, reason = OutcomeFailed, cmp.Or(reason, "rolled_back")
 		}
 		action = cmp.Or(action, inTx[0].action)
+		if concluded == nil && inTx[0].target.Kind != "" {
+			target = inTx[0].target
+		}
 	}
 	if action == "" {
 		if !refused(o.status) && !o.declared.hidesTarget(o.status, o.code) {
