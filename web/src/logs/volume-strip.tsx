@@ -26,6 +26,7 @@ import {
   type BucketSelection,
 } from "./brush"
 import { exploreErrorText } from "./explore"
+import { ExploreFailure } from "./explore-failure"
 import {
   bucketTotal,
   logVolumeQuery,
@@ -94,9 +95,11 @@ export function VolumeStrip({
   if (slow) {
     return (
       <div className={cn(cardClasses, "min-h-[134px]")}>
-        <p className="flex h-12 items-center text-[13px] text-muted-foreground">
-          This source is slow: the volume starts when the query answers.
-        </p>
+        <ExploreFailure
+          echo
+          text={exploreErrorText(results.error)}
+          onRetry={() => void results.refetch()}
+        />
       </div>
     )
   }

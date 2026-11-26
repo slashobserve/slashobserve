@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { ApiError } from "@/api/errors"
 import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { InputMode } from "@/ask/input-mode"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -59,7 +60,13 @@ function setup({
     setDraft,
     run,
     range: { from: "now-1h", to: "now" },
-    results: { isError: runFailed, isSuccess: linesAnswered && !runFailed },
+    results: {
+      isError: runFailed,
+      isSuccess: linesAnswered && !runFailed,
+      error: runFailed
+        ? new ApiError(504, "query_timeout", "Query timed out after 15s")
+        : null,
+    },
     mode,
     setMode,
     announce: vi.fn(),
@@ -350,7 +357,7 @@ describe("QueryBar", () => {
 
   it("keeps the last good run and offers the datasource check after a failed run", async () => {
     setup({ runFailed: true })
-    expect(await screen.findByText(/^No results\./)).toBeVisible()
+    expect(await screen.findByText(/^Query timed out after 15s/)).toBeVisible()
     expect(
       await screen.findByRole("link", { name: "Check the datasource" })
     ).toHaveAttribute("href", "/datasources")

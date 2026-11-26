@@ -199,17 +199,16 @@ describe("FieldsAside", () => {
     await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1))
   })
 
-  it("does not count the values when the lines timed out, and says the source is slow", async () => {
+  it("does not count the values when the lines timed out, and shows the failure instead of waiting", async () => {
     const fetcher = vi.fn(async () => Response.json(esFacets))
     vi.stubGlobal("fetch", fetcher)
     setup({ linesTimedOut: true, seedFacets: false })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(fetcher).not.toHaveBeenCalled()
-    expect(
-      screen.getByText(
-        "This source is slow: the fields load when the query answers"
-      )
-    ).toBeVisible()
+    expect(screen.getByText("query timed out after 15s")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible()
+    expect(screen.queryByText(/when the query answers/)).toBeNull()
+    expect(screen.queryByText("Available")).toBeNull()
   })
 
   it("counts the values only once a rerun's lines have arrived", async () => {

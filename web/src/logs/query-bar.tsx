@@ -51,6 +51,7 @@ import {
   withoutField,
 } from "./builder"
 import { typeName } from "./datasource-picker"
+import { exploreErrorText } from "./explore"
 import {
   DiscoverUrlError,
   importDiscoverUrl,
@@ -243,14 +244,22 @@ function lastGoodRun(
   return best
 }
 
-function RunFailure({ uid, search }: { uid: string; search: boolean }) {
+function RunFailure({
+  uid,
+  search,
+  text,
+}: {
+  uid: string
+  search: boolean
+  text: string
+}) {
   const queryClient = useQueryClient()
   const good = lastGoodRun(queryClient, uid)
   return (
     <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
       {good === null
-        ? "No results."
-        : `No results. The last good run was ${formatDateTime(good.at)}, ${good.rows.toLocaleString("en")} ${search ? "hits" : "lines"}.`}
+        ? text
+        : `${text} The last good run was ${formatDateTime(good.at)}, ${good.rows.toLocaleString("en")} ${search ? "hits" : "lines"}.`}
       {search ? (
         <Link to="/datasources" className="underline underline-offset-3">
           Check the datasource
@@ -646,7 +655,11 @@ export function QueryBar({ filters }: { filters?: ReactNode }) {
           ) : null}
         </div>
         {results.isError && !problem ? (
-          <RunFailure uid={uid} search={search} />
+          <RunFailure
+            uid={uid}
+            search={search}
+            text={exploreErrorText(results.error)}
+          />
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-2.5 empty:hidden">
