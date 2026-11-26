@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/findings"
+	"github.com/slashobserve/slashobserve/internal/observations"
 )
 
 func TestAnAnswerToAQuestionStaysOnTheRunAndMakesNoObservation(t *testing.T) {
@@ -227,5 +229,43 @@ func TestAReadOfAnUnsavedAnswerIsRecordedAsAReadOfItsRun(t *testing.T) {
 	}
 	if len(read) != 2 || read[0] != unsaved || read[1] != unsaved {
 		t.Fatalf("recorded run reads %v, want the unsaved answer's run %v twice", read, unsaved)
+	}
+}
+
+func TestAnObservationMadeFromAnAnswerCarriesTheRunItsFindingAndItsWindow(t *testing.T) {
+	r := newRig(t)
+	request := r.request(t, editor, pgtype.UUID{})
+	onset := windowTo.Add(-30 * time.Minute)
+	r.save(t, editor, findings.SaveInput{
+		AgentRequestID: request,
+		Title:          "Checkout errors",
+		From:           windowTo.Add(-59 * time.Minute),
+		To:             windowTo.Add(time.Minute),
+		Structured:     findings.Structured{Onset: &onset, Impact: "12% of orders failed."},
+	})
+
+	saved, _, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, err := r.observations.Get(reading(t.Context()), editor, mustUUID(t, saved.ObservationID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.From == nil || o.To == nil || !o.From.Equal(windowTo.Add(-time.Hour)) || !o.To.Equal(windowTo) {
+		t.Errorf("observation window %v to %v, want the run's %v to %v", o.From, o.To, windowTo.Add(-time.Hour), windowTo)
+	}
+	var kinds []observations.Kind
+	for _, b := range o.Blocks {
+		kinds = append(kinds, b.Kind)
+		if b.RunID != request.String() {
+			t.Errorf("block %s belongs to run %q, want %s", b.Kind, b.RunID, request)
+		}
+	}
+	if len(kinds) < 2 || kinds[0] != observations.KindRun || kinds[1] != observations.KindText {
+		t.Errorf("block kinds %v, want the run block then the answer", kinds)
+	}
+	if len(o.Findings) != 1 || o.Findings[0].RunID != request.String() || o.Findings[0].Fields.Impact != "12% of orders failed." {
+		t.Errorf("finding fields %+v, want the run's saved finding", o.Findings)
 	}
 }

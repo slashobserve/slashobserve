@@ -56,7 +56,7 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	if got.From == nil || !got.From.Equal(windowTo.Add(-time.Hour)) || got.To == nil || !got.To.Equal(windowTo) {
 		t.Errorf("range %v to %v", got.From, got.To)
 	}
-	if len(got.Blocks) != 2 || got.Blocks[0].Kind != observations.KindText || got.Blocks[1].Kind != observations.KindPanel {
+	if len(got.Blocks) != 3 || got.Blocks[0].Kind != observations.KindRun || got.Blocks[1].Kind != observations.KindText || got.Blocks[2].Kind != observations.KindPanel {
 		t.Errorf("blocks %+v", got.Blocks)
 	}
 	var linked string
@@ -67,7 +67,7 @@ func TestARunWithoutAnObservationGetsOneInTheDashboardsFolderAndIsLinkedToIt(t *
 	if err != nil || createdAgain || again != id {
 		t.Errorf("a second conclusion: %v, created %v, %v", again, createdAgain, err)
 	}
-	if after, err := r.service.Get(reading(t.Context()), editor, id); err != nil || len(after.Blocks) != 2 {
+	if after, err := r.service.Get(reading(t.Context()), editor, id); err != nil || len(after.Blocks) != 3 {
 		t.Errorf("blocks after the second conclusion %d, %v", len(after.Blocks), err)
 	}
 }

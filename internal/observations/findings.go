@@ -88,12 +88,28 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 	if validateRange(&c.From, &c.To) == nil {
 		params.TimeFrom, params.TimeTo = timestamptz(&c.From), timestamptz(&c.To)
 	}
+	if c.RunID.Valid {
+		from, to, ok, err := runWindow(ctx, q, c.RunID)
+		if err != nil {
+			return pgtype.UUID{}, err
+		}
+		if ok {
+			params.TimeFrom, params.TimeTo = from, to
+		}
+	}
 	created, err := q.CreateObservation(ctx, params)
 	if err != nil {
 		return pgtype.UUID{}, fmt.Errorf("create observation: %w", err)
 	}
 	if err := appendEvent(ctx, q, activity.TypeObservationCreated, who, created.ID, eventData{Title: created.Title}); err != nil {
 		return pgtype.UUID{}, err
+	}
+	if c.RunID.Valid {
+		if state, ok := addedState(place.abilities); ok {
+			if err := s.insertRunBlock(ctx, q, created, c.RunID, nil, state, who); err != nil {
+				return pgtype.UUID{}, err
+			}
+		}
 	}
 	if err := s.writeConclusionBlocks(ctx, q, created, place.abilities, who, in); err != nil {
 		return pgtype.UUID{}, err
@@ -104,6 +120,18 @@ func (s *Service) createForConclusion(ctx context.Context, q *dbsqlc.Queries, by
 		}
 	}
 	return created.ID, nil
+}
+
+func runWindow(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (from, to pgtype.Timestamptz, ok bool, err error) {
+	run, err := q.GetAgentRequestByID(ctx, runID)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return from, to, false, nil
+	case err != nil:
+		return from, to, false, fmt.Errorf("read the run of the conclusion: %w", err)
+	}
+	start, end := timePtr(run.ContextFrom), timePtr(run.ContextTo)
+	return run.ContextFrom, run.ContextTo, start != nil && validateRange(start, end) == nil, nil
 }
 
 func (s *Service) conclusionPlace(ctx context.Context, by auth.Principal, c findings.Conclusion) (runPlace, error) {
