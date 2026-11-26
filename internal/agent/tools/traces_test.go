@@ -133,11 +133,11 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 		t.Fatalf("links = %d to %v, want one linked span to %s", out.Links, out.LinkedTraces, linkedTraceID)
 	}
 	wantSlowest := []slowSpanOut{
-		{"root000000000000", "POST /checkout", "gateway", 900, 100, 0},
-		{"chk0000000000000", "checkout", "checkout", 800, 100, 1},
-		{"pay0000000000000", "charge", "payments", 700, 50, 2},
-		{"db00000000000000", "SELECT cards", "payments", 650, 650, 3},
-		{"inv0000000000025", "reserve", "inventory", 26, 26, 2},
+		{"root000000000000", "POST /checkout", "gateway", 900, 100, 0, 0},
+		{"chk0000000000000", "checkout", "checkout", 800, 100, 1, 0},
+		{"pay0000000000000", "charge", "payments", 700, 50, 2, 0},
+		{"db00000000000000", "SELECT cards", "payments", 650, 650, 3, 0},
+		{"inv0000000000025", "reserve", "inventory", 26, 26, 2, 0},
 	}
 	if fmt.Sprint(out.Slowest[:5]) != fmt.Sprint(wantSlowest) {
 		t.Fatalf("slowest = %+v, want %+v", out.Slowest[:5], wantSlowest)
@@ -420,18 +420,18 @@ func TestTraceStatsRefusesBadInputAndOtherDatasources(t *testing.T) {
 }
 
 type shapedSpan struct {
-	id, parent, status, message string
-	offset, duration            time.Duration
+	id, parent, status, message, attributes, kind string
+	offset, duration                              time.Duration
 }
 
 func shapedTrace(spans ...shapedSpan) datasource.Frame {
-	names := []string{"SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage"}
+	names := []string{"SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage", "SpanAttributes", "SpanKind"}
 	f := datasource.Frame{Fields: make([]datasource.Field, len(names))}
 	for i, name := range names {
 		f.Fields[i] = datasource.Field{Name: name, Type: datasource.FieldString}
 	}
 	for _, s := range spans {
-		row := []any{s.id, s.parent, "op-" + s.id, "svc", fixtureStart.Add(s.offset), int64(s.duration), s.status, s.message}
+		row := []any{s.id, s.parent, "op-" + s.id, "svc", fixtureStart.Add(s.offset), int64(s.duration), s.status, s.message, s.attributes, s.kind}
 		for c := range row {
 			f.Fields[c].Values = append(f.Fields[c].Values, row[c])
 		}
@@ -567,12 +567,153 @@ func TestSummarizeTraceSelfTimeSubtractsTheUnionOfOverlappingChildren(t *testing
 }
 
 func TestGetTraceDescriptionScopesOriginToOneTrace(t *testing.T) {
-	for _, want := range []string{"inside this one trace", "does not by itself say which service an incident started in", "across many traces", "trace_stats"} {
+	for _, want := range []string{"Relays", "not counted in errors", "inside this one trace", "does not by itself say which service an incident started in", "across many traces", "trace_stats"} {
 		if !strings.Contains(descGetTrace, want) {
 			t.Errorf("description lacks %q", want)
 		}
 	}
 	if n := len(descGetTrace); n > 1500 {
 		t.Errorf("description is %d bytes, want at most 1500", n)
+	}
+}
+
+func relayNames(relays []relayOut) []string {
+	var names []string
+	for _, r := range relays {
+		names = append(names, fmt.Sprintf("%s:%d", r.Name, r.HTTPStatus))
+	}
+	return names
+}
+
+func TestSummarizeTraceListsServerSpansThatRelayA5xxAboveAFailureAsRelaysNotErrors(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "web", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "gateway", parent: "web", kind: "SPAN_KIND_SERVER", status: "Unset", attributes: `{"http.status_code":"502"}`, offset: ms, duration: 90 * ms},
+		shapedSpan{id: "api", parent: "gateway", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":200}`, offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "db", parent: "gateway", kind: "Server", status: "Error", message: "connection refused", attributes: `{"http.response.status_code":503}`, offset: 3 * ms, duration: 70 * ms},
+	))
+	if got := relayNames(out.Relays); !slices.Equal(got, []string{"op-web:500", "op-gateway:502"}) {
+		t.Fatalf("relays = %v", got)
+	}
+	if out.Relays[0].Service != "svc" {
+		t.Fatalf("relays = %+v", out.Relays)
+	}
+	if len(out.Errors) != 1 || out.Errors[0].SpanID != "db" || !out.Errors[0].Origin || out.Errors[0].HTTPStatus != 503 {
+		t.Fatalf("errors = %+v, want only the span with an error status", out.Errors)
+	}
+	if out.Services[0].Errors != 1 {
+		t.Fatalf("services = %+v, want error counts by status only", out.Services)
+	}
+	if out.Root.HTTPStatus != 500 {
+		t.Fatalf("root = %+v", out.Root)
+	}
+}
+
+func TestSummarizeTraceLeavesOutSpansThatAreNotRelays(t *testing.T) {
+	const ms = time.Millisecond
+	five := `{"http.response.status_code":503}`
+	for name, above := range map[string]shapedSpan{
+		"an Ok span":          {id: "a", kind: "Server", status: "Ok", attributes: five},
+		"a client span":       {id: "a", kind: "Client", status: "Unset", attributes: five},
+		"an unspecified kind": {id: "a", status: "Unset", attributes: five},
+		"an error status":     {id: "a", kind: "Server", status: "Error", attributes: five},
+		"a 4xx status":        {id: "a", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":429}`},
+		"an out of range one": {id: "a", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":600}`},
+		"no status":           {id: "a", kind: "Server", status: "Unset"},
+	} {
+		above.duration = 100 * ms
+		out := summarizeTrace(fixtureTraceID, shapedTrace(above, shapedSpan{id: "b", parent: "a", status: "Error", offset: ms, duration: 90 * ms}))
+		if len(out.Relays) != 0 {
+			t.Errorf("%s: relays = %+v, want none", name, out.Relays)
+		}
+	}
+}
+
+func TestSummarizeTraceListsNoRelayWithoutAFailureBelow(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "b", parent: "a", kind: "Server", status: "Unset", offset: ms, duration: 90 * ms},
+	))
+	if len(out.Relays) != 0 || len(out.Errors) != 0 {
+		t.Fatalf("relays = %+v errors = %+v", out.Relays, out.Errors)
+	}
+}
+
+func TestSummarizeTraceCapsTheRelayList(t *testing.T) {
+	const ms = time.Millisecond
+	spans := []shapedSpan{}
+	parent := ""
+	for i := range traceRelayLimit + 3 {
+		id := fmt.Sprintf("r%d", i)
+		spans = append(spans, shapedSpan{id: id, parent: parent, kind: "Server", status: "Unset", attributes: `{"http.response.status_code":500}`, offset: time.Duration(i) * ms, duration: 100 * ms})
+		parent = id
+	}
+	spans = append(spans, shapedSpan{id: "leaf", parent: parent, status: "Error", offset: 50 * ms, duration: ms})
+	out := summarizeTrace(fixtureTraceID, shapedTrace(spans...))
+	if len(out.Relays) != traceRelayLimit {
+		t.Fatalf("relays = %d, want %d", len(out.Relays), traceRelayLimit)
+	}
+}
+
+func TestSummarizeTraceErrorCountsIgnoreHTTPStatus(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", kind: "Server", status: "Unset", attributes: `{"http.response.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "b", parent: "a", kind: "Client", status: "Unset", attributes: `{"http.response.status_code":503}`, offset: ms, duration: 90 * ms},
+	))
+	if len(out.Errors) != 0 || out.Services[0].Errors != 0 || len(out.Relays) != 0 {
+		t.Fatalf("errors = %+v services = %+v relays = %+v", out.Errors, out.Services, out.Relays)
+	}
+}
+
+func TestHTTPStatusOfReadsTheStandardAndTheOlderAttribute(t *testing.T) {
+	for _, tc := range []struct {
+		attributes string
+		want       int
+	}{
+		{`{"http.response.status_code":500}`, 500},
+		{`{"http.status_code":503}`, 503},
+		{`{"http.status_code":"502"}`, 502},
+		{`{"http.response.status_code":"201","http.status_code":500}`, 201},
+		{`{"http.response.status_code":"x","http.status_code":500}`, 500},
+		{`{"http.response.status_code":99}`, 0},
+		{`{"http.response.status_code":600}`, 0},
+		{`{"http.status_code":500.5}`, 0},
+		{`{"http.status_code":"5 00"}`, 0},
+		{`{"http.status_code":[500]}`, 0},
+		{`{"http.status_code":null}`, 0},
+		{`{"http.status_code":true}`, 0},
+		{`{"http.method":"GET"}`, 0},
+		{`{"other.status_code":500}`, 0},
+		{`not json status_code`, 0},
+		{``, 0},
+	} {
+		if got := httpStatusOf(tc.attributes); got != tc.want {
+			t.Errorf("httpStatusOf(%q) = %d, want %d", tc.attributes, got, tc.want)
+		}
+	}
+}
+
+func TestGetTraceOutputPrintsTheHTTPStatusAndRelaysOnlyWhenPresent(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", kind: "Server", status: "Unset", attributes: `{"http.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "b", parent: "a", status: "Error", offset: ms, duration: 90 * ms},
+	))
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(body), `"http_status"`); n != 3 || !strings.Contains(string(body), `"relays":[{"service":"svc","name":"op-a","http_status":500}]`) {
+		t.Fatalf("http_status appears %d times, want root, one relay and one slowest span: %s", n, body)
+	}
+	plain, err := json.Marshal(summarizeTrace(fixtureTraceID, shapedTrace(shapedSpan{id: "a", status: "Error", duration: 100 * ms})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), "http_status") || strings.Contains(string(plain), "relays") {
+		t.Fatalf("http_status or relays printed without an HTTP status: %s", plain)
 	}
 }
