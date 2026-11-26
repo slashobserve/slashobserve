@@ -1,4 +1,4 @@
-import { useId } from "react"
+import { useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -7,6 +7,16 @@ import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels, type Role } from "@/lib/roles"
@@ -54,30 +64,56 @@ function InviteRole({ invite }: { invite: Invite }) {
 }
 
 function WithdrawButton({ invite }: { invite: Invite }) {
+  const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
   const withdraw = useWithdrawInvite()
+
+  function confirm() {
+    setOpen(false)
+    withdraw.mutateAsync(invite.id).then(
+      () => toast.success(`Withdrew the invite for ${invite.email}`),
+      (error) => toast.error(inviteProblemText(error))
+    )
+  }
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="narrow:h-11"
-      disabled={withdraw.isPending}
-      aria-busy={withdraw.isPending}
-      aria-label={`Withdraw the invite for ${invite.email}`}
-      onClick={() =>
-        withdraw.mutateAsync(invite.id).then(
-          () => toast.success(`Withdrew the invite for ${invite.email}`),
-          (error) => toast.error(inviteProblemText(error))
-        )
-      }
-    >
-      {withdraw.isPending ? (
-        <LoaderCircleIcon
-          aria-hidden="true"
-          className="motion-safe:animate-spin"
-        />
-      ) : null}
-      Withdraw
-    </Button>
+    <>
+      <Button
+        ref={trigger}
+        variant="outline"
+        size="sm"
+        className="narrow:h-11"
+        disabled={withdraw.isPending}
+        aria-busy={withdraw.isPending}
+        aria-label={`Withdraw the invite for ${invite.email}`}
+        onClick={() => setOpen(true)}
+      >
+        {withdraw.isPending ? (
+          <LoaderCircleIcon
+            aria-hidden="true"
+            className="motion-safe:animate-spin"
+          />
+        ) : null}
+        Withdraw
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent finalFocus={trigger}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {invite.email} will no longer be able to join with this invite.
+              You can invite them again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirm}>
+              Withdraw invite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 

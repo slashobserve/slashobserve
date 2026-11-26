@@ -56,6 +56,10 @@ describe("InvitesTable", () => {
         name: "Withdraw the invite for ada@example.com",
       })
     )
+    expect(calls.send).not.toHaveBeenCalled()
+    await user.click(
+      await screen.findByRole("button", { name: "Withdraw invite" })
+    )
     await waitFor(() => expect(calls.send).toHaveBeenCalledWith("i1"))
     await unmountHostThenSettle()
 
