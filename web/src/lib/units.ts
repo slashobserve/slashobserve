@@ -686,6 +686,22 @@ export function commonDecimals(
   )
 }
 
+export function decimalsFor(
+  value: number,
+  unit: string | undefined,
+  shared: number | undefined
+): number | undefined {
+  if (shared === undefined || shared === 0 || !Number.isInteger(value)) {
+    return shared
+  }
+  const rule = ruleFor(unit)
+  const bareCount =
+    rule.kind === "plain" ||
+    (rule.kind === "short" && rule.suffix === "" && !rule.prefix)
+  if (!bareCount) return shared
+  return place(value, rule).amount === value ? 0 : shared
+}
+
 export type DecimalsItem = {
   unit?: string
   decimals?: number

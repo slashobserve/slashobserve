@@ -1,4 +1,4 @@
-import { formatValue } from "@/lib/units"
+import { decimalsFor, formatValue } from "@/lib/units"
 import type { WireField } from "@/panels/frames"
 import {
   thresholdColor,
@@ -95,9 +95,13 @@ export function displayValue(
       mapped: mapping !== null,
     }
   }
-  const decimals = config.decimals ?? options.decimals
   const hit = matchMapping(config.mappings, value)
   const number = typeof value === "number" ? value : null
+  const decimals =
+    config.decimals ??
+    (number === null
+      ? options.decimals
+      : decimalsFor(number, config.unit, options.decimals))
   const threshold = thresholdStateFor(number, config, options, decimals)
   const text =
     hit?.text ??
