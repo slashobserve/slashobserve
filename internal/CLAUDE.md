@@ -327,7 +327,9 @@ This lists only the packages whose purpose the name does not make obvious.
   Only the Admin-only `GET /api/v1/datasources/{uid}/config` returns the address and login, and no route returns a stored credential; app datasources are sealed with `sealed.Key` and managed through `datasourceadmin`, HTTP and CLI only.
   The health `message` is a fixed string chosen by error kind, never the error's own text.
   Datasources never gate `/readyz`.
-  A datasource's health probe is a cheap read that proves it can answer queries (Loki asks `vector(1)+vector(1)`, never `/ready`, which fails while an ingester joins the ring or under load), the registry keeps a failed status for the 2 second recheck interval instead of the 10 second healthy window, and a successful panel, variable or explore page query clears a cached failure through `Registry.Answered`.
+  A datasource's health probe is a cheap read that proves it can answer queries (Loki asks `vector(1)+vector(1)`, never `/ready`, which fails while an ingester joins the ring or under load).
+  `Registry.Health` serves a cached failure at once and refreshes it in the background once it is 2 seconds old (`Recheck` probes inline after 2 seconds), and a healthy status lasts 10 seconds.
+  `Registry.Answered` turns a cached transient failure (`ErrUnavailable`, `ErrTimeout`, `ErrLimitExceeded`) into healthy and never a configuration failure such as `ErrIsOpenSearch` or `ErrNoIndex`; only the runner's `upstream` (panel and variable queries) and `RunPage` (the explore page read) call it, not the trace, facets, patterns, services, tail or log context reads.
 - ClickHouse is queried only as a `readonly = 2` user with `SELECT` on the OTel database, and the server refuses a user that is not read-only.
   The compose user `slashobserve_ro` is created on first boot by the distroless image's `docker-init` from `internal/datasource/clickhouse/testdata/readonly_user.sql`, mounted into `/docker-entrypoint-initdb.d`: the same definition, with the same fixed development password, the integration tests use.
 - Any feature that fetches a URL taken from user content goes through `egress.Client`, never its own `http.Client`.

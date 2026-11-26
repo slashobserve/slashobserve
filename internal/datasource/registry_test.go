@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync/atomic"
@@ -247,14 +248,33 @@ func TestHealthDetailNamesTheCauseWithoutTheAddress(t *testing.T) {
 	}
 }
 
-func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
-	ds := &flippingHealth{}
-	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
-	ds.err.Store(&down)
+type fakeClock struct{ ns atomic.Int64 }
+
+func newFakeClock() *fakeClock {
+	c := &fakeClock{}
+	c.ns.Store(time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC).UnixNano())
+	return c
+}
+
+func (c *fakeClock) now() time.Time          { return time.Unix(0, c.ns.Load()).UTC() }
+func (c *fakeClock) advance(d time.Duration) { c.ns.Add(int64(d)) }
+
+func registryWithClock(t *testing.T, ds datasource.Datasource) (*datasource.Registry, *fakeClock) {
+	t.Helper()
 	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
 	if err != nil {
 		t.Fatal(err)
 	}
+	clock := newFakeClock()
+	registry.SetClock(clock.now)
+	return registry, clock
+}
+
+func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, clock := registryWithClock(t, ds)
 	if first := registry.Health(everything(t))[0]; first.Healthy {
 		t.Fatalf("first status = %+v", first)
 	}
@@ -264,7 +284,7 @@ func TestRecheckRunsAFreshCheckAndThrottlesRepeats(t *testing.T) {
 	if cached := registry.Health(everything(t))[0]; cached.Healthy {
 		t.Fatalf("a plain health read inside the cache window must not recheck: %+v", cached)
 	}
-	time.Sleep(2100 * time.Millisecond)
+	clock.advance(2100 * time.Millisecond)
 	got, ok := registry.Recheck(everything(t), "loki")
 	if !ok || !got.Healthy || got.Detail != "" {
 		t.Fatalf("recheck = %+v, ok %v", got, ok)
@@ -495,21 +515,168 @@ func TestAnAnsweredQueryLeavesUnknownAndHealthyDatasourcesAlone(t *testing.T) {
 	}
 }
 
-func TestAFailureIsCheckedAgainAfterTheThrottleNotAfterTheHealthyWindow(t *testing.T) {
-	ds := &flippingHealth{}
-	slow := datasource.Errorf(datasource.ErrTimeout, "slow")
-	ds.err.Store(&slow)
-	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "loki", Datasource: ds})
-	if err != nil {
-		t.Fatal(err)
+func TestAnAnsweredQueryKeepsAConfigurationFailure(t *testing.T) {
+	for _, kind := range []error{datasource.ErrIsOpenSearch, datasource.ErrIsElasticsearch, datasource.ErrNoTimeField, datasource.ErrUnsupportedVersion, datasource.ErrNoIndex} {
+		t.Run(kind.Error(), func(t *testing.T) {
+			ds := &flippingHealth{}
+			failure := datasource.Errorf(kind, "wrong setup")
+			ds.err.Store(&failure)
+			registry, _ := registryWithClock(t, ds)
+			before := registry.Health(everything(t))[0]
+			registry.Answered("loki")
+			got := registry.Health(everything(t))[0]
+			if got.Healthy || got.Message != before.Message || got.Message == "" {
+				t.Fatalf("status after an answered query = %+v, want the failure %+v", got, before)
+			}
+		})
 	}
+}
+
+func TestAnAnsweredQueryClearsEveryTransientFailure(t *testing.T) {
+	for _, kind := range []error{datasource.ErrUnavailable, datasource.ErrTimeout, datasource.ErrLimitExceeded} {
+		t.Run(kind.Error(), func(t *testing.T) {
+			ds := &flippingHealth{}
+			failure := datasource.Errorf(kind, "busy")
+			ds.err.Store(&failure)
+			registry, _ := registryWithClock(t, ds)
+			registry.Health(everything(t))
+			registry.Answered("loki")
+			if got := registry.Health(everything(t))[0]; !got.Healthy {
+				t.Fatalf("status = %+v", got)
+			}
+		})
+	}
+}
+
+type gatedHealth struct {
+	flippingHealth
+	gate    chan struct{}
+	entered atomic.Int32
+}
+
+func (g *gatedHealth) CheckHealth(ctx context.Context) error {
+	g.entered.Add(1)
+	if g.gate != nil {
+		select {
+		case <-g.gate:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return g.flippingHealth.CheckHealth(ctx)
+}
+
+func TestHealthServesACachedFailureWithoutBlockingAndRefreshesItInTheBackground(t *testing.T) {
+	ds := &gatedHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, clock := registryWithClock(t, ds)
 	if first := registry.Health(everything(t))[0]; first.Healthy {
 		t.Fatalf("first status = %+v", first)
 	}
+	checks := ds.calls.Load()
+
 	var recovered *error
 	ds.err.Store(recovered)
-	time.Sleep(2100 * time.Millisecond)
+	ds.gate = make(chan struct{})
+	clock.advance(3 * time.Second)
+
+	returned := make(chan datasource.Status, 1)
+	go func() { returned <- registry.Health(everything(t))[0] }()
+	select {
+	case got := <-returned:
+		if got.Healthy {
+			t.Fatalf("status = %+v, want the cached failure", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Health blocked on the refresh of a cached failure")
+	}
+
+	close(ds.gate)
+	deadline := time.Now().Add(5 * time.Second)
+	for !registry.Health(everything(t))[0].Healthy {
+		if time.Now().After(deadline) {
+			t.Fatalf("the background refresh never recovered the status; checks %d -> %d", checks, ds.calls.Load())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestHealthDoesNotProbeACachedFailureInsideTheRecheckInterval(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, clock := registryWithClock(t, ds)
+	registry.Health(everything(t))
+	clock.advance(time.Second)
+	registry.Health(everything(t))
+	if ds.calls.Load() != 1 {
+		t.Fatalf("checks = %d, want 1", ds.calls.Load())
+	}
+}
+
+func TestAProbeThatStartedBeforeAnAnswerDoesNotOverwriteIt(t *testing.T) {
+	ds := &gatedHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, clock := registryWithClock(t, ds)
+	registry.Health(everything(t))
+
+	ds.gate = make(chan struct{})
+	clock.advance(3 * time.Second)
+	started := ds.entered.Load()
+	recheck := make(chan datasource.Status, 1)
+	go func() {
+		got, _ := registry.Recheck(everything(t), "loki")
+		recheck <- got
+	}()
+	for ds.entered.Load() == started {
+		time.Sleep(time.Millisecond)
+	}
+	clock.advance(time.Second)
+	registry.Answered("loki")
+	close(ds.gate)
+
+	if got := <-recheck; !got.Healthy {
+		t.Fatalf("the late failure was returned: %+v", got)
+	}
 	if got := registry.Health(everything(t))[0]; !got.Healthy {
-		t.Fatalf("a failure outlived the recheck interval: %+v", got)
+		t.Fatalf("the late failure overwrote the answer: %+v", got)
+	}
+}
+
+type recordingHandler struct {
+	slog.Handler
+	warnings atomic.Int32
+}
+
+func (h *recordingHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *recordingHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level == slog.LevelWarn {
+		h.warnings.Add(1)
+	}
+	return nil
+}
+
+func TestAFailingProbeLogsOnceWhileQueriesKeepAnsweringBetweenProbes(t *testing.T) {
+	handler := &recordingHandler{}
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, err := datasource.NewRegistry(slog.New(handler), datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := newFakeClock()
+	registry.SetClock(clock.now)
+	for range 4 {
+		registry.Health(everything(t))
+		registry.Answered("loki")
+		clock.advance(11 * time.Second)
+		registry.Health(everything(t))
+	}
+	if got := handler.warnings.Load(); got != 1 {
+		t.Fatalf("warnings = %d, want 1", got)
 	}
 }
