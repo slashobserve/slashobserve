@@ -14,10 +14,14 @@ import { rectWithin, surfaceOf, useAnchorPublisher } from "../anchor-layout"
 import { resolveColor } from "../colors"
 import { cssColorToRgb, darkText, lightText, readableText } from "../contrast"
 import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
-import { legendOrder } from "../legend/legend-model"
+import { inlineValues, legendOrder } from "../legend/legend-model"
 import { useLegendTextMeasure } from "../legend/legend-measure"
 import { LegendTable } from "../legend/legend-table"
-import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
+import {
+  legendListWidth,
+  legendTableWidth,
+  rightLegendWidth,
+} from "../legend/legend-width"
 import {
   emptySeriesState,
   useSeriesStore,
@@ -401,8 +405,19 @@ const PiechartPanel: PanelRenderer = ({
       rem
     )
   }, [rightLegend, table, listed, columns, headers, cells, textMeasure])
+  const listWidth = useMemo(() => {
+    if (!rightLegend || table || columns.length === 0) return null
+    const rem = rootFontSize()
+    return legendListWidth(
+      listed.map(({ name }) => name),
+      cells.map((row) => inlineValues(columns, row, headers)),
+      textMeasure(rem),
+      rem,
+      width
+    )
+  }, [rightLegend, table, listed, columns, headers, cells, textMeasure, width])
   const legendWidth = rightLegend
-    ? rightLegendWidth(tableWidth, width, options.legendWidth)
+    ? rightLegendWidth(tableWidth, width, options.legendWidth, listWidth)
     : 0
 
   const items: LegendItem[] = listed.map((entry) => ({

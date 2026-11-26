@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   inlineValuesWidth,
+  legendListWidth,
   legendNameRoom,
   legendTableWidth,
   legendValueWidths,
@@ -125,5 +126,61 @@ describe("inlineValuesWidth", () => {
     const swatchAndGaps = 16 + 6 + 6
     expect(room).toBeCloseTo(rowContent - swatchAndGaps - 71.72, 5)
     expect(room).toBeGreaterThanOrEqual(measured("UNSET"))
+  })
+})
+
+describe("legendListWidth", () => {
+  const geist: Record<string, number> = {
+    STATUS_CODE_ERROR: 128.92,
+    STATUS_CODE_OK: 105.2,
+    STATUS_CODE_UNSET: 127.66,
+    ERROR: 40.14,
+    OK: 16.43,
+    UNSET: 38.88,
+    "155  0.2%": 53.06,
+    "1,218  1.7%": 54.28,
+    "68,538  98.0%": 79.25,
+  }
+  const measured = (text: string) => geist[text]
+  const labels = ["STATUS_CODE_ERROR", "STATUS_CODE_OK", "STATUS_CODE_UNSET"]
+  const values = ["155  0.2%", "1,218  1.7%", "68,538  98.0%"]
+  const fixed = 8 + 12 + 16 + 6
+  const valueColumn = 6 + 79.25
+
+  it("is the widest full name and value when that leaves the plot its minimum", () => {
+    expect(legendListWidth(labels, values, measured, 16, 498)).toBe(
+      Math.ceil(fixed + 128.92 + valueColumn)
+    )
+  })
+
+  it("falls back to the names without their shared prefix when full names crowd the plot", () => {
+    expect(legendListWidth(labels, values, measured, 16, 298)).toBe(
+      Math.ceil(fixed + 40.14 + valueColumn)
+    )
+  })
+
+  it.each([
+    { panel: 498, legend: 257, name: "STATUS_CODE_ERROR" },
+    { panel: 298, legend: 168, name: "UNSET" },
+  ])(
+    "gives a $panel px pie a $legend px legend where $name and its value fit whole",
+    ({ panel, legend, name }) => {
+      const natural = legendListWidth(labels, values, measured, 16, panel)
+      const width = rightLegendWidth(null, panel, undefined, natural)
+      expect(width).toBe(legend)
+      expect(panel - width).toBeGreaterThanOrEqual(120)
+      expect(legendNameRoom(width, 16, valueColumn)).toBeGreaterThanOrEqual(
+        measured(name)
+      )
+    }
+  )
+
+  it("never narrows a list legend below the plain rule", () => {
+    expect(rightLegendWidth(null, 600, undefined, 150)).toBe(180)
+  })
+
+  it("leaves the width to the plain rule when even the short names crowd the plot", () => {
+    expect(legendListWidth(labels, values, measured, 16, 280)).toBeNull()
+    expect(rightLegendWidth(null, 280, undefined, null)).toBe(160)
   })
 })
