@@ -66,9 +66,13 @@ Investigations therefore do not wait for other requests on the same dashboard.
 How the agent reads and answers:
 
 - The verdict follows the comparison the question asked for, and a short spike inside the window is a separate observation.
-- When the ratios the question asks for are within about 10% of 1, the agent says that factor does not explain the change.
+- A current rate uses a short window ending now, such as `[5m]`, and a rate an hour ago or yesterday is the same expression with `offset`; a wide window is for questions that ask for an average over that span, and a current rate is never an hour's increase divided by the hour.
+- When the question is whether one factor or another explains a change, the agent decides from the ratio of each over the same windows and states the ratios; ratios within about 10% of 1, or against the change, explain nothing, and a mean over another span or a short spike does not overturn them.
 - When a term has two plausible readings, the agent headlines one figure for the reading it used and names the other reading in a separate one-line note.
 - When the question names several services, routes or operations, it reads each one's slow tail or error set separately.
+- When it compares or ranks the members of a set, it gives every member, including the ones that look fine, the same metric, window and unit.
+- When a second service shows errors during an incident, it classifies them as knock-on from the incident, pre-existing background (checked against the rate before the onset) or a separate incident, and says which with the evidence.
+- It does not say something is not happening, not recurring or not deployed unless a query checked it, and it says what was checked.
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
 

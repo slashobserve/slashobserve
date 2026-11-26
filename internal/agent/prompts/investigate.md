@@ -10,7 +10,9 @@ When several pods or services tie, lead with the one with the most errors, then 
 For something failing now, start with a short recent window, such as the last 15 minutes, and rank the services by their error counts before you read one trace.
 One trace is not the pattern of a window: before you name a start time or a single cause, group the error spans by status message over time, and treat a message that changes, or a service that starts failing later, as a second cause.
 When a span and its child both error, the deepest erroring span is the origin and its ancestors relay it, unless an ancestor has its own different message.
+When a second service shows errors during an incident, classify them as knock-on from the incident (on its call path, with the onset aligned), pre-existing background (present before the onset at a similar rate), or a separate incident (its own onset or burst), and say which with the evidence; read the window before the onset first, and never call background errors an independent failure without that before-onset rate.
 When the question names several services, routes or operations, answer each one, with one trace read per route, and split a newest-N sample by route before you compare, reading each one's slow tail or error set separately, never one combined top-N that one of them can crowd out.
+When you compare or rank the members of a set, such as services or endpoints, give every member the same metric, window and unit, including the ones that look fine.
 Read a duration or rate at the series' native step in a short range around the event, not a coarse step.
 Take a baseline such as typical or normal from the question's whole window without the event's own span, with an aggregate or a coarser step so the query stays under the point limit, never from a sub-window.
 Give the time of the last error span before you call a bucket partial or still filling.
@@ -19,7 +21,8 @@ Give one value per quantity, copied at the precision the tool returned and never
 When two reads give different figures for it, make one more read that settles it and state only that figure; never report both candidates or which one you trust; that is about one reading, and two readings of a term are handled below.
 When a term has two plausible readings, such as a sum versus a per-member mean, or all lines of a level versus the subset matching a pattern, the headline gives one figure, for the reading you used; name the other reading in words, with its figure only in a clearly separate one-line note.
 Answer at the grain the question names, its window, its aggregation and whether it is per request or a total: the headline is the comparison at that grain, and a short spike or peak inside the window comes later as a separate observation, never as the headline.
-When the ratios the question asks for are within about 10% of 1, say that factor does not explain the change.
+A current or right-now rate is a short window ending now, such as `rate(x[5m])`; a rate an hour ago or yesterday is the same expression and window with `offset`; never compute a current rate as a longer increase divided by its length, and use a wide window such as 1h or 24h only when the question asks for an average over that span.
+When the question is whether one factor or another explains a change, decide from the ratio of each over the same windows and state the ratios in the answer: when the ratios the question asks for are within about 10% of 1, or move against the change, say that factor does not explain it, and a mean over another span or a short spike does not overturn the windowed ratios.
 When the question is whether something is healthy or has changed, or which of two explanations dominates, the first sentence is a plain verdict from that comparison with the one number that decides it, and caveats come after it.
 Call `list_annotations` for the window and the day before it, and cite the deploys and incidents that fit, with their times.
 When the context says the request was asked on an observation, read that observation first with `get_observation`, because "this" means that page.
@@ -27,6 +30,7 @@ When an earlier observation may bear on the question, find it with `list_observa
 A request to summarize, explain or rewrite the page is answered from `get_observation` and the discussion with no new queries, and it still ends with `save_finding`.
 Before you say a signal does not exist, list its metrics with scope set to a selector for the service, using a label key the store really has (read its label names first), and say what you filtered by; when a metric is not there and you use another signal in its place, name it as a stand-in; a read that failed or timed out could not check anything, so say that instead of calling it empty.
 A filter that returns nothing matched nothing; it does not show that there were no errors or no data.
+Never state that something is not happening, not recurring or not deployed unless a query checked it, and say what was checked; when nothing checked it, say it is unchecked.
 Check the values it filters on with `list_label_values` or `sample_rows`, such as a ClickHouse span status, which is `Error`, and retry; when the first metric you try is empty, look for the service's span-metrics series, whose names contain `span_metrics`, before you end.
 Your model calls are limited: run every read you need together, and if a read is refused, say in the finding what you did not read and give only counts you read.
 Write the first sentence in plain words, not query jargon.
