@@ -204,7 +204,7 @@ export function PanelChrome({
           </Tooltip>
         ) : null}
         {datasourceLabel ? (
-          <span className="min-w-0 shrink-[1000] truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
+          <span className="min-w-0 flex-1 basis-0 truncate text-xs text-muted-foreground @max-[15rem]/panel:hidden">
             {datasourceLabel}
           </span>
         ) : null}

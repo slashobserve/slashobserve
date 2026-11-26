@@ -45,14 +45,16 @@ describe("PanelChrome", () => {
     }
   )
 
-  it("lets the datasource badge shrink before the title", () => {
+  it("gives the datasource badge only the width the title leaves free", () => {
     renderWithProviders(
       <PanelChrome panel={panel} state="ready" datasourceLabel="Prometheus" />
     )
-    expect(screen.getByText("Prometheus")).toHaveClass("shrink-[1000]")
+    const badge = screen.getByText("Prometheus")
+    expect(badge).toHaveClass("flex-1", "basis-0")
+    expect(badge).not.toHaveClass("shrink-[1000]")
     expect(
       screen.getByRole("heading", { name: "Checkout latency" })
-    ).not.toHaveClass("shrink-[1000]")
+    ).not.toHaveClass("basis-0")
   })
 
   it("opens the links menu on click", async () => {
