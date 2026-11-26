@@ -928,11 +928,11 @@ On ClickHouse, `labels` and `label-values` need `--table` or `--metric`.
 
 #### See which services a datasource has
 
-`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen in the last hour.
+`services [uid]` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen in the last hour.
 For each it shows the label, column or attribute that holds them.
 
 - `--window` takes a duration such as 15m, from 1 minute up to 6h, and the default is 1h.
-- `--signal` picks `logs` or `traces`.
+- `--signal` picks `logs`, `traces` or `metrics`.
 - `--service checkout` keeps only the sources that hold a service whose name contains the text, without regard to case.
   That answers which source holds a service.
 
@@ -1629,7 +1629,7 @@ observe folders permissions admins-only <folder-id> --yes
 ```
 
 `list` prints `ID`, `TITLE`, `DASHBOARDS` and `LEVEL` columns for the folders the key can see.
-It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Only Admins)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
+It marks the General folder `(General)`, your My Dashboards `(yours)`, an Admins-only folder `(Admins only)` and the [Audit folder](activity.md#audit-folder) `(Audit folder)`.
 
 `create` joins its words into the title, needs the Editor role and prints `Created folder <title> (<id>)`.
 A title that another folder uses answers `folder_exists`.

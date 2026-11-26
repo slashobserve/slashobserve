@@ -109,7 +109,7 @@ Details of the Elasticsearch and OpenSearch tools:
 
 These tools work across datasources:
 
-- `list_services` lists the services a log or trace datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on.
+- `list_services` lists the services a log, trace or Prometheus datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on, which on a metric store is a label.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
   `logs_for_trace` reads the lines that carry a trace id.
 - On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.

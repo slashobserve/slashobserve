@@ -13,13 +13,13 @@ import { Button } from "@/components/ui/button"
 import { useSourceMemory } from "@/datasources/datasource-memory"
 import type { DatasourceStatus } from "@/datasources/queries"
 import { SourceTitle } from "@/datasources/source-title"
+import { UnknownSource } from "@/datasources/unknown-source"
 import { useExploreSources } from "@/datasources/use-sources"
 import { useDocumentTitle } from "@/lib/document-title"
 import { liveRegionText } from "@/lib/live-region"
 import { roleAtLeast } from "@/lib/roles"
 import { useAgentInfo } from "@/observe/queries"
 import { AddToObservationPanel } from "@/observations/add-to-observation-panel"
-import type { LogLevelKind } from "@/panels/logs/logs-model"
 import type { LogSelection } from "@/panels/logs/logs-panel"
 
 import { logsDraft } from "@/saved-searches/draft"
@@ -35,6 +35,7 @@ import { DetailDrawer } from "./detail-drawer"
 import { FieldsAside, FieldsDrawer } from "./fields-aside"
 import { FilterPills } from "./filter-pills"
 import { rowCount } from "./frames"
+import { hiddenLevels, levelsParam, parseLevels, pickLevel } from "./levels"
 import { LogsShortcutsDialog } from "./logs-shortcuts-dialog"
 import { LogsPageActions } from "./page-actions"
 import { applyPills, decodePills } from "./pills"
@@ -130,20 +131,7 @@ export function LogsPage({ uid }: { uid: string }) {
     )
   }
   if (datasource === undefined) {
-    return (
-      <>
-        <h1 className="sr-only">Logs</h1>
-        <p className="text-[13px] text-muted-foreground">
-          No log source has the uid {uid}.
-        </p>
-        <Link
-          to="/logs"
-          className="mt-2 inline-block text-[13px] underline underline-offset-3"
-        >
-          Open Logs
-        </Link>
-      </>
-    )
+    return <UnknownSource kind="logs" uid={uid} />
   }
   return (
     <LogsWorkspaceView
@@ -184,9 +172,8 @@ function LogsWorkspaceView({
     setSeenQuery(q)
     if (q !== undefined) setDraft(q)
   }
-  const [hiddenLevels, setHiddenLevels] = useState<ReadonlySet<LogLevelKind>>(
-    () => new Set()
-  )
+  const shownLevels = useMemo(() => parseLevels(search.levels), [search.levels])
+  const hiddenLevelSet = useMemo(() => hiddenLevels(shownLevels), [shownLevels])
   const [tailSession, setTailSession] = useState(0)
   const [tailing, setTailing] = useState(false)
   const [tailShown, setTailShown] = useState(false)
@@ -340,7 +327,16 @@ function LogsWorkspaceView({
     focusQuery,
     registerQueryFocus,
     labels: { open: labelsOpen, setOpen: setLabelsOpen },
-    levels: { hidden: hiddenLevels, setHidden: setHiddenLevels },
+    levels: {
+      shown: shownLevels,
+      hidden: hiddenLevelSet,
+      pick: (kind, additive) =>
+        update(
+          { levels: levelsParam(pickLevel(shownLevels, kind, additive)) },
+          { replace: true }
+        ),
+      clear: () => update({ levels: undefined }, { replace: true }),
+    },
     detail: {
       selection,
       tab: detailTab,

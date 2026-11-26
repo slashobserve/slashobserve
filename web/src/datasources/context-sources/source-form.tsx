@@ -249,7 +249,7 @@ export function SourceForm({
       </Field>
       <Field
         id={audienceId}
-        label="Who can use its tools"
+        label="Who can use it"
         hint="Admins manage every source whatever you choose here."
       >
         <Select

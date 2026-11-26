@@ -95,7 +95,7 @@ The down section drops both columns, so every recorded `as_of` is lost.
 ### Upgrading from 0.1.3
 
 Migrations 74 to 90 are new, and there are no migrations 76 to 78.
-They add the audit trail and its export position, the audience of a datasource, Only Admins folders, anchors and agent columns on threads, chats, the record of starter dashboards, observation block heights, run intent, read restrictions on runs and a delete trigger for dashboards.
+They add the audit trail and its export position, the audience of a datasource, Admins only folders, anchors and agent columns on threads, chats, the record of starter dashboards, observation block heights, run intent, read restrictions on runs and a delete trigger for dashboards.
 Migration 91 came with 0.1.5, so read [Upgrading from 0.1.4](#upgrading-from-014) as well.
 Take the backup first.
 
@@ -130,7 +130,7 @@ The down sections undo the new tables and columns, and some also delete data the
 - Migration 87 puts each run's `source` back from its intent and deletes the investigation requests that continue another.
 - Migration 82 drops the chats table, which holds each chat's title, pin and archive mark.
 - Migration 81 drops the anchors and agent columns of threads and deletes the threads of observations that have an anchor or a block.
-- Migration 79 drops the Only Admins mark of folders, so such a folder, which has no access list, reads as open again.
+- Migration 79 drops the Admins only mark of folders, so such a folder, which has no access list, reads as open again.
 - Migration 75 drops the audience of datasources, so every datasource can be queried by everyone again.
 - Migration 84 drops block heights and sets a block of a third or two thirds width to half width.
 - Migration 88 drops the read restriction marks of runs and the flags on copied answers.

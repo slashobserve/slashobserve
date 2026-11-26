@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  durationBoundText,
   durationScale,
   durationTicks,
-  durationTickText,
   fittedWindow,
   nudgeSelection,
   scatterPoints,
@@ -63,21 +61,18 @@ describe("durationScale", () => {
 })
 
 describe("durationTicks", () => {
-  it("lists the decades inside the scale", () => {
+  it("lists readable durations inside the scale", () => {
     expect(durationTicks(2300)).toEqual([10, 100, 1000, 10_000])
     expect(durationTicks(5)).toEqual([10])
   })
 
-  it("keeps at most four ticks, always including the top", () => {
-    expect(durationTicks(500_000)).toEqual([100, 10_000, 1_000_000])
+  it("steps by minutes and hours past a minute", () => {
+    expect(durationTicks(3_020_012)).toEqual([10, 1000, 60_000, 3_600_000])
   })
-})
 
-describe("durationTickText", () => {
-  it("reads in milliseconds below a second and in seconds above", () => {
-    expect(durationTickText(10)).toBe("10 ms")
-    expect(durationTickText(1000)).toBe("1 s")
-    expect(durationTickText(10_000)).toBe("10 s")
+  it("keeps at most four ticks, always including the highest", () => {
+    expect(durationTicks(500_000)).toEqual([100, 10_000, 600_000])
+    expect(durationTicks(50_000_000).length).toBeLessThanOrEqual(4)
   })
 })
 
@@ -297,19 +292,6 @@ describe("selectionText", () => {
     expect(selectionText({ from, to, minMs: 800, maxMs: 2000 }, 1, "UTC")).toBe(
       "1 trace selected: 2026-11-06 14:13:00 to 2026-11-06 14:17:00, between 800 ms and 2 s"
     )
-  })
-})
-
-describe("durationBoundText", () => {
-  it.each([
-    [1, "1 ms"],
-    [7.46, "7.5 ms"],
-    [812.3, "812 ms"],
-    [1500, "1.5 s"],
-    [2000, "2 s"],
-    [12_345, "12.35 s"],
-  ])("writes %s ms as %s", (ms, text) => {
-    expect(durationBoundText(ms)).toBe(text)
   })
 })
 

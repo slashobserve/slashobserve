@@ -226,7 +226,7 @@ func TestAnEmptyMetricSearchSaysAServiceIsALabelValue(t *testing.T) {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
 	out := res.Content.(metricsOut)
-	if len(out.Metrics) != 0 || !strings.Contains(out.Note, `no metric name contains "checkout", which does not mean no metric has it`) || !strings.Contains(out.Note, `{service="checkout"}`) {
+	if len(out.Metrics) != 0 || !strings.Contains(out.Note, `no metric name contains "checkout", which does not mean no metric has it`) || !strings.Contains(out.Note, "list_labels") || strings.ContainsAny(out.Note, "{=") {
 		t.Fatalf("out = %+v", out)
 	}
 	for _, input := range []string{`{"datasource":"fake"}`, `{"datasource":"fake","search":"m0"}`} {
@@ -844,5 +844,102 @@ func TestReadSchemaRefusesWithTheToolsCode(t *testing.T) {
 	_, err = r.DatasourceSchema(ctx, "nope", "", nil)
 	if !errors.As(err, &refused) || refused.Code != string(queryproxy.CodeUnknownDatasource) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func scopeFake(labels []string, truncated bool) *fakeDS {
+	return &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		switch req.Kind {
+		case datasource.DiscoverInventory:
+			return &datasource.Catalog{}, nil
+		case datasource.DiscoverLabels:
+			return &datasource.Catalog{Labels: labels, Truncated: truncated}, nil
+		}
+		return nil, fmt.Errorf("discover kind %q", req.Kind)
+	}}
+}
+
+func scopeNote(t *testing.T, ds *fakeDS, scope string) string {
+	t.Helper()
+	r := newTestRegistry(t, ds, nil)
+	res, err := call(t, r, nameListMetrics, fmt.Sprintf(`{"datasource":"fake","scope":%q}`, scope))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	return res.Content.(inventoryOut).Note
+}
+
+func TestAnEmptyScopeNamesTheLabelKeysTheDatasourceHas(t *testing.T) {
+	note := scopeNote(t, scopeFake([]string{"instance", "job", "pod"}, false), `{service_name="orders"}`)
+	for _, want := range []string{`no metric family matches {service_name="orders"}`, "label keys: instance, job, pod", `key "service_name" is not among them`, "list_label_values"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("note = %q, want %q", note, want)
+		}
+	}
+}
+
+func TestAnEmptyScopeWithKnownKeysDoesNotBlameTheKey(t *testing.T) {
+	note := scopeNote(t, scopeFake([]string{"instance", "job"}, false), `{job="orders",__name__=~"http.*"}`)
+	if !strings.Contains(note, "label keys: instance, job") || strings.Contains(note, "not among them") {
+		t.Fatalf("note = %q", note)
+	}
+}
+
+func TestAnEmptyScopeNamesEveryUnknownKey(t *testing.T) {
+	note := scopeNote(t, scopeFake([]string{"job"}, false), `{service="a",app="b",job="c"}`)
+	if !strings.Contains(note, "keys service, app are not among them") {
+		t.Fatalf("note = %q", note)
+	}
+}
+
+func TestAnEmptyScopeBoundsTheLabelListAndStopsBlamingTheKey(t *testing.T) {
+	labels := make([]string, queryproxy.DefaultNamesLimit+50)
+	for i := range labels {
+		labels[i] = fmt.Sprintf("label_%03d", i)
+	}
+	note := scopeNote(t, scopeFake(labels, false), `{service_name="orders"}`)
+	if strings.Contains(note, "label_100") || !strings.Contains(note, "and more") || strings.Contains(note, "not among them") {
+		t.Fatalf("note = %q", note)
+	}
+}
+
+func TestAnEmptyScopeSaysNothingMoreWhenLabelsCannotBeRead(t *testing.T) {
+	ds := &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		if req.Kind == datasource.DiscoverInventory {
+			return &datasource.Catalog{}, nil
+		}
+		return nil, errors.New("labels unavailable")
+	}}
+	if note := scopeNote(t, ds, `{job="orders"}`); note != `no metric family matches {job="orders"}` {
+		t.Fatalf("note = %q", note)
+	}
+	if note := scopeNote(t, scopeFake(nil, false), `{job="orders"}`); strings.Contains(note, "label keys") {
+		t.Fatalf("note = %q", note)
+	}
+}
+
+func TestANonEmptyScopeHasNoNote(t *testing.T) {
+	r := newTestRegistry(t, inventoryFake(shopFamilies(3), false), nil)
+	res, err := call(t, r, nameListMetrics, `{"datasource":"fake","scope":"{job=\"shop\"}"}`)
+	if err != nil || res.IsError || res.Content.(inventoryOut).Note != "" {
+		t.Fatalf("res = %#v err = %v", res.Content, err)
+	}
+}
+
+func TestAnEmptyScopeWithOnlyRuntimeFamiliesDoesNotBlameTheSelector(t *testing.T) {
+	ds := &fakeDS{discoverFn: func(_ context.Context, req datasource.DiscoverRequest) (*datasource.Catalog, error) {
+		if req.Kind != datasource.DiscoverInventory {
+			return nil, fmt.Errorf("discover kind %q, want inventory", req.Kind)
+		}
+		return &datasource.Catalog{RuntimeFamilies: 3}, nil
+	}}
+	note := scopeNote(t, ds, `{job="shop"}`)
+	for _, want := range []string{"only 3 runtime families match", "__name__"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("note = %q, want %q", note, want)
+		}
+	}
+	if strings.Contains(note, "no metric family") || strings.Contains(note, "not among them") {
+		t.Fatalf("note = %q", note)
 	}
 }

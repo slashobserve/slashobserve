@@ -18,6 +18,7 @@ import { RemoveDatasourceButton } from "./remove-datasource"
 
 import {
   exploreTargets,
+  rowLabel,
   sourceLabel,
   statusOf,
   typeLabel,
@@ -45,15 +46,18 @@ export function DatasourceTable({ onEdit }: Props) {
   })
   const recheck = useRecheckDatasource()
 
+  const listed = datasources.data ?? []
+
   function runRecheck(datasource: DatasourceStatus) {
+    const label = rowLabel(datasource, listed)
     recheck.mutate(datasource.uid, {
       onSuccess: (status) => {
         const { text } = statusOf(status)
-        if (status.healthy) toast.success(`${datasource.name}: ${text}`)
-        else toast.error(`${datasource.name}: ${text}`)
+        if (status.healthy) toast.success(`${label}: ${text}`)
+        else toast.error(`${label}: ${text}`)
       },
       onError: (error) =>
-        toast.error(`Could not recheck ${datasource.name}: ${error.message}`),
+        toast.error(`Could not recheck ${label}: ${error.message}`),
     })
   }
 
@@ -142,7 +146,7 @@ export function DatasourceTable({ onEdit }: Props) {
     {
       id: "usedBy",
       header: "Used by",
-      minWidth: 90,
+      minWidth: 140,
       cell: (datasource) => (
         <span className="text-muted-foreground">
           {usageLabel(datasource.dashboard_count)}
@@ -153,7 +157,7 @@ export function DatasourceTable({ onEdit }: Props) {
       id: "checked",
       header: "Checked",
       align: "right",
-      minWidth: 90,
+      minWidth: 120,
       cell: (datasource) => (
         <span className="text-muted-foreground">
           <RelativeTime iso={datasource.checked_at} />
@@ -171,22 +175,28 @@ export function DatasourceTable({ onEdit }: Props) {
       cell: (datasource) => (
         <div className="flex flex-wrap justify-end gap-1.5 py-1.5">
           <RecheckButton
-            datasource={datasource}
+            label={rowLabel(datasource, listed)}
             pending={recheck.isPending && recheck.variables === datasource.uid}
             onRecheck={() => runRecheck(datasource)}
           />
-          <ExploreLinks datasource={datasource} />
+          <ExploreLinks
+            datasource={datasource}
+            label={rowLabel(datasource, listed)}
+          />
           {datasource.source === "app" ? (
             <>
               <Button
                 variant="outline"
                 size="xs"
-                aria-label={`Edit ${datasource.uid}`}
+                aria-label={`Edit ${rowLabel(datasource, listed)}`}
                 onClick={(event) => onEdit(datasource.uid, event.currentTarget)}
               >
                 Edit
               </Button>
-              <RemoveDatasourceButton datasource={datasource} />
+              <RemoveDatasourceButton
+                datasource={datasource}
+                label={rowLabel(datasource, listed)}
+              />
             </>
           ) : null}
         </div>
@@ -232,11 +242,11 @@ function DatasourceName({ datasource }: { datasource: DatasourceStatus }) {
 }
 
 function RecheckButton({
-  datasource,
+  label,
   pending,
   onRecheck,
 }: {
-  datasource: DatasourceStatus
+  label: string
   pending: boolean
   onRecheck: () => void
 }) {
@@ -246,7 +256,7 @@ function RecheckButton({
       size="xs"
       disabled={pending}
       aria-busy={pending}
-      aria-label={`Recheck ${datasource.uid}`}
+      aria-label={`Recheck ${label}`}
       onClick={onRecheck}
     >
       {pending ? (
@@ -262,7 +272,13 @@ function RecheckButton({
 
 const exploreLinkClass = cn(buttonVariants({ variant: "outline", size: "xs" }))
 
-function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
+function ExploreLinks({
+  datasource,
+  label,
+}: {
+  datasource: DatasourceStatus
+  label: string
+}) {
   const targets = exploreTargets(datasource.type)
   if (targets.length === 0) return null
   return (
@@ -270,7 +286,7 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
       {targets.includes("logs") ? (
         <Link
           {...logsLink(datasource.uid)}
-          aria-label={`Explore logs in ${datasource.uid}`}
+          aria-label={`Explore logs in ${label}`}
           className={exploreLinkClass}
         >
           Explore logs
@@ -279,7 +295,7 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
       {targets.includes("traces") ? (
         <Link
           {...tracesLink(datasource.uid)}
-          aria-label={`Search traces in ${datasource.uid}`}
+          aria-label={`Search traces in ${label}`}
           className={exploreLinkClass}
         >
           Search traces
@@ -288,7 +304,7 @@ function ExploreLinks({ datasource }: { datasource: DatasourceStatus }) {
       {targets.includes("metrics") ? (
         <Link
           {...metricsLink(datasource.uid)}
-          aria-label={`Explore metrics in ${datasource.uid}`}
+          aria-label={`Explore metrics in ${label}`}
           className={exploreLinkClass}
         >
           Explore metrics

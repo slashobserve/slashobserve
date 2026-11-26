@@ -328,7 +328,7 @@ export function RequestTurn({
 
   return (
     <section
-      id={`request-${summary.id}`}
+      data-request={summary.id}
       aria-label={`Request ${shortRequestId(summary.id)}`}
       aria-busy={active}
       className="flex scroll-mt-4 flex-col gap-[18px]"

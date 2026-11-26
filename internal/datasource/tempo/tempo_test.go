@@ -31,13 +31,17 @@ type fakeTempo struct {
 	mu       sync.Mutex
 	replies  map[string]reply
 	byQuery  map[string]reply
+	byStep   map[string]reply
 	requests []request
 }
 
 func (f *fakeTempo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, request{path: r.URL.Path, params: r.URL.Query(), header: r.Header.Clone()})
-	rep, ok := f.byQuery[r.URL.Query().Get("q")]
+	rep, ok := f.byStep[r.URL.Query().Get("q")+"@"+r.URL.Query().Get("step")]
+	if !ok {
+		rep, ok = f.byQuery[r.URL.Query().Get("q")]
+	}
 	if !ok {
 		rep, ok = f.replies[r.URL.Path]
 	}

@@ -46,6 +46,7 @@ The box above the list filters the sources by the text in a source name or in a 
 Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
 
 Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
+Switching from a logs source to a trace or metric source, or the other way, keeps only the time range.
 An address that carries a search but no source, such as `/logs?q=...`, opens the source you used last on this browser, else the first by name.
 An old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
 [Sources and the sidebar](#sources-and-the-sidebar) describes how the sidebar lists them.
@@ -65,10 +66,10 @@ With a model configured on the server, the query box opens in Write a query mode
 
 The mode switch at the top left of the query card has up to three segments.
 
-- **Write a query** takes a question and writes the query; it does not explain the results.
-  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 - **Builder** edits the query as filter chips.
-- The last segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- The next segment is named for the datasource's language (**KQL**, **LogQL** or **SQL**) and edits the text.
+- **Write a query**, always last, takes a question and writes the query; it does not explain the results.
+  To ask what a set of results means, use **Add to observation**, then **Ask** in the block's header, as [Observations](observations.md#comment-and-ask-on-the-blocks) describes.
 
 ClickHouse has no Builder segment, because its query is SQL.
 On Loki the Builder segment is the label browser.
@@ -250,8 +251,11 @@ The volume strip above the lines counts every line the query matches over the wh
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 
 The level chips above the bars show a count for each level.
-A chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**.
-The count of the other chips and the query do not change, and **All** shows every level again.
+A click on a chip shows only that level in the bars and in the lines of the page you are on, with a note "Showing only Error lines" beside **Sort**, and the other chips dim.
+Click the chip again, or **All**, to show every level.
+Shift-click, Cmd-click or Ctrl-click a chip to add that level to the set or take it out, so you can show Error and Warning together or hide only Info.
+The selection is the `levels` parameter of the address, so a copied link keeps it.
+The count of the chips and the query do not change.
 The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level.
 To search for a level, add a filter.
 
@@ -271,7 +275,7 @@ The strip comes from its own log volume request, which starts once the lines hav
 The fields list on the logs page and the trace search statistics wait for the results in the same way.
 The strip hides while live tail shows its lines.
 
-- When the lines time out, the strip says the source is slow instead of starting more requests.
+- When the lines time out, the strip and the fields say the query failed and point to the results card, which keeps the failure and **Retry**, instead of starting more requests.
 - When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped.
   It also says the lines below are complete only when they loaded.
   **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
@@ -480,7 +484,8 @@ Each row shows these:
 - a small chart of how often it occurred across the time range, with its change over the range ("new" for a pattern that appeared late);
 - a dot for its level.
 
-The heading says how many patterns there are and what share of the documents they cover.
+The heading says how many patterns there are and what share of the lines they cover.
+The heading names what the share is of: "the newest 2,000 lines" when the page grouped the lines itself, "the 34,112 lines the pattern index covers" on Loki, and "the 200 documents the aggregation covers" on Elasticsearch and OpenSearch, so it is never read as the total of the volume strip.
 **Sort patterns** orders the rows by most lines or by newest.
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.
@@ -571,7 +576,7 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **Write a query** and **Query**, and on ClickHouse **Write a query**, **Search** and **SQL**.
+The toggle reads **TraceQL** and **Write a query** on Tempo, **Search** and **Write a query** on Jaeger, and on ClickHouse **Search**, **SQL** and **Write a query**.
 
 1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.
@@ -915,13 +920,19 @@ That panel holds the TraceQL on Tempo, or on ClickHouse a query for the spans of
 - Tempo shows the root span of each trace, and sums the span and error span counts from Tempo's per-service stats.
   When Tempo does not report those stats, both columns are left out.
 
+#### Full pages on every source
+
+Whenever a page of traces is full and more matches wait on the next pages, ClickHouse, Jaeger and Tempo show the same **Partial** note above the chart, naming the order of the list: newest first on Tempo and Jaeger, and the table's sort on ClickHouse, slowest first by default.
+The chart then spans the times of the traces shown instead of the whole range.
+The line above the table says what a click on a column sorts: all matching traces on ClickHouse, which sorts on the server, and only the page on the other sources.
+
 #### Partial results on Tempo
 
 When Tempo did not search every block, a **Partial** note says why and which times the found traces cover, with **Keep only** to narrow the range to them.
 There are two causes.
 
 - The page filled up.
-  The note says "Showing the newest 50 traces that match", because the server asks Tempo for the most recent matches first, and a reload shows the same traces.
+  The note says "This page shows 50 traces, newest first", because the server asks Tempo for the most recent matches first, and a reload shows the same traces.
   It adds `with (most_recent=true)` unless the TraceQL carries its own `with` hints.
 - Tempo stopped at its time limit, so some matching traces may be missing.
 
@@ -937,6 +948,7 @@ The scatter then plots only the times the found traces cover, so a full page tha
 #### Count spans over time
 
 The `trace_stats` MCP tool counts spans and errors per time bucket over the same traces, on Tempo and ClickHouse.
+On Tempo it also returns whole-range p50, p95 and p99, and per-value counts and quantiles when `group_by` names an attribute.
 
 - On Tempo its query is TraceQL.
 - On ClickHouse it is a SQL condition over `otel_traces`, such as `ServiceName = 'checkout' AND Duration > 1000000`.
@@ -1249,7 +1261,7 @@ A cursor sent without it, or with another, is refused with a message naming the 
 
 #### List the services of a source
 
-`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch or OpenSearch datasource has seen over a recent window, with the label, column or attribute that holds them:
+`GET /api/v1/datasources/{uid}/services` lists the services a Loki, Tempo, Jaeger, ClickHouse, Elasticsearch, OpenSearch or Prometheus datasource has seen over a recent window, with the label, column or attribute that holds them:
 
 ```sh
 curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=logs&window=1h" \
@@ -1259,11 +1271,11 @@ curl -fsS "$OBSERVE_SERVER/api/v1/datasources/<datasource uid>/services?signal=l
 The answer has `datasource`, `signal`, `field`, `window_seconds`, `services` and `truncated`.
 
 - `field` is the one the server reads as the service.
-  On Loki it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
+  On Loki and Prometheus it is the first of the labels `service_name`, `service`, `app` and `job` that has values.
   On Tempo it is the `resource.service.name` attribute, and on Jaeger its list of services.
   On ClickHouse it is the `ServiceName` column.
   On Elasticsearch and OpenSearch it is the service field of the datasource, empty when its mapping has none.
-- `signal` is `logs` or `traces` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
+- `signal` is `logs`, `traces` or `metrics` and defaults to what the datasource holds, with `logs` first on ClickHouse, which holds both.
 - `window` is a duration such as `15m`, one minute to six hours, and defaults to one hour.
   Jaeger ignores it and lists every service it retains.
 - It lists at most 200 services and sets `truncated` when more exist.

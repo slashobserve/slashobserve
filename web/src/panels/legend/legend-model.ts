@@ -22,6 +22,42 @@ export type LegendSource = {
 
 export const maxStateLegendEntries = 12
 
+const boundary = /[\s_\-:/.=,|(]/
+const minPrefix = 4
+
+export type NameRoom = { px: number; measure: (text: string) => number }
+
+function sharedPrefixCut(labels: readonly string[]): number {
+  let common = labels[0]
+  for (const label of labels) {
+    let at = 0
+    while (
+      at < common.length &&
+      at < label.length &&
+      common[at] === label[at]
+    ) {
+      at++
+    }
+    common = common.slice(0, at)
+  }
+  let cut = common.length
+  while (cut > 0 && !boundary.test(common[cut - 1])) cut--
+  if (cut < minPrefix || labels.some((label) => label.length <= cut)) return 0
+  return cut
+}
+
+export function legendNames(
+  labels: readonly string[],
+  room?: NameRoom
+): string[] {
+  if (!room || labels.length < 2) return [...labels]
+  if (labels.every((label) => room.measure(label) <= room.px)) {
+    return [...labels]
+  }
+  const cut = sharedPrefixCut(labels)
+  return labels.map((label) => label.slice(cut))
+}
+
 export function capLegend<T>(
   items: readonly T[],
   max: number

@@ -10,10 +10,12 @@ export function AddToObservationAction({
   panel,
   range,
   size = "sm",
+  labelClassName,
 }: {
   panel: DataPanel
   range: { from: string; to: string }
   size?: "sm" | "default"
+  labelClassName?: string
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -29,7 +31,7 @@ export function AddToObservationAction({
         onClick={() => setOpen(true)}
       >
         <NotebookTextIcon aria-hidden="true" />
-        Add to observation
+        <span className={labelClassName}>Add to observation</span>
       </Button>
       {open ? (
         <AddToObservationPanel

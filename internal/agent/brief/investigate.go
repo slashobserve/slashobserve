@@ -15,7 +15,7 @@ func investigateContext(statuses []datasource.Status, task Task, current *Revisi
 	if task.From != nil && task.To != nil {
 		fmt.Fprintf(&b, "\nWindow: %s to %s", task.From.UTC().Format(time.RFC3339), task.To.UTC().Format(time.RFC3339))
 	} else {
-		b.WriteString("\nWindow: the last hour")
+		b.WriteString("\nWindow: the last hour (a default the question may need to exceed)")
 	}
 	if current != nil {
 		fmt.Fprintf(&b, "\nThe question is about dashboard %s, version %d.\n", current.DashboardID, current.Number)

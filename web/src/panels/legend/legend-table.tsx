@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Ref } from "react"
+import { useMemo, type Ref } from "react"
 
 import {
   PanelGrid,
@@ -17,46 +17,16 @@ import {
   type LegendHover,
   type LegendItem,
   type LegendPlacement,
+  LegendName,
+  useLegendNames,
 } from "./legend"
+import { useLegendTextMeasure } from "./legend-measure"
 import { legendHeaders } from "./legend-model"
 import {
   legendNameMinWidth,
+  legendNameRoom,
   legendValueWidths,
-  type TextMeasure,
 } from "./legend-width"
-
-let measureContext: CanvasRenderingContext2D | null = null
-const averageGlyphEm = 0.6
-
-function legendTextMeasure(rem: number): TextMeasure {
-  measureContext ??= document.createElement("canvas").getContext("2d")
-  const context = measureContext
-  const size = 0.75 * rem
-  if (context === null) return (text) => text.length * averageGlyphEm * size
-  const family = getComputedStyle(document.documentElement).fontFamily
-  return (text, weight) => {
-    context.font = `${weight} ${size}px ${family}`
-    return context.measureText(text).width
-  }
-}
-
-const newMeasure = (): typeof legendTextMeasure => (rem) =>
-  legendTextMeasure(rem)
-
-export function useLegendTextMeasure(): typeof legendTextMeasure {
-  const [measure, setMeasure] = useState(newMeasure)
-  useEffect(() => {
-    if (document.fonts.status === "loaded") return
-    let current = true
-    void document.fonts.ready.then(() => {
-      if (current) setMeasure(newMeasure)
-    })
-    return () => {
-      current = false
-    }
-  }, [])
-  return measure
-}
 
 type Props = {
   ref?: Ref<HTMLDivElement>
@@ -126,6 +96,20 @@ export function LegendTable({
       ),
     [names, cells, measure, rem]
   )
+  const shownNames = useLegendNames(
+    items,
+    placement === "right"
+      ? legendNameRoom(
+          width,
+          rem,
+          valueWidths.reduce((sum, value) => sum + value, 0)
+        )
+      : null
+  )
+  const shown = useMemo(
+    () => new Map(items.map((item, index) => [item.key, shownNames[index]])),
+    [items, shownNames]
+  )
   const columns = useMemo<PanelGridColumn<LegendRow>[]>(
     () => [
       {
@@ -143,6 +127,7 @@ export function LegendTable({
             <span className="flex h-full min-w-0 items-center">
               <button
                 type="button"
+                aria-label={row.item.label}
                 aria-pressed={!hidden.has(row.item.key)}
                 data-style={row.item.style}
                 onClick={() => onToggle(row.item.key)}
@@ -154,7 +139,10 @@ export function LegendTable({
                   line={row.item.line}
                   style={row.item.style}
                 />
-                <span className="truncate">{row.item.label}</span>
+                <LegendName
+                  label={row.item.label}
+                  text={shown.get(row.item.key) ?? row.item.label}
+                />
               </button>
             </span>
           ),
@@ -185,6 +173,7 @@ export function LegendTable({
     [
       reducers,
       names,
+      shown,
       valueWidths,
       sortBy,
       sorted,

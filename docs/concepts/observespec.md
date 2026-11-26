@@ -388,7 +388,7 @@ More `display` keys shape the bars and the labels:
 - `barWidth` (0.97 by default) and `groupWidth` (0.7 by default) are the shares of the space a bar and a group of bars fill, above 0 and at most 1.
 - `barRadius` (0 to 0.5, 0 by default) rounds the bar ends as a share of the bar width, and `fullHighlight: true` highlights the whole category on hover.
 - `colorByField` names a number field whose thresholds and colors color each bar.
-- `xTickRotation` (-90 to 90 degrees, 0 by default), `xTickSpacing` (the least pixels between labels, 0 to 500, 0 for automatic) and `xTickMaxLength` (1 to 200 characters) shape the category labels.
+- `xTickRotation` (-90 to 90 degrees, 0 by default), `xTickSpacing` (the least pixels between labels, 0 to 500, 0 for automatic: labels that would collide are slanted 45 degrees before any is left out) and `xTickMaxLength` (1 to 200 characters) shape the category labels.
 - `valueSize` (6 to 100 pixels, 12 by default) sizes the value text.
 - `legend`, `legendMode`, `legendValues` (up to 8 reducers), `legendSortBy`, `legendSortDesc`, `legendWidth` (40 to 2000), `tooltip`, `tooltipSort`, `tooltipHideZeros`, `tooltipMaxWidth` and `tooltipMaxHeight` work as on a time series, except that `tooltipSort` defaults to `none` and there are no `legendHideZero`, `legendHideEmpty` or `tooltipCumulative` options.
 - `showValues` (`auto` where the text fits, `always` or `never`; `auto` by default) writes each bar's value on it.
@@ -673,7 +673,8 @@ On those panels a field's actions show in the same menu after its links (a bar g
 - `pointShape` is `circle` (the default) or `square` and `pointStrokeWidth` is the width of the marker outline, 0 to 20 (0 by default); an `xychart` panel draws both, and time series and trend panels draw the shape.
 - `spanNulls` is `false` (the default, a gap breaks the line), `true` (every gap is joined) or a number of milliseconds (gaps up to that long are joined).
 - `insertNulls` is a number of milliseconds or `true`: a series with a longer pause between two samples breaks its line there, and `true` means longer than the query's own resolution, which is the step the panel data reports for that query; a series that also sets `spanNulls` then joins only up to its own limit.
-- A state timeline and a status history break a state the same way: it ends one interval (or the written number of milliseconds) after its last sample.
+- A time series with neither `insertNulls` nor `spanNulls: true` breaks its line at any pause longer than the query's own resolution, as if `insertNulls` were `true`.
+- A state timeline and a status history hold a state until the next sample, and break it only when `insertNulls` is set: it then ends one interval (or the written number of milliseconds) after its last sample.
 - `nullAsZero` draws a series' missing values as 0 (`false` by default).
 
 ### Neutral value, bars and threshold style

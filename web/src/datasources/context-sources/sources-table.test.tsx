@@ -229,14 +229,14 @@ describe("McpSourcesSection", () => {
     })
   })
 
-  it("disables Edit and Delete for a source from the file but not Discover", async () => {
+  it("disables Edit and Remove for a source from the file but not Discover", async () => {
     calls.sources = [source({ provisioned: true })]
     section()
     expect(
       await screen.findByRole("button", { name: "Edit Docs index" })
     ).toBeDisabled()
     expect(
-      screen.getByRole("button", { name: "Delete Docs index" })
+      screen.getByRole("button", { name: "Remove Docs index" })
     ).toBeDisabled()
     expect(
       screen.getByRole("button", { name: "Discover the tools of Docs index" })

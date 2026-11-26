@@ -186,7 +186,7 @@ export function contextProblemText(error: unknown): string {
     case "secret_key_missing":
       return "Set SLASHOBSERVE_SECRET_KEY on the server and restart to store a secret."
     case "too_many_context_sources":
-      return "At most 50 context sources can exist. Delete one first."
+      return "At most 50 context sources can exist. Remove one first."
     case "too_many_domains":
       return "The outbound allowlist is full. Remove a domain first."
     case "uid_taken":

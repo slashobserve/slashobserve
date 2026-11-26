@@ -5,6 +5,8 @@ import {
   browsableSources,
   carriesSearch,
   defaultSource,
+  carriedRange,
+  exploreKindOfPath,
   isSourcePage,
   languageReference,
   listedSources,
@@ -359,5 +361,35 @@ describe("languageReference", () => {
     ["traces", "jaeger"],
   ] as const)("has none for the %s language of %s", (kind, type) => {
     expect(languageReference(kind, type)).toBeNull()
+  })
+})
+
+describe("exploreKindOfPath", () => {
+  it.each([
+    ["/logs/loki", "logs"],
+    ["/traces/tempo", "traces"],
+    ["/explore/metrics/prom", "metrics"],
+  ])("names the kind of %s", (pathname, kind) => {
+    expect(exploreKindOfPath(pathname)).toBe(kind)
+  })
+
+  it.each(["/logs", "/traces", "/dashboards", "/t/abc", "/"])(
+    "names no kind for %s",
+    (pathname) => {
+      expect(exploreKindOfPath(pathname)).toBeUndefined()
+    }
+  )
+})
+
+describe("carriedRange", () => {
+  it("keeps a whole range", () => {
+    expect(
+      carriedRange({ from: "now-15m", to: "now", q: "x" } as never)
+    ).toEqual({ from: "now-15m", to: "now" })
+  })
+
+  it("keeps nothing of half a range", () => {
+    expect(carriedRange({ from: "now-15m" })).toEqual({})
+    expect(carriedRange({})).toEqual({})
   })
 })

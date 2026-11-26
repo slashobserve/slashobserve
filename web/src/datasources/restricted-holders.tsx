@@ -39,7 +39,7 @@ export function RestrictedHolders({ error }: { error: DatasourceError }) {
       <AlertDescription>
         <p>
           Dashboards, searches or observations that read this datasource are in
-          folders other people can read. Move them to an Only Admins folder, or
+          folders other people can read. Move them to an Admins only folder, or
           remove the panels that read it, then save again.
         </p>
         <ul className="list-disc pl-4">

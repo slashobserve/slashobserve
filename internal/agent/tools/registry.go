@@ -95,7 +95,7 @@ var narrowing = map[string]string{
 	nameGetSchema:       "pass table, or page on with the next_offset as offset",
 	nameSampleRows:      "pass a smaller limit",
 	nameQueryRange:      "shorten from and to, lower max_data_points, or reduce the series with a label selector or an aggregation",
-	nameQueryInstant:    "shorten from and to, or reduce the series with a label selector or an aggregation",
+	nameQueryInstant:    "shorten from and to, or reduce the series with a label selector or an aggregation; to read one extreme or total over a window, use a window function such as max_over_time, min_over_time or sum_over_time instead of raw samples",
 	nameGetDashboard:    "use get_panels with the panel ids you need",
 	nameGetPanels:       "ask for fewer panel ids",
 	nameListDashboards:  "pass a smaller limit and page on with next_cursor",

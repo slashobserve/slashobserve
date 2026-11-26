@@ -1222,3 +1222,159 @@ describe("DataGrid", () => {
     })
   })
 })
+
+describe("DataGrid focus after removing a row", () => {
+  const listed: Row[] = ["c", "a", "d", "b"].map((id) => ({
+    id,
+    name: id,
+    owner: "",
+    note: "",
+  }))
+  const withRemove: DataGridColumn<Row>[] = [
+    { id: "name", header: "Name", cell: (row) => row.name },
+    {
+      id: "remove",
+      header: "Remove",
+      action: true,
+      cell: (row) => (
+        <button type="button" data-remove="">
+          Remove {row.name}
+        </button>
+      ),
+    },
+  ]
+  const props = {
+    label: "Services",
+    columns: withRemove,
+    rowId: (row: Row) => row.id,
+  }
+  let listening = new AbortController()
+
+  afterEach(() => {
+    listening.abort()
+    listening = new AbortController()
+  })
+
+  async function removeWhileFocused(removed: string) {
+    const { rerender } = render(<DataGrid {...props} rows={listed} />)
+    const button = await screen.findByRole("button", {
+      name: `Remove ${removed}`,
+    })
+    button.focus()
+    rerender(
+      <DataGrid
+        {...props}
+        rows={listed}
+        focusAfterRemoving={{ rowId: removed, control: "[data-remove]" }}
+      />
+    )
+    const focused: string[] = []
+    document.addEventListener(
+      "focusin",
+      (event) => {
+        const target = event.target as HTMLElement
+        focused.push(
+          target.getAttribute("role") === "gridcell"
+            ? `cell ${target.closest("[row-id]")?.getAttribute("row-id")}`
+            : (target.textContent ?? "")
+        )
+      },
+      { signal: listening.signal }
+    )
+    rerender(
+      <DataGrid
+        {...props}
+        rows={listed.filter((row) => row.id !== removed)}
+        focusAfterRemoving={{ rowId: removed, control: "[data-remove]" }}
+      />
+    )
+    return focused
+  }
+
+  it.each([
+    ["a middle row", "a", "d"],
+    ["the first row", "c", "a"],
+    ["the last row", "b", "d"],
+  ])(
+    "moves focus into the row that takes the place of %s in display order, after the grid restores its own focus",
+    async (_, removed, neighbour) => {
+      const focused = await removeWhileFocused(removed)
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: `Remove ${neighbour}` })
+        ).toHaveFocus()
+      )
+      expect(focused).toEqual([`cell ${neighbour}`, `Remove ${neighbour}`])
+    }
+  )
+
+  it("focuses the first cell of the row that takes the removed row's place when that row has no such control", async () => {
+    const onlySome: DataGridColumn<Row>[] = [
+      withRemove[0],
+      {
+        ...withRemove[1],
+        cell: (row) =>
+          row.id === "d" ? null : (
+            <button type="button" data-remove="">
+              Remove {row.name}
+            </button>
+          ),
+      },
+    ]
+    const { rerender } = render(
+      <DataGrid {...props} columns={onlySome} rows={listed} />
+    )
+    ;(await screen.findByRole("button", { name: "Remove a" })).focus()
+    const removal = { rowId: "a", control: "[data-remove]" }
+    rerender(
+      <DataGrid
+        {...props}
+        columns={onlySome}
+        rows={listed}
+        focusAfterRemoving={removal}
+      />
+    )
+    rerender(
+      <DataGrid
+        {...props}
+        columns={onlySome}
+        rows={listed.filter((row) => row.id !== "a")}
+        focusAfterRemoving={removal}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole("gridcell", { name: "d" })).toHaveFocus()
+    )
+  })
+
+  it("leaves focus alone once it has moved out of the grid", async () => {
+    const outside = document.createElement("button")
+    document.body.append(outside)
+    const { rerender } = render(<DataGrid {...props} rows={listed} />)
+    await screen.findByRole("button", { name: "Remove a" })
+    rerender(
+      <DataGrid
+        {...props}
+        rows={listed}
+        focusAfterRemoving={{ rowId: "a", control: "[data-remove]" }}
+      />
+    )
+    outside.focus()
+    rerender(
+      <DataGrid
+        {...props}
+        rows={listed.filter((row) => row.id !== "a")}
+        focusAfterRemoving={{ rowId: "a", control: "[data-remove]" }}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove a" })).toBeNull()
+    )
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(outside).toHaveFocus()
+    outside.remove()
+  })
+})

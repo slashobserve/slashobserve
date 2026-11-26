@@ -236,7 +236,7 @@ describe("trendChange", () => {
 })
 
 describe("patternsHeading", () => {
-  it("counts the share of the sampled lines for a server result", () => {
+  it("says a server result counts the newest lines it read", () => {
     expect(
       patternsHeading(
         result({
@@ -247,20 +247,36 @@ describe("patternsHeading", () => {
         })
       )
     ).toBe(
-      "2 patterns cover 98% of 1,000 documents. Numbers and ids become <*>."
+      "2 patterns cover 98% of the newest 1,000 lines. Numbers and ids become <*>."
     )
   })
 
-  it("counts the share of the matched lines when the index answered", () => {
+  it("names the Loki pattern index", () => {
     expect(
       patternsHeading(
         result({
           source: "loki",
+          lines_matched: 34112,
+          patterns: [pattern({ count: 27631 }), pattern({ count: 6481 })],
+        })
+      )
+    ).toBe(
+      "2 patterns cover 100% of the 34,112 lines the pattern index covers. Numbers and ids become <*>."
+    )
+  })
+
+  it("names the Elasticsearch aggregation", () => {
+    expect(
+      patternsHeading(
+        result({
+          source: "elasticsearch",
           lines_matched: 200,
           patterns: [pattern({ count: 100 })],
         })
       )
-    ).toBe("1 pattern covers 50% of 200 documents. Numbers and ids become <*>.")
+    ).toBe(
+      "1 pattern covers 50% of the 200 documents the aggregation covers. Numbers and ids become <*>."
+    )
   })
 
   it("never rounds a partial cover up to 100%", () => {

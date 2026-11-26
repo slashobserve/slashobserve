@@ -108,3 +108,35 @@ func TestUnopenedAfterNinetyDaysSinceTheLastViewOrCreation(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyNamesTheCheckedWindowOnATimeout(t *testing.T) {
+	d := healthDashboard(t)
+	got := classify(d, []spec.Issue{
+		{Path: "/panels/0/queries/0/query", Code: "query_timeout", Message: "query timed out after 15s"},
+		{Path: "/panels/1/panels/0/queries/0/query", Code: "query_failed", Message: "bad"},
+	})
+	want := []string{"query timed out after 15s while checking the last 7 days", "bad"}
+	if len(got) != len(want) {
+		t.Fatalf("classify returned %d problems, want %d", len(got), len(want))
+	}
+	for i, p := range got {
+		if p.Message != want[i] {
+			t.Errorf("message %d = %q, want %q", i, p.Message, want[i])
+		}
+	}
+}
+
+func TestClassifyPrefersTheTimeoutWhenOnePanelHasTwoFailingQueries(t *testing.T) {
+	d := healthDashboard(t)
+	timeout := spec.Issue{Path: "/panels/0/queries/1/query", Code: "query_timeout", Message: "query timed out after 15s"}
+	failure := spec.Issue{Path: "/panels/0/queries/0/query", Code: "query_failed", Message: "bad"}
+	want := Problem{Kind: KindQueryFailed, PanelID: "rps", PanelTitle: "Requests", Code: "query_timeout", Message: "query timed out after 15s while checking the last 7 days"}
+	for name, issues := range map[string][]spec.Issue{"failure first": {failure, timeout}, "timeout first": {timeout, failure}} {
+		t.Run(name, func(t *testing.T) {
+			got := classify(d, issues)
+			if len(got) != 1 || got[0] != want {
+				t.Errorf("classify = %+v, want [%+v]", got, want)
+			}
+		})
+	}
+}

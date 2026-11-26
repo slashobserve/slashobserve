@@ -28,6 +28,7 @@ import { useAfterMainQuery } from "@/lib/use-after-main-query"
 import { cn } from "@/lib/utils"
 import { labelNamesQuery } from "@/panel-editor/queries"
 
+import { failedNote } from "./explore"
 import {
   clampFieldsWidth,
   fieldsDefaultWidth,
@@ -376,7 +377,7 @@ function FieldsPanel({
           <h2 className="m-0 text-[13px] font-medium">Fields</h2>
           <p className="m-0 text-xs text-muted-foreground">
             {slow
-              ? "This source is slow: the fields load when the query answers"
+              ? "Not loaded"
               : loading
                 ? "Reading the fields"
                 : fieldsNote(type, datasource.index, rows.length)}
@@ -422,7 +423,11 @@ function FieldsPanel({
             </AlertDescription>
           </Alert>
         )}
-        {loading ? (
+        {slow ? (
+          <p role="status" className="m-0 px-1.5 text-xs text-muted-foreground">
+            {failedNote("the results")}
+          </p>
+        ) : loading ? (
           <div aria-busy="true" className="flex flex-col gap-1">
             {[0, 1, 2, 3, 4].map((item) => (
               <Skeleton key={item} className="h-6" />

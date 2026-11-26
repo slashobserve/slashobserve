@@ -15,6 +15,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
 	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
+	"github.com/slashobserve/slashobserve/internal/health/healthrule"
 	"github.com/slashobserve/slashobserve/internal/logattrs"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
 	"github.com/slashobserve/slashobserve/pkg/spec"
@@ -32,7 +33,9 @@ const (
 	checkFailedMessage     = "the health check could not run; the server log has the cause"
 )
 
-var checkRange = spec.TimeRange{From: "now-7d", To: "now"}
+var checkRange = spec.TimeRange{From: healthrule.CheckFrom, To: "now"}
+
+const timeoutWindow = " while checking " + healthrule.CheckWindow
 
 type runCounts struct {
 	mu                                 sync.Mutex

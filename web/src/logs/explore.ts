@@ -79,3 +79,7 @@ export function exploreErrorText(error: unknown): string {
   if (error instanceof NetworkError) return offlineText
   return "The query failed. Try again."
 }
+
+export function failedNote(where: string): string {
+  return `The query failed, see ${where}.`
+}

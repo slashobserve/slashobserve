@@ -16,10 +16,8 @@ import { timeLabel } from "@/lib/time-ticks"
 import { cn } from "@/lib/utils"
 
 import {
-  durationBoundText,
   durationScale,
   durationTicks,
-  durationTickText,
   inSelection,
   nudgeSelection,
   scatterPoints,
@@ -248,7 +246,7 @@ function SelectionBox({
       />
       <SelectionHandleButton
         handle="floor"
-        label={`Move the duration floor, now ${durationBoundText(selection.minMs)}`}
+        label={`Move the duration floor, now ${durationText(selection.minMs)}`}
         className="bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 cursor-ns-resize"
         onNudge={nudge}
       />
@@ -344,7 +342,7 @@ export function DurationScatter({
               className="absolute right-0 -translate-y-1/2"
               style={{ top: percent(1 - scale.y(tick)) }}
             >
-              {durationTickText(tick)}
+              {durationText(tick)}
             </span>
           ))}
         </div>
