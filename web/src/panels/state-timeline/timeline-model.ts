@@ -3,6 +3,7 @@ import { displayValue, fieldRange, type FieldResolver } from "../field-config"
 import { seriesKey, uniqueKey } from "../frames"
 import { isNumber } from "../reducers"
 import {
+  breakingGaps,
   insertNullsThresholdMs,
   queryIntervalMs,
   type QueryIntervals,
@@ -169,7 +170,7 @@ export function timelineModel(
   const raw: RawRow[] = []
   for (const frame of frames) {
     for (const field of frame.fields) {
-      const config = fields.configFor(frame, field)
+      const config = breakingGaps(fields.configFor(frame, field))
       if (!isShown(field) || config.hidden) continue
       const samples = samplesOf(frame, field, fields)
       if (!samples) continue
