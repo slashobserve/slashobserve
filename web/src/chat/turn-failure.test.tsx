@@ -110,6 +110,20 @@ describe("TurnFailure", () => {
     expect(screen.queryByRole("link", { name: "Open dashboard" })).toBeNull()
   })
 
+  it("still links to the dashboard from its versions page", async () => {
+    renderFailure(
+      "canceled",
+      { dashboard_id: dashboardId },
+      {
+        path: "/d/$dashboardId/versions",
+        url: `/d/${dashboardId}/versions`,
+      }
+    )
+    expect(
+      await screen.findByRole("link", { name: "Open dashboard" })
+    ).toBeInTheDocument()
+  })
+
   it("keeps a real failure as an alert with its reason", async () => {
     renderFailure("no_progress")
     expect(await screen.findByRole("alert")).toHaveTextContent(
