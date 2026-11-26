@@ -12,6 +12,7 @@ import (
 const (
 	MaxRejectionsInRow     = 3
 	MaxLengthRejections    = 5
+	MaxRejectedSaves       = 8
 	maxIdenticalReads      = 3
 	maxCallsBeforeSave     = 6
 	maxCallsBeforeProposal = 12
@@ -446,6 +447,13 @@ func (s *State) EndTurn() (nudge string, stop *Stop) {
 		return nudge, &Stop{
 			Failure: revisions.FailureValidationExhausted,
 			Step:    fmt.Sprintf("Stopped: %d %s in a row were rejected", MaxRejectionsInRow, rejectedThing(s.Mode)),
+		}
+	}
+	if s.Turn.Rejected && s.RejectedSaves >= MaxRejectedSaves {
+		return nudge, &Stop{
+			Failure: revisions.FailureValidationExhausted,
+			Step:    fmt.Sprintf("Stopped: %d %s were rejected without an accepted one", MaxRejectedSaves, rejectedThing(s.Mode)),
+			Message: fmt.Sprintf("the finding was rejected in %d saves without an accepted one", MaxRejectedSaves),
 		}
 	}
 	return nudge, nil

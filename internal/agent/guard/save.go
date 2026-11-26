@@ -135,7 +135,7 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 		if repairing {
 			s.Counts.Repairs++
 		}
-		s.Rejections, s.RestrictedRefusals, s.LengthRejections = 0, 0, 0
+		s.Rejections, s.RestrictedRefusals, s.LengthRejections, s.RejectedSaves = 0, 0, 0, 0
 		return settled, nil
 	}
 	switch {
@@ -148,14 +148,17 @@ func (s *State) classifySave(c Call, res tools.Result, content []byte) (Settled,
 	}
 	if body.Code == folders.CodeRestrictedAnswer {
 		s.RestrictedRefusals++
-		s.Rejections = 0
+		s.Rejections, s.LengthRejections = 0, 0
 		return Settled{Outcome: Outcome{Rejected: true}}, nil
 	}
+	s.RejectedSaves++
+	s.RestrictedRefusals = 0
 	if body.Code == tools.CodeFindingTooLong {
 		s.LengthRejections++
+		s.Rejections = 0
 	} else {
 		s.Rejections++
-		s.RestrictedRefusals = 0
+		s.LengthRejections = 0
 	}
 	failing, other := body.failingPanels()
 	return Settled{Outcome: Outcome{

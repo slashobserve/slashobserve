@@ -1273,19 +1273,61 @@ const (
 	schemaBody  = `{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}`
 )
 
-func TestLengthOverrunsDoNotSpendTheThreeRejectionBudget(t *testing.T) {
+func TestLengthOverrunsAndOtherRejectionsEachCountOnlyTheirOwnRunInARow(t *testing.T) {
 	s := New(tools.ModeInvestigate)
 	for i, body := range []string{tooLongBody, tooLongBody, schemaBody, schemaBody} {
 		if stop := rejectFinding(t, &s, i+1, body); stop != nil {
 			t.Fatalf("stopped after save %d: %+v", i+1, stop)
 		}
 	}
-	if s.Rejections != 2 || s.LengthRejections != 2 {
+	if s.Rejections != 2 || s.LengthRejections != 0 {
 		t.Fatalf("rejections %d, length rejections %d", s.Rejections, s.LengthRejections)
 	}
 	stop := rejectFinding(t, &s, 5, schemaBody)
 	if stop == nil || stop.Failure != revisions.FailureValidationExhausted || stop.Step != "Stopped: 3 findings in a row were rejected" || stop.Message != "" {
 		t.Fatalf("stop = %+v", stop)
+	}
+}
+
+func TestALengthOverrunBreaksTheRunOfOtherRejections(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	for i, body := range []string{schemaBody, schemaBody, tooLongBody, schemaBody, schemaBody} {
+		if stop := rejectFinding(t, &s, i+1, body); stop != nil {
+			t.Fatalf("stopped after save %d: %+v", i+1, stop)
+		}
+	}
+	if s.Rejections != 2 || s.LengthRejections != 0 {
+		t.Fatalf("rejections %d, length rejections %d", s.Rejections, s.LengthRejections)
+	}
+}
+
+func TestLengthOverrunsBreakTheRunOfRestrictedRefusals(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	restricted := `{"code":"restricted_answer","message":"m"}`
+	for i, body := range []string{restricted, tooLongBody, restricted, tooLongBody, restricted} {
+		if stop := rejectFinding(t, &s, i+1, body); stop != nil {
+			t.Fatalf("stopped after save %d: %+v", i+1, stop)
+		}
+	}
+	if s.RestrictedRefusals != 1 {
+		t.Fatalf("restricted refusals = %d, want 1", s.RestrictedRefusals)
+	}
+}
+
+func TestAlternatingRejectionsAreBoundedByTheTotalWithoutAnAcceptedSave(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	for i := range MaxRejectedSaves {
+		body := tooLongBody
+		if i%2 == 1 {
+			body = schemaBody
+		}
+		stop := rejectFinding(t, &s, i+1, body)
+		if i < MaxRejectedSaves-1 && stop != nil {
+			t.Fatalf("stopped after %d alternating rejections: %+v", i+1, stop)
+		}
+		if i == MaxRejectedSaves-1 && (stop == nil || stop.Failure != revisions.FailureValidationExhausted || stop.Step != "Stopped: 8 findings were rejected without an accepted one" || stop.Message != "the finding was rejected in 8 saves without an accepted one") {
+			t.Fatalf("stop = %+v", stop)
+		}
 	}
 }
 
@@ -1319,7 +1361,7 @@ func TestAnAcceptedFindingClearsTheLengthOverruns(t *testing.T) {
 	if _, err := s.Settle(c, tools.Result{}, []byte(`{"finding_id":"f1"}`)); err != nil {
 		t.Fatal(err)
 	}
-	if s.LengthRejections != 0 || s.Counts.Repairs != 1 {
-		t.Fatalf("length rejections %d, repairs %d", s.LengthRejections, s.Counts.Repairs)
+	if s.LengthRejections != 0 || s.RejectedSaves != 0 || s.Counts.Repairs != 1 {
+		t.Fatalf("length rejections %d, rejected saves %d, repairs %d", s.LengthRejections, s.RejectedSaves, s.Counts.Repairs)
 	}
 }

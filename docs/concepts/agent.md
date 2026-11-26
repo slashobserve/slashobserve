@@ -272,6 +272,8 @@ Details of shortening:
 A run has no cap on model calls and runs one save per turn.
 It ends when it finishes, is canceled, reaches `SLASHOBSERVE_AGENT_RUN_TIMEOUT` or `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD` when that is set, loses its claim on the request, or stops making progress.
 Three rejected saves in a row end it.
+A finding that is over the word limit counts apart: five over-length saves in a row end the run, and so do eight rejected saves of any kind without an accepted one.
+Each kind of rejection breaks the other's run, so a schema slip after an overrun starts its count of three at one.
 
 ### Guards
 
@@ -311,6 +313,7 @@ Details of what stops a run:
 
 - A run that is stopped after three rejected saves names the panels that kept failing in its reason.
 - An investigation or a question answered with a finding says "the finding was rejected in 3 saves in a row" instead.
+  After five over-length saves in a row it says "the finding was still over the word limit after 5 saves", and after eight rejected saves with none accepted, "the finding was rejected in 8 saves without an accepted one".
   It names the evidence panels that failed (`evidence-1` is the first panel sent) and the last issue codes.
   It adds that a datasource did not answer in time when every issue was a timeout, an unavailable datasource or a busy server.
 - A finding rejected for such evidence tells the model to send it again without those panels and to say that their data was not read.
@@ -616,7 +619,7 @@ Every request records `trigger`, what started it: `person` when the requester as
 | `output_limit` | The model ran out of output tokens. |
 | `no_tool_call` | The model finished without saving. |
 | `refused` | The model refused. |
-| `validation_exhausted` | Three rejected saves in a row. |
+| `validation_exhausted` | Three rejected saves in a row, five findings in a row over the word limit, or eight rejected findings without an accepted one. |
 | `restricted_answer` | Three saves in a row were refused because the run read data only Admins can read. They do not count toward `validation_exhausted`. |
 | `no_progress` | The run stopped making progress. |
 | `budget_exhausted` | The run reached the server's cost limit. |
