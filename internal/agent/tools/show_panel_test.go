@@ -439,7 +439,7 @@ func TestTheChartTypesOfTheSchemaAreThoseOfTheViteRendererList(t *testing.T) {
 func TestShowPanelDrawsAPanelOfASavedDashboard(t *testing.T) {
 	rig := newPanelsRig(t)
 	id := rig.seedStats(t)
-	caller := rig.as(rig.ctx)
+	caller := rig.as(WithAppsHost(rig.ctx))
 	res, _ := caller.run(t, nameShowPanel, fmt.Sprintf(`{"dashboard_id":%q,"panel":"p1","from":"now-2h"}`, id))
 	app := decodeApp(t, res)
 	if app.Title != "One" || app.Panel.Type != "stat" || app.From == "" || app.To == "" {
