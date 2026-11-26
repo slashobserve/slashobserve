@@ -133,11 +133,11 @@ func TestGetTraceSummarizesServicesErrorsAndTheSlowestSpans(t *testing.T) {
 		t.Fatalf("links = %d to %v, want one linked span to %s", out.Links, out.LinkedTraces, linkedTraceID)
 	}
 	wantSlowest := []slowSpanOut{
-		{"root000000000000", "POST /checkout", "gateway", 900, 100, 0},
-		{"chk0000000000000", "checkout", "checkout", 800, 100, 1},
-		{"pay0000000000000", "charge", "payments", 700, 50, 2},
-		{"db00000000000000", "SELECT cards", "payments", 650, 650, 3},
-		{"inv0000000000025", "reserve", "inventory", 26, 26, 2},
+		{"root000000000000", "POST /checkout", "gateway", 900, 100, 0, 0},
+		{"chk0000000000000", "checkout", "checkout", 800, 100, 1, 0},
+		{"pay0000000000000", "charge", "payments", 700, 50, 2, 0},
+		{"db00000000000000", "SELECT cards", "payments", 650, 650, 3, 0},
+		{"inv0000000000025", "reserve", "inventory", 26, 26, 2, 0},
 	}
 	if fmt.Sprint(out.Slowest[:5]) != fmt.Sprint(wantSlowest) {
 		t.Fatalf("slowest = %+v, want %+v", out.Slowest[:5], wantSlowest)
@@ -362,18 +362,18 @@ func TestTraceStatsRefusesBadInputAndOtherDatasources(t *testing.T) {
 }
 
 type shapedSpan struct {
-	id, parent, status, message string
-	offset, duration            time.Duration
+	id, parent, status, message, attributes string
+	offset, duration                        time.Duration
 }
 
 func shapedTrace(spans ...shapedSpan) datasource.Frame {
-	names := []string{"SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage"}
+	names := []string{"SpanId", "ParentSpanId", "SpanName", "ServiceName", "StartTime", "Duration", "StatusCode", "StatusMessage", "SpanAttributes"}
 	f := datasource.Frame{Fields: make([]datasource.Field, len(names))}
 	for i, name := range names {
 		f.Fields[i] = datasource.Field{Name: name, Type: datasource.FieldString}
 	}
 	for _, s := range spans {
-		row := []any{s.id, s.parent, "op-" + s.id, "svc", fixtureStart.Add(s.offset), int64(s.duration), s.status, s.message}
+		row := []any{s.id, s.parent, "op-" + s.id, "svc", fixtureStart.Add(s.offset), int64(s.duration), s.status, s.message, s.attributes}
 		for c := range row {
 			f.Fields[c].Values = append(f.Fields[c].Values, row[c])
 		}
@@ -509,12 +509,96 @@ func TestSummarizeTraceSelfTimeSubtractsTheUnionOfOverlappingChildren(t *testing
 }
 
 func TestGetTraceDescriptionScopesOriginToOneTrace(t *testing.T) {
-	for _, want := range []string{"inside this one trace", "does not by itself say which service an incident started in", "across many traces", "trace_stats"} {
+	for _, want := range []string{"HTTP response status", "relays a failure", "inside this one trace", "does not by itself say which service an incident started in", "across many traces", "trace_stats"} {
 		if !strings.Contains(descGetTrace, want) {
 			t.Errorf("description lacks %q", want)
 		}
 	}
 	if n := len(descGetTrace); n > 1500 {
 		t.Errorf("description is %d bytes, want at most 1500", n)
+	}
+}
+
+func TestSummarizeTraceTreatsAnHTTP5xxSpanAsARelayInTheFailingChain(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "web", status: "Unset", attributes: `{"http.response.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "gateway", parent: "web", status: "Unset", attributes: `{"http.status_code":"502"}`, offset: ms, duration: 90 * ms},
+		shapedSpan{id: "api", parent: "gateway", status: "Unset", attributes: `{"http.response.status_code":200}`, offset: 2 * ms, duration: 80 * ms},
+		shapedSpan{id: "db", parent: "gateway", status: "Error", message: "connection refused", attributes: `{"http.response.status_code":503}`, offset: 3 * ms, duration: 70 * ms},
+	))
+	if got := originsOf(out.Errors); !slices.Equal(got, []string{"db"}) {
+		t.Fatalf("origins = %v, want only the deepest failing span", got)
+	}
+	var ids []string
+	status := map[string]int{}
+	for _, e := range out.Errors {
+		ids = append(ids, e.SpanID)
+		status[e.SpanID] = e.HTTPStatus
+	}
+	if !slices.Equal(ids, []string{"web", "gateway", "db"}) {
+		t.Fatalf("errors = %v, want the relays and the origin without the healthy span", ids)
+	}
+	if status["web"] != 500 || status["gateway"] != 502 || status["db"] != 503 {
+		t.Fatalf("http statuses = %v", status)
+	}
+	if out.Services[0].Errors != 3 {
+		t.Fatalf("services = %+v, want the relays counted as errors", out.Services)
+	}
+	if out.Root.HTTPStatus != 500 {
+		t.Fatalf("root = %+v", out.Root)
+	}
+}
+
+func TestSummarizeTraceDoesNotFailASpanWithA4xxStatus(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", attributes: `{"http.response.status_code":404}`, duration: 100 * ms},
+	))
+	if len(out.Errors) != 0 || out.Root.HTTPStatus != 404 {
+		t.Fatalf("errors = %+v root = %+v", out.Errors, out.Root)
+	}
+}
+
+func TestHTTPStatusOfReadsTheStandardAndTheOlderAttribute(t *testing.T) {
+	for _, tc := range []struct {
+		attributes string
+		want       int
+	}{
+		{`{"http.response.status_code":500}`, 500},
+		{`{"http.status_code":503}`, 503},
+		{`{"http.status_code":"502"}`, 502},
+		{`{"http.response.status_code":"201","http.status_code":500}`, 201},
+		{`{"http.response.status_code":"x","http.status_code":500}`, 500},
+		{`{"http.method":"GET"}`, 0},
+		{`{"other.status_code":500}`, 0},
+		{`not json status_code`, 0},
+		{``, 0},
+	} {
+		if got := httpStatusOf(tc.attributes); got != tc.want {
+			t.Errorf("httpStatusOf(%q) = %d, want %d", tc.attributes, got, tc.want)
+		}
+	}
+}
+
+func TestGetTraceOutputPrintsTheHTTPStatusOnlyWhenPresent(t *testing.T) {
+	const ms = time.Millisecond
+	out := summarizeTrace(fixtureTraceID, shapedTrace(
+		shapedSpan{id: "a", status: "Unset", attributes: `{"http.status_code":500}`, duration: 100 * ms},
+		shapedSpan{id: "b", parent: "a", status: "Error", offset: ms, duration: 90 * ms},
+	))
+	body, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(body), `"http_status"`); n != 3 {
+		t.Fatalf("http_status appears %d times, want root, one error and one slowest span: %s", n, body)
+	}
+	plain, err := json.Marshal(summarizeTrace(fixtureTraceID, shapedTrace(shapedSpan{id: "a", status: "Error", duration: 100 * ms})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), "http_status") {
+		t.Fatalf("http_status printed without an HTTP status: %s", plain)
 	}
 }

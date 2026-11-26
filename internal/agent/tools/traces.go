@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -22,8 +23,9 @@ const (
 	traceSourcesMessage   = "get_trace reads Tempo, Jaeger and ClickHouse datasources"
 	traceStatsSourcesText = "trace_stats reads Tempo and ClickHouse datasources"
 	nanosPerMilli         = 1e6
+	minServerErrorStatus  = 500
 
-	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
+	descGetTrace   = "Read one trace by id from a Tempo, Jaeger or ClickHouse datasource: its services, root span, error spans with the message each set and the HTTP response status, their parent and depth with each error that has no error below it marked origin (only on a complete trace), and slowest spans with their self time (duration less the children's). A span with an HTTP status of 500 or more counts as an error even when its own status is unset, because it relays a failure from below. Use it after listing traces, or when a log line carries a trace_id, to see where the time and the errors are. A trace over 20,000 spans is truncated to its earliest spans and says so. Spans that link to other traces are counted and their trace ids listed. The origin flag marks where an error chain starts inside this one trace; it does not by itself say which service an incident started in, because a failing dependency is the deepest error of every trace that calls it. To name the service an incident began in, compare per-service error counts or shares over the whole window across many traces, with trace_stats filtered by service or a metrics read."
 	descTraceStats = "Count spans and errors per time bucket and get p50, p95 and p99 durations and a duration histogram over a TraceQL filter on Tempo, or a SQL condition over otel_traces on ClickHouse, such as ServiceName = 'checkout' AND StatusCode = 'Error' (StatusCode is Unset, Ok or Error). Use it to see whether latency or errors moved before reading single traces."
 
 	propTraceFrom    = `"from":{"type":"string","description":"Start time such as now-1h or an RFC 3339 time. Default now-24h."}`
@@ -40,6 +42,8 @@ func (r *Registry) traceEntries() []entry {
 		{Tool{Name: nameTraceStats, Description: descTraceStats, InputSchema: json.RawMessage(schemaTraceStats), ReadOnly: true, MinRole: auth.RoleViewer}, r.traceStats},
 	}
 }
+
+var httpStatusKeys = []string{"http.response.status_code", "http.status_code"}
 
 type traceOut struct {
 	TraceID       string        `json:"trace_id"`
@@ -68,6 +72,7 @@ type spanRefOut struct {
 	Service       string `json:"service"`
 	Depth         int    `json:"depth"`
 	Origin        bool   `json:"origin,omitempty"`
+	HTTPStatus    int    `json:"http_status,omitempty"`
 	StatusMessage string `json:"status_message,omitempty"`
 }
 
@@ -78,11 +83,13 @@ type slowSpanOut struct {
 	DurationMS float64 `json:"duration_ms"`
 	SelfTimeMS float64 `json:"self_time_ms"`
 	Depth      int     `json:"depth"`
+	HTTPStatus int     `json:"http_status,omitempty"`
 }
 
 type traceSpan struct {
 	id, parent, name, service, status string
 	statusMessage                     string
+	httpStatus                        int
 	start                             time.Time
 	duration                          float64
 	links                             []datasource.SpanLink
@@ -168,7 +175,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 			services[s.service] = svc
 		}
 		svc.Spans++
-		if datasource.IsErrorStatus(s.status) {
+		if failing(s) {
 			svc.Errors++
 			failed = append(failed, s)
 		}
@@ -181,7 +188,7 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	if root == nil {
 		root = &spans[0]
 	}
-	out.Root = &spanRefOut{SpanID: root.id, Name: root.name, Service: root.service}
+	out.Root = &spanRefOut{SpanID: root.id, Name: root.name, Service: root.service, HTTPStatus: root.httpStatus}
 	out.Errors = errorRefs(failed, byID, !out.Truncated)
 	out.DurationMS = millisOf(float64(end.Sub(start)))
 	for _, svc := range services {
@@ -194,9 +201,13 @@ func summarizeTrace(id string, f datasource.Frame) traceOut {
 	slices.SortStableFunc(slowest, func(a, b traceSpan) int { return cmp.Compare(b.duration, a.duration) })
 	children := childrenOf(spans)
 	for _, s := range slowest[:min(len(slowest), traceListLimit)] {
-		out.Slowest = append(out.Slowest, slowSpanOut{SpanID: s.id, Name: s.name, Service: s.service, DurationMS: millisOf(s.duration), SelfTimeMS: millisOf(selfTime(s, children[s.id])), Depth: depthOf(s, byID)})
+		out.Slowest = append(out.Slowest, slowSpanOut{SpanID: s.id, Name: s.name, Service: s.service, DurationMS: millisOf(s.duration), SelfTimeMS: millisOf(selfTime(s, children[s.id])), Depth: depthOf(s, byID), HTTPStatus: s.httpStatus})
 	}
 	return out
+}
+
+func failing(s *traceSpan) bool {
+	return datasource.IsErrorStatus(s.status) || s.httpStatus >= minServerErrorStatus
 }
 
 func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
@@ -225,7 +236,7 @@ func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) [
 	slices.SortStableFunc(listed, func(a, b *traceSpan) int { return slices.Index(failed, a) - slices.Index(failed, b) })
 	refs := make([]spanRefOut, 0, len(listed))
 	for _, s := range listed {
-		refs = append(refs, spanRefOut{SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID), Origin: origin(s), StatusMessage: s.statusMessage})
+		refs = append(refs, spanRefOut{SpanID: s.id, ParentSpanID: s.parent, Name: s.name, Service: s.service, Depth: depthOf(*s, byID), Origin: origin(s), HTTPStatus: s.httpStatus, StatusMessage: s.statusMessage})
 	}
 	return refs
 }
@@ -272,10 +283,10 @@ func spansOf(f datasource.Frame) []traceSpan {
 	}
 	ids, parents, names, services := column("SpanId"), column("ParentSpanId"), column("SpanName"), column("ServiceName")
 	starts, durations, statuses, links := column("StartTime"), column("Duration"), column("StatusCode"), column("SpanLinks")
-	messages := column("StatusMessage")
+	messages, attributes := column("StatusMessage"), column("SpanAttributes")
 	spans := make([]traceSpan, 0, len(ids))
 	for i := range ids {
-		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), statusMessage: stringAt(messages, i), duration: numberAt(durations, i)}
+		s := traceSpan{id: stringAt(ids, i), parent: stringAt(parents, i), name: stringAt(names, i), service: stringAt(services, i), status: stringAt(statuses, i), statusMessage: stringAt(messages, i), httpStatus: httpStatusOf(stringAt(attributes, i)), duration: numberAt(durations, i)}
 		if at, ok := valueAt(starts, i).(time.Time); ok {
 			s.start = at
 		}
@@ -286,6 +297,27 @@ func spansOf(f datasource.Frame) []traceSpan {
 		return cmp.Or(a.start.Compare(b.start), cmp.Compare(a.id, b.id))
 	})
 	return spans
+}
+
+func httpStatusOf(attributes string) int {
+	if !strings.Contains(attributes, "status_code") {
+		return 0
+	}
+	var attrs map[string]any
+	if json.Unmarshal([]byte(attributes), &attrs) != nil {
+		return 0
+	}
+	for _, key := range httpStatusKeys {
+		switch v := attrs[key].(type) {
+		case float64:
+			return int(v)
+		case string:
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				return n
+			}
+		}
+	}
+	return 0
 }
 
 func linkSummary(spans []traceSpan) (linked int, traces []string) {
