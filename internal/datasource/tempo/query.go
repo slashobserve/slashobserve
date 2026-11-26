@@ -170,17 +170,14 @@ func (d *Datasource) search(ctx context.Context, text string, r datasource.TimeR
 	if len(rows) == 0 {
 		return []datasource.Frame{{Fields: []datasource.Field{}, Meta: searchMeta(metrics, false)}}, nil
 	}
-	f := traceFrame(rows)
-	meta := &datasource.FrameMeta{}
+	var meta *datasource.FrameMeta
 	if truncated, partial := len(rows) == lim.MaxRows, metrics.partial(); truncated || partial || metrics.TotalJobs > 0 {
 		meta = searchMeta(metrics, truncated)
 	}
-	meta.Hint = SearchDurationHint
-	f.Meta = meta
-	return []datasource.Frame{f}, nil
+	return []datasource.Frame{traceFrame(rows, meta)}, nil
 }
 
-const SearchDurationHint = "Duration is rounded to whole milliseconds by Tempo search, so it is approximate; open the trace with get_trace for the exact duration"
+const SearchDurationHint = "Duration is rounded to whole milliseconds by Tempo search; open the trace for the exact duration"
 
 func searchMeta(metrics searchMetrics, truncated bool) *datasource.FrameMeta {
 	return &datasource.FrameMeta{
@@ -293,10 +290,14 @@ func ceilSeconds(t time.Time) int64 {
 	return t.Unix() + 1
 }
 
-func traceFrame(rows []spanRow) datasource.Frame {
+func traceFrame(rows []spanRow, meta *datasource.FrameMeta) datasource.Frame {
 	full := spanFrame(rows)
 	keep := []string{"TraceId", "SpanId", "SpanName", "ServiceName", "StartTime", "Duration"}
-	f := datasource.Frame{}
+	if meta == nil {
+		meta = &datasource.FrameMeta{}
+	}
+	meta.Hint = SearchDurationHint
+	f := datasource.Frame{Meta: meta}
 	for _, field := range full.Fields {
 		if slices.Contains(keep, field.Name) {
 			f.Fields = append(f.Fields, field)

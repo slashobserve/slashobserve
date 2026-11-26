@@ -61,11 +61,11 @@ func pageFrames(rows []spanRow, metrics searchMetrics) []datasource.Frame {
 	if len(rows) == 0 {
 		return []datasource.Frame{}
 	}
-	f := traceFrame(rows)
+	var meta *datasource.FrameMeta
 	if metrics.partial() || metrics.TotalJobs > 0 {
-		f.Meta = searchMeta(metrics, false)
+		meta = searchMeta(metrics, false)
 	}
-	return []datasource.Frame{f}
+	return []datasource.Frame{traceFrame(rows, meta)}
 }
 
 func nextCursor(rows []spanRow, page, pageSize int) (*datasource.PageCursor, error) {

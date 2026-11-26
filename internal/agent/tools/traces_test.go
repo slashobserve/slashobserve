@@ -385,7 +385,7 @@ func TestGetTraceTextSaysSearchDurationsAreRoundedAndItsOwnAreExact(t *testing.T
 		if tool.Name != nameGetTrace {
 			continue
 		}
-		for _, want := range []string{"Durations are exact", "sub-millisecond", "rounded to whole milliseconds"} {
+		for _, want := range []string{"are exact", "sub-millisecond", "rounded to whole milliseconds", "state no total duration"} {
 			if !strings.Contains(tool.Description, want) {
 				t.Errorf("get_trace description lacks %q", want)
 			}

@@ -541,9 +541,12 @@ func TestSearchDurationsAreHintedAsWholeMilliseconds(t *testing.T) {
 	if err != nil || len(frames) != 1 || frames[0].Meta == nil {
 		t.Fatalf("frames = %+v, %v; want one frame with meta", frames, err)
 	}
-	for _, want := range []string{"whole milliseconds", "approximate", "get_trace", "exact duration"} {
+	for _, want := range []string{"rounded to whole milliseconds", "exact duration"} {
 		if !strings.Contains(frames[0].Meta.Hint, want) {
 			t.Errorf("hint %q lacks %q", frames[0].Meta.Hint, want)
 		}
+	}
+	if meta := *frames[0].Meta; meta.Truncated || meta.Partial {
+		t.Errorf("meta = %+v, the hint alone must not read as truncated or partial", meta)
 	}
 }
