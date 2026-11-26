@@ -1,3 +1,5 @@
+import type { ReactNode } from "react"
+
 import type { Block, Observation } from "./queries"
 import { describeInstant } from "@/lib/time"
 
@@ -78,20 +80,30 @@ export function headerBlocks(
   return headers
 }
 
-export function joinItems(items: readonly string[]): string {
-  return items
-    .map((item, index) =>
-      index < items.length - 1 ? item.trim().replace(/\.$/, "") : item.trim()
-    )
-    .join("; ")
-}
-
-function Row({ label, children }: { label: string; children: string }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex gap-2">
       <dt className="w-20 flex-none text-muted-foreground">{label}</dt>
       <dd className="min-w-0 flex-1 break-words">{children}</dd>
     </div>
+  )
+}
+
+function ItemsRow({
+  label,
+  items,
+}: {
+  label: string
+  items: readonly string[]
+}) {
+  return (
+    <Row label={label}>
+      <ul className="list-disc pl-4">
+        {items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ul>
+    </Row>
   )
 }
 
@@ -141,10 +153,10 @@ function FindingSummary({ finding }: { finding: RunFinding }) {
           <Row label="Confidence">{finding.confidence}</Row>
         )}
         {finding.ruled_out.length === 0 ? null : (
-          <Row label="Ruled out">{joinItems(finding.ruled_out)}</Row>
+          <ItemsRow label="Ruled out" items={finding.ruled_out} />
         )}
         {finding.next_steps.length === 0 ? null : (
-          <Row label="Next steps">{joinItems(finding.next_steps)}</Row>
+          <ItemsRow label="Next steps" items={finding.next_steps} />
         )}
       </dl>
     </section>

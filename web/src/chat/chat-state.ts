@@ -46,14 +46,16 @@ function savedText(request: RequestSummary): string {
 }
 
 function observationOutcome(request: RequestSummary): string {
-  if (request.observation_title !== null) {
-    return `Answered in ${request.observation_title}`
-  }
+  const title = request.observation_title
   if (request.kind === "build") {
-    return request.dashboard_id === null
-      ? "Answered, no dashboard"
-      : "Answered, dashboard unchanged"
+    if (request.dashboard_id === null) {
+      return title === null ? "Answered, no dashboard" : `Answered in ${title}`
+    }
+    return title === null
+      ? "Answered, dashboard unchanged"
+      : `Answered in ${title}, dashboard unchanged`
   }
+  if (title !== null) return `Answered in ${title}`
   return request.result_kind === "answer"
     ? "Answered, no observation"
     : "Saved an observation"

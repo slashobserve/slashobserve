@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import { describeInstant } from "@/lib/time"
@@ -8,7 +8,6 @@ import { BlockList } from "./block-list"
 import {
   FindingHeader,
   hasFindingHeader,
-  joinItems,
   headerBlocks,
   type RunFinding,
   unverifiedLine,
@@ -82,7 +81,11 @@ describe("the finding header", () => {
     expect(header).toHaveTextContent("The retry flag doubled calls.")
     expect(header).toHaveTextContent("12% of orders failed.")
     expect(header).toHaveTextContent("high")
-    expect(header).toHaveTextContent("the database; the cache")
+    expect(
+      within(header)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent)
+    ).toEqual(["the database", "the cache", "Turn the flag off."])
     expect(header).toHaveTextContent("Turn the flag off.")
     expect(header).toHaveTextContent("Started")
   })
@@ -102,22 +105,6 @@ describe("the finding header", () => {
   it("counts a finding with no field as having no header", () => {
     expect(hasFindingHeader(finding())).toBe(false)
     expect(hasFindingHeader(finding({ confidence: "low" }))).toBe(true)
-  })
-})
-
-describe("joining list items", () => {
-  it("drops the period before a semicolon and keeps the last one", () => {
-    expect(joinItems(["Roll back checkout.", "Check the cache."])).toBe(
-      "Roll back checkout; Check the cache."
-    )
-  })
-
-  it("leaves items without a period alone", () => {
-    expect(joinItems(["the database", " the cache "])).toBe(
-      "the database; the cache"
-    )
-    expect(joinItems(["Turn the flag off."])).toBe("Turn the flag off.")
-    expect(joinItems([])).toBe("")
   })
 })
 

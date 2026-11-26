@@ -103,6 +103,16 @@ describe("groupChats", () => {
     ])
   })
 
+  test("names an observation whose title is hidden", () => {
+    expect(shape([summary({ id: "o1", observation_id: "obs" })])).toEqual([
+      {
+        label: "An observation you cannot see",
+        dashboardId: null,
+        ids: ["o1"],
+      },
+    ])
+  })
+
   test("puts pinned chats first, in server order, and only there", () => {
     expect(
       shape([
