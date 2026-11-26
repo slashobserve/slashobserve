@@ -40,6 +40,7 @@ import {
   leaveGridOnTab,
 } from "./cell-keys"
 import { DetailRenderContext, DetailRow, detailRowEstimate } from "./detail-row"
+import { drawnRows } from "./grid-dom"
 import { gridLayout } from "./layout"
 import { gridLines, type GridLine } from "./lines"
 import {
@@ -84,6 +85,11 @@ export type DataGridColumn<T> = {
 export type DataGridSort = {
   key: string
   direction: "ascending" | "descending"
+}
+
+export type DataGridRemoval = {
+  rowId: string
+  control: string
 }
 
 type DataGridDetail<T> = {
@@ -221,6 +227,7 @@ export function DataGrid<T>({
   empty,
   fullWidthRow,
   busy = false,
+  focusAfterRemoving = null,
   ref,
   className,
 }: {
@@ -243,6 +250,7 @@ export function DataGrid<T>({
   empty?: ReactNode
   fullWidthRow?: FullWidthRows<T>
   busy?: boolean
+  focusAfterRemoving?: DataGridRemoval | null
   ref?: Ref<HTMLDivElement>
   className?: string
 }) {
@@ -455,6 +463,52 @@ export function DataGrid<T>({
     viewport.dispatchEvent(new Event("scroll"))
   }, [bodyViewport])
 
+  const removingId = focusAfterRemoving?.rowId ?? null
+  const removingControl = focusAfterRemoving?.control ?? null
+  const removingRef = useRef<(DataGridRemoval & { rowIndex: number }) | null>(
+    null
+  )
+  useEffect(() => {
+    const api = apiRef.current
+    const rowIndex =
+      removingId === null || api === null || api.isDestroyed()
+        ? null
+        : (api.getRowNode(removingId)?.rowIndex ?? null)
+    removingRef.current =
+      removingId === null || removingControl === null || rowIndex === null
+        ? null
+        : { rowId: removingId, control: removingControl, rowIndex }
+  }, [removingId, removingControl])
+  const focusNeighbourOfRemoved = useCallback(() => {
+    const removing = removingRef.current
+    const api = apiRef.current
+    const container = containerRef.current
+    if (removing === null || api === null || container === null) return
+    if (api.isDestroyed() || api.getRowNode(removing.rowId) !== undefined) {
+      return
+    }
+    removingRef.current = null
+    const active = container.ownerDocument.activeElement
+    const focusIsFree =
+      active === null ||
+      active === container.ownerDocument.body ||
+      container.contains(active)
+    const count = api.getDisplayedRowCount()
+    if (!focusIsFree || count === 0) return
+    const rowIndex = Math.min(removing.rowIndex, count - 1)
+    const node = api.getDisplayedRowAtIndex(rowIndex)
+    const row = node?.id == null ? undefined : drawnRows(container).get(node.id)
+    const control = row?.querySelector<HTMLElement>(removing.control)
+    if (control == null) return
+    const column = control.closest("[col-id]")?.getAttribute("col-id")
+    if (column != null) api.setFocusedCell(rowIndex, column)
+    control.focus()
+  }, [])
+  const onRowDataUpdated = useCallback(() => {
+    restoreAnchor()
+    focusNeighbourOfRemoved()
+  }, [restoreAnchor, focusNeighbourOfRemoved])
+
   const labelGrid = useCallback(() => {
     const grid = containerRef.current?.querySelector("[role=grid]")
     if (grid === null || grid === undefined) return
@@ -528,7 +582,7 @@ export function DataGrid<T>({
             onGridReady={onGridReady}
             onFirstDataRendered={reveal}
             onBodyScroll={anchorFirstRow}
-            onRowDataUpdated={restoreAnchor}
+            onRowDataUpdated={onRowDataUpdated}
           />
         </NarrowRowsContext>
       </DetailRenderContext>
