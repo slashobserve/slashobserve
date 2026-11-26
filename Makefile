@@ -195,5 +195,6 @@ e2e-all:
 	$(MAKE) e2e-browser
 
 clean:
-	rm -rf bin web/dist web/playwright-report web/test-results web/coverage coverage.out
+	rm -rf bin web/dist web/dist-panel web/playwright-report web/test-results web/coverage coverage.out
 	find internal/server/webdist -mindepth 1 ! -name .gitkeep -delete
+	find internal/server/mcp/panelapp -mindepth 1 ! -name .gitkeep -delete

@@ -686,7 +686,7 @@ func run() error {
 		Mounts: slices.Concat([]server.Mount{{
 			Path: "/mcp",
 			Handler: mcp.NewHandler(toolRegistry, mcpCredentials{keys: authService, runs: claimsService, oauth: oauthServer, supervisor: supervisor}, mcp.Options{
-				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Runs: runSessions,
+				PublicURL: cfg.PublicURL, ResourceMetadataURL: oauthServer.ResourceMetadataURL(), Version: version, Logger: logger, Runs: runSessions, PanelApp: mcp.BuiltPanel(),
 			}),
 		}}, oauthMounts(oauthServer), metricsMounts(cfg.Metrics, serverMetrics)),
 		Redirects:     server.Redirects{GrafanaDashboard: grafanaService.DashboardRedirect(authService.RequestPrincipal)},

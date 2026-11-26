@@ -27,6 +27,7 @@ const (
 	reasonApply     = "it posts in a thread and starts a run"
 	reasonProposals = "merging writes a dashboard version outside the build"
 	reasonRunAnswer = "a later turn of a chat could publish an earlier private ask's answer, so only the requester saves an answer"
+	reasonApp       = "it draws a chart in an MCP Apps host, which a run does not have"
 	reasonContext   = "what a context source returns is outside text a build must not act on, so only an investigation or a chat question reads it"
 	reasonHealth    = "it checks every dashboard of the workspace, far outside what one run is about"
 )
@@ -53,6 +54,7 @@ var leftOutOfRuns = map[string]string{
 	nameDuplicateDashboard:      reasonVersions,
 	nameSaveRunAnswer:           reasonRunAnswer,
 	nameRunDashboardHealth:      reasonHealth,
+	nameShowPanel:               reasonApp,
 }
 
 var contextReads = map[string]string{
