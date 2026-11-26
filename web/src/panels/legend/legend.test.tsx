@@ -105,3 +105,43 @@ describe("Legend overflow", () => {
     expect(screen.getByText("+19 more")).toBeTruthy()
   })
 })
+
+describe("Legend names", () => {
+  const items = [
+    "STATUS_CODE_ERROR",
+    "STATUS_CODE_OK",
+    "STATUS_CODE_UNSET",
+  ].map((label, index) => ({
+    key: label,
+    label,
+    color: `var(--series-${index + 1})`,
+    line: "solid" as const,
+    style: "bars" as const,
+  }))
+  const legend = (width: number) => (
+    <Legend
+      items={items}
+      hidden={new Set()}
+      placement="right"
+      available={100}
+      width={width}
+      onToggle={() => undefined}
+    />
+  )
+  const shown = () =>
+    within(screen.getByRole("group", { name: "Series" }))
+      .getAllByRole("button")
+      .map((row) => row.textContent)
+
+  it("drops the shared prefix from every entry when they do not fit", () => {
+    render(legend(120))
+    expect(shown()).toEqual(["ERROR", "OK", "UNSET"])
+    expect(screen.getByTitle("STATUS_CODE_OK")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "STATUS_CODE_OK" })).toBeTruthy()
+  })
+
+  it("keeps whole names when they fit", () => {
+    render(legend(400))
+    expect(shown()).toEqual(items.map((item) => item.label))
+  })
+})

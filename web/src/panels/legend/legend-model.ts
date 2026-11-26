@@ -22,14 +22,12 @@ export type LegendSource = {
 
 export const maxStateLegendEntries = 12
 
-export type LabelParts = { lead: string; tail: string }
-
 const boundary = /[\s_\-:/.=,|(]/
-const minLead = 4
+const minPrefix = 4
 
-export function legendLabelParts(labels: readonly string[]): LabelParts[] {
-  const whole = labels.map((label) => ({ lead: "", tail: label }))
-  if (labels.length < 2) return whole
+export type NameRoom = { px: number; measure: (text: string) => number }
+
+function sharedPrefixCut(labels: readonly string[]): number {
   let common = labels[0]
   for (const label of labels) {
     let at = 0
@@ -44,11 +42,20 @@ export function legendLabelParts(labels: readonly string[]): LabelParts[] {
   }
   let cut = common.length
   while (cut > 0 && !boundary.test(common[cut - 1])) cut--
-  if (cut < minLead || labels.some((label) => label.length <= cut)) return whole
-  return labels.map((label) => ({
-    lead: label.slice(0, cut),
-    tail: label.slice(cut),
-  }))
+  if (cut < minPrefix || labels.some((label) => label.length <= cut)) return 0
+  return cut
+}
+
+export function legendNames(
+  labels: readonly string[],
+  room?: NameRoom
+): string[] {
+  if (!room || labels.length < 2) return [...labels]
+  if (labels.every((label) => room.measure(label) <= room.px)) {
+    return [...labels]
+  }
+  const cut = sharedPrefixCut(labels)
+  return labels.map((label) => label.slice(cut))
 }
 
 export function capLegend<T>(

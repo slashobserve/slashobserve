@@ -3,7 +3,9 @@ import { useMemo, type Ref } from "react"
 import { cn } from "@/lib/utils"
 import type { LineStyle } from "../colors"
 import type { DrawStyle } from "../timeseries/series-config"
-import { inlineValues, legendLabelParts, type LabelParts } from "./legend-model"
+import { useLegendTextMeasure } from "./legend-measure"
+import { inlineValues, legendNames } from "./legend-model"
+import { legendNameRoom } from "./legend-width"
 
 export type LegendItem = {
   key: string
@@ -15,23 +17,10 @@ export type LegendItem = {
 
 export type LegendPlacement = "bottom" | "right"
 
-export function LegendName({
-  label,
-  parts,
-}: {
-  label: string
-  parts: LabelParts
-}) {
+export function LegendName({ label, text }: { label: string; text: string }) {
   return (
-    <span title={label} className="flex min-w-0 items-baseline">
-      {parts.lead ? (
-        <span className="min-w-0 truncate">{parts.lead}</span>
-      ) : null}
-      <span
-        className={parts.lead ? "max-w-full flex-none truncate" : "truncate"}
-      >
-        {parts.tail}
-      </span>
+    <span title={label} className="min-w-0 truncate">
+      {text}
     </span>
   )
 }
@@ -40,13 +29,20 @@ function legendButtonName(label: string, values: string): string {
   return values ? `${label} ${values}` : label
 }
 
-export function useLegendLabelParts(
-  items: readonly LegendItem[]
-): LabelParts[] {
-  return useMemo(
-    () => legendLabelParts(items.map((item) => item.label)),
-    [items]
-  )
+export function useLegendNames(
+  items: readonly LegendItem[],
+  roomPx: number | null
+): string[] {
+  const measure = useLegendTextMeasure()
+  return useMemo(() => {
+    const measureName = measure(rootFontSize())
+    return legendNames(
+      items.map((item) => item.label),
+      roomPx === null
+        ? undefined
+        : { px: roomPx, measure: (text) => measureName(text, 400) }
+    )
+  }, [items, roomPx, measure])
 }
 
 export const rowRem = 1.25
@@ -163,7 +159,24 @@ export function Legend({
   more = 0,
 }: Props) {
   const bottom = placement === "bottom"
-  const parts = useLegendLabelParts(items)
+  const measure = useLegendTextMeasure()
+  const valuesPx =
+    reducers.length > 0
+      ? Math.max(
+          0,
+          ...items.map((_, row) =>
+            measure(rootFontSize())(
+              inlineValues(reducers, cells[row], headers),
+              400
+            )
+          )
+        ) +
+        0.375 * rootFontSize()
+      : 0
+  const shownNames = useLegendNames(
+    items,
+    bottom ? null : legendNameRoom(width, rootFontSize(), valuesPx)
+  )
   return (
     <div
       ref={ref}
@@ -201,7 +214,7 @@ export function Legend({
               line={item.line}
               style={item.style}
             />
-            <LegendName label={item.label} parts={parts[row]} />
+            <LegendName label={item.label} text={shownNames[row]} />
             {reducers.length > 0 ? (
               <span className="text-muted-foreground tabular-nums">
                 {values}

@@ -4,7 +4,7 @@ import {
   capLegend,
   effectiveLegendMode,
   inlineValues,
-  legendLabelParts,
+  legendNames,
   legendOrder,
   legendWorthShowing,
   maxStateLegendEntries,
@@ -150,44 +150,44 @@ describe("capLegend", () => {
   })
 })
 
-describe("legendLabelParts", () => {
-  it("splits the prefix every label shares at a word boundary", () => {
-    expect(
-      legendLabelParts([
-        "STATUS_CODE_UNSET",
-        "STATUS_CODE_OK",
-        "STATUS_CODE_ERROR",
-      ])
-    ).toEqual([
-      { lead: "STATUS_CODE_", tail: "UNSET" },
-      { lead: "STATUS_CODE_", tail: "OK" },
-      { lead: "STATUS_CODE_", tail: "ERROR" },
-    ])
+describe("legendNames", () => {
+  const tenPerCharacter = (text: string) => text.length * 10
+  const statuses = ["STATUS_CODE_UNSET", "STATUS_CODE_OK", "STATUS_CODE_ERROR"]
+
+  it("keeps whole labels without a room to fit them in", () => {
+    expect(legendNames(statuses)).toEqual(statuses)
   })
 
-  it("does not cut inside a word", () => {
-    expect(legendLabelParts(["checkout-a", "checkout-b"])).toEqual([
-      { lead: "checkout-", tail: "a" },
-      { lead: "checkout-", tail: "b" },
-    ])
-    expect(legendLabelParts(["frontend", "frontproxy"])).toEqual([
-      { lead: "", tail: "frontend" },
-      { lead: "", tail: "frontproxy" },
+  it("keeps whole labels when the widest one fits", () => {
+    expect(
+      legendNames(statuses, { px: 170, measure: tenPerCharacter })
+    ).toEqual(statuses)
+  })
+
+  it("drops the shared prefix from every label at once when one does not fit", () => {
+    expect(
+      legendNames(statuses, { px: 169, measure: tenPerCharacter })
+    ).toEqual(["UNSET", "OK", "ERROR"])
+  })
+
+  it("cuts only at a word boundary", () => {
+    const room = { px: 1, measure: tenPerCharacter }
+    expect(legendNames(["checkout-a", "checkout-b"], room)).toEqual(["a", "b"])
+    expect(legendNames(["frontend", "frontproxy"], room)).toEqual([
+      "frontend",
+      "frontproxy",
     ])
   })
 
   it("keeps whole labels when no useful prefix is shared", () => {
-    expect(legendLabelParts(["a_1", "a_2"])).toEqual([
-      { lead: "", tail: "a_1" },
-      { lead: "", tail: "a_2" },
-    ])
-    expect(legendLabelParts(["only"])).toEqual([{ lead: "", tail: "only" }])
+    const room = { px: 1, measure: tenPerCharacter }
+    expect(legendNames(["a_1", "a_2"], room)).toEqual(["a_1", "a_2"])
+    expect(legendNames(["only"], room)).toEqual(["only"])
   })
 
-  it("keeps each label's own text when one label is the prefix of another", () => {
-    expect(legendLabelParts(["svc_", "svc_x"])).toEqual([
-      { lead: "", tail: "svc_" },
-      { lead: "", tail: "svc_x" },
-    ])
+  it("keeps every label when one is the prefix of another", () => {
+    expect(
+      legendNames(["svc_", "svc_x"], { px: 1, measure: tenPerCharacter })
+    ).toEqual(["svc_", "svc_x"])
   })
 })

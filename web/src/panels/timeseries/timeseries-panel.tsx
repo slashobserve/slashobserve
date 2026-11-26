@@ -35,7 +35,8 @@ import {
   legendOrder,
   legendWorthShowing,
 } from "../legend/legend-model"
-import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
+import { useLegendTextMeasure } from "../legend/legend-measure"
+import { LegendTable } from "../legend/legend-table"
 import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
   chartSeries,

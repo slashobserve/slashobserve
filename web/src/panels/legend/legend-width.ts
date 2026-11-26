@@ -23,6 +23,18 @@ export function legendNameMinWidth(rem: number): number {
   return nameMinRem * rem
 }
 
+export function legendNameRoom(
+  width: number,
+  rem: number,
+  valuesPx: number
+): number {
+  return (
+    width -
+    (containerPadRem + cellPadRem + swatchRem + swatchGapRem) * rem -
+    valuesPx
+  )
+}
+
 export function legendValueWidths(
   headers: readonly string[],
   cells: readonly (readonly string[])[],

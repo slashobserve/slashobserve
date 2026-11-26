@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  legendNameRoom,
   legendTableWidth,
   legendValueWidths,
   rightLegendWidth,
@@ -89,5 +90,16 @@ describe("rightLegendWidth", () => {
     expect(rightLegendWidth(240, 640, 200)).toBe(200)
     expect(rightLegendWidth(null, 640, 900)).toBe(520)
     expect(rightLegendWidth(null, 100, 300)).toBe(0)
+  })
+})
+
+describe("legendNameRoom", () => {
+  it("is what legendTableWidth leaves for the name text", () => {
+    const labels = ["checkout-0", "pod"]
+    const headers = ["Mean"]
+    const cells = [["1.20"], ["300.50"]]
+    const width = legendTableWidth(labels, headers, cells, tenPerCharacter, 16)
+    const values = legendValueWidths(headers, cells, tenPerCharacter, 16)[0]
+    expect(legendNameRoom(width, 16, values)).toBe(100)
   })
 })

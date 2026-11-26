@@ -15,7 +15,8 @@ import { resolveColor } from "../colors"
 import { cssColorToRgb, darkText, lightText, readableText } from "../contrast"
 import { Legend, rootFontSize, type LegendItem } from "../legend/legend"
 import { legendOrder } from "../legend/legend-model"
-import { LegendTable, useLegendTextMeasure } from "../legend/legend-table"
+import { useLegendTextMeasure } from "../legend/legend-measure"
+import { LegendTable } from "../legend/legend-table"
 import { legendTableWidth, rightLegendWidth } from "../legend/legend-width"
 import {
   emptySeriesState,
