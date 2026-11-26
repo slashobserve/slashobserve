@@ -62,7 +62,7 @@ func (a Access) Reads(audience Audience) bool {
 	return a.By.Role == auth.RoleAdmin && a.Audience != AudienceEveryone
 }
 
-func (a Access) refusal(audience Audience) error {
+func (a Access) Refusal(audience Audience) error {
 	if audience == AudienceAdmins && a.By.Role == auth.RoleAdmin && a.Audience == AudienceEveryone {
 		return ErrWithheld
 	}

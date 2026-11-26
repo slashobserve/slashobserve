@@ -1,8 +1,9 @@
-import { useId, useRef, useState, type RefObject } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useEffect, useId, useRef, useState, type RefObject } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { datasourceKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -26,44 +27,64 @@ import {
   savedCredentials,
   splitProblems,
   validate,
+  type DatasourceType,
   type FormValues,
   type Problems,
   type SavedCredentials,
 } from "./draft"
+import { rowLabel } from "./format"
+import type { DatasourceStatus } from "./queries"
 import { saveProblemText } from "./problems"
 import { RestrictedHolders } from "./restricted-holders"
 
-type Target = { mode: "create" } | { mode: "edit"; uid: string }
+type Target =
+  { mode: "create"; type?: DatasourceType } | { mode: "edit"; uid: string }
 
 type Props = {
   target: Target
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  onPickMcp: () => void
 }
 
-export function DatasourcePanel({ target, onClose, trigger }: Props) {
+export function DatasourcePanel({
+  target,
+  onClose,
+  trigger,
+  onPickMcp,
+}: Props) {
   if (target.mode === "create") {
     return (
       <Editor
         target={target}
-        initial={emptyForm}
+        initial={{ ...emptyForm, type: target.type ?? "" }}
         saved={noCredentials}
         onClose={onClose}
         trigger={trigger}
+        onPickMcp={onPickMcp}
       />
     )
   }
-  return <EditLoader uid={target.uid} onClose={onClose} trigger={trigger} />
+  return (
+    <EditLoader
+      uid={target.uid}
+      onClose={onClose}
+      trigger={trigger}
+      onPickMcp={onPickMcp}
+    />
+  )
 }
 
 function EditLoader({
   uid,
   onClose,
   trigger,
+  onPickMcp,
 }: {
   uid: string
   onClose: () => void
   trigger: RefObject<HTMLElement | null>
+  onPickMcp: () => void
 }) {
   const config = useQuery(datasourceConfigQuery(uid))
   if (config.data !== undefined) {
@@ -74,12 +95,14 @@ function EditLoader({
         saved={savedCredentials(config.data.secrets_set)}
         onClose={onClose}
         trigger={trigger}
+        onPickMcp={onPickMcp}
       />
     )
   }
   return (
     <SidePanel
-      title={`Edit ${uid}`}
+      title="Edit datasource"
+      panelKey={panelKeyOf(uid)}
       onClose={onClose}
       trigger={trigger}
       footer={
@@ -106,6 +129,12 @@ function EditLoader({
   )
 }
 
+function panelKeyOf(uid: string) {
+  return uid === ""
+    ? "side-panel:datasource:new"
+    : `side-panel:datasource:${uid}`
+}
+
 type TestOutcome =
   | { kind: "healthy" }
   | { kind: "unhealthy"; message: string; detail: string | undefined }
@@ -117,6 +146,7 @@ function Editor({
   saved,
   onClose,
   trigger,
+  onPickMcp,
 }: Props & {
   initial: FormValues
   saved: SavedCredentials
@@ -134,6 +164,15 @@ function Editor({
   const test = useTestDatasource()
   const save = mode === "create" ? create : update
   const busy = save.isPending || test.isPending
+  const feedback = useRef<HTMLDivElement>(null)
+  const listed =
+    useQueryClient().getQueryData<{ datasources: DatasourceStatus[] }>(
+      datasourceKeys.list()
+    )?.datasources ?? []
+  const label = rowLabel(
+    { uid, name: initial.name === "" ? uid : initial.name },
+    listed
+  )
 
   function change(next: Partial<FormValues>) {
     setValues((current) => ({ ...current, ...next }))
@@ -170,7 +209,7 @@ function Editor({
     const done = {
       onSuccess: () => {
         toast.success(
-          mode === "create" ? `Added ${values.uid.trim()}` : `Saved ${uid}`
+          mode === "create" ? `Added ${values.uid.trim()}` : `Saved ${label}`
         )
         onClose()
       },
@@ -214,10 +253,20 @@ function Editor({
       : null
   const saveError =
     save.isError && refusal === null ? saveProblemText(save.error) : null
+  const hasFeedback =
+    outcome !== null ||
+    refusal !== null ||
+    saveError !== null ||
+    general.length > 0
+
+  useEffect(() => {
+    if (hasFeedback) feedback.current?.scrollIntoView?.({ block: "nearest" })
+  }, [hasFeedback, outcome, saveError, refusal, general])
 
   return (
     <SidePanel
-      title={mode === "create" ? "Add a datasource" : `Edit ${uid}`}
+      title={mode === "create" ? createTitle(values.type) : `Edit ${label}`}
+      panelKey={panelKeyOf(mode === "edit" ? uid : "")}
       description={
         mode === "create"
           ? "The server connects to it with the address and credentials you give, and only an Admin can change them."
@@ -241,7 +290,7 @@ function Editor({
                 className="motion-safe:animate-spin"
               />
             ) : null}
-            {mode === "create" ? "Add datasource" : "Save"}
+            {mode === "create" ? "Add datasource" : "Save changes"}
           </Button>
           <Button
             variant="outline"
@@ -275,9 +324,10 @@ function Editor({
           problems={problems}
           saved={saved}
           onChange={change}
+          onPickMcp={onPickMcp}
           firstInputRef={firstInput}
         />
-        <div aria-live="polite" className="flex flex-col gap-2">
+        <div ref={feedback} aria-live="polite" className="flex flex-col gap-2">
           {outcome === null ? null : <TestResult outcome={outcome} />}
           {refusal === null ? null : <RestrictedHolders error={refusal} />}
           {saveError === null ? null : (
@@ -300,6 +350,10 @@ function Editor({
       </form>
     </SidePanel>
   )
+}
+
+function createTitle(type: FormValues["type"]) {
+  return type === "" ? "Add a source" : "Add a datasource"
 }
 
 function TestResult({ outcome }: { outcome: TestOutcome }) {

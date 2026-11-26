@@ -37,6 +37,7 @@ type Answer struct {
 	Notes   []string
 	IsError bool
 	Meta    RunMeta
+	App     []byte
 }
 
 func (a Answer) Text() string {

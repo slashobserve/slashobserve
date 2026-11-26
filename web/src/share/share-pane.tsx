@@ -26,6 +26,7 @@ import {
   offersVariables,
   panelChoices,
   panelShareUrl,
+  sharedPanelId,
   type ShareOptions,
 } from "./share-links"
 import { PublishSection } from "./publish-section"
@@ -73,9 +74,7 @@ export function SharePane({
   const variableNames = Object.keys(search.vars)
 
   const choices = panelChoices(spec)
-  const selected = choices.some((choice) => choice.id === chosen)
-    ? chosen
-    : choices[0]?.id
+  const selected = sharedPanelId(choices, chosen, search.viewPanel)
   const panelItems = choices.map((choice) => ({
     value: choice.id,
     label: choice.title,

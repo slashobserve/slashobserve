@@ -12,6 +12,24 @@ export function orderTurns(
   return ids.includes(rootId) ? ids : [rootId, ...ids]
 }
 
+type RunTurn = {
+  id: string
+  status: string
+  requested_by: { id: string }
+}
+
+export function runningOwnTurnId(
+  turns: readonly (RunTurn | undefined)[],
+  viewerId: string
+): string | undefined {
+  return turns.findLast(
+    (turn) =>
+      turn !== undefined &&
+      (turn.status === "queued" || turn.status === "running") &&
+      turn.requested_by.id === viewerId
+  )?.id
+}
+
 type LatestTurn = {
   id: string
   created_at: string

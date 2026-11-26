@@ -10,9 +10,10 @@ The datasource answers queries as soon as it is saved, and other servers in a fl
 ## Add a datasource
 
 1. Sign in as an Admin and choose **Datasources** in the sidebar.
-2. Choose **Add datasource**.
+2. Choose **Add source** in the page header.
 3. Fill in the form:
    - **Type**, one of Prometheus, Loki, Tempo, Jaeger, "ClickHouse, read only", Elasticsearch or OpenSearch.
+     The list also offers **MCP server**, which registers a context source instead; see [Context sources](../operate/context-sources.md).
    - **Id**, which dashboards use to refer to the datasource and which cannot change later.
      It starts with a letter or digit and has at most 40 letters, digits, `_` and `-`.
    - **Name**, shown in lists, at most 100 characters.
@@ -53,7 +54,7 @@ Each row shows these columns:
 - The name and id.
 - The type.
 - Where the datasource comes from: "From file", "Added in the app" or "Built in".
-- An **Only Admins** badge when only Admins can query it.
+- An **Admins only** badge when only Admins can query it.
 - Its status.
 - How many dashboards use it.
 - When it was last checked.
@@ -72,7 +73,7 @@ The sidebar and the Logs, Traces and Metrics source lists read that list, so a s
 
 1. On the Datasources page, choose **Edit** on the row.
 2. Change the settings and choose **Test connection**.
-3. Choose **Save**.
+3. Choose **Save changes**.
 
 The id and the type are fixed once a datasource is saved.
 A change to either is refused with `422 invalid_datasource`, so add a new datasource instead.
@@ -132,10 +133,10 @@ Removing a datasource deletes its stored credentials for good, so add it again w
 By default everyone from Viewer up can query a datasource added in the app.
 To limit it to Admins:
 
-1. Edit the datasource and choose **Only Admins** under **Audience**.
+1. Edit the datasource and choose **Admins only** under **Who can use it**.
 2. Move any dashboard, observation or saved search that reads it into a folder only Admins can read.
    The save is refused until you do.
-3. Save.
+3. Choose **Save changes**.
 
 From the CLI, `--audience admins` on `observe datasources add` or `edit`.
 Over HTTP, `"audience": "admins"` on `POST /api/v1/datasources` or `PATCH /api/v1/datasources/{uid}`.
@@ -169,7 +170,7 @@ Datasources added in the app show as "Added in the app".
 When a file entry and an app datasource share a uid, the file entry wins and the app one is refused at save time with `409 uid_taken`.
 
 Every server also has one built-in datasource, the audit trail.
-It shows as "Built in" with the **Only Admins** badge, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
+It shows as "Built in" with the **Admins only** badge, with the uid `slashobserve-audit` and `source` `builtin` on `GET /api/v1/datasources`.
 Only Admins see it, and nobody can edit or remove it.
 `PATCH`, `DELETE` and `GET /api/v1/datasources/slashobserve-audit/config` answer `409 datasource_read_only`.
 A file entry with that uid stops the server at startup, and an app datasource with it is not loaded.
@@ -182,7 +183,7 @@ With the `admins` audience, only Admins and Admin keys can list, query or health
 Every other role, key and public link gets the same answer for it as for a datasource that does not exist.
 
 The audience is returned with the rest of the definition on `GET /api/v1/datasources/{uid}/config`, which only Admins can call.
-The Datasources page shows an **Only Admins** badge on a datasource with the `admins` audience.
+The Datasources page shows an **Admins only** badge on a datasource with the `admins` audience.
 For an Admin, each row of the MCP tool `list_datasources` also carries `audience`.
 Other callers never see an `admins` datasource, so their rows leave it out.
 

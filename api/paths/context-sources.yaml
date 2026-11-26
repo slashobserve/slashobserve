@@ -1,0 +1,398 @@
+context-sources:
+  get:
+    operationId: listContextSources
+    x-audit: { none: "list read; lists are not recorded" }
+    x-surfaces:
+      cli: [observe context list]
+    summary: List the registered context sources.
+    description: >-
+      Only Admins can call this endpoint.
+      A response never carries a secret; `secret_set` says whether one is stored.
+    responses:
+      "200":
+        description: The context sources, sorted by uid.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceList"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  post:
+    operationId: createContextSource
+    x-audit: { action: context_source.create, target: { kind: context_source } }
+    x-surfaces:
+      cli: [observe context add]
+    summary: Register an MCP server whose tools the agent may use.
+    description: >-
+      Only Admins can call this endpoint.
+      The URL must be https with a domain name, no login, query or fragment; the server is reached over MCP streamable HTTP.
+      The host is added to the outbound allowlist when it is not allowed yet, unless `SLASHOBSERVE_OUTBOUND_DOMAINS` is set.
+      The optional secret is sent in the header named by `secret_header`, is encrypted with a key derived from `SLASHOBSERVE_SECRET_KEY` and is never returned.
+      Registering a source asks the server nothing: call the discover endpoint, then approve tools.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/CreateContextSourceRequest"
+    responses:
+      "201":
+        description: The context source is stored.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSource"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the host (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "409":
+        description: The uid is taken (`uid_taken`), or `SLASHOBSERVE_SECRET_KEY` is not set and a secret was sent (`secret_key_missing`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The definition is not valid (`invalid_context_source`, with the fields to fix), 50 context sources exist (`too_many_context_sources`), or the outbound allowlist is full (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/InvalidContextSourceError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: getContextSource
+    x-audit: { none: "read; only dashboard, observation and public link views are recorded", target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context list]
+    summary: Read one context source.
+    description: Only Admins can call this endpoint.
+    responses:
+      "200":
+        description: The context source.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSource"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  patch:
+    operationId: updateContextSource
+    x-audit: { action: context_source.update, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context edit]
+    summary: Change a context source's name, audience, address or secret.
+    description: >-
+      Only Admins can call this endpoint.
+      A new URL forgets the tools found so far, because they belong to another server, and clears the last discovery.
+      A URL with a new host needs the secret again (`secret`) or `clear_secret`, so a stored secret never reaches another host.
+      A source from the context sources file answers 409 `provisioned`.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/UpdateContextSourceRequest"
+    responses:
+      "200":
+        description: The changed context source.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSource"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        description: The role is too low (`forbidden_role`), or `SLASHOBSERVE_OUTBOUND_DOMAINS` is set and does not allow the new host (`outbound_domain_not_allowed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The source comes from the context sources file (`provisioned`), changed while the request ran (`source_changed`), or a secret was sent without `SLASHOBSERVE_SECRET_KEY` (`secret_key_missing`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "422":
+        description: The change is not valid (`invalid_context_source`, with the fields to fix), or the outbound allowlist is full (`too_many_domains`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/InvalidContextSourceError"
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+  delete:
+    operationId: deleteContextSource
+    x-audit: { action: context_source.delete, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context remove]
+    summary: Delete a context source, its approved tools and its stored secret.
+    description: >-
+      Only Admins can call this endpoint.
+      The host's outbound allowlist entry, when a source added it, is removed unless a webhook, a datasource, a Grafana connection or another source still uses the host.
+      A source from the context sources file answers 409 `provisioned`.
+    responses:
+      "204":
+        description: The context source is deleted.
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The source comes from the context sources file (`provisioned`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid-discover:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: discoverContextSourceTools
+    x-audit: { action: context_source.discover, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context discover]
+    summary: Ask the server for its tools and compare them with what was approved.
+    description: >-
+      Only Admins can call this endpoint.
+      The server connects over MCP streamable HTTP through the outbound allowlist and lists its tools.
+      A tool the server marks destructive, or does not mark read-only, is stored as `refused` with the reason.
+      A new read-only tool is stored as `offered`; nothing is approved automatically.
+      An approved tool whose name, description or input schema changed becomes `changed` and is not served until an Admin approves it again.
+      An approved tool the server no longer lists becomes `gone`.
+      A failed discovery answers 200 with `source.state` `unreachable` and `source.failure` naming why: `outbound_domain_not_allowed`, `unauthorized`, `timeout`, `not_an_mcp_server`, `unreachable`, `too_many_tools`, `secret_key_missing` or `secret_unreadable`.
+    responses:
+      "200":
+        description: The source as discovery left it, and what discovery found.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceDiscovery"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The source changed while the server was being asked (`source_changed`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/Error"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid-tools:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  get:
+    operationId: listContextSourceTools
+    x-audit: { none: "list read; lists are not recorded", target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context tools]
+    summary: List what discovery found on a context source.
+    description: >-
+      Only Admins can call this endpoint.
+      Each tool carries the definition that was pinned (`description`, `input_schema`, `hash`), and for a `changed` tool the definition the server offers now in `seen`.
+    responses:
+      "200":
+        description: The tools, sorted by name.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceToolList"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid-tools-approve-read-only:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: approveReadOnlyContextSourceTools
+    x-audit: { action: context_source.approve, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context approve]
+    summary: Approve every offered tool of a context source at once.
+    description: >-
+      Only Admins can call this endpoint.
+      Every `offered` tool is approved as it is pinned now; the server marks each of them read-only.
+      `changed` tools are left alone because each needs its own review, and `refused` tools cannot be approved.
+    responses:
+      "200":
+        description: The tools approved by this call; empty when none was offered.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceApproved"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid-tools-name-approve:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: approveContextSourceTool
+    x-audit: { action: context_source.approve, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context approve]
+    summary: Approve one tool as it is described now.
+    description: >-
+      Only Admins can call this endpoint.
+      The body is optional.
+      With `hash`, the approval applies only when the tool's current definition has that hash, so an Admin approves what they read; otherwise it answers 409 `tool_changed`.
+      An `offered` tool is approved as pinned; a `changed` tool is approved as the server describes it now, which replaces the pinned definition.
+      A `refused` tool answers 409 `tool_refused` with the reason.
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: "../openapi.yaml#/components/schemas/ApproveContextSourceToolRequest"
+    responses:
+      "200":
+        description: The approved tool.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceTool"
+      "400":
+        $ref: "../openapi.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The tool changed since it was read (`tool_changed`), is refused (`tool_refused`), or is not in a state that can be approved (`invalid_transition`).
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "../openapi.yaml#/components/schemas/Error"
+                - $ref: "../openapi.yaml#/components/schemas/ToolRefusedError"
+                - $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+      "413":
+        $ref: "../openapi.yaml#/components/responses/TooLarge"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"
+context-sources-uid-tools-name-revoke:
+  parameters:
+    - name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: name
+      in: path
+      required: true
+      schema:
+        type: string
+  post:
+    operationId: revokeContextSourceTool
+    x-audit: { action: context_source.revoke, target: { kind: context_source, id: path.uid } }
+    x-surfaces:
+      cli: [observe context revoke]
+    summary: Withdraw the approval of a tool.
+    description: >-
+      Only Admins can call this endpoint.
+      An `approved` or `changed` tool returns to `offered`, and the agent stops being offered it.
+    responses:
+      "200":
+        description: The tool as it is now.
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/ContextSourceTool"
+      "401":
+        $ref: "../openapi.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../openapi.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../openapi.yaml#/components/responses/NotFound"
+      "409":
+        description: The tool is not approved (`invalid_transition`).
+        content:
+          application/json:
+            schema:
+              $ref: "../openapi.yaml#/components/schemas/InvalidTransition"
+      "500":
+        $ref: "../openapi.yaml#/components/responses/Internal"

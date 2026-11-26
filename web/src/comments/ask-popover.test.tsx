@@ -677,6 +677,62 @@ describe("AskPopover", () => {
     expect(listed).not.toHaveTextContent("And on the other block?")
   })
 
+  it("shows Stop in the follow-up composer while the viewer's turn runs, and keeps the popover open on stop", async () => {
+    const canceled = {
+      ...working,
+      status: "failed",
+      state: "failed",
+      failure_code: "canceled",
+      error: "the run was canceled",
+      continues_id: null,
+      continued_by: null,
+      retried_by: null,
+      build: null,
+    }
+    const cancels: string[] = []
+    const fetch = vi.fn<(request: Request) => Promise<Response>>(
+      async (request) => {
+        const { pathname } = new URL(request.url)
+        if (pathname === "/api/v1/observe/r2/cancel") {
+          cancels.push(pathname)
+          return Response.json({ request: canceled })
+        }
+        if (pathname === "/api/v1/observe/r2") {
+          return Response.json({ request: running })
+        }
+        if (pathname === "/api/v1/chats/c1") {
+          return Response.json(chatOf([running]))
+        }
+        return Response.json({ service_accounts: [], connected: [] })
+      }
+    )
+    vi.stubGlobal("fetch", fetch)
+    const running = { ...working, can_cancel: true } as ObserveRequest
+    const queryClient = seeded()
+    queryClient.setQueryData(observeKeys.request("r2"), running)
+    queryClient.setQueryData(chatKeys.detail("c1"), chatOf([running]))
+    openTurn()
+    const { user } = renderAsk({ queryClient })
+    await user.click(
+      await screen.findByRole("button", { name: "Stop the run" })
+    )
+    await waitFor(() => expect(cancels).toHaveLength(1))
+    expect(await screen.findByText("You stopped this run")).toBeVisible()
+    expect(screen.getByRole("dialog")).toBeVisible()
+    expect(useCanvasTool.getState().openTurn).not.toBeNull()
+  })
+
+  it("shows no Stop once the turn has an answer", async () => {
+    stubServer([answered])
+    const queryClient = seeded()
+    queryClient.setQueryData(observeKeys.request("r2"), answered)
+    queryClient.setQueryData(chatKeys.detail("c1"), chatOf([answered]))
+    openTurn()
+    renderAsk({ queryClient })
+    await screen.findByRole("textbox", { name: "Ask a follow-up" })
+    expect(screen.queryByRole("button", { name: "Stop the run" })).toBeNull()
+  })
+
   it("closes on Close and clears the open turn", async () => {
     stubServer([answered])
     const queryClient = seeded()

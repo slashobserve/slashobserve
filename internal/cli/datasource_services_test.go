@@ -15,6 +15,8 @@ func servicesServer(t *testing.T) *httptest.Server {
 		switch r.URL.Path {
 		case "/api/v1/datasources":
 			_, _ = io.WriteString(w, `{"datasources":[{"uid":"prom","type":"prometheus","name":"Prom","healthy":true},{"uid":"lk","type":"loki","name":"Loki","healthy":true},{"uid":"tp","type":"tempo","name":"Tempo","healthy":true},{"uid":"ch","type":"clickhouse","name":"CH","healthy":true}]}`)
+		case "/api/v1/datasources/prom/services":
+			_, _ = io.WriteString(w, `{"datasource":"prom","signal":"metrics","field":"job","window_seconds":3600,"services":["checkout-job","shop"],"truncated":false}`)
 		case "/api/v1/datasources/lk/services":
 			_, _ = io.WriteString(w, `{"datasource":"lk","signal":"logs","field":"service_name","window_seconds":3600,"services":["checkout","shop"],"truncated":false}`)
 		case "/api/v1/datasources/tp/services":
@@ -51,13 +53,10 @@ func TestServicesWithoutAUIDAsksEverySourceThatHoldsServices(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
-	for _, want := range []string{"lk", "service_name", "checkout, shop", "tp", "unavailable", "ch", "traces", "frontend", "+2 more"} {
+	for _, want := range []string{"lk", "service_name", "checkout, shop", "prom", "metrics", "job", "checkout-job, shop", "tp", "unavailable", "ch", "traces", "frontend", "+2 more"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout lacks %q:\n%s", want, stdout)
 		}
-	}
-	if strings.Contains(stdout, "prom") {
-		t.Errorf("a Prometheus datasource holds no services:\n%s", stdout)
 	}
 }
 

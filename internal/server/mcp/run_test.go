@@ -67,6 +67,7 @@ type fakeCall struct {
 type fakeRuns struct {
 	mode          tools.Mode
 	investigation bool
+	chatID        string
 	scopeErr      error
 	notes         []string
 	meta          runsession.RunMeta
@@ -79,7 +80,7 @@ func (r *fakeRuns) Scope(_ context.Context, req revisions.Request) (tools.Run, e
 	if r.scopeErr != nil {
 		return tools.Run{}, r.scopeErr
 	}
-	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation}, nil
+	return tools.Run{Mode: r.mode, RequestID: req.ID, Attempt: req.Attempt, Build: r.mode != tools.ModeInvestigate, Investigation: r.investigation, ChatID: r.chatID}, nil
 }
 
 func (r *fakeRuns) Call(ctx context.Context, req revisions.Request, call runsession.Call, dispatch func(context.Context) (tools.Result, error)) (runsession.Answer, error) {
@@ -174,6 +175,36 @@ func (f *runFixture) listToolsAs(t *testing.T, token string) map[string]listedTo
 		out[tool.Name] = tool
 	}
 	return out
+}
+
+func TestARunSessionListsTheContextToolsOnlyToAChatQuestionOrAnInvestigation(t *testing.T) {
+	contextTools := []string{"list_context_sources", "call_context_tool"}
+	cases := []struct {
+		name          string
+		mode          tools.Mode
+		chatID        string
+		investigation bool
+		want          bool
+	}{
+		{"home question", tools.ModeCreate, "chat", false, true},
+		{"dashboard question", tools.ModeInvestigate, "chat", false, true},
+		{"investigation", tools.ModeInvestigate, "", true, true},
+		{"new dashboard", tools.ModeCreate, "", false, false},
+		{"revision", tools.ModeRevise, "", false, false},
+		{"suggestion", tools.ModeSuggest, "", false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newRunFixture(t, c.mode)
+			f.runs.chatID, f.runs.investigation = c.chatID, c.investigation
+			listed := f.listToolsAs(t, adminRunToken)
+			for _, name := range contextTools {
+				if _, ok := listed[name]; ok != c.want {
+					t.Errorf("%s listed = %v, want %v", name, ok, c.want)
+				}
+			}
+		})
+	}
 }
 
 func TestRunSessionListsTheToolsOfTheBuiltInAgentForItsKindAndTheRequestersRole(t *testing.T) {

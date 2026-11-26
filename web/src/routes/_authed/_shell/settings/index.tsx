@@ -17,6 +17,7 @@ import { GrafanaSettings } from "@/settings/grafana/grafana-settings"
 import { OutboundAccessSection } from "@/settings/outbound-access-card"
 import {
   isMovedAuditLog,
+  isMovedContextSources,
   sectionNotice,
   selectedSectionId,
   settingsGroups,
@@ -49,6 +50,9 @@ export const Route = createFileRoute("/_authed/_shell/settings/")({
     webhook: optionalText(search.webhook),
   }),
   beforeLoad: ({ location }) => {
+    if (isMovedContextSources(location.hash)) {
+      throw redirect({ to: "/datasources/context-sources", replace: true })
+    }
     if (!isMovedAuditLog(location.hash)) return
     throw redirect({
       to: "/audit",

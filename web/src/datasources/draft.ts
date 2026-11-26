@@ -7,7 +7,7 @@ export type Audience = NonNullable<DatasourceDraft["audience"]>
 
 export const audienceChoices: { value: Audience; label: string }[] = [
   { value: "everyone", label: "Everyone" },
-  { value: "admins", label: "Only Admins" },
+  { value: "admins", label: "Admins only" },
 ]
 
 export function isAudience(value: unknown): value is Audience {
@@ -248,7 +248,7 @@ export function validate(
     if (uid === "") problems.uid = "Enter an id."
     else if (!uidPattern.test(uid)) {
       problems.uid =
-        "Use up to 40 letters, digits, _ or -, starting with a letter or digit."
+        "Use up to 40 letters, digits, hyphens or underscores, starting with a letter or digit."
     }
   }
   const address = values.address.trim()

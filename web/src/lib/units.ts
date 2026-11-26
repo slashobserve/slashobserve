@@ -135,6 +135,20 @@ function placeDuration(value: number, unitNs: number): Placed {
   return { amount: ns / step.ns, suffix: ` ${step.label}` }
 }
 
+const longTimeUnits: Record<string, string> = {
+  hour: "h",
+  day: "d",
+  week: "w",
+  year: "y",
+}
+
+export function abbreviateTimeUnits(text: string): string {
+  return text.replace(
+    /(\d) (hour|day|week|year)$/,
+    (_, digit: string, unit: string) => `${digit} ${longTimeUnits[unit]}`
+  )
+}
+
 const humanDurationParts = [
   { label: "y", ms: 365 * 86_400_000 },
   { label: "d", ms: 86_400_000 },
@@ -721,26 +735,22 @@ export function ownDecimals(value: number, unit?: string): number | undefined {
   return maxOwnDecimals
 }
 
-const maxAxisDecimals = 8
-
-export function axisDecimals(
+export function axisFormat(
   splits: readonly (number | null | undefined)[],
   unit?: string,
   decimals?: number
-): number | undefined {
-  const base = commonDecimals(splits, unit, decimals)
-  if (decimals !== undefined || base === undefined) return base
-  const finite = splits.filter(
-    (split): split is number =>
-      typeof split === "number" && Number.isFinite(split)
-  )
-  for (let digits = base; digits < maxAxisDecimals; digits++) {
-    const labels = finite.map((split) => formatValue(split, unit, digits))
-    if (
-      labels.every((label, index) => index === 0 || label !== labels[index - 1])
-    ) {
-      return digits
-    }
+): (value: number) => string {
+  if (decimals !== undefined) {
+    return (value) => formatValue(value, unit, decimals)
   }
-  return maxAxisDecimals
+  const suffixOf = (value: number) => formatValueParts(value, unit).suffix
+  const needed = new Map<string, number>()
+  for (const split of splits) {
+    if (typeof split !== "number" || !Number.isFinite(split)) continue
+    const own = ownDecimals(split, unit)
+    if (own === undefined) continue
+    const key = suffixOf(split)
+    needed.set(key, Math.max(needed.get(key) ?? 0, own))
+  }
+  return (value) => formatValue(value, unit, needed.get(suffixOf(value)))
 }

@@ -19,6 +19,8 @@ const (
 	traceStatsFrom = "FROM otel_traces WHERE $__timeFilter(Timestamp)"
 	errorStatus    = "lower(StatusCode) IN ('error','status_code_error')"
 	nanosPerMilli  = 1e6
+
+	unsupportedWindowNote = "ClickHouse trace stats give p50, p95 and p99 per time bucket only; whole-window and group_by quantiles are not available here, so run a SQL query with quantiles(0.5, 0.95, 0.99)(Duration) and GROUP BY ServiceName instead."
 )
 
 func TraceStatsQuery(expr string, step time.Duration) string {
@@ -131,7 +133,9 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 	if err != nil {
 		return datasource.TraceStats{}, trimGeneratedSQL(err)
 	}
-	return foldTraceStats(req.Range, req.Step, results[0], results[1]), nil
+	stats := foldTraceStats(req.Range, req.Step, results[0], results[1])
+	stats.Note = unsupportedWindowNote
+	return stats, nil
 }
 
 func foldTraceStats(r datasource.TimeRange, step time.Duration, grouped, histogram *resultSet) datasource.TraceStats {

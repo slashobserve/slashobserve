@@ -89,12 +89,9 @@ func (d *Datasource) get(ctx context.Context, path string, params url.Values) (j
 	return env.Data, nil
 }
 
-func (d *Datasource) ready(ctx context.Context) error {
-	status, raw, err := d.fetch(ctx, "/ready", nil)
-	if err != nil {
-		return err
-	}
-	return statusError(status, raw)
+func (d *Datasource) answersQueries(ctx context.Context) error {
+	_, err := d.get(ctx, "/loki/api/v1/query", url.Values{"query": {"vector(1)+vector(1)"}})
+	return err
 }
 
 func statusError(status int, raw []byte) error {

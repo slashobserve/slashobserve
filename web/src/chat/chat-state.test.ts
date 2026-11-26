@@ -211,7 +211,17 @@ describe("chatOutcome", () => {
         result_kind: "observation",
         observation_title: "Checkout errors",
       },
-      "Answered, no dashboard",
+      "Answered in Checkout errors",
+    ],
+    [
+      "an answer to a question on Home saved as an observation",
+      {
+        intent: "ask",
+        result_kind: "answer",
+        observation_id: "o1",
+        observation_title: "Checkout errors",
+      },
+      "Answered in Checkout errors",
     ],
     [
       "a request for a dashboard whose answer was not saved",
@@ -226,6 +236,16 @@ describe("chatOutcome", () => {
         dashboard_id: "d1",
         result_kind: "observation",
         observation_title: "Checkout errors",
+      },
+      "Answered in Checkout errors, dashboard unchanged",
+    ],
+    [
+      "a question on a dashboard whose answer was not saved",
+      {
+        intent: "apply",
+        base_version: 1,
+        dashboard_id: "d1",
+        result_kind: "answer",
       },
       "Answered, dashboard unchanged",
     ],

@@ -1176,11 +1176,13 @@ test("shows the clash and sends nothing when applying my changes would make the 
 test("keeps focus on the datasource select when its query editor is rebuilt", async ({
   page,
   request,
+  consoleErrors,
 }) => {
   const { id } = await createOverview(request)
   await openDashboard(page, id)
   await openFromMenu(page, rpsTitle)
   await replaceQuery(page, "SELECT 1")
+  await draftPreviewRejectionLogged(consoleErrors)
 
   const select = sheet(page).getByRole("combobox", {
     name: "Datasource for query A",

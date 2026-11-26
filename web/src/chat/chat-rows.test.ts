@@ -5,6 +5,7 @@ import {
   chatWhen,
   dashboardChoices,
   dashboardLabel,
+  subjectLabel,
   turnsText,
 } from "./chat-rows"
 import type { Chat } from "./chats-queries"
@@ -55,6 +56,43 @@ describe("dashboardLabel", () => {
   test("names a dashboard the server gives no title for", () => {
     expect(dashboardLabel(chat("a", about("d9", null)))).toBe(
       "A dashboard you cannot see"
+    )
+  })
+})
+
+describe("subjectLabel", () => {
+  test("has none for a chat about nothing", () => {
+    expect(subjectLabel(chat("a"))).toBeNull()
+  })
+
+  test("prefers the dashboard", () => {
+    expect(
+      subjectLabel({
+        ...chat("a", about("d1", "Checkout health")),
+        observation_id: "o1",
+        observation_title: "Checkout errors",
+      })
+    ).toBe("Checkout health")
+  })
+
+  test("names the observation by its title", () => {
+    expect(
+      subjectLabel({
+        ...chat("a", { observation_id: "o1" }),
+        observation_title: "Checkout errors",
+      })
+    ).toBe("Checkout errors")
+  })
+
+  test("names an observation whose title is hidden or not given", () => {
+    expect(
+      subjectLabel({
+        ...chat("a", { observation_id: "o1" }),
+        observation_title: null,
+      })
+    ).toBe("An observation you cannot see")
+    expect(subjectLabel(chat("a", { observation_id: "o1" }))).toBe(
+      "An observation"
     )
   })
 })

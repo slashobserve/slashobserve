@@ -69,6 +69,24 @@ func serve(t *testing.T, status int, body string, mutate ...func(*loki.Options))
 	return ds, fake
 }
 
+func servePaths(t *testing.T, statuses map[string]int) (*loki.Datasource, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if status, ok := statuses[r.URL.Path]; ok {
+			w.WriteHeader(status)
+			return
+		}
+		_, _ = w.Write([]byte(success("vector", `[]`)))
+	}))
+	t.Cleanup(srv.Close)
+	ds, err := loki.New(loki.Options{URL: srv.URL})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { _ = ds.Close() })
+	return ds, srv
+}
+
 func success(resultType, result string) string {
 	return fmt.Sprintf(`{"status":"success","data":{"resultType":%q,"result":%s,"stats":{}}}`, resultType, result)
 }
@@ -367,20 +385,38 @@ func TestRequestsCarryAuthHeadersAndTenant(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ds, fake := serve(t, 0, "ready", tc.mutate)
+			ds, fake := serve(t, 0, success("vector", `[]`), tc.mutate)
 			if err := ds.CheckHealth(context.Background()); err != nil {
 				t.Fatal(err)
 			}
 			req := fake.last(t)
-			if req.path != "/ready" || !tc.check(req.header) {
+			if req.path != "/loki/api/v1/query" || !tc.check(req.header) {
 				t.Fatalf("request %s carried %v", req.path, req.header)
 			}
 		})
 	}
 }
 
-func TestCheckHealthFailsWhenNotReady(t *testing.T) {
-	ds, _ := serve(t, http.StatusServiceUnavailable, "Ingester not ready: waiting for 15s after being ready")
+func TestCheckHealthAsksAQueryNotTheReadinessEndpoint(t *testing.T) {
+	ds, fake := serve(t, 0, success("vector", `[]`))
+	if err := ds.CheckHealth(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	req := fake.last(t)
+	if req.path == "/ready" || req.params.Get("query") != "vector(1)+vector(1)" {
+		t.Fatalf("probe was %s %v", req.path, req.params)
+	}
+}
+
+func TestCheckHealthIgnoresReadinessWhenQueriesAnswer(t *testing.T) {
+	ds, _ := servePaths(t, map[string]int{"/ready": http.StatusServiceUnavailable})
+	if err := ds.CheckHealth(context.Background()); err != nil {
+		t.Fatalf("err = %v, want healthy while /ready says 503 and queries answer", err)
+	}
+}
+
+func TestCheckHealthFailsWhenQueriesFail(t *testing.T) {
+	ds, _ := serve(t, http.StatusServiceUnavailable, "too many outstanding requests")
 	if err := ds.CheckHealth(context.Background()); !errors.Is(err, datasource.ErrUnavailable) {
 		t.Fatalf("err = %v, want unavailable", err)
 	}

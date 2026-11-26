@@ -13,6 +13,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from slashobserve_bench.loop_options import LoopOptions
+
 DATASET = "orca-bench/orca-bench"
 REPORT_PATH = "/app/report.md"
 CODE_DIR = "/app/opentelemetry-demo"
@@ -56,13 +58,12 @@ class UnsupportedTask(Exception):
     pass
 
 
-class Options(BaseModel):
+class Options(LoopOptions):
     model_config = ConfigDict(extra="forbid")
 
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
     replay_dir: str | None = None
     llm_effort: str | None = None
-    investigation_calls: int | None = Field(default=None, ge=6, le=60)
     run_max_cost_usd: float | None = Field(default=None, gt=0)
     spend_cap_usd: float | None = Field(default=None, gt=0)
     ledger_path: str | None = None

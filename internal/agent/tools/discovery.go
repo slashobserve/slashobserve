@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/prometheus/promql/parser"
+
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/queryproxy"
@@ -338,7 +340,56 @@ type metricsOut struct {
 }
 
 func noMetricNamed(search string) string {
-	return fmt.Sprintf("no metric name contains %q, which does not mean no metric has it: a service, job or pod is usually a label value, so list metrics with scope set to a selector such as {service=%q}, or read list_label_values, before saying it has no metrics", search, search)
+	return fmt.Sprintf("no metric name contains %q, which does not mean no metric has it: a service, job or pod is usually a label value, so read list_labels for the label that names it, then list metrics with scope set to a selector on that label, before saying it has no metrics", search)
+}
+
+func (r *Registry) emptyScopeNote(ctx context.Context, uid, scope string, runtimeFamilies int) string {
+	if runtimeFamilies > 0 {
+		return fmt.Sprintf("only %s match %s, and runtime families are left out of the list; the selector's labels exist, and naming __name__ in the scope lists them", plural(runtimeFamilies, "runtime family", "runtime families"), clip(scope, maxStepNameBytes))
+	}
+	note := fmt.Sprintf("no metric family matches %s", clip(scope, maxStepNameBytes))
+	inst, err := r.deps.Datasources.Describe(ctx, uid)
+	if err != nil || (typeOf(inst) != spec.Prometheus && typeOf(inst) != spec.Loki) {
+		return note
+	}
+	names, err := r.deps.Runner.Names(ctx, queryproxy.NamesRequest{Datasource: uid, Kind: datasource.DiscoverLabels, Limit: queryproxy.DefaultNamesLimit, Range: defaultNamesRange(ctx)})
+	if err != nil || len(names.Labels) == 0 {
+		return note
+	}
+	note += fmt.Sprintf("; %s has these label keys: %s", uid, strings.Join(names.Labels, ", "))
+	if names.Truncated {
+		note += ", and more (list_labels reads them all)"
+	}
+	missing := slices.DeleteFunc(selectorKeys(scope), func(key string) bool { return slices.Contains(names.Labels, key) })
+	if len(missing) > 0 && !names.Truncated {
+		note += fmt.Sprintf(". The selector's %s not among them, so it names a label this datasource does not use: pick the label that identifies it from the list and read its values with list_label_values", pluralKeys(missing))
+	}
+	return note
+}
+
+func pluralKeys(keys []string) string {
+	if len(keys) == 1 {
+		return fmt.Sprintf("key %q is", keys[0])
+	}
+	return fmt.Sprintf("keys %s are", strings.Join(keys, ", "))
+}
+
+const metricNameLabel = "__name__"
+
+var selectorParser = parser.NewParser(parser.Options{})
+
+func selectorKeys(scope string) []string {
+	matchers, err := selectorParser.ParseMetricSelector(scope)
+	if err != nil {
+		return nil
+	}
+	var keys []string
+	for _, m := range matchers {
+		if m.Name != metricNameLabel && !slices.Contains(keys, m.Name) {
+			keys = append(keys, m.Name)
+		}
+	}
+	return keys
 }
 
 func (r *Registry) listMetrics(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -394,6 +445,7 @@ type inventoryOut struct {
 	Families        []familyOut         `json:"families"`
 	CommonLabels    []string            `json:"common_labels,omitempty"`
 	Grouped         map[string][]string `json:"grouped"`
+	Note            string              `json:"note,omitempty"`
 	truncation
 }
 
@@ -411,6 +463,9 @@ func (r *Registry) listInventory(ctx context.Context, in listMetricsInput, offse
 		inventories.put(ctx, names.Families)
 	}
 	out := compactInventory(inventoryOut{Datasource: names.Datasource, Scope: in.Scope, FamiliesTotal: names.FamiliesTotal, RuntimeFamilies: names.RuntimeFamilies}, names.Families, offset, names.Truncated)
+	if len(names.Families) == 0 {
+		out.Note = r.emptyScopeNote(ctx, names.Datasource, in.Scope, names.RuntimeFamilies)
+	}
 	listed := make([]string, len(out.Families))
 	for i, f := range out.Families {
 		listed[i] = f.Name

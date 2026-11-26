@@ -1,6 +1,6 @@
 import { zonedDateTime } from "@/lib/time"
 import {
-  axisDecimals,
+  axisFormat,
   commonDecimals,
   formatValue,
   ownDecimals,
@@ -304,12 +304,11 @@ function boundFormatter(
   bounds: number[],
   labelling: Labelling
 ): (bound: number) => string {
-  const decimals = axisDecimals(
+  return axisFormat(
     bounds.filter(Number.isFinite),
     labelling.unit,
     labelling.decimals
   )
-  return (bound) => formatValue(bound, labelling.unit, decimals)
 }
 
 function exactFormatter(labelling: Labelling): (bound: number) => string {

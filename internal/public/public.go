@@ -45,7 +45,7 @@ const (
 var (
 	ErrNotFound        = errors.New("public link not found")
 	ErrPersonalFolder  = errors.New("a dashboard in My Dashboards cannot have a public link; move it to a shared folder first")
-	ErrAdminsOnly      = errors.New("a dashboard in a folder only Admins can read cannot have public links; move it to a folder that is not Only Admins first")
+	ErrAdminsOnly      = errors.New("a dashboard in a folder only Admins can read cannot have public links; move it to a folder that is not Admins only first")
 	ErrUserScoped      = errors.New("the dashboard's queries read the viewer's identity, so it cannot be shared publicly")
 	ErrInvalidExpiry   = errors.New("expires_at must be in the future")
 	ErrUnknownVariable = errors.New("selections name a variable the dashboard does not declare")

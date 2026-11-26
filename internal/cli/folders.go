@@ -63,7 +63,7 @@ func folderLabel(f listedFolder) string {
 	case f.Audit:
 		return text(f.Title) + " (Audit folder)"
 	case f.AdminsOnly:
-		return text(f.Title) + " (Only Admins)"
+		return text(f.Title) + " (Admins only)"
 	}
 	return text(f.Title)
 }

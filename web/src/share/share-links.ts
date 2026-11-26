@@ -79,6 +79,18 @@ export function panelChoices(spec: Pick<Dashboard, "panels">): PanelChoice[] {
     .map((panel) => ({ id: panel.id, title: panelTitle(panel) }))
 }
 
+export function sharedPanelId(
+  choices: readonly PanelChoice[],
+  chosen: string | undefined,
+  viewed: string | undefined
+): string | undefined {
+  const has = (id: string | undefined) =>
+    id !== undefined && choices.some((choice) => choice.id === id)
+  if (has(chosen)) return chosen
+  if (has(viewed)) return viewed
+  return choices[0]?.id
+}
+
 export function panelShareUrl(
   origin: string,
   dashboard: SharedDashboard,

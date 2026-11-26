@@ -222,6 +222,12 @@ export const grafanaKeys = {
     ["grafana", connectionId, "imports", syncId] as const,
 }
 
+export const contextSourceKeys = {
+  all: ["context-sources"] as const,
+  list: () => ["context-sources", "list"] as const,
+  tools: (uid: string) => ["context-sources", uid, "tools"] as const,
+}
+
 export const webhookKeys = {
   all: ["webhooks"] as const,
   list: () => ["webhooks", "list"] as const,
