@@ -202,6 +202,41 @@ func TestShowPanelGivesTheChartDataOnlyToAnAppsHost(t *testing.T) {
 	}
 }
 
+func TestWithoutABuiltChartAnAppsHostGetsNoAppsLabelAndTheSummary(t *testing.T) {
+	f := newFixture(t)
+	f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
+		res := tools.Result{Content: map[string]string{"summary": "text"}}
+		if tools.AppsHost(ctx) {
+			res.App = json.RawMessage(`{"title":"chart"}`)
+		}
+		return res, nil
+	}
+	label := initializeAs(t, f, goodKey, appsCapabilities)
+	if strings.HasSuffix(label, ".ui") {
+		t.Errorf("label %q marks an apps host with no chart to draw", label)
+	}
+	call := func(headers map[string]string, params map[string]any) toolResult {
+		params["name"] = tools.NameShowPanel
+		params["arguments"] = map[string]any{}
+		rec := f.post(rpc(3, "tools/call", params), headers)
+		var out toolResult
+		if err := json.Unmarshal(decodeRPC(t, rec).Result, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	perRequest := map[string]any{"_meta": map[string]any{"io.modelcontextprotocol/clientCapabilities": appsCapabilities}}
+	for name, out := range map[string]toolResult{
+		"by session":  call(map[string]string{"Mcp-Session-Id": label}, map[string]any{}),
+		"per request": call(nil, perRequest),
+		"forged flag": call(map[string]string{"Mcp-Session-Id": forgedLabel(".ui")}, map[string]any{}),
+	} {
+		if out.StructuredContent["summary"] != "text" || out.StructuredContent["title"] != nil {
+			t.Errorf("%s: result = %+v", name, out)
+		}
+	}
+}
+
 func forgedLabel(suffix string) string {
 	return "so1." + nonce + ".aG9zdA" + suffix
 }
@@ -257,7 +292,7 @@ func TestAForgedLabelChangesNeitherThePrincipalNorTheResultOfAnotherTool(t *test
 		f.handler.(*handler).call = func(ctx context.Context, _ string, _ json.RawMessage) (tools.Result, error) {
 			got.principal, _ = auth.FromContext(ctx)
 			got.client = origin.From(ctx).Client
-			got.granted = hasAppsClient(ctx)
+			got.granted = tools.AppsHost(ctx)
 			return tools.Result{Content: map[string]string{"ok": "true"}, App: json.RawMessage(`{"title":"chart"}`)}, nil
 		}
 		rec := f.post(rpc(3, "tools/call", map[string]any{"name": "get_spec_guide", "arguments": map[string]any{}}), map[string]string{"Mcp-Session-Id": session, "Authorization": authorization})

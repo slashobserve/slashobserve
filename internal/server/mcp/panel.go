@@ -28,17 +28,6 @@ func BuiltPanel() []byte {
 	return html
 }
 
-type appsClientKey struct{}
-
-func withAppsClient(ctx context.Context) context.Context {
-	return context.WithValue(ctx, appsClientKey{}, true)
-}
-
-func hasAppsClient(ctx context.Context) bool {
-	announced, _ := ctx.Value(appsClientKey{}).(bool)
-	return announced
-}
-
 type announcement struct {
 	appsOnInitialize bool
 	appsPerRequest   bool
@@ -94,7 +83,7 @@ func panelResourceFor(html []byte) (mcplib.Resource, func(context.Context, mcpli
 
 func withPanelUI(html []byte) func(context.Context, []mcplib.Tool) []mcplib.Tool {
 	return func(ctx context.Context, listed []mcplib.Tool) []mcplib.Tool {
-		if len(html) == 0 || !hasAppsClient(ctx) {
+		if len(html) == 0 || !tools.AppsHost(ctx) {
 			return listed
 		}
 		index := slices.IndexFunc(listed, func(t mcplib.Tool) bool { return t.Name == tools.NameShowPanel })

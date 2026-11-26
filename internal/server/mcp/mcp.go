@@ -93,6 +93,7 @@ type handler struct {
 	slots       slots
 	types       func(context.Context) []spec.DatasourceType
 
+	panelBuilt     bool
 	runs           RunSessions
 	runTransports  map[runShape]http.Handler
 	claimTransport http.Handler
@@ -103,7 +104,7 @@ func NewHandler(reg *tools.Registry, authn Authenticator, opts Options) http.Han
 	if logger == nil {
 		logger = slog.Default()
 	}
-	h := &handler{call: reg.Call, callClaim: reg.CallClaim, claimTools: claimToolNames(reg.List()), authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, runs: opts.Runs}
+	h := &handler{call: reg.Call, callClaim: reg.CallClaim, claimTools: claimToolNames(reg.List()), authn: authn, logger: logger, origin: opts.PublicURL, metadataURL: opts.ResourceMetadataURL, slots: slots{held: map[string]int{}}, types: reg.DatasourceTypes, runs: opts.Runs, panelBuilt: len(opts.PanelApp) > 0}
 	panel := opts.PanelApp
 	serverOptions := []mcpserver.ServerOption{
 		mcpserver.WithToolCapabilities(false),
@@ -217,8 +218,8 @@ func (h *handler) newTransport(srv *mcpserver.MCPServer) http.Handler {
 			if hasRegisteredClient(r.Context()) {
 				ctx = withRegisteredClient(ctx)
 			}
-			if hasAppsClient(r.Context()) {
-				ctx = withAppsClient(ctx)
+			if tools.AppsHost(r.Context()) {
+				ctx = tools.WithAppsHost(ctx)
 			}
 			if c, ok := claims.ClaimerFrom(r.Context()); ok {
 				ctx = claims.WithClaimer(ctx, c)
@@ -317,7 +318,7 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 		if answer.IsError {
 			answer.Content = uniformRefusal(answer.Content)
 		}
-		out := mcplib.NewToolResultStructured(structuredFor(ctx, name, answer), answer.Text())
+		out := mcplib.NewToolResultStructured(h.structuredFor(ctx, name, answer), answer.Text())
 		out.IsError = answer.IsError
 		if inRun {
 			out.Meta = mcplib.NewMetaFromMap(map[string]any{runMetaKey: answer.Meta})
@@ -326,8 +327,8 @@ func (h *handler) invoke(name string, kind callKind) mcpserver.ToolHandlerFunc {
 	}
 }
 
-func structuredFor(ctx context.Context, name string, answer runsession.Answer) json.RawMessage {
-	if name == tools.NameShowPanel && len(answer.App) > 0 && hasAppsClient(ctx) && !answer.IsError {
+func (h *handler) structuredFor(ctx context.Context, name string, answer runsession.Answer) json.RawMessage {
+	if name == tools.NameShowPanel && len(answer.App) > 0 && h.panelBuilt && tools.AppsHost(ctx) && !answer.IsError {
 		return answer.App
 	}
 	return json.RawMessage(answer.Content)
@@ -450,8 +451,8 @@ func (h *handler) servePrincipal(w http.ResponseWriter, r *http.Request, cred Cr
 			if cred.OAuth {
 				ctx = withRegisteredClient(ctx)
 			}
-			if parseLabel(r.Header.Get(mcpserver.HeaderKeySessionID)).apps {
-				ctx = withAppsClient(ctx)
+			if h.panelBuilt && parseLabel(r.Header.Get(mcpserver.HeaderKeySessionID)).apps {
+				ctx = tools.WithAppsHost(ctx)
 			}
 			if cred.Mode != "" {
 				ctx = grantmode.With(ctx, cred.Mode)
@@ -475,6 +476,13 @@ type serving struct {
 	prepare      func(ctx context.Context) (context.Context, http.Handler, error)
 	labelsClient bool
 	labelsApps   bool
+}
+
+func (h *handler) announcedApps(body []byte) announcement {
+	if !h.panelBuilt {
+		return announcement{}
+	}
+	return announcedApps(body)
 }
 
 func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
@@ -524,9 +532,9 @@ func (h *handler) serve(w http.ResponseWriter, r *http.Request, s serving) {
 		}
 		defer h.slots.releaseGlobal()
 	}
-	announced := announcedApps(body)
+	announced := h.announcedApps(body)
 	if announced.appsPerRequest {
-		r = r.WithContext(withAppsClient(r.Context()))
+		r = r.WithContext(tools.WithAppsHost(r.Context()))
 	}
 	client := ""
 	if s.labelsClient {

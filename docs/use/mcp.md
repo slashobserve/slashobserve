@@ -1110,7 +1110,8 @@ It is read-only, and it runs through the same path and under the same limits as 
   A panel type the chart view does not draw, such as a map or a text panel, is refused with a link to the dashboard.
 - The chart shows the range actually queried, after the panel's time override and shift.
 - It returns the summary of `query_range` and `open_url`, the address of the query in Explore or of the panel in its dashboard.
-- Data over 2 MiB is refused with `limit_exceeded`; ask for a shorter range or fewer series.
+- A chart with more than 2 MiB of data is not drawn: the host gets the summary and a note to ask for a shorter range or fewer series.
+- A server built without the chart view, and a client that does not show MCP Apps, get the summary only.
 
 #### `query_instant`
 

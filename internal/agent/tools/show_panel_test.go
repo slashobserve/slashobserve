@@ -20,6 +20,12 @@ import (
 	"github.com/slashobserve/slashobserve/pkg/spec"
 )
 
+func callApps(t *testing.T, r *Registry, name, input string) (Result, error) {
+	t.Helper()
+	ctx := auth.WithPrincipal(reading(WithAppsHost(context.Background())), auth.Principal{Role: auth.RoleAdmin})
+	return r.Call(ctx, name, []byte(input))
+}
+
 func seriesDS(typ string) *fakeDS {
 	return &fakeDS{typ: typ, rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		return []datasource.Frame{timeNumberFrame(map[string]string{"route": "/a"}, 1, 2, 3)}, nil
@@ -42,7 +48,7 @@ func decodeApp(t *testing.T, res Result) panelAppOut {
 
 func TestShowPanelDrawsAQueryWithTheDataAndASummary(t *testing.T) {
 	r := newTestRegistry(t, seriesDS("prometheus"), nil)
-	res, err := call(t, r, nameShowPanel, `{"datasource":"fake","query":"rate(up[5m])","from":"now-6h","title":"Up rate","type":"barchart"}`)
+	res, err := callApps(t, r, nameShowPanel, `{"datasource":"fake","query":"rate(up[5m])","from":"now-6h","title":"Up rate","type":"barchart"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +95,7 @@ func TestShowPanelLinksToTheExplorerThatFitsTheDatasource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.typ, func(t *testing.T) {
-			res, err := call(t, newTestRegistry(t, seriesDS(tt.typ), nil), nameShowPanel, `{"datasource":"fake","query":"up","from":"now-3h","to":"now-1h"}`)
+			res, err := callApps(t, newTestRegistry(t, seriesDS(tt.typ), nil), nameShowPanel, `{"datasource":"fake","query":"up","from":"now-3h","to":"now-1h"}`)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -114,7 +120,7 @@ func TestShowPanelRunsUnderTheLimitsOfQueryRange(t *testing.T) {
 		return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
 	}}
 	r := newTestRegistry(t, ds, nil)
-	if res, err := call(t, r, nameShowPanel, `{"datasource":"fake","query":"SELECT 1","from":"now-6h"}`); err != nil || res.IsError {
+	if res, err := callApps(t, r, nameShowPanel, `{"datasource":"fake","query":"SELECT 1","from":"now-6h"}`); err != nil || res.IsError {
 		t.Fatalf("res = %#v err = %v", res, err)
 	}
 	if seen.Limits != queryproxy.DraftLimits {
@@ -149,7 +155,7 @@ func TestShowPanelRefusesWhatQueryRangeRefuses(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := call(t, r, nameShowPanel, tt.input)
+			res, err := callApps(t, r, nameShowPanel, tt.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -164,7 +170,7 @@ func TestShowPanelReportsADatasourceFailureWithoutApp(t *testing.T) {
 	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "parse error")
 	}}
-	res, err := call(t, newTestRegistry(t, ds, nil), nameShowPanel, `{"datasource":"fake","query":"broken("}`)
+	res, err := callApps(t, newTestRegistry(t, ds, nil), nameShowPanel, `{"datasource":"fake","query":"broken("}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,20 +179,93 @@ func TestShowPanelReportsADatasourceFailureWithoutApp(t *testing.T) {
 	}
 }
 
-func TestShowPanelRefusesDataOverTheSizeAChartCanBeSentIn(t *testing.T) {
-	ds := &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
+func oversizeDS() *fakeDS {
+	return &fakeDS{rangeFn: func(context.Context, datasource.Query, datasource.TimeRange, time.Duration) ([]datasource.Frame, error) {
 		var frames []datasource.Frame
 		for i := range 40 {
 			frames = append(frames, timeNumberFrame(map[string]string{"series": strings.Repeat(string(rune('a'+i%26)), 60<<10)}, 1, 2))
 		}
 		return frames, nil
 	}}
-	res, err := call(t, newTestRegistry(t, ds, nil), nameShowPanel, `{"datasource":"fake","query":"up"}`)
+}
+
+func TestShowPanelAnswersAnAppsHostWithTheSummaryAndANoteWhenTheDataIsTooLargeToDraw(t *testing.T) {
+	res, err := callApps(t, newTestRegistry(t, oversizeDS(), nil), nameShowPanel, `{"datasource":"fake","query":"up"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if code := errorCode(t, res); code != string(queryproxy.CodeLimitExceeded) || len(res.App) != 0 {
-		t.Fatalf("code = %q app = %d bytes", code, len(res.App))
+	if res.IsError || len(res.App) != 0 {
+		t.Fatalf("res = %#v app = %d bytes", res, len(res.App))
+	}
+	out, ok := res.Content.(shownPanelOut)
+	if !ok || out.Frames != 40 || out.OpenURL == "" {
+		t.Fatalf("content = %#v", res.Content)
+	}
+	if !strings.Contains(res.Step, "The chart is not drawn") || !strings.Contains(res.Step, "query_range") {
+		t.Errorf("step = %q", res.Step)
+	}
+}
+
+func TestShowPanelGivesAClientWithoutAppsTheSummaryWhateverTheSizeOfTheData(t *testing.T) {
+	res, err := call(t, newTestRegistry(t, oversizeDS(), nil), nameShowPanel, `{"datasource":"fake","query":"up"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.IsError || len(res.App) != 0 {
+		t.Fatalf("res = %#v app = %d bytes", res, len(res.App))
+	}
+	if strings.Contains(res.Step, "not drawn") {
+		t.Errorf("step = %q", res.Step)
+	}
+	if out, ok := res.Content.(shownPanelOut); !ok || out.Frames != 40 {
+		t.Fatalf("content = %#v", res.Content)
+	}
+}
+
+func TestShowPanelBuildsNoChartDataForAClientWithoutApps(t *testing.T) {
+	res, err := call(t, newTestRegistry(t, seriesDS("prometheus"), nil), nameShowPanel, `{"datasource":"fake","query":"up"}`)
+	if err != nil || res.IsError || len(res.App) != 0 {
+		t.Fatalf("res = %#v err = %v", res, err)
+	}
+	if out, ok := res.Content.(shownPanelOut); !ok || out.Frames != 1 || out.OpenURL == "" {
+		t.Fatalf("content = %#v", res.Content)
+	}
+}
+
+func TestShowPanelLinksToTheQueryTheVariablesGaveWhenThereAreVariables(t *testing.T) {
+	ds := &fakeDS{typ: "prometheus", rangeFn: func(_ context.Context, q datasource.Query, _ datasource.TimeRange, _ time.Duration) ([]datasource.Frame, error) {
+		text := q.Text
+		for _, v := range q.Variables {
+			text = strings.ReplaceAll(text, "$"+v.Name, strings.Join(v.Values, "|"))
+		}
+		q.Expanded(text)
+		return []datasource.Frame{timeNumberFrame(nil, 1, 2)}, nil
+	}}
+	res, err := callApps(t, newTestRegistry(t, ds, nil), nameShowPanel, `{"datasource":"fake","query":"up{job=\"$job\"}","variables":{"job":["api"]}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, err := url.Parse(decodeApp(t, res).OpenURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := link.Query().Get("q"); strings.Contains(got, "$job") || !strings.Contains(got, `job="api"`) {
+		t.Errorf("q = %q", got)
+	}
+}
+
+func TestShowPanelLinksToTheQueryAsGivenWithoutVariables(t *testing.T) {
+	r := newTestRegistry(t, seriesDS("prometheus"), nil)
+	res, err := callApps(t, r, nameShowPanel, `{"datasource":"fake","query":"rate(up[$__rate_interval])"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, err := url.Parse(decodeApp(t, res).OpenURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := link.Query().Get("q"); got != "rate(up[$__rate_interval])" {
+		t.Errorf("q = %q", got)
 	}
 }
 
@@ -233,7 +312,7 @@ func showSaved(t *testing.T, input string) (Result, error) {
 	if err := json.Unmarshal([]byte(input), &in); err != nil {
 		t.Fatal(err)
 	}
-	ctx := auth.WithPrincipal(reading(context.Background()), auth.Principal{Role: auth.RoleAdmin})
+	ctx := auth.WithPrincipal(reading(WithAppsHost(context.Background())), auth.Principal{Role: auth.RoleAdmin})
 	shown, res, ok, err := r.panelOfDashboard(ctx, "00000000-0000-0000-0000-000000000001", savedDashboard(), in, 200)
 	if err != nil || !ok {
 		return res, err

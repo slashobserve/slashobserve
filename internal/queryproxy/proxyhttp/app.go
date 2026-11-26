@@ -16,11 +16,12 @@ import (
 const MaxAppDataBytes = 2 << 20
 
 type PanelResult struct {
-	Body   json.RawMessage
-	Result queryproxy.Result
+	Body     json.RawMessage
+	Oversize int
+	Result   queryproxy.Result
 }
 
-func PanelData(ctx context.Context, runner *queryproxy.Runner, logger *slog.Logger, req queryproxy.Request) (PanelResult, error) {
+func PanelData(ctx context.Context, runner *queryproxy.Runner, logger *slog.Logger, req queryproxy.Request, withBody bool) (PanelResult, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -32,12 +33,15 @@ func PanelData(ctx context.Context, runner *queryproxy.Runner, logger *slog.Logg
 	if err != nil {
 		return PanelResult{}, err
 	}
+	if !withBody {
+		return PanelResult{Result: res}, nil
+	}
 	body, err := json.Marshal(dataBody(entry, false, entry.executedAt, ""))
 	if err != nil {
 		return PanelResult{}, fmt.Errorf("encode panel data: %w", err)
 	}
 	if len(body) > MaxAppDataBytes {
-		return PanelResult{}, fmt.Errorf("%w: the panel data is %d KiB, over the %d KiB a chart can be sent in; ask for a shorter range or fewer series", datasource.ErrLimitExceeded, len(body)>>10, MaxAppDataBytes>>10)
+		return PanelResult{Oversize: len(body), Result: res}, nil
 	}
 	return PanelResult{Body: body, Result: res}, nil
 }

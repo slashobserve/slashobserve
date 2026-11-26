@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -66,6 +67,17 @@ var chartFormats = map[spec.PanelType]string{
 	spec.Logs:    "logs",
 }
 
+type appsHostKey struct{}
+
+func WithAppsHost(ctx context.Context) context.Context {
+	return context.WithValue(ctx, appsHostKey{}, true)
+}
+
+func AppsHost(ctx context.Context) bool {
+	drawn, _ := ctx.Value(appsHostKey{}).(bool)
+	return drawn
+}
+
 func init() { registerEntries((*Registry).showPanelEntries) }
 
 func (r *Registry) showPanelEntries() []entry {
@@ -120,7 +132,7 @@ type shownPanel struct {
 	datasources []string
 	timezone    string
 	explore     bool
-	openURL     string
+	openURL     func(queryproxy.Result) string
 }
 
 func (r *Registry) showPanel(ctx context.Context, input json.RawMessage) (Result, error) {
@@ -180,6 +192,9 @@ func (r *Registry) adhocPanel(ctx context.Context, in showPanelInput, points int
 	title := cmp.Or(in.Title, clip(strings.TrimSpace(in.Query), showTitleFromText), untitledChart)
 	dash.Panels[0].Title = title
 	from, to := cmp.Or(in.From, defaultFrom), cmp.Or(in.To, defaultTo)
+	openURL := func(ran queryproxy.Result) string {
+		return r.exploreURL(inst, exploredQuery(in, ran), from, to)
+	}
 	return shownPanel{
 		title:       title,
 		panel:       dash.Panels[0],
@@ -190,8 +205,15 @@ func (r *Registry) adhocPanel(ctx context.Context, in showPanelInput, points int
 		points:      points,
 		datasources: []string{inst.UID},
 		explore:     true,
-		openURL:     r.exploreURL(inst, in.Query, from, to),
+		openURL:     openURL,
 	}, Result{}, true, nil
+}
+
+func exploredQuery(in showPanelInput, ran queryproxy.Result) string {
+	if len(in.Variables) == 0 || len(ran.Queries) == 0 || ran.Queries[0].Executed == "" {
+		return in.Query
+	}
+	return ran.Queries[0].Executed
 }
 
 func (r *Registry) exploreURL(inst datasource.Instance, query, from, to string) string {
@@ -282,7 +304,7 @@ func (r *Registry) panelOfDashboard(ctx context.Context, dashboardID string, d *
 		points:      window.MaxDataPoints,
 		datasources: resolvedDatasources(d, selections, slices.Concat(panelDatasources(*source.Panel), panelDatasources(displayed))),
 		timezone:    timezone,
-		openURL:     savedPanelURL(link, displayed.ID, in.From, in.To),
+		openURL:     func(queryproxy.Result) string { return savedPanelURL(link, displayed.ID, in.From, in.To) },
 	}, Result{}, true, nil
 }
 
@@ -320,6 +342,7 @@ func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, err
 	defer cancel()
 	principal, _ := auth.FromContext(ctx)
 	step := "Showed a panel: " + shown.title
+	toApps := AppsHost(ctx)
 	drawn, err := proxyhttp.PanelData(ctx, r.deps.Runner, r.deps.Logger, queryproxy.Request{
 		Dashboard:     shown.dashboard,
 		PanelID:       shown.panelID,
@@ -329,11 +352,21 @@ func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, err
 		Limits:        queryproxy.DraftLimits,
 		Explore:       shown.explore,
 		User:          queryproxy.UserFor(principal),
-	})
+	}, toApps)
 	if err != nil {
 		return datasourceFailure(step, err)
 	}
-	app, err := json.Marshal(panelAppOut{
+	openURL := shown.openURL(drawn.Result)
+	summary := summarize(drawn.Result)
+	text := step + ": " + summary.describe()
+	if drawn.Oversize > 0 {
+		text += oversizeNote(drawn.Oversize)
+	}
+	res := success(text, shownPanelOut{querySummary: summary, OpenURL: openURL})
+	if !toApps || drawn.Oversize > 0 {
+		return res, nil
+	}
+	res.App, err = json.Marshal(panelAppOut{
 		Title:       shown.title,
 		Panel:       shown.panel,
 		Data:        drawn.Body,
@@ -342,15 +375,13 @@ func (r *Registry) drawPanel(ctx context.Context, shown shownPanel) (Result, err
 		Timezone:    shown.timezone,
 		From:        drawn.Result.Range.From.UTC().Format(time.RFC3339),
 		To:          drawn.Result.Range.To.UTC().Format(time.RFC3339),
-		OpenURL:     shown.openURL,
+		OpenURL:     openURL,
 	})
-	if err != nil {
-		return Result{}, err
-	}
-	summary := summarize(drawn.Result)
-	res := success(step+": "+summary.describe(), shownPanelOut{querySummary: summary, OpenURL: shown.openURL})
-	res.App = app
-	return res, nil
+	return res, err
+}
+
+func oversizeNote(bytes int) string {
+	return fmt.Sprintf(" The chart is not drawn: its data is %d KiB, over the %d KiB a chart can be sent in. Ask for a shorter range or fewer series, or use query_range to read the numbers.", bytes>>10, proxyhttp.MaxAppDataBytes>>10)
 }
 
 func (r *Registry) panelAppDatasources(ctx context.Context, uids []string) []panelAppDatasource {
