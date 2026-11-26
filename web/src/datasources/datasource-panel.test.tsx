@@ -26,13 +26,17 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function renderEditor(patch: (body: unknown) => Response) {
+function renderEditor(
+  patch: (body: unknown) => Response,
+  saved: typeof config = config
+) {
   const sent: unknown[] = []
   vi.stubGlobal(
     "fetch",
     vi.fn(async (request: Request) => {
       const path = new URL(request.url).pathname
-      if (path === "/api/v1/datasources/payroll/config") return json(config)
+      if (path === "/api/v1/datasources/payroll/config") return json(saved)
+      if (path === "/api/v1/datasources/test") return json({ healthy: true })
       if (
         path === "/api/v1/datasources/payroll" &&
         request.method === "PATCH"
@@ -65,11 +69,27 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
+describe("DatasourcePanel title", () => {
+  it("names the datasource by its name, not its id", async () => {
+    renderEditor(() => json(config), { ...config, name: "Payroll database" })
+    expect(
+      await screen.findByRole("heading", { name: "Edit Payroll database" })
+    ).toBeInTheDocument()
+  })
+
+  it("falls back to the id when the datasource has no other name", async () => {
+    renderEditor(() => json(config))
+    expect(
+      await screen.findByRole("heading", { name: "Edit payroll" })
+    ).toBeInTheDocument()
+  })
+})
+
 describe("DatasourcePanel audience", () => {
-  it("starts on the saved audience and says what Only Admins means", async () => {
+  it("starts on the saved audience and says what Admins only means", async () => {
     renderEditor(() => json(config))
     expect(await screen.findByRole("radio", { name: "Everyone" })).toBeChecked()
-    expect(screen.getByRole("radio", { name: "Only Admins" })).not.toBeChecked()
+    expect(screen.getByRole("radio", { name: "Admins only" })).not.toBeChecked()
     expect(
       screen.getByText(/must live in a folder set to Only Admins/)
     ).toBeInTheDocument()
@@ -79,9 +99,9 @@ describe("DatasourcePanel audience", () => {
     const { user, sent } = renderEditor(() =>
       json({ ...config, audience: "admins" })
     )
-    await user.click(await screen.findByRole("radio", { name: "Only Admins" }))
+    await user.click(await screen.findByRole("radio", { name: "Admins only" }))
     await user.type(screen.getByLabelText("Name"), "Payroll")
-    await user.click(screen.getByRole("button", { name: "Save" }))
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
     await waitFor(() => expect(sent).toHaveLength(1))
     expect(sent[0]).toMatchObject({ audience: "admins", name: "Payroll" })
   })
@@ -115,9 +135,9 @@ describe("DatasourcePanel audience", () => {
         409
       )
     )
-    await user.click(await screen.findByRole("radio", { name: "Only Admins" }))
+    await user.click(await screen.findByRole("radio", { name: "Admins only" }))
     await user.type(screen.getByLabelText("Name"), "Payroll")
-    await user.click(screen.getByRole("button", { name: "Save" }))
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
     expect(
       await screen.findByRole("link", { name: "Salaries" })
     ).toHaveAttribute("href", expect.stringContaining("/d/1111"))
@@ -132,11 +152,24 @@ describe("DatasourcePanel audience", () => {
       screen.getByText(/Move them to an Only Admins folder/)
     ).toBeInTheDocument()
     expect(screen.getByLabelText("Name")).toHaveValue("Payroll")
-    expect(screen.getByRole("radio", { name: "Only Admins" })).toBeChecked()
+    expect(screen.getByRole("radio", { name: "Admins only" })).toBeChecked()
 
     await user.click(screen.getByRole("radio", { name: "Everyone" }))
     expect(
       screen.queryByRole("link", { name: "Salaries" })
     ).not.toBeInTheDocument()
+  })
+})
+
+describe("DatasourcePanel test result", () => {
+  it("scrolls the result into view so it is not left below the fold", async () => {
+    const reveal = vi.fn()
+    Element.prototype.scrollIntoView = reveal
+    const { user } = renderEditor(() => json(config))
+    await user.click(
+      await screen.findByRole("button", { name: "Test connection" })
+    )
+    expect(await screen.findByText(/Connected\./)).toBeInTheDocument()
+    expect(reveal).toHaveBeenCalledWith({ block: "nearest" })
   })
 })

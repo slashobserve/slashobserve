@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type RefObject } from "react"
+import { useEffect, useId, useRef, useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -98,7 +98,7 @@ function EditLoader({
   }
   return (
     <SidePanel
-      title={`Edit ${uid}`}
+      title="Edit datasource"
       onClose={onClose}
       trigger={trigger}
       footer={
@@ -154,6 +154,7 @@ function Editor({
   const test = useTestDatasource()
   const save = mode === "create" ? create : update
   const busy = save.isPending || test.isPending
+  const feedback = useRef<HTMLDivElement>(null)
 
   function change(next: Partial<FormValues>) {
     setValues((current) => ({ ...current, ...next }))
@@ -234,10 +235,23 @@ function Editor({
       : null
   const saveError =
     save.isError && refusal === null ? saveProblemText(save.error) : null
+  const hasFeedback =
+    outcome !== null ||
+    refusal !== null ||
+    saveError !== null ||
+    general.length > 0
+
+  useEffect(() => {
+    if (hasFeedback) feedback.current?.scrollIntoView?.({ block: "nearest" })
+  }, [hasFeedback, outcome, saveError, refusal, general])
 
   return (
     <SidePanel
-      title={mode === "create" ? createTitle(values.type) : `Edit ${uid}`}
+      title={
+        mode === "create"
+          ? createTitle(values.type)
+          : `Edit ${initial.name === "" ? uid : initial.name}`
+      }
       description={
         mode === "create"
           ? "The server connects to it with the address and credentials you give, and only an Admin can change them."
@@ -261,7 +275,7 @@ function Editor({
                 className="motion-safe:animate-spin"
               />
             ) : null}
-            {mode === "create" ? "Add datasource" : "Save"}
+            {mode === "create" ? "Add datasource" : "Save changes"}
           </Button>
           <Button
             variant="outline"
@@ -298,7 +312,7 @@ function Editor({
           onPickMcp={onPickMcp}
           firstInputRef={firstInput}
         />
-        <div aria-live="polite" className="flex flex-col gap-2">
+        <div ref={feedback} aria-live="polite" className="flex flex-col gap-2">
           {outcome === null ? null : <TestResult outcome={outcome} />}
           {refusal === null ? null : <RestrictedHolders error={refusal} />}
           {saveError === null ? null : (
