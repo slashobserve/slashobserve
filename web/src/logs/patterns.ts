@@ -197,14 +197,20 @@ export function shareText(share: number): string {
 }
 
 export function patternsHeading(result: LogPatterns): string {
-  const total =
-    result.lines_sampled > 0 ? result.lines_sampled : result.lines_matched
+  const sampled = result.lines_sampled > 0
+  const total = sampled ? result.lines_sampled : result.lines_matched
   const covered = result.patterns.reduce((sum, item) => sum + item.count, 0)
   const rounded = Math.round(patternShare(covered, total) * 100)
   const percent = covered < total ? Math.min(rounded, 99) : rounded
   const count = result.patterns.length
   const verb = count === 1 ? "pattern covers" : "patterns cover"
-  return `${count} ${verb} ${percent}% of ${total.toLocaleString("en")} documents. Numbers and ids become ${wildcard}.`
+  const counted = total.toLocaleString("en")
+  const basis = sampled
+    ? `the newest ${counted} lines`
+    : result.source === "loki"
+      ? `the ${counted} lines the pattern index covers`
+      : `the ${counted} documents the aggregation covers`
+  return `${count} ${verb} ${percent}% of ${basis}. Numbers and ids become ${wildcard}.`
 }
 
 export const patternsNote =

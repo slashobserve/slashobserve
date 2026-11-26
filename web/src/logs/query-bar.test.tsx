@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { ApiError } from "@/api/errors"
 import { datasourceKeys, observeKeys } from "@/api/keys"
 import type { InputMode } from "@/ask/input-mode"
 import type { DatasourceStatus } from "@/datasources/queries"
@@ -30,6 +31,7 @@ function setup({
   agentAvailable = true,
   labelsOpen = false,
   runFailed = false,
+  lastGoodRows,
   mapped = [],
   query,
   linesAnswered = true,
@@ -42,6 +44,7 @@ function setup({
   agentAvailable?: boolean
   labelsOpen?: boolean
   runFailed?: boolean
+  lastGoodRows?: number
   mapped?: string[]
 } = {}) {
   const run = vi.fn()
@@ -59,7 +62,13 @@ function setup({
     setDraft,
     run,
     range: { from: "now-1h", to: "now" },
-    results: { isError: runFailed, isSuccess: linesAnswered && !runFailed },
+    results: {
+      isError: runFailed,
+      isSuccess: linesAnswered && !runFailed,
+      error: runFailed
+        ? new ApiError(504, "query_timeout", "Query timed out after 15s")
+        : null,
+    },
     mode,
     setMode,
     announce: vi.fn(),
@@ -77,6 +86,12 @@ function setup({
     labels: ["service_name", "level"],
     truncated: false,
   })
+  if (lastGoodRows !== undefined) {
+    queryClient.setQueryData(["explore", "ds", "query", { query: "*" }], {
+      meta: { rows: lastGoodRows },
+      frames: [],
+    })
+  }
   if (query === undefined) {
     queryClient.setQueryData(
       datasourceKeys.labels("ds", { from: "now-1h", to: "now" }),
@@ -350,10 +365,19 @@ describe("QueryBar", () => {
 
   it("keeps the last good run and offers the datasource check after a failed run", async () => {
     setup({ runFailed: true })
-    expect(await screen.findByText(/^No results\./)).toBeVisible()
+    expect(await screen.findByText(/^Query timed out after 15s/)).toBeVisible()
     expect(
       await screen.findByRole("link", { name: "Check the datasource" })
     ).toHaveAttribute("href", "/datasources")
+  })
+
+  it("ends the failure with a full stop before the last good run", async () => {
+    setup({ runFailed: true, lastGoodRows: 1412 })
+    expect(
+      await screen.findByText(
+        /^Query timed out after 15s\. The last good run was .+, 1,412 hits\.$/
+      )
+    ).toBeVisible()
   })
 
   it("offers to remove the clause of an unknown field only when the builder can show it", async () => {

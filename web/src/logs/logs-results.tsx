@@ -243,11 +243,11 @@ export function OpenTraceLink({
   )
 }
 
-export function hiddenLevelsText(hidden: ReadonlySet<LogLevelKind>): string {
+export function levelFilterText(hidden: ReadonlySet<LogLevelKind>): string {
   const names = volumeKinds
-    .filter((kind) => hidden.has(kind))
+    .filter((kind) => !hidden.has(kind))
     .map((kind) => volumeKindNames[kind])
-  return `Hiding ${names.join(", ")} lines`
+  return `Showing only ${names.join(", ")} lines`
 }
 
 export function LogsResults({
@@ -486,7 +486,7 @@ export function LogsResults({
         )}
         {hiddenLevels === undefined || hiddenLevels.size === 0 ? null : (
           <span className="text-xs whitespace-nowrap text-muted-foreground">
-            {hiddenLevelsText(hiddenLevels)}
+            {levelFilterText(hiddenLevels)}
           </span>
         )}
         <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground @max-[620px]/toolbar:hidden">

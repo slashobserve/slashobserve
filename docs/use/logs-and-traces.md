@@ -46,6 +46,7 @@ The box above the list filters the sources by the text in a source name or in a 
 Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
 
 Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
+Switching from a logs source to a trace or metric source, or the other way, keeps only the time range.
 An address that carries a search but no source, such as `/logs?q=...`, opens the source you used last on this browser, else the first by name.
 An old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
 [Sources and the sidebar](#sources-and-the-sidebar) describes how the sidebar lists them.
@@ -250,8 +251,11 @@ The volume strip above the lines counts every line the query matches over the wh
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 
 The level chips above the bars show a count for each level.
-A chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**.
-The count of the other chips and the query do not change, and **All** shows every level again.
+A click on a chip shows only that level in the bars and in the lines of the page you are on, with a note "Showing only Error lines" beside **Sort**, and the other chips dim.
+Click the chip again, or **All**, to show every level.
+Shift-click, Cmd-click or Ctrl-click a chip to add that level to the set or take it out, so you can show Error and Warning together or hide only Info.
+The selection is the `levels` parameter of the address, so a copied link keeps it.
+The count of the chips and the query do not change.
 The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level.
 To search for a level, add a filter.
 
@@ -271,7 +275,7 @@ The strip comes from its own log volume request, which starts once the lines hav
 The fields list on the logs page and the trace search statistics wait for the results in the same way.
 The strip hides while live tail shows its lines.
 
-- When the lines time out, the strip says the source is slow instead of starting more requests.
+- When the lines time out, the strip and the fields say the query failed and point to the results card, which keeps the failure and **Retry**, instead of starting more requests.
 - When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped.
   It also says the lines below are complete only when they loaded.
   **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
@@ -480,7 +484,8 @@ Each row shows these:
 - a small chart of how often it occurred across the time range, with its change over the range ("new" for a pattern that appeared late);
 - a dot for its level.
 
-The heading says how many patterns there are and what share of the documents they cover.
+The heading says how many patterns there are and what share of the lines they cover.
+The heading names what the share is of: "the newest 2,000 lines" when the page grouped the lines itself, "the 34,112 lines the pattern index covers" on Loki, and "the 200 documents the aggregation covers" on Elasticsearch and OpenSearch, so it is never read as the total of the volume strip.
 **Sort patterns** orders the rows by most lines or by newest.
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.

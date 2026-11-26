@@ -74,7 +74,7 @@ describe("PatternsView", () => {
     )
     expect(
       screen.getByText(
-        "2 patterns cover 100% of 100 documents. Numbers and ids become <*>."
+        "2 patterns cover 100% of the newest 100 lines. Numbers and ids become <*>."
       )
     ).toBeTruthy()
     const grid = await screen.findByRole("grid")
@@ -83,6 +83,15 @@ describe("PatternsView", () => {
     expect(within(rows[1]).getByText("90")).toBeTruthy()
     expect(within(rows[1]).getByText("90%")).toBeTruthy()
     expect(within(rows[2]).getByText("10%")).toBeTruthy()
+  })
+
+  it("says a server heading counts the newest lines, not every line", () => {
+    setup([pattern({ pattern: "paid order <*>", count: 258 })], 258)
+    expect(
+      screen.getByText(
+        "1 pattern covers 100% of the newest 258 lines. Numbers and ids become <*>."
+      )
+    ).toBeTruthy()
   })
 
   it("filters to a pattern through the query and returns to the lines", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { hiddenLevelsText, openingView, resultsDisplay } from "./logs-results"
+import { levelFilterText, openingView, resultsDisplay } from "./logs-results"
 
 describe("openingView", () => {
   it("wraps the lines on a phone so the message is readable", () => {
@@ -18,10 +18,16 @@ describe("resultsDisplay", () => {
   })
 })
 
-describe("hiddenLevelsText", () => {
-  it("names the hidden levels in the order of the chips", () => {
-    expect(hiddenLevelsText(new Set(["info", "error"]))).toBe(
-      "Hiding Error, Info lines"
+describe("levelFilterText", () => {
+  it("names the levels that stay, in the order of the chips", () => {
+    expect(levelFilterText(new Set(["info", "error"]))).toBe(
+      "Showing only Warning, Other lines"
+    )
+  })
+
+  it("names a single level", () => {
+    expect(levelFilterText(new Set(["warning", "info", "other"]))).toBe(
+      "Showing only Error lines"
     )
   })
 })
