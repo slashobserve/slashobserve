@@ -1,11 +1,10 @@
 import {
   isAbsoluteOrdered,
   isRangeTooLong,
-  maxRangeDays,
   parseUserTime,
+  maxRangeDays,
   resolveTime,
-  timeFormatHint,
-  userTimeProblem,
+  readTimeInput,
   zonedDateTime,
 } from "@/lib/time"
 
@@ -17,32 +16,18 @@ export type DraftRead =
   | { range: { from: string; to: string }; problem?: undefined }
   | { range?: undefined; problem: DraftProblem }
 
-function unreadableTimeText(zone: string | undefined): string {
-  return `Enter a time like ${timeFormatHint(zone)}.`
-}
-
 export function readDraft(
   draftFrom: string,
   draftTo: string,
   zone: string | undefined
 ): DraftRead {
-  const from = parseUserTime(draftFrom, zone)
-  if (from === null) {
-    return {
-      problem: {
-        field: "from",
-        message: userTimeProblem(draftFrom, zone) ?? unreadableTimeText(zone),
-      },
-    }
+  const { value: from, problem: fromProblem } = readTimeInput(draftFrom, zone)
+  if (from === undefined) {
+    return { problem: { field: "from", message: fromProblem } }
   }
-  const to = parseUserTime(draftTo, zone)
-  if (to === null) {
-    return {
-      problem: {
-        field: "to",
-        message: userTimeProblem(draftTo, zone) ?? unreadableTimeText(zone),
-      },
-    }
+  const { value: to, problem: toProblem } = readTimeInput(draftTo, zone)
+  if (to === undefined) {
+    return { problem: { field: "to", message: toProblem } }
   }
   if (!isAbsoluteOrdered(from, to)) {
     return {

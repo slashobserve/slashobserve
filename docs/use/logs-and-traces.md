@@ -571,7 +571,7 @@ This browser keeps the recent questions, apart from the chat's.
 ### Ask on the trace search
 
 With a model configured, the trace search has the same toggle at the top left of the query card, with the question field beside it.
-The toggle reads **TraceQL** and **Write a query** on Tempo, and on ClickHouse **Search**, **SQL** and **Write a query**.
+The toggle reads **TraceQL** and **Write a query** on Tempo, **Search** and **Write a query** on Jaeger, and on ClickHouse **Search**, **SQL** and **Write a query**.
 
 1. Switch to **Write a query**, or press Ctrl+I or Cmd+I.
 2. Write a question and press Enter.

@@ -63,23 +63,34 @@ function readUserTime(input: string, zone: string | undefined): UserTime {
   return ms >= earliestEpochMs ? { value: String(ms) } : { problem: "early" }
 }
 
+export function readTimeInput(
+  input: string,
+  zone: string | undefined
+):
+  | { value: string; problem?: undefined }
+  | { value?: undefined; problem: string } {
+  const read = readUserTime(input, zone)
+  if ("value" in read) return read
+  return {
+    problem:
+      read.problem === "early"
+        ? "Times before the year 2000 are not accepted."
+        : `Enter a time like ${timeFormatHint(zone)}.`,
+  }
+}
+
 export function parseUserTime(
   input: string,
   zone: string | undefined
 ): string | null {
-  const read = readUserTime(input, zone)
-  return "value" in read ? read.value : null
+  return readTimeInput(input, zone).value ?? null
 }
 
 export function userTimeProblem(
   input: string,
   zone: string | undefined
 ): string | null {
-  const read = readUserTime(input, zone)
-  if ("value" in read) return null
-  return read.problem === "early"
-    ? "Times before the year 2000 are not accepted."
-    : `Enter a time like ${timeFormatHint(zone)}.`
+  return readTimeInput(input, zone).problem ?? null
 }
 
 export function timeFormatHint(

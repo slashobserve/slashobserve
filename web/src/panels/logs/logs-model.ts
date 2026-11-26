@@ -36,7 +36,7 @@ export type Labels = Record<string, string>
 
 export type LogLevelKind = "error" | "warning" | "info" | "other"
 
-export type LogLevel = { word: string; kind: LogLevelKind }
+export type LogLevel = { word: string; kind: LogLevelKind; raw?: string }
 
 export type LogDetail =
   | { name: string; field: PreparedField; frame: PreparedFrame; index: number }
@@ -146,12 +146,13 @@ export function logLevel(value: unknown): LogLevel | null {
   if (value === null || value === undefined) return null
   const text = String(value).trim()
   if (text === "") return null
-  return (
-    levelsByAlias.get(text.toLowerCase()) ?? {
-      word: capitalise(text),
-      kind: "other",
-    }
-  )
+  const known = levelsByAlias.get(text.toLowerCase())
+  if (known === noLevel) return { ...noLevel, raw: text }
+  return known ?? { word: capitalise(text), kind: "other" }
+}
+
+export function levelName(level: LogLevel | null): string | undefined {
+  return level?.raw ?? level?.word
 }
 
 function severityLevel(value: unknown): LogLevel | null {
