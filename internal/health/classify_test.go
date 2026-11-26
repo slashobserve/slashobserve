@@ -108,3 +108,20 @@ func TestUnopenedAfterNinetyDaysSinceTheLastViewOrCreation(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyNamesTheCheckedWindowOnATimeout(t *testing.T) {
+	d := healthDashboard(t)
+	got := classify(d, []spec.Issue{
+		{Path: "/panels/0/queries/0/query", Code: "query_timeout", Message: "query timed out after 15s"},
+		{Path: "/panels/1/panels/0/queries/0/query", Code: "query_failed", Message: "bad"},
+	})
+	want := []string{"query timed out after 15s while checking the last 7 days", "bad"}
+	for i, p := range got {
+		if p.Message != want[i] {
+			t.Errorf("message %d = %q, want %q", i, p.Message, want[i])
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("classify returned %d problems, want %d", len(got), len(want))
+	}
+}

@@ -52,6 +52,9 @@ func classify(d *spec.Dashboard, issues []spec.Issue) []Problem {
 		}
 		seen[key] = true
 		p.Message = issue.Message
+		if issue.Code == queryproxy.CodeQueryTimeout {
+			p.Message += timeoutWindow
+		}
 		problems = append(problems, p)
 	}
 	return problems

@@ -34,6 +34,8 @@ const (
 
 var checkRange = spec.TimeRange{From: "now-7d", To: "now"}
 
+const timeoutWindow = " while checking the last 7 days"
+
 type runCounts struct {
 	mu                                 sync.Mutex
 	checked, unhealthy, skipped, fails int
