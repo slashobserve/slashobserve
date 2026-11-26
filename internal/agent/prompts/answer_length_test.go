@@ -65,6 +65,13 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 		"the deepest erroring span is the origin",
 		"answer each one, with one trace read per route",
 		"name it as a stand-in",
+		"except the one-line note on another reading of a term below",
+		"several services, routes or operations",
+		"When the ratios the question asks for are within about 10% of 1, say that factor does not explain the change",
+		"the headline gives one figure, for the reading you used; name the other reading in words, with its figure only in a clearly separate one-line note",
+		"reading each one's slow tail or error set separately, never one combined top-N that one of them can crowd out",
+		"at the series' native step in a short range around the event, not a coarse step",
+		"from the question's whole window without the event's own span, with an aggregate or a coarser step so the query stays under the point limit, never from a sub-window",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
