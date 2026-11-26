@@ -196,10 +196,7 @@ export function shareText(share: number): string {
   return percent < 10 ? `${percent.toFixed(1)}%` : `${Math.round(percent)}%`
 }
 
-export function patternsHeading(
-  result: LogPatterns,
-  linesTotal?: number
-): string {
+export function patternsHeading(result: LogPatterns): string {
   const sampled = result.lines_sampled > 0
   const total = sampled ? result.lines_sampled : result.lines_matched
   const covered = result.patterns.reduce((sum, item) => sum + item.count, 0)
@@ -208,12 +205,11 @@ export function patternsHeading(
   const count = result.patterns.length
   const verb = count === 1 ? "pattern covers" : "patterns cover"
   const counted = total.toLocaleString("en")
-  const basis =
-    linesTotal === undefined || linesTotal <= total
-      ? `${counted} lines`
-      : sampled
-        ? `a sample of ${counted} of ${linesTotal.toLocaleString("en")} lines`
-        : `the ${counted} lines the ${result.source === "loki" ? "pattern index" : "aggregation"} covers, out of ${linesTotal.toLocaleString("en")} lines`
+  const basis = sampled
+    ? `the newest ${counted} lines`
+    : result.source === "loki"
+      ? `the ${counted} lines the pattern index covers`
+      : `the ${counted} documents the aggregation covers`
   return `${count} ${verb} ${percent}% of ${basis}. Numbers and ids become ${wildcard}.`
 }
 
