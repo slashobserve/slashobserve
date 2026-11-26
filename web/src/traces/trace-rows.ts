@@ -1,5 +1,5 @@
 import type { WireFrame } from "@/dashboards/queries"
-import { formatValue } from "@/lib/units"
+import { abbreviateTimeUnits, formatValue } from "@/lib/units"
 
 export type TraceRow = {
   traceId: string
@@ -84,7 +84,7 @@ export function countText(count: number, noun: string): string {
 }
 
 export function durationText(ms: number | null): string {
-  return ms === null ? "-" : formatValue(ms, "ms")
+  return ms === null ? "-" : abbreviateTimeUnits(formatValue(ms, "ms"))
 }
 
 export function rowDurationText(row: TraceRow): string {

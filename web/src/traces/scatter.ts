@@ -38,7 +38,6 @@ export function durationScale(maxMs: number): DurationScale {
 
 const tickLadder = [
   10, 100, 1000, 10_000, 60_000, 600_000, 3_600_000, 36_000_000, 86_400_000,
-  864_000_000,
 ]
 
 export function durationTicks(maxMs: number): number[] {

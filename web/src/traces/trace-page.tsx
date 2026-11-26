@@ -214,6 +214,8 @@ function TraceForId({ id }: { id: string }) {
   )
 }
 
+const collapsedLabel = "@max-[1100px]/top:sr-only"
+
 type PageActions = { time: ReactNode; share: ReactNode }
 type TraceActions = {
   logs: ReactNode
@@ -813,19 +815,22 @@ function TraceExplorer({
               variant="outline"
               onClick={openLogs}
             >
-              <LogsIcon aria-hidden="true" data-icon="inline-start" />
-              <span className="@max-[1100px]/top:sr-only">
-                Logs for this trace
-              </span>
+              <LogsIcon aria-hidden="true" />
+              <span className={collapsedLabel}>Logs for this trace</span>
             </Button>
           ),
           keep: (
             <>
-              <AddToDashboardAction size="default" panel={keptPanel} />
+              <AddToDashboardAction
+                size="default"
+                panel={keptPanel}
+                labelClassName={collapsedLabel}
+              />
               <AddToObservationAction
                 size="default"
                 range={range}
                 panel={keptPanel}
+                labelClassName={collapsedLabel}
               />
             </>
           ),

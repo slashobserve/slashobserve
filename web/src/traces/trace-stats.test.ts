@@ -103,6 +103,18 @@ describe("partialReason", () => {
     )
   })
 
+  it("counts a single trace in the singular", () => {
+    expect(partialReason({ ...base, rowCount: 1 })).toBe(
+      "This page shows 1 trace, newest first; more matches are on the next pages."
+    )
+  })
+
+  it("points back to the earlier pages on the last page", () => {
+    expect(partialReason({ ...base, rowCount: 20, hasNext: false })).toBe(
+      "This page shows 20 traces, newest first; the rest are on the earlier pages."
+    )
+  })
+
   it("blames the time limit when the page is not full", () => {
     expect(
       partialReason({ ...base, rowCount: 12, hasNext: false, cut: true })

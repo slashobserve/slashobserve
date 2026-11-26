@@ -870,7 +870,7 @@ function TraceResults({
       ? undefined
       : histogramPercentile(stats.data.histogram, 95)
   const label = p95Label(search)
-  const limited = meta.partial || state.hasNext
+  const limited = meta.partial || state.hasNext || state.page > 1
   const order = listOrder(
     datasource.type === "clickhouse" ? decodeSort(search.sort) : null
   )
@@ -929,7 +929,7 @@ function TraceResults({
           rows={rows}
           p95={p95}
           label={label}
-          fitWindow={limited}
+          fitWindow={limited && order.newest}
         />
         {pageBar}
       </div>

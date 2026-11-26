@@ -10,9 +10,11 @@ import { placedPanel } from "./trace-panel"
 export function AddToDashboardAction({
   panel,
   size = "sm",
+  labelClassName,
 }: {
   panel: DataPanel
   size?: "sm" | "default"
+  labelClassName?: string
 }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -28,7 +30,7 @@ export function AddToDashboardAction({
         onClick={() => setOpen(true)}
       >
         <LayoutDashboardIcon aria-hidden="true" />
-        <span className="@max-[1100px]/top:sr-only">Add to dashboard</span>
+        <span className={labelClassName}>Add to dashboard</span>
       </Button>
       {open ? (
         <AddPanelToDashboard

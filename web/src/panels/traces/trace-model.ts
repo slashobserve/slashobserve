@@ -1,4 +1,5 @@
 import { assignSlots } from "../colors"
+import { abbreviateTimeUnits } from "@/lib/units"
 import { displayValue, type FieldResolver } from "../field-config"
 import type { PreparedField, PreparedFrame } from "../transforms"
 import { rowCount } from "../transforms/names"
@@ -407,7 +408,8 @@ export function traceModel(
     duration: total,
     spans,
     notes,
-    formatDuration: (ms) => displayValue(ms, durationConfig).text,
+    formatDuration: (ms) =>
+      abbreviateTimeUnits(displayValue(ms, durationConfig).text),
   }
 }
 

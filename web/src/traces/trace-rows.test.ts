@@ -241,6 +241,9 @@ describe("durationText", () => {
     [2444, "2.44 s"],
     [3_020_012.7, "50.33 min"],
     [600_004.1, "10 min"],
+    [7_200_000, "2 h"],
+    [3_600_000, "1 h"],
+    [86_400_000, "1 d"],
   ])("scales %s ms to %s", (ms, text) => {
     expect(durationText(ms)).toBe(text)
   })
