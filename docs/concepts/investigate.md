@@ -63,6 +63,15 @@ The agent investigates with the same read tools it uses to build dashboards, and
 It does not get the dashboard save tools in an investigation, because an investigation never changes a dashboard.
 Investigations therefore do not wait for other requests on the same dashboard.
 
+How the agent reads and answers:
+
+- The verdict follows the comparison the question asked for, and a short spike inside the window is a separate observation.
+- When the ratios the question asks for are near 1, the agent says that factor does not explain the change.
+- When a term has two plausible readings, the agent states the one it used and names the other in one line, and gives one figure per quantity.
+- When the question names several services, routes or operations, it reads each one's slow tail or error set separately.
+- It reads durations and rates at the series' native step around the event.
+- It takes a baseline such as typical or normal from the whole window the question covers.
+
 ### The hypothesis ledger
 
 With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` set to `true`, the built-in agent also gets `note_hypotheses`, and an investigation that opens an observation is told in its prompt to use it.

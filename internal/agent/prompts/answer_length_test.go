@@ -65,6 +65,11 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 		"the deepest erroring span is the origin",
 		"answer each one, with one trace read per route",
 		"name it as a stand-in",
+		"when the ratios it asks for are near 1, say that factor does not explain the change",
+		"state the reading you used and give the other in one line; never headline two figures for one quantity",
+		"reading each one's slow tail or error set separately, never one combined top-N that one of them can crowd out",
+		"at its native step around the event, not a coarse step",
+		"from the whole window the question covers, not a sub-window",
 	} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
