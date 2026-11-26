@@ -146,6 +146,9 @@ class OrcaAgent(BaseAgent):
             llm_model=model,
             llm_effort=options.llm_effort,
             investigation_calls=options.investigation_calls,
+            investigation_loop=options.investigation_loop,
+            investigation_calls_max=options.investigation_calls_max,
+            finding_grounding=options.finding_grounding,
             run_max_cost_usd=options.run_max_cost_usd,
             replay_dir=Path(options.replay_dir) if options.replay_dir else None,
         )

@@ -57,6 +57,21 @@ def test_budget_and_cost_settings_reach_the_server():
     assert env["SLASHOBSERVE_LLM_MODEL"] == "claude-haiku-5-5"
 
 
+def test_loop_settings_reach_the_server_only_when_given():
+    env = server.server_env(
+        config(investigation_loop=True, investigation_calls_max=40, finding_grounding="enforce"),
+        "postgres://db",
+    )
+    assert env["SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"] == "true"
+    assert env["SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX"] == "40"
+    assert env["SLASHOBSERVE_AGENT_FINDING_GROUNDING"] == "enforce"
+    off = server.server_env(config(investigation_loop=False), "postgres://db")
+    assert off["SLASHOBSERVE_AGENT_INVESTIGATION_LOOP"] == "false"
+    bare = server.server_env(config(), "postgres://db")
+    for name in ("INVESTIGATION_LOOP", "INVESTIGATION_CALLS_MAX", "FINDING_GROUNDING"):
+        assert f"SLASHOBSERVE_AGENT_{name}" not in bare
+
+
 def test_server_command_publishes_a_free_loopback_port_and_joins_the_network(tmp_path):
     args = server.server_args("name", config(), {"A": "b"}, tmp_path, None)
     assert args[args.index("--network") + 1] == "o11y-bench-shared"

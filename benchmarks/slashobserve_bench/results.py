@@ -5,12 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
+from slashobserve_bench.loop_options import LoopOptions
+
 SCHEMA_VERSION = 1
 RESULTS_DIR = Path(__file__).resolve().parents[1] / "results"
 README_TABLE_HEADING = "## Runs\n"
 
 CAUSES = ("adapter_fault", "missing_capability", "agent_mistake")
-SETTING_KEYS = ("investigation_calls", "llm_effort", "run_max_cost_usd", "wall_timeout_sec")
 SERVER_START_MESSAGE = "starting slashobserve-server"
 SKIPPED_EXCEPTION = "TaskSkipped"
 NO_AGENT_OUTPUT = {"cause": "adapter_fault", "summary": "The trial left no agent output folder, so the run never produced an answer."}
@@ -18,6 +19,21 @@ NO_AGENT_OUTPUT = {"cause": "adapter_fault", "summary": "The trial left no agent
 
 class ResultsError(Exception):
     pass
+
+
+class RecordedSettings(LoopOptions):
+    llm_effort: str | None = None
+    run_max_cost_usd: float | None = None
+    wall_timeout_sec: int | None = None
+
+    def recorded(self) -> dict[str, Any]:
+        return {
+            "investigation_calls": self.investigation_calls,
+            **self.effective_loop_settings(),
+            "llm_effort": self.llm_effort,
+            "run_max_cost_usd": self.run_max_cost_usd,
+            "wall_timeout_sec": self.wall_timeout_sec,
+        }
 
 
 def _read_json(path: Path) -> Any:
@@ -88,7 +104,7 @@ def _read_trial(trial_dir: Path) -> dict[str, Any]:
         "trial": result["trial_name"],
         "digest": result.get("task_checksum"),
         "model": config_agent["model_name"],
-        "settings": {key: kwargs.get(key) for key in SETTING_KEYS},
+        "settings": RecordedSettings.model_validate(kwargs).recorded(),
         "server": _server_of(trial_dir / "agent" / "server.log"),
         "judge": _judge_of(trial_dir),
         "reward": rewards.get("reward"),
