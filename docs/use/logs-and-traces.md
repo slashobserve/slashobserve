@@ -275,7 +275,7 @@ The strip comes from its own log volume request, which starts once the lines hav
 The fields list on the logs page and the trace search statistics wait for the results in the same way.
 The strip hides while live tail shows its lines.
 
-- When the lines time out, the strip says the source is slow instead of starting more requests.
+- When the lines time out, the strip and the fields say the query failed and point to the results card, which keeps the failure and **Retry**, instead of starting more requests.
 - When the volume request does not finish, the strip says so with the server's reason in plain words about your query, never the position in the query the server wrapped.
   It also says the lines below are complete only when they loaded.
   **Retry volume** asks again and **Try the last 15 minutes** narrows the range.
@@ -485,7 +485,7 @@ Each row shows these:
 - a dot for its level.
 
 The heading says how many patterns there are and what share of the lines they cover.
-When the patterns count fewer lines than the volume strip, the heading says what they count, as in "a sample of 258 of 262 lines" or "the 34,112 lines the pattern index covers, out of 75,026 lines".
+The heading names what the share is of: "the newest 2,000 lines" when the page grouped the lines itself, "the 34,112 lines the pattern index covers" on Loki, and "the 200 documents the aggregation covers" on Elasticsearch and OpenSearch, so it is never read as the total of the volume strip.
 **Sort patterns** orders the rows by most lines or by newest.
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.
