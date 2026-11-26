@@ -128,6 +128,44 @@ describe("InvitesTable", () => {
     expect(withdrawButton("ada")).toHaveAttribute("aria-disabled", "false")
   })
 
+  it("withdraws only once the confirm has closed, so an instant reply still moves focus to the neighbour", async () => {
+    const { queryClient, all } = listInvites(["zoe", "cy", "bob"])
+    calls.send.mockImplementation(async (id: string) => {
+      queryClient.setQueryData(
+        invitesQuery().queryKey,
+        all.filter((row) => row.id !== id)
+      )
+    })
+    const { user } = renderWithProviders(<InvitesTable />, { queryClient })
+    await openWithdraw(user, "zoe")
+    let endExit = () => {}
+    const closing = {
+      finished: new Promise<void>((resolve) => {
+        endExit = resolve
+      }),
+      effect: { getTiming: () => ({ duration: 150, iterations: 1 }) },
+    }
+    const animations = vi
+      .spyOn(HTMLElement.prototype, "getAnimations")
+      .mockReturnValue([closing as unknown as Animation])
+
+    try {
+      await user.click(
+        await screen.findByRole("button", { name: "Withdraw invite" })
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(calls.send).not.toHaveBeenCalled()
+      endExit()
+
+      await waitFor(() => expect(calls.send).toHaveBeenCalledWith("id-zoe"))
+      await waitFor(() => expect(withdrawButton("cy")).toHaveFocus())
+      await releaseHeldMutation()
+      expect(withdrawButton("cy")).toHaveFocus()
+    } finally {
+      animations.mockRestore()
+    }
+  })
+
   it.each([
     ["a middle invite", "ada", "cy"],
     ["the first invite", "zoe", "ada"],

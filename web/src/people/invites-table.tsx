@@ -80,9 +80,16 @@ function WithdrawButton({ invite }: { invite: Invite }) {
   const trigger = useRef<HTMLButtonElement>(null)
   const withdraw = useWithdrawInvite()
   const setWithdrawing = useContext(SetWithdrawing)
+  const confirmed = useRef(false)
 
   function confirm() {
+    confirmed.current = true
     setOpen(false)
+  }
+
+  function withdrawOnceClosed(stillOpen: boolean) {
+    if (stillOpen || !confirmed.current) return
+    confirmed.current = false
     setWithdrawing(invite.id)
     withdraw.mutateAsync(invite.id).then(
       () => toast.success(`Withdrew the invite for ${invite.email}`),
@@ -115,7 +122,11 @@ function WithdrawButton({ invite }: { invite: Invite }) {
         ) : null}
         Withdraw
       </Button>
-      <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialog
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={withdrawOnceClosed}
+      >
         <AlertDialogContent finalFocus={trigger}>
           <AlertDialogHeader>
             <AlertDialogTitle>Withdraw this invite?</AlertDialogTitle>
