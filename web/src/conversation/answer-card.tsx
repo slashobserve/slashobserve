@@ -125,20 +125,11 @@ function CreateObservation({
   )
 }
 
-function OpenObservation({
-  observationId,
-  className,
-}: {
-  observationId: string
-  className?: string
-}) {
+function OpenObservation({ observationId }: { observationId: string }) {
   return (
     <Link
       {...observationLink(observationId)}
-      className={cn(
-        buttonVariants({ variant: "ghost", size: "sm" }),
-        className
-      )}
+      className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
     >
       Open the observation
     </Link>
@@ -459,9 +450,8 @@ export function AnswerCard({
             <PinAction finding={finding} />
             {panels.length > 0 ? (
               <MakeDashboardAction finding={finding} chatId={chatId} />
-            ) : (
-              <OpenObservation observationId={observationId} />
-            )}
+            ) : null}
+            <OpenObservation observationId={observationId} />
           </>
         )}
         {actions}
@@ -515,12 +505,7 @@ export function AnswerCard({
               ))}
             </div>
           </div>
-          {observationId !== null ? (
-            <OpenObservation
-              observationId={observationId}
-              className="-ml-2 self-start"
-            />
-          ) : canSave ? (
+          {observationId === null && canSave ? (
             <CreateObservation requestId={requestId} variant="link" />
           ) : null}
         </div>

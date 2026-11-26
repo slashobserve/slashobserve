@@ -55,10 +55,16 @@ import {
 
 import { activeTool, useCanvasTool } from "./canvas-tools"
 import { conversationActionsFor } from "./panel-actions"
-import { panelBodySize, PanelChrome, type PanelState } from "./panel-chrome"
+import {
+  panelBodySize,
+  PanelChrome,
+  showsStaleRow,
+  type PanelState,
+} from "./panel-chrome"
 import { panelDatasourceUids } from "./panel-datasources"
 import type { PanelLayoutActions } from "./panel-layout-actions"
 import { PanelMenu, type BlockMenuHost } from "./panel-menu"
+import { failedWithoutData, failureOf, staleNoticeOf } from "./panel-stale"
 import { PanelToolbar } from "./panel-toolbar"
 import {
   panelDataKey,
@@ -244,14 +250,7 @@ export const PanelContainer = memo(function PanelContainer({
   const canvasTool = useCanvasTool((state) => state.tool)
   const selectTool = canvasTool === "select"
   const agentAvailable = useAgentInfo().data?.available === true
-  const { width: bodyWidth, height: bodyHeight } = panelBodySize(
-    Math.floor(width),
-    Math.floor(height)
-  )
-  const body = useMemo(
-    () => ({ width: bodyWidth, height: bodyHeight }),
-    [bodyWidth, bodyHeight]
-  )
+  const wholeBody = panelBodySize(Math.floor(width), Math.floor(height))
   const dataPanel = useMemo(
     () => (isDataPanel(panel) ? reusePanel(panel, reused) : undefined),
     [panel, reused]
@@ -281,7 +280,7 @@ export const PanelContainer = memo(function PanelContainer({
   }, [focusOnRender, onFocused])
 
   const requested = dataPanel ?? panel
-  const maxDataPoints = maxDataPointsFor(requested, body.width)
+  const maxDataPoints = maxDataPointsFor(requested, wholeBody.width)
   const query = usePanelData({
     source,
     panel: requested,
@@ -410,7 +409,20 @@ export const PanelContainer = memo(function PanelContainer({
   else if (!dataPanel) state = "ready"
   else if (query.data) state = populated ? "ready" : "empty"
   else if (blockedBy !== undefined) state = "error"
-  else if (query.isError) state = "error"
+  else if (failedWithoutData(query)) state = "error"
+
+  const stale = staleNoticeOf(query, dataPanel?.timezone, timezone)
+  const staleRow = showsStaleRow(state, stale)
+  const bodyWidth = wholeBody.width
+  const bodyHeight = panelBodySize(
+    Math.floor(width),
+    Math.floor(height),
+    staleRow
+  ).height
+  const body = useMemo(
+    () => ({ width: bodyWidth, height: bodyHeight }),
+    [bodyWidth, bodyHeight]
+  )
 
   const blockedError = useMemo(
     () =>
@@ -484,6 +496,15 @@ export const PanelContainer = memo(function PanelContainer({
     )
   }, [panelName])
 
+  const placeholder = query.isPlaceholderData
+  const executed = useMemo(() => {
+    const ran = data?.meta.queries
+    return (queryRef: string) =>
+      placeholder
+        ? undefined
+        : ran?.find((entry) => entry.ref === queryRef)?.executed
+  }, [data, placeholder])
+
   const panelMenu = (inToolbar: boolean) => (
     <PanelMenu
       panel={panel}
@@ -511,6 +532,7 @@ export const PanelContainer = memo(function PanelContainer({
       inToolbar={inToolbar}
       observationVariables={observationVariables}
       block={blockMenu}
+      executed={executed}
     />
   )
 
@@ -530,9 +552,9 @@ export const PanelContainer = memo(function PanelContainer({
       <PanelChrome
         panel={panel}
         state={state}
-        error={query.data ? query.error : (blockedError ?? query.error)}
+        error={query.data ? query.error : (blockedError ?? failureOf(query))}
         refreshing={query.isFetching && query.data !== undefined}
-        staleError={query.isError && query.data ? query.error : undefined}
+        staleNotice={stale}
         onRetry={() => (blockedError ? onRetryBlocked() : void query.refetch())}
         dragHandle={editable}
         arrangeable={arrangeable}

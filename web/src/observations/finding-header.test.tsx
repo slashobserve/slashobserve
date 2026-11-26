@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
+import { describeInstant } from "@/lib/time"
 import { renderWithProviders } from "@/test/render"
 
 import { BlockList } from "./block-list"
@@ -80,9 +81,20 @@ describe("the finding header", () => {
     expect(header).toHaveTextContent("The retry flag doubled calls.")
     expect(header).toHaveTextContent("12% of orders failed.")
     expect(header).toHaveTextContent("high")
-    expect(header).toHaveTextContent("the database; the cache")
+    expect(
+      within(header)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent)
+    ).toEqual(["the database", "the cache", "Turn the flag off."])
     expect(header).toHaveTextContent("Turn the flag off.")
     expect(header).toHaveTextContent("Started")
+  })
+
+  it("shows the onset with the browser time zone", () => {
+    render(<FindingHeader finding={full} />)
+    expect(screen.getByLabelText("Finding summary")).toHaveTextContent(
+      describeInstant("2026-11-20T10:05:00Z")
+    )
   })
 
   it("says so when nothing was wrong", () => {

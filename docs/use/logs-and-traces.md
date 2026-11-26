@@ -516,7 +516,7 @@ The note under the table says which source applies.
 You need Edit on the target dashboard.
 The panel is full width and goes at the bottom of the dashboard, inside the last row when that row is collapsed, and the save makes a new version.
 The save runs the query over the dashboard's time range and refuses a panel that returns no lines there.
-The panel's menu offers the way back with **Open in Logs** or **Open in Traces**, which opens the explorer with the panel's query and the dashboard's time range.
+The panel's menu offers the way back with **Open in Logs**, **Open in Traces** or **Open in Metrics**, which opens the explorer with the panel's query and the dashboard's time range.
 
 ## Add to an observation
 
