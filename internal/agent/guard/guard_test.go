@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -1194,6 +1195,35 @@ func TestAbsenceAndAnswerFaultsAreSentBackTogether(t *testing.T) {
 	text := string(adm.Content)
 	if adm.Verdict != Refuse || !strings.Contains(text, "read it with tag deploy") || !strings.Contains(text, "no evidence panel") {
 		t.Fatalf("admission = %+v, want the absence and the evidence faults together", adm)
+	}
+}
+
+func TestASentBackFindingShowsPeopleASentenceAndTheModelTheGuidance(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "The metric is missing for checkout."}`))
+	if adm.Verdict != Refuse {
+		t.Fatalf("admission = %+v", adm)
+	}
+	if want := "The answer was sent back for a fix: it said a metric is missing without checking for it"; adm.Step != want {
+		t.Errorf("step = %q, want %q", adm.Step, want)
+	}
+	if !strings.Contains(string(adm.Content), "list metrics with scope set to its selector") {
+		t.Errorf("the model did not get the guidance: %s", adm.Content)
+	}
+	if utf8.RuneCountInString(adm.Step) > revisions.MaxStepMessageRunes {
+		t.Errorf("step is %d runes, over the stored limit", utf8.RuneCountInString(adm.Step))
+	}
+}
+
+func TestSentBackFaultsJoinIntoOnePlainStep(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "There was no deploy today, and checkout had 46 error spans."}`))
+	want := "The answer was sent back for a fix: it said there was no deploy without reading the deploy markers; and it gave counts without an evidence panel"
+	if adm.Step != want {
+		t.Fatalf("step = %q, want %q", adm.Step, want)
 	}
 }
 

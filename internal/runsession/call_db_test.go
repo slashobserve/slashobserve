@@ -164,7 +164,7 @@ func TestThreeRejectedSavesInARowEndTheRunValidationExhausted(t *testing.T) {
 	if row.State != string(revisions.StateFailed) || row.FailureCode.String != string(revisions.FailureValidationExhausted) {
 		t.Fatalf("run = %s %q", row.State, row.FailureCode.String)
 	}
-	want := "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1, p2; ask the agent to fix them one panel at a time (last issues: unknown_field)"
+	want := "the dashboard still failed validation after 3 rejected saves in a row; still failing: p1, p2; ask the agent to fix them one panel at a time (last issues: unknown field)"
 	if row.Error.String != want {
 		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}
@@ -198,7 +198,7 @@ func TestThreeRejectedFindingsEndAnInvestigationNamingTheEvidenceThatTimedOut(t 
 	if row.FailureCode.String != string(revisions.FailureValidationExhausted) {
 		t.Fatalf("failure = %q", row.FailureCode.String)
 	}
-	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: query_timeout); a datasource did not answer in time, so ask again when it is healthy"
+	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: a query timed out); a datasource did not answer in time, so ask again when it is healthy"
 	if row.Error.String != want {
 		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}

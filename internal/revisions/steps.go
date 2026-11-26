@@ -65,8 +65,16 @@ func validPhase(phase string) bool {
 
 func cleanStepText(s string, maxRunes int) string {
 	s = strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "")
-	if r := []rune(s); len(r) > maxRunes {
-		return string(r[:maxRunes])
+	r := []rune(s)
+	if len(r) <= maxRunes {
+		return s
 	}
-	return s
+	const ellipsis = "..."
+	cut := string(r[:maxRunes-len(ellipsis)])
+	if r[maxRunes-len(ellipsis)] != ' ' {
+		if i := strings.LastIndexByte(cut, ' '); i > len(cut)/2 {
+			cut = cut[:i]
+		}
+	}
+	return strings.TrimRight(cut, " ,;:.") + ellipsis
 }

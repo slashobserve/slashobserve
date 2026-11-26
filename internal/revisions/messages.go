@@ -113,5 +113,37 @@ func IssuesSuffix(codes []string) string {
 	if len(codes) == 0 {
 		return ""
 	}
-	return " (last issues: " + strings.Join(codes, ", ") + ")"
+	phrases := make([]string, len(codes))
+	for i, code := range codes {
+		phrases[i] = issuePhrase(code)
+	}
+	return " (last issues: " + strings.Join(phrases, ", ") + ")"
+}
+
+var issuePhrases = map[string]string{
+	"schema":                 "it did not match the required format",
+	"malformed_json":         "it was not valid JSON",
+	"too_large":              "it was too large",
+	"finding_too_long":       "it was too long",
+	"query_invalid":          "a query was not valid",
+	"query_empty":            "a query returned no data",
+	"query_timeout":          "a query timed out",
+	"query_forbidden":        "a query was not allowed",
+	"limit_exceeded":         "a query returned too much",
+	"datasource_unavailable": "a datasource was down",
+	"unknown_datasource":     "it named a datasource that does not exist",
+	"unknown_variable":       "it used a variable that does not exist",
+	"duplicate_panel_id":     "two panels shared an id",
+	"grid_overlap":           "panels overlapped",
+	"grid_overflow":          "a panel was outside the grid",
+	"invalid_reference":      "it pointed at something that does not exist",
+	"time_range_in_future":   "a time range ended in the future",
+	"time_range_too_long":    "a time range was too long",
+}
+
+func issuePhrase(code string) string {
+	if phrase, ok := issuePhrases[code]; ok {
+		return phrase
+	}
+	return strings.NewReplacer("_", " ", ".", " ", ":", " ").Replace(code)
 }
