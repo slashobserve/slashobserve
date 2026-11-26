@@ -14,6 +14,7 @@ import {
   categoryBand,
   labelSpot,
   legendEntries,
+  categoryLabelPlan,
   labelStep,
   labelStride,
   maxCategories,
@@ -861,5 +862,49 @@ describe("barOptions", () => {
       valueSize: 20,
       barRadius: 0.3,
     })
+  })
+})
+
+describe("categoryLabelPlan", () => {
+  const auto = { xTickRotation: 0, xTickSpacing: 0 }
+
+  it("keeps flat labels when they all fit", () => {
+    expect(categoryLabelPlan(true, 5, 500, 60, auto)).toEqual({
+      rotation: 0,
+      step: 1,
+      lineHeight: 16,
+    })
+  })
+
+  it("slants vertical labels so that every category is labelled", () => {
+    const plan = categoryLabelPlan(true, 15, 480, 90, auto)
+    expect(plan.rotation).toBe(45)
+    expect(plan.step).toBe(1)
+  })
+
+  it("skips labels only when even slanted ones collide", () => {
+    const plan = categoryLabelPlan(true, 40, 400, 90, auto)
+    expect(plan.rotation).toBe(45)
+    expect(plan.step).toBeGreaterThan(1)
+  })
+
+  it("tightens horizontal labels before skipping any", () => {
+    const plan = categoryLabelPlan(false, 15, 210, 90, auto)
+    expect(plan).toEqual({ rotation: 0, step: 1, lineHeight: 13 })
+  })
+
+  it("leaves a written rotation or spacing alone", () => {
+    expect(
+      categoryLabelPlan(true, 15, 480, 90, {
+        xTickRotation: 0,
+        xTickSpacing: 90,
+      })
+    ).toMatchObject({ rotation: 0, step: 3 })
+    expect(
+      categoryLabelPlan(true, 15, 480, 90, {
+        xTickRotation: 30,
+        xTickSpacing: 0,
+      }).rotation
+    ).toBe(30)
   })
 })

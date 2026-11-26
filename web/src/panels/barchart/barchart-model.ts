@@ -850,6 +850,44 @@ export function labelStep(
   return labelStride(count, length, spacing > 0 ? spacing : autoLabelLength)
 }
 
+const compactLabelHeight = 13
+const slantedRotation = 45
+const flatLabelCap = 80
+
+export type CategoryLabelPlan = {
+  rotation: number
+  step: number
+  lineHeight: number
+}
+
+export function categoryLabelPlan(
+  vertical: boolean,
+  count: number,
+  across: number,
+  widest: number,
+  options: { xTickRotation: number; xTickSpacing: number }
+): CategoryLabelPlan {
+  const { xTickSpacing } = options
+  const given = vertical ? options.xTickRotation : 0
+  const flat = vertical ? Math.min(widest, flatLabelCap) + 8 : labelHeight
+  const plan = (
+    rotation: number,
+    length: number,
+    lineHeight = labelHeight
+  ): CategoryLabelPlan => ({
+    rotation,
+    step: labelStep(count, across, length, xTickSpacing),
+    lineHeight,
+  })
+  if (xTickSpacing > 0 || given !== 0) return plan(given, flat)
+  if (labelStride(count, across, flat) === 1) return plan(0, flat)
+  if (vertical) {
+    const radians = (slantedRotation * Math.PI) / 180
+    return plan(slantedRotation, Math.ceil(labelHeight / Math.sin(radians)))
+  }
+  return plan(0, compactLabelHeight, compactLabelHeight)
+}
+
 export function truncateLabel(label: string, maxLength?: number): string {
   if (maxLength === undefined) return label
   const chars = Array.from(label)

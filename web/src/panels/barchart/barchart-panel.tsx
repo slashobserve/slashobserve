@@ -28,9 +28,9 @@ import {
   barchartModel,
   categoryBand,
   hitTest,
+  categoryLabelPlan,
   labelHeight,
   labelSpot,
-  labelStep,
   legendEntries,
   lineHeightFor,
   rotatedExtent,
@@ -43,6 +43,7 @@ import {
   truncateLabel,
   type BarOptions,
   type BarchartModel,
+  type CategoryLabelPlan,
   type Hit,
   type LabelSpot,
   type Layout,
@@ -60,12 +61,12 @@ const tickSpacing = 32
 const horizontalTickSpacing = 72
 const maxLabelWidth = 120
 const maxRotatedLabelWidth = 160
-const strideLabelWidth = 80
 const tooltipOffset = 12
 const sidebarShare = 0.4
 const edgeGap = 4
 const axisLabelThickness = 18
 const rotatedPad = 8
+const valueAxisEstimate = 56
 
 type Size = { width: number; height: number }
 type Pointer = Hit & { x: number; y: number }
@@ -337,27 +338,22 @@ function CategoryLabels({
   layout,
   labelWidth,
   gutter,
+  plan,
   options,
 }: {
   model: BarchartModel
   layout: Layout
   labelWidth: number
   gutter: number
-  options: Pick<BarOptions, "xTickRotation" | "xTickSpacing" | "xTickMaxLength">
+  plan: CategoryLabelPlan
+  options: Pick<BarOptions, "xTickMaxLength">
 }) {
   const vertical = layout.orientation === "vertical"
   const across = vertical ? layout.plot.width : layout.plot.height
   const slot = across / layout.count
-  const rotation = vertical ? options.xTickRotation : 0
+  const { rotation, step, lineHeight } = plan
   const labels = model.categories.map((category) =>
     truncateLabel(category.label, options.xTickMaxLength)
-  )
-  const widest = Math.max(0, ...labels.map(textWidth))
-  const step = labelStep(
-    layout.count,
-    across,
-    vertical ? Math.min(widest, strideLabelWidth) + 8 : labelHeight,
-    options.xTickSpacing
   )
   return (
     <>
@@ -372,8 +368,9 @@ function CategoryLabels({
               key={category.key}
               title={category.title}
               aria-hidden="true"
-              className="absolute text-xs leading-4 whitespace-nowrap text-muted-foreground"
+              className="absolute truncate text-xs leading-4 whitespace-nowrap text-muted-foreground"
               style={{
+                maxWidth: maxRotatedLabelWidth,
                 left: center,
                 top: layout.plot.height + rotatedPad,
                 transformOrigin: toRight ? "right top" : "left top",
@@ -407,7 +404,8 @@ function CategoryLabels({
                 : {
                     left: -labelWidth,
                     width: labelWidth,
-                    top: center - labelHeight / 2,
+                    top: center - lineHeight / 2,
+                    lineHeight: `${lineHeight}px`,
                   }
             }
           >
@@ -578,7 +576,16 @@ function Plot({
     [model.categories, options.xTickMaxLength]
   )
   const widest = Math.max(0, ...labels.map(textWidth))
-  const rotation = vertical ? options.xTickRotation : 0
+  const plan = categoryLabelPlan(
+    vertical,
+    count,
+    vertical
+      ? size.width - padSide - padRight - valueAxisEstimate
+      : size.height - padTop - axisThickness,
+    widest,
+    options
+  )
+  const { rotation } = plan
   const categoryExtent =
     rotation === 0
       ? axisThickness
@@ -761,6 +768,7 @@ function Plot({
         layout={layout}
         labelWidth={labelWidth}
         gutter={left}
+        plan={plan}
         options={options}
       />
       <ValueLabels
