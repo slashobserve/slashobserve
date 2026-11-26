@@ -46,6 +46,7 @@ The box above the list filters the sources by the text in a source name or in a 
 Every source loads its services on its own, so a slow source shows "Services unavailable" for itself and the others fill in as they answer.
 
 Switching to another source keeps the time range and the filter pills and clears the query, unless both are Elasticsearch or OpenSearch, which both speak KQL.
+Switching from a logs source to a trace or metric source, or the other way, keeps only the time range.
 An address that carries a search but no source, such as `/logs?q=...`, opens the source you used last on this browser, else the first by name.
 An old `/logs?ds=<datasource uid>` address opens `/logs/<datasource uid>` with the rest of its query string.
 [Sources and the sidebar](#sources-and-the-sidebar) describes how the sidebar lists them.
@@ -250,8 +251,11 @@ The volume strip above the lines counts every line the query matches over the wh
 Hover a bar, or focus the strip and walk it with the arrow keys, to see the time and the count for each level in that bucket.
 
 The level chips above the bars show a count for each level.
-A chip hides or shows that level in the bars and in the lines of the page you are on, with a note "Hiding Info lines" beside **Sort**.
-The count of the other chips and the query do not change, and **All** shows every level again.
+A click on a chip shows only that level in the bars and in the lines of the page you are on, with a note "Showing only Error lines" beside **Sort**, and the other chips dim.
+Click the chip again, or **All**, to show every level.
+Shift-click, Cmd-click or Ctrl-click a chip to add that level to the set or take it out, so you can show Error and Warning together or hide only Info.
+The selection is the `levels` parameter of the address, so a copied link keeps it.
+The count of the chips and the query do not change.
 The chips filter the lines already loaded, not the query, so another page can hold lines of the hidden level.
 To search for a level, add a filter.
 
@@ -480,7 +484,8 @@ Each row shows these:
 - a small chart of how often it occurred across the time range, with its change over the range ("new" for a pattern that appeared late);
 - a dot for its level.
 
-The heading says how many patterns there are and what share of the documents they cover.
+The heading says how many patterns there are and what share of the lines they cover.
+When the page grouped a sample of the newest lines and the volume strip counts more, it says so, as in "a sample of 258 of 262 lines".
 **Sort patterns** orders the rows by most lines or by newest.
 
 The table shows the nine largest patterns and every pattern with at least 1% of the lines.
