@@ -1,9 +1,9 @@
-import type { Ref } from "react"
+import { useMemo, type Ref } from "react"
 
 import { cn } from "@/lib/utils"
 import type { LineStyle } from "../colors"
 import type { DrawStyle } from "../timeseries/series-config"
-import { inlineValues } from "./legend-model"
+import { inlineValues, legendLabelParts, type LabelParts } from "./legend-model"
 
 export type LegendItem = {
   key: string
@@ -14,6 +14,36 @@ export type LegendItem = {
 }
 
 export type LegendPlacement = "bottom" | "right"
+
+export function LegendName({
+  label,
+  parts,
+}: {
+  label: string
+  parts: LabelParts
+}) {
+  return (
+    <span title={label} className="flex min-w-0 items-baseline">
+      {parts.lead ? (
+        <span className="min-w-0 truncate">{parts.lead}</span>
+      ) : null}
+      <span
+        className={parts.lead ? "max-w-full flex-none truncate" : "truncate"}
+      >
+        {parts.tail}
+      </span>
+    </span>
+  )
+}
+
+export function useLegendLabelParts(
+  items: readonly LegendItem[]
+): LabelParts[] {
+  return useMemo(
+    () => legendLabelParts(items.map((item) => item.label)),
+    [items]
+  )
+}
 
 export const rowRem = 1.25
 const gapRem = 0.125
@@ -79,7 +109,7 @@ export function LegendSwatch({
       data-slot="legend-swatch"
       data-line={line}
       data-shape={style}
-      aria-hidden="true"
+
       className="series-swatch"
       style={{ color }}
     />
@@ -129,6 +159,7 @@ export function Legend({
   more = 0,
 }: Props) {
   const bottom = placement === "bottom"
+  const parts = useLegendLabelParts(items)
   return (
     <div
       ref={ref}
@@ -163,7 +194,7 @@ export function Legend({
               line={item.line}
               style={item.style}
             />
-            <span className="truncate">{item.label}</span>
+            <LegendName label={item.label} parts={parts[row]} />
             {reducers.length > 0 ? (
               <span className="text-muted-foreground tabular-nums">
                 {inlineValues(reducers, cells[row], headers)}

@@ -22,6 +22,35 @@ export type LegendSource = {
 
 export const maxStateLegendEntries = 12
 
+export type LabelParts = { lead: string; tail: string }
+
+const boundary = /[\s_\-:/.=,|(]/
+const minLead = 4
+
+export function legendLabelParts(labels: readonly string[]): LabelParts[] {
+  const whole = labels.map((label) => ({ lead: "", tail: label }))
+  if (labels.length < 2) return whole
+  let common = labels[0]
+  for (const label of labels) {
+    let at = 0
+    while (
+      at < common.length &&
+      at < label.length &&
+      common[at] === label[at]
+    ) {
+      at++
+    }
+    common = common.slice(0, at)
+  }
+  let cut = common.length
+  while (cut > 0 && !boundary.test(common[cut - 1])) cut--
+  if (cut < minLead || labels.some((label) => label.length <= cut)) return whole
+  return labels.map((label) => ({
+    lead: label.slice(0, cut),
+    tail: label.slice(cut),
+  }))
+}
+
 export function capLegend<T>(
   items: readonly T[],
   max: number

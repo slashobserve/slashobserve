@@ -17,6 +17,8 @@ import {
   type LegendHover,
   type LegendItem,
   type LegendPlacement,
+  LegendName,
+  useLegendLabelParts,
 } from "./legend"
 import { legendHeaders } from "./legend-model"
 import {
@@ -115,6 +117,11 @@ export function LegendTable({
     ],
     [items, cells, more]
   )
+  const labelParts = useLegendLabelParts(items)
+  const parts = useMemo(
+    () => new Map(items.map((item, index) => [item.key, labelParts[index]])),
+    [items, labelParts]
+  )
   const fit = legendTableFit(available, rem, rows.length)
   const scrolls = bottom && fit.scrolls
   const footer = bottom && fit.footer
@@ -143,6 +150,7 @@ export function LegendTable({
             <span className="flex h-full min-w-0 items-center">
               <button
                 type="button"
+                aria-label={row.item.label}
                 aria-pressed={!hidden.has(row.item.key)}
                 data-style={row.item.style}
                 onClick={() => onToggle(row.item.key)}
@@ -154,7 +162,15 @@ export function LegendTable({
                   line={row.item.line}
                   style={row.item.style}
                 />
-                <span className="truncate">{row.item.label}</span>
+                <LegendName
+                  label={row.item.label}
+                  parts={
+                    parts.get(row.item.key) ?? {
+                      lead: "",
+                      tail: row.item.label,
+                    }
+                  }
+                />
               </button>
             </span>
           ),
@@ -185,6 +201,7 @@ export function LegendTable({
     [
       reducers,
       names,
+      parts,
       valueWidths,
       sortBy,
       sorted,

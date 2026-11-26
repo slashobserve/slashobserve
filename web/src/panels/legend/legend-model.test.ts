@@ -4,6 +4,7 @@ import {
   capLegend,
   effectiveLegendMode,
   inlineValues,
+  legendLabelParts,
   legendOrder,
   legendWorthShowing,
   maxStateLegendEntries,
@@ -146,5 +147,47 @@ describe("capLegend", () => {
 
   it("leaves a short list alone", () => {
     expect(capLegend(["a", "b"], 12)).toEqual({ shown: ["a", "b"], more: 0 })
+  })
+})
+
+describe("legendLabelParts", () => {
+  it("splits the prefix every label shares at a word boundary", () => {
+    expect(
+      legendLabelParts([
+        "STATUS_CODE_UNSET",
+        "STATUS_CODE_OK",
+        "STATUS_CODE_ERROR",
+      ])
+    ).toEqual([
+      { lead: "STATUS_CODE_", tail: "UNSET" },
+      { lead: "STATUS_CODE_", tail: "OK" },
+      { lead: "STATUS_CODE_", tail: "ERROR" },
+    ])
+  })
+
+  it("does not cut inside a word", () => {
+    expect(legendLabelParts(["checkout-a", "checkout-b"])).toEqual([
+      { lead: "checkout-", tail: "a" },
+      { lead: "checkout-", tail: "b" },
+    ])
+    expect(legendLabelParts(["frontend", "frontproxy"])).toEqual([
+      { lead: "", tail: "frontend" },
+      { lead: "", tail: "frontproxy" },
+    ])
+  })
+
+  it("keeps whole labels when no useful prefix is shared", () => {
+    expect(legendLabelParts(["a_1", "a_2"])).toEqual([
+      { lead: "", tail: "a_1" },
+      { lead: "", tail: "a_2" },
+    ])
+    expect(legendLabelParts(["only"])).toEqual([{ lead: "", tail: "only" }])
+  })
+
+  it("keeps each label's own text when one label is the prefix of another", () => {
+    expect(legendLabelParts(["svc_", "svc_x"])).toEqual([
+      { lead: "", tail: "svc_" },
+      { lead: "", tail: "svc_x" },
+    ])
   })
 })
