@@ -198,7 +198,7 @@ func TestThreeRejectedFindingsEndAnInvestigationNamingTheEvidenceThatTimedOut(t 
 	if row.FailureCode.String != string(revisions.FailureValidationExhausted) {
 		t.Fatalf("failure = %q", row.FailureCode.String)
 	}
-	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: query_timeout); a datasource did not answer in time, so ask again when it is healthy"
+	want := "the finding was rejected in 3 saves in a row; its evidence that failed: evidence-2 (last issues: a query timed out (query_timeout)); a datasource did not answer in time, so ask again when it is healthy"
 	if row.Error.String != want {
 		t.Fatalf("stored message = %q, want %q", row.Error.String, want)
 	}

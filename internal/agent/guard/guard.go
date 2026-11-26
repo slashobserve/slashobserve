@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -20,6 +21,7 @@ const (
 	maxChangesPerPanel     = 4
 	maxChurnedSavesInRow   = 3
 	maxIssueCodes          = 3
+	maxReasonsShown        = 2
 	maxWritesPerAttempt    = 8
 
 	DefaultInvestigationCalls = 12
@@ -355,15 +357,16 @@ func (s *State) admitSave(c Call, adm Admission) Admission {
 	adm.Key = Key(c.Name, c.Input)
 	switch {
 	case s.Turn.SaveSeen:
-		return s.reject(c, adm, "only one save per turn")
+		return s.reject(c, adm, "only one save per turn", "it was a second save in the same turn")
 	case c.Name == toolSaveFinding && s.Building:
 		s.Turn.SaveSeen = true
-		return s.reject(c, adm, "this run already saved panels; finish the dashboard instead of saving a finding")
+		const reason = "this run already saved panels; finish the dashboard instead of saving a finding"
+		return s.reject(c, adm, reason, "this run is building a dashboard, so it cannot save an answer")
 	case c.Name == toolSaveFinding:
-		if reason := s.unbackedFinding(c); reason != "" {
+		if faults := s.unbackedFinding(c); len(faults) > 0 {
 			s.Turn.SaveSeen = true
 			s.Turn.Answered++
-			return s.reject(c, adm, reason)
+			return s.sendBack(c, adm, faults)
 		}
 	}
 	s.Turn.SaveSeen = true
@@ -389,14 +392,33 @@ func (s *State) noteSave(key string) (repeated bool) {
 	return false
 }
 
-func (s *State) reject(c Call, adm Admission, reason string) Admission {
-	return s.rejectWith(c, adm, codeInvalidRequest, reason)
+func (s *State) reject(c Call, adm Admission, reason, people string) Admission {
+	adm = s.rejectWith(adm, codeInvalidRequest, reason)
+	adm.Step = tools.SentBackStep(c.label(), people)
+	return adm
 }
 
-func (s *State) rejectWith(c Call, adm Admission, code, reason string) Admission {
+func (s *State) sendBack(c Call, adm Admission, faults []fault) Admission {
+	models := make([]string, len(faults))
+	people := make([]string, len(faults))
+	for i, f := range faults {
+		models[i], people[i] = f.model, f.people
+	}
+	adm = s.rejectWith(adm, codeInvalidRequest, strings.Join(models, "; and "))
+	adm.Step = sentBackStep + peopleText(people)
+	return adm
+}
+
+func peopleText(reasons []string) string {
+	if len(reasons) <= maxReasonsShown {
+		return strings.Join(reasons, "; and ")
+	}
+	return fmt.Sprintf("%s; and %d more", strings.Join(reasons[:maxReasonsShown], "; "), len(reasons)-maxReasonsShown)
+}
+
+func (s *State) rejectWith(adm Admission, code, reason string) Admission {
 	adm.Verdict = Refuse
 	adm.Content, _ = json.Marshal(map[string]string{"code": code, "message": reason})
-	adm.Step = "Rejected " + c.label() + " input: " + reason
 	return adm
 }
 
@@ -406,7 +428,7 @@ func (s *State) refuse(c Call, adm Admission, name string) Admission {
 	if name == guardTooManyWrites || name == guardRepeatedWrite || name == guardReadInFlight {
 		code = name
 	}
-	adm = s.rejectWith(c, adm, code, s.rule(name).message)
+	adm = s.rejectWith(adm, code, s.rule(name).message)
 	adm.Step = "Refused " + c.label() + ": " + s.rule(name).refused
 	return adm
 }

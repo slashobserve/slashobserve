@@ -30,13 +30,13 @@ func (s *State) noteLedgerResult(res tools.Result) {
 	})
 }
 
-func (s *State) ledgerBehind(input json.RawMessage) string {
+func (s *State) ledgerBehind(input json.RawMessage) (fault, bool) {
 	if s.Ledger == nil || s.Ledger.Asked || s.Ledger.Resolved || !namesConclusion(input) {
-		return ""
+		return fault{}, false
 	}
 	s.Ledger.Asked = true
 	s.Counts.Nudges++
-	return faultLedgerBehind
+	return fault{faultLedgerBehind, "it named a cause while every hypothesis was still open"}, true
 }
 
 func namesConclusion(input json.RawMessage) bool {

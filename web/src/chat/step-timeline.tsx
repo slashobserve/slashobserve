@@ -3,8 +3,11 @@ import { useId, useState } from "react"
 
 import { CopyButton } from "@/components/copy-button"
 import { StatusIcon } from "@/components/status-label"
+import { observationLink } from "@/lib/links"
 import { shortRequestId } from "@/observe/conversation"
 import {
+  isSavedAnswerStep,
+  stepText,
   timelinePhases,
   type Step,
   type TimelinePhase,
@@ -22,9 +25,12 @@ export const phaseLabels: Record<Step["phase"], string> = {
   stage: "Investigation stage",
 }
 
+export type AnswerTarget = { observationId: string | null; elementId: string }
+
 const noneExpanded: ReadonlySet<string> = new Set()
 
 type Props = {
+  answer?: AnswerTarget
   steps: Step[]
   working: boolean
   reconnecting: boolean
@@ -41,12 +47,54 @@ function toolText(tools: readonly ToolCount[]): string {
     .join(", ")
 }
 
-function StepMessages({ id, steps }: { id?: string; steps: Step[] }) {
+const stepLinkClass =
+  "rounded-sm underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+
+function showAnswer(elementId: string) {
+  const element = document.getElementById(elementId)
+  if (element === null) return
+  element.scrollIntoView({ block: "start" })
+  element.focus({ preventScroll: true })
+}
+
+function StepText({ step, answer }: { step: Step; answer?: AnswerTarget }) {
+  const text = stepText(step)
+  if (answer === undefined || !isSavedAnswerStep(step)) return text
+  if (answer.observationId !== null) {
+    return (
+      <Link
+        {...observationLink(answer.observationId)}
+        className={stepLinkClass}
+      >
+        {text}
+      </Link>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => showAnswer(answer.elementId)}
+      className={stepLinkClass}
+    >
+      {text}
+    </button>
+  )
+}
+
+function StepMessages({
+  id,
+  steps,
+  answer,
+}: {
+  id?: string
+  steps: Step[]
+  answer?: AnswerTarget
+}) {
   return (
     <ul id={id} className="flex flex-col gap-0.5 text-muted-foreground">
       {steps.map((step, index) => (
         <li key={index} className="min-w-0 wrap-anywhere">
-          {step.message}
+          <StepText step={step} answer={answer} />
         </li>
       ))}
     </ul>
@@ -83,11 +131,13 @@ function PhaseItem({
   expanded,
   onToggle,
   withMessages,
+  answer,
 }: {
   run: TimelinePhase
   expanded: boolean
   onToggle: () => void
   withMessages: boolean
+  answer?: AnswerTarget
 }) {
   const listId = useId()
   const count = run.steps.length
@@ -111,7 +161,7 @@ function PhaseItem({
           </span>
           {single && withMessages ? (
             <span className="min-w-0 wrap-anywhere text-muted-foreground">
-              {run.steps[0].message}
+              <StepText step={run.steps[0]} answer={answer} />
             </span>
           ) : null}
           {withMessages && !single && !alwaysOpen ? (
@@ -127,7 +177,7 @@ function PhaseItem({
           ) : null}
         </span>
         {withMessages && (alwaysOpen || (!single && expanded)) ? (
-          <StepMessages id={listId} steps={run.steps} />
+          <StepMessages id={listId} steps={run.steps} answer={answer} />
         ) : null}
       </span>
     </li>
@@ -135,6 +185,7 @@ function PhaseItem({
 }
 
 export function StepTimeline({
+  answer,
   steps,
   working,
   reconnecting,
@@ -174,6 +225,7 @@ export function StepTimeline({
             expanded={expanded.has(run.key)}
             onToggle={() => toggle(run.key)}
             withMessages={withMessages}
+            answer={answer}
           />
         ))}
         {working ? (

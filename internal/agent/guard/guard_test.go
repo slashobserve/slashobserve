@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
@@ -298,7 +299,7 @@ func TestAdmitOrdersAThreeReadTurnWithADuplicateAndTwoSaves(t *testing.T) {
 		t.Fatalf("a save in a fresh turn = %v", extra.Verdict)
 	}
 	second := s.Admit(2, jsonCall("update_dashboard", `{}`))
-	if second.Verdict != Refuse || !strings.Contains(string(second.Content), "only one save per turn") || second.Step != "Rejected update_dashboard input: only one save per turn" {
+	if second.Verdict != Refuse || !strings.Contains(string(second.Content), "only one save per turn") || second.Step != "The update_dashboard call was sent back for a fix: it was a second save in the same turn" {
 		t.Fatalf("second save of a turn = %+v", second)
 	}
 	if string(second.Content) != `{"code":"invalid_request","message":"only one save per turn"}` {
@@ -330,7 +331,7 @@ func TestAdmitRefusesSaveFindingOnceBuilding(t *testing.T) {
 	s.BeginSession(true, 0)
 	s.BeginTurn(true)
 	adm := s.Admit(0, jsonCall("save_finding", `{}`))
-	if adm.Verdict != Refuse || adm.Step != "Rejected save_finding input: this run already saved panels; finish the dashboard instead of saving a finding" {
+	if adm.Verdict != Refuse || adm.Step != "The save_finding call was sent back for a fix: this run is building a dashboard, so it cannot save an answer" {
 		t.Fatalf("admission = %+v", adm)
 	}
 }
@@ -1194,6 +1195,45 @@ func TestAbsenceAndAnswerFaultsAreSentBackTogether(t *testing.T) {
 	text := string(adm.Content)
 	if adm.Verdict != Refuse || !strings.Contains(text, "read it with tag deploy") || !strings.Contains(text, "no evidence panel") {
 		t.Fatalf("admission = %+v, want the absence and the evidence faults together", adm)
+	}
+}
+
+func TestASentBackFindingShowsPeopleASentenceAndTheModelTheGuidance(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "The metric is missing for checkout."}`))
+	if adm.Verdict != Refuse {
+		t.Fatalf("admission = %+v", adm)
+	}
+	if want := "The answer was sent back for a fix: it said a metric is missing without checking for it"; adm.Step != want {
+		t.Errorf("step = %q, want %q", adm.Step, want)
+	}
+	if !strings.Contains(string(adm.Content), "list metrics with scope set to its selector") {
+		t.Errorf("the model did not get the guidance: %s", adm.Content)
+	}
+	if utf8.RuneCountInString(adm.Step) > revisions.MaxStepMessageRunes {
+		t.Errorf("step is %d runes, over the stored limit", utf8.RuneCountInString(adm.Step))
+	}
+}
+
+func TestSentBackFaultsJoinIntoOnePlainStep(t *testing.T) {
+	s := New(tools.ModeInvestigate)
+	settleRead(&s, "query_range", `{"datasource":"ch","query":"SELECT 1"}`, tools.Result{})
+	s.BeginTurn(false)
+	adm := s.Admit(0, jsonCall("save_finding", `{"markdown": "There was no deploy today, and checkout had 46 error spans."}`))
+	want := "The answer was sent back for a fix: it said there was no deploy without reading the deploy markers; and it gave counts without an evidence panel"
+	if adm.Step != want {
+		t.Fatalf("step = %q, want %q", adm.Step, want)
+	}
+}
+
+func TestSentBackStepNamesAtMostTwoReasons(t *testing.T) {
+	got := peopleText([]string{"a", "b", "c", "d"})
+	if want := "a; b; and 2 more"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if got := peopleText([]string{"a", "b"}); got != "a; and b" {
+		t.Fatalf("got %q", got)
 	}
 }
 

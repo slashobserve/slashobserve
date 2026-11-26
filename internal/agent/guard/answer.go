@@ -33,6 +33,10 @@ var dataReads = map[string]bool{
 	"log_context": true, "log_patterns": true, "log_facets": true, "logs_for_trace": true, "call_context_tool": true,
 }
 
+const sentBackStep = "The answer was sent back for a fix: "
+
+type fault struct{ model, people string }
+
 const (
 	faultNoEvidence = "the finding gives counts but no evidence panel: add 1 to 4 evidence panels whose queries you ran and that returned data, so the numbers can be checked; if no query returned data, send it again unchanged"
 	faultTitle      = "the title names a cause, but the text calls it likely or unconfirmed: title the symptom you saw instead, such as the service and what failed, or send it again unchanged when you did confirm the cause"
@@ -48,44 +52,42 @@ func (s *State) noteQueried(c Call, res tools.Result) {
 	}
 }
 
-func (s *State) unbackedFinding(c Call) string {
+func (s *State) unbackedFinding(c Call) []fault {
 	input := c.Input
-	var reasons []string
-	if reason := s.unbackedAbsence(input); reason != "" {
+	var faults []fault
+	if f, ok := s.unbackedAbsence(input); ok {
 		s.Absence.Asked = true
-		reasons = append(reasons, reason)
+		faults = append(faults, f)
 	}
-	if reason := s.takeAnswerFaults(input); reason != "" {
-		reasons = append(reasons, reason)
+	faults = append(faults, s.takeAnswerFaults(input)...)
+	if f, ok := s.ledgerBehind(input); ok {
+		faults = append(faults, f)
 	}
-	if reason := s.ledgerBehind(input); reason != "" {
-		reasons = append(reasons, reason)
+	if f, ok := s.groundingBehind(c); ok {
+		faults = append(faults, f)
 	}
-	if reason := s.groundingBehind(c); reason != "" {
-		reasons = append(reasons, reason)
-	}
-	return strings.Join(reasons, "; and ")
+	return faults
 }
 
-func (s *State) takeAnswerFaults(input json.RawMessage) string {
+func (s *State) takeAnswerFaults(input json.RawMessage) []fault {
 	var in struct {
 		Title    string            `json:"title"`
 		Markdown string            `json:"markdown"`
 		Evidence []json.RawMessage `json:"evidence"`
 	}
 	if json.Unmarshal(input, &in) != nil {
-		return ""
+		return nil
 	}
-	var faults []string
+	var faults []fault
 	if !s.Answer.EvidenceAsked && s.Answer.Queried && len(in.Evidence) == 0 && countClaim.MatchString(in.Markdown) {
 		s.Answer.EvidenceAsked = true
-		faults = append(faults, faultNoEvidence)
+		faults = append(faults, fault{faultNoEvidence, "it gave counts without an evidence panel"})
 	}
 	if !s.Answer.TitleAsked && doubtsTitleCause(in.Title, in.Markdown) {
 		s.Answer.TitleAsked = true
-		faults = append(faults, faultTitle)
+		faults = append(faults, fault{faultTitle, "its title named a cause that the text calls unconfirmed"})
 	}
-	return strings.Join(faults, "; and ")
+	return faults
 }
 
 func doubtsTitleCause(title, markdown string) bool {

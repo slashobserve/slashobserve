@@ -225,7 +225,7 @@ func TestSaveFindingStoresTheEvidenceInTheRunsWindow(t *testing.T) {
 	if res.IsError || !ok || saved.FindingID == "" || saved.Evidence != 2 || saved.URL == "" {
 		t.Fatalf("save: %#v", res.Content)
 	}
-	if res.Step != "Saved finding "+saved.FindingID {
+	if res.Step != "Saved the answer" {
 		t.Errorf("step = %q", res.Step)
 	}
 	id, err := db.ParseUUID(saved.FindingID)

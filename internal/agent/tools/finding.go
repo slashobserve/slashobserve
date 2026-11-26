@@ -27,6 +27,7 @@ import (
 
 const (
 	nameSaveFinding = "save_finding"
+	stepSavedAnswer = "Saved the answer"
 
 	CodeFindingTooLong = "finding_too_long"
 	codeNotInThisRun   = "not_in_this_run"
@@ -173,7 +174,7 @@ func (r *Registry) saveFinding(ctx context.Context, input json.RawMessage) (Resu
 	if extras.droppedStructured {
 		out.Note = noteStructuredDropped
 	}
-	return success("Saved finding "+f.ID, out), nil
+	return success(stepSavedAnswer, out), nil
 }
 
 func (r *Registry) findingURL(f findings.Finding) string {
