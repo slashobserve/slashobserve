@@ -244,6 +244,10 @@ function lastGoodRun(
   return best
 }
 
+function sentence(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`
+}
+
 function RunFailure({
   uid,
   search,
@@ -259,7 +263,7 @@ function RunFailure({
     <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
       {good === null
         ? text
-        : `${text} The last good run was ${formatDateTime(good.at)}, ${good.rows.toLocaleString("en")} ${search ? "hits" : "lines"}.`}
+        : `${sentence(text)} The last good run was ${formatDateTime(good.at)}, ${good.rows.toLocaleString("en")} ${search ? "hits" : "lines"}.`}
       {search ? (
         <Link to="/datasources" className="underline underline-offset-3">
           Check the datasource
