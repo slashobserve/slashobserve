@@ -10,50 +10,26 @@ from harbor.agents.capabilities import AgentCapabilities
 from harbor.agents.options import AgentOptions
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from slashobserve_bench import atif, grafana, grafana_write, model_call, o11y, replay
-from slashobserve_bench.api import ApiError, Client, RunTimeout, wait_for_terminal
+from slashobserve_bench.adapter import AGENT_NAME, AGENT_VERSION, LLM_KEY_FILE_ENV, RunOptions, llm_key, record_spend, run_to_end, split_model
+from slashobserve_bench.api import ApiError, Client
 from slashobserve_bench.ledger import SpendLedger
-from slashobserve_bench.loop_options import LoopOptions
 from slashobserve_bench.server import POSTGRES_IMAGE, ServerConfig, Stack, datasources_yaml, ensure_image
-
-AGENT_NAME = "slashobserve"
-AGENT_VERSION = "0.1.0"
-LLM_KEY_FILE_ENV = "SLASHOBSERVE_BENCH_LLM_KEY_FILE"
-CANCEL_GRACE_SEC = 30
-
 
 class TaskSkipped(Exception):
     pass
 
 
-class Options(AgentOptions, LoopOptions):
+class Options(AgentOptions, RunOptions):
     server_image: str = "ghcr.io/slashobserve/slashobserve:latest"
     network: str = o11y.NETWORK
-    replay_dir: str | None = None
-    llm_effort: str | None = None
-    run_max_cost_usd: float | None = Field(default=None, gt=0)
-    spend_cap_usd: float | None = Field(default=None, gt=0)
-    ledger_path: str | None = None
     wall_timeout_sec: int = Field(default=540, ge=30)
     grafana_url: str | None = None
     grafana_user: str | None = None
     grafana_password: str | None = None
     grafana_write_sec: int = Field(default=150, ge=30)
-
-    @model_validator(mode="after")
-    def _cap_needs_ledger(self) -> "Options":
-        if (self.spend_cap_usd is None) != (self.ledger_path is None):
-            raise ValueError("spend_cap_usd and ledger_path go together")
-        return self
-
-
-def split_model(model_name: str | None) -> tuple[str, str | None]:
-    if not model_name or "/" not in model_name:
-        raise ValueError("pass the model as <provider>/<model>, for example -m anthropic/claude-haiku-5-5 or -m replay/replay")
-    provider, _, model = model_name.partition("/")
-    return provider, None if provider == "replay" else model
 
 
 def read_environment(output: str) -> dict[str, str]:
@@ -97,10 +73,7 @@ class SlashObserveAgent(BaseAgent):
 
     @property
     def _ledger(self) -> SpendLedger | None:
-        options = self._options
-        if options.spend_cap_usd is None or options.ledger_path is None:
-            return None
-        return SpendLedger(Path(options.ledger_path), options.spend_cap_usd)
+        return self._options.spend_ledger()
 
     async def setup(self, environment: BaseEnvironment) -> None:
         task_id = environment.environment_name
@@ -208,12 +181,7 @@ class SlashObserveAgent(BaseAgent):
         return imported
 
     def _llm_key(self, provider: str) -> str | None:
-        if provider == "replay":
-            return None
-        path = self._get_env(LLM_KEY_FILE_ENV)
-        if not path:
-            raise ValueError(f"set {LLM_KEY_FILE_ENV} to the path of a file that holds the model API key")
-        return Path(path).read_text(encoding="utf-8").strip()
+        return llm_key(provider, self._get_env(LLM_KEY_FILE_ENV))
 
     async def _answer(
         self,
@@ -240,28 +208,11 @@ class SlashObserveAgent(BaseAgent):
         deadline: float,
         earlier: atif.Usage | None = None,
     ) -> dict:
-        run_id = await asyncio.to_thread(client.start_run, body)
-        seen: dict[str, dict] = {}
-
-        def poll() -> dict:
-            seen["request"] = client.get_run(run_id)
-            return seen["request"]
-
-        try:
-            try:
-                request = await asyncio.to_thread(wait_for_terminal, poll, max(deadline - time.monotonic(), 0))
-            except RunTimeout:
-                await asyncio.to_thread(self._cancel, client, run_id)
-                try:
-                    request = await asyncio.to_thread(wait_for_terminal, poll, CANCEL_GRACE_SEC)
-                except RunTimeout:
-                    request = seen["request"]
-                self._save(request, instruction, context, earlier)
-                raise
-            self._save(request, instruction, context, earlier)
-            return request
-        finally:
-            self._record_spend(seen.get("request"))
+        request, timeout = await asyncio.to_thread(run_to_end, client, body, deadline - time.monotonic(), self._record_spend)
+        self._save(request, instruction, context, earlier)
+        if timeout is not None:
+            raise timeout
+        return request
 
     async def _dashboard_task(self, client: Client, task: "DashboardTask", context: AgentContext, deadline: float) -> None:
         run_deadline = deadline - self._options.grafana_write_sec
@@ -353,17 +304,7 @@ class SlashObserveAgent(BaseAgent):
         return folder / name
 
     def _record_spend(self, request: dict | None) -> None:
-        ledger = self._ledger
-        if ledger is None or request is None:
-            return
-        ledger.record(self.logs_dir.parent.name, atif.Usage.from_request(request).cost_usd or 0.0)
-
-    @staticmethod
-    def _cancel(client: Client, run_id: str) -> None:
-        try:
-            client.cancel_run(run_id)
-        except ApiError:
-            pass
+        record_spend(self._ledger, self.logs_dir.parent.name, request)
 
     def _save(self, request: dict, instruction: str, context: AgentContext, extra: atif.Usage | None = None, saved: str | None = None) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)

@@ -375,7 +375,7 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 | `codeserver.log` | The code server's log, when the trial started one. |
 | `notes.txt` | How traces were read, the finding grounding and loop settings that were sent, which code context applied, and the judge caveat. |
 
-The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
+The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
 
 ### Causes in the report
@@ -428,10 +428,8 @@ Build the code server image once from the repository root; `codeserver_image` na
 docker build -f tools/codeserver/Dockerfile -t slashobserve-codeserver:local .
 ```
 
-The server image under test decides how the sources file is named.
-An image built after MCP sources were renamed reads `SLASHOBSERVE_MCP_SOURCES_FILE` with the key `mcpSources`, which is the default.
-An image built before the rename, such as one built from `main` or the published image at the time of writing, reads `SLASHOBSERVE_CONTEXT_SOURCES_FILE` with the key `contextSources`; pass `--ak source_names=context` for it.
-With the wrong naming the server does not know `orca-code`, and the trial fails and names the other option.
+The code server needs a server image with MCP sources, which the published releases up to v0.1.5 lack, so the default `server_image` (`ghcr.io/slashobserve/slashobserve:latest`) cannot serve it while `latest` is v0.1.5.
+Pass `--ak server_image=<tag>` with an image built from this checkout, or `--ak code_context=off`; with an image that has no MCP sources the trial fails at once and says both.
 
 ### Disk and memory
 
@@ -472,7 +470,7 @@ benchmarks/run-orca-replay.sh /path/to/ORCA-bench
 
 The script downloads one task's package, writes a replay fixture for its question from `fixtures/orca-answer.json`, runs it with `--model replay/replay` and verification off, and prints the path of `agent/report.md`.
 No model is called, but the snapshot must already be staged, because the trial needs the demo's data.
-The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE`, `SLASHOBSERVE_SOURCE_NAMES` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image`, `source_names` and `span_index`, and the fixture's question carries the code and spans notes to match.
+The trial starts the code server like any other, so build its image first; `SLASHOBSERVE_CODESERVER_IMAGE` and `SLASHOBSERVE_SPAN_INDEX` set `codeserver_image` and `span_index`, and the fixture's question carries the code and spans notes to match.
 Run it by hand on a machine that has the snapshot; it is not part of any test.
 The fixture saves a finding with one cause, so it needs a server built from `agent-rca-accuracy` or later; an older one refuses `causes` and the trial ends without a finding.
 It saves twice, because with grounding enforced the server sends the first save back once, and the second is accepted.

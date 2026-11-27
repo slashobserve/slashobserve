@@ -23,7 +23,6 @@ mv "$fixtures/$(basename "$task_dir").json" "$fixtures/$package.json"
   -t "orca-bench/$package" --model replay/replay \
   --ak "server_image=$image" --ak "replay_dir=$fixtures" \
   --ak "codeserver_image=${SLASHOBSERVE_CODESERVER_IMAGE:-slashobserve-codeserver:local}" \
-  --ak "source_names=${SLASHOBSERVE_SOURCE_NAMES:-mcp}" \
   --ak "span_index=$span_index" \
   --disable-verification --n-concurrent 1 \
   --jobs-dir "$bench_dir/jobs" --job-name "$job"
