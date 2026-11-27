@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	childArg    = "--observe-agent-test-child"
-	testTimeout = 30 * time.Second
+	childArg           = "--observe-agent-test-child"
+	testTimeout        = 30 * time.Second
+	forcedStopExitCode = 124
 )
 
 func TestMain(m *testing.M) {
@@ -37,6 +38,12 @@ func runTestChild(mode string) {
 		fmt.Printf(`{"level":"info","msg":"child started","token":%q}`+"\n", os.Getenv(EnvToken))
 		<-terms
 		fmt.Println(`{"level":"info","msg":"terminated"}`)
+	case "forced-stop":
+		terms := make(chan os.Signal, 1)
+		signal.Notify(terms, syscall.SIGTERM)
+		fmt.Println(`{"level":"info","msg":"child started"}`)
+		<-terms
+		os.Exit(forcedStopExitCode)
 	case "serve-then-exit":
 		fmt.Printf(`{"level":"info","msg":"child started","token":%q}`+"\n", os.Getenv(EnvToken))
 		os.Exit(3)
@@ -301,6 +308,27 @@ func TestSupervisorTerminatesTheChildWhenContextEnds(t *testing.T) {
 	}
 	if got := h.exits.Load(); got != 1 {
 		t.Fatalf("OnExit ran %d times, want 1", got)
+	}
+}
+
+func TestSupervisorStopOfAChildThatExitsNonZeroIsNeitherAFailureNorARestart(t *testing.T) {
+	h := newHarness(t, "forced-stop")
+	h.start()
+	h.rec.next(t, "child started")
+
+	h.stop(t)
+
+	exited := h.rec.next(t, "observe-agent exited")
+	if exited.level != slog.LevelInfo || exited.attrs["exit_code"] != int64(forcedStopExitCode) || exited.attrs["error_code"] != nil {
+		t.Fatalf("exit record = %+v, want an info record with exit_code %d and no error code", exited, forcedStopExitCode)
+	}
+	if got := h.event(t); got != "exit" {
+		t.Fatalf("event = %q, want exit", got)
+	}
+	select {
+	case e := <-h.events:
+		t.Fatalf("event %q after the stop, want no backoff and no second child", e)
+	default:
 	}
 }
 

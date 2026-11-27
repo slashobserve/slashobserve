@@ -228,6 +228,63 @@ describe("claim loop", () => {
     expect(seen).toEqual(["a", "b"])
   })
 
+  test("shutdown releases each held run after its loop has stopped, not tied to the stop signal", async () => {
+    const stop = new AbortController()
+    const client = new Script([offer("a"), offer("b"), "wait"], stop)
+    const stopped: string[] = []
+    const released: Array<{ run_id: string; afterItsLoop: boolean }> = []
+    const signals: Array<AbortSignal | undefined> = []
+    client.releaseRun = async (input, signal?: AbortSignal) => {
+      released.push({
+        run_id: input.run_id,
+        afterItsLoop: stopped.includes(input.run_id),
+      })
+      signals.push(signal)
+      return { state: "queued" }
+    }
+    await claimLoop(client, 3, factory, stop.signal, {
+      sleep: instantSleep([]),
+      run: async (_c, run, _f, signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve())
+        )
+        stopped.push(run.run.id)
+      },
+    })
+    expect(released).toEqual([
+      { run_id: "a", afterItsLoop: true },
+      { run_id: "b", afterItsLoop: true },
+    ])
+    expect(signals).toEqual([undefined, undefined])
+  })
+
+  test("a run that ended before shutdown is not released", async () => {
+    const stop = new AbortController()
+    const client = new Script([offer("a"), "wait"], stop)
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+      run: async () => {},
+    })
+    expect(client.releases).toHaveLength(0)
+  })
+
+  test("a failing shutdown release still ends the loop", async () => {
+    const stop = new AbortController()
+    const client = new Script([offer("a"), "wait"], stop)
+    client.releaseRun = async () => {
+      throw new Error("down")
+    }
+    await claimLoop(client, 2, factory, stop.signal, {
+      sleep: instantSleep([]),
+      run: async (_c, _run, _f, signal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener("abort", () => resolve())
+        )
+      },
+    })
+    expect(stop.signal.aborted).toBe(true)
+  })
+
   test("shutdown aborts held runs and waits for them", async () => {
     const stop = new AbortController()
     const client = new Script([offer("a")], stop)

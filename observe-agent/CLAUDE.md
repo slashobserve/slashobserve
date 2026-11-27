@@ -8,6 +8,7 @@ The server starts it whenever a model provider is configured; the image ships it
 
 - `src/protocol.ts`: the claim tools and the `_meta` keys, as zod schemas.
 - `src/run.ts`: the model loop for one run.
+- `src/shutdown.ts`: how a stop ended, `drained` or `forced`, and its exit code.
 - `src/session/`: the model sessions, one per provider.
 - `src/session/replay/`: ports `internal/llm/replay`.
 

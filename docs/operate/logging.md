@@ -21,6 +21,7 @@ SLASHOBSERVE_LOG_LEVEL=debug SLASHOBSERVE_LOG_FORMAT=text slashobserve-server
 
 The built-in agent runs in a child process, `observe-agent`, and logs at the same level.
 The server copies the child's log lines into its own log with `component=observe-agent`.
+When the child stops it logs `observe-agent stopped` with `shutdown` set to `drained`, or to `forced` when it did not finish within 5 seconds of `SIGTERM`; the server's `observe-agent exited` line then has `exit_code` 0 or 124.
 
 ## Find out why a request failed
 

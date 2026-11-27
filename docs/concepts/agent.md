@@ -597,6 +597,11 @@ The server refuses that token on any request that carries a forwarding header (`
 A reverse proxy on the same host that adds none of them, such as nginx with a bare `proxy_pass`, still reaches the server from loopback.
 So configure it to send `X-Forwarded-For` or keep `/mcp` off it.
 
+When the server stops, it sends the sidecar `SIGTERM`.
+The sidecar stops each run it holds, hands it back to the queue with `release_run`, and logs `observe-agent stopped` with `shutdown` `drained` before it exits with status 0.
+A sidecar that has not finished 5 seconds after the signal logs `shutdown` `forced` and exits with status 124.
+The server then hands back whatever the sidecar still held, so a run returns to the queue either way.
+
 When an LLM provider is configured, the server looks for `observe-agent` on `PATH`.
 It does not start when the binary is missing or when `SLASHOBSERVE_HTTP_ADDR` names a host other than a loopback address or all addresses.
 Without a provider it makes neither check.

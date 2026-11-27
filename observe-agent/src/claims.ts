@@ -75,15 +75,11 @@ class Slots {
   }
 }
 
-async function release(
-  client: ClaimApi,
-  run: OfferedRun,
-  signal: AbortSignal
-): Promise<void> {
+async function release(client: ClaimApi, run: OfferedRun): Promise<void> {
   try {
-    await client.releaseRun({ run_id: run.id, attempt: run.attempt }, signal)
+    await client.releaseRun({ run_id: run.id, attempt: run.attempt })
   } catch (error) {
-    if (!(error instanceof ToolError) && !signal.aborted) {
+    if (!(error instanceof ToolError)) {
       log("warn", "release of a run failed", { run_id: run.id })
     }
   }
@@ -138,7 +134,7 @@ export async function claimLoop(
     }
     if (session == null || model == null) {
       log("warn", noModelMessage, { run_id: offered.id, backoff_ms: backoff })
-      await release(client, offered, signal)
+      await release(client, offered)
       pool.give()
       await backOff()
       continue
@@ -156,6 +152,7 @@ export async function claimLoop(
           error: error instanceof Error ? error.name : "unknown",
         })
       })
+      .then(() => (signal.aborted ? release(client, offered) : undefined))
       .finally(() => {
         held.delete(task)
         pool.give()
