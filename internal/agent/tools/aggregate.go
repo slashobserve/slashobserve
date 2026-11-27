@@ -315,7 +315,7 @@ func (r *Registry) aggregate(ctx context.Context, input json.RawMessage) (Result
 	}
 	out.Empty = len(out.Values) == 0
 	if out.Empty {
-		out.Note = emptyAggregateNote(typeOf(inst))
+		out.Note = explainedNote(r.explainEmpty(ctx, inst, plan.query, rng), emptyAggregateNote(typeOf(inst)))
 	}
 	return success("Measured "+in.Op+" on "+inst.UID+": "+describeAggregated(out), out), nil
 }

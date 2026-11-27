@@ -1110,6 +1110,7 @@ Runs a query over a time range and returns a compact summary: up to 20 series wi
   The summary shows up to ten lines; `query_instant` with `page_size` shows the whole page.
 - On any ClickHouse table, `query_range` refuses a query that does not read the time range through a macro such as `$__timeFilter(Timestamp)`.
   A macro inside a comment does not count.
+- On Prometheus and Loki, an empty result's `note` says why nothing matched, as [Empty results](#empty-results) explains.
 
 #### `show_panel`
 
@@ -1144,7 +1145,7 @@ It runs one instant query at `to` over a range as long as the window, so the fig
   Lines whose field does not parse are skipped.
 - `by` names up to 5 labels to group by, such as `service_name`; leave it out for one figure over everything matched.
 - The result holds `query`, the query that ran, and one entry per group in `values` (at most 20) with `value` at full precision, or `undefined` when nothing was counted, such as a ratio whose denominator did not grow.
-- An empty result says so in `note`: no series matched, which does not show the value was zero.
+- An empty result says so in `note`: no series matched, which does not show the value was zero, and the note first says why, as [Empty results](#empty-results) explains.
 - On Prometheus, `max`, `min` and `avg` are `measure_window`'s, and another datasource type answers `invalid_request`.
 
 #### `measure_window`
@@ -1158,9 +1159,22 @@ The datasource computes it from every sample or step, so a peak between the poin
   Any other expression is evaluated every `step`, 1 minute by default and 15 seconds for a time.
 - The result holds `query`, the PromQL that ran, `sampled`, and one entry per series in `values` (at most 20): `value` at full precision, or `at` and `seconds_after_from` for a time.
 - `max` and `min` of a single series also carry `at`, when the value was first reached, when a 15 second step finds it.
-- An empty result says so in `note`: no series matched, which does not show the value was zero.
+- An empty result says so in `note`: no series matched, which does not show the value was zero, and the note first says why, as [Empty results](#empty-results) explains.
 - A total, a ratio or a quantile over the window comes from `measure_aggregate`.
 - Another datasource type answers `invalid_request`.
+
+#### Empty results
+
+When `query_range`, `query_instant`, `measure_window` or `measure_aggregate` returns nothing on a Prometheus or Loki datasource, the server reads the datasource's label names and values for each selector in the query before it answers, and the `note` starts with the first reason it finds:
+
+- A label key the selector uses is on no series of that metric, or no stream, in the window, with the closest keys the datasource has, such as `service_name` and `job` for `service`.
+- The key exists but the value does not, with the closest values, or some of the values when none is close.
+- The key or value exists in the 7 days around the window but has no samples in it, or the metric has series but none in the window.
+- No metric of that name exists, with the closest names.
+- On Loki, the stream selector matches lines in the window, so the pipeline after it dropped them all, with the count of those lines.
+- On Prometheus, when every selector's values exist, the note says that either no series has them all together or the query's functions or label matching removed every series.
+
+The check makes at most 6 discovery calls in 4 seconds; when one fails or the time runs out, the note says nothing more and the result is unchanged.
 
 #### `query_instant`
 
@@ -1168,7 +1182,7 @@ Runs a query as an instant query, PromQL evaluated once at `to`, and returns the
 Use it for a table panel's query, or a query with `instant: true`.
 
 - It takes the arguments of `query_range` except `format` and `max_data_points`, plus `page_size`, `page`, `cursor`, `sort` and `as_written`.
-- It returns `executed`, as `query_range` does.
+- It returns `executed`, as `query_range` does, and on Prometheus and Loki explains an empty result in `note`.
 - On a ClickHouse trace datasource it also runs your own SQL over `otel_traces`, the query the SQL view of the trace search runs, with the same read-only, time range and row checks.
   `page_size` (50 to 500), `page` and `sort` page it.
   - A paged query that selects `Timestamp` comes back as log lines, newest first, with a `TimeNs` column.

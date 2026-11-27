@@ -246,6 +246,9 @@ func (r *Registry) runPage(ctx context.Context, in instantInput) (Result, error)
 	}, size)
 	summary.Page = pageOutOf(out)
 	summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, summary.Page != nil && summary.Page.HasNext, false)
+	if summary.Empty && page == 1 && emptyDiagnosable(inst) {
+		summary.Note = explainedNote(r.explainEmpty(ctx, inst, in.Query, rng), summary.Note)
+	}
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }
 
@@ -295,6 +298,9 @@ func (r *Registry) runAdhoc(ctx context.Context, panelType spec.PanelType, in in
 	if _, pages := inst.Datasource.(datasource.PageSource); pages && panelType == spec.Table {
 		summary.canPage = true
 		summary.Note = queryproxy.LimitNote(summary.MoreRows, summary.Partial, false, true)
+	}
+	if summary.Empty && emptyDiagnosable(inst) {
+		summary.Note = explainedNote(r.explainEmpty(ctx, inst, executedText(summary, in.Query), rng), summary.Note)
 	}
 	return success("Ran a query on "+inst.UID+": "+summary.describe(), summary), nil
 }

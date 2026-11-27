@@ -231,7 +231,7 @@ func (r *Registry) measure(ctx context.Context, input json.RawMessage) (Result, 
 	case out.Empty && plan.times:
 		out.Note = "The condition never held at a step of this window. That is a finding about these steps only: check the value with stat last, or pass a shorter step."
 	case out.Empty:
-		out.Note = "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values."
+		out.Note = explainedNote(r.explainEmpty(ctx, inst, plan.query, rng), "No series matched in this window. An empty result does not show the value was zero: check the metric and label names with list_metrics and list_label_values.")
 	case !plan.times && (in.Stat == statMax || in.Stat == statMin) && len(out.Values) == 1:
 		r.measureWhen(ctx, inst, in, &out, rng, target.window)
 	}
