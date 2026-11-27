@@ -590,7 +590,8 @@ See [LLM providers](../connect/llm-providers.md).
 The server starts `observe-agent` as a child process, which claims the built-in agent's runs and works them through the same MCP tools as a connected agent does.
 The server enforces the guards and the limits and stores the saved result.
 The claim answer to the built-in agent carries the model settings, which no other claimer receives, so the sidecar needs no provider configuration of its own.
-A claim that reaches the sidecar without them is a setup fault, not a failed run: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
+A claim that reaches the sidecar without them is a setup fault: the sidecar hands the run back to the queue with `release_run` and waits before it claims again, 1 second at first and doubling to 30.
+A run that comes back without them after 3 releases is ended as failed with `observe-agent received the run without model settings`, so it does not stay queued with no reason shown.
 
 The sidecar reaches the server only over the loopback address, with a token that is new for every start of the process.
 The server refuses that token on any request that carries a forwarding header (`Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` or `X-Real-Ip`).

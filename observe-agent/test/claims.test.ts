@@ -192,7 +192,14 @@ describe("claim loop", () => {
     const sleeps: number[] = []
     const unusable = offer("a", { model: null })
     const client = new Script(
-      [unusable, unusable, unusable, { run: null }, unusable, "wait"],
+      [
+        unusable,
+        unusable,
+        unusable,
+        { run: null },
+        offer("b", { model: null }),
+        "wait",
+      ],
       stop
     )
     await claimLoop(client, 1, factory, stop.signal, {
@@ -200,6 +207,75 @@ describe("claim loop", () => {
     })
     expect(client.releases).toHaveLength(4)
     expect(sleeps).toEqual([1000, 2000, 4000, 1000])
+  })
+
+  test("a run that comes back without model settings after three releases is failed with the reason", async () => {
+    const stop = new AbortController()
+    const unusable = offer("a", { model: null })
+    const client = new Script(
+      [unusable, unusable, unusable, unusable, "wait"],
+      stop
+    )
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+    })
+    expect(client.releases.map((r) => r.run_id)).toEqual(["a", "a", "a"])
+    expect(client.finishes).toHaveLength(1)
+    expect(client.finishes[0]).toMatchObject({
+      run_id: "a",
+      attempt: 1,
+      outcome: "failed",
+      message: "observe-agent received the run without model settings",
+    })
+    expect(client.finishes[0]?.failure_code).toBeUndefined()
+  })
+
+  test("each run without model settings has its own count of releases", async () => {
+    const stop = new AbortController()
+    const a = offer("a", { model: null })
+    const b = offer("b", { model: null })
+    const client = new Script([a, a, a, b, b, b, "wait"], stop)
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+    })
+    expect(client.releases.map((r) => r.run_id)).toEqual([
+      "a",
+      "a",
+      "a",
+      "b",
+      "b",
+      "b",
+    ])
+    expect(client.finishes).toHaveLength(0)
+  })
+
+  test("a failed run starts a new count if it is ever offered again", async () => {
+    const stop = new AbortController()
+    const unusable = offer("a", { model: null })
+    const client = new Script(
+      [unusable, unusable, unusable, unusable, unusable, "wait"],
+      stop
+    )
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+    })
+    expect(client.releases).toHaveLength(4)
+    expect(client.finishes).toHaveLength(1)
+  })
+
+  test("a usable claim forgets the releases counted before it", async () => {
+    const stop = new AbortController()
+    const unusable = offer("a", { model: null })
+    const client = new Script(
+      [unusable, unusable, unusable, offer("c"), unusable, "wait"],
+      stop
+    )
+    await claimLoop(client, 1, factory, stop.signal, {
+      sleep: instantSleep([]),
+      run: async () => {},
+    })
+    expect(client.releases).toHaveLength(4)
+    expect(client.finishes).toHaveLength(0)
   })
 
   test("a failing release does not stop the loop", async () => {

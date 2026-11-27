@@ -1,12 +1,18 @@
 import { log } from "./log"
 import type { ClaimApi } from "./mcp"
-import { ToolError, type ClaimAnswer, type OfferedRun } from "./protocol"
+import {
+  ToolError,
+  type ClaimAnswer,
+  type OfferedRun,
+  type Usage,
+} from "./protocol"
 import { type ClaimedRun, runLoop } from "./run"
 import type { SessionFactory } from "./session/types"
 
 export const claimWaitSeconds = 30
 export const initialBackoffMs = 1_000
 export const maxBackoffMs = 30_000
+export const maxReleasesPerRun = 3
 const noModelMessage = "claim without model settings"
 
 export type ClaimOptions = {
@@ -20,6 +26,22 @@ export type ClaimOptions = {
     factory: SessionFactory,
     signal: AbortSignal
   ) => Promise<void>
+}
+
+const noUsage: Usage = {
+  provider: "none",
+  model: "none",
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_read_tokens: 0,
+  cache_write_tokens: 0,
+  model_calls: 0,
+  failed_calls: 0,
+  retries: 0,
+  compactions: 0,
+  renewals: 0,
+  model_ms: 0,
+  max_save_output_tokens: 0,
 }
 
 function sleepFor(ms: number, signal: AbortSignal): Promise<void> {
@@ -89,6 +111,31 @@ async function release(
   }
 }
 
+async function failWithoutSettings(
+  client: ClaimApi,
+  run: OfferedRun,
+  signal: AbortSignal
+): Promise<void> {
+  try {
+    await client.finishRun(
+      {
+        run_id: run.id,
+        attempt: run.attempt,
+        outcome: "failed",
+        message: "observe-agent received the run without model settings",
+        usage: noUsage,
+      },
+      signal
+    )
+  } catch (error) {
+    if (!(error instanceof ToolError) && !signal.aborted) {
+      log("warn", "finish of a run without model settings failed", {
+        run_id: run.id,
+      })
+    }
+  }
+}
+
 export async function claimLoop(
   client: ClaimApi,
   slots: number,
@@ -102,6 +149,7 @@ export async function claimLoop(
   const run = options.run ?? runLoop
   const pool = new Slots(slots)
   const held = new Set<Promise<void>>()
+  const releasesWithoutSettings = new Map<string, number>()
   let backoff = start
   const backOff = async (): Promise<void> => {
     await sleep(backoff, signal)
@@ -137,13 +185,25 @@ export async function claimLoop(
       continue
     }
     if (session == null || model == null) {
-      log("warn", noModelMessage, { run_id: offered.id, backoff_ms: backoff })
-      await release(client, offered, signal)
+      const releases = releasesWithoutSettings.get(offered.id) ?? 0
+      log("warn", noModelMessage, {
+        run_id: offered.id,
+        releases,
+        backoff_ms: backoff,
+      })
+      if (releases < maxReleasesPerRun) {
+        releasesWithoutSettings.set(offered.id, releases + 1)
+        await release(client, offered, signal)
+      } else {
+        releasesWithoutSettings.delete(offered.id)
+        await failWithoutSettings(client, offered, signal)
+      }
       pool.give()
       await backOff()
       continue
     }
     backoff = start
+    releasesWithoutSettings.clear()
     const task: Promise<void> = run(
       client,
       { run: offered, session, model },
