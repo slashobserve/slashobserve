@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, maxRetryDelayMs } from "@/api/errors"
+import {
+  ApiError,
+  maxRetryDelayMs,
+  NetworkError,
+  unreachableText,
+} from "@/api/errors"
 
 import {
   agentOffMessage,
@@ -8,25 +13,8 @@ import {
   pollDelayMs,
   pollFailures,
   requestStatusView,
-  sentence,
   stopsPolling,
 } from "./queries"
-
-describe("sentence", () => {
-  it("capitalizes and ends with a period", () => {
-    expect(sentence("prompt is too long")).toBe("Prompt is too long.")
-  })
-
-  it("keeps existing terminal punctuation", () => {
-    expect(sentence("Nope!")).toBe("Nope!")
-    expect(sentence("really?")).toBe("Really?")
-  })
-
-  it("trims trailing whitespace and returns empty text unchanged", () => {
-    expect(sentence("done  \n")).toBe("Done.")
-    expect(sentence("  ")).toBe("")
-  })
-})
 
 describe("describeSubmitError", () => {
   it("shows a 400 message inline as invalid input", () => {
@@ -107,8 +95,11 @@ describe("describeSubmitError", () => {
   })
 
   it("handles network and unknown errors", () => {
+    expect(
+      describeSubmitError(new NetworkError("Failed to fetch")).message
+    ).toBe(unreachableText)
     expect(describeSubmitError(new Error("Failed to fetch")).message).toBe(
-      "Failed to fetch."
+      "The request could not be sent."
     )
     expect(describeSubmitError("boom")).toEqual({
       message: "The request could not be sent.",

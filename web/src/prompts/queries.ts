@@ -5,10 +5,9 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, NetworkError, unwrap } from "@/api/errors"
+import { ApiError, problemText, unwrap } from "@/api/errors"
 import { promptKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { sentence } from "@/observe/queries"
 
 import { invalidNameText } from "./rules"
 
@@ -72,11 +71,8 @@ export function promptProblem(
   error: unknown,
   attempt: { name: string; shared: boolean }
 ): PromptProblem {
-  if (error instanceof NetworkError) {
-    return { field: null, text: "Could not reach the server. Try again." }
-  }
   if (!(error instanceof ApiError)) {
-    return { field: null, text: "Something went wrong. Try again." }
+    return { field: null, text: problemText(error) }
   }
   if (error.status === 409 && error.code === "name_taken") {
     return {
@@ -101,9 +97,6 @@ export function promptProblem(
       text: "You have 100 saved prompts, the most you can keep. Delete one first.",
     }
   }
-  if (error.status === 404) {
-    return { field: null, text: "This prompt no longer exists." }
-  }
   if (error.status === 403) {
     return {
       field: null,
@@ -113,5 +106,8 @@ export function promptProblem(
           : "Your role cannot save prompts.",
     }
   }
-  return { field: null, text: sentence(error.message) }
+  return {
+    field: null,
+    text: problemText(error, { notFound: "This prompt no longer exists." }),
+  }
 }

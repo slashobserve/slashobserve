@@ -2,6 +2,7 @@ import { useId, useState, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -18,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { roleLabels } from "@/lib/roles"
 
 import {
-  deleteAccountProblemText,
+  deleteAccountProblems,
   deleteAccountText,
   liveKeyCounts,
   useDeleteServiceAccount,
@@ -81,7 +82,7 @@ function DeleteAccountButton({ account, liveKeys, finalFocus }: DeleteProps) {
           {remove.isError ? (
             <Alert variant="destructive">
               <AlertDescription>
-                {deleteAccountProblemText(remove.error)}
+                {problemText(remove.error, deleteAccountProblems)}
               </AlertDescription>
             </Alert>
           ) : null}

@@ -9,6 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query"
 import { RefreshCwIcon, TimerIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { publicKeys } from "@/api/keys"
 import { Wordmark } from "@/components/brand/wordmark"
 import { LoadProblem } from "@/components/load-problem"
@@ -36,7 +37,6 @@ import { VariablesBar } from "@/dashboards/variables-bar"
 import { DatasourceListProvider } from "@/datasources/queries"
 import { displayZone, refreshToMs } from "@/lib/time"
 import { createSharedCursor } from "@/panels/shared-cursor"
-import { loadProblemText } from "@/service-accounts/queries"
 import { ThemeSwitch } from "@/shell/theme-switch"
 import { isDataPanel, sourcePanelOf } from "@/spec"
 

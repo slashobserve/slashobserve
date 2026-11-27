@@ -9,6 +9,7 @@ import {
   useStickToBottom,
   useToday,
 } from "@/activity/timeline-list"
+import { sentence } from "@/api/errors"
 import { threadKeys } from "@/api/keys"
 import { LoadProblem } from "@/components/load-problem"
 import { ScrollPane } from "@/components/scroll-pane"
@@ -38,7 +39,6 @@ import { useComposer } from "@/conversation/use-composer"
 import { markOf } from "@/lib/author"
 import { liveRegionText } from "@/lib/live-region"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import {
   filterEntries,

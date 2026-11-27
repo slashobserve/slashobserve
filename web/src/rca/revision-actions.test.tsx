@@ -1,11 +1,11 @@
 import { screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import { renderWithProviders } from "@/test/render"
 
 import type { RcaSummary } from "./queries"
-import { RevisionActions, withdrawProblemText } from "./revision-actions"
+import { RevisionActions, withdrawProblems } from "./revision-actions"
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast: toasts }))
@@ -106,14 +106,17 @@ describe("RevisionActions", () => {
 
 describe("withdrawProblemText", () => {
   it("falls back to a retry line for an error that is not the server's", () => {
-    expect(withdrawProblemText(new Error("network"))).toBe(
+    expect(problemText(new Error("network"), withdrawProblems)).toBe(
       "The revision could not be withdrawn. Try again."
     )
   })
 
   it("passes another server refusal through as a sentence", () => {
     expect(
-      withdrawProblemText(new ApiError(403, "forbidden_role", "needs edit"))
+      problemText(
+        new ApiError(403, "forbidden_role", "needs edit"),
+        withdrawProblems
+      )
     ).toBe("Needs edit.")
   })
 })

@@ -2,6 +2,7 @@ import { useCallback, useId, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import {
@@ -17,7 +18,6 @@ import { FolderHeaderRow } from "@/folders/folder-header-row"
 import { countText, groupByFolder } from "@/folders/group-by-folder"
 import { foldersQuery, type Folder } from "@/folders/queries"
 import { markOf } from "@/lib/author"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { savedSearchLocation } from "./links"
 import {

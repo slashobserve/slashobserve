@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, isRetryable, unwrap } from "@/api/errors"
+import { ApiError, isRetryable, unwrap, sentence } from "@/api/errors"
 import {
   datasourceKeys,
   editorKeys,
@@ -16,7 +16,6 @@ import { panelRequestLimiter } from "@/dashboards/limiter"
 import type { PanelDataResponse } from "@/dashboards/queries"
 import { stableJson } from "@/lib/json"
 import { requestZone } from "@/lib/time"
-import { sentence } from "@/observe/queries"
 import { resolveDatasourceRef, type DataPanel } from "@/spec"
 
 import type { EditablePanel } from "./draft"

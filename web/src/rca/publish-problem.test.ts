@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 
 import type { Block } from "@/observations/queries"
 
@@ -68,7 +68,7 @@ describe("publishProblem", () => {
       failure(500, "internal", ""),
       "Could not publish",
     ],
-    ["a network failure", new NetworkError("offline"), "Could not publish"],
+    ["a network failure", new NetworkError("offline"), unreachableText],
   ]
 
   it.each(cases)("words %s", (_name, error, expected) => {

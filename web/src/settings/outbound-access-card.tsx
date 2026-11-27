@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText, problemText } from "@/api/errors"
 import { outboundDomainKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -22,11 +23,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
 import { RoleNote } from "@/components/role-note"
 import { roleAtLeast } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   domainDraftError,
-  domainProblemText,
+  domainProblems,
   matchText,
   originText,
   outboundDomainsQuery,
@@ -116,7 +116,7 @@ function AllowedDomains({ list }: { list: OutboundDomains }) {
             : removeButtons.current.get(neighbour)
         next?.focus()
       },
-      onError: (error) => toast.error(domainProblemText(error)),
+      onError: (error) => toast.error(problemText(error, domainProblems)),
     })
   }
 
@@ -288,7 +288,7 @@ function AllowDomainForm({
         setDraft("")
         input.current?.focus()
       },
-      onError: (error) => onProblem(domainProblemText(error)),
+      onError: (error) => onProblem(problemText(error, domainProblems)),
     })
   }
 

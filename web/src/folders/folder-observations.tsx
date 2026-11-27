@@ -2,6 +2,7 @@ import { useId } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
@@ -12,7 +13,6 @@ import {
   observationsInfiniteQuery,
   type Observation,
 } from "@/observations/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { plainTitle } from "@/comments/plain-title"
 
 const columns: DataGridColumn<Observation>[] = [

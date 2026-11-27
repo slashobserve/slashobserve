@@ -1,16 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import { observeRequestQuery } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
 
-import {
-  AnswerCard,
-  reviseFailureText,
-  type RevisionAsked,
-} from "./answer-card"
+import { AnswerCard, reviseProblems, type RevisionAsked } from "./answer-card"
 import { reviseBlock, threadPlace, type AgentGate } from "./delivery"
 import { planRevise, subjectOf } from "./send-plan"
 import {
@@ -104,7 +100,7 @@ export function RunAnswer({
       findingId,
       crypto.randomUUID()
     )
-    if ("error" in plan) return plan.error || reviseFailureText(null)
+    if ("error" in plan) return plan.error || problemText(null, reviseProblems)
     try {
       await deliver(plan)
       return true
@@ -112,7 +108,7 @@ export function RunAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      return reviseFailureText(error)
+      return problemText(error, reviseProblems)
     }
   }
 

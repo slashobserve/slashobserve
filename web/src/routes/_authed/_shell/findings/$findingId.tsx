@@ -6,14 +6,13 @@ import {
   useRouter,
 } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { buttonVariants } from "@/components/ui/button"
 import { findingQuery } from "@/findings/queries"
 import { useDocumentTitle } from "@/lib/document-title"
 import { observationsLink } from "@/lib/links"
 import { cn } from "@/lib/utils"
-import { loadProblemText } from "@/service-accounts/queries"
 
 export const Route = createFileRoute("/_authed/_shell/findings/$findingId")({
   beforeLoad: async ({ params, context }) => {

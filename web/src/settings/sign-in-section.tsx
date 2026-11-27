@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 
+import { loadProblemText } from "@/api/errors"
 import { instanceQuery } from "@/api/instance"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -8,7 +9,6 @@ import { roleAtLeast } from "@/lib/roles"
 import { cn } from "@/lib/utils"
 import { SignInBanner } from "@/people/sign-in-banner"
 import { domainList, providerDisplayName } from "@/people/sign-in-policy"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { domainsText, sessionLength } from "./format"
 import {

@@ -192,7 +192,7 @@ function SaveBuild({
       </div>
       {save.error !== null ? (
         <p role="alert" className="flex flex-wrap items-center gap-x-2">
-          <span>{saveBuildErrorText(code, save.error.message)}</span>
+          <span>{saveBuildErrorText(save.error)}</span>
           {code === "version_conflict" && request.dashboard_id !== null ? (
             <Link
               {...dashboardLink(request.dashboard_id)}

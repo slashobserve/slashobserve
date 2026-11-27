@@ -1,4 +1,4 @@
-import { ApiError, toApiError } from "@/api/errors"
+import { ApiError, problemText, toApiError } from "@/api/errors"
 import type { components } from "@/api/schema.gen"
 
 import { TOO_LARGE_MESSAGE } from "./read-source"
@@ -48,6 +48,12 @@ export function toImportError(response: Response, body: unknown): ApiError {
   return error
 }
 
+function settledText(error: unknown, text: string): string {
+  return error instanceof ApiError
+    ? text
+    : problemText(error, { fallback: text })
+}
+
 export function previewFailure(error: unknown): Failure {
   if (error instanceof ApiError) {
     if (error.status === 413) {
@@ -60,7 +66,10 @@ export function previewFailure(error: unknown): Failure {
       return { message: error.message, retry: false, resetMapping: true }
     }
   }
-  return { message: "Could not read this dashboard. Try again.", retry: true }
+  return {
+    message: settledText(error, "Could not read this dashboard. Try again."),
+    retry: true,
+  }
 }
 
 export function importFailure(error: unknown): Failure {
@@ -91,7 +100,10 @@ export function importFailure(error: unknown): Failure {
       }
     }
   }
-  return { message: "Could not import. Try again.", retry: false }
+  return {
+    message: settledText(error, "Could not import. Try again."),
+    retry: false,
+  }
 }
 
 export function specFailure(error: unknown): Failure {
@@ -112,5 +124,8 @@ export function specFailure(error: unknown): Failure {
       }
     }
   }
-  return { message: "Could not create the dashboard. Try again.", retry: false }
+  return {
+    message: settledText(error, "Could not create the dashboard. Try again."),
+    retry: false,
+  }
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, problemText } from "@/api/errors"
 
-import { mergeLeftProposalStale, mergeProblem } from "./merge-problem"
+import { mergeLeftProposalStale, mergeProblems } from "./merge-problem"
 
 describe("mergeProblem", () => {
   it.each([
@@ -28,15 +28,19 @@ describe("mergeProblem", () => {
     ["forbidden_role", 403, "you need edit access", "You need edit access."],
     ["invalid_spec", 422, "Panel p1 fails.", "Panel p1 fails."],
   ])("explains %s", (code, status, message, expected) => {
-    expect(mergeProblem(new ApiError(status, code, message))).toBe(expected)
+    expect(
+      problemText(new ApiError(status, code, message), mergeProblems)
+    ).toBe(expected)
   })
 
   it("says the server is unreachable on a network failure", () => {
-    expect(mergeProblem(new NetworkError("offline"))).toMatch(/reach|connect/i)
+    expect(problemText(new NetworkError("offline"), mergeProblems)).toMatch(
+      /reach|connect/i
+    )
   })
 
   it("gives a plain sentence for an unknown failure", () => {
-    expect(mergeProblem(new Error("boom"))).toBe(
+    expect(problemText(new Error("boom"), mergeProblems)).toBe(
       "Something went wrong. Try again."
     )
   })

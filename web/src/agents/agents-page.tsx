@@ -2,12 +2,11 @@ import { useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PlusIcon } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { sentence } from "@/observe/queries"
 
 import { ConnectPanel } from "./connect-panel"
 import { ConnectedTable } from "./connected-table"
@@ -61,7 +60,7 @@ export function AgentsPage({ connecting, onConnectingChange }: Props) {
       return (
         <LoadProblem
           title="Could not load the agents"
-          detail={sentence(query.error.message)}
+          detail={loadProblemText(query.error)}
           retrying={query.isFetching}
           onRetry={() => void query.refetch()}
         />

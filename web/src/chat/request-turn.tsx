@@ -3,11 +3,11 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import { AgentMark } from "@/components/agent-mark"
 import {
   AnswerCard,
-  reviseFailureText,
+  reviseProblems,
   type RevisionAsked,
 } from "@/conversation/answer-card"
 import {
@@ -147,7 +147,7 @@ export function ChatAnswer({
 
   async function revise(): Promise<RevisionAsked> {
     const plan = planRevise(place, revised, finding.id, crypto.randomUUID())
-    if ("error" in plan) return plan.error || reviseFailureText(null)
+    if ("error" in plan) return plan.error || problemText(null, reviseProblems)
     let sent: Awaited<ReturnType<typeof deliver>>
     try {
       sent = await deliver(plan)
@@ -155,7 +155,7 @@ export function ChatAnswer({
       if (error instanceof ApiError && error.code === "already_applied") {
         return true
       }
-      return reviseFailureText(error)
+      return problemText(error, reviseProblems)
     }
     if (sent.via === "chat") {
       try {

@@ -10,6 +10,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText, problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -26,9 +27,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { withWarning } from "@/dashboards/save-outcome"
 import { dashboardLink } from "@/lib/links"
-import { loadProblemText } from "@/service-accounts/queries"
 
-import { mergeLeftProposalStale, mergeProblem } from "./merge-problem"
+import { mergeLeftProposalStale, mergeProblems } from "./merge-problem"
 import {
   choicesFrom,
   droppedText,
@@ -209,7 +209,7 @@ export function ProposalActions({
           )
         },
         onError: (error) => {
-          setProblem(mergeProblem(error))
+          setProblem(problemText(error, mergeProblems))
           if (mergeLeftProposalStale(error)) refetch()
         },
       }

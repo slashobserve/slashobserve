@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { agentKeys, serviceAccountKeys } from "@/api/keys"
 
-import { loadProblemText, type ServiceAccountKey } from "./queries"
+import { type ServiceAccountKey } from "./queries"
 
 export function liveKeyCounts(
   keys: Pick<ServiceAccountKey, "service_account_id" | "state">[]
@@ -30,14 +30,12 @@ export function deleteAccountText(name: string, liveKeys: number): string {
   return `${keys} Anything that uses ${name} must get a new key. What it made stays, under its name.`
 }
 
-export function deleteAccountProblemText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 404) return "This service account no longer exists."
-    if (error.code === "provisioned") {
-      return "This account comes from the service-accounts file. Remove it there and restart the server."
-    }
-  }
-  return loadProblemText(error)
+export const deleteAccountProblems: ProblemTexts = {
+  codes: {
+    provisioned:
+      "This account comes from the service-accounts file. Remove it there and restart the server.",
+  },
+  notFound: "This service account no longer exists.",
 }
 
 export function useDeleteServiceAccount() {

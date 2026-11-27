@@ -1,7 +1,6 @@
-import { ApiError } from "@/api/errors"
-import { loadProblemText } from "@/service-accounts/queries"
-
 import type { ActivityType } from "./event-types"
+
+import { ApiError, loadProblemText } from "@/api/errors"
 
 export type WebhookFormat = "generic" | "slack" | "teams"
 export type WebhookInput = {

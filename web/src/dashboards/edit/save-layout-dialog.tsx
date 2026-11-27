@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { sentence } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +19,6 @@ import { Label } from "@/components/ui/label"
 import { dashboardKeys } from "@/api/keys"
 import { panelTitles } from "@/history/diff-groups"
 import { loadSpecValidator } from "@/spec"
-import { sentence } from "@/observe/queries"
 
 import { useAddVersion } from "../queries"
 import { saveToast } from "../save-outcome"

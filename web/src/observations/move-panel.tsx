@@ -2,6 +2,7 @@ import { useId, useState, type RefObject } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { RoleNote } from "@/components/role-note"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,7 +17,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { moveChoices } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 
 import { confinedNote, type Confined } from "./confined"

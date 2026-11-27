@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { savedSearchesQuery, type SavedSearch } from "./queries"
 import { useOpenSavedSearch } from "./saved-open"

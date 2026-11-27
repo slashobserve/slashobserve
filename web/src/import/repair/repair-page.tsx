@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
@@ -22,7 +23,6 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { dashboardLink } from "@/lib/links"
 import { useAgentInfo } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { repairsQuery, useRequestRepairs, type RepairsQueued } from "./queries"
 import {

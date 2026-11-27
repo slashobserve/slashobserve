@@ -8,10 +8,9 @@ import {
 import { toast } from "sonner"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { unwrap, problemText } from "@/api/errors"
 import { grantKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
-import { sentence } from "@/observe/queries"
 
 import type { ConnectedAgent, GrantMode, GrantScope } from "./rows"
 
@@ -85,9 +84,7 @@ export function useSetGrantMode() {
       ),
     onError: (error) =>
       toast.error(
-        error instanceof ApiError
-          ? sentence(error.message)
-          : "Could not change the mode"
+        problemText(error, { fallback: "Could not change the mode" })
       ),
     onSettled: () => queryClient.invalidateQueries({ queryKey: grantKeys.all }),
   })

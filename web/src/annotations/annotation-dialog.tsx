@@ -2,6 +2,7 @@ import { useId, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { zonedDateTime } from "@/lib/time"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   validateEdit,

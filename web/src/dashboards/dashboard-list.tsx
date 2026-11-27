@@ -4,7 +4,7 @@ import { SearchIcon } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { unwrap, loadProblemText } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { DataGrid } from "@/components/data-grid/data-grid"
 import { skeletonRows } from "@/components/data-grid/skeleton-cell"
@@ -22,7 +22,6 @@ import { roleAtLeast } from "@/lib/roles"
 import { docsPageUrl } from "@/lib/docs"
 import { cn } from "@/lib/utils"
 import { levelLabels } from "@/folders/grants"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   actionsColumn,

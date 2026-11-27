@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence, loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,8 +20,6 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { observationLink } from "@/lib/links"
-import { sentence } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 import { panelTitle, type DataPanel, type Variable } from "@/spec"
 

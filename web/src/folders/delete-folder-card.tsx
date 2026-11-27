@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -16,19 +16,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useDeleteFolder, type Folder } from "./queries"
-
-function problemText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "folder_not_empty") {
-    return "This folder still holds dashboards, findings or saved searches. Move or delete them first."
-  }
-  if (error instanceof ApiError && error.status === 404) {
-    return "This folder no longer exists."
-  }
-  return loadProblemText(error)
-}
 
 export function DeleteFolderCard({ folder }: { folder: Folder }) {
   const navigate = useNavigate()
@@ -54,7 +43,16 @@ export function DeleteFolderCard({ folder }: { folder: Folder }) {
         toast.success(`Deleted ${folder.title}`)
         void navigate({ to: "/dashboards" })
       },
-      (error) => setProblem(problemText(error))
+      (error) =>
+        setProblem(
+          problemText(error, {
+            codes: {
+              folder_not_empty:
+                "This folder still holds dashboards, findings or saved searches. Move or delete them first.",
+            },
+            notFound: "This folder no longer exists.",
+          })
+        )
     )
   }
 

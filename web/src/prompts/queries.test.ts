@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError, NetworkError } from "@/api/errors"
+import { ApiError, NetworkError, unreachableText } from "@/api/errors"
 
 import { promptProblem, type PromptProblem } from "./queries"
 
@@ -17,7 +17,7 @@ const cases: {
     name: "a network failure",
     error: new NetworkError("x"),
     attempt: mine,
-    expected: { field: null, text: "Could not reach the server. Try again." },
+    expected: { field: null, text: unreachableText },
   },
   {
     name: "a taken private name",

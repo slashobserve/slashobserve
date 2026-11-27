@@ -5,10 +5,9 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { outboundDomainKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
-import { loadProblemText } from "@/service-accounts/queries"
 
 export type OutboundDomains =
   paths["/outbound-domains"]["get"]["responses"][200]["content"]["application/json"]
@@ -57,21 +56,14 @@ export function domainDraftError(text: string): string | null {
   return null
 }
 
-export function domainProblemText(error: unknown): string {
-  if (error instanceof ApiError) {
-    switch (error.code) {
-      case "domain_exists":
-        return "That domain is already allowed."
-      case "too_many_domains":
-        return "The list holds at most 100 domains. Remove one first."
-      case "managed_by_config":
-        return "This list is set by SLASHOBSERVE_OUTBOUND_DOMAINS on the server."
-      case "invalid_domain":
-        return loadProblemText(error)
-    }
-    if (error.status === 404) return "That domain was already removed."
-  }
-  return loadProblemText(error)
+export const domainProblems: ProblemTexts = {
+  codes: {
+    domain_exists: "That domain is already allowed.",
+    too_many_domains: "The list holds at most 100 domains. Remove one first.",
+    managed_by_config:
+      "This list is set by SLASHOBSERVE_OUTBOUND_DOMAINS on the server.",
+  },
+  notFound: "That domain was already removed.",
 }
 
 export function matchText(domain: string): string {

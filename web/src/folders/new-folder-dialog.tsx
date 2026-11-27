@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent, type RefObject } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,18 +14,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cleanText, lineRule, textError } from "@/lib/user-text"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useCreateFolder, type Folder } from "./queries"
 
 const maxTitleLength = 100
-
-function createProblemText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "folder_exists") {
-    return "A folder with this name already exists."
-  }
-  return loadProblemText(error)
-}
 
 type Props = {
   open: boolean
@@ -65,7 +57,14 @@ export function NewFolderDialog({
         close()
         onCreated(folder)
       },
-      onError: (error) => setProblem(createProblemText(error)),
+      onError: (error) =>
+        setProblem(
+          problemText(error, {
+            codes: {
+              folder_exists: "A folder with this name already exists.",
+            },
+          })
+        ),
     })
   }
 

@@ -1,13 +1,8 @@
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import { blockTitle } from "@/observations/block-rows"
 import type { Block } from "@/observations/queries"
-import { sentence } from "@/observe/queries"
 
 const fallback = "Could not publish"
-
-function serverSentence(error: ApiError): string {
-  return error.message.trim() === "" ? fallback : sentence(error.message)
-}
 
 export type PublishProblem = { text: string; blockId?: string }
 
@@ -22,36 +17,30 @@ export function publishProblem(
   error: unknown,
   blocks: readonly Block[] = []
 ): PublishProblem {
-  return describe(error, blocks)
-}
-
-function describe(error: unknown, blocks: readonly Block[]): PublishProblem {
-  if (!(error instanceof ApiError)) return { text: fallback }
-  switch (error.code) {
-    case "rca_limit":
-      return {
-        text: "This observation has 50 revisions, the most it can have.",
-      }
-    case "observation_changed":
-      return {
-        text: "The page changed while it was being published. Publish again.",
-      }
-    case "panel_failed": {
-      const first = error.issues[0]?.message
-      if (first === undefined) return { text: serverSentence(error) }
-      const block = failedBlock(error, blocks)
-      return block === undefined
-        ? { text: `A panel could not be frozen: ${first}` }
-        : {
-            text: `The panel "${blockTitle(block)}" could not be frozen: ${first}`,
-            blockId: block.id,
-          }
-    }
-    case "snapshot_too_large":
-      return {
-        text: "A panel returned too much data to freeze. Narrow its time range and publish again.",
-      }
-    default:
-      return { text: serverSentence(error) }
+  const first = error instanceof ApiError ? error.issues[0]?.message : undefined
+  if (
+    error instanceof ApiError &&
+    error.code === "panel_failed" &&
+    first !== undefined
+  ) {
+    const block = failedBlock(error, blocks)
+    return block === undefined
+      ? { text: `A panel could not be frozen: ${first}` }
+      : {
+          text: `The panel "${blockTitle(block)}" could not be frozen: ${first}`,
+          blockId: block.id,
+        }
+  }
+  return {
+    text: problemText(error, {
+      codes: {
+        rca_limit: "This observation has 50 revisions, the most it can have.",
+        observation_changed:
+          "The page changed while it was being published. Publish again.",
+        snapshot_too_large:
+          "A panel returned too much data to freeze. Narrow its time range and publish again.",
+      },
+      fallback,
+    }),
   }
 }

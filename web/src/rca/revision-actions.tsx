@@ -13,9 +13,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ApiError } from "@/api/errors"
+import { type ProblemTexts, sentence, problemText } from "@/api/errors"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import { useWithdrawRca, type RcaSummary } from "./queries"
 
@@ -29,12 +28,12 @@ type Props = {
 export const sharedWithdrawText =
   "Revoke its public links below to withdraw it."
 
-export function withdrawProblemText(error: unknown): string {
-  if (error instanceof ApiError && error.code === "rca_shared") {
-    return `${sentence(error.message)} Revoke its public links below, then withdraw it.`
-  }
-  if (error instanceof ApiError) return sentence(error.message)
-  return "The revision could not be withdrawn. Try again."
+export const withdrawProblems: ProblemTexts = {
+  codes: {
+    rca_shared: (error) =>
+      `${sentence(error.message)} Revoke its public links below, then withdraw it.`,
+  },
+  fallback: "The revision could not be withdrawn. Try again.",
 }
 
 export function RevisionActions({
@@ -56,7 +55,7 @@ export function RevisionActions({
         toast.success(`Withdrew revision ${revision}`)
         onWithdrawn()
       },
-      onError: (error) => toast.error(withdrawProblemText(error)),
+      onError: (error) => toast.error(problemText(error, withdrawProblems)),
     })
   }
 

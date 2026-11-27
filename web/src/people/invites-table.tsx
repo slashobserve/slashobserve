@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText, problemText } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
@@ -28,11 +29,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabels, type Role } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   invitesQuery,
-  inviteProblemText,
+  inviteProblems,
   useSaveInvite,
   useWithdrawInvite,
   type Invite,
@@ -57,7 +57,7 @@ function InviteRole({ invite }: { invite: Invite }) {
       {
         onSuccess: () =>
           toast.success(`${invite.email} will join as ${roleLabels[role]}`),
-        onError: (error) => toast.error(inviteProblemText(error)),
+        onError: (error) => toast.error(problemText(error, inviteProblems)),
       }
     )
   }
@@ -98,7 +98,7 @@ function WithdrawButton({ invite }: { invite: Invite }) {
       () => toast.success(`Withdrew the invite for ${invite.email}`),
       (error) => {
         setWithdrawing((id) => (id === invite.id ? null : id))
-        toast.error(inviteProblemText(error))
+        toast.error(problemText(error, inviteProblems))
       }
     )
   }

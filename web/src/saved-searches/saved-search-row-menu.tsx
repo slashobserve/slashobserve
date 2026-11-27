@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { moveChoices, moveLabel } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { DeleteSavedSearchDialog } from "./delete-saved-search-dialog"
 import { useMoveSavedSearch, type SavedSearch } from "./queries"

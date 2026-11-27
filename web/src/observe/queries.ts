@@ -16,6 +16,8 @@ import {
   ApiError,
   maxRetryDelayMs,
   resendOnceOffline,
+  problemText,
+  sentence,
   unwrap,
 } from "@/api/errors"
 import {
@@ -47,13 +49,6 @@ const pollIntervalMs = 1000
 const maxPollBackoffMs = 8000
 
 const stoppingStatuses = new Set([400, 401, 403, 404])
-
-export function sentence(text: string): string {
-  const trimmed = text.trimEnd()
-  if (trimmed === "") return ""
-  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
-  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`
-}
 
 type FailureRun = { dataUpdates: number; errorsBefore: number }
 
@@ -541,11 +536,10 @@ export function describeSubmitError(error: unknown): {
         invalid: false,
       }
     }
-    return { message: sentence(error.message), inline: false, invalid: false }
   }
-  const message =
-    error instanceof Error && error.message !== ""
-      ? sentence(error.message)
-      : "The request could not be sent."
-  return { message, inline: false, invalid: false }
+  return {
+    message: problemText(error, { fallback: "The request could not be sent." }),
+    inline: false,
+    invalid: false,
+  }
 }

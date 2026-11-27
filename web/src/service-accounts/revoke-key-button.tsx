@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 
 import {
-  problemText,
+  accountProblemText,
   useRevokeKey,
   type ServiceAccount,
   type ServiceAccountKey,
@@ -61,7 +61,8 @@ export function RevokeKeyButton({ account, serviceKey, finalFocus }: Props) {
         toast.success(`Revoked key ${serviceKey.name}`)
         setOpen(false)
       },
-      onError: (error) => setProblem(problemText(error, { what: "revoke" })),
+      onError: (error) =>
+        setProblem(accountProblemText(error, { what: "revoke" })),
     })
   }
 

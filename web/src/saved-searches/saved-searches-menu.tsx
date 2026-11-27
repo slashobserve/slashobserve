@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import {
   Combobox,
   ComboboxContent,
@@ -8,7 +9,6 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { folderLabel } from "./folder-label"
 import { savedSearchesQuery, type SavedSearch } from "./queries"

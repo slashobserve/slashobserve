@@ -6,8 +6,11 @@ import {
   isRetryable,
   maxRetryDelayMs,
   NetworkError,
+  problemText,
   resendOnceOffline,
+  sentence,
   toApiError,
+  unreachableText,
   unwrap,
 } from "./errors"
 
@@ -267,5 +270,72 @@ describe("resendOnceOffline", () => {
       .mockRejectedValue(new Error("refused"))
     await expect(resendOnceOffline("k1", refused)).rejects.toThrow("refused")
     expect(refused).toHaveBeenCalledOnce()
+  })
+})
+
+describe("sentence", () => {
+  it("capitalizes and ends with a period", () => {
+    expect(sentence("prompt is too long")).toBe("Prompt is too long.")
+  })
+
+  it("keeps existing terminal punctuation", () => {
+    expect(sentence("Nope!")).toBe("Nope!")
+    expect(sentence("really?")).toBe("Really?")
+  })
+
+  it("trims trailing whitespace and returns empty text unchanged", () => {
+    expect(sentence("done  \n")).toBe("Done.")
+    expect(sentence("  ")).toBe("")
+  })
+})
+
+describe("problemText", () => {
+  const texts = {
+    codes: {
+      taken: "That name is taken.",
+      changed: (error: ApiError) => `${error.message} Reload it.`,
+    },
+    notFound: "This thing no longer exists.",
+    fallback: "The thing could not be saved.",
+  }
+
+  it("reads a code from the table before the status", () => {
+    expect(problemText(new ApiError(404, "taken", "x"), texts)).toBe(
+      "That name is taken."
+    )
+    expect(
+      problemText(new ApiError(409, "changed", "It changed."), texts)
+    ).toBe("It changed. Reload it.")
+  })
+
+  it("names a missing thing on a 404 without a listed code", () => {
+    expect(problemText(new ApiError(404, "not_found", "x"), texts)).toBe(
+      "This thing no longer exists."
+    )
+  })
+
+  it("falls back to the server's sentence, then to the fallback", () => {
+    expect(problemText(new ApiError(422, "bad", "name is bad"), texts)).toBe(
+      "Name is bad."
+    )
+    expect(problemText(new ApiError(500, "internal", " "), texts)).toBe(
+      "The thing could not be saved."
+    )
+    expect(problemText(new Error("boom"), texts)).toBe(
+      "The thing could not be saved."
+    )
+    expect(problemText(null)).toBe("Something went wrong. Try again.")
+  })
+
+  it("says the server is unreachable on a network failure", () => {
+    expect(problemText(new NetworkError("Failed to fetch"), texts)).toBe(
+      unreachableText
+    )
+  })
+
+  it("does not read inherited keys as codes", () => {
+    expect(problemText(new ApiError(400, "toString", "bad input"))).toBe(
+      "Bad input."
+    )
   })
 })

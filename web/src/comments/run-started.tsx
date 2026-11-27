@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router"
 
+import { sentence } from "@/api/errors"
 import { runLineText, runProgress, type Run } from "@/conversation/thread-state"
-import { sentence, useObserveRequest } from "@/observe/queries"
+import { useObserveRequest } from "@/observe/queries"
 import { StopRequestButton } from "@/observe/request-actions"
 
 import type { SentMessage } from "./thread-queries"

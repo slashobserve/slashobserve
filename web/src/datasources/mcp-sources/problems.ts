@@ -1,6 +1,5 @@
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import type { StatusTone } from "@/components/status-label"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { MCPSource, MCPTool } from "./queries"
 

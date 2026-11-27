@@ -1,6 +1,6 @@
+import { sentence } from "@/api/errors"
 import type { components } from "@/api/schema.gen"
 import type { StatusTone } from "@/components/status-label"
-import { sentence } from "@/observe/queries"
 
 export type HealthKind = components["schemas"]["HealthProblemKind"]
 export type HealthProblem = components["schemas"]["HealthProblem"]

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 import { LayoutDashboardIcon, NotebookTextIcon } from "lucide-react"
 
+import { loadProblemText } from "@/api/errors"
 import { useInputMode } from "@/ask/input-mode"
 import { LoadProblem } from "@/components/load-problem"
 import { Button } from "@/components/ui/button"
@@ -27,7 +28,6 @@ import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
 import { ExploreActions } from "@/saved-searches/explore-actions"
 import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
-import { loadProblemText } from "@/service-accounts/queries"
 import { exploreRange } from "@/lib/time"
 
 import { logsPanelFor } from "./add-panel"

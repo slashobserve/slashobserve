@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence } from "@/api/errors"
 import { ScrollPane } from "@/components/scroll-pane"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -11,7 +11,6 @@ import { useDocumentTitle } from "@/lib/document-title"
 import { cn } from "@/lib/utils"
 import { orderTurns, runningOwnTurnId } from "@/observe/conversation"
 import {
-  sentence,
   useAgentInfo,
   useObserveRequest,
   type ObserveRequest,

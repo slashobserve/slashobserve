@@ -3,6 +3,7 @@ import { useNavigate, useRouteContext } from "@tanstack/react-router"
 import { LoaderCircleIcon, LockIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { problemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -24,7 +25,7 @@ import {
 import { refreshSession } from "@/lib/auth"
 import { roleDescriptions, roleLabels, roles, type Role } from "@/lib/roles"
 
-import { setRoleProblemText, useSetRole, type User } from "./queries"
+import { setRoleProblems, useSetRole, type User } from "./queries"
 import { RoleSourceLine } from "./role-source-line"
 
 const roleItems = roles.map((role) => ({
@@ -115,7 +116,7 @@ export function PersonRole({ person }: { person: User }) {
           toast.success(`${person.name} is now ${roleLabels[role]}`)
         },
         onError: (error) => {
-          const text = setRoleProblemText(error)
+          const text = problemText(error, setRoleProblems)
           if (isMe) setProblem(text)
           else toast.error(text)
         },

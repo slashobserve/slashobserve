@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 
 import {
-  deleteAccountProblemText,
+  deleteAccountProblems,
   deleteAccountText,
   liveKeyCounts,
 } from "./delete-account"
@@ -32,10 +32,10 @@ describe("deleteAccountText", () => {
 describe("deleteAccountProblemText", () => {
   it("explains a file account and a missing one", () => {
     expect(
-      deleteAccountProblemText(new ApiError(409, "provisioned", "x"))
+      problemText(new ApiError(409, "provisioned", "x"), deleteAccountProblems)
     ).toMatch(/service-accounts file/)
-    expect(deleteAccountProblemText(new ApiError(404, "not_found", "x"))).toBe(
-      "This service account no longer exists."
-    )
+    expect(
+      problemText(new ApiError(404, "not_found", "x"), deleteAccountProblems)
+    ).toBe("This service account no longer exists.")
   })
 })

@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 
 import { dashboardKeys, folderKeys, observeKeys, threadKeys } from "@/api/keys"
-import { ApiError } from "@/api/errors"
+import { ApiError, problemText } from "@/api/errors"
 import type { Message, Thread } from "@/comments/thread-queries"
 import type { Finding } from "@/findings/queries"
 import { starterNote } from "@/dashboards/permissions"
@@ -11,7 +11,7 @@ import { renderWithProviders, testQueryClient } from "@/test/render"
 import {
   AnswerCard,
   evidenceChipText,
-  reviseFailureText,
+  reviseProblems,
   starterCardNote,
   threadLabel,
 } from "./answer-card"
@@ -225,8 +225,9 @@ describe("threadLabel", () => {
 describe("reviseFailureText", () => {
   it("names a starter dashboard when the server refuses the change as provisioned", () => {
     expect(
-      reviseFailureText(
-        new ApiError(409, "provisioned", "dashboard is provisioned")
+      problemText(
+        new ApiError(409, "provisioned", "dashboard is provisioned"),
+        reviseProblems
       )
     ).toBe(starterNote)
   })
@@ -238,7 +239,7 @@ describe("reviseFailureText", () => {
     ],
     [new Error(""), "The change could not be asked for. Try again."],
   ])("words any other refusal from its message", (error, text) => {
-    expect(reviseFailureText(error)).toBe(text)
+    expect(problemText(error, reviseProblems)).toBe(text)
   })
 })
 

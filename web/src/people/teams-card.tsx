@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon, PlusIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText, problemText } from "@/api/errors"
 import { LoadProblem } from "@/components/load-problem"
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -37,13 +38,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { usersQuery, type User } from "./queries"
 import {
   candidatesFor,
   teamNameProblem,
-  teamProblemText,
+  teamProblems,
   teamsQuery,
   useCreateTeam,
   useDeleteTeam,
@@ -85,7 +85,7 @@ function NewTeamButton() {
         toast.success(`Created team ${team.name}`)
         close()
       },
-      onError: (error) => setProblem(teamProblemText(error)),
+      onError: (error) => setProblem(problemText(error, teamProblems)),
     })
   }
 
@@ -168,7 +168,7 @@ function AddMember({ team, people }: { team: Team; people: readonly User[] }) {
       {
         onSuccess: () =>
           toast.success(`Added ${personLabel(person)} to ${team.name}`),
-        onError: (error) => toast.error(teamProblemText(error)),
+        onError: (error) => toast.error(problemText(error, teamProblems)),
       }
     )
   }
@@ -246,7 +246,7 @@ function Members({ team }: { team: Team }) {
                     toast.success(
                       `Removed ${personLabel(person)} from ${team.name}`
                     ),
-                  (error) => toast.error(teamProblemText(error))
+                  (error) => toast.error(problemText(error, teamProblems))
                 )
             }
           >
@@ -294,7 +294,7 @@ function DeleteTeamButton({ team }: { team: Team }) {
           {remove.isError ? (
             <Alert variant="destructive">
               <AlertDescription>
-                {teamProblemText(remove.error)}
+                {problemText(remove.error, teamProblems)}
               </AlertDescription>
             </Alert>
           ) : null}

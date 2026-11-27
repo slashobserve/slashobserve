@@ -5,11 +5,10 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, unwrap } from "@/api/errors"
+import { type ProblemTexts, unwrap } from "@/api/errors"
 import { userKeys } from "@/api/keys"
 import type { components } from "@/api/schema.gen"
 import type { Role } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 export type Invite = components["schemas"]["Invite"]
 
@@ -59,19 +58,15 @@ export function inviteEmailProblem(email: string): string | null {
   return null
 }
 
-export function inviteProblemText(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "already_member") {
-      return "Someone with this email has already signed in. Change their role in the People table instead."
-    }
-    if (error.code === "email_domain_not_allowed") {
-      return "People with this email cannot sign in. Add its domain to the allowed email domains in the sign-in settings first."
-    }
-    if (error.status === 404) {
-      return "This invite no longer exists. It was withdrawn, or the person has signed in."
-    }
-  }
-  return loadProblemText(error)
+export const inviteProblems: ProblemTexts = {
+  codes: {
+    already_member:
+      "Someone with this email has already signed in. Change their role in the People table instead.",
+    email_domain_not_allowed:
+      "People with this email cannot sign in. Add its domain to the allowed email domains in the sign-in settings first.",
+  },
+  notFound:
+    "This invite no longer exists. It was withdrawn, or the person has signed in.",
 }
 
 export function useSaveInvite() {

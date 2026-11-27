@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { CalendarIcon, ClockIcon, RefreshCwIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { dashboardKeys } from "@/api/keys"
 import { DateCalendar } from "@/components/date-calendar"
 import { Button } from "@/components/ui/button"
@@ -25,7 +26,6 @@ import {
   zonedTimeValue,
 } from "@/lib/time"
 import { preferredDisplayZone, usePreferences } from "@/lib/preferences"
-import { loadProblemText } from "@/service-accounts/queries"
 import type { Dashboard } from "@/spec"
 
 import { useAddVersion } from "./queries"

@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -15,7 +15,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useDisconnect } from "./queries"
 import {

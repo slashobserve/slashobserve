@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { useInputMode } from "@/ask/input-mode"
 import { LoadProblem } from "@/components/load-problem"
 import { useSourceMemory } from "@/datasources/datasource-memory"
@@ -24,7 +25,6 @@ import { OpenSavedSearch } from "@/saved-searches/open-saved-search"
 import { ExploreActions } from "@/saved-searches/explore-actions"
 import { useLeaveAskOnSavedOpen } from "@/saved-searches/saved-open"
 import { SaveSearchDialog } from "@/saved-searches/save-search-dialog"
-import { loadProblemText } from "@/service-accounts/queries"
 import { exploreRange } from "@/lib/time"
 
 import { QueryBar } from "./query-bar"

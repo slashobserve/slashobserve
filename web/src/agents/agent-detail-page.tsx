@@ -2,7 +2,7 @@ import { type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useRouteContext } from "@tanstack/react-router"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ModeSelect } from "@/connected-agents/mode-select"
 import type { AuthorMarkModel } from "@/lib/author"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import { findAgent, type AgentRef, type FoundAgent } from "./agent-ref"
 import { PresenceStatus, grantMark } from "./connected-table"
@@ -236,7 +235,7 @@ export function AgentDetailPage({ agentRef }: { agentRef: AgentRef | null }) {
       <div className={columnClass}>
         <LoadProblem
           title="Could not load this agent"
-          detail={sentence(query.error.message)}
+          detail={loadProblemText(query.error)}
           retrying={query.isFetching}
           onRetry={() => void query.refetch()}
         />

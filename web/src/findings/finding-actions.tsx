@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
+import { sentence } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   mayEditBesidesContent,
@@ -9,7 +10,6 @@ import {
 } from "@/dashboards/permissions"
 import { useOnDashboard } from "@/dashboards/use-on-dashboard"
 import { dashboardLink } from "@/lib/links"
-import { sentence } from "@/observe/queries"
 
 import { useMakeDashboard, usePinFinding, type Finding } from "./queries"
 

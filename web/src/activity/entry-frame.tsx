@@ -2,13 +2,13 @@ import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { Link } from "@tanstack/react-router"
 import { ArrowRightIcon } from "lucide-react"
 
+import { sentence } from "@/api/errors"
 import { AuthorMark } from "@/components/author-mark"
 import { StatusLabel } from "@/components/status-label"
 import { Button, buttonVariants } from "@/components/ui/button"
 import type { AuthorMarkModel } from "@/lib/author"
 import { lowerFirst } from "@/lib/text"
 import { cn } from "@/lib/utils"
-import { sentence } from "@/observe/queries"
 
 import { EntryTime } from "./entry-time"
 

@@ -11,7 +11,7 @@ import { useRouteContext } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { createStore, useStore } from "zustand"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, sentence } from "@/api/errors"
 import { observeKeys, threadKeys } from "@/api/keys"
 import {
   freshCursor,
@@ -54,7 +54,6 @@ import { cleanText } from "@/lib/user-text"
 import {
   agentInfoQuery,
   describeSubmitError,
-  sentence,
   useCreateObserveRequest,
   type ObserveRequest,
 } from "@/observe/queries"

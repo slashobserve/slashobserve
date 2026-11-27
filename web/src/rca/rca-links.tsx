@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 
-import { ApiError } from "@/api/errors"
+import { ApiError, loadProblemText } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { LoadProblem } from "@/components/load-problem"
 import { RelativeTime } from "@/components/relative-time"
@@ -33,7 +33,6 @@ import {
   type ExpiryChoice,
 } from "@/public/public-links"
 import { formatDateTime } from "@/lib/time"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   rcaLinksQuery,

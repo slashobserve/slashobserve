@@ -1,12 +1,12 @@
 import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 
+import { loadProblemText } from "@/api/errors"
 import { EmptyState } from "@/components/empty-state"
 import { LoadProblem } from "@/components/load-problem"
 import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { foldersQuery, type Folder } from "@/folders/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { auditFolderOf } from "./audit-folder"
 

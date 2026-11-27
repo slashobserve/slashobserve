@@ -54,6 +54,41 @@ export class NetworkError extends Error {
   }
 }
 
+export function sentence(text: string): string {
+  const trimmed = text.trimEnd()
+  if (trimmed === "") return ""
+  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`
+}
+
+export type ProblemTexts = {
+  codes?: Readonly<Record<string, string | ((error: ApiError) => string)>>
+  notFound?: string
+  fallback?: string
+}
+
+export function problemText(
+  error: unknown,
+  {
+    codes = {},
+    notFound,
+    fallback = "Something went wrong. Try again.",
+  }: ProblemTexts = {}
+): string {
+  if (error instanceof NetworkError) return unreachableText
+  if (!(error instanceof ApiError)) return fallback
+  const coded = Object.hasOwn(codes, error.code) ? codes[error.code] : undefined
+  if (coded !== undefined) {
+    return typeof coded === "string" ? coded : coded(error)
+  }
+  if (error.status === 404 && notFound !== undefined) return notFound
+  return sentence(error.message) || fallback
+}
+
+export function loadProblemText(error: unknown): string {
+  return problemText(error)
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }

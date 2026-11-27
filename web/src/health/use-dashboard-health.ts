@@ -2,8 +2,8 @@ import { useCallback, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { useAgentInfo } from "@/observe/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import {
   panelProblems,

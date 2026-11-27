@@ -2,6 +2,7 @@ import { useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -13,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import { useDeleteSavedSearch, type SavedSearch } from "./queries"
 

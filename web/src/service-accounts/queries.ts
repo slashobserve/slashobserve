@@ -5,11 +5,10 @@ import {
 } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { ApiError, NetworkError, unreachableText, unwrap } from "@/api/errors"
+import { ApiError, problemText, unwrap } from "@/api/errors"
 import { agentKeys, serviceAccountKeys } from "@/api/keys"
 import type { paths } from "@/api/schema.gen"
 import type { Role } from "@/lib/roles"
-import { sentence } from "@/observe/queries"
 
 import type { AccountChanges } from "./account-changes"
 
@@ -113,30 +112,22 @@ export function useRevokeKey(accountId: string) {
   })
 }
 
-export function loadProblemText(error: unknown): string {
-  if (error instanceof NetworkError) return unreachableText
-  if (error instanceof ApiError) return sentence(error.message)
-  return "Something went wrong. Try again."
-}
-
-export function problemText(
+export function accountProblemText(
   error: unknown,
   subject: { accountName?: string; what: "account" | "key" | "revoke" }
 ): string {
-  if (error instanceof NetworkError) return unreachableText
   if (error instanceof ApiError) {
     if (error.status === 409 && error.code === "conflict") {
       return `A service account named ${subject.accountName} already exists.`
     }
-    if (error.status === 404) {
-      return subject.what === "revoke"
-        ? "This key no longer exists."
-        : "This service account no longer exists."
-    }
     if (error.status === 403) {
       return "Your account cannot manage service accounts."
     }
-    return sentence(error.message)
   }
-  return "Something went wrong. Try again."
+  return problemText(error, {
+    notFound:
+      subject.what === "revoke"
+        ? "This key no longer exists."
+        : "This service account no longer exists.",
+  })
 }

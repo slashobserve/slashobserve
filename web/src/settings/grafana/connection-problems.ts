@@ -1,5 +1,4 @@
-import { ApiError } from "@/api/errors"
-import { loadProblemText } from "@/service-accounts/queries"
+import { ApiError, loadProblemText } from "@/api/errors"
 
 export type ConnectionInput = { name: string; url: string; token: string }
 export type ConnectionProblems = Partial<Record<keyof ConnectionInput, string>>

@@ -39,7 +39,7 @@ import {
   keyNameError,
 } from "./key-status"
 import {
-  problemText,
+  accountProblemText,
   serviceAccountsQuery,
   useCreateKey,
   useCreateServiceAccount,
@@ -167,7 +167,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
       } catch (error) {
         dispatch({
           type: "failed",
-          problem: problemText(error, {
+          problem: accountProblemText(error, {
             accountName: newAccountName,
             what: "account",
           }),
@@ -183,7 +183,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
       } catch (error) {
         dispatch({
           type: "failed",
-          problem: problemText(error, { what: "account" }),
+          problem: accountProblemText(error, { what: "account" }),
         })
         return
       }
@@ -201,7 +201,7 @@ export function CreateKeyPanel({ onClose, nameInput, copyButton }: Props) {
         onError: (error) =>
           dispatch({
             type: "failed",
-            problem: problemText(error, { what: "key" }),
+            problem: accountProblemText(error, { what: "key" }),
           }),
       }
     )

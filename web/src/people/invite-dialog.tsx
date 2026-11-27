@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from "react"
 import { LoaderCircleIcon, UserPlusIcon } from "lucide-react"
 
+import { problemText } from "@/api/errors"
 import { CopyButton } from "@/components/copy-button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -18,7 +19,7 @@ import { roleLabels, type Role } from "@/lib/roles"
 
 import {
   inviteEmailProblem,
-  inviteProblemText,
+  inviteProblems,
   useSaveInvite,
   type Invite,
 } from "./invites"
@@ -82,7 +83,7 @@ export function InviteButton() {
       { email, role },
       {
         onSuccess: (invite) => setSaved(invite),
-        onError: (error) => setProblem(inviteProblemText(error)),
+        onError: (error) => setProblem(problemText(error, inviteProblems)),
       }
     )
   }

@@ -4,6 +4,7 @@ import { useRouteContext } from "@tanstack/react-router"
 import { CopyIcon, EllipsisIcon } from "lucide-react"
 import { toast } from "sonner"
 
+import { loadProblemText } from "@/api/errors"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,7 +21,6 @@ import { NewFolderDialog } from "@/folders/new-folder-dialog"
 import { moveChoices, moveLabel } from "@/folders/move-targets"
 import { foldersQuery } from "@/folders/queries"
 import { roleAtLeast } from "@/lib/roles"
-import { loadProblemText } from "@/service-accounts/queries"
 
 import type { DashboardSummary } from "./dashboard-columns"
 import { DeleteDashboardDialog } from "./delete-dashboard-dialog"

@@ -2,7 +2,7 @@ import { useEffect, useId, useState, type RefObject } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/api/client"
-import { unwrap } from "@/api/errors"
+import { unwrap, loadProblemText } from "@/api/errors"
 import { exploreKeys } from "@/api/keys"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { asDashboardSpec, latestDashboardQuery } from "@/dashboards/queries"
-import { loadProblemText } from "@/service-accounts/queries"
 import { SidePanel } from "@/shell/side-panel"
 import { allPanels, isDataPanel, panelTitle, type DataPanel } from "@/spec"
 
