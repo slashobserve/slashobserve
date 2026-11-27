@@ -184,7 +184,7 @@ var namedUnits = []struct {
 
 func namedUnit(f Fact) string {
 	found := ""
-	for _, text := range []string{f.Of, f.Query} {
+	for _, text := range []string{f.Of, f.Query, f.Asked} {
 		for _, n := range namedUnits {
 			if !n.match.MatchString(text) {
 				continue

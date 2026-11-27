@@ -30,7 +30,7 @@ const measured = `{"stat":"max","from":"2026-11-20T09:00:00Z","to":"2026-11-20T1
 
 func TestAReadShowsItsFactIDsAndTheSessionKeepsThemAcrossAStore(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
-	answer := s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	answer := s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 	if !strings.Contains(string(answer.Content), `"value":0.5234123,"at":"2026-11-20T10:05:00Z","facts":{"value":"f1"}`) {
 		t.Fatalf("the result lacks its fact id: %s", answer.Content)
 	}
@@ -46,7 +46,7 @@ func TestAReadShowsItsFactIDsAndTheSessionKeepsThemAcrossAStore(t *testing.T) {
 		t.Errorf("stored fact = %+v, %t", f, ok)
 	}
 
-	again := s.readAnswer("measure_window", `{"datasource":"prom","stat":"max","step":"30s"}`, measured, &Turn{ID: "t2", Calls: 1})
+	again := s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max","step":"30s"}`, measured, &Turn{ID: "t2", Calls: 1})
 	if !strings.Contains(string(again.Content), `"facts":{"value":"f1"}`) {
 		t.Errorf("the same value read again got another id: %s", again.Content)
 	}
@@ -68,7 +68,7 @@ func sendBackMessage(t *testing.T, a admitted) string {
 
 func TestACleanCitationIsAdmittedWithTheLedgerForTheSave(t *testing.T) {
 	s := groundingScript(t, grounding.Enforce)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 
 	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:ms}}."}`, &Turn{ID: "t2", Calls: 1})
 	if got.answer != nil || got.grounding.unverified != nil {
@@ -81,7 +81,7 @@ func TestACleanCitationIsAdmittedWithTheLedgerForTheSave(t *testing.T) {
 
 func TestAnUnknownFactIsSentBackOnceAndTheSecondSaveStillSaves(t *testing.T) {
 	s := groundingScript(t, grounding.Enforce)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 	const save = `{"markdown":"Checkout p99 peaked at {{f12}}."}`
 
 	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t2", Calls: 1}))
@@ -106,9 +106,9 @@ func TestAnUnknownFactIsSentBackOnceAndTheSecondSaveStillSaves(t *testing.T) {
 
 func TestTwoAnswersForOneQuantityAreSentBack(t *testing.T) {
 	s := groundingScript(t, grounding.Enforce)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max","step":"30s"}`, measured, &Turn{ID: "t1", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max","step":"30s"}`, measured, &Turn{ID: "t1", Calls: 1})
 	finer := strings.Replace(strings.Replace(measured, "0.5234123", "0.61", 1), "[2h:30s]", "[2h:15s]", 1)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max","step":"15s"}`, finer, &Turn{ID: "t2", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max","step":"15s"}`, finer, &Turn{ID: "t2", Calls: 1})
 	const save = `{"markdown":"Checkout p99 peaked at {{f1:ms}}.","answers":[{"quantity":"peak p99","fact":"f1"},{"quantity":"peak p99","fact":"f2"}]}`
 
 	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t3", Calls: 1}))
@@ -125,7 +125,7 @@ const slowPath = `{"from":"2026-11-20T09:00:00Z","to":"2026-11-20T11:00:00Z","th
 
 func TestATypedFigureNoReadGaveIsSentBackWithTheFactItRounds(t *testing.T) {
 	s := groundingScript(t, grounding.Enforce)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 	save := `{"markdown":"Checkout p99 peaked at 0.5 s, and 2,950 orders failed over the last 6 hours on HTTP 503."}`
 
 	message := sendBackMessage(t, s.admitSave(save, &Turn{ID: "t2", Calls: 1}))
@@ -163,7 +163,7 @@ func TestACutTraceIDIsSentBackWithTheWholeID(t *testing.T) {
 
 func TestReportRecordsABrokenCitationWithoutSendingItBack(t *testing.T) {
 	s := groundingScript(t, grounding.Report)
-	s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
+	s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1})
 	got := s.admitSave(`{"markdown":"Checkout p99 peaked at {{f1:1}}."}`, &Turn{ID: "t2", Calls: 1})
 	if got.answer != nil || len(got.grounding.unverified) != 1 || got.grounding.unverified[0].Text != "{{f1:1}}" {
 		t.Errorf("report = %+v, %+v", got.answer, got.grounding.unverified)
@@ -188,7 +188,7 @@ func TestASampledLogFacetCountIsCitedAsALowerBound(t *testing.T) {
 
 func TestWithGroundingOffAReadIsReturnedAsTheToolGaveIt(t *testing.T) {
 	s := groundingScript(t, grounding.Off)
-	if answer := s.readAnswer("measure_window", `{"datasource":"prom","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1}); string(answer.Content) != measured {
+	if answer := s.readAnswer("measure_window", `{"datasource":"prom","query":"max(request_duration_seconds)","stat":"max"}`, measured, &Turn{ID: "t1", Calls: 1}); string(answer.Content) != measured {
 		t.Errorf("content = %s, want it unchanged", answer.Content)
 	}
 }
