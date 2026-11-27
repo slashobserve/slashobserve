@@ -39,6 +39,9 @@ import {
 } from "./invites"
 import { RoleSelect } from "./role-select"
 
+export const memberInviteText =
+  "Signed in already; this invite will not apply. Withdraw it."
+
 function inviteId(invite: Invite): string {
   return invite.id
 }
@@ -154,7 +157,14 @@ const inviteColumns: DataGridColumn<Invite>[] = [
     minWidth: 200,
     autoHeight: true,
     cell: (invite) => (
-      <span className="py-2 font-medium wrap-anywhere">{invite.email}</span>
+      <span className="flex flex-col gap-0.5 py-2">
+        <span className="font-medium wrap-anywhere">{invite.email}</span>
+        {invite.member ? (
+          <span className="text-xs whitespace-normal text-muted-foreground">
+            {memberInviteText}
+          </span>
+        ) : null}
+      </span>
     ),
   },
   {

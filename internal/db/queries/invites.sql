@@ -8,10 +8,12 @@ ON CONFLICT ((lower(email))) DO UPDATE SET role = EXCLUDED.role, updated_at = no
 RETURNING id, email, role, created_by_name, created_at, updated_at, (xmax = 0)::boolean AS inserted;
 
 -- name: ListInvites :many
-SELECT id, email, role, created_by_name, created_at, updated_at FROM user_invites
+SELECT i.id, i.email, i.role, i.created_by_name, i.created_at, i.updated_at,
+  EXISTS (SELECT 1 FROM users u WHERE lower(u.email) = lower(i.email))::boolean AS member
+FROM user_invites i
 WHERE sqlc.narg('cursor_created_at')::timestamptz IS NULL
-  OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
-ORDER BY created_at DESC, id DESC
+  OR (i.created_at, i.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+ORDER BY i.created_at DESC, i.id DESC
 LIMIT @row_limit;
 
 -- name: DeleteInvite :one

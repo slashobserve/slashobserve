@@ -42,6 +42,8 @@ The API answers 409 `already_member`; change that person's role in the table ins
 Only a first sign-in uses an invite.
 Someone who signed in before keeps their role, even if the identity provider later gives them the invited email.
 An invite left unused, such as one used by an unverified sign-in, stays pending until you withdraw it.
+When someone with the invited email has signed in already, for example a person whose email changed to it, **Pending invites** says "Signed in already; this invite will not apply. Withdraw it." on that row, and `GET /api/v1/invites` marks it `member: true`.
+Change that person's role on the People page instead.
 
 ## Deactivate a person
 

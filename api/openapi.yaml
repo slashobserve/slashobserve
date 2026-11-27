@@ -518,7 +518,7 @@ components:
     Invite:
       type: object
       additionalProperties: false
-      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url]
+      required: [id, email, role, invited_by, created_at, updated_at, sign_in_url, member]
       properties:
         id:
           type: string
@@ -539,6 +539,12 @@ components:
         sign_in_url:
           type: string
           description: The address to share with the person; signing in there with the invited email uses the invite.
+        member:
+          type: boolean
+          description: >-
+            True when someone with this email, ignoring case, has signed in already, for example a person whose email changed to it after the invite was sent.
+            The invite is never applied to a person who has signed in before, so it will not apply; withdraw it.
+            Always false on the invite `POST /invites` returns.
     InviteList:
       type: object
       additionalProperties: false

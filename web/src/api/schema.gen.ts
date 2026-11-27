@@ -4582,6 +4582,8 @@ export interface components {
             updated_at: string;
             /** @description The address to share with the person; signing in there with the invited email uses the invite. */
             sign_in_url: string;
+            /** @description True when someone with this email, ignoring case, has signed in already, for example a person whose email changed to it after the invite was sent. The invite is never applied to a person who has signed in before, so it will not apply; withdraw it. Always false on the invite `POST /invites` returns. */
+            member: boolean;
         };
         InviteList: {
             invites: components["schemas"]["Invite"][];
