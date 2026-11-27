@@ -190,7 +190,7 @@ func (r *Record) sawName(component string) bool {
 		return true
 	}
 	byTokens := len([]rune(whole)) >= minNameRunes
-	for _, name := range slices.Concat(r.Discovered, r.Names) {
+	for _, name := range slices.Concat(r.Discovered, r.Names, r.Sourced) {
 		seen := tokensOf(name)
 		if strings.Join(seen, "") == whole || byTokens && containsRun(seen, want) {
 			return true

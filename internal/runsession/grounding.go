@@ -7,7 +7,10 @@ import (
 	"github.com/slashobserve/slashobserve/internal/findings"
 )
 
-const toolSaveFinding = "save_finding"
+const (
+	toolSaveFinding = "save_finding"
+	toolCallMCPTool = "call_mcp_tool"
+)
 
 func groundsFindings(c guard.Call, res tools.Result) bool {
 	return guard.ReadsData(c.Name) || res.Discovered != nil
@@ -38,6 +41,10 @@ func (s *State) checkGrounding(c *guard.Call, question string) groundingCheck {
 
 func (s *State) noteGrounding(c guard.Call, d dispatched) {
 	if s.Grounding == nil || d.res.IsError || !groundsFindings(c, d.res) {
+		return
+	}
+	if c.Name == toolCallMCPTool {
+		s.Grounding.AddSourced(d.content)
 		return
 	}
 	var names []string

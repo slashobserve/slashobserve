@@ -39,6 +39,7 @@ type Record struct {
 	Reads      [][]float64 `json:"reads,omitempty"`
 	Names      []string    `json:"names,omitempty"`
 	Discovered []string    `json:"discovered,omitempty"`
+	Sourced    []string    `json:"sourced,omitempty"`
 	Ranges     []Range     `json:"ranges,omitempty"`
 	Instants   []time.Time `json:"instants,omitempty"`
 	IDs        []string    `json:"ids,omitempty"`

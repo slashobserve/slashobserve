@@ -146,8 +146,22 @@ It looks at the cited facts and `answers` (see [Facts](#facts)), the figures and
 - Times, dates, whole numbers of 10 or less with no unit, code spans and links are never checked; a small number with a unit, such as `3 s` or `5%`, is checked.
 - Nor are figures that are not measurements: a number that appears in the question; a version after `version`, `release` or `v`; a port after `port` or a host and colon; an HTTP status from 100 to 599 after `HTTP`, `status`, `code` or `returned`, or in a list after one, such as `503s`; a duration in seconds after `last`, `past`, `every`, `each`, `within`, `step` or `interval`, or before `step`, `window`, `interval` or `resolution`; a quantile after or before `quantile` or `percentile`; a whole number after `top`, `first` or `bottom`; a year from 1990 to 2100 after `in`, `since`, `during` or `of`; list numbers; and percentile names such as `p99`.
 - A run of 8 to 32 hexadecimal characters with a letter and a digit is a trace or span id, never a figure: it passes when it is a whole id a result of the run showed, it does not pass when it is the start of such an id cut short, and a 16 or 32 character id the run never read does not pass; link targets and fenced code are not checked.
-- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
+- The root cause component passes when it is a name the run discovered or saw as a label value or a trace's service, or a name in the text of a `call_mcp_tool` result (see [Names from MCP sources](#names-from-mcp-sources)), as a whole or as whole words of it, so `checkout service` passes on `checkout` and `payment-error-handler` does not.
 - The onset passes when it falls inside a time range the run queried, or next to a time a result showed, such as a log line's, give or take a minute.
+
+### Names from MCP sources
+
+An approved MCP source tool's result, read through `call_mcp_tool`, gives the check names only, such as a Service, a NetworkPolicy or a feature flag key that a cluster or a code server returned.
+Its numbers never pass a figure, its times never pass an onset, its trace ids never pass a trace id, and it never gives a fact, because the server cannot vouch for what an outside tool computed.
+Recording a name is all the server does with the text: it stays outside text that the run treats as data, never as instructions.
+A failed call gives nothing, and the answers of `list_mcp_sources` and `find_mcp_tools` describe tools, so they give nothing either.
+
+The server takes a name from the result's text, read as plain text even when it holds JSON, by these rules:
+
+- A name is a run of ASCII letters, digits, `_`, `.` and `-` that starts with a letter after the start of the text or a character other than a letter or digit, and ends with a letter or digit, so `4bf92f35` and `T10` inside a timestamp are not names.
+- It is from 3 to 64 bytes long; a longer one is left out whole, never cut.
+- Each result gives at most its first 500 distinct names.
+- The run keeps the 2000 names it saw most recently, the oldest dropped first, and a name seen again counts as new; these are kept apart from the names of datasource reads and of discovery, which they never push out.
 
 ### Facts
 
@@ -211,10 +225,10 @@ The agent may give its own `estimate`, but the stored `confidence` is the server
 | --- | --- |
 | A cited fact of the cause's evidence the run holds, or a trace id it read, on one of metrics, logs and traces | 0.25 |
 | Each further one of those three signals with such evidence | 0.15 |
-| The component is a name the run saw | 0.1 |
+| The component is a name the run saw, in a datasource read, in discovery or in an MCP source's result | 0.1 |
 | The onset agrees with a cited fact's time, within 5 minutes of it or inside its window | 0.15 |
 | Otherwise, the onset falls inside a time range the run read | 0.05 |
-| The trigger's key is a name the run saw | 0.2 |
+| The trigger's key is a name the run saw, the same way | 0.2 |
 | A `ruled_out` line cites a fact the run holds | 0.05 |
 
 The sum is capped at 1, and a cause with no cited fact the run holds and no trace id it read scores at most 0.3, so it is always low.
