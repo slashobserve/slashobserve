@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/clickhouse"
@@ -60,6 +61,36 @@ GRANT SELECT ON ` + analyticsDB + `.* TO ` + roUser
 	}
 	t.Cleanup(func() { _ = ds.Close() })
 	return ds
+}
+
+func TestListTracesFindsFailingTracesWithTheirRoute(t *testing.T) {
+	ctx := context.Background()
+	ds := provisionAnalytics(ctx, t,
+		`(Timestamp, TraceId, SpanId, ParentSpanId, SpanName, ServiceName, Duration, StatusCode, StatusMessage) VALUES
+		 (now64(9) - toIntervalSecond(30), 'aaaa', 'a1', '', 'GET /checkout', 'frontend', 90000000, 'STATUS_CODE_ERROR', ''),
+		 (now64(9) - toIntervalSecond(30), 'aaaa', 'a2', 'a1', 'Charge', 'payment', 40000000, 'STATUS_CODE_ERROR', 'card declined'),
+		 (now64(9) - toIntervalSecond(20), 'bbbb', 'b1', '', 'GET /cart', 'frontend', 5000000, 'STATUS_CODE_OK', ''),
+		 (now64(9) - toIntervalSecond(10), 'cccc', 'c1', '', 'GET /cart', 'frontend', 7000000, 'STATUS_CODE_UNSET', ''),
+		 (now64(9) - toIntervalSecond(10), 'cccc', 'c2', 'c1', 'GetCart', 'cart', 6000000, 'STATUS_CODE_ERROR', 'redis down')`)
+	got, err := ds.ListTraces(ctx, datasource.TraceListRequest{Range: lastHour(), Errors: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Complete || len(got.Traces) != 2 || got.Traces[0].ID != "cccc" || got.Traces[0].Route != "GET /cart" || got.Traces[1].Route != "GET /checkout" || got.Traces[1].Duration != 90*time.Millisecond {
+		t.Fatalf("failing traces = %+v", got)
+	}
+	got, err = ds.ListTraces(ctx, datasource.TraceListRequest{Range: lastHour(), Filter: datasource.TraceFilter{Service: "payment"}, Errors: true})
+	if err != nil || len(got.Traces) != 1 || got.Traces[0].ID != "aaaa" {
+		t.Fatalf("payment traces = %+v, %v", got, err)
+	}
+	got, err = ds.ListTraces(ctx, datasource.TraceListRequest{Range: lastHour(), Filter: datasource.TraceFilter{Route: "GET /cart"}, MinDuration: 6 * time.Millisecond, Limit: 1})
+	if err != nil || len(got.Traces) != 1 || got.Traces[0].ID != "cccc" || got.Complete {
+		t.Fatalf("slow cart traces = %+v, %v", got, err)
+	}
+	f, err := ds.Trace(ctx, "aaaa", lastHour(), datasource.TraceSpanBudget)
+	if err != nil || f.Rows() != 2 {
+		t.Fatalf("trace = %d rows, %v", f.Rows(), err)
+	}
 }
 
 func TestTraceDurationsMatchTheExactQuantileOfEverySpan(t *testing.T) {

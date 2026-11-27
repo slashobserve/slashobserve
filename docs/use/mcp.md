@@ -312,7 +312,7 @@ An MCP client investigates with its own model, using the discovery and query too
 
 ## Search logs and traces
 
-Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats` and `compare_traces` read traces.
+Over MCP, `log_context`, `log_patterns`, `log_facets` and `logs_for_trace` read logs, and `get_trace`, `trace_stats`, `trace_error_origins` and `compare_traces` read traces.
 `query_instant` runs your own query, including SQL over `otel_traces` on ClickHouse.
 `save_search` saves a search so people can open it from the logs, traces or metrics page.
 [Logs and traces](logs-and-traces.md) describes the same features in the web app.
@@ -624,6 +624,7 @@ The server uses the role of the key's service account, or of the person for an O
 | `share_answer` | Viewer |
 | `show_panel` | Viewer |
 | `start_run` | Viewer |
+| `trace_error_origins` | Viewer |
 | `trace_stats` | Viewer |
 | `unpin_dashboard` | Viewer |
 | `unpin_run` | Viewer |
@@ -1260,6 +1261,19 @@ The window and group quantiles are exact: each is the duration at position q tim
 On Tempo the server reads those durations from a trace search of at most 20,000 spans; when the search returns fewer spans than match, `quantiles` says `sample` and `quantile_spans` says how many spans the figures rest on.
 Tempo's per-bucket quantiles are interpolated from its log-scale duration buckets, so they are approximate, and the response says so in `note`.
 The `query` is a TraceQL filter on Tempo or a SQL condition over `otel_traces` on ClickHouse.
+The built-in agent has the same tool.
+
+#### `trace_error_origins`
+
+Finds where failing requests start over a window.
+It counts each failing trace once, at its deepest erroring span with no error below it, and groups the traces by that span's service, operation and status message.
+Each group has its trace count, its share of the examined traces, one full example trace id and `relayed_by`, the services above the origin whose spans also failed and only passed the error on.
+
+- It takes `datasource` (Tempo, Jaeger or ClickHouse), `service`, `route` (the root span name), `operation`, `by_route`, `from` and `to`; Jaeger needs `service`.
+- `by_route` splits the groups by route, so each share is of that route's examined traces, and `routes` lists each route's failing and examined traces.
+- The server lists up to 2,000 failing traces, the newest first, and reads up to 200 of them, spread over the window and taken from every route in turn.
+  `failing_traces` is how many it listed, `complete` whether that is every failing trace in the window, `examined` how many it read and `sample` whether the figures rest on fewer than all of them.
+
 The built-in agent has the same tool.
 
 #### `compare_traces`

@@ -234,8 +234,8 @@ func relayRefs(spans []traceSpan, aboveFailure map[string]bool) []relayOut {
 }
 
 func errorRefs(failed []*traceSpan, byID map[string]*traceSpan, complete bool) []spanRefOut {
-	hasErrorBelow := ancestorsOf(failed, byID)
-	origin := func(s *traceSpan) bool { return complete && !hasErrorBelow[s.id] }
+	origins := errorOriginIDs(failed, byID)
+	origin := func(s *traceSpan) bool { return complete && origins[s.id] }
 	listed := make([]*traceSpan, 0, min(len(failed), traceListLimit))
 	for _, wantOrigin := range []bool{true, false} {
 		for _, s := range failed {
@@ -584,66 +584,4 @@ func formatP95(p *float64) string {
 		return "n/a"
 	}
 	return strconv.FormatFloat(*p, 'f', 1, 64) + " ms"
-}
-
-func ancestorsOf(failed []*traceSpan, byID map[string]*traceSpan) map[string]bool {
-	hasErrorBelow := map[string]bool{}
-	for _, s := range failed {
-		seen := map[string]bool{s.id: true}
-		for parent := s.parent; parent != "" && !seen[parent]; {
-			seen[parent] = true
-			p, ok := byID[parent]
-			if !ok {
-				break
-			}
-			hasErrorBelow[p.id] = true
-			parent = p.parent
-		}
-	}
-	return hasErrorBelow
-}
-
-func childrenOf(spans []traceSpan) map[string][]traceSpan {
-	children := map[string][]traceSpan{}
-	for _, s := range spans {
-		if s.parent != "" && s.parent != s.id {
-			children[s.parent] = append(children[s.parent], s)
-		}
-	}
-	return children
-}
-
-func selfTime(s traceSpan, children []traceSpan) float64 {
-	end := s.start.Add(time.Duration(s.duration))
-	covered := time.Duration(0)
-	var cursor time.Time
-	for _, c := range sortedByStart(children) {
-		from, to := maxTime(c.start, s.start), minTime(c.start.Add(time.Duration(c.duration)), end)
-		from = maxTime(from, cursor)
-		if to.After(from) {
-			covered += to.Sub(from)
-			cursor = to
-		}
-	}
-	return max(s.duration-float64(covered), 0)
-}
-
-func sortedByStart(spans []traceSpan) []traceSpan {
-	sorted := slices.Clone(spans)
-	slices.SortStableFunc(sorted, func(a, b traceSpan) int { return a.start.Compare(b.start) })
-	return sorted
-}
-
-func depthOf(s traceSpan, byID map[string]*traceSpan) int {
-	depth := 0
-	seen := map[string]bool{s.id: true}
-	for parent := s.parent; parent != "" && !seen[parent]; depth++ {
-		seen[parent] = true
-		p, ok := byID[parent]
-		if !ok {
-			return depth + 1
-		}
-		parent = p.parent
-	}
-	return depth
 }

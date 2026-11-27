@@ -185,3 +185,4 @@ The query editor's lint checks these:
 - TraceQL, span metrics and any write to Jaeger are not available on a Jaeger datasource.
 - A datasource variable of type `datasource` cannot offer Jaeger datasources yet, so a panel names its Jaeger datasource by uid.
 - `trace_stats` and `compare_traces` read Tempo or ClickHouse only.
+- `trace_error_origins` reads Jaeger one service at a time, so it needs `service`.

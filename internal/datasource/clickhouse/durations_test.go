@@ -1,10 +1,35 @@
 package clickhouse
 
 import (
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
 )
+
+func TestListQueryBindsEveryFilterValue(t *testing.T) {
+	text, params := ListQuery(datasource.TraceListRequest{
+		Filter: datasource.TraceFilter{Service: "pay'ment", Route: "GET /checkout", Operation: "Charge"},
+		Errors: true, MinDuration: 2 * time.Millisecond, Limit: 7,
+		Range: datasource.TimeRange{From: time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC), To: time.Date(2026, 11, 6, 11, 0, 0, 0, time.UTC)},
+	})
+	for _, want := range []string{
+		"HAVING countIf(lower(StatusCode) IN ('error','status_code_error')) > 0 AND countIf(ServiceName = {service:String}) > 0 AND countIf(SpanName = {operation:String}) > 0 AND Route = {route:String} AND TraceDuration >= {min:UInt64}",
+		"ORDER BY Start DESC, TraceId LIMIT {n:UInt64}",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("query lacks %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "pay'ment") || params["service"] != "pay'ment" || params["min"] != "2000000" || params["n"] != "7" || params["from"] != "2026-11-06 10:00:00.000000000" {
+		t.Errorf("params = %v", params)
+	}
+	if text, _ := ListQuery(datasource.TraceListRequest{}); strings.Contains(text, "HAVING") {
+		t.Errorf("an empty filter has a HAVING clause:\n%s", text)
+	}
+}
 
 func TestGroupColumnMapsAttributesToColumns(t *testing.T) {
 	for attribute, want := range map[string]string{

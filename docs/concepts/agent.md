@@ -112,7 +112,7 @@ These tools work across datasources:
 - `list_services` lists the services a log, trace or Prometheus datasource has seen in a recent window, one hour by default and at most six hours, or finds which datasources hold one, and names the field a query filters on, which on a metric store is a label.
 - On logs, `log_facets` counts the top values of each field a query matches, `log_patterns` groups the matching lines into patterns and `log_context` reads the lines around one.
   `logs_for_trace` reads the lines that carry a trace id.
-- On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter and `compare_traces` ranks what differs between two sets of traces.
+- On traces, `get_trace` reads one trace, `trace_stats` counts spans, errors and durations over a filter, `trace_error_origins` counts failing requests at the span where each failure starts and `compare_traces` ranks what differs between two sets of traces.
 - `list_annotations` shows deploy markers beside a spike, `list_folders` names the folders a request may place a dashboard in, and `list_datasources` says whether each source is healthy.
 
 For a new dashboard, the model first calls `list_metrics` with a `scope` that covers the request, such as `{job="checkout"}` or a ClickHouse table.
@@ -515,16 +515,16 @@ When they can still comment on the dashboard but can no longer edit it, or the r
 
 ### Tools in a run
 
-The server has 116 tools: MCP clients get 115, every one except `save_finding`, which only a run offers.
-A run offers 91 of them in a new-dashboard or revision request, 90 in an investigation and 60 in a suggestion.
-With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 117 tools, MCP clients outside a run still get 115 and an investigation offers 91.
+The server has 117 tools: MCP clients get 116, every one except `save_finding`, which only a run offers.
+A run offers 92 of them in a new-dashboard or revision request, 91 in an investigation and 61 in a suggestion.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, `note_hypotheses` is a second tool that only a run offers, in an investigation only: the server has 118 tools, MCP clients outside a run still get 116 and an investigation offers 92.
 Those are an Admin's counts: inside a run each tool needs the same role as over MCP, except `save_finding`, and a run session does not list a tool above the requester's role.
 
 - Reads are offered in every run.
 - Writes are offered in every run except a suggestion, whose only result is one proposed panel in the editor.
 - An investigation never gets the Spec writers `create_dashboard`, `update_dashboard`, `update_panels` and `import_grafana_dashboard`.
 - `list_mcp_sources`, `find_mcp_tools` and `call_mcp_tool` are offered in an investigation and in a question asked in a chat, never when a dashboard is built or revised or a panel is suggested.
-  A question asked from the home page starts as a new-dashboard run, so it offers 94 tools: the 91 and these three.
+  A question asked from the home page starts as a new-dashboard run, so it offers 95 tools: the 92 and these three.
 
 The tools fall in five groups:
 
