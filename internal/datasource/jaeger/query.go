@@ -12,6 +12,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const (
@@ -23,26 +24,15 @@ const (
 	searchDepthParam = "query.searchDepth"
 )
 
-type unixNanos int64
-
-func (n *unixNanos) UnmarshalJSON(b []byte) error {
-	v, err := strconv.ParseInt(strings.Trim(string(b), `"`), 10, 64)
-	if err != nil {
-		return err
-	}
-	*n = unixNanos(v)
-	return nil
-}
-
 type summaryResponse struct {
 	Summaries []struct {
-		TraceID    string    `json:"traceId"`
-		RootSvc    string    `json:"rootServiceName"`
-		RootOp     string    `json:"rootOperationName"`
-		Start      unixNanos `json:"minStartTimeUnixNano"`
-		End        unixNanos `json:"maxEndTimeUnixNano"`
-		SpanCount  int64     `json:"spanCount"`
-		ErrorCount int64     `json:"errorSpanCount"`
+		TraceID    string             `json:"traceId"`
+		RootSvc    string             `json:"rootServiceName"`
+		RootOp     string             `json:"rootOperationName"`
+		Start      otlphttp.UnixNanos `json:"minStartTimeUnixNano"`
+		End        otlphttp.UnixNanos `json:"maxEndTimeUnixNano"`
+		SpanCount  int64              `json:"spanCount"`
+		ErrorCount int64              `json:"errorSpanCount"`
 	} `json:"summaries"`
 }
 
@@ -69,7 +59,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 		return nil, err
 	}
 	q.Expanded(text)
-	if id, ok := traceIDOf(text); ok {
+	if id, ok := otlphttp.TraceIDOf(text); ok {
 		f, err := d.trace(ctx, id, r, lim.MaxRows)
 		if errors.Is(err, datasource.ErrNotFound) {
 			return []datasource.Frame{}, nil
@@ -95,17 +85,6 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 		f.Meta = &datasource.FrameMeta{Truncated: true}
 	}
 	return []datasource.Frame{f}, nil
-}
-
-func traceIDOf(text string) (string, bool) {
-	text = strings.TrimSpace(text)
-	if len(text) >= 2 && (text[0] == '"' || text[0] == '`') && text[len(text)-1] == text[0] {
-		text = text[1 : len(text)-1]
-	}
-	if !datasource.ValidTraceID(text) {
-		return "", false
-	}
-	return strings.ToLower(text), true
 }
 
 func expandQuery(q datasource.Query, r datasource.TimeRange) (string, error) {

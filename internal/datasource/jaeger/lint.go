@@ -5,6 +5,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const variableLintPrefix = "could not lint around a variable: "
@@ -15,7 +16,7 @@ func (d *Datasource) Lint(_ context.Context, query string) ([]datasource.Diagnos
 	if err != nil {
 		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: datasource.MessageOf(err)}), nil
 	}
-	if _, ok := traceIDOf(exp.Text); ok {
+	if _, ok := otlphttp.TraceIDOf(exp.Text); ok {
 		return diags, nil
 	}
 	_, bad := parseSearch(exp.Text)

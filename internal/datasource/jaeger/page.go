@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const pagingNeedsSearch = "paging needs a Jaeger search, not a trace id"
@@ -26,7 +27,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 	if err != nil {
 		return nil, datasource.PageInfo{}, err
 	}
-	if _, ok := traceIDOf(text); ok {
+	if _, ok := otlphttp.TraceIDOf(text); ok {
 		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "%s", pagingNeedsSearch)
 	}
 	s, err := searchOf(text)

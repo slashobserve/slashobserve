@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -17,42 +16,8 @@ import (
 
 var limitWords = []string{"limit", "too many", "maximum", "exceed"}
 
-func (d *Datasource) fetch(ctx context.Context, path string, params url.Values) (int, []byte, error) {
-	target := d.prefix + path
-	if len(params) > 0 {
-		target += "?" + params.Encode()
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-	if err != nil {
-		return 0, nil, datasource.Errorf(datasource.ErrUnavailable, "connection failed")
-	}
-	req.Header.Set("Accept", "application/json")
-	for name, value := range d.opts.Headers {
-		req.Header.Set(name, value)
-	}
-	switch {
-	case d.opts.BasicAuthUser != "":
-		req.SetBasicAuth(d.opts.BasicAuthUser, d.opts.BasicAuthPassword.Reveal())
-	case !d.opts.BearerToken.IsZero():
-		req.Header.Set("Authorization", "Bearer "+d.opts.BearerToken.Reveal())
-	}
-	resp, err := d.client.Do(req)
-	if err != nil {
-		return 0, nil, datasource.TransportError(ctx, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
-	if err != nil {
-		return 0, nil, datasource.TransportError(ctx, err)
-	}
-	if int64(len(raw)) > d.opts.MaxResponseBytes {
-		return 0, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
-	}
-	return resp.StatusCode, raw, nil
-}
-
 func (d *Datasource) get(ctx context.Context, path string, params url.Values) ([]byte, error) {
-	status, raw, err := d.fetch(ctx, path, params)
+	status, raw, err := d.http.Fetch(ctx, path, params)
 	if err != nil {
 		return nil, err
 	}

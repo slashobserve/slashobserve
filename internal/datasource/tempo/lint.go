@@ -6,6 +6,7 @@ import (
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/datasource/macros"
+	"github.com/slashobserve/slashobserve/internal/datasource/otlphttp"
 )
 
 const variableLintPrefix = "could not lint around a variable: "
@@ -42,7 +43,7 @@ func (d *Datasource) Lint(_ context.Context, query string) ([]datasource.Diagnos
 }
 
 func checkTraceQL(text string) (problem, bool) {
-	if _, ok := traceIDOf(text); ok {
+	if _, ok := otlphttp.TraceIDOf(text); ok {
 		return problem{}, false
 	}
 	var open []int
