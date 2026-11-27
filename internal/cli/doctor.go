@@ -34,7 +34,18 @@ type doctorReport struct {
 }
 
 type readiness struct {
+	Status string            `json:"status"`
+	Phase  string            `json:"phase"`
 	Checks map[string]string `json:"checks"`
+}
+
+const phaseStopping = "stopping"
+
+func (r readiness) stopping() bool {
+	if r.Phase != "" {
+		return r.Phase == phaseStopping
+	}
+	return r.Status == phaseStopping
 }
 
 type keyOwner struct {
@@ -200,6 +211,9 @@ func serverReady(ctx context.Context, c *client, server string) (string, string)
 	case http.StatusServiceUnavailable:
 		var body readiness
 		_ = json.Unmarshal(data, &body)
+		if body.stopping() {
+			return checkFail, server + " is not ready: this instance is stopping; try again once it has restarted or another instance answers"
+		}
 		var failing []string
 		for name, state := range body.Checks {
 			if state == "error" {

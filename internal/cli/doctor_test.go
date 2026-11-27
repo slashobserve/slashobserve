@@ -159,6 +159,27 @@ func TestDoctorNotReadyNamesTheFailingChecks(t *testing.T) {
 	}
 }
 
+func TestDoctorSaysAStoppingInstanceIsStopping(t *testing.T) {
+	for _, body := range []string{
+		`{"status":"stopping","checks":{},"phase":"stopping"}`,
+		`{"status":"stopping","checks":{}}`,
+	} {
+		f := newDoctorFake(t)
+		f.ready = http.StatusServiceUnavailable
+		f.readyBody = body
+		stdout, _, code := f.run("v1.4.0")
+		if code != 1 || statusOf(t, stdout, "server") != "fail" || !strings.Contains(stdout, "this instance is stopping") || strings.Count(strings.Join(f.paths, " "), "/readyz") != 1 {
+			t.Fatalf("%s: exit %d, paths %v, stdout %q", body, code, f.paths, stdout)
+		}
+	}
+	f := newDoctorFake(t)
+	f.ready = http.StatusServiceUnavailable
+	f.readyBody = `{"status":"unavailable","checks":{"database":"error"},"phase":"ready"}`
+	if stdout, _, _ := f.run("v1.4.0"); strings.Contains(stdout, "stopping") || !strings.Contains(stdout, "database failing") {
+		t.Fatalf("a ready phase with a failing check: stdout %q", stdout)
+	}
+}
+
 func TestDoctorWithoutAModelFails(t *testing.T) {
 	f := newDoctorFake(t)
 	f.agent = `{"available":false,"provider":null,"model":null,"effort":null}`

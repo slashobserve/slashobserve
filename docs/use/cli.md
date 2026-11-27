@@ -204,6 +204,7 @@ model       ok      anthropic claude-haiku-5-5, effort low
 ```
 
 `doctor` exits 1 when any check fails and 0 otherwise, since a warning never fails it.
+The `server` check fails with `this instance is stopping` when `/readyz` says the instance is shutting down; `doctor` does not wait for it, so run it again once the instance has restarted.
 It takes no flags.
 `--json` prints `{"ok": <bool>, "checks": [{"check", "status", "detail"}]}` instead of the table.
 Colour marks `ok`, `warn` and `fail` only in a terminal and when `NO_COLOR` is not set.
