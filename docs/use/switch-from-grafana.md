@@ -45,13 +45,8 @@ The token is stored encrypted and is never shown again, not in the web app and n
 The server tests the connection as soon as it is saved, and a message says whether the test passed or what failed.
 A failed test still keeps the connection, so you can fix it with Edit instead of adding it again.
 
-From a shell, an Admin key does the same:
-
-```sh
-printf '%s' "$GRAFANA_TOKEN" | observe grafana connect https://grafana.example.com --token-stdin
-```
-
-See [CLI](cli.md#import-from-a-grafana) for the output and the exit codes.
+Only a signed-in Admin manages connections, because a connection stores a credential: a service-account key, the CLI and MCP cannot add, change, test or remove one, and a key that tries gets `403 forbidden`.
+An Admin key can still list the connections, read them and run imports with `observe grafana import`; see [CLI](cli.md#import-from-a-grafana).
 
 ### Test a connection again
 
@@ -221,16 +216,14 @@ Any signed-in person can call it, and a uid whose dashboard is in a folder they 
 
 ## The API
 
-Everything in the Grafana connection section is also in the HTTP API for Admins and Admin keys, and the repair queue for Editors and Admins.
+Everything in the Grafana connection section is also in the HTTP API for Admins, and the repair queue for Editors and Admins.
+A key reads connections and runs imports, but only a signed-in Admin changes a connection.
 The health list and apply have their own APIs, described in [Dashboard health](dashboard-health.md#api) and [Dashboards as code](dashboards-as-code.md#api).
 
 ### Manage connections
 
-```sh
-curl -X POST "$SERVER/api/v1/grafana" -H "Authorization: Bearer $OBSERVE_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Production","url":"https://grafana.example.com","token":"<grafana token>"}'
-```
+Creating, changing, testing and deleting a connection need a signed-in Admin session; a service-account key gets `403 forbidden`.
+Creating one takes `name`, `url` and `token`.
 
 The answer is `201` with the connection, its `id` and a `Location` header.
 

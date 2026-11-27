@@ -52,7 +52,6 @@ type app struct {
 	logs              logsOptions
 	metricsQuery      metricsQueryOptions
 	traces            tracesOptions
-	grafanaConnect    grafanaConnectOptions
 	grafanaImport     grafanaImportOptions
 	health            healthOptions
 	investigating     investigateOptions

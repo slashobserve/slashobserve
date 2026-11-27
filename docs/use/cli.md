@@ -1756,25 +1756,9 @@ Details of the `add` and `edit` flags:
 
 ### Grafana connections
 
-`observe grafana` connects to a Grafana and imports its dashboards for [Switch from Grafana](switch-from-grafana.md).
-Both commands need an Admin key.
-
-#### Connect to a Grafana
-
-`observe grafana connect <url> --token-stdin` stores a Grafana connection and tests it.
-The token comes only from standard input, so it never lands in shell history, and `--token-stdin` is required.
-`--name` defaults to the URL's host and is cut to 100 characters.
-
-```sh
-printf '%s' "$GRAFANA_TOKEN" | observe grafana connect https://grafana.example.com --token-stdin --name "Ops Grafana"
-```
-
-It prints `Connected <name>: <id>` and the test message, and `--json` prints the tested connection.
-The URL must be `http` or `https`, and the token must not be empty, or the command exits 2.
-
-A failed test exits 1 with `the connection test failed: <message>` and a line that says the connection `<id>` is stored.
-The connection stays stored, and you fix or remove it on the Grafana settings page.
-The line `Connected <name>: <id>` still prints first.
+`observe grafana import` imports the dashboards of a Grafana connection for [Switch from Grafana](switch-from-grafana.md).
+It needs an Admin key.
+A person adds, changes, tests and removes the connection on the Grafana settings page, because a connection stores a credential and a key cannot manage it.
 
 #### Import from a Grafana
 
@@ -2291,7 +2275,6 @@ Every command also takes the global flags.
 | `folders permissions open <id>`, `admins-only <id>` | `--yes` |
 | `access request <kind>:<id>` | `--note` |
 | `access requests` | None. |
-| `grafana connect <url>` | `--token-stdin` (required), `--name` |
 | `grafana import <connection id>` | `--folders`, `--all` |
 | `webhooks add` | `--name`, `--url`, `--event`, `--format` (generic) |
 | `webhooks update <id>` | `--name`, `--url`, `--event`, `--format`, `--take-ownership` |

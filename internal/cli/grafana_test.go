@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,7 +22,6 @@ type grafanaFake struct {
 	server   *httptest.Server
 	mu       sync.Mutex
 	requests []recordedRequest
-	testOK   bool
 	polls    []string
 	pollAt   int
 }
@@ -36,7 +34,7 @@ const failedResult = `{"uid":"pay","title":"Payments","outcome":"failed","dashbo
 
 func newGrafanaFake(t *testing.T) *grafanaFake {
 	t.Helper()
-	f := &grafanaFake{testOK: true, polls: []string{importJSON("finished", 2, 0, "")}}
+	f := &grafanaFake{polls: []string{importJSON("finished", 2, 0, "")}}
 	f.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -45,17 +43,6 @@ func newGrafanaFake(t *testing.T) *grafanaFake {
 		w.Header().Set("Content-Type", "application/json")
 		prefix := "/api/v1/grafana/" + testConnection
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/grafana":
-			var body map[string]string
-			_ = json.Unmarshal(data, &body)
-			w.WriteHeader(http.StatusCreated)
-			_, _ = fmt.Fprintf(w, `{"id":%q,"name":%q,"url":%q,"created_by":null,"created_at":"x","updated_at":"x","last_test":null,"last_sync":null}`, testConnection, body["name"], body["url"])
-		case r.Method == http.MethodPost && r.URL.Path == prefix+"/test":
-			message := "Found 4 folders and 12 dashboards."
-			if !f.testOK {
-				message = "Grafana refused the token."
-			}
-			_, _ = fmt.Fprintf(w, `{"id":%q,"name":"grafana.example.com","url":"u","created_by":null,"created_at":"x","updated_at":"x","last_test":{"at":"x","ok":%t,"message":%q},"last_sync":null}`, testConnection, f.testOK, message)
 		case r.URL.Path == prefix+"/folders":
 			_, _ = io.WriteString(w, `[{"uid":"general","title":"General","dashboards":2},{"uid":"plat","title":"Platform / Checkout","dashboards":5}]`)
 		case r.Method == http.MethodPost && r.URL.Path == prefix+"/imports":
@@ -82,70 +69,6 @@ func (f *grafanaFake) run(stdin string, args ...string) (string, string, int) {
 	var stdout, stderr bytes.Buffer
 	code := Main(append([]string{"--server", f.server.URL, "--token", "k", "grafana"}, args...), IO{In: strings.NewReader(stdin), Out: &stdout, Err: &stderr}, "test")
 	return stdout.String(), stderr.String(), code
-}
-
-func TestGrafanaConnectSendsTheTokenFromStandardInput(t *testing.T) {
-	f := newGrafanaFake(t)
-	stdout, stderr, code := f.run("  glsa_secret\n", "connect", "https://grafana.example.com/", "--token-stdin")
-	if code != 0 || stderr != "" {
-		t.Fatalf("exit %d, stderr %q", code, stderr)
-	}
-	var body map[string]string
-	if err := json.Unmarshal([]byte(f.requests[0].body), &body); err != nil {
-		t.Fatal(err)
-	}
-	if body["token"] != "glsa_secret" || body["name"] != "grafana.example.com" || body["url"] != "https://grafana.example.com/" {
-		t.Fatalf("body %v", body)
-	}
-	if f.requests[1].path != "/api/v1/grafana/"+testConnection+"/test" {
-		t.Fatalf("second request %+v", f.requests[1])
-	}
-	if stdout != "Connected grafana.example.com: "+testConnection+"\nFound 4 folders and 12 dashboards.\n" {
-		t.Fatalf("stdout %q", stdout)
-	}
-	if strings.Contains(stdout+stderr, "glsa_secret") {
-		t.Fatal("the token was printed")
-	}
-}
-
-func TestGrafanaConnectUsesTheGivenName(t *testing.T) {
-	f := newGrafanaFake(t)
-	if _, _, code := f.run("tok", "connect", "https://grafana.example.com", "--token-stdin", "--name", "Ops Grafana"); code != 0 {
-		t.Fatalf("exit %d", code)
-	}
-	if !strings.Contains(f.requests[0].body, `"name":"Ops Grafana"`) {
-		t.Fatalf("body %s", f.requests[0].body)
-	}
-}
-
-func TestGrafanaConnectFailedTestExitsOneWithTheID(t *testing.T) {
-	f := newGrafanaFake(t)
-	f.testOK = false
-	_, stderr, code := f.run("tok", "connect", "https://grafana.example.com", "--token-stdin")
-	if code != 1 || !strings.Contains(stderr, "Grafana refused the token.") || !strings.Contains(stderr, "the connection "+testConnection+" is stored") {
-		t.Fatalf("exit %d, stderr %q", code, stderr)
-	}
-}
-
-func TestGrafanaConnectRefusesBadInputBeforeAnyRequest(t *testing.T) {
-	cases := []struct {
-		name, stdin string
-		args        []string
-		want        string
-	}{
-		{"no token flag", "tok", []string{"connect", "https://grafana.example.com"}, "with --token-stdin"},
-		{"empty token", " \n", []string{"connect", "https://grafana.example.com", "--token-stdin"}, "held no Grafana token"},
-		{"not a url", "tok", []string{"connect", "grafana", "--token-stdin"}, "is not an http or https URL"},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newGrafanaFake(t)
-			_, stderr, code := f.run(tc.stdin, tc.args...)
-			if code != 2 || !strings.Contains(stderr, tc.want) || len(f.requests) != 0 {
-				t.Fatalf("exit %d, stderr %q, requests %d", code, stderr, len(f.requests))
-			}
-		})
-	}
 }
 
 func TestGrafanaImportWithoutAChoiceListsFolders(t *testing.T) {

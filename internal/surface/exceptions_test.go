@@ -20,7 +20,7 @@ const (
 	webRendering        = "the web app's rendering of a saved dashboard or panel; agents run queries with query_range and query_instant, and the CLI with observe logs and observe traces"
 	liveWebPage         = "a live event stream for an open web page; MCP is stateless and does not stream"
 	publicView          = "an anonymous read through a public link token; there is no principal"
-	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one"
+	grafanaConnecting   = "a Grafana connection stores a credential, and connecting is a person's decision like connecting an MCP client: no agent, MCP tool or key creates, changes, tests or deletes one (auth.RequireUser)"
 	endsSignIns         = "an Admin's decision that ends a person's sessions and connected agents; keys never manage them (auth.RequireUser), the CLI signs in with a key, and no MCP tool manages them"
 	removesPeople       = "an Admin removes a deactivated person in the web app; keys never manage people's accounts (auth.RequireUser), and the CLI signs in with a key"
 	peopleAdmin         = "who may sign in, and with which role, is an Admin's decision like a webhook; an Admin key reaches it through the CLI, and no MCP tool reads or manages people"
@@ -85,11 +85,11 @@ var exceptions = map[string]exception{
 	"setFolderPermissions": {MCP: notBuilt},
 
 	"listGrafanaConnections":  {MCP: notBuilt, CLI: notBuilt},
-	"createGrafanaConnection": {MCP: grafanaConnecting},
+	"createGrafanaConnection": {MCP: grafanaConnecting, CLI: personOnly},
 	"getGrafanaConnection":    {MCP: notBuilt, CLI: notBuilt},
-	"updateGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
-	"deleteGrafanaConnection": {MCP: grafanaConnecting, CLI: notBuilt},
-	"testGrafanaConnection":   {MCP: grafanaConnecting},
+	"updateGrafanaConnection": {MCP: grafanaConnecting, CLI: personOnly},
+	"deleteGrafanaConnection": {MCP: grafanaConnecting, CLI: personOnly},
+	"testGrafanaConnection":   {MCP: grafanaConnecting, CLI: personOnly},
 	"listGrafanaFolders":      {MCP: notBuilt},
 	"listGrafanaDatasources":  {MCP: notBuilt, CLI: notBuilt},
 	"startGrafanaImport":      {MCP: notBuilt},
