@@ -33,6 +33,7 @@ type proposalRow struct {
 	CloseReason    *string  `json:"close_reason"`
 	Behind         bool     `json:"behind"`
 	AllowedActions []string `json:"allowed_actions"`
+	Warning        string   `json:"warning"`
 }
 
 type proposalDetail struct {
@@ -265,6 +266,7 @@ func (a *app) proposalsMergeCommand() *cobra.Command {
 				if dropped != "" {
 					out.confirm("The proposed change to %s was dropped; the dashboard keeps its own", dropped)
 				}
+				out.warnOfEdit(merged.Warning)
 				return nil
 			})
 		},

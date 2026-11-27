@@ -225,7 +225,7 @@ function InboxCard() {
   }
 
   function toggleDone(item: InboxItem) {
-    const done = filter !== "done"
+    const done = item.state !== "done"
     setDone.mutate(
       { seq: item.seq, done },
       {
@@ -331,7 +331,7 @@ function InboxCard() {
                     onOpen={openItem}
                     onToggleUnread={toggleUnread}
                     onToggleDone={toggleDone}
-                    done={filter === "done"}
+                    done={item.state === "done"}
                   />
                 </li>
               ))}

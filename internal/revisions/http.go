@@ -342,7 +342,7 @@ func newRevisionJSON(r Revision, state buildState, allowed []Action, caller auth
 		PanelID:        httpapi.OptionalString(r.PanelID),
 		Prompt:         r.Prompt,
 		BaseVersion:    r.BaseVersion,
-		Status:         r.Status,
+		Status:         r.State.Status(),
 		State:          r.State,
 		ResultKind:     r.ResultKind,
 		Attempts:       r.Attempts,

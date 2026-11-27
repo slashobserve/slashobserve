@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { useLatestPermissions } from "@/dashboards/permissions"
 import { latestDashboardQuery, useRestoreVersion } from "@/dashboards/queries"
+import { withWarning } from "@/dashboards/save-outcome"
 
 type Props = {
   dashboardId: string
@@ -86,7 +87,10 @@ export function RestoreVersionButton({
       {
         onSuccess: (saved) => {
           toast.success(
-            `Restored version ${version} as version ${saved.version.version}`
+            withWarning(
+              `Restored version ${version} as version ${saved.version.version}`,
+              saved.warning
+            )
           )
           setOpen(false)
           onRestored()

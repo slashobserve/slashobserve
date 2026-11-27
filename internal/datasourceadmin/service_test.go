@@ -367,7 +367,7 @@ func TestAPollThatReadTheRowsBeforeACreateDoesNotUndoIt(t *testing.T) {
 }
 
 func outboundBlockedMessage() string {
-	message, _ := datasource.Reason(datasource.ErrOutboundBlocked)
+	message, _, _ := datasource.Reason(datasource.ErrOutboundBlocked)
 	return message
 }
 

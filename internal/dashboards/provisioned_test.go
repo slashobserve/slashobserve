@@ -3,6 +3,7 @@ package dashboards
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,6 +29,101 @@ func (r *rig) starterDashboard(t *testing.T) pgtype.UUID {
 	id := r.createDashboard(t)
 	r.markStarter(t, id)
 	return id
+}
+
+func (r *rig) bindToProvisioningFile(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO provisioned_dashboards (path, dashboard_id, content_sha256, folder_title) VALUES ('a.json', $1, 'sha', 'General')`, id.String()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (r *rig) bindToAppliedFile(t *testing.T, id pgtype.UUID) {
+	t.Helper()
+	if _, err := r.db.SQLDB(t).ExecContext(t.Context(), `INSERT INTO applied_dashboards (path, dashboard_id, content_sha256, applied_by_id) VALUES ('a.json', $1, 'sha', $2)`, id.String(), adminUser.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type savedWithManager struct {
+	Dashboard struct {
+		ManagedBy   string `json:"managed_by"`
+		Provisioned bool   `json:"provisioned"`
+		Permissions struct{ Edit bool }
+	}
+	Warning string `json:"warning"`
+}
+
+func TestADashboardReadsWhatManagesItAndAFileOrAppliedDashboardWarnsOnAnEdit(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	cases := []struct {
+		managedBy string
+		bind      func(*testing.T, pgtype.UUID)
+		warning   string
+	}{
+		{"workspace", func(*testing.T, pgtype.UUID) {}, ""},
+		{"file", r.bindToProvisioningFile, folders.ManagedByFile.EditWarning()},
+		{"apply", r.bindToAppliedFile, folders.ManagedByApply.EditWarning()},
+	}
+	for _, tc := range cases {
+		t.Run(tc.managedBy, func(t *testing.T) {
+			id := r.createDashboard(t)
+			tc.bind(t, id)
+			path := "/dashboards/" + id.String()
+
+			var read savedWithManager
+			rec := b.serve(adminUser, http.MethodGet, path, "")
+			if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
+				t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
+			}
+			if read.Dashboard.ManagedBy != tc.managedBy || read.Dashboard.Provisioned || !read.Dashboard.Permissions.Edit {
+				t.Fatalf("dashboard = %+v, want managed_by %s, not provisioned, editable", read.Dashboard, tc.managedBy)
+			}
+
+			var saved savedWithManager
+			rec = b.serve(adminUser, http.MethodPost, path+"/versions", `{"spec":`+string(panelsSpec("changed", "rps"))+`,"summary":"s","parent_version":1}`)
+			if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &saved) != nil {
+				t.Fatalf("save answered %d %s", rec.Code, rec.Body.String())
+			}
+			if saved.Warning != tc.warning || saved.Dashboard.ManagedBy != tc.managedBy {
+				t.Fatalf("save answered warning %q and managed_by %q, want %q and %q", saved.Warning, saved.Dashboard.ManagedBy, tc.warning, tc.managedBy)
+			}
+
+			var restored savedWithManager
+			rec = b.serve(adminUser, http.MethodPost, path+"/versions/1/restore", `{"parent_version":2}`)
+			if rec.Code != http.StatusCreated || json.Unmarshal(rec.Body.Bytes(), &restored) != nil {
+				t.Fatalf("restore answered %d %s", rec.Code, rec.Body.String())
+			}
+			if restored.Warning != tc.warning || restored.Dashboard.ManagedBy != tc.managedBy {
+				t.Fatalf("restore answered warning %q and managed_by %q, want %q and %q", restored.Warning, restored.Dashboard.ManagedBy, tc.warning, tc.managedBy)
+			}
+
+			moved, _, err := r.service.Move(reading(t.Context()), testUser, id, r.newFolder(t, "Ops "+tc.managedBy))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := moved.ManagedBy.String(); got != tc.managedBy {
+				t.Fatalf("the move answered managed_by %q, want %q", got, tc.managedBy)
+			}
+		})
+	}
+}
+
+func TestAStarterDashboardReadsAsAStarter(t *testing.T) {
+	r := newRig(t, false)
+	b := boards{rig: r}
+	id := r.starterDashboard(t)
+	r.bindToProvisioningFile(t, id)
+
+	var read savedWithManager
+	rec := b.serve(adminUser, http.MethodGet, "/dashboards/"+id.String(), "")
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &read) != nil {
+		t.Fatalf("get answered %d %s", rec.Code, rec.Body.String())
+	}
+	if read.Dashboard.ManagedBy != "starter" || !read.Dashboard.Provisioned {
+		t.Fatalf("dashboard = %+v, want managed_by starter and provisioned", read.Dashboard)
+	}
 }
 
 func codeOf(t *testing.T, body string) string {
@@ -338,5 +434,38 @@ func TestAStarterDoesNotShowAnEmptyPanelAsUnverifiedButItsCopyDoes(t *testing.T)
 	}
 	if n := unverifiedPanelsOver(t, b, "/dashboards/"+copied.Dashboard.ID); n != 1 {
 		t.Errorf("the copy shows %d unverified panels, want the 1 it inherited", n)
+	}
+}
+
+func TestTheDashboardListNamesWhatManagesEachDashboard(t *testing.T) {
+	r := newPlacementRig(t)
+	b := boards{rig: r}
+	want := map[string]string{
+		r.starterDashboard(t).String(): "starter",
+		r.createDashboard(t).String():  "workspace",
+	}
+	fromFile, applied := r.createDashboard(t), r.createDashboard(t)
+	r.bindToProvisioningFile(t, fromFile)
+	r.bindToAppliedFile(t, applied)
+	want[fromFile.String()], want[applied.String()] = "file", "apply"
+
+	rec := b.serve(placementAdmin, http.MethodGet, "/dashboards", "")
+	var list struct {
+		Dashboards []struct {
+			ID        string
+			ManagedBy string `json:"managed_by"`
+		}
+	}
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &list) != nil {
+		t.Fatalf("list answered %d %s", rec.Code, rec.Body.String())
+	}
+	got := map[string]string{}
+	for _, item := range list.Dashboards {
+		if _, ok := want[item.ID]; ok {
+			got[item.ID] = item.ManagedBy
+		}
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("the list reads managed_by %v, want %v", got, want)
 	}
 }

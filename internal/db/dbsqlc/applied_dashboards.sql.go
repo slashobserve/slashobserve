@@ -73,17 +73,6 @@ func (q *Queries) GetAppliedDashboard(ctx context.Context, path string) (GetAppl
 	return i, err
 }
 
-const isProvisionedDashboard = `-- name: IsProvisionedDashboard :one
-SELECT EXISTS (SELECT 1 FROM provisioned_dashboards WHERE dashboard_id = $1)::boolean
-`
-
-func (q *Queries) IsProvisionedDashboard(ctx context.Context, dashboardID pgtype.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, isProvisionedDashboard, dashboardID)
-	var column_1 bool
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const listAppliedInFolder = `-- name: ListAppliedInFolder :many
 SELECT a.path, a.dashboard_id
 FROM applied_dashboards a

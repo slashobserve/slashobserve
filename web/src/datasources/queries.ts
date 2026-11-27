@@ -81,6 +81,7 @@ function listedOnly(ref: DatasourceRef): DatasourceStatus {
     name: ref.uid,
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "",
     dashboard_count: 0,
   }

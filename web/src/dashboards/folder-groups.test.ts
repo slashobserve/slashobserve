@@ -23,6 +23,8 @@ function folder(id: string, title: string, extra: Partial<Folder> = {}) {
     restricted: false,
     admins_only: false,
     audit: false,
+    kind: "open",
+    allowed_actions: [],
     dashboard_count: 0,
     grantees: [],
     grantee_count: 0,

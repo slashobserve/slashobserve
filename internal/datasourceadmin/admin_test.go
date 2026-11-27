@@ -282,6 +282,9 @@ func TestTestReportsAWorkingAndABrokenDraftWithoutSavingEither(t *testing.T) {
 	if err != nil || bad.Healthy || bad.Message == "" || strings.Contains(bad.Message+bad.Detail, downURL) {
 		t.Fatalf("broken draft = %+v, %v", bad, err)
 	}
+	if good.FailureKind != "" || bad.FailureKind != datasource.FailureTransient {
+		t.Fatalf("failure kinds = %q for the working draft and %q for the unreachable one", good.FailureKind, bad.FailureKind)
+	}
 	if n, _ := r.db.Queries().CountDatasources(reading(t.Context())); n != 0 {
 		t.Fatalf("a test saved %d rows", n)
 	}

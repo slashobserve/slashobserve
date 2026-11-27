@@ -198,7 +198,7 @@ func AbortRestricted(c *gin.Context, err error) bool {
 		return true
 	}
 	if LinkedRefusal(err) {
-		httpapi.AbortError(c, http.StatusConflict, CodeAdminsOnlyFolder, err.Error())
+		abortRefusal(c, CodeAdminsOnlyFolder, err.Error(), AdminsOnlyActions(httpapi.Caller(c).Role))
 		return true
 	}
 	var restricted *RestrictedContentError

@@ -73,9 +73,21 @@ access-requests:
     x-surfaces:
       mcp: [list_access_requests]
       cli: [observe access requests]
-    summary: List the open Comment access requests on folders the caller manages.
+    summary: List the open Comment access requests on folders the caller manages, or the caller's own requests.
+    parameters:
+      - name: scope
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [managed, mine]
+          default: managed
+        description: >-
+          `managed` lists the open requests the caller can grant.
+          `mine` lists the requests the caller made, in any state, on objects the caller can still see, so the requester can tell a request that is still waiting from one that was dismissed, expired or granted.
     description: >-
       Lists the open requests on dashboards and observations whose folder the caller may manage, newest first, at most 100.
+      With `scope=mine` it lists the caller's own requests instead, each with its `state`, newest first, at most 100.
       Grant one by giving the requester Comment on the folder (`PUT /folders/{id}/permissions`) or by raising their role; this list changes nothing.
       An object in General (`folder.general`) cannot be granted that way, because General takes no entry: raise the requester's role or move the object to another folder.
     responses:

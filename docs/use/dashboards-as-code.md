@@ -60,7 +60,9 @@ Apply never deletes a dashboard: removing a file leaves its dashboard in place.
 Exporting a folder and applying it adopts every dashboard instead of copying it.
 [How apply finds the dashboard](#how-apply-finds-the-dashboard) has the rules.
 
-A dashboard changed in the web app since the last apply is overwritten by the next apply of its file, with the old version kept in its history.
+A dashboard changed in the web app since the last apply is overwritten by the next apply of its file once the file has changed, with the old version kept in its history.
+The dashboard reads `managed_by: apply`, the web app shows a note where an edit starts, and a save to it answers with a `warning` that says the same.
+When an apply replaces a version that no apply saved, the new version's `dashboard.version_created` event has `replaced_version`, and `observe activity` prints it.
 Every save runs the same checks as a save in the web app, so a file whose queries fail or return no data fails with the panels named.
 
 When any file fails, apply still sends the others and then exits 1 with `<n> of <total> files failed`.

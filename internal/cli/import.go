@@ -128,6 +128,7 @@ type importedDashboard struct {
 		Report importReport `json:"report"`
 	} `json:"import"`
 	FolderNote *string `json:"folder_note"`
+	Warning    string  `json:"warning"`
 }
 
 type unresolvedBody struct {
@@ -230,6 +231,7 @@ func (a *app) runImport(cmd *cobra.Command, args []string) error {
 	if imported.FolderNote != nil {
 		out.warn("%s", text(*imported.FolderNote))
 	}
+	out.warnOfEdit(imported.Warning)
 	if table := imported.Import.Report.attention(); table != "" {
 		out.notice("%s", table)
 	}
