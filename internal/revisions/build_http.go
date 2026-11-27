@@ -65,6 +65,9 @@ type buildProgressJSON struct {
 	PlannedPanels int     `json:"planned_panels"`
 	Title         *string `json:"title"`
 	UpdatedAt     string  `json:"updated_at"`
+
+	State     BuildState `json:"state"`
+	ExpiresAt *string    `json:"expires_at"`
 }
 
 type buildJSON struct {
@@ -217,12 +220,12 @@ func (h *ObserveHandler) saveBuild(c *gin.Context) {
 		err = ErrBuildRunning
 	}
 	if err != nil {
-		h.failBuild(c, "save stopped agent request build", err, idAttr)
+		h.failBuildSave(c, row, err, idAttr)
 		return
 	}
 	saved, err := h.service.builds.SaveStoppedBuild(ctx, caller, row.ID)
 	if err != nil {
-		h.failBuild(c, "save stopped agent request build", err, idAttr)
+		h.failBuildSave(c, row, err, idAttr)
 		return
 	}
 	status := http.StatusCreated

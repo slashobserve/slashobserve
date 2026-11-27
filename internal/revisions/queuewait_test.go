@@ -33,6 +33,8 @@ func (r *recordingMetrics) RequestClaimed(source string, waited time.Duration) {
 	r.waits = append(r.waits, claimedWait{source: source, waited: waited})
 }
 
+func (r *recordingMetrics) ThreadRepliesAbandoned(int) {}
+
 func (r *recordingMetrics) AgentRun(kind, outcome string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

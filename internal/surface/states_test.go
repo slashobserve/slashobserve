@@ -21,6 +21,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/lifecycle"
 	"github.com/slashobserve/slashobserve/internal/mcpauth"
 	"github.com/slashobserve/slashobserve/internal/observations"
+	"github.com/slashobserve/slashobserve/internal/observeagent"
 	"github.com/slashobserve/slashobserve/internal/presence"
 	"github.com/slashobserve/slashobserve/internal/proposals"
 	"github.com/slashobserve/slashobserve/internal/public"
@@ -45,6 +46,8 @@ func statesReference() string {
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		observations.RCAMachine.Doc("RCA revision", "An RCA revision is one published copy of an observation, returned by `GET /observations/{id}/rcas`; its state is computed on read from the newer revisions and the live public links, never stored."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
+		revisions.BuildStates.Doc("Build", "A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one."),
+		revisions.ReplyStates.Doc("Thread reply", "A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`."),
 		folders.ManagedByStates.Doc("Dashboard managed by", "`GET /dashboards/{id}` and each item of `GET /dashboards` return `managed_by`: what writes the dashboard's content."),
 		proposals.MergeabilityStates.Doc("Proposal mergeability", "`GET /proposals/{id}` returns the `mergeability` of an open proposal, which says what a merge would meet on the dashboard's latest version, and null once the proposal is merged or discarded."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
@@ -60,6 +63,7 @@ func statesReference() string {
 		grafanaconn.TestStates.Doc("Grafana connection test", "`GET /grafana` returns the `test.state` of each connection."),
 		inboundmcp.ToolMachine.Doc("MCP source tool", "An MCP source tool is one tool of an MCP server an Admin registered, returned by `GET /api/v1/mcp-sources/{uid}/tools`; discovery moves it between `offered`, `changed`, `gone` and `refused`, and an Admin approves or revokes it."),
 		inboundmcp.SourceStates.Doc("MCP source", "`GET /api/v1/mcp-sources` returns the `state` of each MCP source."),
+		observeagent.SupervisorMachine.Doc("Built-in agent supervisor", "The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event."),
 		dashboards.VerificationStates.Doc("Panel and variable verification", "`GET /dashboards/{id}` returns the panels and variables of a version that are not verified in `unverified`, each with the `reason` the save kept it."),
 		presence.States.Doc("Agent presence", "Whether an outside agent is taking runs: derived from when it last asked for work and the runs it holds."),
 		users.PersonMachine.Doc("Person", "A person is someone who signs in, returned by `GET /users` with `state` and `allowed_actions`; an invited email is listed by `GET /invites` until its first sign-in."),
@@ -126,6 +130,11 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 		schema, property string
 		want             []string
 	}{
+		{"AgentRequest", "build_state", revisions.BuildStates.Names()},
+		{"RequestSummary", "build_state", revisions.BuildStates.Names()},
+		{"Revision", "build_state", revisions.BuildStates.Names()},
+		{"AgentBuildProgress", "state", revisions.BuildStates.Names()},
+		{"BuildRefusal", "state", revisions.BuildStates.Names()},
 		{"DashboardSummary", "managed_by", folders.ManagedByStates.Names()},
 		{"DashboardListItem", "managed_by", folders.ManagedByStates.Names()},
 		{"HealthItem", "state", health.ItemStates.Names()},
@@ -175,6 +184,15 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 
 func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 	doc := apitest.Load(t)
+	replyStates := doc.Components.Schemas["AgentRequest"].Value.Properties["reply"].Value.Properties["state"].Value.Enum
+	if len(replyStates) != len(revisions.ReplyStates.Names()) {
+		t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+	}
+	for i, name := range revisions.ReplyStates.Names() {
+		if i < len(replyStates) && replyStates[i] != name {
+			t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+		}
+	}
 	var states, kinds, offered []string
 	for _, s := range revisions.RunMachine.States {
 		states = append(states, string(s))

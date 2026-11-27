@@ -211,12 +211,14 @@ func WithBuiltInAgent() Option {
 type Metrics interface {
 	AgentRun(kind, outcome string)
 	RequestClaimed(source string, waited time.Duration)
+	ThreadRepliesAbandoned(replies int)
 }
 
 type noMetrics struct{}
 
 func (noMetrics) AgentRun(string, string)              {}
 func (noMetrics) RequestClaimed(string, time.Duration) {}
+func (noMetrics) ThreadRepliesAbandoned(int)           {}
 
 func WithMetrics(m Metrics) Option {
 	return func(s *Service) { s.metrics = m }

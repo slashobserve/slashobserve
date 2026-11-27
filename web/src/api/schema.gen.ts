@@ -6827,6 +6827,11 @@ export interface components {
              */
             build_saved_at: string | null;
             /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
              * Format: uuid
              * @description The stopped request this one continues.
              */
@@ -7018,6 +7023,36 @@ export interface components {
             title: string | null;
             /** Format: date-time */
             updated_at: string;
+            /**
+             * @description The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /**
+             * Format: date-time
+             * @description When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+             */
+            expires_at?: string | null;
+        };
+        /** @description Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request. */
+        BuildRefusal: {
+            error: string;
+            /** @enum {string} */
+            code: "build_running" | "build_empty" | "build_not_savable";
+            /** @description The same text as `error`. */
+            message: string;
+            /**
+             * @description The build's state; see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            state: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The actions the caller may take on the request now, as in the request's `allowed_actions`. */
+            allowed_actions: string[];
+            /**
+             * @description `run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`.
+             * @enum {string}
+             */
+            reason: "run_not_finished" | "no_panels" | "no_stopped_build";
         };
         AgentBuild: {
             /** Format: uuid */
@@ -7142,6 +7177,19 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The reply this request owes the comment thread it was asked in. */
+            reply?: {
+                /**
+                 * @description `not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                state: "not_owed" | "owed" | "replied" | "abandoned";
+            };
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
             /**
@@ -7388,6 +7436,11 @@ export interface components {
              * @description When the requester saved the stopped build of a `failed` request as a version; null otherwise.
              */
             build_saved_at: string | null;
+            /**
+             * @description What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+             * @enum {string}
+             */
+            build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
             /** @enum {string} */
             kind: "build" | "investigate";
             /** @description The title the requester gave the request, or the first line of its prompt, without `@observe` and cut at a word to 60 characters, when they gave none. */
@@ -16418,13 +16471,13 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
+            /** @description The build cannot be saved now: `build_running`, `build_empty` or `build_not_savable`, each with the build's `state`, the request's `allowed_actions` and a `reason`, or `version_conflict` with `latest_version` when a revision's dashboard has a newer version than the build's base. Or the content reads a datasource only Admins can query and the folder is not one only Admins can read (`restricted_content`, naming the `datasource`). Or the request read data only Admins can query, such as the audit trail, and the build's folder is not one only Admins can read (`restricted_answer`, saying why). */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["RestrictedContentError"];
+                    "application/json": components["schemas"]["Error"] | components["schemas"]["VersionConflict"] | components["schemas"]["BuildRefusal"] | components["schemas"]["RestrictedContentError"];
                 };
             };
             500: components["responses"]["Internal"];

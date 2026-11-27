@@ -101,6 +101,8 @@ type agentRequestJSON struct {
 	Usage          *Usage             `json:"usage"`
 	Build          *buildProgressJSON `json:"build"`
 	BuildSavedAt   *string            `json:"build_saved_at"`
+	BuildState     BuildState         `json:"build_state"`
+	Reply          replyJSON          `json:"reply"`
 	RequestedBy    authorJSON         `json:"requested_by"`
 	AssignedTo     *assigneeJSON      `json:"assigned_to"`
 	Origin         *string            `json:"origin"`
@@ -178,6 +180,7 @@ type requestSummaryJSON struct {
 	FailureCode  *string            `json:"failure_code"`
 	Build        *buildProgressJSON `json:"build"`
 	BuildSavedAt *string            `json:"build_saved_at"`
+	BuildState   BuildState         `json:"build_state"`
 	ContinuesID  *string            `json:"continues_id"`
 	ContinuedBy  *string            `json:"continued_by"`
 	RetriedBy    *string            `json:"retried_by"`

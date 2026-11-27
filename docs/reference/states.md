@@ -143,6 +143,35 @@ A proposal is a change to a dashboard that someone who can edit merges or discar
 | `merge` | `open` | `merged` | `proposal.merged` | editor |
 | `discard` | `open` | `discarded` | `proposal.discarded` | requester, editor |
 
+## Build
+
+A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `none` | The run holds no build and none of the states below applies; a stopped build deleted after its 7 days also reads `none`. |
+| `building` | The run has not finished and the agent may still change the build. |
+| `stopped` | The run failed or was canceled and left a build with at least one panel; its requester can keep or continue it until `build.expires_at`. |
+| `stopped_empty` | The run failed or was canceled and left a build with no panels, which cannot be kept. |
+| `stale` | A stopped build whose dashboard has a newer version than the one it started from, so keeping it answers `version_conflict`. |
+| `kept` | The requester saved the stopped build as a version (`build_saved_at` is set). |
+| `moved` | Another run continues this one and took the build (`continued_by` names it). |
+| `committed` | The run finished and its build became the version in `result_version`. |
+| `proposed` | The run finished and its build became a proposal. |
+
+## Thread reply
+
+A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `not_owed` | The run was not asked in a comment thread, so it owes no reply. |
+| `owed` | The run was asked in a thread and its reply is not posted yet: the run has not finished, or the server is still trying, for 24 hours after it finished. |
+| `replied` | The reply is posted in the thread. |
+| `abandoned` | The reply could not be posted within 24 hours after the run finished and the server stopped trying. |
+
 ## Dashboard managed by
 
 `GET /dashboards/{id}` and each item of `GET /dashboards` return `managed_by`: what writes the dashboard's content.
@@ -341,6 +370,25 @@ This state is computed from stored fields on every read; nothing stores it.
 | `unchecked` | No discovery has run since the source was added or its address changed. |
 | `unreachable` | The last discovery failed, or an agent's call could not reach the server since; failure says why, such as the domain not being on the outbound allowlist, the secret being refused or the server not answering. |
 | `ready` | None of the above: the last discovery listed the server's tools, or the server has answered an agent's call since it last failed. |
+
+## Built-in agent supervisor
+
+The server starts the built-in agent as the `observe-agent` process and restarts it when it exits; each move writes a server log line with the state under the key `agent_state`, not an activity event.
+
+| State | Meaning | Actions |
+| --- | --- | --- |
+| `starting` | The server is starting the `observe-agent` process. | - |
+| `running` | The process runs and can claim runs. | - |
+| `backoff` | The process exited or could not be started, and the server waits 1 to 30 seconds before it starts it again. | - |
+| `stopping` | The server is shutting down and stops the process. Final. | - |
+
+| Action | From | To | Event | By |
+| --- | --- | --- | --- | --- |
+| `start` | - | `starting` | `observe-agent starting` | server |
+| `run` | `starting` | `running` | `observe-agent running` | server |
+| `back_off` | `starting`, `running` | `backoff` | `observe-agent waiting to restart` | server |
+| `restart` | `backoff` | `starting` | `observe-agent starting` | server |
+| `stop` | `starting`, `running`, `backoff` | `stopping` | `observe-agent supervisor stopping` | server |
 
 ## Panel and variable verification
 

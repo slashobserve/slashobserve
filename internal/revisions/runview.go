@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -360,6 +361,8 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		FinishedAt:   httpapi.FormatOptionalTime(optionalTime(row.FinishedAt)),
 		Build:        state.progressFor(requesterOf(row), caller),
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
+		Reply:        replyJSON{State: replyStateOf(row, time.Now())},
 
 		QueuePosition:     position,
 		CheckFailures:     int(row.CheckFailures),
@@ -553,6 +556,7 @@ func (r *RunDesk) summary(row dbsqlc.ListAgentRequestsByRow, caller auth.Princip
 		FailureCode:  httpapi.OptionalString(row.FailureCode.String),
 		Build:        state.build,
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
+		BuildState:   state.derived(),
 		ContinuesID:  optionalUUID(row.ContinuesID),
 		ContinuedBy:  state.continuedBy,
 		RetriedBy:    state.retriedBy,

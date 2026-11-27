@@ -4739,6 +4739,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         continues_id:
           type: string
           format: uuid
@@ -5120,6 +5124,42 @@ components:
         updated_at:
           type: string
           format: date-time
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state, the same value as the request's `build_state`; see `docs/reference/states.md`.
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the server deletes the build of a finished request, 7 days after it finished; null while the request has not finished.
+    BuildRefusal:
+      type: object
+      additionalProperties: false
+      required: [error, code, message, state, allowed_actions, reason]
+      description: Why a stopped build cannot be saved now, with the build's state and what the caller may still do with the request.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [build_running, build_empty, build_not_savable]
+        message:
+          type: string
+          description: The same text as `error`.
+        state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: The build's state; see `docs/reference/states.md`.
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          description: The actions the caller may take on the request now, as in the request's `allowed_actions`.
+        reason:
+          type: string
+          enum: [run_not_finished, no_panels, no_stopped_build]
+          description: "`run_not_finished` with `build_running`, `no_panels` with `build_empty` and `no_stopped_build` with `build_not_savable`."
     AgentBuild:
       type: object
       additionalProperties: false
@@ -5376,6 +5416,20 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise. The request stays `failed` with its `failure_code`.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+        reply:
+          type: object
+          additionalProperties: false
+          required: [state]
+          description: The reply this request owes the comment thread it was asked in.
+          properties:
+            state:
+              type: string
+              enum: [not_owed, owed, replied, abandoned]
+              description: "`not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`."
         queue_position:
           type: integer
           minimum: 1
@@ -5778,6 +5832,10 @@ components:
           format: date-time
           nullable: true
           description: When the requester saved the stopped build of a `failed` request as a version; null otherwise.
+        build_state:
+          type: string
+          enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
+          description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
         kind:
           type: string
           enum: [build, investigate]
