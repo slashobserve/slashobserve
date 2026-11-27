@@ -232,13 +232,13 @@ def test_trials_that_disagree_on_the_settings_or_server_are_refused(tmp_path):
 
 
 def test_loop_settings_are_recorded_with_their_effective_values(tmp_path):
-    kwargs = {"investigation_loop": "true", "investigation_calls_max": "40", "finding_grounding": "report", "run_max_cost_usd": "0.5"}
+    kwargs = {"investigation_loop": "true", "investigation_calls_max": "40", "finding_grounding": "off", "run_max_cost_usd": "0.5"}
     job = write_job(tmp_path)
     write_trial(job, "task-a", "AAA", 1.0, kwargs=kwargs)
     settings = build_from([job])["settings"]
     assert settings["investigation_loop"] is True
     assert settings["investigation_calls_max"] == 40
-    assert settings["finding_grounding"] == "report"
+    assert settings["finding_grounding"] == "off"
     assert settings["run_max_cost_usd"] == 0.5
 
 

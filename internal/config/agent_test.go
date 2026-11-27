@@ -161,18 +161,18 @@ func TestFindingGroundingIsEnforcedUnlessSet(t *testing.T) {
 		name    string
 		set     map[string]string
 		want    grounding.Mode
-		wantErr bool
+		wantErr string
 	}{
 		{name: "unset", want: grounding.Enforce},
 		{name: "off", set: map[string]string{envAgentFindingGrounding: "off"}, want: grounding.Off},
-		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, want: grounding.Report},
 		{name: "enforce", set: map[string]string{envAgentFindingGrounding: "enforce"}, want: grounding.Enforce},
-		{name: "a boolean", set: map[string]string{envAgentFindingGrounding: "true"}, wantErr: true},
+		{name: "report", set: map[string]string{envAgentFindingGrounding: "report"}, wantErr: envAgentFindingGrounding + ": report is no longer a mode"},
+		{name: "a boolean", set: map[string]string{envAgentFindingGrounding: "true"}, wantErr: envAgentFindingGrounding + ": must be off or enforce"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg, err := Load(envOf(llmEnv(tt.set)))
-			if tt.wantErr {
-				if err == nil || !strings.Contains(err.Error(), envAgentFindingGrounding+": must be off, report or enforce") {
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("Load error = %v", err)
 				}
 				return

@@ -157,10 +157,10 @@ def test_options_come_from_agent_kwargs(tmp_path):
 
 
 def test_loop_settings_come_from_agent_kwargs(tmp_path):
-    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="report", investigation_brief="off")
+    agent = orca_agent.OrcaAgent(logs_dir=tmp_path, model_name="replay/replay", investigation_loop="true", finding_grounding="off", investigation_brief="off")
     assert agent.options.investigation_loop is True
     assert agent.options.investigation_brief == "off"
-    assert agent.options.finding_grounding == "report"
+    assert agent.options.finding_grounding == "off"
 
 
 def test_unknown_option_is_refused(tmp_path):

@@ -7529,7 +7529,7 @@ export interface components {
             next_steps: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident: boolean;
-            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run. */
             unverified: components["schemas"]["FindingUnverified"][];
         };
         FindingAskOn: {
@@ -7596,7 +7596,7 @@ export interface components {
             next_steps?: string[];
             /** @description True when the investigation found nothing wrong. */
             no_incident?: boolean;
-            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run. */
+            /** @description The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run. */
             unverified?: components["schemas"]["FindingUnverified"][];
             /**
              * Format: date-time

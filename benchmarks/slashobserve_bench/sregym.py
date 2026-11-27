@@ -652,7 +652,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--investigation-calls", type=int)
     run.add_argument("--investigation-loop", choices=("true", "false"))
     run.add_argument("--investigation-calls-max", type=int)
-    run.add_argument("--finding-grounding", choices=("off", "report", "enforce"))
+    run.add_argument("--finding-grounding", choices=("off", "enforce"))
     run.add_argument("--investigation-brief", choices=("on", "off"))
     run.add_argument("--run-max-cost-usd", type=float)
     run.add_argument("--spend-cap-usd", type=float)

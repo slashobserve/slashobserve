@@ -6081,7 +6081,7 @@ components:
           maxItems: 20
           items:
             $ref: "#/components/schemas/FindingUnverified"
-          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run.
     FindingAskOn:
       type: object
       additionalProperties: false
@@ -6225,7 +6225,7 @@ components:
           maxItems: 20
           items:
             $ref: "#/components/schemas/FindingUnverified"
-          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `report` or `enforce`; empty when the check found none or did not run.
+          description: The figures, root cause component and onset in the finding that the grounding check did not find in what the run read, when `SLASHOBSERVE_AGENT_FINDING_GROUNDING` is `enforce`; empty when the check found none or did not run.
         from:
           type: string
           format: date-time

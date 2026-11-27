@@ -149,7 +149,7 @@ The results file records under `settings` exactly what was sent, and `server def
 | `investigation_calls` | server default, not sent | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS`, 6 to 60. |
 | `investigation_loop` | `true` | `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP`: `true` or `false`, always sent. |
 | `investigation_calls_max` | `40`, or `investigation_calls` when that is higher | `SLASHOBSERVE_AGENT_INVESTIGATION_CALLS_MAX`, 6 to 60, always sent; the adapter refuses a value below `investigation_calls`, or below 12 when that is unset, because an older image starts at 12 and refuses a lower ceiling. |
-| `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off`, `report` or `enforce`, always sent. |
+| `finding_grounding` | `enforce` | `SLASHOBSERVE_AGENT_FINDING_GROUNDING`: `off` or `enforce`, always sent. |
 | `investigation_brief` | `on` | `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF`: `on` or `off`, always sent; the preflight sweep of the datasources before an investigation's first model call, which `off` leaves out for a baseline. |
 | `run_max_cost_usd` | unset | `SLASHOBSERVE_AGENT_RUN_MAX_COST_USD`: the server fails a run with `budget_exhausted` once its cost reaches it. The server refuses to start with it set when the model has no price, the replay model included. |
 | `spend_cap_usd`, `ledger_path` | unset | The job cap and its ledger file, which go together; see below. |
@@ -195,7 +195,7 @@ Finding grounding `off` also leaves a finding's causes unscored, so the ORCA-ben
 
 ### Finding grounding
 
-The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `report` or `enforce`.
+The server scores each cause of a finding and decides whether the finding states it only with `SLASHOBSERVE_AGENT_FINDING_GROUNDING` set to `enforce`.
 With `off` every cause counts as stated, so the ORCA-bench report and the SREGym diagnosis would name every guess as a cause, and both benchmarks take points for an extra cause.
 The server default is `off` on images before the change that makes it `enforce`, so the adapters do not rely on it: every adapter sends `enforce` unless `finding_grounding` is given, and a run behaves the same on any image that has the setting.
 `enforce` also sends a finding back once when an item in it does not match what the run read, which is what a person gets from the product's default.
