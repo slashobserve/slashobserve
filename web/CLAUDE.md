@@ -62,7 +62,8 @@ The Playwright specs in `web/e2e` follow `e2e/CLAUDE.md`; read it before editing
 - A new API key lives only in the Create key panel's component state: the mutation uses `gcTime: 0`, and the response never reaches the query cache or storage.
   A new public link's address lives the same way in the Create public link form's state (`web/src/public/public-links-section.tsx`).
   Key snippets reference `OBSERVE_TOKEN` instead of the key.
-- `web/src/home/` is Home at `/` (`home-page.tsx`) and the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows; recently viewed dashboards and observations live only in `localStorage` under `slashobserve-recent-dashboards` and `slashobserve-recent-observations` (at most 20 each, written by `useRecordRecent` in the dashboard and observation routes) and never reach the server.
+- `web/src/home/` is Home at `/` (`home-page.tsx`) and the dashboards section that the Ask page (`web/src/chat/chat-home.tsx`) shows; recently viewed dashboards and observations live only in `localStorage` under `slashobserve-recent-dashboards:<principal id>` and `slashobserve-recent-observations:<principal id>` (at most 20 each, written by `useRecordRecent` in the dashboard and observation routes) and never reach the server.
+  Prompt and ask-field history are keyed the same way, every key comes from `scopedKey` in `web/src/lib/scoped-storage.ts` (no key while nobody is signed in), and sign-out removes the old unscoped keys.
 - Pins (`web/src/pins/`) are the server's stars under their web name: they come from `GET /api/v1/stars` under `pinKeys` and change only through `usePinMutation`, which `PinToggle` and the sidebar's `PinnedDashboards` share through the one query.
 - Import JSON stays out of query keys (they use a source id) and is never stored outside page state.
   Home's import tab hands it to `/import` in memory through `web/src/import/handoff.ts`, never through the address, history state or storage.

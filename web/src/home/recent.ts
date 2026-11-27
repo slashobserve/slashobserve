@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 
+import { scopedKey } from "@/lib/scoped-storage"
+
 const recentKeys = {
   dashboard: "slashobserve-recent-dashboards",
   observation: "slashobserve-recent-observations",
@@ -53,16 +55,20 @@ export function recordRecent(
 }
 
 export function readRecent(kind: RecentKind): RecentEntry[] {
+  const key = scopedKey(recentKeys[kind])
+  if (key === null) return []
   try {
-    return parseRecent(localStorage.getItem(recentKeys[kind]))
+    return parseRecent(localStorage.getItem(key))
   } catch {
     return []
   }
 }
 
 function writeRecent(kind: RecentKind, list: readonly RecentEntry[]) {
+  const key = scopedKey(recentKeys[kind])
+  if (key === null) return
   try {
-    localStorage.setItem(recentKeys[kind], JSON.stringify(list))
+    localStorage.setItem(key, JSON.stringify(list))
   } catch {
     return
   }
