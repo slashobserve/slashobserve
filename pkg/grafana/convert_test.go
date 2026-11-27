@@ -488,7 +488,8 @@ func TestLegacyGraphThresholdsStyleFollowsFillAndLine(t *testing.T) {
 	cases := []struct {
 		name, members, want string
 	}{
-		{"neither", `"fill":false,"line":false`, "line"},
+		{"neither", `"fill":false,"line":false`, "off"},
+		{"no flags", `"op":"gt"`, "off"},
 		{"line only", `"line":true`, "line"},
 		{"fill only", `"fill":true`, "area"},
 		{"both", `"fill":true,"line":true`, "line+area"},
@@ -501,6 +502,32 @@ func TestLegacyGraphThresholdsStyleFollowsFillAndLine(t *testing.T) {
 			}
 			if len(line.Paths) != 0 {
 				t.Fatalf("paths = %v", line.Paths)
+			}
+		})
+	}
+}
+
+func TestLegacyGraphThresholdOnTheRightAxisIsReported(t *testing.T) {
+	cases := []struct {
+		name, axis string
+		reported   bool
+	}{
+		{"left", `"yaxis":"left"`, false},
+		{"absent", `"op":"gt"`, false},
+		{"right", `"yaxis":"right"`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			panel, line := graphPanel(t, `"thresholds":[{"colorMode":"critical","op":"gt","value":80,"line":true,`+tc.axis+`}]`)
+			if len(panel.Thresholds) == 0 {
+				t.Fatalf("thresholds = %v, want the threshold kept", panel.Thresholds)
+			}
+			want := []string(nil)
+			if tc.reported {
+				want = []string{"thresholds[0].yaxis"}
+			}
+			if !slices.Equal(line.Paths, want) {
+				t.Fatalf("paths = %v, want %v", line.Paths, want)
 			}
 		})
 	}
