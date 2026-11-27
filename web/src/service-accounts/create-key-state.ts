@@ -3,7 +3,7 @@ import type { Role } from "@/lib/roles"
 import { defaultExpiry, type ExpiryValue } from "./key-status"
 import type { ServiceAccount } from "./queries"
 
-export type KeyStep =
+type KeyStep =
   | { phase: "form"; problem: string | null }
   | { phase: "creating" }
   | { phase: "partly_done"; problem: string }
