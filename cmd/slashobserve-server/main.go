@@ -511,7 +511,7 @@ func run() error {
 	claimsService := claims.New(claimsConfig)
 	runSessions := runsession.New(runsession.Config{
 		DB: database, Runs: revisionsService, Claims: claimsService, Builds: dashboardsService, Dashboards: dashboardsService,
-		Imports: importsService, Statuses: registry, Steps: claimsService,
+		Imports: importsService, Statuses: registry, Datasources: registry, Steps: claimsService,
 		Prices: cfg.LLM.Prices, MaxRunCostUSD: cfg.Agent.MaxRunCostUSD, InvestigationCalls: cfg.Agent.InvestigationCalls, InvestigationLoop: cfg.Agent.InvestigationLoop, InvestigationCallsMax: cfg.Agent.InvestigationCallsMax, FindingGrounding: cfg.Agent.FindingGrounding, Logger: logger,
 	})
 	outbound := allowlist.New(database, allowlist.Lock{Locked: cfg.OutboundDomainsLocked, Domains: cfg.OutboundDomains}, logger)

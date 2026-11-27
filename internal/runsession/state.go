@@ -7,6 +7,7 @@ import (
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
 	"github.com/slashobserve/slashobserve/internal/agent/guard"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -46,6 +47,8 @@ type State struct {
 	Grounding *grounding.Record `json:"grounding,omitempty"`
 
 	Triage *Triage `json:"triage,omitempty"`
+
+	Task route.Task `json:"task,omitempty"`
 }
 
 type Settled struct {

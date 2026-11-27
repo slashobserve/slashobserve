@@ -82,6 +82,25 @@ How the agent reads and answers:
 - It reads durations and rates at the series' native step in a short range around the event.
 - It takes a baseline such as typical or normal from the question's whole window without the event's own span, read at an aggregate or coarser step.
 
+### Task types
+
+When an investigation or a question about a dashboard or an observation starts, the server sorts it into one task type by fixed rules over the question's words, whether a dashboard or panel is its subject and which kinds of datasource are configured.
+No model call is made for this.
+
+| Task type | Questions it takes |
+| --- | --- |
+| `measure` | A value, peak, total, rate, share, quantile or a comparison of them. |
+| `logs` | Reading, counting or characterising log lines, when a log store is configured. |
+| `traces` | Single requests, slow or failing calls and one trace, when a trace store is configured. |
+| `incident` | Why something happened, what changed, health and root cause. |
+| `inventory` | What exists: services, metrics, labels, dashboards, datasources. |
+| `explain` | Explaining or summarizing a dashboard, panel, observation, query or term, and a change asked for on a dashboard. |
+
+A question that asks for a write, such as pinning, publishing or adding a block, one that names both logs and traces, and one no rule decides gets the full investigation, exactly as without task types.
+The run's steps show one line with the task type, such as `Routed the question to the measure task type`, and never the question.
+The type is decided once, when the run's session starts, and kept with it.
+A new-dashboard request, a revision and a suggestion are not sorted.
+
 ### The preflight brief
 
 Before the first model call of an investigation, the server sweeps the datasources the requester's run may read and writes what it found into the agent's first message, in a `<triage>` block.

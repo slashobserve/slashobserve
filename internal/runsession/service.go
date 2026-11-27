@@ -62,6 +62,10 @@ type Statuses interface {
 	Health(ctx context.Context) []datasource.Status
 }
 
+type Datasources interface {
+	Visible(ctx context.Context) []datasource.Instance
+}
+
 type Config struct {
 	DB                    *db.DB
 	Runs                  *revisions.Service
@@ -70,6 +74,7 @@ type Config struct {
 	Dashboards            Dashboards
 	Imports               brief.ImportReader
 	Statuses              Statuses
+	Datasources           Datasources
 	Steps                 revisions.StepRecorder
 	Prices                pricing.Table
 	MaxRunCostUSD         float64
@@ -88,6 +93,7 @@ type Service struct {
 	dashboards         Dashboards
 	loader             brief.Loader
 	statuses           Statuses
+	datasources        Datasources
 	steps              revisions.StepRecorder
 	prices             pricing.Table
 	maxRunCost         float64
@@ -111,7 +117,7 @@ func New(c Config) *Service {
 	return &Service{
 		db: c.DB, runs: c.Runs, claims: c.Claims, builds: c.Builds, dashboards: c.Dashboards,
 		loader:   brief.Loader{Dashboards: c.Dashboards, Imports: c.Imports, Logger: c.Logger},
-		statuses: c.Statuses, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
+		statuses: c.Statuses, datasources: c.Datasources, steps: c.Steps, prices: c.Prices, maxRunCost: c.MaxRunCostUSD, investigationCalls: c.InvestigationCalls, investigationLoop: c.InvestigationLoop, investigationMax: c.InvestigationCallsMax, findingGrounding: c.FindingGrounding, logger: c.Logger,
 		inFlight: make(slots, max(1, c.DB.Stat().MaxConns()/2)),
 	}
 }
@@ -180,7 +186,8 @@ func (s *Service) with(ctx context.Context, req revisions.Request, fn func(ctx c
 func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Request, id pgtype.UUID) (*session, error) {
 	key := dbsqlc.GetRunSessionForUpdateParams{AgentRequestID: id, Attempt: httpapi.Int32(req.Attempt)}
 	raw, err := q.GetRunSessionForUpdate(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
+	created := errors.Is(err, pgx.ErrNoRows)
+	if created {
 		raw, err = s.create(ctx, q, req, id)
 	}
 	if err != nil {
@@ -189,6 +196,9 @@ func (s *Service) open(ctx context.Context, q *dbsqlc.Queries, req revisions.Req
 	sess := &session{s: s, q: q, req: req, id: id, loaded: raw}
 	if err := json.Unmarshal(raw, &sess.state); err != nil {
 		return nil, fmt.Errorf("decode run session: %w", err)
+	}
+	if created {
+		sess.recordRoute()
 	}
 	if sess.state.Guard.InvestigationCalls == 0 {
 		sess.state.Guard.InvestigationCalls = s.investigationCalls
@@ -255,6 +265,7 @@ func (s *Service) initial(ctx context.Context, req revisions.Request, id pgtype.
 		}
 	}
 	state.Guard.BeginSession(building, parent)
+	state.Task = s.routed(ctx, run, req)
 	return state, nil
 }
 
