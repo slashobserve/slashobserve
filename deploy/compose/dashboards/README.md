@@ -9,9 +9,10 @@ See `docs/operate/provisioning.md` for the full rules.
 
 ## Reference dashboards
 
-`Demo/astronomy-overview.json` goes to the folder Demo, and `SlashObserve/internals.json` to the folder SlashObserve, which the replicas stack loads because its Prometheus scrapes the servers.
+`Demo/astronomy-overview.json` goes to the folder Demo.
+The internals dashboard is not here: its one copy is the Helm chart's `deploy/helm/slashobserve/dashboards/SlashObserve/internals.json`, which goes to the folder SlashObserve and which the replicas stack mounts because its Prometheus scrapes the servers.
 They set the bar for how a SlashObserve dashboard looks: a headline line of stats, rows named by the question they answer, full lines of two, three, four or six panels, named series and a unit on every number.
-`internal/provision/reference_test.go` checks those layout rules on every `.json` file in this directory, so `go test -short ./internal/provision/` fails on a file that breaks one.
+`internal/provision/reference_test.go` checks those layout rules on every `.json` file in this directory and in the chart's `dashboards` directory, so `go test -short ./internal/provision/` fails on a file that breaks one.
 A file's path is its identity, so renaming or moving one creates a new dashboard on every demo that already loaded the old path.
 A panel over a series that exists only after its first event, such as agent runs on a server without a model or the first order of the Astronomy Shop, adds a query that ends in `or vector(0)`, because a provisioned file whose panel returns no data is not saved.
 A file that fails this way is tried again every 30 seconds, so the dashboard appears when the stores have data.

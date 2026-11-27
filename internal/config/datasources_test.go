@@ -432,37 +432,39 @@ func TestEachGrafanaUIDEntryReportsOneError(t *testing.T) {
 
 func TestDeployDatasourceFilesLoad(t *testing.T) {
 	env := map[string]string{"SLASHOBSERVE_CLICKHOUSE_PASSWORD": "pw"}
-	for _, name := range []string{"datasources.yaml", "datasources.e2e.yaml"} {
-		t.Run(name, func(t *testing.T) {
-			got, err := loadDatasources(filepath.Join("..", "..", "deploy", "compose", name), envOf(env))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(got) == 0 {
-				t.Fatal("expected datasources")
-			}
-			byUID := map[string]Datasource{}
-			for _, ds := range got {
-				byUID[ds.UID] = ds
-			}
-			if l := byUID["loki"]; l.Loki == nil || l.Loki.URL != "http://loki:3100" || !slices.Equal(l.GrafanaUIDs, []string{"loki"}) {
-				t.Fatalf("loki = %+v", l)
-			}
-			if tp := byUID["tempo"]; tp.Tempo == nil || tp.Tempo.URL != "http://tempo:3200" || !slices.Equal(tp.GrafanaUIDs, []string{"tempo"}) {
-				t.Fatalf("tempo = %+v", tp)
-			}
-			if name != "datasources.e2e.yaml" {
-				return
-			}
-			aliases := map[string][]string{}
-			for _, ds := range got {
-				aliases[ds.UID] = ds.GrafanaUIDs
-			}
-			if !slices.Equal(aliases["prom"], []string{"prometheus"}) || !slices.Equal(aliases["ch"], []string{"clickhouse"}) {
-				t.Fatalf("aliases = %v", aliases)
-			}
-		})
+	load := func(t *testing.T, name string) map[string]Datasource {
+		t.Helper()
+		got, err := loadDatasources(filepath.Join("..", "..", "deploy", "compose", name), envOf(env))
+		if err != nil {
+			t.Fatal(err)
+		}
+		byUID := map[string]Datasource{}
+		for _, ds := range got {
+			byUID[ds.UID] = ds
+		}
+		return byUID
 	}
+	t.Run("datasources.e2e.yaml", func(t *testing.T) {
+		byUID := load(t, "datasources.e2e.yaml")
+		if l := byUID["loki"]; l.Loki == nil || l.Loki.URL != "http://loki:3100" || !slices.Equal(l.GrafanaUIDs, []string{"loki"}) {
+			t.Fatalf("loki = %+v", l)
+		}
+		if tp := byUID["tempo"]; tp.Tempo == nil || tp.Tempo.URL != "http://tempo:3200" || !slices.Equal(tp.GrafanaUIDs, []string{"tempo"}) {
+			t.Fatalf("tempo = %+v", tp)
+		}
+		if !slices.Equal(byUID["prom"].GrafanaUIDs, []string{"prometheus"}) || !slices.Equal(byUID["ch"].GrafanaUIDs, []string{"clickhouse"}) {
+			t.Fatalf("prom = %+v, ch = %+v", byUID["prom"], byUID["ch"])
+		}
+	})
+	t.Run("datasources.replicas.yaml", func(t *testing.T) {
+		byUID := load(t, "datasources.replicas.yaml")
+		if p := byUID["prom"]; p.Prometheus == nil || p.Prometheus.URL != "http://prometheus:9090" {
+			t.Fatalf("prom = %+v", p)
+		}
+		if small := byUID["prom_small"]; small.Prometheus == nil {
+			t.Fatalf("prom_small = %+v", small)
+		}
+	})
 }
 
 func TestLoadDatasourcesEmptyListIsAllowed(t *testing.T) {

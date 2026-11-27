@@ -21,7 +21,6 @@ export SLASHOBSERVE_DEX_HOST_PORT="$DEX_PORT"
 export SLASHOBSERVE_PROMETHEUS_HOST_PORT="${SLASHOBSERVE_REPLICAS_PROMETHEUS_PORT:-49090}"
 export SLASHOBSERVE_LOKI_HOST_PORT="${SLASHOBSERVE_REPLICAS_LOKI_PORT:-43100}"
 export SLASHOBSERVE_TEMPO_HOST_PORT="${SLASHOBSERVE_REPLICAS_TEMPO_PORT:-43200}"
-export SLASHOBSERVE_DATASOURCES_HOST_FILE=./datasources.replicas.yaml
 export SLASHOBSERVE_IMAGE="slashobserve-replicas:local"
 export SLASHOBSERVE_REPLICAS_BOOT_DIR="$RUNTIME/boot"
 
@@ -604,7 +603,7 @@ provisioned_clean() {
 
 check_c2() {
   local want n
-  want="$(find "$ROOT/deploy/compose/dashboards/SlashObserve" -name '*.json' | wc -l | tr -d ' ')"
+  want="$(find "$ROOT/deploy/helm/slashobserve/dashboards/SlashObserve" -name '*.json' | wc -l | tr -d ' ')"
   eventually 300 "provisioned_dashboards to hold $want rows without an error" provisioned_clean "$want"
   [[ "$(psql_app "SELECT count(*) FROM dashboards")" == "$want" ]] ||
     fail "dashboards holds $(psql_app "SELECT count(*) FROM dashboards") rows, not $want"

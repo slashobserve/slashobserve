@@ -219,14 +219,14 @@ services:
       service: server
     environment:
       SLASHOBSERVE_SERVICE_ACCOUNTS_FILE: ${SLASHOBSERVE_SERVICE_ACCOUNTS_FILE-/etc/slashobserve/service-accounts.yaml}
-    volumes: !override
+    volumes:
       - ${ASTRONOMY_DIR:?}/datasources.yaml:/etc/slashobserve/datasources.yaml:ro
       - ${SLASHOBSERVE_COMPOSE_DIR:?}/dashboards/Demo:/provision/Demo:ro
       - ${ASTRONOMY_DIR:?}/service-accounts.yaml:/etc/slashobserve/service-accounts.yaml:ro
       - ${ASTRONOMY_STATE_DIR:?}/keys:/astronomy-keys:ro
     group_add:
       - ${ASTRONOMY_GID:?}
-    depends_on: !override
+    depends_on:
       postgres:
         condition: service_healthy
       dex:
