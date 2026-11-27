@@ -33,6 +33,7 @@ type Task struct {
 	Pointer       Pointer
 	Loop          bool
 	Hypotheses    string
+	Triage        string
 }
 
 type View struct {

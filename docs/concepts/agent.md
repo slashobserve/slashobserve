@@ -263,6 +263,7 @@ Details of shortening:
 - It puts the build, the reason and a list of up to 4 KiB of the metric, label and table names the agent found in front of them, so the agent does not discover them again.
 - The names are sent to the model and never written to the server's logs.
 - With `SLASHOBSERVE_AGENT_INVESTIGATION_LOOP` on, an investigation's hypothesis ledger goes in front of them as well, in a `<hypotheses>` block whose ledger text is at most 4 KiB.
+- An investigation's preflight brief, the `<triage>` block the server computed before the first model call, goes in front of them as well, unchanged, because the sweep runs once per run; see [The preflight brief](investigate.md#the-preflight-brief).
 - Older read results are also left out of what is sent once they add up to 64 KiB, while the last 4 turns stay in full.
 - Only the model's view is shortened: the run keeps everything it read.
 - A shortened conversation is not a fresh session, and neither has a count of its own that ends the run.
@@ -577,6 +578,7 @@ The agent also reads the thread's earlier messages with the request.
 ### Data sent to the provider
 
 The agent sends what its tools return to the LLM provider, including names, label values, sampled rows and query results.
+With `SLASHOBSERVE_AGENT_INVESTIGATION_BRIEF` on, the default, an investigation's first message also carries the preflight brief, which holds service names, rates, log patterns, flag keys and annotation text the sweep read.
 See [LLM providers](../connect/llm-providers.md).
 
 ## The agent process
