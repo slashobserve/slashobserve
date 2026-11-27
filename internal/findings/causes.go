@@ -140,12 +140,13 @@ func (in StructuredInput) CauseInputs() []CauseInput {
 	}
 	r := in.RootCause
 	return []CauseInput{{
-		Component: ComponentInput{Kind: "other", Name: r.Component},
-		Kind:      r.Kind,
-		Mechanism: r.Summary,
-		Onset:     in.Onset,
-		Evidence:  EvidenceInput{Facts: in.LegacyFacts},
-		Estimate:  in.Confidence,
+		Component:  ComponentInput{Kind: "other", Name: r.Component},
+		Kind:       r.Kind,
+		Mechanism:  r.Summary,
+		Onset:      in.Onset,
+		Evidence:   EvidenceInput{Facts: in.LegacyFacts},
+		Estimate:   in.Confidence,
+		CauseGiven: r.CauseGiven,
 	}}
 }
 

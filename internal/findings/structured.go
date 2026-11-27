@@ -47,6 +47,7 @@ type RootCauseInput struct {
 	Component string `json:"component"`
 	Kind      string `json:"kind"`
 	Summary   string `json:"summary"`
+	CauseGiven
 }
 
 type StructuredInput struct {

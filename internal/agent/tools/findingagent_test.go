@@ -66,6 +66,23 @@ func TestAConnectedAgentsFindingFieldsAreIgnored(t *testing.T) {
 	}
 }
 
+func TestTheBuiltInAgentScoresALegacyRootCause(t *testing.T) {
+	r := newFindingRig(t)
+	body := `{"markdown":"Cart failed after the flag.","root_cause":{"component":"cart","kind":"config_or_flag","summary":"The flag made cart fail.",` +
+		`"signals":{"kinds":["metrics"],"component":true},"score":0.6,"band":"medium","queries":["rate(errors[5m])"]}}`
+	for builtIn, want := range map[bool]bool{true: true, false: false} {
+		_, f := r.saveAs(t, builtIn, body)
+		causes := f.Structured.Causes
+		if len(causes) != 1 || causes[0].Component.Name != "cart" {
+			t.Fatalf("built in %v: causes = %+v", builtIn, causes)
+		}
+		scored := causes[0].Score != nil && *causes[0].Score == 0.6 && causes[0].Band == findings.BandMedium && len(causes[0].Evidence.Queries) == 1
+		if scored != want {
+			t.Fatalf("built in %v: cause = %+v", builtIn, causes[0])
+		}
+	}
+}
+
 func TestTheBuiltInAgentsBandIsKeptAndFollowsItsScoreWhenItSendsNone(t *testing.T) {
 	r := newFindingRig(t)
 	body := `{"markdown":"Cart failed.","causes":[{"component":{"kind":"service","name":"cart"},"kind":"unknown","mechanism":"Cart failed.","score":0.9,"band":"low"},` +
