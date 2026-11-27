@@ -44,11 +44,6 @@ export function VersionEntry({ dashboardId, entry, back }: Props) {
               {`Proposed by ${entry.proposal.actor.name}, merged by ${entry.proposal.closed_by?.name ?? actor.who}`}
             </span>
           )}
-          {entry.replaced === null ? null : (
-            <span className="block text-xs wrap-anywhere text-muted-foreground">
-              {`Replaced version ${entry.replaced}, which stays in the version history`}
-            </span>
-          )}
         </span>
         <span className="flex-none text-xs text-muted-foreground">
           See changes

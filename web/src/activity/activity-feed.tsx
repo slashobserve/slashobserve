@@ -59,7 +59,6 @@ import { AnnotationEntry } from "./annotation-entry"
 import { FindingEntry } from "./finding-entry"
 import { ProposalEntry } from "./proposal-entry"
 import { ImportEntry } from "./import-entry"
-import { replacedVersionsQuery } from "./replaced-versions"
 import { RequestEntry } from "./request-entry"
 import { RunningEntry } from "./running-entry"
 import {
@@ -189,7 +188,6 @@ export function ActivityFeed({
   const importRecord = useQuery(importForDashboardQuery(dashboardId)).data
   const findingsData = useQuery(findingsForDashboardQuery(dashboardId)).data
   const annotationsData = useQuery(annotationActivityQuery(dashboardId)).data
-  const replaced = useQuery(replacedVersionsQuery(dashboardId)).data
   const openProposals = useQuery(dashboardProposalsQuery(dashboardId)).data
   const mergedProposals = useQuery(
     dashboardProposalsQuery(dashboardId, "merged")
@@ -252,7 +250,6 @@ export function ActivityFeed({
           findings: findingsData,
           proposals: proposalsData,
           annotations: annotationsData,
-          replaced,
         }),
         show,
         scopePanelId
@@ -266,7 +263,6 @@ export function ActivityFeed({
       findingsData,
       proposalsData,
       annotationsData,
-      replaced,
       show,
       scopePanelId,
     ]

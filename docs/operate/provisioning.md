@@ -84,7 +84,6 @@ A dashboard read tells an editor where the dashboard comes from, so the edit doe
 - When the file changes and its content replaces a version that `Provisioning` did not save, the `dashboard.version_created` event of the new version has `replaced_version`, the number of the version it replaced.
   An apply that replaces a version no apply saved records the same field.
   `observe activity` prints it as `saved version 5 of "Checkout" from its file, replacing version 4`.
-  In the web app, the dashboard's Activity tab says "Replaced version 4, which stays in the version history" on version 5.
   Restore that version from the dashboard's history to get the edit back, then move it into the file.
 
 The warning and the note do not say that a replacement is coming, because the server does not know whether the file will change.
