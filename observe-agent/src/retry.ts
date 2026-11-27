@@ -10,6 +10,11 @@ export const startRetry: RetryPolicy = {
   budgetMs: 65_000,
 }
 
+export const finishRetry: RetryPolicy = {
+  waitsMs: [500, 1_000, 2_000, 4_000, 8_000],
+  budgetMs: 60_000,
+}
+
 function pause(ms: number, signal: AbortSignal): Promise<void> {
   if (ms <= 0 || signal.aborted) {
     return Promise.resolve()
