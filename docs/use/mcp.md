@@ -1842,7 +1842,8 @@ Files the answer of a run as an observation.
 
 - It takes `run_id`.
   The observation goes in the folder of the dashboard the chat was about, else in the requester's default folder (a person's My Dashboards, a key's General).
-- It answers `observation_id`, `url` and `replayed`, true when the answer was already saved.
+- It answers `observation_id`, `url`, `outcome` and `replayed`.
+  `outcome` is `created` for a new observation, `kept` when a thread share had only shown the answer on an observation's page and it is now saved there, so withdrawing the share leaves it, and `unchanged` when it was already saved; `replayed` is true only for `unchanged`.
 - Until then a run's `result_kind` is `answer` and its `observation_id` is null.
   It reads `observation` afterwards, in `get_run`, `list_runs`, `observe requests list --json` and `GET /api/v1/observe`.
 - Only the one who asked can save it.

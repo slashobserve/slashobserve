@@ -145,9 +145,10 @@ Sharing an answer that is already shared, from another tab for example, adds not
 In a chat about an observation the same menu shares into that observation's threads.
 **Show to everyone** also writes the answer onto the page, **Shared in the thread** opens the observation, and a withdraw takes the answer out of the observation again, so it is no longer read or listed through it.
 The blocks the share already wrote stay on the page until the observation's editors remove them like any other block.
+Saving the shown answer keeps it in that observation: a later withdraw then removes only your question and the answer from the thread, and the answer stays saved there.
 
 Once the answer is in an observation, the web app no longer offers to share it to a thread from the chat, because the observation is where the team reads it.
-An answer you shared before saving it keeps **Shared in the thread** and **Withdraw**.
+An answer you shared before saving it keeps **Shared in the thread** and **Withdraw**, and the withdraw then takes back only the thread share.
 The exception is an answer to a question about an observation that you saved into another one: its menu still offers **Show to everyone** and **Share to thread** into the discussion of the observation it was about, and **Withdraw** after it.
 
 A saved answer to a question about a dashboard or an observation is read by the readers of the observation it was saved in, not by the readers of the dashboard or observation it was about.

@@ -775,11 +775,11 @@ func answerOf(run pgtype.UUID, f findings.Finding, by auth.Principal, url string
 
 func saveAnswerOf(service *findings.Service) revisions.AnswerSaver {
 	return func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (revisions.SavedAnswer, error) {
-		f, replayed, err := service.SaveAsObservation(ctx, by, requestID)
+		f, outcome, err := service.SaveAsObservation(ctx, by, requestID)
 		if err != nil {
 			return revisions.SavedAnswer{}, saveAnswerError(err)
 		}
-		return revisions.SavedAnswer{ObservationID: f.ObservationID, Replayed: replayed}, nil
+		return revisions.SavedAnswer{ObservationID: f.ObservationID, Outcome: string(outcome)}, nil
 	}
 }
 

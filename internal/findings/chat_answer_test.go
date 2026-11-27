@@ -86,9 +86,9 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 	request := r.request(t, editor, r.open)
 	answer := r.save(t, editor, findings.SaveInput{AgentRequestID: request, DashboardID: r.open, Title: "Checkout errors by pod"})
 
-	first, replayed, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
-	if err != nil || replayed || !first.Saved() || first.ID != answer.ID {
-		t.Fatalf("first save: %+v replayed %v, %v", first, replayed, err)
+	first, outcome, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
+	if err != nil || outcome != findings.SaveCreated || !first.Saved() || first.ID != answer.ID {
+		t.Fatalf("first save: %+v outcome %s, %v", first, outcome, err)
 	}
 	if n := r.count(t, `SELECT count(*) FROM observations WHERE id = $1::uuid AND folder_id = $2 AND title = 'Checkout errors by pod'`, first.ObservationID, folder); n != 1 {
 		t.Fatalf("observation %s is not in the dashboard's folder %s", first.ObservationID, folder)
@@ -101,9 +101,9 @@ func TestSavingAnAnswerAsAnObservationFilesItOnceInTheDashboardsFolder(t *testin
 		t.Fatalf("run observation %v, want %s, %v", run.ObservationID, first.ObservationID, err)
 	}
 
-	again, replayed, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
-	if err != nil || !replayed || again.ObservationID != first.ObservationID {
-		t.Fatalf("repeat: %+v replayed %v, %v", again, replayed, err)
+	again, outcome, err := r.service.SaveAsObservation(reading(t.Context()), editor, request)
+	if err != nil || outcome != findings.SaveUnchanged || again.ObservationID != first.ObservationID {
+		t.Fatalf("repeat: %+v outcome %s, %v", again, outcome, err)
 	}
 	if n := r.count(t, `SELECT count(*) FROM observations`); n != 1 {
 		t.Fatalf("%d observations after a repeated save", n)

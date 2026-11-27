@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 type answerSaves struct {
 	saved      map[pgtype.UUID]string
 	unanswered pgtype.UUID
+	shown      pgtype.UUID
 	calls      int
 }
 
@@ -27,10 +29,13 @@ func (a *answerSaves) save(_ context.Context, _ auth.Principal, requestID pgtype
 		return revisions.SavedAnswer{}, revisions.ErrNoAnswer
 	}
 	if id, ok := a.saved[requestID]; ok {
-		return revisions.SavedAnswer{ObservationID: id, Replayed: true}, nil
+		return revisions.SavedAnswer{ObservationID: id, Outcome: revisions.AnswerUnchanged}, nil
 	}
 	a.saved[requestID] = "55555555-5555-4555-8555-555555555555"
-	return revisions.SavedAnswer{ObservationID: a.saved[requestID]}, nil
+	if requestID == a.shown {
+		return revisions.SavedAnswer{ObservationID: a.saved[requestID], Outcome: revisions.AnswerKept}, nil
+	}
+	return revisions.SavedAnswer{ObservationID: a.saved[requestID], Outcome: revisions.AnswerCreated}, nil
 }
 
 func TestSavingARequestsAnswerAsAnObservationMatchesTheDocument(t *testing.T) {
@@ -43,7 +48,11 @@ func TestSavingARequestsAnswerAsAnObservationMatchesTheDocument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	saves := &answerSaves{saved: map[pgtype.UUID]string{}, unanswered: unanswered.ID}
+	shown, err := svc.SubmitObserve(reading(t.Context()), user, "and the metrics?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	saves := &answerSaves{saved: map[pgtype.UUID]string{}, unanswered: unanswered.ID, shown: shown.ID}
 	opts := revisions.ObserveOptions{ObservationURL: func(id string) string { return "/o/" + id }, SaveAnswer: saves.save}
 	requester := newDocumentedObserveWith(t, svc, user, opts)
 	path := "/api/v1/observe/" + answered.ID.String() + "/observation"
@@ -52,16 +61,21 @@ func TestSavingARequestsAnswerAsAnObservationMatchesTheDocument(t *testing.T) {
 		ObservationID string `json:"observation_id"`
 		URL           string `json:"url"`
 		Replayed      bool   `json:"replayed"`
+		Outcome       string `json:"outcome"`
 	}
 	if err := json.Unmarshal(requester.call(t, http.MethodPost, path, "", http.StatusCreated).Body.Bytes(), &first); err != nil {
 		t.Fatal(err)
 	}
-	if first.Replayed || first.URL != "/o/"+first.ObservationID {
+	if first.Replayed || first.Outcome != "created" || first.URL != "/o/"+first.ObservationID {
 		t.Fatalf("first save answered %+v", first)
 	}
 	again := requester.call(t, http.MethodPost, path, "", http.StatusOK).Body.String()
-	if want := `{"observation_id":"` + first.ObservationID + `","url":"/o/` + first.ObservationID + `","replayed":true}`; again != want {
+	if want := `{"observation_id":"` + first.ObservationID + `","url":"/o/` + first.ObservationID + `","replayed":true,"outcome":"unchanged"}`; again != want {
 		t.Fatalf("repeat answered %s, want %s", again, want)
+	}
+	kept := requester.call(t, http.MethodPost, "/api/v1/observe/"+shown.ID.String()+"/observation", "", http.StatusOK).Body.String()
+	if want := `"replayed":false,"outcome":"kept"}`; !strings.HasSuffix(kept, want) {
+		t.Fatalf("keeping a shown answer answered %s, want it to end %s", kept, want)
 	}
 
 	requester.call(t, http.MethodPost, "/api/v1/observe/"+unanswered.ID.String()+"/observation", "", http.StatusConflict)

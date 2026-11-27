@@ -5071,7 +5071,7 @@ components:
     AnswerSaved:
       type: object
       additionalProperties: false
-      required: [observation_id, url, replayed]
+      required: [observation_id, url, replayed, outcome]
       properties:
         observation_id:
           type: string
@@ -5081,7 +5081,12 @@ components:
           description: The address of the observation, empty when the server has no public URL configured.
         replayed:
           type: boolean
-          description: True when the answer was already an observation, so this call changed nothing.
+          description: True when the answer was already saved, so this call changed nothing (`outcome` `unchanged`).
+        outcome:
+          type: string
+          enum: [created, kept, unchanged]
+          description: >-
+            `created` when the answer became a new observation, `kept` when it was only shown on an observation's page by a thread share and is now saved there, so withdrawing the share leaves it on that observation, and `unchanged` when it was already saved.
     AnswerShared:
       type: object
       additionalProperties: false

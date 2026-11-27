@@ -89,11 +89,14 @@ func (a *app) runSaveAnswer(cmd *cobra.Command, args []string) error {
 		out.body(data)
 		return nil
 	}
-	if saved.Replayed {
+	switch {
+	case saved.Replayed:
 		out.line("Already an observation: %s", text(saved.URL))
-		return nil
+	case saved.Outcome == "kept":
+		out.line("Kept in the observation its thread share showed it in, so a withdraw leaves it there: %s", text(saved.URL))
+	default:
+		out.line("Saved as an observation: %s", text(saved.URL))
 	}
-	out.line("Saved as an observation: %s", text(saved.URL))
 	return nil
 }
 
@@ -101,6 +104,7 @@ type savedAnswer struct {
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	Replayed      bool   `json:"replayed"`
+	Outcome       string `json:"outcome"`
 }
 
 func saveAnswerError(err error, id string) error {

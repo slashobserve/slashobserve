@@ -501,7 +501,7 @@ Details of a shared answer:
 While nobody else has written in that thread, you can withdraw the answer back to only you.
 Use `observe comments withdraw <thread-id>` or `DELETE /threads/{id}/share`.
 It deletes the shared question and its answer, or the whole thread when the share opened it, and makes the run a private ask again, which you can share later.
-On an observation the run and its answer leave the observation's lists.
+On an observation the run and its answer leave the observation's lists, unless the answer was saved after the share (`POST /observe/{id}/observation`, `save_run_answer` or `observe save-answer`, which answer `outcome` `kept`): a saved answer stays in that observation and only the thread share is taken back.
 The answer's text that was written onto the page stays there as page content until an editor removes it.
 No MCP tool withdraws, because none deletes.
 

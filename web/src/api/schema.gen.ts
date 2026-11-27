@@ -2581,7 +2581,7 @@ export interface paths {
         put?: never;
         /**
          * Save the answer of an agent request as an observation.
-         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. A repeat call answers 200 with `replayed` true and the same observation. A request without an answer answers 409 `no_answer`.
+         * @description A plain question asked in chat or in a comment is answered on the request alone, in `finding` with `observation_id` null, and makes no observation; an investigation already has its own. This files that answer as an observation with its text and evidence: in the folder of the dashboard the question was about, else in the requester's default folder (a person's My Dashboards, a key's General). An answer whose request read data only Admins can query, such as the audit trail, is filed in the folder of the dashboard or observation it was about when only Admins can read that folder, else in the built-in Audit folder instead. Only the principal that made the request may call it; anyone else, an Admin included, gets 404 or 403 and nothing changes. The request gains `observation_id` and `url`, and `finding.observation_id` is set. An answer that a thread share only showed on an observation's page is saved in that observation: the call answers 200 with `outcome` `kept`, and a later withdraw of the share leaves it there. A repeat call answers 200 with `replayed` true, `outcome` `unchanged` and the same observation. A request without an answer answers 409 `no_answer`.
          */
         post: operations["saveObserveRequestAnswer"];
         delete?: never;
@@ -6946,8 +6946,13 @@ export interface components {
             observation_id: string;
             /** @description The address of the observation, empty when the server has no public URL configured. */
             url: string;
-            /** @description True when the answer was already an observation, so this call changed nothing. */
+            /** @description True when the answer was already saved, so this call changed nothing (`outcome` `unchanged`). */
             replayed: boolean;
+            /**
+             * @description `created` when the answer became a new observation, `kept` when it was only shown on an observation's page by a thread share and is now saved there, so withdrawing the share leaves it on that observation, and `unchanged` when it was already saved.
+             * @enum {string}
+             */
+            outcome: "created" | "kept" | "unchanged";
         };
         AnswerShared: {
             /**
@@ -16115,7 +16120,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The answer was already an observation; nothing changed. */
+            /** @description The answer was shown on an observation's page and is now saved there (`kept`), or it was already saved and nothing changed (`unchanged`). */
             200: {
                 headers: {
                     [name: string]: unknown;

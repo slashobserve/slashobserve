@@ -375,6 +375,7 @@ type Finding struct {
 	NoIncident         pgtype.Bool
 	Unverified         []byte
 	Causes             []byte
+	KeptAt             pgtype.Timestamptz
 }
 
 type Folder struct {

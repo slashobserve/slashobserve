@@ -24,8 +24,14 @@ var (
 
 type SavedAnswer struct {
 	ObservationID string
-	Replayed      bool
+	Outcome       string
 }
+
+const (
+	AnswerCreated   = "created"
+	AnswerKept      = "kept"
+	AnswerUnchanged = "unchanged"
+)
 
 type AnswerSaver func(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (SavedAnswer, error)
 
@@ -33,6 +39,7 @@ type savedAnswerJSON struct {
 	ObservationID string `json:"observation_id"`
 	URL           string `json:"url"`
 	Replayed      bool   `json:"replayed"`
+	Outcome       string `json:"outcome"`
 }
 
 func (h *ObserveHandler) saveAnswer(c *gin.Context) {
@@ -58,11 +65,11 @@ func (h *ObserveHandler) saveAnswer(c *gin.Context) {
 		h.failBuild(c, "save agent request answer as observation", err, idAttr)
 		return
 	}
-	status := http.StatusCreated
-	if saved.Replayed {
-		status = http.StatusOK
+	status := http.StatusOK
+	if saved.Outcome == AnswerCreated {
+		status = http.StatusCreated
 	}
-	c.JSON(status, savedAnswerJSON{ObservationID: saved.ObservationID, URL: h.opts.ObservationURL(saved.ObservationID), Replayed: saved.Replayed})
+	c.JSON(status, savedAnswerJSON{ObservationID: saved.ObservationID, URL: h.opts.ObservationURL(saved.ObservationID), Replayed: saved.Outcome == AnswerUnchanged, Outcome: saved.Outcome})
 }
 
 type SharedAnswer struct {

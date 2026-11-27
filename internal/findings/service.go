@@ -134,55 +134,63 @@ func (s *Service) answersWithoutObservation(ctx context.Context, requestID pgtyp
 	return !observationID.Valid, err
 }
 
-func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, bool, error) {
+type SaveOutcome string
+
+const (
+	SaveCreated   SaveOutcome = "created"
+	SaveKept      SaveOutcome = "kept"
+	SaveUnchanged SaveOutcome = "unchanged"
+)
+
+func (s *Service) SaveAsObservation(ctx context.Context, by auth.Principal, requestID pgtype.UUID) (Finding, SaveOutcome, error) {
 	f, found, err := s.store.forRequest(ctx, requestID)
 	if err == nil && !found {
 		err = ErrNotFound
 	}
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	id, err := db.ParseUUID(f.ID)
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	if _, _, err := s.place(ctx, by, f); err != nil {
-		return Finding{}, false, err
-	}
-	if f.Saved() {
-		f, err = s.Get(ctx, by, id)
-		return f, true, err
+		return Finding{}, "", err
 	}
 	if !isRequester(by, f) {
-		return Finding{}, false, ErrRequesterOnly
+		if f.Saved() {
+			f, err = s.Get(ctx, by, id)
+			return f, SaveUnchanged, err
+		}
+		return Finding{}, "", ErrRequesterOnly
 	}
 	conclusion := Conclusion{RunID: requestID, Title: f.Title, Markdown: f.Markdown, Evidence: f.Evidence, From: f.From, To: f.To, Causes: f.Structured.Causes}
-	kept, err := folders.RunAnswerKeptWithAdmins(ctx, s.store.db.Queries(), requestID)
-	if err != nil {
-		return Finding{}, false, err
-	}
-	if kept {
-		if conclusion.FolderID, err = s.restrictedAnswerFolder(ctx, requestID); err != nil {
-			return Finding{}, false, err
-		}
-	}
 	if f.DashboardID != "" {
 		if conclusion.DashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
-			return Finding{}, false, err
+			return Finding{}, "", err
 		}
 	}
-	attached, err := s.store.attachObservation(ctx, id, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+	outcome, err := s.store.keepInObservation(ctx, id, func(q *dbsqlc.Queries) (pgtype.UUID, bool, error) {
+		kept, err := folders.RunAnswerKeptWithAdmins(ctx, q, requestID)
+		if err != nil {
+			return pgtype.UUID{}, false, err
+		}
+		if kept {
+			if conclusion.FolderID, err = restrictedAnswerFolder(ctx, q, requestID); err != nil {
+				return pgtype.UUID{}, false, err
+			}
+		}
 		return s.observations.WriteConclusion(ctx, q, by, conclusion)
 	})
 	if err != nil {
-		return Finding{}, false, err
+		return Finding{}, "", err
 	}
 	f, err = s.Get(ctx, by, id)
-	return f, !attached, err
+	return f, outcome, err
 }
 
-func (s *Service) restrictedAnswerFolder(ctx context.Context, runID pgtype.UUID) (pgtype.UUID, error) {
-	folder, err := s.store.db.Queries().RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
+func restrictedAnswerFolder(ctx context.Context, q *dbsqlc.Queries, runID pgtype.UUID) (pgtype.UUID, error) {
+	folder, err := q.RestrictedAnswerFolder(ctx, dbsqlc.RestrictedAnswerFolderParams{RunID: runID, AuditFolderKey: auditfolder.FolderKey})
 	if err != nil {
 		return pgtype.UUID{}, fmt.Errorf("read the folder only Admins read for an answer that read Admin-only data: %w", err)
 	}
@@ -204,10 +212,11 @@ func (s *Service) ShowIn(ctx context.Context, q *dbsqlc.Queries, by auth.Princip
 	if err != nil {
 		return err
 	}
-	current, err := q.LockFinding(ctx, id)
+	locked, err := q.LockFinding(ctx, id)
 	if err != nil {
 		return fmt.Errorf("lock finding: %w", err)
 	}
+	current := locked.ObservationID
 	if current == observationID {
 		return nil
 	}

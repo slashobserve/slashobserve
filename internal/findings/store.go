@@ -153,30 +153,35 @@ func (s *store) runObservation(ctx context.Context, requestID pgtype.UUID) (pgty
 	return id, nil
 }
 
-func (s *store) attachObservation(ctx context.Context, id pgtype.UUID, conclude conclude) (bool, error) {
-	attached := false
+func (s *store) keepInObservation(ctx context.Context, id pgtype.UUID, conclude conclude) (SaveOutcome, error) {
+	var outcome SaveOutcome
 	err := s.db.InTx(ctx, func(q *dbsqlc.Queries) error {
-		existing, err := q.LockFinding(ctx, id)
-		if err != nil || existing.Valid {
-			return err
-		}
-		observationID, _, err := conclude(q)
+		locked, err := q.LockFinding(ctx, id)
 		if err != nil {
 			return err
 		}
-		if _, err := q.SetFindingObservation(ctx, dbsqlc.SetFindingObservationParams{ID: id, ObservationID: observationID}); err != nil {
-			return err
+		observationID := locked.ObservationID
+		switch {
+		case locked.KeptAt.Valid:
+			outcome = SaveUnchanged
+			return nil
+		case observationID.Valid:
+			outcome = SaveKept
+		default:
+			if observationID, _, err = conclude(q); err != nil {
+				return err
+			}
+			outcome = SaveCreated
 		}
-		attached = true
-		return nil
+		return q.KeepFindingInObservation(ctx, dbsqlc.KeepFindingInObservationParams{ID: id, ObservationID: observationID})
 	})
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return false, ErrNotFound
+		return "", ErrNotFound
 	case err != nil:
-		return false, fmt.Errorf("save finding as observation: %w", err)
+		return "", fmt.Errorf("save finding as observation: %w", err)
 	}
-	return attached, nil
+	return outcome, nil
 }
 
 func (s *store) get(ctx context.Context, id pgtype.UUID) (Finding, error) {
