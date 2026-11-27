@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/slashobserve/slashobserve/internal/agent/grounding"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
@@ -167,6 +168,42 @@ func TestAHarnessNamesTheStepOfACall(t *testing.T) {
 	r.hinted(req, "list_metrics", `{"q":"a"}`, &Hints{Step: "Reused the result of an identical call"}, readOK)
 	if steps := r.steps.messages(); len(steps) != 1 || steps[0] != "Reused the result of an identical call" {
 		t.Fatalf("steps = %q", steps)
+	}
+}
+
+func TestAHarnessInvestigationKeepsTheTaskItsAgentReports(t *testing.T) {
+	r := newRig(t)
+	req := r.investigate()
+	req.Investigation = true
+	r.harness(req)
+	measure, logs := route.Measure, route.Logs
+	for _, task := range []*route.Task{&measure, &logs} {
+		if err := r.svc.NoteAgent(context.Background(), req, tools.AgentReport{Task: task}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scope, err := r.svc.Scope(context.Background(), req)
+	if err != nil || scope.Task != route.Measure {
+		t.Fatalf("scope task = %q, %v", scope.Task, err)
+	}
+}
+
+func TestOnlyAHarnessInvestigationTakesAReportedTask(t *testing.T) {
+	measure := route.Measure
+	for name, req := range map[string]func(r *rig) revisions.Request{
+		"plain investigation": func(r *rig) revisions.Request { return r.investigate() },
+		"harness revision":    func(r *rig) revisions.Request { return r.harness(r.revise()) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRig(t)
+			req := req(r)
+			if err := r.svc.NoteAgent(context.Background(), req, tools.AgentReport{Task: &measure}); err != nil {
+				t.Fatal(err)
+			}
+			if state := r.storedState(req); state.Task == route.Measure {
+				t.Fatalf("task = %q", state.Task)
+			}
+		})
 	}
 }
 

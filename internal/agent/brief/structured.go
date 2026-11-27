@@ -41,7 +41,7 @@ func structuredRequest(t Task) tools.BriefRequest {
 		Mode: t.Mode, Source: string(t.Source), Prompt: t.Prompt, PanelID: nonEmpty(t.PanelID),
 		From: inUTC(t.From), To: inUTC(t.To), TimeZone: nonEmpty(t.TimeZone), Zone: zoneAt(t.TimeZone, t.now()), AsOf: inUTC(t.AsOf),
 		ContinueNote: nonEmpty(t.ContinueNote), ThreadContext: nonEmpty(t.ThreadContext), Continues: t.Continues, Attempt: t.Attempt,
-		Investigation: t.Investigation,
+		Investigation: t.Investigation, Observations: slices.Clone(t.Observations),
 		Pointer: tools.BriefPointer{
 			Anchor: t.Pointer.Anchor, BlockID: nonEmpty(t.Pointer.BlockID), ObservationID: nonEmpty(t.Pointer.ObservationID), ThreadAsk: t.Pointer.ThreadAsk,
 		},

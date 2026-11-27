@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/slashobserve/slashobserve/internal/agent/brief"
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -277,8 +278,13 @@ func (sess *session) commit(ctx context.Context) (restarted bool, err error) {
 }
 
 func briefTask(req revisions.Request, mode tools.Mode) brief.Task {
+	var observations []string
+	if run, err := tools.RunFor(req); err == nil {
+		observations = run.Observations
+	}
 	return brief.Task{
-		Mode: mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
+		Observations: observations,
+		Mode:         mode, Source: req.Source, Prompt: strings.TrimSpace(req.Prompt), PanelID: req.PanelID,
 		From: req.From, To: req.To, ContinueNote: req.ContinueNote, ThreadContext: req.ThreadContext, Continues: req.Continues, Attempt: req.Attempt,
 		Investigation: req.Investigation, TimeZone: req.TimeZone, AsOf: req.AsOf,
 		Pointer: brief.Pointer{Anchor: req.Anchor, BlockID: req.BlockID, ObservationID: observationOf(req), ThreadAsk: req.ThreadAsk},
@@ -402,6 +408,9 @@ func (s *Service) NoteAgent(ctx context.Context, req revisions.Request, in tools
 	err := s.with(ctx, req, func(_ context.Context, sess *session) error {
 		if in.State != nil {
 			sess.state.Agent = keptAgentState(*in.State)
+		}
+		if in.Task != nil && sess.state.AgentHarness && sess.state.Guard.Mode == tools.ModeInvestigate && sess.state.Task == route.Full {
+			sess.state.Task = *in.Task
 		}
 		for _, step := range in.Steps {
 			if message := claims.CleanText(step.Message, maxMessageRunes); message != "" {

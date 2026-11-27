@@ -31,6 +31,7 @@ type Task struct {
 	Continues     bool
 	Attempt       int
 	Investigation bool
+	Observations  []string
 	TimeZone      string
 	AsOf          *time.Time
 	Withheld      bool

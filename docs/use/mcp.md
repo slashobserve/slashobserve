@@ -463,7 +463,8 @@ A result of a call that ran also carries `call`, what the call did that its cont
 - `discovered`: `{"datasource", "of", "names"}` for a read that listed names, such as metrics or labels, or `null`.
 - `ranges`: each time range the call resolved and read, as `{"from", "to"}` in RFC 3339 UTC, in the order it read them; empty when it read none.
 `claim_run` takes `harness: true` only from SlashObserve's own agent, and answers `invalid_request` to any other claimer.
-Such a run's session leaves the guards to the agent: it skips the admission guards and their nudges and stops, the grounding check and the fact ids, the candidate check, the preflight sweep, the task type and its narrowed tool list, and the text of the brief, so `get_run_brief` answers empty `system` and `message` with `brief` filled.
+Such a run's session leaves the guards to the agent: it skips the admission guards and their nudges and stops, the grounding check and the fact ids, the candidate check, the preflight sweep, the routing of an investigation and the text of the brief, so `get_run_brief` answers empty `system` and `message` with `brief` filled.
+Its agent routes an investigation itself and sends the task type once as `report_run`'s `task` (`measure`, `logs`, `traces`, `incident`, `inventory` or `explain`), which the session keeps and narrows the run's tools to, `list_more_tools` included; `task` is ignored from any other claimer and in any other session.
 It keeps the run's lifecycle: the build, the steps, how a save settles the run, the parent version pin, the rebase or restart on a conflict, usage, the cost limit, the lease and the write scope.
 In such a session a call may carry `_meta["slashobserve.com/call"]` with `{"sweep", "step"}`: `sweep: true` marks a read of the agent's preflight sweep, which records no step and counts toward neither the run's tool calls nor its data reads, and `step` replaces the text of the step the call records; in any other session the key is ignored.
 
@@ -477,7 +478,7 @@ Some results also carry a note after the content, which an agent reads like any 
 `message` is the first message of a model session.
 `brief` holds what `system` and `message` are written from, as fields, read in the same call:
 
-- `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation` and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
+- `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation`, `observations` (the observations the run is about, absent when none) and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
   `zone` is the `label` (such as `CET`, or `UTC-03:00` where the zone has no abbreviation) and `offset_seconds` east of UTC of `time_zone` at `as_of`, or at the time of the call without one, and `null` when `time_zone` is unset or not a known zone.
 - `current`: the dashboard version the run works on, with `dashboard_id`, `number`, `spec`, `unverified` and `conversion` (the import notes of that version), or `null`; for a suggest run it is the base version with the draft panel in it.
 - `build`: the saved build, with `base_version`, `spec`, `unverified` and `progress`, or `null`.
@@ -504,6 +505,7 @@ A request on the run's token after the run ended is answered with HTTP 409 and `
   `session` is for this attempt; `carry` is also copied to the next attempt of the run, so a retry starts with it.
   A `null` part is left out.
 - `steps`: at most 20 steps of the agent's own, each with `phase` (`discover`, `lint`, `query`, `save`, `write`, `ledger`, `repair` or `stage`), an optional `tool` (at most 64 characters, `agent` when left out), `status` (`ok` or `error`) and `message` (at most 500 characters), recorded in the run's steps like the server's own.
+- `task`: SlashObserve's own agent only, in a `harness: true` run (above).
 
 Its answer has, next to `state`, `stop` and `lease_until`, the run's `build` progress and `server_time`, the server's clock when it renewed the lease.
 `lease_until` minus `server_time` is how long the lease has left, so an agent can time it on its own clock from the moment it sent the report, whatever the difference between its clock and the server's.

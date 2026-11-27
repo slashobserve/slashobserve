@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/claims"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
@@ -88,7 +89,8 @@ const (
 		`"phase":{"type":"string","enum":["discover","lint","query","save","write","ledger","repair","stage"]},` +
 		`"tool":{"type":"string","maxLength":64},"status":{"type":"string","enum":["ok","error"]},` +
 		`"message":{"type":"string","maxLength":500}},"required":["phase","status","message"],"additionalProperties":false},` +
-		`"description":"Steps of your own for the run's steps."}},` +
+		`"description":"Steps of your own for the run's steps."},` +
+		`"task":{"type":"string","description":"Server's own agent only: the investigation's task type."}},` +
 		`"required":["run_id","attempt"],"additionalProperties":false}`
 
 	schemaReleaseRun = `{"type":"object","properties":{` +
@@ -209,6 +211,7 @@ type reportRunInput struct {
 	Usage      *runUsage      `json:"usage"`
 	AgentState *AgentState    `json:"agent_state"`
 	Steps      []ReportedStep `json:"steps"`
+	Task       *string        `json:"task"`
 }
 
 type reportRunOut struct {
@@ -309,12 +312,16 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	if res, ok := checkAgentReport(in.AgentState, in.Steps); !ok {
 		return res, nil
 	}
+	task, res, ok := reportedTask(in.Task)
+	if !ok {
+		return res, nil
+	}
 	usage, res, ok := in.Usage.reported()
 	if !ok {
 		return res, nil
 	}
 	return r.asClaimedRun(ctx, in.runRefInput, func(claimer claims.Claimer, req revisions.Request) (Result, error) {
-		answer, err := r.report(ctx, claimer, req, in, usage)
+		answer, err := r.report(ctx, claimer, req, in, usage, task)
 		if err != nil {
 			return claimFailure(ctx, err)
 		}
@@ -322,14 +329,17 @@ func (r *Registry) reportRun(ctx context.Context, input json.RawMessage) (Result
 	})
 }
 
-func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput, usage *revisions.Usage) (reportRunOut, error) {
+func (r *Registry) report(ctx context.Context, claimer claims.Claimer, req revisions.Request, in reportRunInput, usage *revisions.Usage, task *route.Task) (reportRunOut, error) {
 	ref := claims.ReportInput{RunID: in.RunID, Attempt: in.Attempt, ClaimEpoch: in.ClaimEpoch, Note: in.Note}
 	answer, err := r.deps.Claims.Report(ctx, claimer, ref)
 	if err != nil || answer.Stop {
 		return reportRunOut{ReportAnswer: answer}, err
 	}
-	if in.AgentState != nil || len(in.Steps) > 0 {
-		err := r.deps.RunSessions.NoteAgent(ctx, req, AgentReport{State: in.AgentState, Steps: in.Steps})
+	if task != nil && claimer.Kind != revisions.AssignBuiltin {
+		task = nil
+	}
+	if in.AgentState != nil || len(in.Steps) > 0 || task != nil {
+		err := r.deps.RunSessions.NoteAgent(ctx, req, AgentReport{State: in.AgentState, Steps: in.Steps, Task: task})
 		if err != nil && !errors.Is(err, ErrRunEnded) {
 			return reportRunOut{}, err
 		}
@@ -475,6 +485,25 @@ func checkAgentReport(state *AgentState, steps []ReportedStep) (Result, bool) {
 		}
 	}
 	return Result{}, true
+}
+
+func reportedTask(raw *string) (*route.Task, Result, bool) {
+	if raw == nil {
+		return nil, Result{}, true
+	}
+	task, ok := route.Parse(*raw)
+	if !ok || task == route.Full {
+		return nil, invalid("task must be one of %s", strings.Join(taskNames(), ", ")), false
+	}
+	return &task, Result{}, true
+}
+
+func taskNames() []string {
+	names := make([]string, len(route.Tasks))
+	for i, t := range route.Tasks {
+		names[i] = string(t)
+	}
+	return names
 }
 
 func checkRunText(field, value string, maxRunes int) (Result, bool) {

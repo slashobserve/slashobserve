@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/auth"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/db"
@@ -59,6 +60,7 @@ type ReportedStep struct {
 type AgentReport struct {
 	State *AgentState
 	Steps []ReportedStep
+	Task  *route.Task
 }
 
 type RunFinish struct {

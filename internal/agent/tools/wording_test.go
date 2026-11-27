@@ -445,7 +445,7 @@ var agentToolTextAllowances = map[string]int{
 	nameFinishRun:     2700,
 	nameListActivity:  3600,
 	nameQueryInstant:  2300,
-	nameReportRun:     3000,
+	nameReportRun:     3100,
 	nameSaveFinding:   6700,
 	nameStartRun:      2200,
 	nameUpdatePanels:  3700,

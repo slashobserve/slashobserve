@@ -35,6 +35,7 @@ type BriefRequest struct {
 	Continues     bool         `json:"continues"`
 	Attempt       int          `json:"attempt"`
 	Investigation bool         `json:"investigation"`
+	Observations  []string     `json:"observations,omitempty"`
 	Pointer       BriefPointer `json:"pointer"`
 }
 
