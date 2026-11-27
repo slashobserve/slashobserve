@@ -44,7 +44,7 @@ func TestWithoutQueriesLeavesNoQueryTextInAnyPanelType(t *testing.T) {
 		"traces":     `{"type":"traces","title":"Slow","datasource":"tempo","queries":[{"ref":"A","query":"{ duration > 2s }"}]}`,
 	}
 	for name, panel := range panels {
-		got, err := withoutQueries(json.RawMessage(panel))
+		got, _, err := splitQueries(json.RawMessage(panel))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -64,7 +64,7 @@ func TestWithoutQueriesLeavesNoQueryTextInAnyPanelType(t *testing.T) {
 
 func TestWithoutQueriesKeepsTheQueryReferencesThatDrawThePanel(t *testing.T) {
 	panel := json.RawMessage(`{"type":"timeseries","title":"Rate","queries":[{"ref":"A","query":"up"}],"overrides":[{"match":{"query":"A"},"unit":"ms"}]}`)
-	got, err := withoutQueries(panel)
+	got, _, err := splitQueries(panel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestWithoutQueriesKeepsTheQueryReferencesThatDrawThePanel(t *testing.T) {
 }
 
 func TestWithoutQueriesRefusesAPanelThatIsNotAnObject(t *testing.T) {
-	if _, err := withoutQueries(json.RawMessage(`[1]`)); err == nil {
+	if _, _, err := splitQueries(json.RawMessage(`[1]`)); err == nil {
 		t.Error("an array was accepted")
 	}
 }

@@ -118,10 +118,6 @@ func (s *Service) Enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParam
 	return s.enqueue(ctx, q, p)
 }
 
-func (s *Service) EnqueueAssigned(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
-	return s.enqueue(ctx, q, p)
-}
-
 func (s *Service) enqueue(ctx context.Context, q *dbsqlc.Queries, p EnqueueParams) (dbsqlc.AgentRequest, error) {
 	if !p.DashboardID.Valid {
 		return dbsqlc.AgentRequest{}, fmt.Errorf("enqueue agent request: dashboard id is required")

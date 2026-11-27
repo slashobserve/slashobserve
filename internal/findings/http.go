@@ -331,8 +331,6 @@ func (h *Handler) fail(c *gin.Context, action string, err error) {
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", ErrPlacement.Error())
 	case errors.Is(err, ErrInvalidCursor):
 		httpapi.AbortError(c, http.StatusBadRequest, "invalid_request", "cursor is not valid")
-	case errors.Is(err, ErrNotSaved):
-		httpapi.AbortError(c, http.StatusConflict, "finding_not_saved", err.Error())
 	case errors.Is(err, ErrRequesterOnly):
 		httpapi.AbortError(c, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage)
 	case errors.Is(err, ErrNoEvidence):

@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/slashobserve/slashobserve/internal/activity"
 	"github.com/slashobserve/slashobserve/internal/actor"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auditfolder"
@@ -419,38 +418,6 @@ func runOf(f Finding) (pgtype.UUID, error) {
 		return pgtype.UUID{}, nil
 	}
 	return db.ParseUUID(f.AgentRequestID)
-}
-
-type Placement struct {
-	Dashboard pgtype.UUID
-	Folder    *folders.Folder
-	Activity  activity.Owner
-	Abilities folders.Abilities
-}
-
-func (s *Service) Access(ctx context.Context, by auth.Principal, id pgtype.UUID) (Placement, error) {
-	f, err := s.store.get(ctx, id)
-	if err != nil {
-		return Placement{}, err
-	}
-	folder, abilities, err := s.place(ctx, by, f)
-	if err != nil {
-		return Placement{}, err
-	}
-	if !f.Saved() {
-		return Placement{}, ErrNotSaved
-	}
-	observationID, err := db.ParseUUID(f.ObservationID)
-	if err != nil {
-		return Placement{}, err
-	}
-	var dashboardID pgtype.UUID
-	if f.DashboardID != "" {
-		if dashboardID, err = db.ParseUUID(f.DashboardID); err != nil {
-			return Placement{}, err
-		}
-	}
-	return Placement{Dashboard: dashboardID, Folder: &folder, Activity: activity.OnObservation(observationID), Abilities: abilities}, nil
 }
 
 func (f Finding) SavableBy(by auth.Principal) bool {

@@ -148,11 +148,6 @@ type snapshotRef struct {
 	panel json.RawMessage
 }
 
-func withoutQueries(panel json.RawMessage) (json.RawMessage, error) {
-	rest, _, err := splitQueries(panel)
-	return rest, err
-}
-
 func publishable(rows []dbsqlc.ObservationBlock) []dbsqlc.ObservationBlock {
 	out := make([]dbsqlc.ObservationBlock, 0, len(rows))
 	for _, b := range rows {
