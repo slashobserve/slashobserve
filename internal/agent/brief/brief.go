@@ -1,22 +1,17 @@
 package brief
 
 import (
-	"fmt"
+	"slices"
 	"time"
 
 	"github.com/slashobserve/slashobserve/internal/agent/prompts"
-	"github.com/slashobserve/slashobserve/internal/agent/route"
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
+	"github.com/slashobserve/slashobserve/internal/anchor"
 	"github.com/slashobserve/slashobserve/internal/dashboards"
 	"github.com/slashobserve/slashobserve/internal/datasource"
 	"github.com/slashobserve/slashobserve/internal/revisions"
+	"github.com/slashobserve/slashobserve/pkg/spec"
 )
-
-const threadLead = "The request was asked in this thread (earlier messages, oldest first):"
-
-const factsNote = "When you answer with save_finding, write each figure from a read that gave fact ids in `facts` as its fact, `{{f3}}`, which the server fills in (`{{f3:ms}}`, `{{f3:%}}` or `{{f3:3}}` change the unit or the figures within 1%), copy trace ids whole, and list each quantity asked in `answers` with its one fact."
-
-const withheldAdvice = "When the request needs them, say so in your answer and do not guess their contents."
 
 var clock = time.Now
 
@@ -36,11 +31,13 @@ type Task struct {
 	AsOf          *time.Time
 	Withheld      bool
 	Pointer       Pointer
-	Loop          bool
-	Facts         bool
-	Hypotheses    string
-	Triage        string
-	Route         route.Task
+}
+
+type Pointer struct {
+	Anchor        *anchor.Anchor
+	BlockID       string
+	ObservationID string
+	ThreadAsk     bool
 }
 
 type View struct {
@@ -48,66 +45,12 @@ type View struct {
 	Build   *dashboards.Build
 }
 
-type Message struct {
-	System  string
-	Context string
-	User    string
-}
-
-func Render(statuses []datasource.Status, t Task, v View, r Reason, digest string) (Message, error) {
-	sd := seed{build: v.Build, reason: r, note: t.ContinueNote}
-	var m Message
-	if t.Mode == tools.ModeInvestigate {
-		m.System = investigateSystem(statuses, t)
-		m.Context = investigateContext(statuses, t, v.Current, sd)
-	} else {
-		view := v.Current
-		if v.Build != nil {
-			view = buildView(v.Current, v.Build)
-		}
-		body, err := buildContext(statuses, t.Mode, t.Source, t.PanelID, t.Prompt, view, sd)
-		if err != nil {
-			return Message{}, err
-		}
-		m.System, m.Context = systemFor(statuses), body
-	}
-	if t.Mode != tools.ModeSuggest {
-		m.Context += "\n\n" + clockNote(t.TimeZone, t.now())
-		if t.Facts && t.Mode != tools.ModeInvestigate {
-			m.Context += "\n\n" + factsNote
-		}
-	}
-	if note := anchorNote(t.Pointer); note != "" {
-		m.Context += "\n\n" + note
-	}
-	if t.ThreadContext != "" {
-		m.Context += "\n\n" + threadLead + "\n" + t.ThreadContext
-	}
-	if t.Withheld {
-		m.Context += "\n\n" + datasource.WithheldNote + " " + withheldAdvice
-	}
-	if t.AsOf != nil {
-		m.Context += "\n\n" + asOfNote(*t.AsOf)
-	}
-	if digest != "" && t.Mode != tools.ModeSuggest {
-		m.Context += "\n\n" + digest
-	}
-	if t.Hypotheses != "" && t.Mode != tools.ModeSuggest {
-		m.Context += "\n\n" + t.Hypotheses
-	}
-	m.User = userMessage(m.Context, t.Prompt)
-	return m, nil
-}
-
-func investigateSystem(statuses []datasource.Status, t Task) string {
-	return prompts.InvestigateFor(prompts.Variant{Task: t.Route, Facts: t.Facts, Ledger: t.Loop}, guideTypes(statuses))
-}
-
-func userMessage(context, prompt string) string {
-	if context == "" {
-		return prompt
-	}
-	return context + "\n\n<request>\n" + prompt + "\n</request>"
+type Revision struct {
+	DashboardID string
+	Number      int
+	Spec        *spec.Dashboard
+	Unverified  dashboards.Unverified
+	Conversion  []tools.Attention
 }
 
 func (t Task) now() time.Time {
@@ -117,6 +60,14 @@ func (t Task) now() time.Time {
 	return clock()
 }
 
-func asOfNote(at time.Time) string {
-	return fmt.Sprintf("Now is %s for this run: every relative time, such as now-1h, resolves to it, and the data may end there.", at.UTC().Format(time.RFC3339))
+func guideTypes(statuses []datasource.Status) []spec.DatasourceType {
+	var types []spec.DatasourceType
+	for _, s := range statuses {
+		for _, t := range prompts.GuideTypes(s.Type, s.Source == datasource.SourceBuiltin) {
+			if !slices.Contains(types, t) {
+				types = append(types, t)
+			}
+		}
+	}
+	return types
 }
