@@ -907,7 +907,7 @@ var knownFailures = []knownFailure{
 	{ErrNothingToUpdate, http.StatusBadRequest, "invalid_request", ErrNothingToUpdate.Error()},
 	{folders.ErrMoveIntoPersonal, http.StatusConflict, "personal_folder", moveIntoPersonalMessage},
 	{folders.ErrForbidden, http.StatusForbidden, forbidden.Code, forbidden.RoleMessage},
-	{folders.ErrNoAccess, http.StatusForbidden, forbidden.Code, forbidden.AccessMessage},
+	{folders.ErrNoAccess, http.StatusNotFound, "not_found", ErrNotFound.Error()},
 }
 
 func abortKnown(c *gin.Context, err error) bool {
