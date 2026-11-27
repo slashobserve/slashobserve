@@ -126,8 +126,6 @@ export class FakeClaim implements ClaimApi {
   async getRunBrief(input: BriefInput): Promise<BriefAnswer> {
     this.briefs.push(input)
     return {
-      system: "system text",
-      message: "user message",
       reason: input.reason ?? "",
       build: null,
       ...this.brief(input, this.briefs.length - 1),

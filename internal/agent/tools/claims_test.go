@@ -662,7 +662,7 @@ func TestClaimToolsWithoutAClaimEpochLookTheRunUpByItsAttemptAlone(t *testing.T)
 }
 
 func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
-	rs := &fakeRunSessions{brief: BriefAnswer{System: "sys", Message: "msg", Reason: "renewed", Build: &BuildProgress{Saves: 2, Panels: 2, PlannedPanels: 3}}}
+	rs := &fakeRunSessions{brief: BriefAnswer{Reason: "renewed", Build: &BuildProgress{Saves: 2, Panels: 2, PlannedPanels: 3}}}
 	deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 
 	res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2,"reason":"renewed"}`)
@@ -672,7 +672,8 @@ func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
 
 	out := jsonOf(t, res)
 	build, _ := out["build"].(map[string]any)
-	if out["system"] != "sys" || out["message"] != "msg" || out["reason"] != "renewed" || build["planned_panels"] != float64(3) {
+	_, system := out["system"]
+	if system || out["reason"] != "renewed" || build["planned_panels"] != float64(3) {
 		t.Fatalf("answer = %v", out)
 	}
 	if rs.briefReasons[0] != "renewed" {
@@ -681,7 +682,7 @@ func TestGetRunBriefAnswersTheBriefAndPassesTheReason(t *testing.T) {
 }
 
 func TestGetRunBriefOfAFreshSessionLeavesTheReasonOutAndKeepsBuildNullWithoutOne(t *testing.T) {
-	rs := &fakeRunSessions{brief: BriefAnswer{System: "s", Message: "m"}}
+	rs := &fakeRunSessions{brief: BriefAnswer{}}
 	deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 
 	res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
@@ -698,8 +699,8 @@ func TestGetRunBriefOfAFreshSessionLeavesTheReasonOutAndKeepsBuildNullWithoutOne
 }
 
 func TestGetRunBriefAnswersABriefBeyondTheDefaultResultCapAndRefusesOneBeyondItsOwn(t *testing.T) {
-	call := func(system, message int) Result {
-		rs := &fakeRunSessions{brief: BriefAnswer{System: strings.Repeat("s", system), Message: strings.Repeat("m", message)}}
+	call := func(guide, prompt int) Result {
+		rs := &fakeRunSessions{brief: BriefAnswer{Brief: &RunBrief{Request: BriefRequest{Prompt: strings.Repeat("m", prompt)}, Guide: BriefGuide{Text: strings.Repeat("s", guide)}}}}
 		deps := Deps{Claims: &fakeClaims{req: claimedRequest()}, RunSessions: rs}
 		res, err := callClaimToolWith(t, deps, outsideClaimer, nameGetRunBrief, `{"run_id":"`+runID+`","attempt":2}`)
 		if err != nil {

@@ -31,8 +31,6 @@ type BuildProgress struct {
 }
 
 type BriefAnswer struct {
-	System  string         `json:"system"`
-	Message string         `json:"message"`
 	Reason  string         `json:"reason"`
 	Build   *BuildProgress `json:"build"`
 	Brief   *RunBrief      `json:"brief"`

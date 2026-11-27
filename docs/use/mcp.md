@@ -391,7 +391,7 @@ The loop of an agent that takes runs:
 
    The server answers in the thread when the run ends, so do not reply there yourself.
 3. Read the `observe` prompt with that `kind`; it is the system text SlashObserve's own agent works from for that kind of run.
-   `get_run_brief` returns the same text with the first message SlashObserve's own agent starts each model session with, and is optional.
+   `get_run_brief` returns the run's request, dashboard version, build and datasources as fields, and is optional.
 4. Open a second MCP connection to the session `url` with the token as the Bearer, and work with the tools it lists.
    The token stops working when the connection the run is assigned to is revoked or expires.
 5. Call `report_run` at least every 30 seconds with the `run_id`, `attempt` and `claim_epoch`.
@@ -454,9 +454,8 @@ Some results also carry a note after the content, which an agent reads like any 
 
 ### Briefs, usage and live text
 
-`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `system`, `message`, `reason`, `build`, `brief` and `agent_state`.
-`message` is the first message of a model session.
-`brief` holds what `system` and `message` are written from, as fields, read in the same call:
+`get_run_brief` takes `run_id`, `attempt`, an optional `claim_epoch` and an optional `reason` (`restart`, `output_limit`, `pending`, `conflict`, `continue`, `renewed`, `call_timeout`, `no_finding` or `no_answer`) and answers `reason`, `build`, `brief` and `agent_state`.
+`brief` holds what SlashObserve's own agent writes the system text and first message of a model session from, as fields:
 
 - `request`: the run's `mode` (`create`, `revise`, `suggest` or `investigate`), `source`, `prompt`, `panel_id`, `from`, `to`, `time_zone`, `zone`, `as_of`, `continue_note`, `thread_context`, `continues`, `attempt`, `investigation`, `observations` (the observations the run is about, absent when none) and `pointer` (`anchor`, `block_id`, `observation_id`, `thread_ask`); an unset value is `null`.
   `zone` is the `label` (such as `CET`, or `UTC-03:00` where the zone has no abbreviation) and `offset_seconds` east of UTC of `time_zone` at `as_of`, or at the time of the call without one, and `null` when `time_zone` is unset or not a known zone.
@@ -2021,4 +2020,4 @@ Calls one approved tool of an MCP source and returns its text.
 | `report_run` | Keeps the lease, with an optional `note`, `text`, `usage`, `agent_state` and `steps`. |
 | `finish_run` | Ends the run with `outcome` `succeeded` or `failed`. |
 | `release_run` | Puts a run you cannot work back in the queue, not failed. |
-| `get_run_brief` | Returns the system text and first message of a model session, and what they are written from as fields. |
+| `get_run_brief` | Returns the run's request, dashboard version, build, datasources and authoring guide as fields, which a model session starts from. |

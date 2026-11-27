@@ -235,8 +235,6 @@ export const agentState = z.object({
 export type AgentState = z.infer<typeof agentState>
 
 export const briefAnswer = z.object({
-  system: z.string(),
-  message: z.string(),
   reason: z.string().default(""),
   build: buildProgress.nullish(),
   brief: runBrief.nullish().catch(null),

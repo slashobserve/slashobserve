@@ -96,8 +96,6 @@ function investigation(agent: Partial<AgentSettings> = {}) {
   const claim = new FakeClaim()
   claim.tools.specs = specs
   claim.brief = () => ({
-    system: "",
-    message: "",
     brief: structured("investigate", investigatePrompt, true),
   })
   claim.tools.handler = async (call) =>
@@ -216,8 +214,6 @@ describe("a harness investigation", () => {
 
     const { claim, run } = investigation()
     claim.brief = () => ({
-      system: "",
-      message: "",
       brief: structured("investigate", investigatePrompt, true),
       agent_state: kept ?? null,
     })
@@ -236,8 +232,6 @@ describe("a harness create run", () => {
     const claim = new FakeClaim()
     claim.tools.specs = specs
     claim.brief = () => ({
-      system: "",
-      message: "",
       brief: structured("create", "harness keeps reading", false),
     })
     await runLoop(

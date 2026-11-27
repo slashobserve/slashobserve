@@ -131,7 +131,7 @@ func TestBriefAnswersTheStructuredBriefAndTheReason(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.System != "" || got.Message != "" || got.Brief == nil || !strings.Contains(got.Brief.Request.Prompt, "add a latency panel") || got.Reason != "" || got.Build != nil {
+	if got.Brief == nil || !strings.Contains(got.Brief.Request.Prompt, "add a latency panel") || got.Reason != "" || got.Build != nil {
 		t.Fatalf("brief = %+v", got)
 	}
 	if _, err := r.svc.Brief(context.Background(), req, "nonsense"); !errors.Is(err, tools.ErrInvalidReason) {

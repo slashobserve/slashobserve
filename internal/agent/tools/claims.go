@@ -47,7 +47,7 @@ const (
 
 	descFinishRun = "End a run you claimed. Send outcome succeeded after you saved its result with the run session's tools; a run that saved a version, a proposal or a finding ends succeeded whatever you send, and one that saved nothing ends failed. Send outcome failed with a message when you could not. usage is your model use, shown on the run. Optional: commit saves the finished dashboard first; restarted is true when the dashboard changed meanwhile and the run restarted from its latest version, so call get_run_brief and go on."
 
-	descGetRunBrief = "Optional. The first message the server's own agent starts each model session with: the system text, the user message, the run's saved progress and, in brief, what they are written from as fields. Starting a session with it resets the read guard and pins the parent version; an agent that does not call it keeps working from claim_run's prompt."
+	descGetRunBrief = "Optional. What the server's own agent starts each model session from: the run's saved progress and, in brief, the request, the dashboard version, the unsaved work, the datasources and the authoring guide as fields. Calling it pins the parent version the run's saves are checked against; an agent that does not call it keeps working from claim_run's prompt."
 
 	descReleaseRun = "Hand a run you claimed back to the queue when you cannot work it, for example because you are stopping. The run is queued again with its saved progress and steps, and it does not count as failed; the next claim_run of an agent it is assigned to takes it. The answer has the run's state: queued, canceled when its requester had canceled it, or the state it had already ended in. Call finish_run instead when the run is done or cannot be done."
 

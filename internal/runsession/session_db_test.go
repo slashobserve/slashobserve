@@ -63,7 +63,7 @@ func TestTheBriefIsStructuredOnlyAndPinsTheParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.System != "" || got.Message != "" || got.Brief == nil || got.Brief.Build == nil || got.Reason != "restart" {
+	if got.Brief == nil || got.Brief.Build == nil || got.Reason != "restart" {
 		t.Fatalf("brief = %+v", got)
 	}
 	scope, err := r.svc.Scope(context.Background(), req)

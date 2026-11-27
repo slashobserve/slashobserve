@@ -305,18 +305,13 @@ describe("protocol", () => {
       draft: null,
     }
     const parsed = briefAnswer.parse({
-      system: "s",
-      message: "m",
       reason: "",
       build: null,
       brief,
     })
     expect(parsed.brief?.current?.number).toBe(2)
     expect(parsed.brief?.datasources[0]?.everyone).toBe(true)
-    expect(
-      briefAnswer.parse({ system: "s", message: "m", brief: { request: 1 } })
-        .brief
-    ).toBeNull()
+    expect(briefAnswer.parse({ brief: { request: 1 } }).brief).toBeNull()
   })
 
   test("a report carries the agent state and steps, and a brief returns the state", () => {
@@ -336,8 +331,6 @@ describe("protocol", () => {
       }).success
     ).toBe(false)
     const parsed = briefAnswer.parse({
-      system: "",
-      message: "",
       agent_state: { carry: { leads: ["c1"] } },
     })
     expect(parsed.agent_state?.carry).toEqual({ leads: ["c1"] })

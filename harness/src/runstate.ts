@@ -320,7 +320,7 @@ export class RunState implements Watch {
 
   render(answer: BriefAnswer, now: Date): Pick<Message, "system" | "user"> {
     if (!answer.brief) {
-      return { system: answer.system, user: answer.message }
+      return { system: "", user: "" }
     }
     return render(
       answer.brief,
