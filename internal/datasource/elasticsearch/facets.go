@@ -37,9 +37,9 @@ func (d *Datasource) LogFacets(ctx context.Context, req datasource.FacetRequest)
 		return datasource.Facets{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	prep, err := d.prepare(ctx, req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval), lim)
+	prep, err := d.prepare(ctx, req.Query, req.Range, datasource.InstantInterval(req.Range, req.Query.MinInterval), lim)
 	if err != nil {
 		return datasource.Facets{}, err
 	}
@@ -172,7 +172,7 @@ func fillFacetField(field *datasource.FacetField, resp searchResponse) error {
 		return nil
 	}
 	if json.Unmarshal(termsRaw, &terms) != nil || json.Unmarshal(cardRaw, &distinct) != nil {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	for _, b := range terms.Buckets {
 		value := b.KeyAsString

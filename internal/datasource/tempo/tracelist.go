@@ -40,7 +40,7 @@ func (d *Datasource) ListTraces(ctx context.Context, req datasource.TraceListReq
 		return datasource.TraceList{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	limit := cmpPositive(req.Limit, datasource.TraceListBudget)
 	rows, metrics, err := d.searchRows(ctx, ListQuery(req), req.Range, limit)

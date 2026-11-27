@@ -62,7 +62,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := expandQuery(q, r)
 	if err != nil {
@@ -111,7 +111,7 @@ func traceIDOf(text string) (string, bool) {
 func expandQuery(q datasource.Query, r datasource.TimeRange) (string, error) {
 	exp, err := macros.Expand(macros.Jaeger, q.Text, macros.Env{
 		Range:     r,
-		Interval:  max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), q.MinInterval),
+		Interval:  datasource.InstantInterval(r, q.MinInterval),
 		Variables: q.Variables,
 		Dashboard: q.Dashboard,
 		User:      q.User,
@@ -136,7 +136,7 @@ func (d *Datasource) searchRows(ctx context.Context, s search, r datasource.Time
 	}
 	attributes, err := s.attributesJSON()
 	if err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	params := url.Values{
 		"query.startTimeMin": {r.From.UTC().Format(timeParamLayout)},

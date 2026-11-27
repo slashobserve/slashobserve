@@ -218,7 +218,3 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 	}
 	return exp.Text, nil
 }
-
-func instantInterval(r datasource.TimeRange, minimum time.Duration) time.Duration {
-	return max(time.Second, (r.To.Sub(r.From) / 1000).Truncate(time.Second), minimum)
-}

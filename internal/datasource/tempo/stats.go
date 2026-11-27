@@ -108,7 +108,7 @@ func (d *Datasource) TraceStats(ctx context.Context, req datasource.TraceStatsRe
 		return datasource.TraceStats{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	var r statsResponses
 	jobs := []statsJob{

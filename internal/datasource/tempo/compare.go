@@ -26,7 +26,7 @@ func (d *Datasource) TraceAttributes(ctx context.Context, req datasource.TraceAt
 			break
 		}
 		group.Go(func() error {
-			callCtx, cancel := bound(groupCtx, d.opts.Limits.Timeout)
+			callCtx, cancel := datasource.Bound(groupCtx, d.opts.Limits.Timeout)
 			defer cancel()
 			rows, _, err := d.fetchSpans(callCtx, id, req.Range)
 			switch {

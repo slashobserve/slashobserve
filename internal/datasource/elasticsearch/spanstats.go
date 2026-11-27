@@ -119,7 +119,7 @@ func (s *SpanIndex) TraceStats(ctx context.Context, req datasource.TraceStatsReq
 		return datasource.TraceStats{}, datasource.Errorf(datasource.ErrInvalidQuery, "step must be positive")
 	}
 	lim := s.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	filter, err := s.spanFilter(ctx, req.Query)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *SpanIndex) TraceStats(ctx context.Context, req datasource.TraceStatsReq
 	}
 	var resp statsResponse
 	if json.NewDecoder(bytes.NewReader(raw)).Decode(&resp) != nil {
-		return datasource.TraceStats{}, unreadable()
+		return datasource.TraceStats{}, datasource.Unreadable()
 	}
 	return foldSpanStats(req.Range, req.Step, resp), nil
 }
@@ -232,7 +232,7 @@ func (s *SpanIndex) TraceDurations(ctx context.Context, req datasource.TraceDura
 		}
 	}
 	lim := s.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	filter, err := s.spanFilter(ctx, req.Query)
 	if err != nil {

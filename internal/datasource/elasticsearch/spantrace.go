@@ -111,7 +111,7 @@ func (s *SpanIndex) scan(ctx context.Context, query map[string]any, order string
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.UseNumber()
 		if dec.Decode(&page) != nil {
-			return spanScan{}, unreadable()
+			return spanScan{}, datasource.Unreadable()
 		}
 		if after == nil {
 			out.total = page.Hits.Total.Value
@@ -133,7 +133,7 @@ func (s *SpanIndex) Trace(ctx context.Context, id string, r datasource.TimeRange
 	if !datasource.ValidTraceID(id) {
 		return datasource.Frame{}, datasource.Errorf(datasource.ErrInvalidQuery, "trace id must be 16 or 32 hex characters")
 	}
-	ctx, cancel := bound(ctx, s.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, s.opts.Limits.Timeout)
 	defer cancel()
 	docs, scan, err := s.traceSpans(ctx, id, r, maxSpans+1)
 	if err != nil {
@@ -183,7 +183,7 @@ func (s *SpanIndex) TraceAttributes(ctx context.Context, req datasource.TraceAtt
 			break
 		}
 		group.Go(func() error {
-			callCtx, cancel := bound(groupCtx, s.opts.Limits.Timeout)
+			callCtx, cancel := datasource.Bound(groupCtx, s.opts.Limits.Timeout)
 			defer cancel()
 			docs, _, err := s.traceSpans(callCtx, id, req.Range, limit)
 			switch {

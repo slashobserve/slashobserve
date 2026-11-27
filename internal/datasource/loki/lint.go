@@ -2,7 +2,6 @@ package loki
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,18 +27,18 @@ func (d *Datasource) Lint(_ context.Context, query string) ([]datasource.Diagnos
 	diags := []datasource.Diagnostic{}
 	exp, err := macros.ExpandForLint(macros.LogQL, query)
 	if err != nil {
-		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: messageOf(err)}), nil
+		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: datasource.MessageOf(err)}), nil
 	}
 	p, found := checkLogQL(exp.Text)
 	if !found {
 		return diags, nil
 	}
-	start, end, inVariable := exp.Locate(clamp(p.start, len(exp.Text)), clamp(p.end, len(exp.Text)))
+	start, end, inVariable := exp.Locate(datasource.Clamp(p.start, len(exp.Text)), datasource.Clamp(p.end, len(exp.Text)))
 	diag := datasource.Diagnostic{
 		Severity: datasource.SeverityError,
 		Message:  p.message,
-		Start:    clamp(start, len(query)),
-		End:      max(clamp(start, len(query)), clamp(end, len(query))),
+		Start:    datasource.Clamp(start, len(query)),
+		End:      max(datasource.Clamp(start, len(query)), datasource.Clamp(end, len(query))),
 	}
 	if inVariable {
 		diag.Severity = datasource.SeverityWarning
@@ -151,16 +150,4 @@ func skipSpace(text string, i int) int {
 
 func isWordByte(c byte, first bool) bool {
 	return c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (!first && '0' <= c && c <= '9')
-}
-
-func clamp(v, upper int) int {
-	return max(0, min(v, upper))
-}
-
-func messageOf(err error) string {
-	var ue *datasource.UpstreamError
-	if errors.As(err, &ue) {
-		return ue.Message
-	}
-	return err.Error()
 }

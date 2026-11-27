@@ -70,7 +70,7 @@ type spanRow struct {
 }
 
 func (d *Datasource) Trace(ctx context.Context, id string, r datasource.TimeRange, maxSpans int) (datasource.Frame, error) {
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	return d.trace(ctx, id, r, maxSpans)
 }
@@ -105,7 +105,7 @@ func (d *Datasource) fetchSpans(ctx context.Context, id string, r datasource.Tim
 	}
 	var resp traceResponse
 	if json.Unmarshal(raw, &resp) != nil {
-		return nil, 0, unreadable()
+		return nil, 0, datasource.Unreadable()
 	}
 	rows, err := spanRows(resp)
 	if err != nil {
@@ -128,7 +128,7 @@ func spanRows(resp traceResponse) ([]spanRow, error) {
 		service, _ := resource["service.name"].(string)
 		resourceJSON, err := json.Marshal(resource)
 		if err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 		for _, scope := range batch.ScopeSpans {
 			for _, s := range scope.Spans {
@@ -155,7 +155,7 @@ func toRow(s span, service string, resource map[string]any, resourceJSON string)
 	events, err5 := eventsJSON(s.Events)
 	links, err6 := linksJSON(s.Links)
 	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil || spanID == "" {
-		return spanRow{}, unreadable()
+		return spanRow{}, datasource.Unreadable()
 	}
 	return spanRow{
 		traceID:       traceID,

@@ -20,7 +20,7 @@ const (
 )
 
 func (d *Datasource) CheckHealth(ctx context.Context) error {
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	if err := d.checkServer(ctx); err != nil {
 		return err
@@ -48,7 +48,7 @@ func (d *Datasource) checkServer(ctx context.Context) error {
 		} `json:"version"`
 	}
 	if json.Unmarshal(raw, &root) != nil || root.Version.Number == "" {
-		return unreadable()
+		return datasource.Unreadable()
 	}
 	flavor := Elasticsearch
 	if root.Version.Distribution == string(OpenSearch) {
@@ -61,7 +61,7 @@ func (d *Datasource) checkServer(ctx context.Context) error {
 		return datasource.Errorf(datasource.ErrIsElasticsearch, "the server is Elasticsearch")
 	}
 	if !supportedVersion(flavor, root.Version.Number) {
-		return datasource.Errorf(datasource.ErrUnsupportedVersion, "%s %s is not supported", flavor, truncateText(root.Version.Number))
+		return datasource.Errorf(datasource.ErrUnsupportedVersion, "%s %s is not supported", flavor, datasource.TruncateText(root.Version.Number))
 	}
 	return nil
 }
@@ -91,7 +91,7 @@ func (d *Datasource) resolveIndex(ctx context.Context) ([]datasource.Table, erro
 		DataStreams []named `json:"data_streams"`
 	}
 	if err := json.Unmarshal(raw, &resolved); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	var tables []datasource.Table
 	for _, group := range []struct {

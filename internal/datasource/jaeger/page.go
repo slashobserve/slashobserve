@@ -20,7 +20,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		return nil, datasource.PageInfo{}, datasource.Errorf(datasource.ErrInvalidQuery, "page size must be positive")
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := expandQuery(req.Query, req.Range)
 	if err != nil {

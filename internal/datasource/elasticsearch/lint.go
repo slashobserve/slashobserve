@@ -36,7 +36,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 		}
 		return append(diags, datasource.Diagnostic{Severity: datasource.SeverityError, Message: message}), nil
 	}
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	form, body, offset := classify(exp.Text, d.opts.QueryLanguage)
 	var findings []finding
@@ -58,17 +58,15 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 }
 
 func place(exp macros.Expansion, query string, f finding) datasource.Diagnostic {
-	start, end, inVariable := exp.Locate(clamp(f.start, len(exp.Text)), clamp(f.end, len(exp.Text)))
-	start = clamp(start, len(query))
-	diag := datasource.Diagnostic{Severity: f.severity, Message: f.message, Start: start, End: max(start, clamp(end, len(query)))}
+	start, end, inVariable := exp.Locate(datasource.Clamp(f.start, len(exp.Text)), datasource.Clamp(f.end, len(exp.Text)))
+	start = datasource.Clamp(start, len(query))
+	diag := datasource.Diagnostic{Severity: f.severity, Message: f.message, Start: start, End: max(start, datasource.Clamp(end, len(query)))}
 	if inVariable {
 		diag.Severity = datasource.SeverityWarning
 		diag.Message = variableLintPrefix + diag.Message
 	}
 	return diag
 }
-
-func clamp(v, upper int) int { return max(0, min(v, upper)) }
 
 func (d *Datasource) lintKQL(ctx context.Context, body string, offset int) ([]finding, error) {
 	m, err := d.Mapping(ctx)
@@ -129,7 +127,7 @@ func (d *Datasource) validate(ctx context.Context, clause map[string]any) (strin
 		} `json:"explanations"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
-		return "", unreadable()
+		return "", datasource.Unreadable()
 	}
 	if resp.Valid {
 		return "", nil

@@ -23,7 +23,7 @@ func parseHits(raw []byte) ([]hit, error) {
 		} `json:"hits"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	return resp.Hits.Hits, nil
 }

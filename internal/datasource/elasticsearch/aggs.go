@@ -39,7 +39,7 @@ type aggNode struct {
 func (n aggNode) isBucket() bool { return n.kind == aggBucket || n.kind == aggTimeBucket }
 
 func unsupportedAgg(name, typ, why string) error {
-	msg := fmt.Sprintf("unsupported aggregation %q (type %s)", truncateText(name), truncateText(typ))
+	msg := fmt.Sprintf("unsupported aggregation %q (type %s)", datasource.TruncateText(name), datasource.TruncateText(typ))
 	if why != "" {
 		msg += ": " + why
 	}
@@ -147,7 +147,7 @@ func parseBuckets(raw json.RawMessage) ([]bucket, error) {
 		Buckets json.RawMessage `json:"buckets"`
 	}
 	if err := json.Unmarshal(raw, &wrapper); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	trimmed := strings.TrimSpace(string(wrapper.Buckets))
 	var entries []map[string]json.RawMessage
@@ -157,7 +157,7 @@ func parseBuckets(raw json.RawMessage) ([]bucket, error) {
 	case strings.HasPrefix(trimmed, "{"):
 		var keyed map[string]map[string]json.RawMessage
 		if err := json.Unmarshal(wrapper.Buckets, &keyed); err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 		for _, name := range slices.Sorted(maps.Keys(keyed)) {
 			entry := keyed[name]
@@ -169,7 +169,7 @@ func parseBuckets(raw json.RawMessage) ([]bucket, error) {
 		}
 	default:
 		if err := json.Unmarshal(wrapper.Buckets, &entries); err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 	}
 	out := make([]bucket, 0, len(entries))
@@ -209,13 +209,13 @@ func metricValues(node aggNode, raw json.RawMessage) ([]metricValue, error) {
 			Value *float64 `json:"value"`
 		}
 		if err := json.Unmarshal(raw, &m); err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 		return []metricValue{{name: node.name, value: number(m.Value)}}, nil
 	case aggStats:
 		var m map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &m); err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 		out := make([]metricValue, 0, len(statsKeys))
 		for _, k := range statsKeys {
@@ -229,7 +229,7 @@ func metricValues(node aggNode, raw json.RawMessage) ([]metricValue, error) {
 		Values json.RawMessage `json:"values"`
 	}
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	return percentileValues(node.name, m.Values)
 }
@@ -242,7 +242,7 @@ func percentileValues(name string, raw json.RawMessage) ([]metricValue, error) {
 			Value *float64 `json:"value"`
 		}
 		if err := json.Unmarshal(raw, &list); err != nil {
-			return nil, unreadable()
+			return nil, datasource.Unreadable()
 		}
 		for _, p := range list {
 			key := strconv.FormatFloat(p.Key, 'f', -1, 64)
@@ -252,7 +252,7 @@ func percentileValues(name string, raw json.RawMessage) ([]metricValue, error) {
 	}
 	var keyed map[string]*float64
 	if err := json.Unmarshal(raw, &keyed); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	keys := slices.SortedFunc(maps.Keys(keyed), func(a, b string) int {
 		fa, _ := strconv.ParseFloat(a, 64)

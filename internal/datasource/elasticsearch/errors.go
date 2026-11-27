@@ -12,8 +12,6 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const maxUpstreamTextBytes = 512
-
 var invalidQueryTypes = []string{"parsing_exception", "query_shard_exception", "illegal_argument_exception", "x_content_parse_exception"}
 
 type upstreamError struct {
@@ -32,11 +30,11 @@ func parseError(raw []byte) upstreamError {
 		Error json.RawMessage `json:"error"`
 	}
 	if json.Unmarshal(raw, &body) != nil || len(body.Error) == 0 {
-		return upstreamError{text: truncateText(string(bytes.TrimSpace(raw)))}
+		return upstreamError{text: datasource.TruncateText(string(bytes.TrimSpace(raw)))}
 	}
 	var text string
 	if json.Unmarshal(body.Error, &text) == nil {
-		return upstreamError{text: truncateText(text)}
+		return upstreamError{text: datasource.TruncateText(text)}
 	}
 	var detail struct {
 		Type      string `json:"type"`
@@ -56,7 +54,7 @@ func parseError(raw []byte) upstreamError {
 			e.text = detail.RootCause[0].Reason
 		}
 	}
-	e.text = truncateText(plainReason(e.text))
+	e.text = datasource.TruncateText(plainReason(e.text))
 	return e
 }
 
@@ -99,15 +97,4 @@ func plainReason(text string) string {
 	text = indexNamed.ReplaceAllString(text, "")
 	text = javaClass.ReplaceAllString(text, "")
 	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), ":"))
-}
-
-func truncateText(s string) string {
-	if len(s) > maxUpstreamTextBytes {
-		s = s[:maxUpstreamTextBytes]
-	}
-	return strings.ToValidUTF8(s, "")
-}
-
-func unreadable() error {
-	return datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
 }

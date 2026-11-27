@@ -19,7 +19,7 @@ func (d *Datasource) QueryPage(ctx context.Context, req datasource.PageRequest) 
 		return nil, datasource.PageInfo{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := expandQuery(req.Query, req.Range)
 	if err != nil {

@@ -140,11 +140,3 @@ func exceptionCode(err error) int32 {
 	}
 	return 0
 }
-
-func messageOf(err error) string {
-	var ue *datasource.UpstreamError
-	if errors.As(err, &ue) {
-		return ue.Message
-	}
-	return err.Error()
-}

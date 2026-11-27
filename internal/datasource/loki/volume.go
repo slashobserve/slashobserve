@@ -51,7 +51,7 @@ func (d *Datasource) LogVolume(ctx context.Context, req datasource.VolumeRequest
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	hist := logvolume.New(req.Range.From, req.Step, req.Buckets())
 	var pacer datasource.Pacer

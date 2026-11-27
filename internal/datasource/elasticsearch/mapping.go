@@ -96,15 +96,15 @@ func (m *Mapping) termsField(name string) (string, error) {
 	f, ok := m.Fields[name]
 	switch {
 	case !ok:
-		return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is not in the mapping", truncateText(name))
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is not in the mapping", datasource.TruncateText(name))
 	case f.Aggregatable:
 		return name, nil
 	case f.Keyword != "":
 		return f.Keyword, nil
 	case f.Kind == KindText:
-		return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is text and has no keyword subfield; values cannot be listed", truncateText(name))
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is text and has no keyword subfield; values cannot be listed", datasource.TruncateText(name))
 	}
-	return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is not aggregatable", truncateText(name))
+	return "", datasource.Errorf(datasource.ErrInvalidQuery, "field %s is not aggregatable", datasource.TruncateText(name))
 }
 
 var roleCandidates = struct{ message, level, service, traceID, spanID []string }{
@@ -117,7 +117,7 @@ var roleCandidates = struct{ message, level, service, traceID, spanID []string }
 
 func (m *Mapping) roles(overrides FieldRoles) (FieldRoles, error) {
 	if !m.IsDate(overrides.Time) {
-		return FieldRoles{}, datasource.Errorf(datasource.ErrNoTimeField, "time field %s is missing or is not a date", truncateText(overrides.Time))
+		return FieldRoles{}, datasource.Errorf(datasource.ErrNoTimeField, "time field %s is missing or is not a date", datasource.TruncateText(overrides.Time))
 	}
 	out := FieldRoles{Time: overrides.Time}
 	for _, role := range []struct {
@@ -133,7 +133,7 @@ func (m *Mapping) roles(overrides FieldRoles) (FieldRoles, error) {
 	} {
 		if role.override != "" {
 			if _, ok := m.Fields[role.override]; !ok {
-				return FieldRoles{}, datasource.Errorf(datasource.ErrNoRoleField, "field %s is not in the mapping", truncateText(role.override))
+				return FieldRoles{}, datasource.Errorf(datasource.ErrNoRoleField, "field %s is not in the mapping", datasource.TruncateText(role.override))
 			}
 			*role.dst = role.override
 			continue
@@ -164,7 +164,7 @@ func (d *Datasource) Mapping(ctx context.Context) (*Mapping, error) {
 		return value, nil
 	}
 	results := d.mapping.flight.DoChan("mapping", func() (any, error) {
-		fctx, cancel := bound(context.WithoutCancel(ctx), d.opts.Limits.Timeout)
+		fctx, cancel := datasource.Bound(context.WithoutCancel(ctx), d.opts.Limits.Timeout)
 		defer cancel()
 		m, err := d.fetchMapping(fctx)
 		if err != nil {
@@ -182,7 +182,7 @@ func (d *Datasource) Mapping(ctx context.Context) (*Mapping, error) {
 		}
 		return r.Val.(*Mapping), nil
 	case <-ctx.Done():
-		return nil, transportError(ctx, ctx.Err())
+		return nil, datasource.TransportError(ctx, ctx.Err())
 	}
 }
 
@@ -271,7 +271,7 @@ func parseFieldCaps(raw []byte) (*Mapping, error) {
 		Fields map[string]json.RawMessage `json:"fields"`
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil || resp.Fields == nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	m := &Mapping{Fields: make(map[string]Field, len(resp.Fields))}
 	for name, caps := range resp.Fields {
@@ -305,17 +305,17 @@ func parseFieldCaps(raw []byte) (*Mapping, error) {
 func foldField(name string, caps json.RawMessage) (Field, bool, error) {
 	dec := json.NewDecoder(bytes.NewReader(caps))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return Field{}, false, unreadable()
+		return Field{}, false, datasource.Unreadable()
 	}
 	var field Field
 	types := 0
 	for dec.More() {
 		if _, err := dec.Token(); err != nil {
-			return Field{}, false, unreadable()
+			return Field{}, false, datasource.Unreadable()
 		}
 		var capability fieldCapability
 		if err := dec.Decode(&capability); err != nil {
-			return Field{}, false, unreadable()
+			return Field{}, false, datasource.Unreadable()
 		}
 		if capability.MetadataField || strings.HasPrefix(name, "_") {
 			return Field{}, false, nil

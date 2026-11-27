@@ -143,7 +143,7 @@ func (d *Datasource) Close() error {
 }
 
 func (d *Datasource) CheckHealth(ctx context.Context) error {
-	ctx, cancel := bound(ctx, d.opts.Limits.Timeout)
+	ctx, cancel := datasource.Bound(ctx, d.opts.Limits.Timeout)
 	defer cancel()
 	_, err := d.do(ctx, http.MethodPost, "/api/v1/query", url.Values{"query": {"1"}})
 	return err

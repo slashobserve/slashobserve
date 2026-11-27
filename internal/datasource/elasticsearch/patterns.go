@@ -26,9 +26,9 @@ func (d *Datasource) LogPatterns(ctx context.Context, req datasource.PatternRequ
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	prep, err := d.prepare(ctx, req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval), lim)
+	prep, err := d.prepare(ctx, req.Query, req.Range, datasource.InstantInterval(req.Range, req.Query.MinInterval), lim)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func nativePatterns(raw []byte) ([]datasource.NativePattern, error) {
 		} `json:"buckets"`
 	}
 	if raw := resp.Aggregations[patternsAgg]; len(raw) > 0 && json.Unmarshal(raw, &tree) != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	patterns := make([]datasource.NativePattern, 0, len(tree.Buckets))
 	for _, bucket := range tree.Buckets {

@@ -37,9 +37,9 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		return &datasource.Catalog{}, nil
 	case datasource.DiscoverLabels, datasource.DiscoverLabelValues, datasource.DiscoverSampleRows, datasource.DiscoverInventory:
 	default:
-		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by loki", truncateText(string(req.Kind)))
+		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "discover kind %q is not supported by loki", datasource.TruncateText(string(req.Kind)))
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	switch req.Kind {
 	case datasource.DiscoverSampleRows:
@@ -61,7 +61,8 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 		if err != nil {
 			return nil, err
 		}
-		return &datasource.Catalog{Labels: filterSortLimit(names, req.Search, limit)}, nil
+		kept, _ := datasource.FilterSortLimit(names, req.Search, limit)
+		return &datasource.Catalog{Labels: kept}, nil
 	}
 	if err := validateLabel(req.Label); err != nil {
 		return nil, err
@@ -75,7 +76,8 @@ func (d *Datasource) Discover(ctx context.Context, req datasource.DiscoverReques
 			return nil, err
 		}
 	}
-	return &datasource.Catalog{Values: filterSortLimit(values, req.Search, limit)}, nil
+	kept, _ := datasource.FilterSortLimit(values, req.Search, limit)
+	return &datasource.Catalog{Values: kept}, nil
 }
 
 func (d *Datasource) structuredValues(ctx context.Context, label string, params url.Values) ([]string, error) {
@@ -105,7 +107,7 @@ func (d *Datasource) structuredValues(ctx context.Context, label string, params 
 		Values []string `json:"values"`
 	}
 	if err := json.Unmarshal(raw, &body); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	return body.Values, nil
 }
@@ -244,7 +246,7 @@ func (d *Datasource) discoverStreams(ctx context.Context, req datasource.Discove
 	}
 	var streams []map[string]string
 	if err := json.Unmarshal(raw, &streams); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	truncated := len(streams) > maxInventoryStreams
 	streams = streams[:min(len(streams), maxInventoryStreams)]
@@ -268,9 +270,9 @@ func (d *Datasource) VariableValues(ctx context.Context, q datasource.Query, r d
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := expand(q, r, instantInterval(r, q.MinInterval))
+	text, err := expand(q, r, datasource.InstantInterval(r, q.MinInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -343,22 +345,6 @@ func splitLabelValuesArgs(args string) (selector, label string) {
 	return strings.TrimSpace(args[:last]), strings.TrimSpace(args[last+1:])
 }
 
-func filterSortLimit(values []string, search string, limit int) []string {
-	search = strings.ToLower(search)
-	out := make([]string, 0, len(values))
-	for _, v := range values {
-		if search == "" || strings.Contains(strings.ToLower(v), search) {
-			out = append(out, v)
-		}
-	}
-	slices.Sort(out)
-	out = slices.Compact(out)
-	if len(out) > limit {
-		out = out[:limit]
-	}
-	return out
-}
-
 func (d *Datasource) getStrings(ctx context.Context, path string, params url.Values) ([]string, error) {
 	raw, err := d.get(ctx, path, params)
 	if err != nil {
@@ -370,7 +356,7 @@ func (d *Datasource) getStrings(ctx context.Context, path string, params url.Val
 	}
 	var values []string
 	if err := json.Unmarshal(raw, &values); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	return values, nil
 }

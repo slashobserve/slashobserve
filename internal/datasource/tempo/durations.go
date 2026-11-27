@@ -56,7 +56,7 @@ func (d *Datasource) TraceDurations(ctx context.Context, req datasource.TraceDur
 		return datasource.TraceDurations{}, err
 	}
 	lim := d.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	read := &durationRead{seen: map[string]bool{}, maxSpans: cmpPositive(req.MaxSpans, datasource.TraceDurationSpanBudget)}
 	text := q + " | " + selectClause(groupBy)

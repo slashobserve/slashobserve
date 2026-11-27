@@ -33,7 +33,7 @@ func (d *Datasource) QueryExemplars(ctx context.Context, q datasource.Query, r d
 		return nil, datasource.Errorf(datasource.ErrInvalidQuery, "step must be at least 1ms")
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := d.expand(q, r, step)
 	if err != nil {
@@ -55,7 +55,7 @@ func exemplarFrames(raw json.RawMessage) ([]datasource.Frame, error) {
 	var groups []exemplarSeries
 	if hasContent(raw) {
 		if err := json.Unmarshal(raw, &groups); err != nil {
-			return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+			return nil, datasource.Unreadable()
 		}
 	}
 	type keyed struct {

@@ -64,7 +64,7 @@ func (d *Datasource) QueryRange(ctx context.Context, q datasource.Query, r datas
 	lim := d.opts.Limits.Tighten(q.Limits)
 	steps := int64(r.To.Sub(r.From) / step)
 	points := steps + 1
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := d.expand(q, r, step)
 	if err != nil {
@@ -92,7 +92,7 @@ func (d *Datasource) QueryInstant(ctx context.Context, q datasource.Query, r dat
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(q.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	text, err := d.expand(q, r, max(d.variableInterval(r), q.MinInterval))
 	if err != nil {
@@ -126,14 +126,14 @@ func (d *Datasource) expand(q datasource.Query, r datasource.TimeRange, interval
 	text := exp.Text
 	if len(q.Filters) > 0 {
 		if text, err = applyFilters(text, q.Filters); err != nil {
-			return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+			return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", datasource.TruncateText(err.Error()))
 		}
 	}
 	if text, err = applyGroupBy(text, q.GroupBy); err != nil {
-		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", datasource.TruncateText(err.Error()))
 	}
 	if _, err := promParser.ParseExpr(text); err != nil {
-		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", truncateText(err.Error()))
+		return "", datasource.Errorf(datasource.ErrInvalidQuery, "%s", datasource.TruncateText(err.Error()))
 	}
 	return text, nil
 }
@@ -153,7 +153,7 @@ func (d *Datasource) runQuery(ctx context.Context, path string, form url.Values,
 func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {
 	var data queryData
 	if err := json.Unmarshal(raw, &data); err != nil {
-		return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+		return nil, datasource.Unreadable()
 	}
 	switch data.ResultType {
 	case "matrix", "vector":
@@ -161,7 +161,7 @@ func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, er
 	case "scalar", "string":
 		var s sample
 		if err := json.Unmarshal(data.Result, &s); err != nil {
-			return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+			return nil, datasource.Unreadable()
 		}
 		valueType := datasource.FieldNumber
 		if data.ResultType == "string" {
@@ -169,7 +169,7 @@ func convert(raw json.RawMessage, lim datasource.Limits) ([]datasource.Frame, er
 		}
 		return []datasource.Frame{sampleFrame(nil, valueType, []sample{s})}, nil
 	}
-	return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned unsupported result type %q", truncateText(data.ResultType))
+	return nil, datasource.Errorf(datasource.ErrUnavailable, "upstream returned unsupported result type %q", datasource.TruncateText(data.ResultType))
 }
 
 func hasContent(b json.RawMessage) bool {
@@ -178,7 +178,7 @@ func hasContent(b json.RawMessage) bool {
 }
 
 func seriesFrames(result json.RawMessage, lim datasource.Limits) ([]datasource.Frame, error) {
-	unreadable := datasource.Errorf(datasource.ErrUnavailable, "upstream returned an unreadable result")
+	unreadable := datasource.Unreadable()
 	dec := json.NewDecoder(bytes.NewReader(result))
 	open, err := dec.Token()
 	if err != nil {

@@ -123,7 +123,7 @@ func (s *SpanIndex) ListTraces(ctx context.Context, req datasource.TraceListRequ
 		return datasource.TraceList{}, err
 	}
 	lim := s.opts.Limits.Tighten(req.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
 	limit := cmp.Or(max(req.Limit, 0), datasource.TraceListBudget)
 	candidates, complete, err := s.candidates(ctx, req, limit)
@@ -166,7 +166,7 @@ func (s *SpanIndex) candidates(ctx context.Context, req datasource.TraceListRequ
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if dec.Decode(&resp) != nil {
-		return nil, false, unreadable()
+		return nil, false, datasource.Unreadable()
 	}
 	agg := resp.Aggregations[traceAgg]
 	conds := len(listConditions(req))
@@ -213,7 +213,7 @@ func (s *SpanIndex) roots(ctx context.Context, candidates []candidate, r datasou
 			TraceID string `json:"traceID"`
 		}
 		if json.Unmarshal(raw, &key) != nil {
-			return nil, false, unreadable()
+			return nil, false, datasource.Unreadable()
 		}
 		if _, seen := out[key.TraceID]; seen {
 			continue

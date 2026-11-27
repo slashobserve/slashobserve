@@ -32,7 +32,7 @@ func (d *Datasource) TraceLogs(ctx context.Context, req datasource.TraceLogsRequ
 }
 
 func (d *Datasource) traceSelector(ctx context.Context, req datasource.TraceLogsRequest) (string, bool, error) {
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	names, err := d.getStrings(ctx, "/loki/api/v1/labels", url.Values{"start": {lokiTime(req.Range.From)}, "end": {lokiTime(req.Range.To)}})
 	if err != nil {
@@ -70,7 +70,7 @@ func lineFilterTraceQuery(selector string, req datasource.TraceLogsRequest) stri
 
 func (d *Datasource) traceLines(ctx context.Context, req datasource.TraceLogsRequest, text string) ([]datasource.Frame, error) {
 	lim := d.opts.Limits.Tighten(datasource.Limits{MaxRows: req.Limit})
-	return d.queryText(ctx, text, lim, req.Range, instantInterval(req.Range, 0), true)
+	return d.queryText(ctx, text, lim, req.Range, datasource.InstantInterval(req.Range, 0), true)
 }
 
 func lineCount(frames []datasource.Frame) int {

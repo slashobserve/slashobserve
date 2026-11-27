@@ -13,37 +13,12 @@ import (
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const maxUpstreamTextBytes = 512
-
-type timeoutKey struct{}
-
 type envelope struct {
 	Status    string          `json:"status"`
 	Data      json.RawMessage `json:"data"`
 	Warnings  []string        `json:"warnings"`
 	ErrorType string          `json:"errorType"`
 	Error     string          `json:"error"`
-}
-
-func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	reported := timeout
-	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
-		reported = 0
-	}
-	ctx = context.WithValue(ctx, timeoutKey{}, reported)
-	return context.WithTimeout(ctx, timeout)
-}
-
-func contextError(ctx context.Context, err error) error {
-	reported, _ := ctx.Value(timeoutKey{}).(time.Duration)
-	return datasource.ContextError(ctx, err, reported)
-}
-
-func transportError(ctx context.Context, err error) error {
-	if cerr := contextError(ctx, err); cerr != nil {
-		return cerr
-	}
-	return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
 }
 
 func (d *Datasource) newRequest(ctx context.Context, method, path string, form url.Values) (*http.Request, error) {
@@ -86,12 +61,12 @@ func (d *Datasource) doWithWarnings(ctx context.Context, method, path string, fo
 	}
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return nil, nil, transportError(ctx, err)
+		return nil, nil, datasource.TransportError(ctx, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
 	if err != nil {
-		return nil, nil, transportError(ctx, err)
+		return nil, nil, datasource.TransportError(ctx, err)
 	}
 	if int64(len(raw)) > d.opts.MaxResponseBytes {
 		return nil, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
@@ -122,7 +97,7 @@ func decodeResponse(status int, raw []byte) (json.RawMessage, []string, error) {
 func upstreamWarnings(raw []string) []string {
 	var out []string
 	for _, w := range raw {
-		w = truncateText(w)
+		w = datasource.TruncateText(w)
 		if w == "" {
 			continue
 		}
@@ -145,18 +120,11 @@ func upstreamError(env envelope) error {
 	case env.ErrorType == "execution" && (strings.Contains(lower, "too many") || strings.Contains(lower, "limit")):
 		kind, fallback = datasource.ErrLimitExceeded, "query limit exceeded"
 	}
-	text := truncateText(env.Error)
+	text := datasource.TruncateText(env.Error)
 	if text == "" || datasource.NamesAddress(env.Error) {
 		text = fallback
 	}
 	return datasource.Errorf(kind, "%s", text)
-}
-
-func truncateText(s string) string {
-	if len(s) > maxUpstreamTextBytes {
-		s = s[:maxUpstreamTextBytes]
-	}
-	return strings.ToValidUTF8(s, "")
 }
 
 func promDuration(d time.Duration) string {

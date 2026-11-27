@@ -56,9 +56,9 @@ func (d *Datasource) LogPatterns(ctx context.Context, req datasource.PatternRequ
 		return nil, err
 	}
 	lim := d.opts.Limits.Tighten(req.Query.Limits)
-	ctx, cancel := bound(ctx, lim.Timeout)
+	ctx, cancel := datasource.Bound(ctx, lim.Timeout)
 	defer cancel()
-	text, err := expand(req.Query, req.Range, instantInterval(req.Range, req.Query.MinInterval))
+	text, err := expand(req.Query, req.Range, datasource.InstantInterval(req.Range, req.Query.MinInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -87,14 +87,14 @@ func (d *Datasource) LogPatterns(ctx context.Context, req datasource.PatternRequ
 	}
 	var env envelope
 	if json.Unmarshal(raw, &env) != nil || env.Status != "success" {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	if env.Data == nil {
 		return nil, datasource.Errorf(datasource.ErrNotFound, "the pattern API answered without data")
 	}
 	var found []nativePattern
 	if err := json.Unmarshal(env.Data, &found); err != nil {
-		return nil, unreadable()
+		return nil, datasource.Unreadable()
 	}
 	out := make([]datasource.NativePattern, len(found))
 	for i, p := range found {

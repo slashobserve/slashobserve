@@ -17,7 +17,7 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	params := url.Values{"start": {lokiTime(req.Range.From)}, "end": {lokiTime(req.Range.To)}}
 	label := ServiceLabels[0]
@@ -30,7 +30,8 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 			return datasource.ServiceList{}, err
 		}
 	}
-	return datasource.ServiceList{Signal: signal, Field: label, Values: filterSortLimit(values, "", req.Limit)}, nil
+	kept, _ := datasource.FilterSortLimit(values, "", req.Limit)
+	return datasource.ServiceList{Signal: signal, Field: label, Values: kept}, nil
 }
 
 func (d *Datasource) otherServiceLabel(ctx context.Context, params url.Values) (string, []string, error) {

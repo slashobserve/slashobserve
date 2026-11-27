@@ -24,10 +24,10 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 	diagnostics := []datasource.Diagnostic{}
 	exp, err := macros.ExpandForLint(macros.ClickHouse, query)
 	if err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
+		return append(diagnostics, errorDiagnostic(datasource.MessageOf(err), 0, 0)), nil
 	}
 	if _, err := d.guard(exp.Text); err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
+		return append(diagnostics, errorDiagnostic(datasource.MessageOf(err), 0, 0)), nil
 	}
 	timeout := effectiveTimeout(ctx, lintTimeout)
 	ctx, cancel := context.WithTimeout(ctx, lintTimeout)
@@ -41,7 +41,7 @@ func (d *Datasource) Lint(ctx context.Context, query string) ([]datasource.Diagn
 	}
 	text, err := d.guard(exp.Text)
 	if err != nil {
-		return append(diagnostics, errorDiagnostic(messageOf(err), 0, 0)), nil
+		return append(diagnostics, errorDiagnostic(datasource.MessageOf(err), 0, 0)), nil
 	}
 	clamped := d.clampTimeout(lintTimeout)
 	timeout = effectiveTimeout(ctx, clamped)
@@ -68,7 +68,7 @@ func (d *Datasource) explain(ctx context.Context, sql string, lim datasource.Lim
 }
 
 func syntaxDiagnostic(ctx context.Context, err error, original string, exp macros.Expansion, textLen int, timeout time.Duration) datasource.Diagnostic {
-	message := messageOf(mapError(ctx, inPersonsText(err, original, exp), timeout))
+	message := datasource.MessageOf(mapError(ctx, inPersonsText(err, original, exp), timeout))
 	_, ex, _ := syntaxFailure(err)
 	if ex == nil {
 		return errorDiagnostic(message, 0, 0)
@@ -94,11 +94,11 @@ func lintFailure(ctx context.Context, diagnostics []datasource.Diagnostic, err e
 	if datasource.IsTransient(mapped) {
 		return nil, mapped
 	}
-	return append(diagnostics, errorDiagnostic(messageOf(mapped), 0, 0)), nil
+	return append(diagnostics, errorDiagnostic(datasource.MessageOf(mapped), 0, 0)), nil
 }
 
 func couldNotLint(err error) datasource.Diagnostic {
-	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + messageOf(err)}
+	return datasource.Diagnostic{Severity: datasource.SeverityWarning, Message: "could not lint: " + datasource.MessageOf(err)}
 }
 
 func errorDiagnostic(message string, start, end int) datasource.Diagnostic {

@@ -56,7 +56,7 @@ func adhocClause(m *Mapping, f datasource.AdhocFilter) (map[string]any, error) {
 		}
 		return map[string]any{"range": map[string]any{f.Key: map[string]any{bound: f.Value}}}, nil
 	}
-	return nil, datasource.Errorf(datasource.ErrInvalidQuery, "ad hoc filter operator %q is not supported", truncateText(f.Op))
+	return nil, datasource.Errorf(datasource.ErrInvalidQuery, "ad hoc filter operator %q is not supported", datasource.TruncateText(f.Op))
 }
 
 func negateIf(negate bool, clause map[string]any) map[string]any {

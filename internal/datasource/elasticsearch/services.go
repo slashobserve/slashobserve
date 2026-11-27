@@ -13,7 +13,7 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	ctx, cancel := bound(ctx, discoverTimeout)
+	ctx, cancel := datasource.Bound(ctx, discoverTimeout)
 	defer cancel()
 	m, err := d.Mapping(ctx)
 	if err != nil {
@@ -35,6 +35,7 @@ func (d *Datasource) Services(ctx context.Context, req datasource.ServiceRequest
 	if err != nil {
 		return datasource.ServiceList{}, err
 	}
-	list.Values = filterSortLimit(values, "", req.Limit)
+	kept, _ := datasource.FilterSortLimit(values, "", req.Limit)
+	list.Values = kept
 	return list, nil
 }

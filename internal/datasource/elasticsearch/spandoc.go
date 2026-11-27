@@ -76,7 +76,7 @@ func decodeSpan(raw json.RawMessage) (spanDoc, error) {
 	dec.UseNumber()
 	var s jaegerSpan
 	if err := dec.Decode(&s); err != nil || s.SpanID == "" {
-		return spanDoc{}, unreadable()
+		return spanDoc{}, datasource.Unreadable()
 	}
 	tags := tagMap(s.Tags, s.Tag)
 	doc := spanDoc{

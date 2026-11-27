@@ -58,7 +58,7 @@ func TestASyntaxErrorCountsItsPositionInThePersonsText(t *testing.T) {
 	d := syntaxDatasource(failOnPage(func(s string) int { return strings.LastIndex(s, "GROUP") }))
 	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(unfinishedGroup, 50))
 	want := `Syntax error: failed at line 2, column 32 of the query, near "GROUP". Expected one of: BY, token`
-	if err == nil || messageOf(err) != want {
+	if err == nil || datasource.MessageOf(err) != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
@@ -67,7 +67,7 @@ func TestASyntaxErrorInTheWrapperPointsAtTheEndOfThePersonsText(t *testing.T) {
 	d := syntaxDatasource(failOnPage(func(s string) int { return strings.LastIndex(s, "GROUP") + len("GROUP\n") }))
 	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(unfinishedGroup, 50))
 	want := "Syntax error: failed at the end of the query (line 2, column 37). Expected one of: BY, token"
-	if err == nil || messageOf(err) != want {
+	if err == nil || datasource.MessageOf(err) != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
@@ -85,7 +85,7 @@ func TestAStrayParenthesisInAPagedQueryIsLocatedByParsingTheQueryAlone(t *testin
 	d := syntaxDatasource(failWrappedAtItsEnd)
 	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(strayParenthesis, 50))
 	want := `Syntax error: failed at line 2, column 24 of the query, near ")". Expected one of: BY, token`
-	if err == nil || messageOf(err) != want {
+	if err == nil || datasource.MessageOf(err) != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
@@ -99,7 +99,7 @@ func TestAWrapperOnlySyntaxErrorKeepsItsEndOfQueryPosition(t *testing.T) {
 	})
 	_, _, err := d.QueryPage(context.Background(), traceSQLRequest(unfinishedGroup, 50))
 	want := "Syntax error: failed at the end of the query (line 2, column 37). Expected one of: BY, token"
-	if err == nil || messageOf(err) != want {
+	if err == nil || datasource.MessageOf(err) != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
@@ -108,7 +108,7 @@ func TestASyntaxErrorOfAnExploreQueryIsCountedBeforeTheMacrosExpand(t *testing.T
 	d := syntaxDatasource(func(s string) (int, bool) { return strings.LastIndex(s, "GROUP"), true })
 	_, err := d.QueryInstant(context.Background(), exploreQuery(unfinishedGroup), datasource.TimeRange{From: linesStart, To: linesEnd})
 	want := `Syntax error: failed at line 2, column 32 of the query, near "GROUP". Expected one of: BY, token`
-	if err == nil || messageOf(err) != want {
+	if err == nil || datasource.MessageOf(err) != want {
 		t.Fatalf("err = %v, want %q", err, want)
 	}
 }
@@ -145,7 +145,7 @@ func TestASyntaxErrorThatCannotBeLocatedDoesNotEchoTheExpandedStatement(t *testi
 	if got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
-	got = messageOf(mapException(&ch.Exception{Code: syntaxErrorCode, Message: message}))
+	got = datasource.MessageOf(mapException(&ch.Exception{Code: syntaxErrorCode, Message: message}))
 	if got != want {
 		t.Fatalf("mapped %q, want %q", got, want)
 	}

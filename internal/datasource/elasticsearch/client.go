@@ -7,29 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
-
-type timeoutKey struct{}
-
-func bound(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	reported := timeout
-	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
-		reported = 0
-	}
-	ctx = context.WithValue(ctx, timeoutKey{}, reported)
-	return context.WithTimeout(ctx, timeout)
-}
-
-func transportError(ctx context.Context, err error) error {
-	reported, _ := ctx.Value(timeoutKey{}).(time.Duration)
-	if cerr := datasource.ContextError(ctx, err, reported); cerr != nil {
-		return cerr
-	}
-	return datasource.Errorf(datasource.ErrUnavailable, "connection failed")
-}
 
 func (d *Datasource) fetch(ctx context.Context, method, path string, params url.Values, body any) (int, []byte, error) {
 	target := d.prefix + path
@@ -65,12 +45,12 @@ func (d *Datasource) fetch(ctx context.Context, method, path string, params url.
 	}
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return 0, nil, transportError(ctx, err)
+		return 0, nil, datasource.TransportError(ctx, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, d.opts.MaxResponseBytes+1))
 	if err != nil {
-		return 0, nil, transportError(ctx, err)
+		return 0, nil, datasource.TransportError(ctx, err)
 	}
 	if int64(len(raw)) > d.opts.MaxResponseBytes {
 		return 0, nil, datasource.Errorf(datasource.ErrLimitExceeded, "response larger than %d bytes", d.opts.MaxResponseBytes)
