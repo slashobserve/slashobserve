@@ -18,14 +18,14 @@ func newSlots(perPrincipal, perProcess int) *slots {
 	return &slots{perPrincipal: perPrincipal, perProcess: perProcess, byPrincipal: map[string]int{}}
 }
 
-func (s *slots) acquire(key string) (int, string) {
+func (s *slots) acquire(key string) (status int, reason string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.byPrincipal[key] >= s.perPrincipal {
-		return http.StatusTooManyRequests, "too_many_streams"
+		return http.StatusTooManyRequests, perCaller
 	}
 	if s.total >= s.perProcess {
-		return http.StatusServiceUnavailable, "too_many_streams"
+		return http.StatusServiceUnavailable, serverCapacity
 	}
 	s.byPrincipal[key]++
 	s.total++

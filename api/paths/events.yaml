@@ -18,10 +18,12 @@ dashboards-id-events:
       `revision.updated` is sent on every status change of a revision and carries `type`, `dashboard_id`, `revision_id`, `status`, `version` (the saved version, once the status is `succeeded`) `comment_id` (for a revision requested by a comment) and `build_saves` (the number of saves in the revision's build, only while the status is `running` and the revision is building a new version of an existing dashboard); the saved version's `version.created` arrives before the `revision.updated` whose status is `succeeded`, and clients must not depend on the order between the two.
       `proposal.updated` is sent when a proposal on the dashboard is opened, gets a revision, is merged or is discarded, and carries `type`, `dashboard_id`, `proposal_id`, `status` (`open`, `merged` or `discarded`) and `author`, never the proposal's text.
       `dashboard.deleted` is sent once when the dashboard is deleted and carries `type`, `dashboard_id` and `author` (who deleted it), never the title; the stream ends at its next ping.
-      `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end.
+      `dashboard.moved` is sent when the dashboard moves to another folder and carries `type`, `dashboard_id` and `author` (who moved it), never a folder; access is checked again before it is sent, and a caller who lost access with the move, or whose access cannot be checked then, gets no event and sees the stream end with `closed`.
       `role.changed` is sent when the caller's own role changes while the stream is open, checked every 5 seconds, and carries `dashboard_id` and the new `role`; the caller's other requests are judged by the new role at once.
       `event: resync` with data `{"dashboard_id"}` means events may have been missed.
       A `: ping` comment arrives every 15 seconds, and the server ends the stream after 30 minutes.
+      Before the server ends the stream it sends one last `event: closed` whose data is `{"reason"}`: `lifetime` after the 30 minutes, `access_lost` when the caller's credential or view access is gone or the dashboard was deleted, `check_failed` when the credential or the access could not be checked twice in a row or at a move, `slow_subscriber` when the client read too slowly to keep up with the dashboard's events, and `stopping` when the server stops.
+      A client reconnects at once after `lifetime`, stops after `access_lost`, and reconnects after a delay for every other reason, one it does not know included; `closed` has no `id`, and a stream that the client or the network ends carries none.
       Clients refetch stale data on every `ready` and `resync`; events are never replayed, so `Last-Event-ID` is ignored.
       A caller may hold 20 streams and the process 1000.
     responses:
@@ -40,7 +42,7 @@ dashboards-id-events:
       "404":
         $ref: "../openapi.yaml#/components/responses/NotFound"
       "429":
-        description: The caller already holds the maximum number of open streams (`too_many_streams`).
+        description: The caller already holds the maximum number of open streams (`too_many_streams` with `reason` `per_caller`).
         content:
           application/json:
             schema:
@@ -48,7 +50,7 @@ dashboards-id-events:
       "500":
         $ref: "../openapi.yaml#/components/responses/Internal"
       "503":
-        description: The process holds the maximum number of open streams (`too_many_streams`) or is shutting down (`shutting_down`).
+        description: The process holds the maximum number of open streams (`too_many_streams` with `reason` `server_capacity`) or is shutting down (`shutting_down`).
         content:
           application/json:
             schema:

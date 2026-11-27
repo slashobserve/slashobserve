@@ -438,6 +438,7 @@ components:
           description: >-
             Present when the text a caller sent failed the shared text rule (`docs/reference/text-rules.md`): `text_empty`, `text_invisible_only`, `text_invisible_characters`, `text_control_characters`, `text_bidi_override`, `text_too_long` or `text_invalid_utf8`.
             The `error` message names the field and says what to change.
+            On a `too_many_streams` refusal of an event stream, whose limit was reached: `per_caller` for the caller's own open streams or `server_capacity` for the server process's.
         needed_role:
           type: string
           enum: [viewer, commenter, editor, admin]
