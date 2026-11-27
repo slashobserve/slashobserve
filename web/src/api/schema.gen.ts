@@ -7057,6 +7057,14 @@ export interface components {
              * @enum {string}
              */
             build_state?: "none" | "building" | "stopped" | "stopped_empty" | "stale" | "kept" | "moved" | "committed" | "proposed";
+            /** @description The reply this request owes the comment thread it was asked in. */
+            reply?: {
+                /**
+                 * @description `not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`.
+                 * @enum {string}
+                 */
+                state: "not_owed" | "owed" | "replied" | "abandoned";
+            };
             /** @description 1-based place among queued requests in claim order, null unless queued. The worker skips a request whose dashboard already has a running revision, so the order can shift. */
             queue_position: number | null;
             /**

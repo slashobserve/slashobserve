@@ -36,6 +36,7 @@ func statesReference() string {
 		observations.BlockMachine.Doc("Observation block", "A block is one item on an observation's page: Markdown, a live panel, a frozen snapshot or an agent run."),
 		proposals.ProposalMachine.Doc("Proposal", "A proposal is a change to a dashboard that someone who can edit merges or discards, returned by `GET /api/v1/proposals/{id}`."),
 		revisions.BuildStates.Doc("Build", "A build is what the agent assembles for a run before it becomes a version; every run read returns its `build_state`, and `build.state` while the run holds one."),
+		revisions.ReplyStates.Doc("Thread reply", "A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`."),
 		health.ItemStates.Doc("Dashboard health", "`GET /health` returns the `state` of each dashboard that has a problem."),
 		health.RepairOutcomes.Doc("Health repair", "`GET /health` returns the `outcome` of a dashboard's latest repair beside the repair run's own `state`."),
 		webhooks.States.Doc("Webhook", "`GET /webhooks` returns the `state` of each webhook."),
@@ -123,6 +124,15 @@ func TestDerivedStateEnumsMatchTheTables(t *testing.T) {
 
 func TestRunStateEnumsMatchTheMachine(t *testing.T) {
 	doc := apitest.Load(t)
+	replyStates := doc.Components.Schemas["AgentRequest"].Value.Properties["reply"].Value.Properties["state"].Value.Enum
+	if len(replyStates) != len(revisions.ReplyStates.Names()) {
+		t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+	}
+	for i, name := range revisions.ReplyStates.Names() {
+		if i < len(replyStates) && replyStates[i] != name {
+			t.Errorf("AgentRequest.reply.state enum = %v, want %v", replyStates, revisions.ReplyStates.Names())
+		}
+	}
 	var states, kinds, offered []string
 	for _, s := range revisions.RunMachine.States {
 		states = append(states, string(s))

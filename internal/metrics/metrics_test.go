@@ -52,6 +52,7 @@ func TestScrapeServesEverySeries(t *testing.T) {
 	r.HTTP().ObserveRequest("/api/v1/dashboards/:id", "GET", 200, 20*time.Millisecond)
 	r.AgentRequests().AgentRun("create", "succeeded")
 	r.AgentRequests().RequestClaimed("prompt", 3*time.Second)
+	r.AgentRequests().ThreadRepliesAbandoned(2)
 	r.ModelCalls().ModelCall("anthropic", "claude-haiku-5-5", "ok", 3*time.Second, llm.Usage{InputTokens: 1200, OutputTokens: 300, CacheReadTokens: 900, CacheWriteTokens: 50})
 	r.Proxy().ProxyQuery("prometheus", "ok", 40*time.Millisecond)
 	r.Proxy().ProxyCache(true)
@@ -68,6 +69,7 @@ func TestScrapeServesEverySeries(t *testing.T) {
 		`slashobserve_agent_runs_total{kind="create",outcome="succeeded"} 1`,
 		`slashobserve_agent_queue_wait_seconds_bucket{source="prompt",le="2"} 0`,
 		`slashobserve_agent_queue_wait_seconds_bucket{source="prompt",le="4"} 1`,
+		`slashobserve_thread_replies_abandoned_total 2`,
 		`slashobserve_model_call_duration_seconds_count{model="claude-haiku-5-5",outcome="ok",provider="anthropic"} 1`,
 		`slashobserve_model_tokens_total{direction="input"} 1200`,
 		`slashobserve_model_tokens_total{direction="output"} 300`,

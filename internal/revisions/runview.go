@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -337,6 +338,7 @@ func (r *RunDesk) view(ctx context.Context, row dbsqlc.AgentRequest, caller auth
 		Build:        state.progressFor(requesterOf(row), caller),
 		BuildSavedAt: httpapi.FormatOptionalTime(optionalTime(row.BuildSavedAt)),
 		BuildState:   state.derived(),
+		Reply:        replyJSON{State: replyStateOf(row, time.Now())},
 
 		QueuePosition:     position,
 		CancelRequestedAt: httpapi.FormatOptionalTime(optionalTime(row.CancelRequestedAt)),

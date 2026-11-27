@@ -35,6 +35,7 @@ type Service struct {
 	db           *db.DB
 	builtInAgent bool
 	metrics      Metrics
+	replies      replyRounds
 	logger       *slog.Logger
 	panels       PanelChecker
 	specs        SpecReader

@@ -552,8 +552,20 @@ WHERE r.state = ANY(@terminal::text[])
   AND r.thread_message_id IS NOT NULL
   AND r.finished_at > clock_timestamp() - make_interval(secs => @within_seconds::float8)
   AND r.thread_replied_at IS NULL
+  AND (sqlc.narg('after_finished_at')::timestamptz IS NULL
+    OR r.finished_at < sqlc.narg('after_finished_at')::timestamptz
+    OR (r.finished_at = sqlc.narg('after_finished_at')::timestamptz AND r.id > sqlc.narg('after_id')::uuid))
 ORDER BY r.finished_at DESC, r.id
 LIMIT @max_rows::int;
+
+-- name: AbandonThreadReplies :execrows
+UPDATE agent_requests
+SET thread_reply_abandoned_at = clock_timestamp()
+WHERE state = ANY(@terminal::text[])
+  AND thread_message_id IS NOT NULL
+  AND thread_replied_at IS NULL
+  AND thread_reply_abandoned_at IS NULL
+  AND finished_at <= clock_timestamp() - make_interval(secs => @within_seconds::float8);
 
 -- name: ChatTurnsBefore :many
 SELECT r.id, r.prompt, r.result_version, f.markdown AS answer, v.summary AS version_summary

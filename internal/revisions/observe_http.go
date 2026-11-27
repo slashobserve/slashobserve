@@ -102,6 +102,7 @@ type agentRequestJSON struct {
 	Build          *buildProgressJSON `json:"build"`
 	BuildSavedAt   *string            `json:"build_saved_at"`
 	BuildState     BuildState         `json:"build_state"`
+	Reply          replyJSON          `json:"reply"`
 	RequestedBy    authorJSON         `json:"requested_by"`
 	AssignedTo     *assigneeJSON      `json:"assigned_to"`
 	Origin         *string            `json:"origin"`

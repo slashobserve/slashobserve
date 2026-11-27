@@ -26,6 +26,7 @@ type Registry struct {
 	httpRequests     *prometheus.HistogramVec
 	agentRuns        *prometheus.CounterVec
 	agentQueueWait   *prometheus.HistogramVec
+	repliesAbandoned *prometheus.CounterVec
 	modelCalls       *prometheus.HistogramVec
 	modelTokens      *prometheus.CounterVec
 	proxyQueries     *prometheus.HistogramVec
@@ -51,6 +52,10 @@ func New() *Registry {
 			Help:    "Time an agent request waited in the queue before a worker started it.",
 			Buckets: agentQueueBuckets,
 		}, []string{"source"}),
+		repliesAbandoned: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "slashobserve_thread_replies_abandoned_total",
+			Help: "Replies of finished agent runs that could not be posted in their comment thread within 24 hours and were given up.",
+		}, nil),
 		modelCalls: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "slashobserve_model_call_duration_seconds",
 			Help:    "Time of one model call including its retries, by provider, model and outcome.",
@@ -81,7 +86,7 @@ func New() *Registry {
 	r.registry.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		r.httpRequests, r.agentRuns, r.agentQueueWait, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
+		r.httpRequests, r.agentRuns, r.agentQueueWait, r.repliesAbandoned, r.modelCalls, r.modelTokens, r.proxyQueries, r.proxyCache, r.schedulerJobs, r.schedulerRunning,
 	)
 	return r
 }
@@ -101,12 +106,13 @@ func (h HTTP) ObserveRequest(route, method string, status int, took time.Duratio
 }
 
 type AgentRequests struct {
-	runs *prometheus.CounterVec
-	wait *prometheus.HistogramVec
+	runs             *prometheus.CounterVec
+	wait             *prometheus.HistogramVec
+	repliesAbandoned *prometheus.CounterVec
 }
 
 func (r *Registry) AgentRequests() AgentRequests {
-	return AgentRequests{runs: r.agentRuns, wait: r.agentQueueWait}
+	return AgentRequests{runs: r.agentRuns, wait: r.agentQueueWait, repliesAbandoned: r.repliesAbandoned}
 }
 
 func (a AgentRequests) AgentRun(kind, outcome string) {
@@ -115,6 +121,10 @@ func (a AgentRequests) AgentRun(kind, outcome string) {
 
 func (a AgentRequests) RequestClaimed(source string, waited time.Duration) {
 	a.wait.WithLabelValues(source).Observe(waited.Seconds())
+}
+
+func (a AgentRequests) ThreadRepliesAbandoned(replies int) {
+	a.repliesAbandoned.WithLabelValues().Add(float64(replies))
 }
 
 type ModelCalls struct {

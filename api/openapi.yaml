@@ -5267,6 +5267,16 @@ components:
           type: string
           enum: [none, building, stopped, stopped_empty, stale, kept, moved, committed, proposed]
           description: What became of the request's build, also when `build` is null (`kept`, `moved`, `committed`, `proposed` or `none`); see `docs/reference/states.md`.
+        reply:
+          type: object
+          additionalProperties: false
+          required: [state]
+          description: The reply this request owes the comment thread it was asked in.
+          properties:
+            state:
+              type: string
+              enum: [not_owed, owed, replied, abandoned]
+              description: "`not_owed` for a request not asked in a thread, `owed` until the reply is posted, `replied` once it is, and `abandoned` when it could not be posted within 24 hours after the request finished; see `docs/reference/states.md`."
         queue_position:
           type: integer
           minimum: 1

@@ -124,6 +124,18 @@ This state is computed from stored fields on every read; nothing stores it.
 | `committed` | The run finished and its build became the version in `result_version`. |
 | `proposed` | The run finished and its build became a proposal. |
 
+## Thread reply
+
+A run asked in a comment thread owes that thread one reply when it ends; `GET /observe/{id}` returns its `reply.state`.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `not_owed` | The run was not asked in a comment thread, so it owes no reply. |
+| `owed` | The run was asked in a thread and its reply is not posted yet: the run has not finished, or the server is still trying, for 24 hours after it finished. |
+| `replied` | The reply is posted in the thread. |
+| `abandoned` | The reply could not be posted within 24 hours after the run finished and the server stopped trying. |
+
 ## Dashboard health
 
 `GET /health` returns the `state` of each dashboard that has a problem.
