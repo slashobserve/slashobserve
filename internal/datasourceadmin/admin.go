@@ -386,16 +386,10 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 		if err := q.LockDatasourceUID(ctx, cand.def.UID); err != nil {
 			return err
 		}
-		if err := q.LockDatasourceCount(ctx); err != nil {
+		if err := refuseWhenFull(ctx, q); err != nil {
 			return err
 		}
-		count, err := q.CountDatasources(ctx)
-		if err != nil {
-			return err
-		}
-		if count >= MaxAppDatasources {
-			return ErrTooMany
-		}
+		var err error
 		if row, err = q.InsertDatasource(ctx, params); err != nil {
 			return err
 		}
@@ -414,6 +408,38 @@ func (s *Service) Create(ctx context.Context, by auth.Principal, def Definition,
 	s.applyRow(ctx, row)
 	s.logger.InfoContext(ctx, "datasource added", slog.String("actor_id", by.ID), slog.String("uid", row.Uid), slog.String("type", row.Type))
 	return recordOf(row)
+}
+
+func (s *Service) sealChanged(row dbsqlc.Datasource, secrets Secrets, change SecretsChange) ([]byte, []string, error) {
+	if change.empty() {
+		return row.Secrets, row.SecretNames, nil
+	}
+	return s.seal(row.ID, secrets)
+}
+
+func refuseWhenFull(ctx context.Context, q *dbsqlc.Queries) error {
+	if err := q.LockDatasourceCount(ctx); err != nil {
+		return err
+	}
+	count, err := q.CountDatasources(ctx)
+	if err != nil {
+		return err
+	}
+	if count >= MaxAppDatasources {
+		return ErrTooMany
+	}
+	return nil
+}
+
+func refuseWhenChanged(ctx context.Context, q *dbsqlc.Queries, read dbsqlc.Datasource) error {
+	locked, err := q.LockDatasource(ctx, read.Uid)
+	if err != nil {
+		return err
+	}
+	if !locked.UpdatedAt.Time.Equal(read.UpdatedAt.Time) {
+		return ErrChanged
+	}
+	return nil
 }
 
 func (s *Service) applyRow(ctx context.Context, row dbsqlc.Datasource) {
@@ -486,23 +512,18 @@ func (s *Service) Update(ctx context.Context, by auth.Principal, uid string, def
 		return Record{}, err
 	}
 	params := dbsqlc.UpdateDatasourceParams{Uid: uid, Name: cand.def.Name, Audience: string(cand.def.Audience), Secrets: row.Secrets, SecretNames: row.SecretNames}
-	if !change.empty() {
-		if params.Secrets, params.SecretNames, err = s.seal(row.ID, secrets); err != nil {
-			return Record{}, err
-		}
+	if params.Secrets, params.SecretNames, err = s.sealChanged(row, secrets, change); err != nil {
+		return Record{}, err
 	}
 	if params.Config, err = json.Marshal(cand.def); err != nil {
 		return Record{}, err
 	}
 	var updated dbsqlc.Datasource
 	save := func(q *dbsqlc.Queries) error {
-		locked, err := q.LockDatasource(ctx, uid)
-		if err != nil {
+		if err := refuseWhenChanged(ctx, q, row); err != nil {
 			return err
 		}
-		if !locked.UpdatedAt.Time.Equal(row.UpdatedAt.Time) {
-			return ErrChanged
-		}
+		var err error
 		if updated, err = q.UpdateDatasource(ctx, params); err != nil {
 			return err
 		}
