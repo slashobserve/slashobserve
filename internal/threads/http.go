@@ -536,7 +536,7 @@ func newThreadJSON(t Thread) threadJSON {
 		PanelID:           httpapi.OptionalString(t.PanelID),
 		PanelPresent:      t.PanelPresent,
 		Status:            t.Status,
-		AllowedActions:    t.offeredActions(),
+		AllowedActions:    t.AllowedActions,
 		Unread:            t.Unread,
 		CreatedAt:         httpapi.FormatTime(t.CreatedAt),
 		UpdatedAt:         httpapi.FormatTime(t.UpdatedAt),

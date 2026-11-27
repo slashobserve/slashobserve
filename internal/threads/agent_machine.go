@@ -57,16 +57,3 @@ func (a threadAgent) allows(action AgentAction) bool {
 	_, found := AgentMachine.Find(a.state(), action)
 	return found
 }
-
-func allowedAgentActions(state AgentState, r rights) []string {
-	allowed := AgentMachine.Allowed(state, r.can)
-	out := make([]string, len(allowed))
-	for i, a := range allowed {
-		out[i] = string(a)
-	}
-	return out
-}
-
-func (t Thread) offeredActions() []string {
-	return append(append([]string{}, t.AllowedActions...), t.AgentActions...)
-}

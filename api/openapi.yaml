@@ -3585,11 +3585,8 @@ components:
           uniqueItems: true
           items:
             type: string
-            enum: [reply, resolve, reopen, set_agent, turn_agent_off]
-          description: >-
-            What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started.
-            `set_agent` (a message that mentions an agent or is sent to the agent) and `turn_agent_off` (a message sent to everyone, listed only while the agent's `state` is `following`) are the moves of the thread's agent.
-            See `docs/reference/states.md`.
+            enum: [reply, resolve, reopen]
+          description: What the caller may do with the thread now; empty for a caller who may not comment, and without `resolve` for a caller who can only comment on a thread someone else started. See `docs/reference/states.md`.
         unread:
           type: boolean
           description: Whether the thread holds a message from someone else, or an agent run's reply, that the caller has not read since they last opened it, answered in it or joined; always false for a service-account key. `POST /api/v1/threads/{thread_id}/read` clears it.

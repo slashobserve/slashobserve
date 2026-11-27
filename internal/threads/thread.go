@@ -42,7 +42,6 @@ type Thread struct {
 	Agent             *revisions.Assignee
 	AgentOff          bool
 	AgentState        AgentState
-	AgentActions      []string
 }
 
 func (t Thread) recipientState() threadAgent {
@@ -143,7 +142,6 @@ func threadOf(row dbsqlc.Thread, latestPanels map[string]struct{}, r rights) Thr
 	}
 	t.AgentOff = row.AgentOff
 	t.AgentState = t.recipientState().state()
-	t.AgentActions = allowedAgentActions(t.AgentState, r)
 	return t
 }
 

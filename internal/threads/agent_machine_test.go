@@ -4,6 +4,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/slashobserve/slashobserve/internal/db/dbsqlc"
 	"github.com/slashobserve/slashobserve/internal/revisions"
 )
 
@@ -43,39 +46,30 @@ func TestOnlyAFollowingAgentCanBeTurnedOff(t *testing.T) {
 	}
 }
 
-func TestAThreadOffersItsAgentMovesToSomeoneWhoMayComment(t *testing.T) {
-	commenter, viewer := rights{Comment: true}, rights{}
-	cases := []struct {
-		state AgentState
-		by    rights
-		want  []string
-	}{
-		{AgentNone, commenter, []string{"set_agent"}},
-		{AgentFollowing, commenter, []string{"set_agent", "turn_agent_off"}},
-		{AgentOff, commenter, []string{"set_agent"}},
-		{AgentFollowing, viewer, []string{}},
-	}
-	for _, c := range cases {
-		if got := allowedAgentActions(c.state, c.by); !slices.Equal(got, c.want) {
-			t.Errorf("%s: %v, want %v", c.state, got, c.want)
-		}
-	}
-}
-
-func TestAThreadReadCarriesTheAgentStateAndMovesBesideItsOwn(t *testing.T) {
-	thread := Thread{AllowedActions: []string{"reply"}, Agent: builtin, AgentOff: true, AgentState: AgentOff, AgentActions: []string{"set_agent"}}
+func TestAThreadReadCarriesTheAgentStateAndOnlyTheThreadsOwnMoves(t *testing.T) {
+	thread := Thread{AllowedActions: []string{"reply"}, Agent: builtin, AgentOff: true, AgentState: AgentOff}
 	body := newThreadJSON(thread)
-	if !slices.Equal(body.AllowedActions, []string{"reply", "set_agent"}) {
+	if !slices.Equal(body.AllowedActions, []string{"reply"}) {
 		t.Errorf("allowed_actions %v", body.AllowedActions)
 	}
 	if body.Agent == nil || body.Agent.State != "off" || !body.AgentOff {
 		t.Errorf("agent %+v, agent_off %v", body.Agent, body.AgentOff)
 	}
-	if !slices.Equal(thread.AllowedActions, []string{"reply"}) {
-		t.Errorf("the thread's own moves changed to %v", thread.AllowedActions)
+	if none := newThreadJSON(Thread{AgentState: AgentNone}); none.Agent != nil {
+		t.Errorf("a thread with no agent returns %+v", none.Agent)
 	}
-	none := newThreadJSON(Thread{AgentState: AgentNone})
-	if none.Agent != nil || none.AllowedActions == nil {
-		t.Errorf("a thread with no agent: agent %+v, allowed_actions %v", none.Agent, none.AllowedActions)
+}
+
+func TestAThreadRowBecomesItsAgentState(t *testing.T) {
+	row := dbsqlc.Thread{AgentKind: pgtype.Text{String: "builtin", Valid: true}}
+	if got := threadOf(row, nil, rights{Comment: true}); got.AgentState != AgentFollowing || slices.Contains(got.AllowedActions, "set_agent") {
+		t.Errorf("state %s, allowed %v", got.AgentState, got.AllowedActions)
+	}
+	row.AgentOff = true
+	if got := threadOf(row, nil, rights{}).AgentState; got != AgentOff {
+		t.Errorf("state %s, want off", got)
+	}
+	if got := threadOf(dbsqlc.Thread{}, nil, rights{}).AgentState; got != AgentNone {
+		t.Errorf("state %s, want none", got)
 	}
 }

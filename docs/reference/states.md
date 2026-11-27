@@ -54,7 +54,7 @@ A comment thread is a conversation on a dashboard, an observation, an annotation
 
 ## Thread's agent
 
-A thread's agent is the one a plain reply asks, returned as `agent` by `GET /threads`; its moves are made by sending a message and are recorded as the audit action `thread.agent_set`, not as activity events.
+A thread's agent is the one a plain reply asks, returned as `agent` with its `state` by `GET /threads`. No route takes these moves by name today, so the thread's `allowed_actions` do not list them: a message that mentions an agent or is sent to the agent makes `set_agent`, and a message sent to everyone makes `turn_agent_off`. Each move is recorded as the audit action `thread.agent_set`, not as an activity event.
 
 | State | Meaning | Actions |
 | --- | --- | --- |
