@@ -1,0 +1,191 @@
+{
+  "about": "Writes: the cap per attempt, repeated writes, writes beside a read in flight.",
+  "traces": [
+    {
+      "name": "a write is admitted after the read window closed",
+      "source": "TestWriteIsAdmittedAfterTheReadWindowClosed",
+      "start": {"mode":"create","building":true,"window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"get_panels","input":{}},"expect":{"verdict":"refuse"}},
+        {"call":{"name":"add_block","input":{"observation_id":"o"}},"expect":{"verdict":"dispatch","phase":"write"}}
+      ]
+    },
+    {
+      "name": "a write is an answered call",
+      "source": "TestWriteCountsAsAToolCallAndAnAnsweredCall",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"stop":null}},
+        {"check":{"writes":1,"usage":{"stalled_turns":0}}}
+      ]
+    },
+    {
+      "name": "eight writes run and the ninth is refused as too many writes",
+      "source": "TestEightWritesRunAndTheNinthIsRefusedAsTooManyWrites",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":0}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":2}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":3}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":4}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":5}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":6}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":7}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":99}},"expect":{"verdict":"refuse","step":"Refused add_block: 8 writes already ran","code":"too_many_writes","message":"this run already made 8 changes, the most one run may; say in your answer what is left for the person to do"}}
+      ]
+    },
+    {
+      "name": "an identical write is refused whatever the key order",
+      "source": "TestAnIdenticalWriteIsRefusedWhateverTheKeyOrder",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_observation","input":{"observation_id":"o","title":"t"}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_observation","raw":"{ \"title\": \"t\", \"observation_id\": \"o\" }"},"expect":{"verdict":"refuse","step":"Refused update_observation: the same write was sent again","code":"repeated_write"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"update_observation","input":{"observation_id":"o","title":"u"}},"expect":{"verdict":"dispatch"}},
+        {"check":{"writes":2}}
+      ]
+    },
+    {
+      "name": "a refused write does not count toward the cap",
+      "source": "TestARefusedWriteDoesNotCountTowardTheCap",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse"}},
+        {"check":{"writes":1}}
+      ]
+    },
+    {
+      "name": "the settle of a write never resets the rejection streak",
+      "source": "TestSettleOfAWriteNeverResetsTheRejectionCount",
+      "start": {"mode":"create","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"result":{},"settled":{"note":"","stop":null}},
+        {"check":{"streak":{"kind":"generic","count":2}}}
+      ]
+    },
+    {
+      "name": "a write is never replayed or refused as a repeated read",
+      "source": "TestAWriteIsNeverReplayedOrRefusedAsARepeatedRead",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":0}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":2}},"expect":{"verdict":"dispatch"},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":3}},"expect":{"verdict":"dispatch"},"result":{}}
+      ]
+    },
+    {
+      "name": "two turns of refused writes stop the run with the write reason",
+      "source": "TestTwoTurnsOfRefusedWritesStopTheRunWithTheWriteReason",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":10}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":11}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":12}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":13}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":14}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":15}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":16}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":17}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: the model kept writing after 8 writes","message":""}}}
+      ]
+    },
+    {
+      "name": "a restart keeps the write count of the attempt",
+      "source": "TestARestartKeepsTheWriteCountOfTheAttempt",
+      "start": {"mode":"revise"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"restart":{}},
+        {"check":{"writes":1}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse","code":"repeated_write"}}
+      ]
+    },
+    {
+      "name": "a failed write frees its cap and its key so it can be retried",
+      "source": "TestAFailedWriteFreesItsCapAndItsKeySoItCanBeRetried",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"check":{"writes":0}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "forgetting a write leaves another write's key alone",
+      "source": "TestForgetWriteLeavesAnotherWritesKeyAlone",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}},
+        {"forget":{"name":"add_block","input":{"n":2}}},
+        {"check":{"writes":1}}
+      ]
+    },
+    {
+      "name": "a write is refused while a read of the turn is in flight",
+      "source": "TestWriteIsRefusedWhileAReadOfTheTurnIsInFlight",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_datasources","input":{}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse","step":"Refused add_block: a read from the same call was still running","code":"read_in_flight"}},
+        {"check":{"writes":0}},
+        {"end_read":0},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a new turn starts with no reads in flight",
+      "source": "TestANewTurnStartsWithNoReadsInFlight",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_datasources","input":{}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"dispatch"}}
+      ]
+    }
+  ]
+}

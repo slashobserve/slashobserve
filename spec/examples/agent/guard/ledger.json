@@ -1,0 +1,256 @@
+{
+  "about": "Ledger calls, the ledger-behind and unclosed-candidate send-backs.",
+  "traces": [
+    {
+      "name": "a ledger call is admitted past the limit while a read is refused",
+      "source": "TestALedgerCallIsAdmittedPastTheLimitWhileAReadIsRefused",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6},"window_calls":5},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch","phase":"ledger"}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"refuse"}}
+      ]
+    },
+    {
+      "name": "a ledger call is neither a read nor an answered call",
+      "source": "TestALedgerCallIsNeitherAReadNorAnAnsweredCall",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"list_metrics","input":{}},"expect":{"verdict":"dispatch"}},
+        {"end_read":0},
+        {"call":{"name":"add_block","input":{"n":1}},"expect":{"verdict":"refuse","code":"read_in_flight"}},
+        {"settle":0,"result":{},"settled":{"note":"","stop":null}}
+      ]
+    },
+    {
+      "name": "any number of identical ledger calls is admitted",
+      "source": "TestAnyNumberOfIdenticalLedgerCallsIsAdmitted",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "turns of only ledger calls stall the run",
+      "source": "TestTurnsOfOnlyLedgerCallsStallTheRun",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: 2 turns in a row only updated the hypotheses","message":""}}}
+      ]
+    },
+    {
+      "name": "ledger turns that change the ledger or were sent back do not stall the run at once",
+      "source": "TestLedgerTurnsThatChangeTheLedgerOrWereSentBackDoNotStallTheRunAtOnce",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"0","text":"t","status":"open"}]}},"result":{}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"0","text":"t","status":"open"},{"id":"1","text":"t","status":"open"}]}},"result":{}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"0","text":"t","status":"open"},{"id":"1","text":"t","status":"open"}]}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"0","text":"t","status":"open"},{"id":"1","text":"t","status":"open"},{"id":"2","text":"t","status":"open"}]}},"result":{}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"0","text":"t","status":"open"},{"id":"1","text":"t","status":"open"},{"id":"2","text":"t","status":"open"},{"id":"3","text":"t","status":"open"}]}},"result":{}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: 2 turns in a row only updated the hypotheses","message":""}}}
+      ]
+    },
+    {
+      "name": "a ledger turn followed by a refused turn stalls with the refusal reason",
+      "source": "TestALedgerTurnFollowedByARefusedTurnStallsWithTheRefusalReason",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"end_turn":{"stop":{"failure":"no_progress","step":"Stopped: 2 turns in a row had every call refused","message":""}}}
+      ]
+    },
+    {
+      "name": "a ledger call beside a read does not stall the turn",
+      "source": "TestALedgerCallBesideAReadDoesNotStallTheTurn",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[]}}},
+        {"call":{"name":"list_metrics","input":{}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"usage":{"stalled_turns":0}}}
+      ]
+    },
+    {
+      "name": "a finding that names a cause is sent back once while every hypothesis is open",
+      "source": "TestAFindingThatNamesACauseIsSentBackOnceWhileEveryHypothesisIsOpen",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"open","next_check":"read something"},{"id":"h1","text":"text of h1","status":"open","next_check":"read something"}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"refuse","message_has":["the finding names a cause or ruled-out items","note_hypotheses"],"step":"The answer was sent back for a fix: it named a cause while every hypothesis was still open"}},
+        {"check":{"usage":{"nudges":1}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "a finding that names ruled-out items is sent back once while every hypothesis is open",
+      "source": "TestAFindingThatNamesACauseIsSentBackOnceWhileEveryHypothesisIsOpen",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"open","next_check":"read something"},{"id":"h1","text":"text of h1","status":"open","next_check":"read something"}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Not the deploy.","ruled_out":["deploy"]}},"expect":{"verdict":"refuse","message_has":["the finding names a cause or ruled-out items","note_hypotheses"],"step":"The answer was sent back for a fix: it named a cause while every hypothesis was still open"}},
+        {"check":{"usage":{"nudges":1}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Not the deploy.","ruled_out":["deploy"]}},"expect":{"verdict":"dispatch"}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "a finding with no ledger at all is also sent back once",
+      "source": "TestAFindingWithNoLedgerAtAllIsAlsoSentBackOnce",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"refuse"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a finding is not sent back once the ledger has moved",
+      "source": "TestAFindingIsNotSentBackOnceTheLedgerHasMoved",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"open","next_check":"read something"}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"supported","evidence":["read it"]}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "a finding that names no cause or ruled-out item is not sent back (1)",
+      "source": "TestAFindingThatNamesNoCauseOrRuledOutItemIsNotSentBack",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"open","next_check":"read something"}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Nothing found."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a finding that names no cause or ruled-out item is not sent back (2)",
+      "source": "TestAFindingThatNamesNoCauseOrRuledOutItemIsNotSentBack",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"open","next_check":"read something"}]}},"result":{}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"x","root_cause":null,"ruled_out":[]}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a rejected ledger call does not count as an update",
+      "source": "TestARejectedLedgerCallDoesNotCountAsAnUpdate",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"note_hypotheses","input":{"hypotheses":[{"id":"h0","text":"text of h0","status":"supported","evidence":["read it"]}]}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"refuse"}}
+      ]
+    },
+    {
+      "name": "with the loop off a finding is never sent back for the ledger",
+      "source": "TestWithTheLoopOffAFindingIsNeverSentBackForTheLedger",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}},
+        {"check":{"usage":{"nudges":0}}}
+      ]
+    },
+    {
+      "name": "the ledger watch only starts in an investigation",
+      "source": "TestTheLedgerWatchOnlyStartsInAnInvestigation",
+      "start": {"mode":"create","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an investigate run that is not an investigation has no loop",
+      "source": "Service.watched",
+      "start": {"mode":"investigate","agent":{"loop":true},"investigation":false},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Pool exhausted.","root_cause":{"component":"checkout","kind":"resource","summary":"The pool is full."}}},"expect":{"verdict":"dispatch"}},
+        {"check":{"usage":{"call_limit":null}}}
+      ]
+    },
+    {
+      "name": "an unclosed candidate is sent back once and lets the next turn read",
+      "source": "ledgerBehind",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6,"loop":true},"window_calls":4},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"},"unclosed":"close c1 first"},"expect":{"verdict":"refuse","message":"close c1 first","step":"The answer was sent back for a fix: it concluded while a triage candidate was not accounted for"}},
+        {"check":{"usage":{"nudges":1}}},
+        {"end_turn":{"stop":null,"nudge":"One more read at most, then call save_finding."}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"q":1}},"expect":{"verdict":"dispatch"}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"},"unclosed":"close c1 first"},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an unclosed candidate at the call limit is not sent back",
+      "source": "ledgerBehind",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6,"loop":true},"window_calls":5},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"},"unclosed":"close c1 first"},"expect":{"verdict":"dispatch"}}
+      ]
+    }
+  ]
+}

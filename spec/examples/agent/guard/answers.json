@@ -1,0 +1,309 @@
+{
+  "about": "Send-backs of a finding: absences, evidence, a hedged title cause, unchecked reads, and the once-per-attempt latches.",
+  "traces": [
+    {
+      "name": "a finding carries the reads that could not be checked",
+      "source": "TestAFindingCarriesTheReadsThatCouldNotBeChecked",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"loki","query":"{service=\"checkout\"}"}},"result":{"is_error":true,"call":{"unchecked":"query_timeout"}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"log_patterns","input":{"datasource":"loki","query":"{service=\"checkout\"}"}},"result":{"is_error":true,"call":{"unchecked":"query_timeout"}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"datasource":"prom","search":"checkout"}},"result":{"is_error":true,"call":{"unchecked":"datasource_unavailable"}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"datasource":"prom","scope":"{service=\"checkout\"}"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"lint_query","input":{"datasource":"ch","query":"SELECT 1"}},"result":{"is_error":true,"call":{"unchecked":"query_timeout"}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_instant","input":{"datasource":"ch","query":"SELECT 1"}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"}},"expect":{"verdict":"dispatch","unchecked":[{"datasource":"loki","code":"query_timeout"}]}}
+      ]
+    },
+    {
+      "name": "a read that later succeeds is no longer unchecked",
+      "source": "TestAReadThatLaterSucceedsIsNoLongerUnchecked",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"loki","query":"{service=\"checkout\"}"}},"result":{"is_error":true,"call":{"unchecked":"query_timeout"}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"loki","query":"{service=\"checkout\"} |= \"error\""}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"x"}},"expect":{"verdict":"dispatch","unchecked":[]}}
+      ]
+    },
+    {
+      "name": "no metrics after a name search",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"datasource":"prom","search":"checkout"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Prometheus has no checkout metrics."}},"expect":{"verdict":"refuse","message_has":"set scope"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Prometheus has no checkout metrics."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "no metrics after a scoped list",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"datasource":"prom","scope":"{service=\"checkout\"}"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Prometheus has no checkout metrics."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "no deploy without annotations in an investigation",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"refuse","message_has":"read it with tag deploy"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "no deploy after reading annotations",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_annotations","input":{"tags":["deploy"]}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "no deploy on Home without annotations",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"No checkout deploy exists."}},"expect":{"verdict":"refuse","message_has":"read it with tag deploy"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"No checkout deploy exists."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "no deploy on Home after reading annotations",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_annotations","input":{"tags":["deploy"]}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"No checkout deploy exists."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a finding that claims no absence",
+      "source": "TestAFindingThatCallsASignalMissingNeedsTheReadThatWouldShowIt",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout errors rose at 14:22 UTC on checkout-0."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a scoped list_metrics that failed still backs a missing metric",
+      "source": "noteAbsenceRead",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_metrics","input":{"datasource":"prom","scope":"{service=\"checkout\"}"}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Prometheus has no checkout metrics."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a failed list_annotations does not back a missing deploy",
+      "source": "noteAbsenceRead",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_annotations","input":{"tags":["deploy"]}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"refuse","message_has":"read it with tag deploy"}}
+      ]
+    },
+    {
+      "name": "counts after a query and no panel",
+      "source": "TestAFindingWithCountsAndNoEvidenceIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout had 46 error spans in the last hour."}},"expect":{"verdict":"refuse","message_has":"no evidence panel"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout had 46 error spans in the last hour."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "counts after a query and a panel",
+      "source": "TestAFindingWithCountsAndNoEvidenceIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout had 46 error spans in the last hour.","evidence":[{"id":"p1"}]}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "counts with no query read",
+      "source": "TestAFindingWithCountsAndNoEvidenceIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout had 46 error spans in the last hour."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "an answer with no numbers",
+      "source": "TestAFindingWithCountsAndNoEvidenceIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout is healthy."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a query that failed does not ask for evidence",
+      "source": "TestAQueryThatFailedDoesNotAskForEvidence",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{"is_error":true}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"Checkout had 46 error spans."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a cause in the title and a hedge in the text",
+      "source": "TestATitleThatClaimsACauseTheTextCallsUnconfirmedIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Checkout errors tied to paymentUnreachable flag","markdown":"The flag most likely matches; its variant was not read."}},"expect":{"verdict":"refuse","message_has":"title names a cause"}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Checkout errors tied to paymentUnreachable flag","markdown":"The flag most likely matches; its variant was not read."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a cause in the title and a confirmed text",
+      "source": "TestATitleThatClaimsACauseTheTextCallsUnconfirmedIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Checkout errors caused by a bad deploy","markdown":"The deploy at 14:02 UTC introduced the error."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "a symptom title over a hedged text",
+      "source": "TestATitleThatClaimsACauseTheTextCallsUnconfirmedIsSentBackOnce",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Checkout 5xx errors by pod","markdown":"This probably started with the deploy."}},"expect":{"verdict":"dispatch"}}
+      ]
+    },
+    {
+      "name": "evidence and title faults are named together",
+      "source": "TestEvidenceAndTitleFaultsAreNamedTogether",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_instant","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Errors caused by shipping","markdown":"46 error spans, most likely shipping."}},"expect":{"verdict":"refuse","message_has":["no evidence panel","title names a cause"]}}
+      ]
+    },
+    {
+      "name": "a finding sent back is progress and blocks a second save in the turn",
+      "source": "TestASentBackFindingIsProgressAndBlocksASecondSaveInTheTurn",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"46 error spans."}},"expect":{"verdict":"refuse"}},
+        {"end_turn":{"stop":null}},
+        {"check":{"usage":{"stalled_turns":0}}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"46 error spans.","evidence":[]}},"expect":{"verdict":"dispatch"}},
+        {"call":{"name":"save_finding","input":{"markdown":"47 error spans."}},"expect":{"verdict":"refuse","message":"only one save per turn"}}
+      ]
+    },
+    {
+      "name": "absence and answer faults are sent back together",
+      "source": "TestAbsenceAndAnswerFaultsAreSentBackTogether",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy today, and checkout had 46 error spans."}},"expect":{"verdict":"refuse","message_has":["read it with tag deploy","no evidence panel"],"step":"The answer was sent back for a fix: it said there was no deploy without reading the deploy markers; and it gave counts without an evidence panel"}}
+      ]
+    },
+    {
+      "name": "a finding sent back shows people a sentence and the model the guidance",
+      "source": "TestASentBackFindingShowsPeopleASentenceAndTheModelTheGuidance",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"The metric is missing for checkout."}},"expect":{"verdict":"refuse","step":"The answer was sent back for a fix: it said a metric is missing without checking for it","code":"invalid_request","message":"the finding says a metric is missing, but no list_metrics call in this run set scope: a service, job or pod is a label value, so list metrics with scope set to its selector, such as {service=\"checkout\"}, before saying so, or drop the claim"}}
+      ]
+    },
+    {
+      "name": "three send-back reasons show two and a count",
+      "source": "TestSentBackStepNamesAtMostTwoReasons",
+      "start": {"mode":"investigate","agent":{"loop":true}},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"title":"Errors caused by shipping","markdown":"There was no deploy; 46 error spans, most likely shipping.","ruled_out":["deploy"]}},"expect":{"verdict":"refuse","step":"The answer was sent back for a fix: it said there was no deploy without reading the deploy markers; it gave counts without an evidence panel; and 2 more"}},
+        {"check":{"usage":{"nudges":1}}}
+      ]
+    },
+    {
+      "name": "a restart re-arms the answer send-backs in Go",
+      "source": "TestARestartForgetsWhatWasAskedOfTheAnswer",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 1"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"46 error spans."}},"expect":{"verdict":"refuse","message_has":"no evidence panel"}},
+        {"restart":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"query_range","input":{"datasource":"ch","query":"SELECT 2"}},"result":{}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"save_finding","input":{"markdown":"46 error spans."}},"expect":{"verdict":"refuse","message_has":"no evidence panel"}}
+      ]
+    },
+    {
+      "name": "the absence send-back's read is refused at the limit in Go",
+      "source": "absence.go",
+      "start": {"mode":"investigate","agent":{"investigation_calls":6},"window_calls":6},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"markdown":"There was no deploy of checkout today."}},"expect":{"verdict":"refuse","message_has":"read it with tag deploy"}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":0}},
+        {"call":{"name":"list_annotations","input":{"tags":["deploy"]}},"expect":{"verdict":"refuse","step":"Refused list_annotations: 6 model calls passed without a finding"}}
+      ]
+    }
+  ]
+}

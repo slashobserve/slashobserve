@@ -1,0 +1,415 @@
+{
+  "about": "Rejected saves: the one streak (generic, length, restricted), the total, the stops, and the repair rounds.",
+  "traces": [
+    {
+      "name": "repairs: an accepted save alone",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"content":{"finding_id":"f0"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "repairs: a rejected save alone",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "repairs: two rejected saves",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "repairs: a rejected save then an accepted one",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"content":{"finding_id":"f1"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "repairs: two rejected saves then an accepted one",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"content":{"finding_id":"f2"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "repairs: a rejected save, an accepted one, then another accepted one",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"content":{"finding_id":"f1"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"content":{"finding_id":"f2"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "repairs: a rejected save, an accepted one, a rejected one, an accepted one",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"content":{"finding_id":"f1"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"content":{"finding_id":"f3"},"settled":"finding"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":2}}}
+      ]
+    },
+    {
+      "name": "repairs: a rejected save then a malformed result",
+      "source": "TestSettleCountsARepairOnlyWhenARejectedSaveIsFollowedByAnAcceptedOne",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"}}},
+        {"end_turn":{}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"content":{},"settled":"ended"}},
+        {"end_turn":{}},
+        {"check":{"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "a finding clears the rejection streak",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"investigate","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{}},"result":{"content":{"finding_id":"f1"},"settled":"finding"}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "a suggestion clears the rejection streak",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"suggest","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{}},"result":{"content":{"suggested":true,"panel":{"id":"p"}},"settled":"suggested"}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "a proposal clears the rejection streak",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"revise","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{}},"result":{"content":{"code":"proposed","proposal_id":"p1"},"settled":"proposed"}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "a saved version clears the rejection streak",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"revise","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{}},"result":{"content":{"dashboard_id":"d","version":2},"settled":"saved"}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "a build save clears the rejection streak",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"create","streak":{"kind":"generic","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{}},"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1}}}
+      ]
+    },
+    {
+      "name": "an accepted save after restricted refusals clears them and is no repair",
+      "source": "TestSettleClearsRejectionsOnEveryAcceptedSave",
+      "start": {"mode":"create","streak":{"kind":"restricted","count":2}},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{}},"expect":{"verdict":"dispatch","phase":"save"}},
+        {"settle":0,"result":{"content":{"build":{},"version":0},"settled":null,"call":{"edits":null}}},
+        {"check":{"streak":null,"usage":{"repair_rounds":0}}}
+      ]
+    },
+    {
+      "name": "three rejected proposals in a row stop the run",
+      "source": "TestEndTurnStopsAfterRejectedSavesInARow",
+      "start": {"mode":"suggest"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":3}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":{"failure":"validation_exhausted","step":"Stopped: 3 proposals in a row were rejected","message":""}}}
+      ]
+    },
+    {
+      "name": "restricted refusals are not validation rejections",
+      "source": "TestRestrictedAnswerRefusalsAreNotValidationRejections",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":1}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"restricted","count":1}}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":2}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":3}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":{"failure":"restricted_answer","step":"Stopped: 3 saves in a row were refused because the run read data only Admins can read","message":""}}}
+      ]
+    },
+    {
+      "name": "a restricted refusal breaks the run of validation rejections",
+      "source": "TestRestrictedAnswerRefusalsBreakTheRunOfValidationRejections",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":3}},"result":{"is_error":true,"content":{"code":"restricted_answer"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":4}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"create_dashboard","input":{"n":5}},"result":{"is_error":true,"content":{"code":"invalid_spec"}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"generic","count":2}}}
+      ]
+    },
+    {
+      "name": "length overruns and other rejections each count only their own run in a row",
+      "source": "TestLengthOverrunsAndOtherRejectionsEachCountOnlyTheirOwnRunInARow",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"generic","count":2}}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":5}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":{"failure":"validation_exhausted","step":"Stopped: 3 findings in a row were rejected","message":""}}}
+      ]
+    },
+    {
+      "name": "a length overrun breaks the run of other rejections",
+      "source": "TestALengthOverrunBreaksTheRunOfOtherRejections",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":5}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"generic","count":2}}}
+      ]
+    },
+    {
+      "name": "length overruns break the run of restricted refusals",
+      "source": "TestLengthOverrunsBreakTheRunOfRestrictedRefusals",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":5}},"result":{"is_error":true,"content":{"code":"restricted_answer","message":"m"}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"streak":{"kind":"restricted","count":1}}}
+      ]
+    },
+    {
+      "name": "alternating rejections are bounded by the total without an accepted save",
+      "source": "TestAlternatingRejectionsAreBoundedByTheTotalWithoutAnAcceptedSave",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":5}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":6}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":7}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":8}},"result":{"is_error":true,"content":{"code":"invalid_spec","failing_panels":["evidence-1"],"issues":[{"code":"query_empty"}]}}},
+        {"end_turn":{"stop":{"failure":"validation_exhausted","step":"Stopped: 8 findings were rejected without an accepted one","message":"the finding was rejected in 8 saves without an accepted one"}}}
+      ]
+    },
+    {
+      "name": "length overruns have their own hard bound",
+      "source": "TestLengthOverrunsHaveTheirOwnHardBound",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":5}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":{"failure":"validation_exhausted","step":"Stopped: 5 findings in a row were over the word limit","message":"the finding was still over the word limit after 5 saves"}}}
+      ]
+    },
+    {
+      "name": "an accepted finding clears the length overruns",
+      "source": "TestAnAcceptedFindingClearsTheLengthOverruns",
+      "start": {"mode":"investigate"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":1}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":2}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":3}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":4}},"result":{"is_error":true,"content":{"code":"finding_too_long","message":"the finding is 413 words and the limit is 400"}}},
+        {"end_turn":{"stop":null}},
+        {"check":{"phase":{"save_finding":"repair","update_panels":"repair","get_panels":"discover"},"streak":{"kind":"length","count":4}}},
+        {"turn":{"saves":1}},
+        {"call":{"name":"save_finding","input":{"n":9}},"expect":{"verdict":"dispatch","phase":"repair"},"result":{"content":{"finding_id":"f1"},"settled":"finding"}},
+        {"check":{"streak":null,"usage":{"repair_rounds":1},"phase":{"save_finding":"save"}}}
+      ]
+    },
+    {
+      "name": "a one-panel refusal is counted",
+      "source": "usage counts",
+      "start": {"mode":"create"},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"result":{"is_error":true,"content":{"code":"invalid_request"},"call":{"refusal":"one_panel"}}},
+        {"check":{"usage":{"one_panel_refusals":1}}}
+      ]
+    },
+    {
+      "name": "a conflict that restarted the run is no rejection",
+      "source": "TestSettleClassifiesASave",
+      "start": {"mode":"revise","parent_version":3},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"result":{"is_error":true,"content":{"code":"version_conflict","latest_version":4},"settled":"restarted"}},
+        {"check":{"streak":null}}
+      ]
+    },
+    {
+      "name": "a conflict on the parent version is a rejection",
+      "source": "TestSettleClassifiesASave",
+      "start": {"mode":"revise","parent_version":3},
+      "steps": [
+        {"turn":{"saves":1}},
+        {"call":{"name":"update_panels","input":{"n":1}},"result":{"is_error":true,"content":{"code":"version_conflict","latest_version":3}}},
+        {"check":{"streak":{"kind":"generic","count":1}}}
+      ]
+    }
+  ]
+}

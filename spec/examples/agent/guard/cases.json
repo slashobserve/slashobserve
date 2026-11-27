@@ -1,0 +1,616 @@
+{
+ "write_tools": [
+  "add_block",
+  "update_observation",
+  "update_block"
+ ],
+ "keys": [
+  {
+   "name": "whitespace",
+   "tool": "update_panels",
+   "a": "{\"a\":1,\"b\":[2,3]}",
+   "b": "{ \"a\": 1,\n \"b\": [2, 3] }",
+   "same": true
+  },
+  {
+   "name": "another tool",
+   "tool": "update_panels",
+   "other_tool": "create_dashboard",
+   "a": "{\"a\":1,\"b\":[2,3]}",
+   "b": "{\"a\":1,\"b\":[2,3]}",
+   "same": false
+  },
+  {
+   "name": "another input",
+   "tool": "update_panels",
+   "a": "{\"a\":1,\"b\":[2,3]}",
+   "b": "{\"a\":2,\"b\":[2,3]}",
+   "same": false
+  },
+  {
+   "name": "input that is not JSON is hashed as it is",
+   "tool": "lint_query",
+   "a": "{\"half",
+   "b": "{\"other",
+   "same": false
+  },
+  {
+   "name": "the same input that is not JSON",
+   "tool": "lint_query",
+   "a": "{\"half",
+   "b": "{\"half",
+   "same": true
+  },
+  {
+   "name": "large integers stay apart",
+   "tool": "update_block",
+   "a": "{\"version\":9007199254740993}",
+   "b": "{\"version\":9007199254740992}",
+   "same": false
+  },
+  {
+   "name": "key order",
+   "tool": "update_block",
+   "a": "{\"b\":1,\"a\":2}",
+   "b": "{\"a\":2,\"b\":1}",
+   "same": true,
+   "go_reads_differ": true
+  },
+  {
+   "name": "string escapes",
+   "tool": "update_block",
+   "a": "{\"t\":\"\\u0041\"}",
+   "b": "{\"t\":\"A\"}",
+   "same": true,
+   "go_reads_differ": true
+  },
+  {
+   "name": "nested key order",
+   "tool": "update_block",
+   "a": "{\"x\":{\"b\":[1,{\"d\":1,\"c\":2}],\"a\":null}}",
+   "b": "{\"x\":{\"a\":null,\"b\":[1,{\"c\":2,\"d\":1}]}}",
+   "same": true,
+   "go_reads_differ": true
+  },
+  {
+   "name": "number spelling",
+   "tool": "update_block",
+   "a": "{\"n\":1.0}",
+   "b": "{\"n\":1}",
+   "same": false
+  }
+ ],
+ "count_claims": {
+  "match": [
+   "46 error spans",
+   "p99 was 2.4 s",
+   "p99 was 2.4s",
+   "took 3 seconds",
+   "800 ms",
+   "150 rps",
+   "40 req/s",
+   "12k requests",
+   "1.2M rows",
+   "3x the normal rate",
+   "12% of calls",
+   "1,204 traces",
+   "46 ERRORS",
+   "3 Pods"
+  ],
+  "no_match": [
+   "last 15 minutes",
+   "version 2 of the dashboard",
+   "at 14:05 UTC",
+   "5 m window",
+   "Checkout is healthy",
+   "12K"
+  ]
+ },
+ "title_causes": [
+  {
+   "name": "the doubt is about the title's cause",
+   "title": "Checkout errors tied to paymentUnreachable flag",
+   "text": "The flag most likely matches.",
+   "want": true
+  },
+  {
+   "name": "the doubt is about something else",
+   "title": "Checkout errors tied to paymentUnreachable flag",
+   "text": "The paymentUnreachable flag was on from 10:45. Shipping is probably unrelated.",
+   "want": false
+  },
+  {
+   "name": "causes in the title",
+   "title": "Slow DNS causes checkout timeouts",
+   "text": "DNS lookups cannot confirm the timeouts began there.",
+   "want": true
+  },
+  {
+   "name": "a bare cause is not a claim",
+   "title": "Cause of checkout errors unknown",
+   "text": "It was probably the cache.",
+   "want": false
+  },
+  {
+   "name": "a hedge in the title's own sentence only",
+   "title": "Errors DUE TO the cache",
+   "text": "The cache.\nThe CACHE probably filled.",
+   "want": true
+  }
+ ],
+ "conclusions": [
+  {
+   "input": {
+    "markdown": "x",
+    "causes": [
+     {
+      "component": {
+       "kind": "service",
+       "name": "cart"
+      },
+      "kind": "deploy",
+      "mechanism": "m"
+     }
+    ]
+   },
+   "want": true
+  },
+  {
+   "input": {
+    "markdown": "x",
+    "causes": []
+   },
+   "want": false
+  },
+  {
+   "input": {
+    "markdown": "Pool exhausted.",
+    "root_cause": {
+     "component": "checkout",
+     "kind": "resource",
+     "summary": "The pool is full."
+    }
+   },
+   "want": true
+  },
+  {
+   "input": {
+    "markdown": "Not the deploy.",
+    "ruled_out": [
+     "deploy"
+    ]
+   },
+   "want": true
+  },
+  {
+   "input": {
+    "markdown": "Nothing found."
+   },
+   "want": false
+  },
+  {
+   "input": {
+    "markdown": "x",
+    "root_cause": null,
+    "ruled_out": []
+   },
+   "want": false
+  },
+  {
+   "input": {
+    "markdown": "x",
+    "root_cause": {}
+   },
+   "want": false
+  }
+ ],
+ "proved": [
+  {
+   "name": "open to ruled out",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": true
+  },
+  {
+   "name": "open to supported",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "supported",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": true
+  },
+  {
+   "name": "a new hypothesis already ruled out",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    },
+    {
+     "id": "b",
+     "text": "text of b",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": true
+  },
+  {
+   "name": "a text edit",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "other",
+     "status": "open"
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "a new next check",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "else"
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "evidence added to an open hypothesis",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "evidence": [
+      "e"
+     ],
+     "next": "read something"
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "a ruled out hypothesis gets another line",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e",
+      "f"
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "ruled out to supported on the same line",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "supported",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "ruled out to supported on a new line",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "supported",
+     "evidence": [
+      "f"
+     ]
+    }
+   ],
+   "want": true
+  },
+  {
+   "name": "a rename with the same evidence",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    },
+    {
+     "id": "b",
+     "text": "text of b",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a2",
+     "text": "text of a2",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    },
+    {
+     "id": "b",
+     "text": "text of b",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "a renamed open hypothesis resolved on its old evidence",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "evidence": [
+      "e"
+     ],
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a2",
+     "text": "text of a2",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "a new id resolved on a line another hypothesis had",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    },
+    {
+     "id": "b",
+     "text": "text of b",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    },
+    {
+     "id": "c",
+     "text": "text of c",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": false
+  },
+  {
+   "name": "an open hypothesis that carried evidence is resolved",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "evidence": [
+      "e"
+     ],
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "ruled_out",
+     "evidence": [
+      "e"
+     ]
+    }
+   ],
+   "want": true
+  },
+  {
+   "name": "dropping a hypothesis",
+   "prev": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    },
+    {
+     "id": "b",
+     "text": "text of b",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "next": [
+    {
+     "id": "a",
+     "text": "text of a",
+     "status": "open",
+     "next": "read something"
+    }
+   ],
+   "want": false
+  }
+ ],
+ "people_text": [
+  {
+   "reasons": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ],
+   "want": "a; b; and 2 more"
+  },
+  {
+   "reasons": [
+    "a",
+    "b"
+   ],
+   "want": "a; and b"
+  },
+  {
+   "reasons": [
+    "a"
+   ],
+   "want": "a"
+  }
+ ],
+ "data_reads": {
+  "yes": [
+   "trace_stats",
+   "sample_rows",
+   "get_trace",
+   "compare_traces",
+   "log_context",
+   "log_patterns",
+   "log_facets",
+   "logs_for_trace",
+   "call_mcp_tool",
+   "trace_error_origins",
+   "trace_slow_path",
+   "query_range",
+   "query_instant",
+   "measure_window",
+   "measure_aggregate"
+  ],
+  "no": [
+   "list_metrics",
+   "list_mcp_sources",
+   "list_annotations",
+   "get_panels",
+   "lint_query"
+  ]
+ }
+}
