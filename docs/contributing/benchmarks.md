@@ -51,6 +51,9 @@ A server image built before MCP sources were renamed reads the older sources fil
 
 The trial's spans are an OpenSearch index that the datasources file marks `spans: jaeger`, so the trace tools answer on it, and that needs a server image built from `agent-rca-accuracy` or later.
 An older image refuses the field and does not start; pass `--ak span_index=false` for it, and the spans are read as plain documents without the trace tools.
+The report is built from the finding's ranked causes, which a server image sends from `agent-rca-accuracy` on: each stated cause that follows no other is a root cause with its component, mechanism, trigger key and value, the queries and trace ids behind it and its onset in UTC.
+A knock-on is written as a consequence of its root cause, and a cause the server did not confirm goes under the report's unexplored branches, never as a root cause.
+An older image's finding fills the report from its single root cause or from its text, as before.
 The steps, the disk the snapshot needs and how to point the judge at a Claude model are in the ORCA-bench section of [`benchmarks/README.md`](https://github.com/slashobserve/slashobserve/blob/main/benchmarks/README.md).
 
 ## Run SREGym problems

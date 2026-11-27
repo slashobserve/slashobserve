@@ -266,9 +266,9 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
    When the run has source code, the note also says where to read it and the feature flag definitions, that a fault may have been switched on by a flag, and that a flag is named by its key exactly as the source spells it.
    The question, notes included, must fit the server's 4000 character prompt limit; a longer one fails the trial before any container starts.
 6. It writes `/app/report.md` from the run's finding, in the four sections the benchmark asks for: Summary, Timeline, 5 Whys and Remediation.
-   The structured fields of the finding (`root_cause`, `onset`, `impact`, `ruled_out`, `next_steps`) fill the sections when the server returns them, with every time written in UTC; otherwise the Markdown fills them.
-   The full Markdown stays under 5 Whys, because it holds the evidence the judge looks for.
-   A finding with `no_incident` writes an empty file, which is how the benchmark spells "no incident".
+   The report is built from the finding's `causes` when the server returns them (see [Causes in the report](#causes-in-the-report)), from `root_cause`, `onset`, `impact`, `ruled_out` and `next_steps` on an older server, and from the Markdown when neither is there, with every time written in UTC.
+   The full Markdown stays under 5 Whys, because it holds the analysis the judge reads.
+   A finding with `no_incident` writes an empty file, which is how the benchmark spells "no incident", and so does a finding whose causes are all unconfirmed and whose Markdown is empty.
 7. A run that ends without a finding raises, so Harbor records an exception and skips the verifier; an empty report would pass a quiet control by default.
 
 | File in `agent/` | Content |
@@ -280,6 +280,20 @@ It runs on Harbor 0.20.0 with a patched `Task.checksum`, while o11y-bench pins H
 
 The options are those of o11y-bench without `network`, plus `code_context`, `codeserver_image` (default `slashobserve-codeserver:local`), `source_names` (`mcp`, the default, or `context`) and `span_index` (`true`, the default, or `false`), and `wall_timeout_sec` defaults to 3300 under the task's 3600 second agent timeout.
 Leaderboard rules forbid a timeout or resource override, so leave Harbor's at their defaults.
+
+### Causes in the report
+
+ORCA-bench grades a report against every plausible cause of the task, takes points for a cause the report invents, and wants an onset close to the fault's start, so the report keeps what the server confirmed apart from what it did not.
+
+- A stated cause that is not a knock-on is a root cause, numbered when there is more than one, named with its component (the name, its kind and its namespace when given), its mechanism, and its trigger key exactly as stored, with the value when there is one, so a flag key appears verbatim.
+- A knock-on is written as a consequence of the root cause it follows, never as a root cause of its own.
+- A cause with `stated: false` is listed under Unexplored branches in 5 Whys as not confirmed, beside the `ruled_out` lines, and never in a root cause line, the Summary or the Timeline.
+- The Timeline has one line per root cause and per knock-on with an onset, earliest first, all in UTC, and the impact at the earliest onset; causes without an onset take the finding's `onset`.
+- Under 5 Whys each root cause and knock-on has its onset, the components it affects, and its evidence: every query from `evidence.queries` verbatim and every trace id in full.
+- With no stated cause, the Markdown fills the sections as for an older server, and the unconfirmed causes still go under Unexplored branches.
+
+The server sends `causes` from branch `agent-rca-accuracy` on, so build the image under test from that branch or later.
+It scores and bands the causes only with `finding_grounding` set to `report` or `enforce`; with `off` every cause counts as stated, so an unsupported guess reaches the report as a root cause.
 
 ### Spans
 

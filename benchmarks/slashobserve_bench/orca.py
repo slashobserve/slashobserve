@@ -27,6 +27,7 @@ TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\b\d{1,2}:\d{2}(?::\d{
 TIMELINE_LINES_MAX = 8
 LINE_RUNES_MAX = 240
 PROMPT_LIMIT = 4000
+TRIGGER_KINDS = {"feature_flag": "feature flag", "config_value": "setting", "deploy": "deploy", "traffic": "traffic change", "dependency": "dependency"}
 
 CODE_OFF = "off"
 CODE_SOURCE = "orca-code"
@@ -396,6 +397,146 @@ def clock(value: str) -> str:
     return value.strip() if moment is None else moment.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def _text(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _texts(values: Any) -> tuple[str, ...]:
+    return tuple(text for text in (_text(value) for value in values or ()) if text) if isinstance(values, list) else ()
+
+
+def _code(text: str) -> str:
+    return text if "`" in text else f"`{text}`"
+
+
+def _sentence(text: str) -> str:
+    return text if text.endswith((".", "!", "?")) else text + "."
+
+
+@dataclass(frozen=True)
+class Component:
+    name: str
+    kind: str | None = None
+    namespace: str | None = None
+
+    @classmethod
+    def read(cls, value: Any) -> "Component | None":
+        if isinstance(value, str):
+            return cls(value.strip()) if value.strip() else None
+        if not isinstance(value, dict) or not (name := _text(value.get("name"))):
+            return None
+        return cls(name, _text(value.get("kind")), _text(value.get("namespace")))
+
+    @property
+    def label(self) -> str:
+        details = [part for part in (self.kind if self.kind != "other" else None, self.namespace and f"namespace {self.namespace}") if part]
+        return f"{self.name} ({', '.join(details)})" if details else self.name
+
+
+@dataclass(frozen=True)
+class Cause:
+    index: int
+    component: Component | None
+    mechanism: str | None
+    trigger_kind: str | None = None
+    trigger_key: str | None = None
+    trigger_value: str | None = None
+    onset: str | None = None
+    affected: tuple[Component, ...] = ()
+    knock_on_of: int | None = None
+    queries: tuple[str, ...] = ()
+    trace_ids: tuple[str, ...] = ()
+    band: str | None = None
+    stated: bool = True
+
+    @classmethod
+    def read(cls, index: int, entry: dict[str, Any]) -> "Cause":
+        trigger = entry.get("trigger") if isinstance(entry.get("trigger"), dict) else {}
+        evidence = entry.get("evidence") if isinstance(entry.get("evidence"), dict) else {}
+        knock_on = entry.get("knock_on_of")
+        if entry.get("relation") == "independent" or not isinstance(knock_on, int) or isinstance(knock_on, bool):
+            knock_on = None
+        return cls(
+            index=index,
+            component=Component.read(entry.get("component")),
+            mechanism=_text(entry.get("mechanism")) or _text(entry.get("summary")),
+            trigger_kind=_text(trigger.get("kind")),
+            trigger_key=_text(trigger.get("key")),
+            trigger_value=_text(trigger.get("value")),
+            onset=_text(entry.get("onset")),
+            affected=tuple(item for item in (Component.read(value) for value in entry.get("affected") or ()) if item),
+            knock_on_of=knock_on,
+            queries=_texts(evidence.get("queries")),
+            trace_ids=_texts(evidence.get("trace_ids")),
+            band=_text(entry.get("band")),
+            stated=entry.get("stated", True) is not False,
+        )
+
+    @property
+    def trigger(self) -> str | None:
+        if not self.trigger_key:
+            return None
+        text = f"{TRIGGER_KINDS.get(self.trigger_kind or '', 'change')} {_code(self.trigger_key)}"
+        return f"{text} set to {_code(self.trigger_value)}" if self.trigger_value else text
+
+    @property
+    def line(self) -> str:
+        head = self.component.label if self.component else "an unnamed component"
+        text = f"{head}: {_sentence(self.mechanism)}" if self.mechanism else f"{head}."
+        return f"{text} Triggered by the {self.trigger}." if self.trigger else text
+
+    def detail(self, label: str) -> str:
+        lines = [f"{label}:", self.line]
+        if self.onset:
+            lines.append(f"Started at {clock(self.onset)}.")
+        if self.affected:
+            lines.append(f"Affected: {', '.join(item.label for item in self.affected)}.")
+        evidence = [*(f"- Query: {_code(query)}" for query in self.queries), *(f"- Trace id: {trace}" for trace in self.trace_ids)]
+        return "\n".join([*lines, *(["Evidence:", *evidence] if evidence else [])])
+
+
+@dataclass(frozen=True)
+class Causes:
+    roots: tuple[Cause, ...]
+    knock_ons: tuple[tuple[Cause, Cause], ...]
+    unconfirmed: tuple[Cause, ...]
+
+    @classmethod
+    def read(cls, entries: list[Any]) -> "Causes":
+        causes = [Cause.read(index, entry) for index, entry in enumerate(entries) if isinstance(entry, dict)]
+        roots = {cause.index: cause for cause in causes if cause.stated and cause.knock_on_of is None}
+        knock_ons = tuple((cause, roots[cause.knock_on_of]) for cause in causes if cause.stated and cause.knock_on_of in roots)
+        followers = {cause.index for cause, _ in knock_ons}
+        unconfirmed = tuple(cause for cause in causes if cause.index not in roots and cause.index not in followers)
+        return cls(tuple(roots.values()), knock_ons, unconfirmed)
+
+    def name(self, root: Cause) -> str:
+        return "Root cause" if len(self.roots) == 1 else f"Root cause {self.roots.index(root) + 1}"
+
+    def lines(self) -> list[str]:
+        roots = [f"{self.name(root)}: {root.line}" for root in self.roots]
+        return [*roots, *(f"Consequence of {self.name(root).lower()}: {cause.line}" for cause, root in self.knock_ons)]
+
+    def onsets(self) -> list[str]:
+        return [cause.onset for cause in (*self.roots, *(cause for cause, _ in self.knock_ons)) if cause.onset]
+
+    def timed(self) -> list[tuple[str, str]]:
+        roots = [(root.onset, f"{self.name(root)}: {root.line}") for root in self.roots if root.onset]
+        return [*roots, *((cause.onset, f"Consequence of {self.name(root).lower()}: {cause.line}") for cause, root in self.knock_ons if cause.onset)]
+
+    def details(self) -> list[str]:
+        blocks = []
+        for root in self.roots:
+            blocks.append(root.detail(self.name(root)))
+            blocks.extend(cause.detail(f"Consequence of {self.name(root).lower()}") for cause, parent in self.knock_ons if parent is root)
+        return blocks
+
+
+def _earliest(stamps: Iterable[str]) -> str | None:
+    known = sorted((moment, stamp) for stamp in stamps if (moment := _moment(stamp)) is not None)
+    return known[0][1] if known else None
+
+
 @dataclass(frozen=True)
 class Answer:
     markdown: str
@@ -407,11 +548,14 @@ class Answer:
     ruled_out: tuple[str, ...] = ()
     next_steps: tuple[str, ...] = ()
     no_incident: bool = False
+    causes: Causes | None = None
 
     @classmethod
     def from_finding(cls, finding: dict[str, Any]) -> "Answer":
         root = finding.get("root_cause") or {}
+        entries = finding.get("causes")
         return cls(
+            causes=Causes.read(entries) if isinstance(entries, list) and entries else None,
             markdown=(finding.get("markdown") or "").strip(),
             component=root.get("component"),
             kind=root.get("kind"),
@@ -456,28 +600,59 @@ def _first_paragraph(markdown: str) -> str:
 
 
 def _summary(answer: Answer) -> str:
-    lines = [line for line in (answer.cause_line, answer.impact and f"Impact: {answer.impact}") if line]
-    if answer.onset:
-        lines.append(f"Started at {clock(answer.onset)}.")
+    if answer.causes:
+        lines = answer.causes.lines()
+        onset = _earliest(answer.causes.onsets()) or answer.onset
+        impact = answer.impact and _sentence(answer.impact.strip())
+    else:
+        lines = [answer.cause_line] if answer.cause_line else []
+        onset, impact = answer.onset, answer.impact
+    if lines or not answer.causes:
+        lines.extend([f"Impact: {impact}"] if impact else [])
+        lines.extend([f"Started at {clock(onset)}."] if onset else [])
     return " ".join(lines) if lines else _first_paragraph(answer.markdown) or "No summary was written."
 
 
+def _cause_timeline(answer: Answer, causes: Causes) -> list[str]:
+    timed = causes.timed()
+    if not timed and answer.onset and causes.roots:
+        timed = [(answer.onset, causes.lines()[0])]
+    if timed and answer.impact:
+        timed.append((_earliest(stamp for stamp, _ in timed) or timed[0][0], f"Impact: {answer.impact}"))
+    far = datetime.max.replace(tzinfo=timezone.utc)
+    ordered = sorted(enumerate(timed), key=lambda item: (_moment(item[1][0]) or far, item[0]))
+    return [f"{clock(stamp)} - {text}" for _, (stamp, text) in ordered]
+
+
 def _timeline(answer: Answer) -> str:
-    if answer.onset:
+    if answer.causes:
+        if lines := _cause_timeline(answer, answer.causes):
+            return "\n".join(lines)
+    elif answer.onset:
         entry = f"{clock(answer.onset)} - {answer.cause_line or 'incident began'}"
         return entry if not answer.impact else f"{entry}\n{clock(answer.onset)} - impact: {answer.impact}"
     lines = [_clip(line) for line in answer.markdown.splitlines() if TIMESTAMP.search(line)]
     return "\n".join(lines[:TIMELINE_LINES_MAX]) or "No incident start time was reported."
 
 
+def _unexplored(answer: Answer) -> str | None:
+    if not answer.causes:
+        return "Unexplored branches (checked and ruled out):\n" + "\n".join(f"- {item}" for item in answer.ruled_out) if answer.ruled_out else None
+    lines = [f"- Not confirmed by the evidence read, so not a stated cause: {cause.line}" for cause in answer.causes.unconfirmed]
+    lines.extend(f"- Checked and ruled out: {item}" for item in answer.ruled_out)
+    return "Unexplored branches:\n" + "\n".join(lines) if lines else None
+
+
 def _whys(answer: Answer) -> str:
     parts = [f"Problem statement:\n{answer.impact or _first_paragraph(answer.markdown) or 'Not stated.'}"]
     if answer.markdown:
         parts.append(f"Analysis:\n{demote_headings(answer.markdown)}")
-    if answer.cause_line:
+    if answer.causes:
+        parts.extend(answer.causes.details())
+    elif answer.cause_line:
         parts.append(f"Root cause:\n{answer.cause_line}")
-    if answer.ruled_out:
-        parts.append("Unexplored branches (checked and ruled out):\n" + "\n".join(f"- {item}" for item in answer.ruled_out))
+    if unexplored := _unexplored(answer):
+        parts.append(unexplored)
     return "\n\n".join(parts)
 
 
@@ -490,7 +665,7 @@ def _remediation(answer: Answer) -> str:
 
 def render_report(finding: dict[str, Any]) -> str:
     answer = Answer.from_finding(finding)
-    if answer.no_incident:
+    if answer.no_incident or answer.causes and not answer.causes.roots and not answer.markdown:
         return ""
     sections = (
         ("Summary", _summary(answer)),

@@ -382,6 +382,206 @@ def test_a_heading_with_a_time_does_not_become_a_timeline_heading():
     assert "## Timeline\n\n09:44 UTC cart slowed\n" in report
 
 
+TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
+
+
+def cause(name, mechanism, **fields):
+    entry = {
+        "component": {"kind": "service", "name": name, "namespace": None},
+        "kind": "config_or_flag",
+        "mechanism": mechanism,
+        "trigger": None,
+        "onset": None,
+        "affected": [],
+        "relation": "independent",
+        "knock_on_of": None,
+        "evidence": {"facts": [], "trace_ids": [], "queries": []},
+        "estimate": None,
+        "confidence": 0.8,
+        "band": "high",
+        "stated": True,
+    }
+    return {**entry, **fields}
+
+
+AD = cause(
+    "ad",
+    "The ad service threw on every GetAds call",
+    trigger={"kind": "feature_flag", "key": "adFailure", "value": "on"},
+    onset="2026-04-18T05:44:00-04:00",
+    affected=[{"kind": "service", "name": "frontend", "namespace": "otel-demo"}],
+    evidence={"facts": ["f1"], "trace_ids": [TRACE_ID], "queries": ['sum(rate(traces_span_metrics_calls_total{service_name="ad",status_code="STATUS_CODE_ERROR"}[5m]))']},
+)
+CART = cause(
+    "cart",
+    "Cart requests waited on a full Valkey connection pool",
+    trigger={"kind": "feature_flag", "key": "cartFailure", "value": None},
+    onset="2026-04-18T09:30:00Z",
+    evidence={"facts": ["f2"], "trace_ids": [], "queries": ['service.name:cart AND severity_text:ERROR']},
+)
+CHECKOUT = cause(
+    "checkout",
+    "Checkout failed on its calls to cart",
+    kind="dependency",
+    relation="knock_on",
+    knock_on_of=1,
+    onset="2026-04-18T09:32:00Z",
+    evidence={"facts": ["f3"], "trace_ids": [], "queries": ['histogram_quantile(0.99, sum by (le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout"}[5m])))']},
+)
+GUESS = cause("payment", "Payment may have slowed", confidence=0.2, band="low", stated=False)
+
+
+def finding(*causes, **fields):
+    root = next((c for c in causes if c.get("stated", True) and c["relation"] == "independent"), None)
+    base = {
+        "markdown": "The analysis.",
+        "root_cause": root and {"component": root["component"]["name"], "kind": root["kind"], "summary": root["mechanism"]},
+        "causes": list(causes),
+        "onset": None,
+        "impact": None,
+        "ruled_out": [],
+        "next_steps": [],
+        "no_incident": False,
+    }
+    return {**base, **fields}
+
+
+def whys(report):
+    return report.split("## 5 Whys\n\n", 1)[1].split("\n\n## Remediation", 1)[0]
+
+
+def timeline(report):
+    return report.split("## Timeline\n\n", 1)[1].split("\n\n## 5 Whys", 1)[0].splitlines()
+
+
+@pytest.mark.parametrize(
+    ("case", "causes", "roots", "timeline_lines"),
+    [
+        (
+            "one cause",
+            [AD],
+            ["Root cause:\nad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+            ["2026-04-18 09:44 UTC - Root cause: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+        ),
+        (
+            "two independent causes",
+            [CART, AD],
+            ["Root cause 1:\ncart (service): Cart requests waited", "Root cause 2:\nad (service): The ad service threw"],
+            [
+                "2026-04-18 09:30 UTC - Root cause 1: cart (service): Cart requests waited on a full Valkey connection pool. Triggered by the feature flag `cartFailure`.",
+                "2026-04-18 09:44 UTC - Root cause 2: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`.",
+            ],
+        ),
+        (
+            "a cause with a knock-on",
+            [AD, CART, CHECKOUT],
+            ["Root cause 1:\nad (service)", "Root cause 2:\ncart (service)", "Consequence of root cause 2:\ncheckout (service): Checkout failed on its calls to cart."],
+            [
+                "2026-04-18 09:30 UTC - Root cause 2: cart (service): Cart requests waited on a full Valkey connection pool. Triggered by the feature flag `cartFailure`.",
+                "2026-04-18 09:32 UTC - Consequence of root cause 2: checkout (service): Checkout failed on its calls to cart.",
+                "2026-04-18 09:44 UTC - Root cause 1: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`.",
+            ],
+        ),
+        (
+            "a stated and an unconfirmed cause",
+            [AD, GUESS],
+            ["Root cause:\nad (service)"],
+            ["2026-04-18 09:44 UTC - Root cause: ad (service): The ad service threw on every GetAds call. Triggered by the feature flag `adFailure` set to `on`."],
+        ),
+    ],
+)
+def test_report_states_each_cause_from_the_list_of_causes(case, causes, roots, timeline_lines):
+    report = orca.render_report(finding(*causes))
+    assert sections(report) == ["Summary", "Timeline", "5 Whys", "Remediation"], case
+    for root in roots:
+        assert root in whys(report), case
+    assert timeline(report) == timeline_lines, case
+
+
+def test_report_gives_each_stated_cause_its_queries_and_full_trace_ids():
+    text = whys(orca.render_report(finding(AD, CART, CHECKOUT)))
+    for cause_entry in (AD, CART, CHECKOUT):
+        for query in cause_entry["evidence"]["queries"]:
+            assert f"- Query: `{query}`" in text
+    assert f"- Trace id: {TRACE_ID}" in text
+    assert text.index(AD["evidence"]["queries"][0]) < text.index("Root cause 2:") < text.index(CART["evidence"]["queries"][0])
+    assert text.index("Consequence of root cause 2:") < text.index(CHECKOUT["evidence"]["queries"][0])
+    assert "Affected: frontend (service, namespace otel-demo)." in text
+
+
+def test_a_knock_on_is_never_written_as_a_root_cause():
+    report = orca.render_report(finding(AD, CART, CHECKOUT))
+    summary = report.split("## Timeline", 1)[0]
+    assert "Consequence of root cause 2: checkout (service)" in summary
+    assert "Root cause 3" not in report
+    assert not re.search(r"Root cause( \d)?:\s*checkout", report)
+
+
+def test_an_unconfirmed_cause_is_an_unexplored_branch_and_never_a_root_cause():
+    report = orca.render_report(finding(AD, GUESS, ruled_out=["cart latency was normal"]))
+    summary = report.split("## Timeline", 1)[0]
+    assert "payment" not in summary
+    assert "payment" not in "\n".join(timeline(report))
+    assert (
+        "Unexplored branches:\n"
+        "- Not confirmed by the evidence read, so not a stated cause: payment (service): Payment may have slowed.\n"
+        "- Checked and ruled out: cart latency was normal"
+    ) in whys(report)
+    assert not re.search(r"Root cause( \d)?:\s*payment", report)
+
+
+def test_a_flag_trigger_keeps_its_key_verbatim():
+    flagged = cause("product-catalog", "The catalog failed for one product", trigger={"kind": "feature_flag", "key": "productCatalogFailure", "value": "on"})
+    report = orca.render_report(finding(flagged))
+    assert report.count("`productCatalogFailure`") == 2
+    namespaced = cause("cart", "The pool filled", component={"kind": "service", "name": "cart", "namespace": "otel-demo"})
+    assert "Root cause:\ncart (service, namespace otel-demo): The pool filled." in orca.render_report(finding(namespaced))
+
+
+def test_summary_names_the_causes_the_impact_and_the_earliest_onset():
+    report = orca.render_report(finding(AD, CART, CHECKOUT, GUESS, impact="Ads and checkouts failed"))
+    summary = report.split("## Summary\n\n", 1)[1].split("\n\n## Timeline", 1)[0]
+    assert summary.startswith("Root cause 1: ad (service)")
+    assert summary.endswith("Impact: Ads and checkouts failed. Started at 2026-04-18 09:30 UTC.")
+    assert "2026-04-18 09:30 UTC - Impact: Ads and checkouts failed" in timeline(report)
+
+
+def test_causes_without_an_onset_take_the_findings_onset():
+    report = orca.render_report(finding({**AD, "onset": None}, onset="2026-04-18T09:44:00Z"))
+    assert timeline(report)[0].startswith("2026-04-18 09:44 UTC - Root cause: ad (service)")
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        {"markdown": "Nothing was wrong.", "causes": [], "root_cause": None, "no_incident": True},
+        finding(GUESS, markdown=""),
+    ],
+)
+def test_no_incident_or_no_stated_cause_and_no_claim_writes_an_empty_report(shape):
+    assert orca.render_report(shape) == ""
+
+
+def test_only_unconfirmed_causes_leave_the_markdown_to_make_the_report():
+    report = orca.render_report(finding(GUESS, markdown="Payment latency rose at 09:44 UTC."))
+    assert "Root cause" not in report
+    assert "## Summary\n\nPayment latency rose at 09:44 UTC." in report
+    assert "Not confirmed by the evidence read, so not a stated cause: payment (service)" in report
+
+
+def test_an_older_server_with_only_root_cause_writes_the_report_as_before():
+    report = orca.render_report(STRUCTURED)
+    assert "Root cause:\nadFailure (config or flag): The adFailure flag made the ad service fail" in report
+    assert "2026-04-18 09:44 UTC - adFailure (config or flag): The adFailure flag made the ad service fail" in report
+    assert "Unexplored branches (checked and ruled out):\n- cart latency was normal" in report
+    assert orca.render_report({**STRUCTURED, "causes": []}) == report
+
+
+def test_unscored_causes_count_as_stated():
+    unscored = {key: value for key, value in AD.items() if key not in ("confidence", "band", "stated")}
+    assert "Root cause:\nad (service)" in orca.render_report(finding(unscored))
+
+
 def test_compose_project_is_named_the_way_harbor_names_it():
     assert orca.compose_project("Trial__ABC.1") == "trial__abc-1"
     assert orca.compose_project("_x") == "0_x"
