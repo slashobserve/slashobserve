@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -661,8 +660,7 @@ func upstream[T any](ctx context.Context, r *Runner, subject string, inst dataso
 			r.logger.ErrorContext(ctx, "datasource call panicked",
 				slog.String("subject", subject),
 				slog.String("datasource", inst.UID),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
 			var zero T
 			out, err = zero, errInternal
 		}

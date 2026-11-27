@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"maps"
 	"regexp"
-	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -553,7 +552,7 @@ func (r *Registry) safeCheckHealth(ctx context.Context, in Instance) (err error)
 	defer func() {
 		if p := recover(); p != nil {
 			r.logger.ErrorContext(ctx, "datasource health check panicked",
-				slog.String("uid", in.UID), slog.String("panic_type", fmt.Sprintf("%T", p)), slog.String("stack", string(debug.Stack())))
+				slog.String("uid", in.UID), slog.String("panic_type", fmt.Sprintf("%T", p)))
 			err = errors.New("health check panicked")
 		}
 	}()

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -481,8 +480,7 @@ func (h *Handler) renderRun(ctx context.Context, req queryproxy.Request) (entry 
 func (h *Handler) logPanic(ctx context.Context, panelID string, p any) {
 	h.logger.ErrorContext(ctx, "query proxy panicked",
 		slog.String("panel_id", panelID),
-		slog.String("panic_type", fmt.Sprintf("%T", p)),
-		slog.String("stack", string(debug.Stack())))
+		slog.String("panic_type", fmt.Sprintf("%T", p)))
 }
 
 func cacheScope(ctx context.Context, v loadedVersion) (user datasource.QueryUser, scope string) {
@@ -692,8 +690,7 @@ func (h *Handler) safeLint(ctx context.Context, inst datasource.Instance, text s
 		if p := recover(); p != nil {
 			h.logger.ErrorContext(ctx, "datasource lint panicked",
 				slog.String("datasource", inst.UID),
-				slog.String("panic_type", fmt.Sprintf("%T", p)),
-				slog.String("stack", string(debug.Stack())))
+				slog.String("panic_type", fmt.Sprintf("%T", p)))
 			diagnostics, err = nil, errInternal
 		}
 	}()
