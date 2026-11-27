@@ -91,6 +91,12 @@ SELECT r.id, r.dashboard_id, r.observation_id, coalesce(d.title, o.title)::text 
     SELECT 1 FROM inbox_item_states s
     WHERE s.seq = r.activity_seq AND s.done AND s.user_id = ANY(r.granters)
   )::boolean AS dismissed,
+  EXISTS (
+    SELECT 1 FROM access_requests n
+    WHERE coalesce(n.dashboard_id, n.observation_id) = coalesce(r.dashboard_id, r.observation_id)
+      AND n.requester_kind = r.requester_kind AND n.requester_id = r.requester_id
+      AND (n.created_at, n.id) > (r.created_at, r.id)
+  )::boolean AS superseded,
   now()::timestamptz AS read_at
 FROM access_requests r
 LEFT JOIN dashboards d ON d.id = r.dashboard_id

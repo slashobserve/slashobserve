@@ -467,9 +467,9 @@ This state is computed from stored fields on every read; nothing stores it.
 
 | State | When |
 | --- | --- |
-| `open` | Asked in the last 30 days, not granted, and nobody who can grant it marked it done in their inbox. |
+| `open` | Asked in the last 30 days, not granted, nobody who can grant it marked it done in their inbox, and the requester has not asked again for the same object since. |
 | `granted` | The requester got Comment access after asking. |
-| `dismissed` | Someone who can grant it marked it done in their inbox without granting it; the requester may ask again. |
+| `dismissed` | Someone who can grant it marked it done in their inbox without granting it, or it was marked done and the requester has asked again since; the requester may ask again. |
 | `expired` | Nobody granted or dismissed it within 30 days; the requester may ask again. |
 
 ## Datasource health

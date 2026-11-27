@@ -136,6 +136,7 @@ A request closes in one of these ways:
 A change to a person's groups reaches folder access only at their next sign-in, so it does not close a request.
 Mark the item done once they can comment.
 After a request closes, the person can ask again.
+Asking again closes the earlier request for good, so undoing its done mark afterwards brings back only the newer request.
 
 A service-account key may ask too.
 Because keys match no entry, its request is granted by raising the service account's role.
