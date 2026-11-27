@@ -124,10 +124,3 @@ func TestLinesOnADateFieldTruncatesTheTimeToMilliseconds(t *testing.T) {
 		t.Fatalf("Time = %v, want %v", got, want)
 	}
 }
-
-func TestTailLagIsFiveSeconds(t *testing.T) {
-	_, ds := searchServer(t, hitsOf(0))
-	if got := ds.TailLag(); got != 5*time.Second {
-		t.Fatalf("TailLag = %v, want 5s", got)
-	}
-}

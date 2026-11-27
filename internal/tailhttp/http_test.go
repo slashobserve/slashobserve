@@ -132,23 +132,11 @@ type fixture struct {
 
 func newFixture(t *testing.T, responses ...response) *fixture {
 	t.Helper()
-	return newFixtureWith(t, func(logs *fakeLines) datasource.Datasource { return logs }, responses...)
-}
-
-type laggedLines struct {
-	*fakeLines
-	lag time.Duration
-}
-
-func (l laggedLines) TailLag() time.Duration { return l.lag }
-
-func newFixtureWith(t *testing.T, wrap func(*fakeLines) datasource.Datasource, responses ...response) *fixture {
-	t.Helper()
 	gin.SetMode(gin.TestMode)
 	logger := slog.New(slog.DiscardHandler)
 	logs := &fakeLines{typ: "loki", responses: responses}
 	registry, err := datasource.NewRegistry(logger,
-		datasource.Instance{UID: "logs", Datasource: wrap(logs)},
+		datasource.Instance{UID: "logs", Datasource: logs},
 		datasource.Instance{UID: "prom", Datasource: withoutLines{&fakeLines{typ: "prometheus"}}},
 	)
 	if err != nil {
@@ -319,8 +307,8 @@ func TestTailStreamsReadyThenLinesAndPollsFromTheNewestLinePlusOneNanosecond(t *
 	if got := seen[0]; !got.Range.From.Equal(fromTime) || got.Direction != datasource.Forward || got.Limit != 7 || got.Query.Text != `{service_name="checkout"}` || got.Query.Limits != queryproxy.DraftLimits || !got.Range.To.After(got.Range.From) {
 		t.Fatalf("first poll = %+v", got)
 	}
-	if got := seen[1].Range.From; !got.Equal(time.Unix(0, baseNs+3)) {
-		t.Fatalf("second poll from = %v, want newest plus one nanosecond %v", got, time.Unix(0, baseNs+3).UTC())
+	if got := seen[1].Range.From; !got.Equal(fromTime) {
+		t.Fatalf("second poll from = %v, want newest plus one nanosecond minus the lag, held at the start %v", got, fromTime)
 	}
 	if got := seen[2].Range.From; !got.Equal(time.Unix(0, baseNs+6)) {
 		t.Fatalf("third poll from = %v, want %v", got, time.Unix(0, baseNs+6).UTC())
@@ -507,13 +495,6 @@ func TestNewestOfPrefersTimeNsAndFallsBackToTheTimeField(t *testing.T) {
 	}
 }
 
-const tailLag = 5 * time.Second
-
-func laggedFixture(t *testing.T, responses ...response) *fixture {
-	t.Helper()
-	return newFixtureWith(t, func(logs *fakeLines) datasource.Datasource { return laggedLines{fakeLines: logs, lag: tailLag} }, responses...)
-}
-
 func atSeconds(seconds ...int64) []int64 {
 	offsets := make([]int64, len(seconds))
 	for i, s := range seconds {
@@ -556,7 +537,7 @@ func bodiesOf(t *testing.T, ev event) []string {
 	return bodies
 }
 
-func TestTailOnADatasourceWithLagSendsEachLineOnce(t *testing.T) {
+func TestTailSendsEachLineOnceAcrossTheLag(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		frame func(truncated bool, offsets ...int64) datasource.Frame
@@ -570,7 +551,7 @@ func TestTailOnADatasourceWithLagSendsEachLineOnce(t *testing.T) {
 			poll := func(seconds ...int64) response {
 				return response{frames: []datasource.Frame{tc.frame(false, atSeconds(seconds...)...)}}
 			}
-			f := laggedFixture(t, poll(10, 11), poll(11, 12), poll(12), poll(13))
+			f := newFixture(t, poll(10, 11), poll(11, 12), poll(12), poll(13))
 			s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
 			decode[readyData](t, s.next(t), "ready")
 			for _, want := range [][]string{{"line 10000000000", "line 11000000000"}, {"line 12000000000"}, {"line 13000000000"}} {
@@ -582,15 +563,15 @@ func TestTailOnADatasourceWithLagSendsEachLineOnce(t *testing.T) {
 			if got := seen[0].Range.From; !got.Equal(fromTime) {
 				t.Fatalf("first poll from = %v, want the requested start %v", got, fromTime)
 			}
-			if got, want := seen[1].Range.From, time.Unix(0, baseNs+11*int64(time.Second)+1).Add(-tailLag); !got.Equal(want) {
+			if got, want := seen[1].Range.From, time.Unix(0, baseNs+11*int64(time.Second)+1).Add(-datasource.DefaultTailLag); !got.Equal(want) {
 				t.Fatalf("second poll from = %v, want the newest line plus one nanosecond minus the lag %v", got, want)
 			}
 		})
 	}
 }
 
-func TestTailOnADatasourceWithLagCatchesUpWithoutTheOverlap(t *testing.T) {
-	f := laggedFixture(t,
+func TestTailCatchesUpWithoutTheOverlap(t *testing.T) {
+	f := newFixture(t,
 		response{frames: []datasource.Frame{withIDs(linesFrame(true, atSeconds(20, 21)...))}},
 		response{frames: []datasource.Frame{withIDs(linesFrame(false, atSeconds(22)...))}},
 		response{frames: []datasource.Frame{withIDs(linesFrame(false, atSeconds(23)...))}},
@@ -604,7 +585,7 @@ func TestTailOnADatasourceWithLagCatchesUpWithoutTheOverlap(t *testing.T) {
 	if got, want := seen[1].Range.From, time.Unix(0, baseNs+21*int64(time.Second)+1); !got.Equal(want) {
 		t.Fatalf("poll after a full page from = %v, want the newest line plus one nanosecond %v", got, want)
 	}
-	if got, want := seen[2].Range.From, time.Unix(0, baseNs+22*int64(time.Second)+1).Add(-tailLag); !got.Equal(want) {
+	if got, want := seen[2].Range.From, time.Unix(0, baseNs+22*int64(time.Second)+1).Add(-datasource.DefaultTailLag); !got.Equal(want) {
 		t.Fatalf("poll after a short page from = %v, want the overlap %v", got, want)
 	}
 }
@@ -669,8 +650,8 @@ func TestTailFlagsAPartialPollAndFetchesTheMissingLinesOnTheNext(t *testing.T) {
 	if got := seen[1].Range.From; !got.Equal(fromTime) {
 		t.Fatalf("poll after a partial one from = %v, want the cursor held at %v", got, fromTime)
 	}
-	if got := seen[2].Range.From; !got.Equal(time.Unix(0, baseNs+4)) {
-		t.Fatalf("poll after a complete one from = %v, want %v", got, time.Unix(0, baseNs+4).UTC())
+	if got := seen[2].Range.From; !got.Equal(fromTime) {
+		t.Fatalf("poll after a complete one from = %v, want newest plus one nanosecond minus the lag, held at the start %v", got, fromTime)
 	}
 }
 
@@ -707,7 +688,7 @@ func TestTailOnADatasourceWithLagKeepsTwoStreamsThatShareATimeAndALine(t *testin
 		f.Labels = map[string]string{"pod": name}
 		return f
 	}
-	f := laggedFixture(t, response{frames: []datasource.Frame{stream("a"), stream("b")}}, response{frames: []datasource.Frame{stream("a"), stream("b")}})
+	f := newFixture(t, response{frames: []datasource.Frame{stream("a"), stream("b")}}, response{frames: []datasource.Frame{stream("a"), stream("b")}})
 	s := f.open("u1", "query=%7Bapp%3D%22shop%22%7D&from="+fromParam)
 	decode[readyData](t, s.next(t), "ready")
 	if got := bodiesOf(t, s.next(t)); len(got) != 2 {
@@ -724,7 +705,7 @@ func TestTailOnADatasourceWithLagKeepsARepeatedLineWhenTheFrameHasNoNanosecondFi
 		}
 		return f
 	}
-	f := laggedFixture(t,
+	f := newFixture(t,
 		response{frames: []datasource.Frame{repeated(atSeconds(10)...)}},
 		response{frames: []datasource.Frame{repeated(atSeconds(10, 12)...)}},
 	)

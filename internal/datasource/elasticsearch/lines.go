@@ -2,19 +2,11 @@ package elasticsearch
 
 import (
 	"context"
-	"time"
 
 	"github.com/slashobserve/slashobserve/internal/datasource"
 )
 
-const tailLag = datasource.DefaultTailLag
-
-var (
-	_ datasource.LineSource = (*Datasource)(nil)
-	_ datasource.LagSource  = (*Datasource)(nil)
-)
-
-func (d *Datasource) TailLag() time.Duration { return tailLag }
+var _ datasource.LineSource = (*Datasource)(nil)
 
 func (d *Datasource) Lines(ctx context.Context, req datasource.LinesRequest) ([]datasource.Frame, error) {
 	if err := req.Range.Validate(); err != nil {
