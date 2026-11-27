@@ -177,6 +177,9 @@ What it answers:
 
 - A whole trace by id, read in pages of 5,000 spans, up to 20,000 spans with the earliest kept, as `GET /api/v1/datasources/{uid}/traces/{trace_id}` and the `get_trace` tool describe.
 - The services list, from `process.serviceName`, as the `traces` signal.
+- A listing of the traces in a window, newest first, by service, operation, root span name, failure and least duration, which `trace_error_origins` and `trace_slow_path` read before they sample traces.
+  A trace matches when each condition holds in some span of it, and its duration is its root span's, or its longest span's when no root is stored.
+  With more than one condition the newest 8,000 traces that meet any of them are weighed, so a listing past that says it is not complete.
 - The log lines of a trace are not in a span index: read them from a logs datasource.
 
 ### Health
