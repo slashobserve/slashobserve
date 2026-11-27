@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/slashobserve/slashobserve/internal/agent/tools"
 	"github.com/slashobserve/slashobserve/internal/audit"
 	"github.com/slashobserve/slashobserve/internal/auth"
@@ -560,6 +562,40 @@ func TestListingAnAdminsOnlySourceMarksTheRunRestricted(t *testing.T) {
 			}
 			if restricted() != c.restricted {
 				t.Errorf("restricted = %v, want %v", restricted(), c.restricted)
+			}
+		})
+	}
+}
+
+func TestACallOutcomeSaysWhetherTheSourceAnswers(t *testing.T) {
+	checked := dbsqlc.McpSource{CheckedAt: pgtype.Timestamptz{Valid: true}}
+	failing := checked
+	failing.Failure = text(FailureUnreachable)
+	tests := []struct {
+		name    string
+		row     dbsqlc.McpSource
+		err     error
+		changes bool
+		failure string
+	}{
+		{"a failed call marks a ready source", checked, down("code", FailureTimeout, time.Second), true, FailureTimeout},
+		{"a good call clears the failure", failing, nil, true, ""},
+		{"a good call leaves a ready source alone", checked, nil, false, ""},
+		{"the same failure is not written again", failing, down("code", FailureUnreachable, time.Second), false, FailureUnreachable},
+		{"a different failure replaces the old one", failing, down("code", FailureUnauthorized, time.Second), true, FailureUnauthorized},
+		{"a refused call says nothing about the source", failing, &tools.ContextFailure{Code: tools.ContextCodeToolNotApproved}, false, ""},
+		{"a busy source says nothing about the source", failing, &tools.ContextFailure{Code: tools.ContextCodeSourceBusy}, false, ""},
+		{"a cancelled run says nothing about the source", failing, context.Canceled, false, ""},
+		{"a source that was never discovered stays unchecked", dbsqlc.McpSource{}, down("code", FailureUnreachable, time.Second), false, FailureUnreachable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seen := reachabilityOf(tt.err)
+			if got := seen.changes(tt.row); got != tt.changes {
+				t.Fatalf("changes = %v, want %v", got, tt.changes)
+			}
+			if tt.changes && seen.failure != tt.failure {
+				t.Fatalf("failure = %q, want %q", seen.failure, tt.failure)
 			}
 		})
 	}

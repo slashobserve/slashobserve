@@ -17,7 +17,8 @@ UPDATE grafana_connections
 SET name = @name, url = @url, token_ciphertext = @token_ciphertext, updated_at = now(),
   last_test_at = CASE WHEN @reset_test::boolean THEN NULL ELSE last_test_at END,
   last_test_ok = CASE WHEN @reset_test::boolean THEN false ELSE last_test_ok END,
-  last_test_message = CASE WHEN @reset_test::boolean THEN '' ELSE last_test_message END
+  last_test_message = CASE WHEN @reset_test::boolean THEN '' ELSE last_test_message END,
+  last_test_failure_kind = CASE WHEN @reset_test::boolean THEN NULL ELSE last_test_failure_kind END
 WHERE id = @id
 RETURNING *;
 
@@ -26,6 +27,6 @@ DELETE FROM grafana_connections WHERE id = @id;
 
 -- name: SetGrafanaConnectionTest :one
 UPDATE grafana_connections
-SET last_test_at = now(), last_test_ok = @ok, last_test_message = @message
+SET last_test_at = now(), last_test_ok = @ok, last_test_message = @message, last_test_failure_kind = sqlc.narg('failure_kind')
 WHERE id = @id
 RETURNING *;

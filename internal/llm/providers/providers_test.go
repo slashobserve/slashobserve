@@ -883,17 +883,33 @@ func TestSessionRejectsMismatchedResultsWithoutCallingTheModel(t *testing.T) {
 			up := newUpstream(t, replies(f.toolCalls(fakeCall{"call_1", "query", `{"limit":1}`}), f.endTurn("done")))
 			p, _ := newProvider(t, f, up, options{})
 			session, _ := startNext(t, p, request(queryTool()))
-			for name, results := range map[string][]llm.ToolResult{
-				"none":  nil,
-				"extra": {{CallID: "call_1"}, {CallID: "call_2"}},
-				"wrong": {{CallID: "other"}},
+			for name, tt := range map[string]struct {
+				results []llm.ToolResult
+				fault   llm.ProtocolFault
+			}{
+				"none":  {nil, llm.FaultResultCount},
+				"extra": {[]llm.ToolResult{{CallID: "call_1"}, {CallID: "call_2"}}, llm.FaultResultCount},
+				"wrong": {[]llm.ToolResult{{CallID: "other"}}, llm.FaultResultMismatch},
 			} {
-				if _, err := session.Next(context.Background(), results); err == nil {
-					t.Fatalf("%s: Next accepted mismatched results", name)
+				_, err := session.Next(context.Background(), tt.results)
+				var fault *llm.ProtocolError
+				if !errors.As(err, &fault) || fault.Fault != tt.fault || fault.State != llm.TurnAwaitingResults {
+					t.Fatalf("%s: Next answered %v, want the protocol fault %s", name, err, tt.fault)
 				}
 			}
 			if n := len(up.requests()); n != 1 {
 				t.Fatalf("%d requests sent, want 1", n)
+			}
+			if _, err := session.Next(context.Background(), []llm.ToolResult{{CallID: "call_1", Content: "{}"}}); err != nil {
+				t.Fatal(err)
+			}
+			_, err := session.Next(context.Background(), nil)
+			var fault *llm.ProtocolError
+			if !errors.As(err, &fault) || fault.Fault != llm.FaultSessionEnded || !errors.Is(err, llm.ErrProtocol) {
+				t.Fatalf("Next after the answer returned %v, want the session_ended fault", err)
+			}
+			if n := len(up.requests()); n != 2 {
+				t.Fatalf("%d requests sent, want 2", n)
 			}
 		})
 	}
