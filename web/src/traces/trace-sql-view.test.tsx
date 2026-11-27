@@ -30,6 +30,7 @@ const datasource: DatasourceStatus = {
   name: "ClickHouse",
   source: "file",
   healthy: true,
+  health_state: "healthy",
   checked_at: "2026-11-20T12:00:00Z",
   dashboard_count: 0,
 }

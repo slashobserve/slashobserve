@@ -795,7 +795,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Report the health and dashboard usage of every configured datasource, never its connection details. */
+        /**
+         * Report the health and dashboard usage of every configured datasource, never its connection details.
+         * @description Each datasource carries `health_state` and, when its last check failed, `failure_kind`, so a client can tell a failure to wait out from one that needs the credentials or the settings changed without reading `message`. A failing datasource is answered from the last check at once and checked again in the background once that check is 2 seconds old, which the state `rechecking` says.
+         */
         get: operations["listDatasources"];
         put?: never;
         /**
@@ -1774,7 +1777,7 @@ export interface paths {
         put?: never;
         /**
          * Check a datasource definition against the real datasource without saving it.
-         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
+         * @description Only Admins can call this endpoint. The body is a draft like the one for adding a datasource. With `base=<uid>`, the draft starts from that saved app datasource, credentials included, and the body changes only what it names, so a form can test an edit without asking for the credentials again. When the body changes the address or the username, a stored credential is not sent to the new target: send every stored credential again in `secrets`, or remove it in `clear_secrets`, or the test answers 422 `secret_required`. The address passes the same outbound allowlist check as saving, but a test never changes the allowlist: a domain that is not listed is tested only while the list is unlocked, and saving adds it. A failed check answers 200 with `healthy: false`, a fixed `message`, a `failure_kind` and, when known, a `detail`; the answer never carries the address or a credential. Every test is recorded as `datasource.test` with the host and the outcome, since it sends stored credentials to that host.
          */
         post: operations["testDatasource"];
         delete?: never;
@@ -1844,7 +1847,7 @@ export interface paths {
         put?: never;
         /**
          * Run a fresh health check on one datasource now.
-         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`.
+         * @description Skips the 10 second cache of `GET /datasources` and returns the new status. Calls within 2 seconds of the last check return that check, so a loop cannot hammer the datasource. An unhealthy status carries `message` and, when known, `detail`. A failed check also carries `failure_kind`, which says whether to try again later or to change the credentials or the settings.
          */
         post: operations["recheckDatasource"];
         delete?: never;
@@ -5157,6 +5160,16 @@ export interface components {
              */
             audience?: "everyone" | "admins";
             healthy: boolean;
+            /**
+             * @description What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference. `healthy` is `true` only in `healthy`. `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource. `rechecking` is a failing datasource whose next check is already running.
+             * @enum {string}
+             */
+            health_state: "unchecked" | "healthy" | "failing" | "rechecking";
+            /**
+             * @description What to do about a failed check; present only when `health_state` is `failing` or `rechecking`. `transient`: the datasource did not answer, timed out or hit a limit, or the check failed for a reason the server cannot tie to its settings; the server keeps checking, so try again later. `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again. `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass. `unsupported`: the datasource runs a version the server does not support.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported";
             /** @description A fixed sentence naming the kind of failure; absent when healthy. */
             message?: string;
             /** @description The cause when the server knows it, such as a refused connection or the HTTP status the datasource answered; never an address, user or secret. */
@@ -5282,6 +5295,11 @@ export interface components {
             message?: string;
             /** @description The cause when the server knows it; never an address, user or secret. */
             detail?: string;
+            /**
+             * @description What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
+             * @enum {string}
+             */
+            failure_kind?: "transient" | "credentials" | "configuration" | "unsupported";
         };
         InvalidDatasourceError: {
             error: string;

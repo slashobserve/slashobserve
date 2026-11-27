@@ -1636,7 +1636,7 @@ components:
     DatasourceStatus:
       type: object
       additionalProperties: false
-      required: [uid, type, name, source, healthy, checked_at, dashboard_count]
+      required: [uid, type, name, source, healthy, health_state, checked_at, dashboard_count]
       properties:
         uid:
           type: string
@@ -1667,6 +1667,23 @@ components:
           description: Who can query the datasource, for an Admin caller only; absent for everyone else.
         healthy:
           type: boolean
+        health_state:
+          type: string
+          enum: [unchecked, healthy, failing, rechecking]
+          description: >-
+            What the server knows about the datasource, computed on every read from the last check this server ran; the states are listed in the States reference.
+            `healthy` is `true` only in `healthy`.
+            `unchecked` means no check answered, because the caller left before it did or the check was cancelled, so it says nothing against the datasource.
+            `rechecking` is a failing datasource whose next check is already running.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported]
+          description: >-
+            What to do about a failed check; present only when `health_state` is `failing` or `rechecking`.
+            `transient`: the datasource did not answer, timed out or hit a limit, or the check failed for a reason the server cannot tie to its settings; the server keeps checking, so try again later.
+            `credentials`: the datasource refused the saved credentials or the server cannot read them; set them again.
+            `configuration`: the datasource's settings, its user's grants or the server's settings must change before a check can pass.
+            `unsupported`: the datasource runs a version the server does not support.
         message:
           type: string
           description: A fixed sentence naming the kind of failure; absent when healthy.
@@ -1884,6 +1901,10 @@ components:
         detail:
           type: string
           description: The cause when the server knows it; never an address, user or secret.
+        failure_kind:
+          type: string
+          enum: [transient, credentials, configuration, unsupported]
+          description: What to do about the failed check, with the meanings `GET /datasources` gives them; absent when healthy or when the check was cancelled.
     InvalidDatasourceError:
       type: object
       additionalProperties: false

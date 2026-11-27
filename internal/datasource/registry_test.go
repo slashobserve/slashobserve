@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"syscall"
@@ -710,6 +711,204 @@ func TestStatusReportsTraceSearchOnlyWhereTheQueryPathAnswersIt(t *testing.T) {
 	for _, s := range registry.Health(everything(t)) {
 		if s.TraceSearch != want[s.UID] {
 			t.Errorf("%s TraceSearch = %v, want %v", s.UID, s.TraceSearch, want[s.UID])
+		}
+	}
+}
+
+func TestACancelledCheckIsNeitherCachedNorAFailureOfTheDatasource(t *testing.T) {
+	handler := &recordingHandler{}
+	ds := &flippingHealth{}
+	cancelled := fmt.Errorf("probe: %w", context.Canceled)
+	ds.err.Store(&cancelled)
+	registry, err := datasource.NewRegistry(slog.New(handler), datasource.Instance{UID: "loki", Datasource: ds})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry.SetClock(newFakeClock().now)
+
+	got := registry.Health(everything(t))[0]
+	if got.Healthy || got.Message != "The health check was cancelled" {
+		t.Fatalf("status of a cancelled check = %+v", got)
+	}
+	if got.HealthState != datasource.HealthUnchecked || got.FailureKind != "" {
+		t.Errorf("a cancelled check reads as a failure of the datasource: state %q, kind %q", got.HealthState, got.FailureKind)
+	}
+	if warnings := handler.warnings.Load(); warnings != 0 {
+		t.Errorf("a cancelled check logged %d unhealthy warnings", warnings)
+	}
+
+	var answering *error
+	ds.err.Store(answering)
+	next := registry.Health(everything(t))[0]
+	if !next.Healthy || next.HealthState != datasource.HealthHealthy || ds.calls.Load() != 2 {
+		t.Fatalf("the next read served the cancelled check instead of checking again: %+v after %d checks", next, ds.calls.Load())
+	}
+}
+
+func TestACancelledCheckLeavesTheCachedFailureInPlace(t *testing.T) {
+	ds := &flippingHealth{}
+	wrongType := datasource.Errorf(datasource.ErrIsOpenSearch, "wrong setup")
+	ds.err.Store(&wrongType)
+	registry, clock := registryWithClock(t, ds)
+	failing := registry.Health(everything(t))[0]
+
+	cancelled := context.Canceled
+	ds.err.Store(&cancelled)
+	clock.advance(3 * time.Second)
+	rechecked, _ := registry.Recheck(everything(t), "loki")
+	if rechecked.HealthState != datasource.HealthUnchecked || rechecked.FailureKind != "" {
+		t.Fatalf("the cancelled recheck = %+v", rechecked)
+	}
+	served := registry.Health(everything(t))[0]
+	if served.Message != failing.Message || served.FailureKind != datasource.FailureConfiguration || !served.CheckedAt.Equal(failing.CheckedAt) {
+		t.Fatalf("status after a cancelled recheck = %+v, want the failure %+v", served, failing)
+	}
+}
+
+func TestACallerThatLeavesGetsAnUncheckedStatus(t *testing.T) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "prom", Datasource: blockedHealth{release: release}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(everything(t))
+	cancel()
+	got := registry.Health(ctx)[0]
+	if got.HealthState != datasource.HealthUnchecked || got.FailureKind != "" || got.Healthy {
+		t.Fatalf("status = %+v", got)
+	}
+}
+
+func TestHealthStateFollowsTheLastCheckAndTheBackgroundRecheck(t *testing.T) {
+	ds := &gatedHealth{}
+	down := datasource.Errorf(datasource.ErrUnavailable, "connection failed")
+	ds.err.Store(&down)
+	registry, clock := registryWithClock(t, ds)
+
+	failing := registry.Health(everything(t))[0]
+	if failing.HealthState != datasource.HealthFailing || failing.FailureKind != datasource.FailureTransient {
+		t.Fatalf("first status = %+v", failing)
+	}
+	clock.advance(time.Second)
+	if inside := registry.Health(everything(t))[0]; inside.HealthState != datasource.HealthFailing {
+		t.Fatalf("status inside the recheck interval = %+v", inside)
+	}
+
+	ds.gate = make(chan struct{})
+	clock.advance(2 * time.Second)
+	rechecking := registry.Health(everything(t))[0]
+	if rechecking.HealthState != datasource.HealthRechecking || rechecking.Healthy ||
+		rechecking.FailureKind != failing.FailureKind || rechecking.Message != failing.Message || rechecking.Detail != failing.Detail {
+		t.Fatalf("status while the background check runs = %+v, want the failure %+v as rechecking", rechecking, failing)
+	}
+
+	var recovered *error
+	ds.err.Store(recovered)
+	close(ds.gate)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		got := registry.Health(everything(t))[0]
+		if got.Healthy {
+			if got.HealthState != datasource.HealthHealthy || got.FailureKind != "" {
+				t.Fatalf("recovered status = %+v", got)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the background check never recovered the status")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestAnAnsweredQueryMakesTheStateHealthy(t *testing.T) {
+	ds := &flippingHealth{}
+	down := datasource.Errorf(datasource.ErrTimeout, "busy")
+	ds.err.Store(&down)
+	registry, _ := registryWithClock(t, ds)
+	registry.Health(everything(t))
+	registry.Answered("loki")
+	if got := registry.Health(everything(t))[0]; got.HealthState != datasource.HealthHealthy || got.FailureKind != "" {
+		t.Fatalf("status = %+v", got)
+	}
+}
+
+func TestAFailedCheckNamesItsKind(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want datasource.FailureKind
+	}{
+		{"timeout", datasource.ErrTimeout, datasource.FailureTransient},
+		{"deadline", context.DeadlineExceeded, datasource.FailureTransient},
+		{"unavailable", datasource.ErrUnavailable, datasource.FailureTransient},
+		{"limit", datasource.ErrLimitExceeded, datasource.FailureTransient},
+		{"unclassified", errors.New("dial tcp: connection refused"), datasource.FailureTransient},
+		{"auth failed", datasource.ErrAuthFailed, datasource.FailureCredentials},
+		{"unreadable credentials", datasource.ErrUnreadable, datasource.FailureCredentials},
+		{"host not allowed", datasource.ErrHostNotAllowed, datasource.FailureConfiguration},
+		{"no secret key", datasource.ErrNoSecretKey, datasource.FailureConfiguration},
+		{"not loadable", datasource.ErrNotLoadable, datasource.FailureConfiguration},
+		{"outbound blocked", datasource.ErrOutboundBlocked, datasource.FailureConfiguration},
+		{"not read-only", datasource.ErrNotReadOnly, datasource.FailureConfiguration},
+		{"unsafe grant", datasource.ErrUnsafeGrant, datasource.FailureConfiguration},
+		{"forbidden", datasource.ErrForbiddenQuery, datasource.FailureConfiguration},
+		{"is opensearch", datasource.ErrIsOpenSearch, datasource.FailureConfiguration},
+		{"is elasticsearch", datasource.ErrIsElasticsearch, datasource.FailureConfiguration},
+		{"no index", datasource.ErrNoIndex, datasource.FailureConfiguration},
+		{"no time field", datasource.ErrNoTimeField, datasource.FailureConfiguration},
+		{"no role field", datasource.ErrNoRoleField, datasource.FailureConfiguration},
+		{"invalid", datasource.ErrInvalidQuery, datasource.FailureConfiguration},
+		{"unsupported version", datasource.ErrUnsupportedVersion, datasource.FailureUnsupported},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry, err := datasource.NewRegistry(nil, datasource.Instance{UID: "prom", Datasource: failingHealth{err: tt.err}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := registry.Health(everything(t))[0]
+			if got.HealthState != datasource.HealthFailing || got.FailureKind != tt.want {
+				t.Errorf("state %q, kind %q, want failing, %q", got.HealthState, got.FailureKind, tt.want)
+			}
+			if !slices.Contains(datasource.FailureKinds, got.FailureKind) {
+				t.Errorf("kind %q is not a declared failure kind", got.FailureKind)
+			}
+			if _, _, kind := datasource.Reason(tt.err); kind != tt.want {
+				t.Errorf("Reason kind = %q, want %q", kind, tt.want)
+			}
+		})
+	}
+}
+
+func TestAHealthyDatasourceHasNoFailureKindInItsJSON(t *testing.T) {
+	registry, err := datasource.NewRegistry(nil,
+		datasource.Instance{UID: "down", Datasource: failingHealth{err: datasource.ErrAuthFailed}},
+		datasource.Instance{UID: "up", Datasource: failingHealth{}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range registry.Health(everything(t)) {
+		raw, err := json.Marshal(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(raw, &m); err != nil {
+			t.Fatal(err)
+		}
+		_, hasKind := m["failure_kind"]
+		switch s.UID {
+		case "up":
+			if m["health_state"] != "healthy" || hasKind {
+				t.Errorf("healthy status = %s", raw)
+			}
+		case "down":
+			if m["health_state"] != "failing" || m["failure_kind"] != "credentials" || m["healthy"] != false {
+				t.Errorf("failing status = %s", raw)
+			}
 		}
 	}
 }

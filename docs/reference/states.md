@@ -242,3 +242,15 @@ This state is computed from stored fields on every read; nothing stores it.
 | `working` | It holds the lease of a run it claimed. |
 | `listening` | It asked for work in the last 40 seconds. |
 | `offline` | It has not asked for work in 40 seconds and holds no run. |
+
+## Datasource health
+
+`GET /datasources` and `POST /datasources/{uid}/recheck` return the `health_state` of each datasource, from the last check the answering server ran.
+This state is computed from stored fields on every read; nothing stores it.
+
+| State | When |
+| --- | --- |
+| `unchecked` | No check has answered: the caller left before it did, or the check was cancelled. `healthy` is `false`, and nothing says the datasource is failing. |
+| `healthy` | The last check passed, or the datasource answered a query after a check it did not answer. |
+| `failing` | The last check failed, and `failure_kind` says whether to wait or to change something. |
+| `rechecking` | The last check failed 2 seconds ago or more and a new one is running; `message`, `detail` and `failure_kind` are still those of the failed check. |

@@ -19,6 +19,7 @@ function makeDatasource(
     name: "Prometheus",
     source: "file",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-03-10T12:00:00Z",
     dashboard_count: 0,
     ...overrides,

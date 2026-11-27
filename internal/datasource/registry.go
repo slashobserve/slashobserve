@@ -63,10 +63,13 @@ type Status struct {
 	Message     string    `json:"message,omitempty"`
 	Detail      string    `json:"detail,omitempty"`
 	CheckedAt   time.Time `json:"checked_at"`
+
+	HealthState HealthState `json:"health_state"`
+	FailureKind FailureKind `json:"failure_kind,omitempty"`
 }
 
 func statusFor(in Instance) Status {
-	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name, Source: in.Source}
+	s := Status{UID: in.UID, Type: in.Datasource.Type(), Name: in.Name, Source: in.Source, HealthState: HealthUnchecked}
 	if indexed, ok := in.Datasource.(IndexSource); ok {
 		s.Index, s.TimeField = indexed.Index()
 	}
@@ -359,6 +362,7 @@ func (r *Registry) listed(ctx context.Context, in Instance) Status {
 	if e, ok := r.entry(in.UID); ok && !e.status.Healthy {
 		if r.now().Sub(e.at) >= recheckInterval {
 			r.refreshInBackground(in)
+			e.status.HealthState = HealthRechecking
 		}
 		return e.status
 	}
@@ -393,7 +397,7 @@ func (r *Registry) status(ctx context.Context, in Instance, maxAge time.Duration
 		return res.Val.(Status)
 	case <-ctx.Done():
 		s := statusFor(in)
-		s.Message = healthMessage(ctx.Err())
+		s.Message = verdictOn(ctx.Err()).text
 		s.CheckedAt = r.now().UTC()
 		return s
 	}
@@ -427,10 +431,32 @@ func (r *Registry) Answered(uid string) {
 		return
 	}
 	now := r.now()
+	r.cached[uid] = cacheEntry{status: healthyStatus(in, now), at: now, probeErr: e.probeErr}
+}
+
+func healthyStatus(in Instance, at time.Time) Status {
 	s := statusFor(in)
 	s.Healthy = true
-	s.CheckedAt = now.UTC()
-	r.cached[uid] = cacheEntry{status: s, at: now, probeErr: e.probeErr}
+	s.HealthState = HealthHealthy
+	s.CheckedAt = at.UTC()
+	return s
+}
+
+func checked(in Instance, err error, at time.Time) (s Status, conclusive bool) {
+	if err == nil {
+		return healthyStatus(in, at), true
+	}
+	verdict := verdictOn(err)
+	s = statusFor(in)
+	s.CheckedAt = at.UTC()
+	s.Message = verdict.text
+	s.Detail = healthDetail(err)
+	if !verdict.blamesTheDatasource() {
+		return s, false
+	}
+	s.HealthState = HealthFailing
+	s.FailureKind = verdict.failure
+	return s, true
 }
 
 func (r *Registry) check(ctx context.Context, in Instance) Status {
@@ -439,18 +465,12 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	defer cancel()
 	err := r.safeCheckHealth(checkCtx, in)
 
-	s := statusFor(in)
-	s.Healthy = err == nil
-	s.CheckedAt = r.now().UTC()
-	if err != nil {
-		s.Message = healthMessage(err)
-		s.Detail = healthDetail(err)
-	}
+	s, conclusive := checked(in, err, r.now())
 
 	r.mu.Lock()
 	prev, seen := r.cached[in.UID]
 	answeredMeanwhile := err != nil && seen && prev.status.Healthy && prev.at.After(started)
-	if r.current(in) && !answeredMeanwhile {
+	if r.current(in) && conclusive && !answeredMeanwhile {
 		r.cached[in.UID] = cacheEntry{status: s, at: r.now(), probeErr: err}
 	}
 	r.mu.Unlock()
@@ -458,7 +478,7 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 	if answeredMeanwhile {
 		return prev.status
 	}
-	if err != nil && (!seen || prev.probeErr == nil) {
+	if err != nil && conclusive && (!seen || prev.probeErr == nil) {
 		r.logger.Warn("datasource unhealthy", logattrs.Failure("datasource_unhealthy", err, slog.String("uid", in.UID), slog.String("type", s.Type))...)
 	}
 	return s
@@ -466,43 +486,52 @@ func (r *Registry) check(ctx context.Context, in Instance) Status {
 
 // Status messages reach browsers and the agent, so an error's own text, which can echo an address or a user, never does.
 var healthTexts = []struct {
-	kind error
-	text string
+	kind    error
+	text    string
+	failure FailureKind
 }{
-	{ErrTimeout, "Timed out waiting for the datasource"},
-	{context.DeadlineExceeded, "Timed out waiting for the datasource"},
-	{ErrAuthFailed, "The datasource refused the credentials"},
-	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address"},
-	{ErrNoSecretKey, "This datasource's credentials need SLASHOBSERVE_SECRET_KEY on the server"},
-	{ErrUnreadable, "The saved credentials cannot be read with the server's secret key; set them again"},
-	{ErrNotLoadable, "The saved definition cannot be used; open the datasource and save it again"},
-	{ErrOutboundBlocked, "The address is not allowed by the outbound allowlist"},
-	{ErrUnavailable, "The datasource is not answering"},
-	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2"},
-	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it"},
-	{ErrForbiddenQuery, "The datasource refused the health check"},
-	{ErrLimitExceeded, "The health check hit a datasource limit"},
-	{ErrIsOpenSearch, "The server is OpenSearch, configure it as type opensearch"},
-	{ErrIsElasticsearch, "The server is Elasticsearch, configure it as type elasticsearch"},
-	{ErrUnsupportedVersion, "The datasource version is not supported: Elasticsearch 8.x or 9.x, OpenSearch 2.x or 3.x"},
-	{ErrNoIndex, "The index pattern matches no index"},
-	{ErrNoTimeField, "The time field is missing or is not a date"},
-	{ErrNoRoleField, "A configured field is missing from the mapping"},
-	{ErrInvalidQuery, "The datasource rejected the health check"},
-	{context.Canceled, "The health check was cancelled"},
+	{ErrTimeout, "Timed out waiting for the datasource", FailureTransient},
+	{context.DeadlineExceeded, "Timed out waiting for the datasource", FailureTransient},
+	{ErrAuthFailed, "The datasource refused the credentials", FailureCredentials},
+	{ErrHostNotAllowed, "The ClickHouse user may not connect from this server's address", FailureConfiguration},
+	{ErrNoSecretKey, "This datasource's credentials need SLASHOBSERVE_SECRET_KEY on the server", FailureConfiguration},
+	{ErrUnreadable, "The saved credentials cannot be read with the server's secret key; set them again", FailureCredentials},
+	{ErrNotLoadable, "The saved definition cannot be used; open the datasource and save it again", FailureConfiguration},
+	{ErrOutboundBlocked, "The address is not allowed by the outbound allowlist", FailureConfiguration},
+	{ErrUnavailable, "The datasource is not answering", FailureTransient},
+	{ErrNotReadOnly, "The ClickHouse user must be readonly = 2", FailureConfiguration},
+	{ErrUnsafeGrant, "The ClickHouse user holds a grant that reaches outside systems; revoke it", FailureConfiguration},
+	{ErrForbiddenQuery, "The datasource refused the health check", FailureConfiguration},
+	{ErrLimitExceeded, "The health check hit a datasource limit", FailureTransient},
+	{ErrIsOpenSearch, "The server is OpenSearch, configure it as type opensearch", FailureConfiguration},
+	{ErrIsElasticsearch, "The server is Elasticsearch, configure it as type elasticsearch", FailureConfiguration},
+	{ErrUnsupportedVersion, "The datasource version is not supported: Elasticsearch 8.x or 9.x, OpenSearch 2.x or 3.x", FailureUnsupported},
+	{ErrNoIndex, "The index pattern matches no index", FailureConfiguration},
+	{ErrNoTimeField, "The time field is missing or is not a date", FailureConfiguration},
+	{ErrNoRoleField, "A configured field is missing from the mapping", FailureConfiguration},
+	{ErrInvalidQuery, "The datasource rejected the health check", FailureConfiguration},
+	{context.Canceled, "The health check was cancelled", notTheDatasource},
 }
 
-func Reason(err error) (message, detail string) {
-	return healthMessage(err), healthDetail(err)
+type verdict struct {
+	text    string
+	failure FailureKind
 }
 
-func healthMessage(err error) string {
+func (v verdict) blamesTheDatasource() bool { return v.failure != notTheDatasource }
+
+func verdictOn(err error) verdict {
 	for _, h := range healthTexts {
 		if errors.Is(err, h.kind) {
-			return h.text
+			return verdict{text: h.text, failure: h.failure}
 		}
 	}
-	return "The health check failed"
+	return verdict{text: "The health check failed", failure: FailureTransient}
+}
+
+func Reason(err error) (message, detail string, kind FailureKind) {
+	v := verdictOn(err)
+	return v.text, healthDetail(err), v.failure
 }
 
 const connectionFailedMessage = "connection failed"

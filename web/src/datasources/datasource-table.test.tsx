@@ -14,6 +14,7 @@ function status(overrides: Partial<DatasourceStatus>): DatasourceStatus {
     name: "metrics",
     source: "app",
     healthy: true,
+    health_state: "healthy",
     checked_at: "2026-11-19T00:00:00Z",
     dashboard_count: 0,
     ...overrides,

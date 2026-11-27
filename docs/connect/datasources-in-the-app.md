@@ -115,7 +115,7 @@ A domain that is not listed can be tested only while the allowlist is unlocked, 
 From the CLI, `observe datasources test prom --saved --address https://prom2.example.com` starts from the saved datasource and changes only what the flags name, and with a new address it needs the credentials again like `edit`.
 Without `--saved` it tests a draft you describe in full.
 Over HTTP, it is `POST /api/v1/datasources/test`, with `?base=<uid>` to start from a saved datasource.
-It answers `{"healthy": true}`, or `healthy: false` with a `message` and a `detail`.
+It answers `{"healthy": true}`, or `healthy: false` with a `message`, a `detail` and the [`failure_kind`](../concepts/datasources-and-variables.md#check-that-a-datasource-is-healthy) of the failure.
 A test is recorded in the audit trail with the type, the host and the result.
 
 ## Remove a datasource
