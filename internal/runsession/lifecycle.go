@@ -66,7 +66,7 @@ func (sess *session) currentRow(ctx context.Context) (dbsqlc.AgentRequest, error
 	if err != nil {
 		return row, err
 	}
-	if int(row.Attempts) != sess.req.Attempt {
+	if int(row.ClaimEpoch) != sess.req.ClaimEpoch {
 		return row, revisions.ErrLeaseLost
 	}
 	return row, nil
@@ -176,7 +176,7 @@ func (sess *session) refreshBuild(ctx context.Context) {
 }
 
 func (sess *session) rebase(ctx context.Context) (bool, error) {
-	onto, rebased, err := sess.s.builds.RebaseBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
+	onto, rebased, err := sess.s.builds.RebaseBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.ClaimEpoch)
 	if err != nil {
 		return false, sess.failed(ctx, "could not rebase the build", err)
 	}
@@ -191,7 +191,7 @@ func (sess *session) rebaseAndCommit(ctx context.Context) (commit dashboards.Com
 	if err != nil || sess.ended || !rebased {
 		return dashboards.Commit{}, false, err
 	}
-	commit, err = sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
+	commit, err = sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.ClaimEpoch)
 	var conflict *dashboards.ConflictError
 	var required *dashboards.ProposalRequiredError
 	switch {
@@ -215,7 +215,7 @@ func (sess *session) settleByCommit(commit dashboards.Commit) {
 }
 
 func (sess *session) restartFromLatest(ctx context.Context) error {
-	if err := sess.s.builds.DiscardBuild(ctx, sess.id, sess.req.Attempt); err != nil {
+	if err := sess.s.builds.DiscardBuild(ctx, sess.id, sess.req.ClaimEpoch); err != nil {
 		return sess.failed(ctx, "could not discard the build", err)
 	}
 	if sess.state.Restarts >= maxRestarts {
@@ -253,7 +253,7 @@ func (sess *session) resolveConflict(ctx context.Context) (restarted bool, err e
 }
 
 func (sess *session) commit(ctx context.Context) (restarted bool, err error) {
-	commit, err := sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.Attempt)
+	commit, err := sess.s.builds.CommitBuild(ctx, sess.req.RequestedBy, sess.id, sess.req.ClaimEpoch)
 	var conflict *dashboards.ConflictError
 	var required *dashboards.ProposalRequiredError
 	switch {
@@ -423,7 +423,7 @@ func (s *Service) settledAnswer(ctx context.Context, req revisions.Request) (too
 	if err != nil {
 		return tools.RunFinished{}, err
 	}
-	if !revisions.State(row.State).Terminal() || int(row.Attempts) != req.Attempt {
+	if !revisions.State(row.State).Terminal() || int(row.ClaimEpoch) != req.ClaimEpoch {
 		return tools.RunFinished{}, claims.ErrNotYourRun
 	}
 	return finishedOf(row, false), nil

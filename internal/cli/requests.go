@@ -123,18 +123,6 @@ func (a *app) requestsListCommand() *cobra.Command {
 	return cmd
 }
 
-func requestStateWord(state string) string {
-	switch state {
-	case "queued", "running", "canceling":
-		return "Running"
-	case "succeeded":
-		return "Done"
-	case "failed", "canceled":
-		return "Stopped"
-	}
-	return text(state)
-}
-
 func (o requestListOptions) apply(cmd *cobra.Command, query url.Values) error {
 	if o.scope != "" {
 		if !slices.Contains(requestScopes, o.scope) {

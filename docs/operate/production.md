@@ -101,13 +101,16 @@ Point your load balancer or orchestrator at these endpoints.
 | `GET /healthz` | Liveness. It checks nothing else, so use it to decide whether to restart. |
 | `GET /readyz` | Readiness. It returns 200 when Postgres answers and no migration is pending, and 503 otherwise, and 503 with `status` `stopping` from the shutdown signal on. |
 
-The `/readyz` body names each check:
+The `/readyz` body names each check and the phase the server process is in:
 
 ```json
-{"status":"ok","checks":{"database":"ok","migrations":"ok"}}
+{"status":"ok","checks":{"database":"ok","migrations":"ok"},"phase":"ready"}
 ```
 
 A failing check shows `error` in the body and logs `readiness_check_failed`.
+`phase` is `ready` while the server serves and `stopping` from the shutdown signal on.
+The same word is the `phase` attribute of the log line each phase starts with (`starting slashobserve-server`, `migrating database`, `provisioning`, `listening`, `shutting down`, `server stopped`) and the `phase` label of the `slashobserve_server_phase` series, so one word finds a phase in a probe, the log and an alert.
+The six phases and their order are in [States](../reference/states.md#server-process).
 Datasources never affect `/readyz`; an unreachable Prometheus shows up as a datasource health problem, not as a server that is down.
 
 The image's Docker health check runs `slashobserve-server healthcheck`.

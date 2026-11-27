@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react"
 import { useBlocker } from "@tanstack/react-router"
+import { createStore, useStore } from "zustand"
 
 import {
   AlertDialog,
@@ -21,6 +22,14 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import type { DraftLocation } from "@/activity/leaves-draft"
+import {
+  asksToDiscard,
+  hasUnsavedEdits,
+  noUnsavedEdits,
+  reduceLeave,
+  type LeaveEvent,
+  type LeaveState,
+} from "./leave-state"
 import type { EditorView, ViewGuard } from "./panel-editor"
 
 type FocusAfter = "default" | "trigger" | "editor" | "none"
@@ -62,13 +71,24 @@ export function useLeaveGuard<Kind extends string>({
   discardFocus = discardTrigger,
   keepFocus = keepDefault,
 }: Options<Kind>): LeaveGuard<Kind> {
-  const unsaved = useRef(false)
-  const [dirty, setDirty] = useState(false)
-  const onDirtyChange = useCallback((next: boolean) => {
-    unsaved.current = next
-    setDirty(next)
-  }, [])
-  const [confirm, setConfirm] = useState<Kind | null>(null)
+  const [store] = useState(() =>
+    createStore<LeaveState<Kind>>(() => noUnsavedEdits)
+  )
+  const state = useStore(store)
+  const dispatch = useCallback(
+    (event: LeaveEvent<Kind>) =>
+      store.setState(reduceLeave(store.getState(), event), true),
+    [store]
+  )
+  const unsavedNow = useCallback(
+    () => hasUnsavedEdits(store.getState()),
+    [store]
+  )
+  const dirty = hasUnsavedEdits(state)
+  const onDirtyChange = useCallback(
+    (next: boolean) => dispatch({ type: "edited", dirty: next }),
+    [dispatch]
+  )
   const focusAfter = useRef<FocusAfter>("default")
   const root = useRef<HTMLDivElement>(null)
   const viewGuard = useRef<ViewGuard>(null)
@@ -78,22 +98,21 @@ export function useLeaveGuard<Kind extends string>({
   useEffect(() => {
     jsonOpen.current = view === "json"
   }, [view])
-  const [blockConfirmed, setBlockConfirmed] = useState(false)
 
   const blocker = useBlocker({
     shouldBlockFn: ({ current, next }) =>
-      (unsaved.current || jsonOpen.current) && leaves(current, next),
-    enableBeforeUnload: () => unsaved.current,
+      (unsavedNow() || jsonOpen.current) && leaves(current, next),
+    enableBeforeUnload: unsavedNow,
     withResolver: true,
   })
-  const discardOpen = confirm !== null || blockConfirmed
+  const discardOpen = asksToDiscard(state)
 
   useEffect(() => {
     if (blocker.status !== "blocked") return
     const { proceed, reset } = blocker
     const approved = () => {
-      if (unsaved.current) {
-        setBlockConfirmed(true)
+      if (unsavedNow()) {
+        dispatch({ type: "navigation_held" })
         return
       }
       jsonOpen.current = false
@@ -101,48 +120,45 @@ export function useLeaveGuard<Kind extends string>({
     }
     if (viewGuard.current) viewGuard.current.guardLeave(approved, reset)
     else approved()
-  }, [blocker])
+  }, [blocker, dispatch, unsavedNow])
 
   const run = useCallback(
     (kind: Kind) => {
-      unsaved.current = false
       jsonOpen.current = false
-      setConfirm(null)
+      dispatch({ type: "left" })
       onLeave(kind)
     },
-    [onLeave]
+    [dispatch, onLeave]
   )
 
   const leave = useCallback(
     (kind: Kind) => {
       const proceed = () => {
-        if (unsaved.current) setConfirm(kind)
+        if (unsavedNow()) dispatch({ type: "asked", kind })
         else run(kind)
       }
       if (viewGuard.current) viewGuard.current.guardLeave(proceed)
       else proceed()
     },
-    [run]
+    [dispatch, run, unsavedNow]
   )
 
   function keepEditing() {
     focusAfter.current = keepFocus()
-    setConfirm(null)
-    setBlockConfirmed(false)
+    dispatch({ type: "kept" })
     if (blocker.status === "blocked") blocker.reset()
   }
 
   function discard() {
-    focusAfter.current = discardFocus(confirm)
-    if (blockConfirmed && blocker.status === "blocked") {
-      unsaved.current = false
+    const asked = state.status === "confirming" ? state.kind : null
+    focusAfter.current = discardFocus(asked)
+    if (state.status === "blocked" && blocker.status === "blocked") {
       jsonOpen.current = false
-      setConfirm(null)
-      setBlockConfirmed(false)
+      dispatch({ type: "left" })
       blocker.proceed()
       return
     }
-    run(confirm ?? closeKind)
+    run(asked ?? closeKind)
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
