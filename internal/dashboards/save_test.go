@@ -278,6 +278,31 @@ func TestInTxSavedSeesTheSavedDashboardAndVersionAndRollsBackOnFailure(t *testin
 	}
 }
 
+func TestCreateSavedRunsItsHookInTheCreatingTransaction(t *testing.T) {
+	r := newRig(t, false)
+	boom := errors.New("boom")
+	count := func() int {
+		return r.rowCount(t, `SELECT count(*) FROM dashboards WHERE title = 'made'`)
+	}
+
+	_, _, err := r.service.CreateSaved(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("made", "rps"), "refused",
+		func(context.Context, *dbsqlc.Queries, Dashboard, Version) error { return boom })
+	if !errors.Is(err, boom) || count() != 0 {
+		t.Fatalf("err = %v, dashboards %d, want the hook's error and no dashboard", err, count())
+	}
+
+	var seenDash Dashboard
+	var seenVer Version
+	dash, ver, err := r.service.CreateSaved(reading(t.Context()), testUser, pgtype.UUID{}, panelsSpec("made", "rps"), "kept",
+		func(_ context.Context, _ *dbsqlc.Queries, d Dashboard, v Version) error {
+			seenDash, seenVer = d, v
+			return nil
+		})
+	if err != nil || count() != 1 || seenDash.ID != dash.ID || seenVer.Number != ver.Number || ver.Number != 1 {
+		t.Fatalf("err = %v, dashboards %d, hook saw %s version %d", err, count(), seenDash.ID, seenVer.Number)
+	}
+}
+
 func TestACallerWhoCanOnlyCommentGetsAProposalOnlyWhenAskedAndWired(t *testing.T) {
 	r := newRig(t, false)
 	dash := r.createDashboard(t)
