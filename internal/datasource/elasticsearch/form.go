@@ -1,15 +1,13 @@
 package elasticsearch
 
-import "strings"
+import "github.com/slashobserve/slashobserve/internal/kql"
 
-type Form string
+type Form = kql.Form
 
 const (
-	FormKQL    Form = "kql"
-	FormLucene Form = "lucene"
-	FormDSL    Form = "dsl"
-
-	whitespace = " \t\r\n"
+	FormKQL    = kql.FormKQL
+	FormLucene = kql.FormLucene
+	FormDSL    = kql.FormDSL
 )
 
 func Classify(text, defaultLanguage string) (Form, string) {
@@ -17,25 +15,10 @@ func Classify(text, defaultLanguage string) (Form, string) {
 	return form, body
 }
 
-func classify(text, defaultLanguage string) (form Form, body string, offset int) {
-	offset = len(text) - len(strings.TrimLeft(text, whitespace))
-	rest := text[offset:]
-	form = FormKQL
+func classify(text, defaultLanguage string) (Form, string, int) {
+	plain := kql.FormKQL
 	if defaultLanguage == QueryLanguageLucene {
-		form = FormLucene
+		plain = kql.FormLucene
 	}
-	switch {
-	case strings.HasPrefix(rest, "{"):
-		form = FormDSL
-	case hasPrefixFold(rest, "lucene:"):
-		form, offset, rest = FormLucene, offset+len("lucene:"), rest[len("lucene:"):]
-	case hasPrefixFold(rest, "kql:"):
-		form, offset, rest = FormKQL, offset+len("kql:"), rest[len("kql:"):]
-	}
-	skipped := len(rest) - len(strings.TrimLeft(rest, whitespace))
-	return form, strings.TrimSpace(rest), offset + skipped
-}
-
-func hasPrefixFold(s, prefix string) bool {
-	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
+	return kql.Classify(text, plain)
 }
