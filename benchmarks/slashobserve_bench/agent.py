@@ -204,7 +204,7 @@ class SlashObserveAgent(BaseAgent):
                 record["error"] = str(error)
             records.append(record)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
-        (self.logs_dir / "grafana-imports.json").write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
+        (self._detail("grafana-imports.json")).write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
         return imported
 
     def _llm_key(self, provider: str) -> str | None:
@@ -278,7 +278,7 @@ class SlashObserveAgent(BaseAgent):
             asked = ((request.get("finding") or {}).get("ask_on") or {}).get("dashboard_id")
             by_id = {dashboard_id: uid for uid, dashboard_id in task.imported.items()}
             if asked in by_id and not request.get("result_version"):
-                (self.logs_dir / "run-build.json").write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
+                (self._detail("run-build.json")).write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
                 earlier = atif.Usage.from_request(request)
                 target = by_id[asked]
                 body = o11y.dashboard_body(task.instruction, asked)
@@ -309,7 +309,7 @@ class SlashObserveAgent(BaseAgent):
                 )
         finally:
             outcome.update(write.outcome())
-            (self.logs_dir / "grafana-write.json").write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
+            (self._detail("grafana-write.json")).write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
             ledger = self._ledger
             if ledger is not None and write.calls:
                 ledger.record(self.logs_dir.parent.name, write.usage.cost_usd or 0.0)
@@ -343,8 +343,14 @@ class SlashObserveAgent(BaseAgent):
     def _write_call(self, number: int, reply: model_call.ModelReply) -> None:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         for name, content in (("request", reply.request), ("response", reply.response)):
-            path = self.logs_dir / f"grafana-call-{number}-{name}.json"
+            path = self._detail(f"grafana-call-{number}-{name}.json")
             path.write_text(json.dumps(content, indent=2) + "\n", encoding="utf-8")
+
+    def _detail(self, name: str) -> Path:
+        # o11y-bench's grader parses every *.json directly under the agent folder as a transcript.
+        folder = self.logs_dir / atif.DETAIL_DIR
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder / name
 
     def _record_spend(self, request: dict | None) -> None:
         ledger = self._ledger
@@ -370,7 +376,7 @@ class SlashObserveAgent(BaseAgent):
             extra_usage=extra,
         )
         (self.logs_dir / "trajectory.json").write_text(json.dumps(trajectory, indent=2) + "\n", encoding="utf-8")
-        (self.logs_dir / "run.json").write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
+        (self._detail("run.json")).write_text(json.dumps(request, indent=2) + "\n", encoding="utf-8")
         usage = atif.Usage.from_request(request)
         if extra is not None:
             usage = usage.plus(extra)

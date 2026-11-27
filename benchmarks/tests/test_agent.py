@@ -110,6 +110,13 @@ def test_environment_lines_become_a_dict():
     assert bench_agent.read_environment("A=1\nB=x=y\nnoise\n") == {"A": "1", "B": "x=y"}
 
 
+def test_only_the_trajectory_is_a_json_file_directly_under_the_agent_folder(tmp_path, finished_request):
+    instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="anthropic/claude-haiku-5-5")
+    instance._save(finished_request, "Why did checkout fail?", AgentContext())
+    instance._detail("grafana-imports.json").write_text("[]\n")
+    assert [path.name for path in tmp_path.glob("*.json")] == ["trajectory.json"]
+
+
 def test_saving_a_run_writes_trajectory_raw_run_and_context(tmp_path, finished_request):
     instance = bench_agent.SlashObserveAgent(logs_dir=tmp_path, model_name="anthropic/claude-haiku-5-5")
     context = AgentContext()
@@ -117,7 +124,7 @@ def test_saving_a_run_writes_trajectory_raw_run_and_context(tmp_path, finished_r
     trajectory = json.loads((tmp_path / "trajectory.json").read_text())
     Trajectory.model_validate(trajectory)
     assert trajectory["steps"][-1]["message"].startswith("The 5xx share is 2.1%")
-    assert json.loads((tmp_path / "run.json").read_text())["id"] == finished_request["id"]
+    assert json.loads((tmp_path / "detail" / "run.json").read_text())["id"] == finished_request["id"]
     assert (context.n_input_tokens, context.n_cache_tokens, context.n_output_tokens) == (1350, 300, 200)
     assert context.cost_usd == 0.0123
 
@@ -228,7 +235,7 @@ def test_a_timed_out_run_is_canceled_saved_and_charged_its_final_cost(tmp_path, 
     with pytest.raises(bench_agent.RunTimeout):
         asyncio.run(run)
     assert client.canceled
-    assert json.loads((instance.logs_dir / "run.json").read_text())["state"] == "canceled"
+    assert json.loads((instance.logs_dir / "detail" / "run.json").read_text())["state"] == "canceled"
     assert SpendLedger(ledger_path, 10).total() == 0.4
 
 
@@ -252,7 +259,7 @@ def test_every_grafana_dashboard_is_imported_and_a_failed_one_is_recorded(tmp_pa
     client = ImportClient()
     assert instance._import_dashboards(client, state) == {"svc": "sob-svc"}
     assert client.sent == state.dashboards
-    records = json.loads((tmp_path / "agent" / "grafana-imports.json").read_text())
+    records = json.loads((tmp_path / "agent" / "detail" / "grafana-imports.json").read_text())
     assert records[0] == {"grafana_uid": "svc", "title": "Service", "dashboard_id": "sob-svc", "version": 1}
     assert "datasources_unresolved" in records[1]["error"]
 
@@ -358,7 +365,7 @@ def test_a_dashboard_task_revises_the_dashboard_the_build_points_at_and_writes_i
     assert folder == "ops"
     assert saved["panels"][0] == GRAFANA_CACHE["dashboard"]["panels"][0]
     assert saved["panels"][1]["title"] == "Lag" and saved["panels"][1]["id"] == 2
-    logs = instance.logs_dir
+    logs = instance.logs_dir / "detail"
     outcome = json.loads((logs / "grafana-write.json").read_text())
     assert outcome["saved_uid"] == "cache" and outcome["model_calls"] == 1
     assert outcome["usage"]["cost_usd"] == pytest.approx(0.00015)
@@ -371,7 +378,7 @@ def test_a_dashboard_task_revises_the_dashboard_the_build_points_at_and_writes_i
     assert context.n_cache_tokens == 2 * 300
     assert context.n_output_tokens == 2 * 200 + 100
     assert context.cost_usd == pytest.approx(2 * 0.0123 + 0.00015)
-    trajectory = json.loads((logs / "trajectory.json").read_text())
+    trajectory = json.loads((instance.logs_dir / "trajectory.json").read_text())
     Trajectory.model_validate(trajectory)
     assert trajectory["final_metrics"]["total_cost_usd"] == pytest.approx(context.cost_usd)
     assert SpendLedger(ledger_path, 10).total() == pytest.approx(2 * 0.0123 + 0.00015)
@@ -396,7 +403,7 @@ def test_the_replay_model_writes_nothing_to_grafana(tmp_path, monkeypatch, finis
     asyncio.run(instance._dashboard_task(client, task, AgentContext(), deadline=bench_agent.time.monotonic() + 600))
     assert [body["kind"] for body in client.bodies] == ["revise"]
     assert grafana_client.saved == []
-    assert "replay" in json.loads((tmp_path / "agent" / "grafana-write.json").read_text())["skipped"]
+    assert "replay" in json.loads((tmp_path / "agent" / "detail" / "grafana-write.json").read_text())["skipped"]
 
 
 class VersionClient:

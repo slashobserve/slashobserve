@@ -1,7 +1,14 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "ATIF-v1.7"
+DETAIL_DIR = "detail"
+
+
+def run_file(trial_dir: Path) -> Path:
+    detail = trial_dir / "agent" / DETAIL_DIR / "run.json"
+    return detail if detail.is_file() else trial_dir / "agent" / "run.json"
 
 
 @dataclass(frozen=True)

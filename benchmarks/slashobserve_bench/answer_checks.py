@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from slashobserve_bench import atif
+
 NO_FINDING = "no_finding"
 SHORT_TRACE_ID = "short_trace_id"
 RANGE_FOR_VALUE = "range_for_value"
@@ -80,8 +82,10 @@ def _reward(trial_dir: Path) -> float | None:
 
 def check_job(job_dir: Path) -> list[dict[str, Any]]:
     trials = []
-    for run_path in sorted(job_dir.glob("*/agent/run.json")):
-        trial_dir = run_path.parent.parent
+    for trial_dir in sorted(path.parent for path in job_dir.glob("*/agent")):
+        run_path = atif.run_file(trial_dir)
+        if not run_path.is_file():
+            continue
         issues = check_run(json.loads(run_path.read_text()))
         trials.append({"trial": trial_dir.name, "reward": _reward(trial_dir), "issues": issues})
     return trials

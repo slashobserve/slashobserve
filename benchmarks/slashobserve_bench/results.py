@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
+from slashobserve_bench import atif
 from slashobserve_bench.loop_options import SERVER_DEFAULT, LoopOptions
 
 SCHEMA_VERSION = 1
@@ -137,7 +138,7 @@ def _read_trial(trial_dir: Path) -> dict[str, Any]:
         "error": error,
         "skipped": _skipped_reason(trial_dir, result.get("exception_info"), error),
         "no_agent_output": not (trial_dir / "agent").is_dir(),
-        **run_facts(trial_dir / "agent" / "run.json"),
+        **run_facts(atif.run_file(trial_dir)),
     }
 
 

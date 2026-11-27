@@ -31,13 +31,14 @@ Full trace ids in the answer are the agent's job, not the adapter's.
 | File in `agent/` | Content |
 | --- | --- |
 | `trajectory.json` | The ATIF trajectory: the task statement, one step per agent tool call as the run's progress steps report it, and the answer. `final_metrics` carries tokens, cache tokens and cost. |
-| `run.json` | The run exactly as `GET /api/v1/observe/{id}` returned it: steps, usage, the finding and its evidence. |
+| `detail/run.json` | The run exactly as `GET /api/v1/observe/{id}` returned it: steps, usage, the finding and its evidence. |
 | `server.log` | The server's log for the trial. |
-| `grafana-imports.json` | Only for a Grafana task: each Grafana dashboard's uid and title, and the SlashObserve dashboard it was imported as or why the import failed. |
+| `detail/grafana-imports.json` | Only for a Grafana task: each Grafana dashboard's uid and title, and the SlashObserve dashboard it was imported as or why the import failed. |
 | `skipped.txt` | Only for a skipped task: why. |
 
 Harbor also gets `n_input_tokens` (cache included), `n_cache_tokens`, `n_output_tokens` and `cost_usd` on the trial result.
 Grading reads only `agent/trajectory.json`, so it can be repeated without the server and without a model.
+The o11y-bench grader parses every `.json` file directly under `agent/` as a transcript and fails on one that is not, so every other JSON file the adapter writes goes into `agent/detail/`.
 
 ## Requirements
 
@@ -229,7 +230,7 @@ uv run --project benchmarks python -m slashobserve_bench.results write \
 ```
 
 The file holds the benchmark and its version, the server build, model, judge and settings, and per task and attempt the reward, pass or fail, tokens, cost and time.
-Each attempt also records, from the trial's `agent/run.json`, the server's choice for the run: `task_type`, read from the step `Routed the question to the <type> task type`; `call_limit`, the investigation's model-call limit when it ended, after any growth; and `stage_at_save`, the loop's stage when the finding was saved.
+Each attempt also records, from the trial's `agent/detail/run.json`, the server's choice for the run: `task_type`, read from the step `Routed the question to the <type> task type`; `call_limit`, the investigation's model-call limit when it ended, after any growth; and `stage_at_save`, the loop's stage when the finding was saved.
 Each is `null` when the run does not return it: an image without task types writes no routing step, a run that is not an investigation is not sorted, and the other two come only with the loop on.
 The reasoning effort a run used is not returned by the server, so the file records only the `llm_effort` that was sent, or `server default`.
 A pass is reward 1.0, and the summary adds the leaderboard's Pass^n: the share of tasks whose every attempt passed, for any number of attempts per task.
@@ -245,7 +246,7 @@ A rerun keeps the notes and benchmark version of the existing file unless you pa
 
 ## Check saved answers without a model
 
-`answer_checks.py` reads the `agent/run.json` of every trial in a Harbor job folder and flags answers that break a rule the graders apply, with no model call and no server:
+`answer_checks.py` reads the `agent/detail/run.json` of every trial in a Harbor job folder and flags answers that break a rule the graders apply, with no model call and no server:
 
 ```sh
 uv run --project benchmarks python -m slashobserve_bench.answer_checks --job benchmarks/jobs/<job> [--list]
@@ -280,7 +281,7 @@ Replay trials read the datasources and dashboards and imported them this way; th
 Leave `grafana_user` and `grafana_password` unset for it.
 The token or password reaches `curl` through the environment of the command, never its arguments, and is never written to the trial's folder.
 The datasources file lists each Grafana datasource's uid and name under `grafanaUids` of the store of the same type, so the imports match them.
-Each dashboard is then imported into the throwaway server through `POST /api/v1/imports`, and `agent/grafana-imports.json` records the result.
+Each dashboard is then imported into the throwaway server through `POST /api/v1/imports`, and `agent/detail/grafana-imports.json` records the result.
 
 ### Grafana API questions
 
@@ -293,7 +294,7 @@ The answer is the finding's text, as for the other questions.
 
 The run gets the task statement as its prompt and no `as_of`, because the server refuses `as_of` for a build or a revision.
 When the statement names the title of an imported dashboard, the run is a `kind: revise` run on it; otherwise it is a build of a new dashboard.
-A build that answers that an existing dashboard should change, with `ask_on` on its finding, is followed by a revision of that dashboard with the same prompt, and the first run is kept as `agent/run-build.json`.
+A build that answers that an existing dashboard should change, with `ask_on` on its finding, is followed by a revision of that dashboard with the same prompt, and the first run is kept as `agent/detail/run-build.json`.
 The last `grafana_write_sec` seconds of `wall_timeout_sec` are kept for the step after the run.
 
 After the run, the adapter compares the Spec the run started from (none for a build) with the one it saved.
@@ -315,10 +316,10 @@ The key is passed only in the request header and is never printed, logged or wri
 
 | File in `agent/` | Content |
 | --- | --- |
-| `grafana-write.json` | The dashboard written, the parts placed, missing and ignored, each attempt's failed queries, and the call's usage. |
-| `grafana-call-<n>-request.json` | The body of model call `n`: the model, the system text and the messages. |
-| `grafana-call-<n>-response.json` | The provider's response to call `n`. |
-| `run-build.json` | Only when a build was followed by a revision: the build. |
+| `detail/grafana-write.json` | The dashboard written, the parts placed, missing and ignored, each attempt's failed queries, and the call's usage. |
+| `detail/grafana-call-<n>-request.json` | The body of model call `n`: the model, the system text and the messages. |
+| `detail/grafana-call-<n>-response.json` | The provider's response to call `n`. |
+| `detail/run-build.json` | Only when a build was followed by a revision: the build. |
 
 ### The skip list
 
