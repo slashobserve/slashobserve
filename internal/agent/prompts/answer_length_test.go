@@ -106,7 +106,7 @@ func TestInvestigateAsksForOneValuePerQuantityAndAVerdictFirst(t *testing.T) {
 
 func TestPrometheusGuideAsksExtremesAndDurationsOfTheDatasource(t *testing.T) {
 	system := Build([]spec.DatasourceType{spec.Prometheus})
-	for _, want := range []string{"`max_over_time(<series>[<window>])`", "`timestamp()` of the extreme", "Read a store's label names before selecting by a service name"} {
+	for _, want := range []string{"`measure_window`", "`first_time` with `where`", "Read a store's label names before selecting by a service name"} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system text lacks %q", want)
 		}
